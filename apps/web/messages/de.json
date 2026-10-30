@@ -3387,16 +3387,11 @@
             "notice": "Von Soko Bot entworfen — vor dem Einreichen zur Freigabe prüfen"
           },
           "emptyTitle": "Noch keine Ausgaben",
-          "emptyDescription": "Wähle eine Vorlage für deine erste Newsletter-Ausgabe.",
+          "emptyDescription": "Beginne mit einer leeren Ausgabe oder wähle eine Vorlage für deinen ersten Newsletter.",
           "subject": "Betreff",
           "previewText": "Vorschautext",
           "status": "Status",
-          "deliveryDate": "Geplant / gesendet",
-          "updatedAt": "Aktualisiert",
-          "actions": "Aktionen",
           "sentAt": "Gesendet am {date}",
-          "scheduledAt": "Geplant für {date}",
-          "noDate": "Nicht geplant",
           "firstPage": "Erste Seite",
           "nextPage": "Nächste Seite",
           "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
@@ -3409,7 +3404,7 @@
             "FAILED": "Fehlgeschlagen",
             "CANCELED": "Abgebrochen"
           },
-          "createError": "Ausgabe konnte nicht erstellt werden. Wähle die Vorlage erneut.",
+          "createError": "Ausgabe konnte nicht erstellt werden. Versuche es erneut.",
           "saveError": "Ausgabe konnte nicht gespeichert werden. Behalte deine Änderungen und versuche es erneut.",
           "conflict": "Diese Ausgabe wurde geändert oder kann nicht mehr bearbeitet werden. Kopiere deine Änderungen, lade die Seite neu und versuche es erneut.",
           "invalid": "Prüfe die markierten Felder und versuche es erneut.",
@@ -3448,8 +3443,8 @@
             "content": "Prüfe diesen Block. Verwende HTTPS-URLs und halte die Zeichenbegrenzungen ein."
           },
           "Templates": {
-            "title": "Vorlage auswählen",
-            "description": "Beginne mit einem Layout und bearbeite anschließend jeden Block.",
+            "title": "Ausgabe beginnen",
+            "description": "Beginne mit einer leeren Ausgabe oder einer anpassbaren Vorlage.",
             "subject": "Unbenannte Ausgabe",
             "heading": "Die Höhepunkte dieser Woche",
             "text": "Teile Neuigkeiten, eine nützliche Idee oder ein Update mit deinen Abonnenten.",
@@ -3468,7 +3463,10 @@
             "BUTTONS": {
               "title": "Schaltflächen",
               "description": "Eine Überschrift, Text, eine Schaltfläche, eine Trennlinie und ein Abschlusstext."
-            }
+            },
+            "blank": "Leer beginnen",
+            "blankDescription": "Verwende deine eigenen Texte und füge nur die benötigten Blöcke hinzu.",
+            "templateHeading": "Oder mit einer Vorlage beginnen"
           },
           "Preview": {
             "title": "Vorschau",
@@ -3502,9 +3500,9 @@
             "when": "Zeitpunkt",
             "timezone": "Zeitzone: {timezone}",
             "scheduleTitle": "Newsletter planen",
-            "scheduleDescription": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt.",
+            "scheduleDescription": "Wähle den Versandbeginn zwischen einer Minute und einem Jahr ab jetzt.",
             "sendTitle": "Diesen Newsletter jetzt senden?",
-            "sendDescription": "{count, plural, one {Diese Ausgabe wird an # aktiven Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.} other {Diese Ausgabe wird an # aktive Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.}}",
+            "sendDescription": "{count, plural, one {Den Versand dieser Ausgabe an die aktuelle Zielgruppe mit # aktivem Abonnenten starten? Der Versand kann schrittweise erfolgen und lässt sich nicht rückgängig machen.} other {Den Versand dieser Ausgabe an die aktuelle Zielgruppe mit # aktiven Abonnenten starten? Der Versand kann schrittweise erfolgen und lässt sich nicht rückgängig machen.}}",
             "cancelTitle": "Versandplanung für diesen Newsletter aufheben?",
             "cancelDescription": "Diese Ausgabe wird wieder zum Entwurf. Reiche sie erneut zur Freigabe ein, bevor du sie planst oder sendest.",
             "saveFirst": "Speichere deine Änderungen, bevor du die Ausgabe einreichst, freigibst, planst oder sendest.",
@@ -3517,7 +3515,52 @@
             "noSender": "Verbinde in den Newsletter-Einstellungen unter „Absenderdomain“ eine Domain, bevor du planst oder sendest.",
             "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
           },
-          "viewOnWeb": "Im Web ansehen"
+          "viewOnWeb": "Im Web ansehen",
+          "updated": "Aktualisiert am {date}",
+          "nextActions": {
+            "DRAFT": "Weiterschreiben",
+            "NEEDS_APPROVAL": "Prüfen und freigeben",
+            "APPROVED": "Planen oder senden",
+            "SCHEDULED": "Zeitplan ansehen",
+            "SENDING": "Fortschritt ansehen",
+            "SENT": "Ergebnisse ansehen",
+            "FAILED": "Versand prüfen",
+            "CANCELED": "Ausgabe ansehen"
+          },
+          "Readiness": {
+            "title": "Vor dem Versand",
+            "sender": "Absender",
+            "fallbackSender": "{name} via Sokosumi",
+            "fallbackHint": "Versand über die gemeinsame Versanddomain von Sokosumi.",
+            "noSender": "Versanddomain erforderlich",
+            "senderSettings": "Absendereinstellungen prüfen",
+            "audience": "Aktuelle Zielgruppe",
+            "audienceCount": "{count, plural, one {# aktiver Abonnent} other {# aktive Abonnenten}}",
+            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
+            "manageSubscribers": "Abonnenten verwalten",
+            "approval": "Freigabe",
+            "approved": "Freigegeben",
+            "approvalRequired": "Freigabe durch eine Person erforderlich",
+            "timing": "Versandbeginn",
+            "afterConfirmation": "Nach der Bestätigung",
+            "chooseTiming": "Sofort senden oder Termin wählen",
+            "scheduled": "{date} ({timezone})",
+            "deliveryHint": "Während der Aufwärmphase deiner Versanddomain kann der Versand schrittweise erfolgen. Die aktiven Abonnenten werden beim Versandbeginn erneut geprüft.",
+            "selectedTime": "Zum gewählten Zeitpunkt"
+          },
+          "Delivery": {
+            "partial": "Mit Versandproblemen gesendet",
+            "details": "Letzter Fehler:",
+            "partialHelp": "Einige E-Mails konnten nicht gesendet oder bestätigt werden. Prüfe den Fehler, bevor du eine weitere Ausgabe planst. Ein erneuter Versand könnte Personen doppelt erreichen.",
+            "failedHelp": "Der Versand ist fehlgeschlagen. Prüfe den Fehler und die Absendereinstellungen, bevor du eine weitere Ausgabe planst. Einige Versandversuche sind möglicherweise unbestätigt. Ein erneuter Versand könnte Personen doppelt erreichen.",
+            "reviewSettings": "Versandeinstellungen prüfen",
+            "sending": "Der Versand läuft. Die Aufwärmphase der Domain kann den Versand zeitlich verteilen. Schau später nach dem Ergebnis."
+          },
+          "details": "Details der Ausgabe",
+          "saving": "Ausgabe wird gespeichert…",
+          "undo": "Entfernen rückgängig machen",
+          "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen."
         },
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
@@ -3696,7 +3739,20 @@
             "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
             "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
             "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
-            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut."
+            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut.",
+            "resumeUnavailable": "Verifiziere diese Absenderdomain vor dem Fortsetzen. Prüfe ihre DNS-Einträge und versuche es erneut."
+          },
+          "warmup": {
+            "title": "Aufwärmphase der Domain",
+            "progress": "Tag {day} · Heute {used} von {cap} versendet (UTC)",
+            "unlimited": "Tag {day} · Heute {used} versendet (UTC) · Unbegrenzt",
+            "description": "Empfänger über dem heutigen Limit bleiben in der Warteschlange und werden automatisch angeschrieben, sobald wieder Kapazität verfügbar ist. Das Tageslimit wird um 00:00 UTC zurückgesetzt.",
+            "paused": "Versand pausiert",
+            "bounceReason": "Zu viele E-Mails waren dauerhaft unzustellbar.",
+            "complaintReason": "Zu viele Empfänger haben E-Mails als Spam markiert.",
+            "pausedDescription": "Empfänger bleiben in der Warteschlange, bis ein Projektmitglied den Versand fortsetzt. Prüfe vorher die Abonnentenliste.",
+            "resume": "Versand fortsetzen",
+            "resumed": "Versand fortgesetzt. Empfänger in der Warteschlange werden innerhalb des Tageslimits angeschrieben."
           }
         }
       }

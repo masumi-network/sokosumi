@@ -3387,16 +3387,11 @@
             "notice": "Drafted by Soko Bot — review before submitting for approval"
           },
           "emptyTitle": "No issues yet",
-          "emptyDescription": "Choose a template to start your first newsletter issue.",
+          "emptyDescription": "Start blank or choose a template for your first newsletter issue.",
           "subject": "Subject",
           "previewText": "Preview text",
           "status": "Status",
-          "deliveryDate": "Scheduled / sent",
-          "updatedAt": "Updated",
-          "actions": "Actions",
           "sentAt": "Sent {date}",
-          "scheduledAt": "Scheduled {date}",
-          "noDate": "Not scheduled",
           "firstPage": "First page",
           "nextPage": "Next page",
           "results": "{count, plural, one {# issue} other {# issues}}",
@@ -3409,7 +3404,7 @@
             "FAILED": "Failed",
             "CANCELED": "Canceled"
           },
-          "createError": "Failed to create issue. Try choosing the template again.",
+          "createError": "Failed to create issue. Try again.",
           "saveError": "Failed to save issue. Keep your changes and try again.",
           "conflict": "This issue changed or is no longer editable. Copy your changes, reload the page, and try again.",
           "invalid": "Check the highlighted fields and try again.",
@@ -3448,8 +3443,8 @@
             "content": "Check this block. Use HTTPS URLs and keep text within the field limits."
           },
           "Templates": {
-            "title": "Choose a template",
-            "description": "Start with a layout, then edit every block.",
+            "title": "Start an issue",
+            "description": "Write from scratch or use a template you can edit.",
             "subject": "Untitled issue",
             "heading": "This week’s highlights",
             "text": "Share the latest news, a useful idea, or an update with your subscribers.",
@@ -3468,7 +3463,10 @@
             "BUTTONS": {
               "title": "Buttons",
               "description": "A heading, text, a button, divider, and closing text."
-            }
+            },
+            "blank": "Start blank",
+            "blankDescription": "Bring your own copy and add only the blocks you need.",
+            "templateHeading": "Or start with a template"
           },
           "Preview": {
             "title": "Preview",
@@ -3502,9 +3500,9 @@
             "when": "When",
             "timezone": "Time zone: {timezone}",
             "scheduleTitle": "Schedule newsletter",
-            "scheduleDescription": "Choose a time between one minute and one year from now.",
+            "scheduleDescription": "Choose when sending should start, between one minute and one year from now.",
             "sendTitle": "Send this newsletter now?",
-            "sendDescription": "{count, plural, one {This issue will be sent to # active subscriber. Sending cannot be undone.} other {This issue will be sent to # active subscribers. Sending cannot be undone.}}",
+            "sendDescription": "{count, plural, one {Start sending this issue to the current audience of # active subscriber? Delivery may be gradual. Sending cannot be undone.} other {Start sending this issue to the current audience of # active subscribers? Delivery may be gradual. Sending cannot be undone.}}",
             "cancelTitle": "Cancel this newsletter’s schedule?",
             "cancelDescription": "This issue will return to draft. Submit it again for approval before scheduling or sending.",
             "saveFirst": "Save your changes before submitting, approving, scheduling, or sending.",
@@ -3517,7 +3515,52 @@
             "noSender": "Connect a sending domain in Newsletter settings, under Sending domain, before scheduling or sending.",
             "approvalRequired": "Submit this issue and get a person’s approval before scheduling or sending."
           },
-          "viewOnWeb": "View on web"
+          "viewOnWeb": "View on web",
+          "updated": "Updated {date}",
+          "nextActions": {
+            "DRAFT": "Continue writing",
+            "NEEDS_APPROVAL": "Review and approve",
+            "APPROVED": "Schedule or send",
+            "SCHEDULED": "View schedule",
+            "SENDING": "View progress",
+            "SENT": "View results",
+            "FAILED": "Review delivery",
+            "CANCELED": "View issue"
+          },
+          "Readiness": {
+            "title": "Before sending",
+            "sender": "Sender",
+            "fallbackSender": "{name} via Sokosumi",
+            "fallbackHint": "Using Sokosumi’s shared sending domain.",
+            "noSender": "Sending domain required",
+            "senderSettings": "Review sender settings",
+            "audience": "Current audience",
+            "audienceCount": "{count, plural, one {# active subscriber} other {# active subscribers}}",
+            "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
+            "manageSubscribers": "Manage subscribers",
+            "approval": "Approval",
+            "approved": "Approved",
+            "approvalRequired": "Human approval required",
+            "timing": "Delivery starts",
+            "afterConfirmation": "After confirmation",
+            "chooseTiming": "Choose send now or schedule",
+            "scheduled": "{date} ({timezone})",
+            "deliveryHint": "Delivery may be gradual while your sending domain warms up. The active audience is checked again when sending starts.",
+            "selectedTime": "At the selected time"
+          },
+          "Delivery": {
+            "partial": "Sent with delivery issues",
+            "details": "Last error:",
+            "partialHelp": "Some emails could not be sent or confirmed. Review the error before planning another issue; sending again could reach people twice.",
+            "failedHelp": "Delivery failed. Review the error and sender settings before planning another issue. Some attempts may be unconfirmed, so sending again could reach people twice.",
+            "reviewSettings": "Review sending settings",
+            "sending": "Sending is in progress. Domain warm-up may spread delivery over time. Check back for the outcome."
+          },
+          "details": "Issue details",
+          "saving": "Saving issue…",
+          "undo": "Undo removal",
+          "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",
+          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another."
         },
         "publicArchive": "Public archive",
         "SignupForm": {
@@ -3696,7 +3739,20 @@
             "domainRejected": "This domain can’t be used. Check the address and try again.",
             "providerFailed": "The email provider didn’t respond. Try again in a minute.",
             "cloudflareRejected": "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain’s zone.",
-            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute."
+            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute.",
+            "resumeUnavailable": "Verify this sending domain before resuming. Check its DNS records and try again."
+          },
+          "warmup": {
+            "title": "Domain warm-up",
+            "progress": "Day {day} · {used} of {cap} sent today (UTC)",
+            "unlimited": "Day {day} · {used} sent today (UTC) · Unlimited",
+            "description": "Recipients beyond today’s limit stay queued and send automatically when capacity returns. The daily limit resets at 00:00 UTC.",
+            "paused": "Sending paused",
+            "bounceReason": "Too many emails permanently bounced.",
+            "complaintReason": "Too many recipients marked emails as spam.",
+            "pausedDescription": "Queued recipients stay queued until a project member resumes sending. Review the subscriber list before resuming.",
+            "resume": "Resume sending",
+            "resumed": "Sending resumed. Queued recipients continue within the daily limit."
           }
         }
       }

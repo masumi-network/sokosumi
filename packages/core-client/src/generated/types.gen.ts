@@ -7006,6 +7006,7 @@ export type NewsletterSendingDomain = {
     lastCheckedAt: Date | null;
     failureReason: string | null;
     createdAt: Date;
+    warmup: NewsletterSendingDomainWarmup;
 };
 
 export const NewsletterSendingDomainStatus = {
@@ -7024,6 +7025,15 @@ export type NewsletterDnsRecord = {
     ttl: string;
     priority: number | null;
     status: string;
+};
+
+export type NewsletterSendingDomainWarmup = {
+    startedAt: Date | null;
+    day: number | null;
+    dailyCap: number | null;
+    sentToday: number;
+    pausedAt: Date | null;
+    pauseReason: 'BOUNCE_RATE' | 'COMPLAINT_RATE' | null;
 };
 
 export type PutNewsletterSendingDomainRequest = {
@@ -51903,6 +51913,140 @@ export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponses = {
 };
 
 export type GetProjectsByIdNewsletterSendingDomainDomainConnectResponse = GetProjectsByIdNewsletterSendingDomainDomainConnectResponses[keyof GetProjectsByIdNewsletterSendingDomainDomainConnectResponses];
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/newsletter/sending-domain/warmup/resume';
+};
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeError = PostProjectsByIdNewsletterSendingDomainWarmupResumeErrors[keyof PostProjectsByIdNewsletterSendingDomainWarmupResumeErrors];
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeResponses = {
+    /**
+     * Sending domain warm-up resumed
+     */
+    200: {
+        data: NewsletterSendingDomain;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdNewsletterSendingDomainWarmupResumeResponse = PostProjectsByIdNewsletterSendingDomainWarmupResumeResponses[keyof PostProjectsByIdNewsletterSendingDomainWarmupResumeResponses];
 
 export type GetProjectsByIdNewsletterSubscribersData = {
     body?: never;

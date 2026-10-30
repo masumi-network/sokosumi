@@ -33,6 +33,34 @@ export function NewsletterIssuePreview({
     observer.observe(frame);
     return () => observer.disconnect();
   });
+  const [contentHeight, setContentHeight] = useState(640);
+  const contentObserver = useRef<ResizeObserver>(null);
+  useMountEffect(() => () => contentObserver.current?.disconnect());
+  function measureContent(iframe: HTMLIFrameElement) {
+    contentObserver.current?.disconnect();
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+    const { body, documentElement } = doc;
+    // Collapse the iframe before reading scrollHeight: scrollHeight never drops below the viewport, and
+    // `height: 100%` emails report only the viewport, so a measure at full height could clip or never shrink.
+    const update = () => {
+      const height = iframe.style.height;
+      iframe.style.height = "0px";
+      const next = Math.max(body.scrollHeight, documentElement.scrollHeight);
+      iframe.style.height = height;
+      if (next > 0) setContentHeight(next);
+    };
+    update();
+    // Re-measure on reflow (late images, device width change), coalesced to one measure per frame.
+    let frame = 0;
+    contentObserver.current = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    });
+    for (const target of [iframe, documentElement, body]) {
+      contentObserver.current.observe(target);
+    }
+  }
   const viewportWidth = device === "mobile" ? 375 : 720;
   const scale =
     availableWidth > 0 ? Math.min(1, availableWidth / viewportWidth) : 1;
@@ -107,19 +135,21 @@ export function NewsletterIssuePreview({
         className="mx-auto w-full"
         style={{
           maxWidth: viewportWidth + 2,
-          height: Math.round(640 * scale) + 2,
+          height: Math.round(contentHeight * scale) + 2,
         }}
       >
         {preview.data && parsed.success ? (
           <iframe
             title={t("Preview.label")}
             srcDoc={preview.data.html}
-            sandbox=""
+            // allow-same-origin lets the parent measure the email height; scripts stay blocked.
+            sandbox="allow-same-origin"
             referrerPolicy="no-referrer"
+            onLoad={(event) => measureContent(event.currentTarget)}
             className="block max-w-none origin-top-left border-0"
             style={{
               width: viewportWidth,
-              height: 640,
+              height: contentHeight,
               transform: `scale(${scale})`,
             }}
           />

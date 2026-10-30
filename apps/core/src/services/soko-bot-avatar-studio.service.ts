@@ -140,11 +140,57 @@ async function avoidTakenCombination<
 }
 
 /**
+ * Spend one of the person's hourly draft looks. Counted in the `rateLimit`
+ * table (same shape as regenerations), not on live avatar rows, so discarding
+ * or keeping a draft cannot refund the slot. A typed rewrite spends here
+ * before the rewriter runs, including when it returns no image.
+ */
+async function spendDraftAllowance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const key = `soko-bot-avatar-draft:${userId}`;
+  const now = Date.now();
+  const row = await tx.rateLimit.findFirst({ where: { key } });
+  const windowStart = Number(row?.lastRequest ?? 0);
+  if (!row || now - windowStart >= DRAFT_WINDOW_MS) {
+    const fresh = { count: 1, lastRequest: BigInt(now) };
+    if (row) await tx.rateLimit.update({ where: { id: row.id }, data: fresh });
+    else await tx.rateLimit.create({ data: { key, ...fresh } });
+    return;
+  }
+  if ((row.count ?? 0) >= LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR) {
+    throw tooManyRequests(
+      `You can try at most ${LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR} looks per hour. Try again later.`,
+      { kind: "avatar_draft_rate_limited" },
+    );
+  }
+  await tx.rateLimit.update({
+    where: { id: row.id },
+    data: { count: (row.count ?? 0) + 1 },
+  });
+}
+
+async function refundDraftAllowance(userId: string): Promise<void> {
+  await serializableTransaction(async (tx) => {
+    const key = `soko-bot-avatar-draft:${userId}`;
+    const row = await tx.rateLimit.findFirst({ where: { key } });
+    if (!row || (row.count ?? 0) <= 0) return;
+    if (Date.now() - Number(row.lastRequest ?? 0) >= DRAFT_WINDOW_MS) return;
+    await tx.rateLimit.update({
+      where: { id: row.id },
+      data: { count: (row.count ?? 0) - 1 },
+    });
+  }, "Another avatar draft is running. Try again.");
+}
+
+/**
  * Draw one change as a draft. The draft is an unclaimed row tied to the bot
  * and swept after a day; nothing about the bot changes until it is kept.
  *
  * A typed change is rewritten first. When the rewriter leaves nothing to apply
- * the answer is the note and no draft, and no image is bought.
+ * the answer is the note and no draft, and no image is bought; the hourly
+ * allowance is still spent.
  */
 export async function createAvatarDraft(input: {
   sokoBotId: string;
@@ -184,14 +230,21 @@ export async function createAvatarDraft(input: {
     }
   }
 
-  const base = await loadBase(style, input.sokoBotId, input.draftId);
-  // A shuffle starts over from the house scene whatever the bot looks like now.
-  const source =
-    input.change.kind === "shuffle" || !base.image ? null : base.image;
+  // Spend before the rewriter or the image call, so a burst and a typed
+  // refusal both hit the same durable count.
+  await serializableTransaction(
+    (tx) => spendDraftAllowance(tx, input.userId),
+    "Another avatar draft is running. Try again.",
+  );
+
   let plan: Awaited<ReturnType<typeof planChange>>;
   let reference: Buffer;
   let seed = randomSeed();
+  let source: { url: string; avatarId: string } | null = null;
   try {
+    const base = await loadBase(style, input.sokoBotId, input.draftId);
+    // A shuffle starts over from the house scene whatever the bot looks like now.
+    source = input.change.kind === "shuffle" || !base.image ? null : base.image;
     // A fresh look is one nobody has; anything else keeps the look's own scene.
     const [fresh] =
       input.change.kind === "shuffle"
@@ -203,7 +256,12 @@ export async function createAvatarDraft(input: {
     } else {
       plan = await planChange(style, base.look, input.change);
     }
-    if (plan.kind === "unchanged") return { draft: null, note: plan.note };
+    if (plan.kind === "unchanged") {
+      if (input.change.kind !== "typed") {
+        await refundDraftAllowance(input.userId).catch(() => undefined);
+      }
+      return { draft: null, note: plan.note };
+    }
     if (input.change.kind === "creature" || input.change.kind === "accessory") {
       plan = await avoidTakenCombination(style, plan);
     }
@@ -211,8 +269,7 @@ export async function createAvatarDraft(input: {
       ? await downloadAvatarAsset(source.url)
       : await loadHouseScene(style);
   } catch (error) {
-    // A bad request is the caller's; anything else is the rewriter or the
-    // blob store being down, and nothing has been spent yet.
+    await refundDraftAllowance(input.userId).catch(() => undefined);
     if (error instanceof HTTPException) throw error;
     console.warn("Soko Bot avatar draft could not be planned", {
       kind: DRAW_FAILED,
@@ -224,41 +281,33 @@ export async function createAvatarDraft(input: {
     });
   }
 
-  // Count and insert as one step, so a burst cannot all pass the same count.
-  const reservation = await serializableTransaction(async (tx) => {
-    const recent = await tx.sokoBotAvatar.count({
-      where: {
-        requestedByUserId: input.userId,
-        // Drafts drawn for a bot; a pool look taken as a draft cost nothing.
-        draftForSokoBotId: { not: null },
-        fromPool: false,
-        createdAt: { gte: new Date(now.getTime() - DRAFT_WINDOW_MS) },
-      },
-    });
-    if (recent >= LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR) {
-      throw tooManyRequests(
-        `You can try at most ${LIMITS.SOKO_BOT_AVATAR_DRAFTS_PER_HOUR} looks per hour. Try again later.`,
-        { kind: "avatar_draft_rate_limited" },
-      );
-    }
-    return await tx.sokoBotAvatar.create({
-      data: {
-        ...avatarRowKey(style, plan.look, seed),
-        model: AVATAR_IMAGE_MODEL,
-        styleId: style.id,
-        styleVersion: style.version,
-        look: plan.look,
-        parentAvatarId: source?.avatarId ?? null,
-        draftForSokoBotId: input.sokoBotId,
-        draftExpiresAt: expiresAt,
-        requestedByUserId: input.userId,
-        // Hidden from every read until the image exists.
-        imageUrl: "",
-        reservedAt: now,
-      },
-      select: { id: true },
-    });
-  }, "Another avatar draft is running. Try again.");
+  let reservation: { id: string };
+  try {
+    reservation = await serializableTransaction(
+      async (tx) =>
+        await tx.sokoBotAvatar.create({
+          data: {
+            ...avatarRowKey(style, plan.look, seed),
+            model: AVATAR_IMAGE_MODEL,
+            styleId: style.id,
+            styleVersion: style.version,
+            look: plan.look,
+            parentAvatarId: source?.avatarId ?? null,
+            draftForSokoBotId: input.sokoBotId,
+            draftExpiresAt: expiresAt,
+            requestedByUserId: input.userId,
+            // Hidden from every read until the image exists.
+            imageUrl: "",
+            reservedAt: now,
+          },
+          select: { id: true },
+        }),
+      "Another avatar draft is running. Try again.",
+    );
+  } catch (error) {
+    await refundDraftAllowance(input.userId).catch(() => undefined);
+    throw error;
+  }
 
   try {
     const image = await drawStill(style, {
@@ -287,12 +336,10 @@ export async function createAvatarDraft(input: {
       note: plan.note,
     };
   } catch (error) {
-    // Nothing usable was made, so give the slot back. A stuck row would hold
-    // the person's hourly allowance for nothing.
     await prisma.sokoBotAvatar
       .deleteMany({ where: { id: reservation.id } })
       .catch(() => undefined);
-    // A stall upstream is not our fault and a retry usually works: say so.
+    await refundDraftAllowance(input.userId).catch(() => undefined);
     const kind =
       error instanceof ImageTimeoutError ? DRAW_TIMED_OUT : DRAW_FAILED;
     console.warn("Soko Bot avatar draft failed", {

@@ -40,6 +40,7 @@ import {
   connectNewsletterSendingDomainWithCloudflare,
   getNewsletterSendingDomainConnect,
   removeNewsletterSendingDomain,
+  resumeNewsletterSendingDomainWarmup,
   saveNewsletterSendingDomain,
 } from "@/lib/actions/newsletter/sending-domain";
 
@@ -217,6 +218,7 @@ function ConnectedDomain({
   const [checking, setChecking] = useState(false);
   const StatusIcon = STATUS_ICON[domain.status];
   const verified = domain.status === "VERIFIED";
+  const paused = Boolean(domain.warmup.pausedAt);
   // Core lists a suggested DMARC record only while the domain lacks a policy.
   const dmarcMissing = domain.dnsRecords.some(
     (record) => record.record === "DMARC" && record.status !== "verified",
@@ -272,14 +274,22 @@ function ConnectedDomain({
             {domain.failureReason}
           </p>
         ) : null}
-        {verified ? (
+        {verified && !paused ? (
           <p className="text-muted-foreground text-sm text-pretty">
             {t("verifiedDescription")}
           </p>
-        ) : (
+        ) : !verified && !paused ? (
           <FallbackNote fallbackAvailable={fallbackAvailable} />
-        )}
+        ) : null}
       </div>
+
+      {paused || (verified && domain.warmup.startedAt) ? (
+        <WarmupStatus
+          warmup={domain.warmup}
+          canManage={canManage}
+          projectId={projectId}
+        />
+      ) : null}
 
       {dmarcMissing ? (
         <div
@@ -325,6 +335,99 @@ function ConnectedDomain({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function WarmupStatus({
+  warmup,
+  canManage,
+  projectId,
+}: {
+  warmup: NewsletterSendingDomain["warmup"];
+  canManage: boolean;
+  projectId: string;
+}) {
+  const t = useTranslations("App.Projects.Newsletter.SendingDomain");
+  const format = useFormatter();
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const paused = Boolean(warmup.pausedAt);
+
+  async function handleResume() {
+    setPending(true);
+    setError("");
+    try {
+      const result = await resumeNewsletterSendingDomainWarmup({ projectId });
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      toast.success(t("warmup.resumed"));
+      router.refresh();
+    } catch {
+      setError(t("errors.generic"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section
+      aria-labelledby="newsletter-domain-warmup"
+      className={
+        paused
+          ? "bg-semantic-warning-quinary border-semantic-warning-tertiary min-w-0 space-y-2 rounded-md border p-3"
+          : "bg-muted min-w-0 space-y-2 rounded-md p-3"
+      }
+    >
+      <h4 id="newsletter-domain-warmup" className="text-sm font-medium">
+        {paused ? t("warmup.paused") : t("warmup.title")}
+      </h4>
+      <p className="text-sm tabular-nums">
+        {warmup.dailyCap === null
+          ? t("warmup.unlimited", {
+              day: warmup.day ?? 0,
+              used: format.number(warmup.sentToday),
+            })
+          : t("warmup.progress", {
+              day: warmup.day ?? 0,
+              used: format.number(warmup.sentToday),
+              cap: format.number(warmup.dailyCap),
+            })}
+      </p>
+      {paused ? (
+        <>
+          <p className="text-sm">
+            {warmup.pauseReason === "COMPLAINT_RATE"
+              ? t("warmup.complaintReason")
+              : t("warmup.bounceReason")}
+          </p>
+          <p className="text-muted-foreground text-sm text-pretty">
+            {t("warmup.pausedDescription")}
+          </p>
+          {canManage ? (
+            <Button
+              type="button"
+              variant="outline"
+              loading={pending}
+              onClick={() => void handleResume()}
+            >
+              {t("warmup.resume")}
+            </Button>
+          ) : null}
+        </>
+      ) : warmup.dailyCap !== null ? (
+        <p className="text-muted-foreground text-sm text-pretty">
+          {t("warmup.description")}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-semantic-destructive-label text-sm">
+          {error}
+        </p>
+      ) : null}
+    </section>
   );
 }
 

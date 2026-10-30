@@ -9,7 +9,9 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import de from "@/messages/de.json";
 import en from "@/messages/en.json";
+import es from "@/messages/es.json";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
@@ -44,11 +46,12 @@ const COPY = en.App.Projects.Newsletter.Issues;
 function renderIssues(
   issues: NewsletterIssue[] = [NEWSLETTER_ISSUE],
   pagination = PAGINATION,
+  locale: "en" | "de" | "es" = "en",
 ) {
   return render(
     <NextIntlClientProvider
-      locale="en"
-      messages={en}
+      locale={locale}
+      messages={{ en, de, es }[locale]}
       timeZone="UTC"
       formats={{
         dateTime: { dateTime: { dateStyle: "medium", timeStyle: "short" } },
@@ -104,9 +107,81 @@ describe("newsletter issues list", () => {
       "href",
       `/newsletter/issues/0?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
-    expect(screen.getByText(/Scheduled Nov 1, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Scheduled for Nov 1, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Sent Oct 22, 2026/)).toBeInTheDocument();
+    for (const [status, action] of Object.entries(COPY.nextActions)) {
+      if (status !== "APPROVED")
+        expect(screen.getByRole("link", { name: action })).toBeInTheDocument();
+    }
+    expect(
+      screen.queryByRole("button", { name: COPY.Lifecycle.sendNow }),
+    ).not.toBeInTheDocument();
   });
+
+  it("offers scheduling only when approval has an approver and timestamp", () => {
+    renderIssues([
+      {
+        ...NEWSLETTER_ISSUE,
+        id: "approved",
+        status: "NEEDS_APPROVAL",
+        approvedAt: new Date(),
+        approvedByUserId: "user_1",
+      },
+      {
+        ...NEWSLETTER_ISSUE,
+        id: "unapproved",
+        status: "NEEDS_APPROVAL",
+        approvedAt: new Date(),
+        approvedByUserId: null,
+      },
+    ]);
+    expect(
+      screen.getByRole("link", { name: COPY.nextActions.APPROVED }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/issues/approved?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
+    expect(
+      screen.getByRole("link", { name: COPY.nextActions.NEEDS_APPROVAL }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/issues/unapproved?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
+  });
+
+  it.each(["en", "de", "es"] as const)(
+    "shows failed and partial delivery explanations in %s",
+    (locale) => {
+      renderIssues(
+        [
+          {
+            ...NEWSLETTER_ISSUE,
+            id: "failed",
+            status: "FAILED",
+            lastError: "Provider unavailable",
+          },
+          {
+            ...NEWSLETTER_ISSUE,
+            id: "partial",
+            status: "SENT",
+            lastError: "2 newsletter sends failed",
+          },
+        ],
+        PAGINATION,
+        locale,
+      );
+      const copy = { en, de, es }[locale].App.Projects.Newsletter.Issues;
+      expect(screen.getByText(copy.Delivery.partial)).toBeInTheDocument();
+      expect(screen.queryByText(copy.statuses.SENT)).not.toBeInTheDocument();
+      expect(screen.getByText(/Provider unavailable/)).toBeInTheDocument();
+      expect(screen.getByText(/2 newsletter sends failed/)).toBeInTheDocument();
+      expect(screen.getByText(copy.Delivery.partialHelp)).toBeInTheDocument();
+      expect(screen.getByText(copy.Delivery.failedHelp)).toBeInTheDocument();
+      expect(
+        screen.getAllByRole("link", { name: copy.Delivery.reviewSettings }),
+      ).toHaveLength(2);
+    },
+  );
 
   it.each(Object.values(NewsletterTemplate))(
     "creates a %s issue from the empty state and opens its editor",
@@ -136,6 +211,48 @@ describe("newsletter issues list", () => {
       });
     },
   );
+
+  it.each(["en", "de", "es"] as const)(
+    "starts blank with the TEXT contract in %s",
+    async (locale) => {
+      const user = userEvent.setup();
+      const copy = { en, de, es }[locale].App.Projects.Newsletter.Issues;
+      renderIssues([], { ...PAGINATION, total: 0 }, locale);
+      await user.click(screen.getByRole("button", { name: copy.newIssue }));
+      await user.click(
+        screen.getByRole("button", { name: copy.Templates.blank }),
+      );
+      expect(mocks.create).toHaveBeenCalledWith({
+        projectId: NEWSLETTER_PROJECT_ID,
+        values: {
+          template: NewsletterTemplate.TEXT,
+          subject: copy.Templates.subject,
+          content: [],
+        },
+      });
+      expect(mocks.push).toHaveBeenCalledWith(
+        `/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+    },
+  );
+
+  it("keeps a failed blank issue creation open for retry", async () => {
+    const user = userEvent.setup();
+    mocks.create.mockRejectedValueOnce(new Error("Network"));
+    renderIssues();
+    await user.click(screen.getByRole("button", { name: COPY.newIssue }));
+    await user.click(
+      screen.getByRole("button", { name: COPY.Templates.blank }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      COPY.createError,
+    );
+    expect(mocks.push).not.toHaveBeenCalled();
+    await user.click(
+      screen.getByRole("button", { name: COPY.Templates.blank }),
+    );
+    expect(mocks.push).toHaveBeenCalled();
+  });
 
   it("keeps template selection open when creation fails", async () => {
     const user = userEvent.setup();
