@@ -286,9 +286,11 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: {
+        effectiveAt: "2026-01-01T00:00:00.000Z",
+        seats: 2,
+      },
       seats: 6,
-      scheduledSeats: 2,
-      scheduledSeatsAt: "2026-01-01T00:00:00.000Z",
     });
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
     expect(createSubscriptionScheduleFromSubscriptionMock).toHaveBeenCalledWith(
@@ -325,9 +327,8 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: null,
       seats: 6,
-      scheduledSeats: null,
-      scheduledSeatsAt: null,
     });
     expect(releaseSubscriptionScheduleMock).toHaveBeenCalledWith("sub_sched_1");
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
@@ -348,9 +349,8 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: null,
       seats: 8,
-      scheduledSeats: null,
-      scheduledSeatsAt: null,
     });
     expect(updateSubscriptionItemQuantityMock).toHaveBeenCalledWith(
       "sub_stripe_1",
@@ -424,9 +424,8 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: null,
       seats: 4,
-      scheduledSeats: null,
-      scheduledSeatsAt: null,
     });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
@@ -441,9 +440,8 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: null,
       seats: 6,
-      scheduledSeats: null,
-      scheduledSeatsAt: null,
     });
     expect(
       assertOrganizationSubscriptionChangeAllowedMock,
@@ -547,9 +545,8 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: null,
       seats: 2,
-      scheduledSeats: null,
-      scheduledSeatsAt: null,
     });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();

@@ -6122,13 +6122,18 @@ export type OrganizationSubscriptionSeats = {
      */
     seats: number;
     /**
-     * Seat count the subscription drops to at the next renewal. Null when no reduction is pending
+     * Null when no reduction is pending
      */
-    scheduledSeats: number | null;
-    /**
-     * When the pending reduction takes effect
-     */
-    scheduledSeatsAt: Date | null;
+    scheduledReduction: {
+        /**
+         * When the reduction takes effect: the next renewal
+         */
+        effectiveAt: Date;
+        /**
+         * Seat count the subscription drops to
+         */
+        seats: number;
+    } | null;
 };
 
 export type OrganizationSubscriptionSeatsPreview = {

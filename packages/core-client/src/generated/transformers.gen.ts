@@ -2745,8 +2745,8 @@ export const getOrganizationsByIdSubscriptionResponseTransformer = async (data: 
 };
 
 const organizationSubscriptionSeatsSchemaResponseTransformer = (data: any) => {
-    if (data.scheduledSeatsAt) {
-        data.scheduledSeatsAt = new Date(data.scheduledSeatsAt);
+    if (data.scheduledReduction) {
+        data.scheduledReduction.effectiveAt = new Date(data.scheduledReduction.effectiveAt);
     }
     return data;
 };

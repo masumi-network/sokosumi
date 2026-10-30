@@ -7102,8 +7102,8 @@
           },
           "seatsCard": {
             "summary": "{assigned} of {purchased, plural, =1 {# seat} other {# seats}} assigned, {unused} unused. Added seats are billed right away. Removed seats end at renewal.",
-            "scheduledNote": "Going down to {seats, plural, =1 {# seat} other {# seats}} on {date}.",
-            "removeBlocked": "Your plan ends on {date}, and all seats end with it.",
+            "scheduledNote": "{count, plural, =1 {Removing # seat} other {Removing # seats}} on {date}. Changing plans cancels this.",
+            "removeBlocked": "Your plan ends on {date}, and all seats end with it. Reactivate your plan to remove seats.",
             "keepCta": "{count, plural, =1 {Keep # seat} other {Keep # seats}}",
             "addIdleCta": "Add seats",
             "addCta": "{count, plural, =1 {Add # seat} other {Add # seats}}",
@@ -7117,6 +7117,7 @@
               "addDescription": "This change applies right away.",
               "removeDescription": "You keep every seat until your next renewal, and nothing is refunded.",
               "keepDescription": "This cancels the scheduled seat removal. Your bill stays the same.",
+              "addCancelsReduction": "This also cancels the scheduled seat removal.",
               "loading": "Getting the price…",
               "previewError": "Unable to get the price, so your seats can't be changed yet.",
               "previewRetry": "Try again",

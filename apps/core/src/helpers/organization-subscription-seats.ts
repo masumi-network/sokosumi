@@ -1,7 +1,9 @@
+import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
   assertOrganizationSubscriptionChangeAllowed,
   OrganizationSubscriptionExclusivityError,
+  resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
@@ -76,8 +78,8 @@ export async function retrieveStripeSeatSubscription(
 
 /** A pending seat reduction, read from its Stripe subscription schedule. */
 export interface ScheduledSeatReduction {
-  scheduledSeats: number;
-  scheduledSeatsAt: Date;
+  effectiveAt: Date;
+  seats: number;
 }
 
 // `source` is the marker the Better Auth Stripe plugin looks for: it releases a
@@ -95,12 +97,24 @@ function isSeatReductionSchedule(schedule: Stripe.SubscriptionSchedule) {
   );
 }
 
-function resolveStripeScheduleId(
+function resolveStripeId(value: string | { id: string }) {
+  return typeof value === "string" ? value : value.id;
+}
+
+/** The active schedule holding a seat reduction. Other schedules read as null. */
+async function retrieveSeatReductionSchedule(
   stripeSubscription: Pick<Stripe.Subscription, "schedule">,
 ) {
-  return typeof stripeSubscription.schedule === "string"
-    ? stripeSubscription.schedule
-    : (stripeSubscription.schedule?.id ?? null);
+  if (!stripeSubscription.schedule) {
+    return null;
+  }
+
+  const schedule = await stripeClient.retrieveSubscriptionSchedule(
+    resolveStripeId(stripeSubscription.schedule),
+  );
+  return schedule.status === "active" && isSeatReductionSchedule(schedule)
+    ? schedule
+    : null;
 }
 
 /**
@@ -116,18 +130,55 @@ export function resolveScheduledSeatReduction(
   }
 
   const currentPhaseEnd = schedule.current_phase?.end_date;
-  const scheduledSeats = schedule.phases.at(-1)?.items[0]?.quantity;
-  if (
-    !currentPhaseEnd ||
-    !scheduledSeats ||
-    schedule.phases.at(-1)?.start_date !== currentPhaseEnd
-  ) {
+  const lastPhase = schedule.phases.at(-1);
+  const seats = lastPhase?.items[0]?.quantity;
+  if (!currentPhaseEnd || !seats || lastPhase?.start_date !== currentPhaseEnd) {
     return null;
   }
 
   return {
-    scheduledSeats,
-    scheduledSeatsAt: new Date(currentPhaseEnd * 1000),
+    effectiveAt: new Date(currentPhaseEnd * 1000),
+    seats,
+  };
+}
+
+/** Purchased seats now, and the reduction waiting for the next renewal. */
+export async function resolveOrganizationSubscriptionSeats(
+  organizationId: string,
+) {
+  const subscription =
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+      organizationId,
+      prisma,
+    );
+  if (!subscription) {
+    throw badRequest(
+      "An active organization subscription is required before reading seats.",
+      { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
+    );
+  }
+
+  let scheduledReduction: ScheduledSeatReduction | null = null;
+  if (subscription.stripeScheduleId) {
+    try {
+      scheduledReduction = resolveScheduledSeatReduction(
+        await stripeClient.retrieveSubscriptionSchedule(
+          subscription.stripeScheduleId,
+        ),
+      );
+    } catch (error) {
+      // The billing page must still open when Stripe does not answer. It
+      // then shows the purchased seats without the pending reduction.
+      Sentry.captureException(error, {
+        tags: { context: "organization_scheduled_seats_read" },
+        extra: { organizationId },
+      });
+    }
+  }
+
+  return {
+    scheduledReduction,
+    seats: resolvePurchasedSeats(subscription.seats),
   };
 }
 
@@ -156,34 +207,23 @@ function buildPhasesWithRenewalSeats(
     discounts: currentPhase.discounts.map(
       ({ coupon, discount, promotion_code }) => {
         if (discount) {
-          return {
-            discount: typeof discount === "string" ? discount : discount.id,
-          };
+          return { discount: resolveStripeId(discount) };
         }
         if (promotion_code) {
-          return {
-            promotion_code:
-              typeof promotion_code === "string"
-                ? promotion_code
-                : promotion_code.id,
-          };
+          return { promotion_code: resolveStripeId(promotion_code) };
         }
-        return {
-          coupon: typeof coupon === "string" ? coupon : coupon?.id,
-        };
+        return { coupon: coupon ? resolveStripeId(coupon) : undefined };
       },
     ),
     proration_behavior: "none" as const,
   };
-  const priceId = ({ price }: { price: string | { id: string } }) =>
-    typeof price === "string" ? price : price.id;
 
   return [
     {
       ...settings,
       end_date: currentPhase.end_date,
       items: currentPhase.items.map((item) => ({
-        price: priceId(item),
+        price: resolveStripeId(item.price),
         quantity: item.quantity,
       })),
       start_date: currentPhase.start_date,
@@ -191,7 +231,7 @@ function buildPhasesWithRenewalSeats(
     {
       ...settings,
       items: lastPhase.items.map((item) => ({
-        price: priceId(item),
+        price: resolveStripeId(item.price),
         quantity: seats,
       })),
     },
@@ -208,8 +248,7 @@ export async function previewRenewalAtSeats(params: {
   seats: number;
   stripeSubscription: Pick<Stripe.Subscription, "id" | "schedule">;
 }): Promise<Stripe.Invoice> {
-  const scheduleId = resolveStripeScheduleId(params.stripeSubscription);
-  if (!scheduleId) {
+  if (!params.stripeSubscription.schedule) {
     return await stripeClient.previewSubscriptionRenewalAtQuantity(
       params.stripeSubscription.id,
       params.seatItemId,
@@ -217,6 +256,7 @@ export async function previewRenewalAtSeats(params: {
     );
   }
 
+  const scheduleId = resolveStripeId(params.stripeSubscription.schedule);
   const schedule = await stripeClient.retrieveSubscriptionSchedule(scheduleId);
   return await stripeClient.previewSubscriptionScheduleRenewal(
     scheduleId,
@@ -233,8 +273,10 @@ export async function previewRenewalAtSeats(params: {
 export async function scheduleSeatReduction(
   stripeSubscription: Pick<Stripe.Subscription, "id" | "schedule">,
   seats: number,
-): Promise<ScheduledSeatReduction & { scheduleId: string }> {
-  const existingScheduleId = resolveStripeScheduleId(stripeSubscription);
+): Promise<{ reduction: ScheduledSeatReduction; scheduleId: string }> {
+  const existingScheduleId = stripeSubscription.schedule
+    ? resolveStripeId(stripeSubscription.schedule)
+    : null;
   const schedule = existingScheduleId
     ? await stripeClient.retrieveSubscriptionSchedule(existingScheduleId)
     : await stripeClient.createSubscriptionScheduleFromSubscription(
@@ -262,7 +304,7 @@ export async function scheduleSeatReduction(
         "Unable to schedule organization subscription seats: Stripe did not keep the new phase",
       );
     }
-    return { ...reduction, scheduleId: updated.id };
+    return { reduction, scheduleId: updated.id };
   } catch (error) {
     // An unmarked schedule would read as somebody else's and block later
     // reductions, so a schedule created above does not outlive this failure.
@@ -277,17 +319,12 @@ export async function scheduleSeatReduction(
 export async function releaseSeatReduction(
   stripeSubscription: Pick<Stripe.Subscription, "schedule">,
 ): Promise<boolean> {
-  const scheduleId = resolveStripeScheduleId(stripeSubscription);
-  if (!scheduleId) {
+  const schedule = await retrieveSeatReductionSchedule(stripeSubscription);
+  if (!schedule) {
     return false;
   }
 
-  const schedule = await stripeClient.retrieveSubscriptionSchedule(scheduleId);
-  if (schedule.status !== "active" || !isSeatReductionSchedule(schedule)) {
-    return false;
-  }
-
-  await stripeClient.releaseSubscriptionSchedule(scheduleId);
+  await stripeClient.releaseSubscriptionSchedule(schedule.id);
   return true;
 }
 
@@ -299,18 +336,9 @@ export async function releaseSeatReduction(
 export async function releaseAppliedSeatReduction(
   stripeSubscription: Pick<Stripe.Subscription, "schedule">,
 ): Promise<void> {
-  const scheduleId = resolveStripeScheduleId(stripeSubscription);
-  if (!scheduleId) {
-    return;
-  }
-
-  const schedule = await stripeClient.retrieveSubscriptionSchedule(scheduleId);
-  if (
-    schedule.status === "active" &&
-    isSeatReductionSchedule(schedule) &&
-    !resolveScheduledSeatReduction(schedule)
-  ) {
-    await stripeClient.releaseSubscriptionSchedule(scheduleId);
+  const schedule = await retrieveSeatReductionSchedule(stripeSubscription);
+  if (schedule && !resolveScheduledSeatReduction(schedule)) {
+    await stripeClient.releaseSubscriptionSchedule(schedule.id);
   }
 }
 

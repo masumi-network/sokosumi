@@ -15,7 +15,6 @@ const getSubscriptionCatalogMock = vi.fn();
 const getCreditTopUpPriceCatalogMock = vi.fn();
 const getMyStripeCustomerMock = vi.fn();
 const getOrganizationStripeCustomerMock = vi.fn();
-const getOrganizationSubscriptionSeatsMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const personalPlanNoticeMock = vi.fn();
@@ -72,8 +71,6 @@ vi.mock("@/lib/clients/core.client", () => ({
       getOrganizationBillingPlanMock(...args),
     getOrganizationStripeCustomer: (...args: unknown[]) =>
       getOrganizationStripeCustomerMock(...args),
-    getOrganizationSubscriptionSeats: (...args: unknown[]) =>
-      getOrganizationSubscriptionSeatsMock(...args),
     getSubscriptionCatalog: (...args: unknown[]) =>
       getSubscriptionCatalogMock(...args),
   },
@@ -82,6 +79,7 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/services/organization-seat.service", () => ({
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
+    getSubscriptionSeats: async () => null,
   },
 }));
 vi.mock("@/lib/services/user.service", () => ({
@@ -300,9 +298,6 @@ describe("BillingPage", () => {
     );
     getMyStripeCustomerMock.mockResolvedValue({
       data: { stripeCustomerId: "cus_user_1" },
-    });
-    getOrganizationSubscriptionSeatsMock.mockResolvedValue({
-      data: { seats: 1, scheduledSeats: null, scheduledSeatsAt: null },
     });
     getOrganizationStripeCustomerMock.mockResolvedValue({
       data: { stripeCustomerId: null },

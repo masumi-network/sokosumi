@@ -1,14 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import * as Sentry from "@sentry/node";
-import { resolvePurchasedSeats } from "@sokosumi/database/helpers";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { stripeClient } from "@/clients/stripe.client";
-import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { resolveScheduledSeatReduction } from "@/helpers/organization-subscription-seats";
+import { resolveOrganizationSubscriptionSeats } from "@/helpers/organization-subscription-seats";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -39,8 +33,10 @@ const route = createRoute({
       {
         data: {
           seats: 3,
-          scheduledSeats: 2,
-          scheduledSeatsAt: "2025-02-01T00:00:00.000Z",
+          scheduledReduction: {
+            effectiveAt: "2025-02-01T00:00:00.000Z",
+            seats: 2,
+          },
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -69,43 +65,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       tx: prisma,
     });
 
-    const subscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        organization.id,
-        prisma,
-      );
-    if (!subscription) {
-      throw badRequest(
-        "An active organization subscription is required before reading seats.",
-        { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
-      );
-    }
-
-    let reduction: ReturnType<typeof resolveScheduledSeatReduction> = null;
-    if (subscription.stripeScheduleId) {
-      try {
-        reduction = resolveScheduledSeatReduction(
-          await stripeClient.retrieveSubscriptionSchedule(
-            subscription.stripeScheduleId,
-          ),
-        );
-      } catch (error) {
-        // The billing page must still open when Stripe does not answer. It
-        // then shows the purchased seats without the pending reduction.
-        Sentry.captureException(error, {
-          tags: { context: "organization_scheduled_seats_read" },
-          extra: { organizationId: organization.id },
-        });
-      }
-    }
-
     return ok(
       c,
-      organizationSubscriptionSeatsSchema.parse({
-        seats: resolvePurchasedSeats(subscription.seats),
-        scheduledSeats: reduction?.scheduledSeats ?? null,
-        scheduledSeatsAt: reduction?.scheduledSeatsAt ?? null,
-      }),
+      organizationSubscriptionSeatsSchema.parse(
+        await resolveOrganizationSubscriptionSeats(organization.id),
+      ),
     );
   });
 }

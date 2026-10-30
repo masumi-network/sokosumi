@@ -89,8 +89,8 @@ beforeEach(() => {
 describe("resolveScheduledSeatReduction", () => {
   it("reads the seats and the date of the next phase", () => {
     expect(resolveScheduledSeatReduction(schedule())).toEqual({
-      scheduledSeats: 2,
-      scheduledSeatsAt: new Date(PERIOD_END * 1000),
+      effectiveAt: new Date(PERIOD_END * 1000),
+      seats: 2,
     });
   });
 
@@ -117,9 +117,8 @@ describe("resolveScheduledSeatReduction", () => {
 describe("scheduleSeatReduction", () => {
   it("keeps the current phase and adds the lower count, without proration", async () => {
     await expect(scheduleSeatReduction(SUBSCRIPTION, 2)).resolves.toEqual({
+      reduction: { effectiveAt: new Date(PERIOD_END * 1000), seats: 2 },
       scheduleId: "sub_sched_1",
-      scheduledSeats: 2,
-      scheduledSeatsAt: new Date(PERIOD_END * 1000),
     });
 
     expect(createScheduleMock).toHaveBeenCalledWith("sub_1");

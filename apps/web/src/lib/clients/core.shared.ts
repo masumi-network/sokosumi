@@ -3583,7 +3583,7 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Immediately updates the purchased seat count on an organization's active
+   * Changes the purchased seat count on an organization's active
    * subscription. Core enforces that the caller is an organization owner or
    * admin, blocks self-serve changes while an enterprise contract is active,
    * and requires at least 1 purchased seat. Added seats are invoiced right

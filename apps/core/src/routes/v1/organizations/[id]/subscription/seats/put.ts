@@ -37,7 +37,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/subscription/seats",
   description:
-    "Change the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions, adding seats is invoiced right away (`proration_behavior: always_invoice`) and cancels any pending reduction. Removing seats schedules the lower count for the next renewal without a refund: `seats` stays the same until then and `scheduledSeats` holds the new count. Sending the current count cancels a pending reduction. Local free subscriptions return the stored seat count without changing it. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
+    "Change the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions, adding seats is invoiced right away (`proration_behavior: always_invoice`) and cancels any pending reduction. Removing seats schedules the lower count for the next renewal without a refund: `seats` stays the same until then and `scheduledReduction` holds the new count. Sending the current count cancels a pending reduction. Local free subscriptions return the stored seat count without changing it. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
   tags: ["Organizations"],
   request: {
     params,
@@ -55,9 +55,8 @@ const route = createRoute({
       "The purchased seat count after the update",
       {
         data: {
+          scheduledReduction: null,
           seats: 3,
-          scheduledSeats: null,
-          scheduledSeatsAt: null,
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -143,9 +142,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(
         c,
         organizationSubscriptionSeatsSchema.parse({
+          scheduledReduction: null,
           seats: currentSeats,
-          scheduledSeats: null,
-          scheduledSeatsAt: null,
         }),
       );
     }
@@ -161,18 +159,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const reduction = await scheduleSeatReduction(stripeSubscription, seats);
+      const { reduction, scheduleId } = await scheduleSeatReduction(
+        stripeSubscription,
+        seats,
+      );
       await prisma.subscription.update({
         where: { id: subscription.id },
-        data: { stripeScheduleId: reduction.scheduleId },
+        data: { stripeScheduleId: scheduleId },
       });
 
       return ok(
         c,
         organizationSubscriptionSeatsSchema.parse({
+          scheduledReduction: reduction,
           seats: currentSeats,
-          scheduledSeats: reduction.scheduledSeats,
-          scheduledSeatsAt: reduction.scheduledSeatsAt,
         }),
       );
     }
@@ -202,9 +202,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       organizationSubscriptionSeatsSchema.parse({
+        scheduledReduction: null,
         seats,
-        scheduledSeats: null,
-        scheduledSeatsAt: null,
       }),
     );
   });

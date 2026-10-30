@@ -20833,28 +20833,34 @@ export const OrganizationSubscriptionSeatsSchema = {
             description: 'Purchased seat count on the active subscription',
             example: 3
         },
-        scheduledSeats: {
+        scheduledReduction: {
             type: [
-                'integer',
+                'object',
                 'null'
             ],
-            description: 'Seat count the subscription drops to at the next renewal. Null when no reduction is pending',
-            example: 2
-        },
-        scheduledSeatsAt: {
-            type: [
-                'string',
-                'null'
+            properties: {
+                effectiveAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2025-02-01T00:00:00.000Z',
+                    description: 'When the reduction takes effect: the next renewal'
+                },
+                seats: {
+                    type: 'integer',
+                    description: 'Seat count the subscription drops to',
+                    example: 2
+                }
+            },
+            required: [
+                'effectiveAt',
+                'seats'
             ],
-            format: 'date-time',
-            example: '2025-02-01T00:00:00.000Z',
-            description: 'When the pending reduction takes effect'
+            description: 'Null when no reduction is pending'
         }
     },
     required: [
         'seats',
-        'scheduledSeats',
-        'scheduledSeatsAt'
+        'scheduledReduction'
     ]
 } as const;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrganizationSubscriptionSeats } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   type PaidSubscriptionPlanName,
@@ -39,8 +40,7 @@ interface OrganizationSubscriptionSectionProps {
   plans: SubscriptionPlanView[];
   returnPath: string;
   scheduledCancelDate: Date | null;
-  scheduledSeats: number | null;
-  scheduledSeatsAt: Date | null;
+  scheduledReduction: OrganizationSubscriptionSeats["scheduledReduction"];
 }
 
 export function OrganizationSubscriptionSection({
@@ -53,8 +53,7 @@ export function OrganizationSubscriptionSection({
   plans,
   returnPath,
   scheduledCancelDate,
-  scheduledSeats,
-  scheduledSeatsAt,
+  scheduledReduction,
 }: OrganizationSubscriptionSectionProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
@@ -248,8 +247,7 @@ export function OrganizationSubscriptionSection({
           onError={handleSubscriptionActionError}
           organizationId={organizationId}
           scheduledCancelDate={scheduledCancelDate}
-          scheduledSeats={scheduledSeats}
-          scheduledSeatsAt={scheduledSeatsAt}
+          scheduledReduction={scheduledReduction}
         />
       ) : null}
       {!hasCurrentPaidPlan && !showEnterpriseExclusiveUi ? (

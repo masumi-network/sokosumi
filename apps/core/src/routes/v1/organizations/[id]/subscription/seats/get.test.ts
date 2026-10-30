@@ -110,9 +110,8 @@ describe("GET /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
+      scheduledReduction: null,
       seats: 6,
-      scheduledSeats: null,
-      scheduledSeatsAt: null,
     });
     expect(retrieveSubscriptionScheduleMock).not.toHaveBeenCalled();
   });
@@ -137,9 +136,11 @@ describe("GET /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(body.data).toEqual({
+      scheduledReduction: {
+        effectiveAt: "2026-01-01T00:00:00.000Z",
+        seats: 2,
+      },
       seats: 6,
-      scheduledSeats: 2,
-      scheduledSeatsAt: "2026-01-01T00:00:00.000Z",
     });
   });
 
@@ -157,7 +158,7 @@ describe("GET /organizations/{id}/subscription/seats", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.scheduledSeats).toBeNull();
+    expect(body.data.scheduledReduction).toBeNull();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 

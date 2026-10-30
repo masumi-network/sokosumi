@@ -69,15 +69,19 @@ export const organizationSubscriptionSeatsSchema = z
       description: "Purchased seat count on the active subscription",
       example: 3,
     }),
-    scheduledSeats: z.number().int().nullable().openapi({
-      description:
-        "Seat count the subscription drops to at the next renewal. Null when no reduction is pending",
-      example: 2,
-    }),
-    scheduledSeatsAt: dateTimeSchema.nullable().openapi({
-      description: "When the pending reduction takes effect",
-      example: "2025-02-01T00:00:00.000Z",
-    }),
+    scheduledReduction: z
+      .object({
+        effectiveAt: dateTimeSchema.openapi({
+          description: "When the reduction takes effect: the next renewal",
+          example: "2025-02-01T00:00:00.000Z",
+        }),
+        seats: z.number().int().openapi({
+          description: "Seat count the subscription drops to",
+          example: 2,
+        }),
+      })
+      .nullable()
+      .openapi({ description: "Null when no reduction is pending" }),
   })
   .openapi("OrganizationSubscriptionSeats");
 

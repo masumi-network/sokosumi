@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrganizationSubscriptionSeats } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -32,6 +33,11 @@ import {
 } from "./organization-seat-settings-fields";
 
 const INPUT_ID = "organization-seats-change";
+const DATE_FORMAT = {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+} as const;
 
 interface OrganizationSeatsCardProps {
   assignedCount: number;
@@ -39,14 +45,14 @@ interface OrganizationSeatsCardProps {
   onError: (error: ActionError) => void;
   organizationId: string;
   scheduledCancelDate: Date | null;
-  scheduledSeats: number | null;
-  scheduledSeatsAt: Date | null;
+  scheduledReduction: OrganizationSubscriptionSeats["scheduledReduction"];
 }
 
 interface SeatChangeDialogContentProps {
   actionLabel: string;
   assignedCount: number;
   currentSeats: number;
+  hasScheduledReduction: boolean;
   onClose: () => void;
   onError: (error: ActionError) => void;
   organizationId: string;
@@ -60,14 +66,13 @@ export function OrganizationSeatsCard({
   onError,
   organizationId,
   scheduledCancelDate,
-  scheduledSeats,
-  scheduledSeatsAt,
+  scheduledReduction,
 }: OrganizationSeatsCardProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
   );
   const formatter = useFormatter();
-  const committedSeats = scheduledSeats ?? currentSeats;
+  const committedSeats = scheduledReduction?.seats ?? currentSeats;
   const [targetSeats, setTargetSeats] = useState<number | null>(committedSeats);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -86,16 +91,8 @@ export function OrganizationSeatsCard({
     actionLabel = t("seatsCard.addCta", { count: seatChange });
   } else if (seatChange < 0) {
     actionLabel = t("seatsCard.removeCta", { count: -seatChange });
-  } else if (scheduledSeats !== null) {
+  } else if (scheduledReduction) {
     actionLabel = keepLabel;
-  }
-
-  function formatDate(date: Date) {
-    return formatter.dateTime(date, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
   }
 
   function handleKeepSeats() {
@@ -117,11 +114,14 @@ export function OrganizationSeatsCard({
               unused: Math.max(currentSeats - assignedCount, 0),
             })}
           </p>
-          {scheduledSeats !== null && scheduledSeatsAt ? (
+          {scheduledReduction ? (
             <p className="text-xs font-medium">
               {t("seatsCard.scheduledNote", {
-                date: formatDate(scheduledSeatsAt),
-                seats: scheduledSeats,
+                count: currentSeats - scheduledReduction.seats,
+                date: formatter.dateTime(
+                  scheduledReduction.effectiveAt,
+                  DATE_FORMAT,
+                ),
               })}{" "}
               <Button
                 className="h-auto p-0 text-xs"
@@ -135,7 +135,7 @@ export function OrganizationSeatsCard({
           {isRemovalBlocked && scheduledCancelDate ? (
             <p className="text-muted-foreground text-xs">
               {t("seatsCard.removeBlocked", {
-                date: formatDate(scheduledCancelDate),
+                date: formatter.dateTime(scheduledCancelDate, DATE_FORMAT),
               })}
             </p>
           ) : null}
@@ -171,6 +171,7 @@ export function OrganizationSeatsCard({
                 onError={onError}
                 organizationId={organizationId}
                 scheduledCancelDate={scheduledCancelDate}
+                hasScheduledReduction={scheduledReduction !== null}
                 seats={validTargetSeats}
               />
             ) : null}
@@ -186,6 +187,7 @@ function SeatChangeDialogContent({
   actionLabel,
   assignedCount,
   currentSeats,
+  hasScheduledReduction,
   onClose,
   onError,
   organizationId,
@@ -255,16 +257,18 @@ function SeatChangeDialogContent({
       }
 
       toast.success(
-        result.value.scheduledSeats === null
+        result.value.scheduledReduction === null
           ? t("seatsUpdatedSuccess")
           : t("seatsScheduledSuccess"),
       );
-      router.refresh();
     } catch (error) {
       onError(toActionRejectionError(error));
     } finally {
       setIsUpdating(false);
       onClose();
+      // After a failure too: Core can charge for added seats and then fail on
+      // what follows, and the card has to show what Stripe now holds.
+      router.refresh();
     }
   }
 
@@ -311,11 +315,7 @@ function SeatChangeDialogContent({
                     {t("seatsCard.dialog.effectiveAt")}
                   </dt>
                   <dd className="font-medium tabular-nums">
-                    {formatter.dateTime(preview.data.effectiveAt, {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatter.dateTime(preview.data.effectiveAt, DATE_FORMAT)}
                   </dd>
                 </div>
               ) : null}
@@ -354,14 +354,15 @@ function SeatChangeDialogContent({
             {t("seatsCard.dialog.seatsLost", { count: seatsLost })}
           </p>
         ) : null}
+        {isAdding && hasScheduledReduction ? (
+          <p className="text-muted-foreground">
+            {t("seatsCard.dialog.addCancelsReduction")}
+          </p>
+        ) : null}
         {scheduledCancelDate ? (
           <p className="text-muted-foreground">
             {t("seatsCard.dialog.cancellationNote", {
-              date: formatter.dateTime(scheduledCancelDate, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              }),
+              date: formatter.dateTime(scheduledCancelDate, DATE_FORMAT),
             })}
           </p>
         ) : null}

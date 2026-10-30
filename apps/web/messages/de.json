@@ -7066,8 +7066,8 @@
           },
           "seatsCard": {
             "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Hinzugefügte Seats werden sofort abgerechnet. Entfernte Seats enden bei der Verlängerung.",
-            "scheduledNote": "Am {date} geht es auf {seats, plural, =1 {# Seat} other {# Seats}} zurück.",
-            "removeBlocked": "Dein Plan endet am {date}, und alle Seats enden damit.",
+            "scheduledNote": "{count, plural, =1 {# Seat wird} other {# Seats werden}} am {date} entfernt. Ein Planwechsel bricht das ab.",
+            "removeBlocked": "Dein Plan endet am {date}, und alle Seats enden damit. Reaktiviere deinen Plan, um Seats zu entfernen.",
             "keepCta": "{count, plural, =1 {# Seat behalten} other {# Seats behalten}}",
             "addIdleCta": "Seats hinzufügen",
             "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
@@ -7081,6 +7081,7 @@
               "addDescription": "Diese Änderung gilt sofort.",
               "removeDescription": "Du behältst alle Seats bis zur nächsten Verlängerung, und es wird nichts erstattet.",
               "keepDescription": "Damit wird die geplante Seat-Entfernung abgebrochen. Deine Rechnung bleibt gleich.",
+              "addCancelsReduction": "Damit wird auch die geplante Seat-Entfernung abgebrochen.",
               "loading": "Preis wird abgerufen…",
               "previewError": "Der Preis konnte nicht abgerufen werden, deine Seats können daher noch nicht geändert werden.",
               "previewRetry": "Erneut versuchen",

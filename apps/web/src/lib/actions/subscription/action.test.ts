@@ -80,7 +80,7 @@ describe("subscription actions", () => {
 
   it("updates organization seats via core", async () => {
     updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
-      data: { seats: 9, scheduledSeats: null, scheduledSeatsAt: null },
+      data: { scheduledReduction: null, seats: 9 },
     });
 
     const { updateOrganizationSubscriptionSeats } = await import("./action");
@@ -92,7 +92,7 @@ describe("subscription actions", () => {
     });
 
     expect(result).toEqual({
-      value: { scheduledSeats: null, seats: 9 },
+      value: { scheduledReduction: null, seats: 9 },
       ok: true,
     });
     expect(updateOrganizationSubscriptionSeatsMock).toHaveBeenCalledWith(

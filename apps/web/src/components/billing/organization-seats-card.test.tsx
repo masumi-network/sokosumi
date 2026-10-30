@@ -49,14 +49,12 @@ function renderCard({
   assignedCount = 1,
   onError = vi.fn(),
   scheduledCancelDate = null,
-  scheduledSeats = null,
-  scheduledSeatsAt = null,
+  scheduledReduction = null,
 }: {
   assignedCount?: number;
   onError?: (error: { code: string }) => void;
   scheduledCancelDate?: Date | null;
-  scheduledSeats?: number | null;
-  scheduledSeatsAt?: Date | null;
+  scheduledReduction?: { effectiveAt: Date; seats: number } | null;
 } = {}) {
   render(
     <TestQueryProvider>
@@ -66,8 +64,7 @@ function renderCard({
         onError={onError}
         organizationId="org-1"
         scheduledCancelDate={scheduledCancelDate}
-        scheduledSeats={scheduledSeats}
-        scheduledSeatsAt={scheduledSeatsAt}
+        scheduledReduction={scheduledReduction}
       />
     </TestQueryProvider>,
   );
@@ -94,7 +91,7 @@ beforeEach(() => {
   });
   updateMock.mockResolvedValue({
     ok: true,
-    value: { scheduledSeats: null, seats: 5 },
+    value: { scheduledReduction: null, seats: 5 },
   });
 });
 
@@ -221,7 +218,13 @@ describe("OrganizationSeatsCard", () => {
     });
     updateMock.mockResolvedValue({
       ok: true,
-      value: { scheduledSeats: 1, seats: 3 },
+      value: {
+        scheduledReduction: {
+          effectiveAt: new Date("2026-04-01T00:00:00.000Z"),
+          seats: 1,
+        },
+        seats: 3,
+      },
     });
     renderCard({ assignedCount: 3 });
     await setSeats("1");
@@ -251,17 +254,19 @@ describe("OrganizationSeatsCard", () => {
   it("starts from a pending reduction and offers to keep the seats", async () => {
     updateMock.mockResolvedValue({
       ok: true,
-      value: { scheduledSeats: null, seats: 3 },
+      value: { scheduledReduction: null, seats: 3 },
     });
     renderCard({
-      scheduledSeats: 1,
-      scheduledSeatsAt: new Date("2026-04-01T00:00:00.000Z"),
+      scheduledReduction: {
+        effectiveAt: new Date("2026-04-01T00:00:00.000Z"),
+        seats: 1,
+      },
     });
 
     expect(screen.getByRole("spinbutton")).toHaveValue(1);
     expect(
       screen.getByText(
-        'seatsCard.scheduledNote:{"date":"Apr 1, 2026","seats":1}',
+        'seatsCard.scheduledNote:{"count":2,"date":"Apr 1, 2026"}',
         { exact: false },
       ),
     ).toBeInTheDocument();
@@ -289,6 +294,23 @@ describe("OrganizationSeatsCard", () => {
         seats: 3,
       }),
     );
+  });
+
+  it("says adding seats also cancels a pending reduction", async () => {
+    renderCard({
+      scheduledReduction: {
+        effectiveAt: new Date("2026-04-01T00:00:00.000Z"),
+        seats: 1,
+      },
+    });
+    await setSeats("5");
+
+    await userEvent.click(screen.getByRole("button", { name: ADD_TWO }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(
+      within(dialog).getByText("seatsCard.dialog.addCancelsReduction"),
+    ).toBeInTheDocument();
   });
 
   it("blocks removing seats while the plan is set to end", async () => {
@@ -414,8 +436,7 @@ describe("OrganizationSeatsCard", () => {
           onError={vi.fn()}
           organizationId="org-1"
           scheduledCancelDate={null}
-          scheduledSeats={null}
-          scheduledSeatsAt={null}
+          scheduledReduction={null}
         />
       </TestQueryProvider>,
     );
@@ -432,8 +453,7 @@ describe("OrganizationSeatsCard", () => {
           onError={vi.fn()}
           organizationId="org-1"
           scheduledCancelDate={null}
-          scheduledSeats={null}
-          scheduledSeatsAt={null}
+          scheduledReduction={null}
         />
       </TestQueryProvider>,
     );
@@ -466,5 +486,7 @@ describe("OrganizationSeatsCard", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
+    // Core can charge and then fail, so the card still reloads what Stripe holds.
+    expect(refreshMock).toHaveBeenCalled();
   });
 });

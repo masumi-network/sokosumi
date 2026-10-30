@@ -1,6 +1,9 @@
 "use server";
 
-import type { OrganizationSubscriptionSeatsPreview } from "@sokosumi/core-client";
+import type {
+  OrganizationSubscriptionSeats,
+  OrganizationSubscriptionSeatsPreview,
+} from "@sokosumi/core-client";
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
@@ -93,7 +96,7 @@ export const previewOrganizationSubscriptionSeats = withSession<
 
 export const updateOrganizationSubscriptionSeats = withSession<
   OrganizationSubscriptionSeatsActionParameters,
-  ActionResultDto<{ scheduledSeats: number | null; seats: number }, ActionError>
+  ActionResultDto<OrganizationSubscriptionSeats, ActionError>
 >(async ({ organizationId, seats, session }) => {
   const parsed = organizationSubscriptionSeatsActionSchema.safeParse({
     organizationId,
@@ -118,9 +121,7 @@ export const updateOrganizationSubscriptionSeats = withSession<
       organizationId: parsed.data.organizationId,
     });
 
-    return toActionResult(
-      ok({ scheduledSeats: data.scheduledSeats, seats: data.seats }),
-    );
+    return toActionResult(ok(data));
   } catch (error) {
     return toActionResult(err(toSubscriptionSeatsActionError(error)));
   }
