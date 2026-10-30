@@ -4,10 +4,10 @@
 
 **Blocked by:** 02: Elsewhere rows
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The folded Chats heading shows attention for an Elsewhere room
-- [ ] The hidden sidebar's toggle carries its dot for an Elsewhere room
-- [ ] The browser tab title counts Elsewhere rooms
-- [ ] Catch up's own count does not change
-- [ ] Mark all as read leaves Elsewhere rooms unread
+- [x] The folded Chats heading shows attention for an Elsewhere room
+- [x] The hidden sidebar's toggle carries its dot for an Elsewhere room
+- [x] The browser tab title counts Elsewhere rooms
+- [x] Catch up's own count does not change
+- [x] Mark all as read leaves Elsewhere rooms unread

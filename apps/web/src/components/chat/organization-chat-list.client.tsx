@@ -1161,9 +1161,10 @@ export function OrganizationChatList({
                 folded section's does. */}
             <ChatSidebarSectionHeader
               isOpen={chatsOpen}
-              closedAttention={resolveChatsAttention(roomRows, {
-                hasPendingInvitation: pendingRows.length > 0,
-              })}
+              closedAttention={resolveChatsAttention(
+                [...roomRows, ...elsewhereRooms],
+                { hasPendingInvitation: pendingRows.length > 0 },
+              )}
               inlineAction={
                 <>
                   <ChatMarkAllReadButton

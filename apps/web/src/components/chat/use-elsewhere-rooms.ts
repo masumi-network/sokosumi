@@ -1,9 +1,12 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
+import { useSession } from "@/lib/auth/auth.client";
 
+import { getActiveRoomIdFromPathname } from "./active-room-id";
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
@@ -17,6 +20,7 @@ import {
   rememberRoomRead,
 } from "./room-read-overlay";
 import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
+import { useChatRoomsReadOwner } from "./use-live-chat-rooms";
 
 /** At most one read per window, so a busy room costs less than its messages. */
 const ELSEWHERE_READ_WINDOW_MS = 2_000;
@@ -32,6 +36,45 @@ const NOTHING_UNREAD = {
   unreadNeedsYouCount: 0,
   markedUnread: false,
 } satisfies Partial<ChatRoom>;
+
+const NO_ROOMS: ChatRoom[] = [];
+
+/**
+ * The one copy of the rooms, for the workspace it was read in. The list's rows
+ * and the signals mounted outside it (tab title, Chats tab, sidebar toggle) all
+ * show it, whichever of them did the reading, and it outlives a reader's
+ * unmount so a closing phone sheet does not blink the count.
+ */
+let held: { scope: string; rooms: ChatRoom[] } | null = null;
+const heldListeners = new Set<() => void>();
+
+function subscribeHeldRooms(listener: () => void) {
+  heldListeners.add(listener);
+  return () => {
+    heldListeners.delete(listener);
+  };
+}
+
+function getHeldRooms() {
+  return held;
+}
+
+function getNothingHeld() {
+  return null;
+}
+
+function updateHeldRooms(
+  scope: string,
+  update: (current: ChatRoom[]) => ChatRoom[],
+) {
+  held = { scope, rooms: update(held?.scope === scope ? held.rooms : []) };
+  for (const listener of heldListeners) listener();
+}
+
+export function clearElsewhereRooms(): void {
+  held = null;
+  for (const listener of heldListeners) listener();
+}
 
 /**
  * Core's list, with the open room's row where it stood. Core stops listing a
@@ -64,42 +107,79 @@ function keepOpenRoomRow(
  * moves on.
  */
 export function useElsewhereRooms({
-  currentUserId,
-  organizationId,
-  activeRoomId,
   paintOnly,
+  ...reader
 }: {
   currentUserId: string;
   organizationId: string | null;
   activeRoomId: string | null;
   paintOnly: boolean;
 }) {
-  const [heldRooms, setHeldRooms] = useState<ChatRoom[]>([]);
-  const scope = paintOnly
-    ? null
-    : `${organizationId ?? ""}:${currentUserId}:elsewhere`;
+  const { rooms, replaceRoom } = useHeldElsewhereRooms({
+    ...reader,
+    reads: !paintOnly,
+  });
+  return { rooms: paintOnly ? NO_ROOMS : rooms, replaceRoom };
+}
+
+/**
+ * The same rooms, for the unread signals mounted outside the chat list. While a
+ * list is mounted it reads and this only shows what it holds; without one (the
+ * phone, away from the Chats list) this reads itself, by the same rule
+ * `useLiveChatRooms` follows for the active collection.
+ */
+export function useLiveElsewhereRooms(): ChatRoom[] {
+  const { data: session } = useSession();
+  const pathname = usePathname();
+  const { sidebarOwnsReads, ownershipSettled } = useChatRoomsReadOwner();
+  const currentUserId = session?.user.id ?? "";
+  const { rooms } = useHeldElsewhereRooms({
+    currentUserId,
+    organizationId: session?.session.activeOrganizationId ?? null,
+    activeRoomId: getActiveRoomIdFromPathname(pathname),
+    reads: currentUserId !== "" && ownershipSettled && !sidebarOwnsReads,
+  });
+  return rooms;
+}
+
+function useHeldElsewhereRooms({
+  currentUserId,
+  organizationId,
+  activeRoomId,
+  reads,
+}: {
+  currentUserId: string;
+  organizationId: string | null;
+  activeRoomId: string | null;
+  reads: boolean;
+}) {
+  const scope = `${organizationId ?? ""}:${currentUserId}:elsewhere`;
+  const snapshot = useSyncExternalStore(
+    subscribeHeldRooms,
+    getHeldRooms,
+    getNothingHeld,
+  );
   // A room of the workspace just left is not "elsewhere" any more, and one of
   // the workspace just entered must not show twice.
-  const [prevScope, setPrevScope] = useState(scope);
-  if (scope !== prevScope) {
-    setPrevScope(scope);
-    setHeldRooms([]);
-  }
+  const heldRooms = snapshot?.scope === scope ? snapshot.rooms : NO_ROOMS;
   const activeRoomIdRef = useRef(activeRoomId);
   activeRoomIdRef.current = activeRoomId;
 
-  const refresh = useCallback(async (isCurrent: () => boolean) => {
-    const requestRevision = beginRoomAttentionRefresh();
-    const rooms = await fetchSidebarRoomCollection("elsewhere");
-    if (!isCurrent() || !rooms) return;
-    const listed = reconcileRoomAttention(rooms, requestRevision);
-    setHeldRooms((current) =>
-      keepOpenRoomRow(current, listed, activeRoomIdRef.current),
-    );
-  }, []);
+  const refresh = useCallback(
+    async (isCurrent: () => boolean) => {
+      const requestRevision = beginRoomAttentionRefresh();
+      const rooms = await fetchSidebarRoomCollection("elsewhere");
+      if (!isCurrent() || !rooms) return;
+      const listed = reconcileRoomAttention(rooms, requestRevision);
+      updateHeldRooms(scope, (current) =>
+        keepOpenRoomRow(current, listed, activeRoomIdRef.current),
+      );
+    },
+    [scope],
+  );
   const healthy = useAblyConnectionHealthy();
   const requestRead = useChatRefreshScheduler({
-    key: scope,
+    key: reads ? scope : null,
     refresh,
     healthy,
     refreshOnMount: true,
@@ -107,7 +187,7 @@ export function useElsewhereRooms({
   });
 
   useEffect(() => {
-    if (paintOnly) {
+    if (!reads) {
       return;
     }
     let timer: number | undefined;
@@ -124,7 +204,7 @@ export function useElsewhereRooms({
         .detail;
       const removedRoomId = detail?.removedRoomId;
       if (removedRoomId) {
-        setHeldRooms((current) =>
+        updateHeldRooms(scope, (current) =>
           current.filter((room) => room.id !== removedRoomId),
         );
         return;
@@ -158,10 +238,10 @@ export function useElsewhereRooms({
         handleRoomsChanged,
       );
     };
-  }, [paintOnly, requestRead]);
+  }, [reads, scope, requestRead]);
 
   useEffect(() => {
-    if (paintOnly) {
+    if (!reads) {
       return;
     }
 
@@ -175,7 +255,7 @@ export function useElsewhereRooms({
       if (detail.room) {
         rememberRoomRead(detail.room);
       }
-      setHeldRooms((current) =>
+      updateHeldRooms(scope, (current) =>
         applyRoomReadOverlays(
           current.map((room) => {
             if (room.id !== detail.roomId) return room;
@@ -192,20 +272,23 @@ export function useElsewhereRooms({
     return () => {
       window.removeEventListener("organization-chat-room-read", handleRoomRead);
     };
-  }, [paintOnly]);
+  }, [reads, scope]);
 
-  const replaceRoom = useCallback((updated: ChatRoom) => {
-    if (updated.markedUnread) {
-      rememberRoomRead(updated);
-    }
-    setHeldRooms((current) =>
-      applyRoomReadOverlays(
-        current.map((room) =>
-          room.id === updated.id ? withWorkspaceOf(room, updated) : room,
+  const replaceRoom = useCallback(
+    (updated: ChatRoom) => {
+      if (updated.markedUnread) {
+        rememberRoomRead(updated);
+      }
+      updateHeldRooms(scope, (current) =>
+        applyRoomReadOverlays(
+          current.map((room) =>
+            room.id === updated.id ? withWorkspaceOf(room, updated) : room,
+          ),
         ),
-      ),
-    );
-  }, []);
+      );
+    },
+    [scope],
+  );
 
   const rooms = heldRooms.filter((room) => {
     const { readRoom, lookThreads } = roomUnreadReads(room);

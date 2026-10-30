@@ -14,6 +14,7 @@ import {
 } from "@/lib/ui-preferences/chat-unreads-filter";
 
 import { OrganizationChatList } from "../organization-chat-list.client";
+import { clearElsewhereRooms } from "../use-elsewhere-rooms";
 
 /** The route the list reads, so a test can open a room. Reset per test.
  *  Selection is the optimistic highlight, which moves before the route. */
@@ -28,7 +29,9 @@ const {
   listArchivedMock,
   listElsewhereMock,
   listPendingMock,
+  markAllReadMock,
   reorderPinnedMock,
+  harnessRealCatchUp,
   harnessRowProps,
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
@@ -36,7 +39,10 @@ const {
   listArchivedMock: vi.fn(),
   listElsewhereMock: vi.fn(),
   listPendingMock: vi.fn(),
+  markAllReadMock: vi.fn(),
   reorderPinnedMock: vi.fn(),
+  /** On, Catch up and Mark all as read are the real ones, not markers. */
+  harnessRealCatchUp: { current: false },
   /** What each room row last received, by room id. */
   harnessRowProps: new Map<string, Record<string, unknown>>(),
 }));
@@ -44,12 +50,14 @@ const {
 export {
   acceptInvitationMock,
   harnessPathname,
+  harnessRealCatchUp,
   harnessRowProps,
   harnessSelection,
   listArchivedMock,
   listElsewhereMock,
   listPendingMock,
   listRoomsMock,
+  markAllReadMock,
   reorderPinnedMock,
 };
 
@@ -92,6 +100,8 @@ vi.mock("@/app/chat/actions", () => ({
   ) => acceptInvitationMock(...args),
   declineChatRoomInvitationAction: vi.fn(),
   deleteRoomAction: vi.fn(),
+  markAllChatUnreadReadAction: (...args: Parameters<typeof markAllReadMock>) =>
+    markAllReadMock(...args),
   restoreRoomAction: vi.fn(),
 }));
 
@@ -174,29 +184,37 @@ function UnreadsToggleMarker({
   );
 }
 
-vi.mock("../chat-unread-nav-rows", () => ({
-  ChatUnreadNavRows: ({
-    unreadOnly,
-    onUnreadOnlyChange,
-  }: {
-    unreadOnly: boolean;
-    onUnreadOnlyChange?: (unreadOnly: boolean) => void;
-  }) => (
-    <li data-testid="chat-unread-nav-rows">
-      {onUnreadOnlyChange ? (
-        <UnreadsToggleMarker
-          unreadOnly={unreadOnly}
-          onUnreadOnlyChange={onUnreadOnlyChange}
-        />
-      ) : null}
-    </li>
-  ),
-  ChatUnreadsFilterChip: UnreadsToggleMarker,
-  // When it shows past the filter is the row's test's; the list decides only
-  // where it stands.
-  ChatMarkAllReadButton: ({ unreadOnly }: { unreadOnly: boolean }) =>
-    unreadOnly ? <button type="button">Mark all as read</button> : null,
-}));
+vi.mock("../chat-unread-nav-rows", async (importActual) => {
+  const actual = await importActual<typeof import("../chat-unread-nav-rows")>();
+  return {
+    ChatUnreadNavRows: (
+      props: ComponentProps<typeof actual.ChatUnreadNavRows>,
+    ) =>
+      harnessRealCatchUp.current ? (
+        <actual.ChatUnreadNavRows {...props} />
+      ) : (
+        <li data-testid="chat-unread-nav-rows">
+          {props.onUnreadOnlyChange ? (
+            <UnreadsToggleMarker
+              unreadOnly={props.unreadOnly}
+              onUnreadOnlyChange={props.onUnreadOnlyChange}
+            />
+          ) : null}
+        </li>
+      ),
+    ChatUnreadsFilterChip: UnreadsToggleMarker,
+    // When it shows past the filter is the row's test's; the list decides only
+    // where it stands.
+    ChatMarkAllReadButton: (
+      props: ComponentProps<typeof actual.ChatMarkAllReadButton>,
+    ) =>
+      harnessRealCatchUp.current ? (
+        <actual.ChatMarkAllReadButton {...props} />
+      ) : props.unreadOnly ? (
+        <button type="button">Mark all as read</button>
+      ) : null,
+  };
+});
 
 vi.mock("../direct-room-avatar-stack", () => ({
   DirectRoomAvatarStack: () => null,
@@ -425,6 +443,9 @@ export function resetOrganizationChatListMocks() {
   document.documentElement.removeAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE);
   harnessPathname.current = "/chat";
   harnessSelection.current = null;
+  harnessRealCatchUp.current = false;
+  markAllReadMock.mockReset();
+  markAllReadMock.mockResolvedValue({ ok: true, value: null });
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
@@ -432,6 +453,7 @@ export function resetOrganizationChatListMocks() {
   listElsewhereMock.mockReset();
   reorderPinnedMock.mockReset();
   harnessRowProps.clear();
+  clearElsewhereRooms();
   listElsewhereMock.mockResolvedValue([]);
   listRoomsMock.mockResolvedValue(emptyListResult());
   listArchivedMock.mockResolvedValue(emptyListResult());

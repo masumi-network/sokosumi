@@ -48,27 +48,14 @@ function getInitialRoomsFromSessionSnapshot(): ChatRoom[] | null {
 }
 
 /**
- * The reader's live membership-visible rooms, for chat surfaces that need
- * what is unread without mounting the sidebar list: the Chats tab's unread
- * dot, and the Threads view (SOK-1159).
- *
- * While a sidebar list is mounted it already reads the active collection, so
- * this mirrors its rows. Without one (the phone, away from the Chats list) it
- * runs the same read on the same schedule itself, and applies the same room
- * read and rooms-changed events the list does.
- *
- * Null until a first read or a session snapshot says what the rooms are, so
- * a reader in no room (an empty list) is not mistaken for one not read yet.
+ * Whether a surface outside the sidebar list should read for itself, or leave
+ * it to the list. For what the list reads: the active collection, the Elsewhere
+ * rooms.
  */
-export function useLiveChatRooms(): ChatRoom[] | null {
-  const { data: session } = useSession();
-  const currentUserId = session?.user.id ?? "";
-  const organizationId = session?.session.activeOrganizationId ?? null;
-  const latestAppliedRefreshRef = useRef(0);
-  const [rooms, setRooms] = useState<ChatRoom[] | null>(
-    getInitialRoomsFromSessionSnapshot,
-  );
-
+export function useChatRoomsReadOwner(): {
+  sidebarOwnsReads: boolean;
+  ownershipSettled: boolean;
+} {
   // A mounted sidebar list already reads the active collection on the same
   // schedule; mirror its rows rather than run a second reader (desktop).
   // The mirrored rows stay after the list unmounts until the own read lands.
@@ -93,6 +80,32 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     );
     return () => window.clearTimeout(timer);
   }, []);
+  return { sidebarOwnsReads, ownershipSettled };
+}
+
+/**
+ * The reader's live membership-visible rooms, for chat surfaces that need
+ * what is unread without mounting the sidebar list: the Chats tab's unread
+ * dot, and the Threads view (SOK-1159).
+ *
+ * While a sidebar list is mounted it already reads the active collection, so
+ * this mirrors its rows. Without one (the phone, away from the Chats list) it
+ * runs the same read on the same schedule itself, and applies the same room
+ * read and rooms-changed events the list does.
+ *
+ * Null until a first read or a session snapshot says what the rooms are, so
+ * a reader in no room (an empty list) is not mistaken for one not read yet.
+ */
+export function useLiveChatRooms(): ChatRoom[] | null {
+  const { data: session } = useSession();
+  const currentUserId = session?.user.id ?? "";
+  const organizationId = session?.session.activeOrganizationId ?? null;
+  const latestAppliedRefreshRef = useRef(0);
+  const [rooms, setRooms] = useState<ChatRoom[] | null>(
+    getInitialRoomsFromSessionSnapshot,
+  );
+
+  const { sidebarOwnsReads, ownershipSettled } = useChatRoomsReadOwner();
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,

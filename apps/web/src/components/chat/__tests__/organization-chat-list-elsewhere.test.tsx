@@ -7,10 +7,14 @@ import { notifyOrganizationChatRoomsChanged } from "../organization-chat-events"
 import { clearRoomReadOverlays } from "../room-read-overlay";
 import {
   createOrganizationChatList,
+  emptyListResult,
   harnessPathname,
+  harnessRealCatchUp,
   harnessRowProps,
   listElsewhereMock,
+  listRoomsMock,
   makeRoom,
+  markAllReadMock,
   renderOrganizationChatList,
   resetOrganizationChatListMocks,
 } from "./organization-chat-list-harness";
@@ -207,6 +211,103 @@ describe("OrganizationChatList Elsewhere rows", () => {
 
     expect(listElsewhereMock).not.toHaveBeenCalled();
     expect(elsewhereList()).toBeNull();
+  });
+
+  describe("the folded Chats heading", () => {
+    function chatsHeading() {
+      return screen.getByRole("button", { name: /^App\.Channels\.chats/ });
+    }
+
+    it("says something unread is inside for a room elsewhere", async () => {
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      renderOrganizationChatList({ withChatsHeading: true });
+      await findElsewhereRow("launch");
+
+      await userEvent.click(chatsHeading());
+
+      expect(chatsHeading()).toHaveTextContent(
+        "App.Channels.RoomUnread.unread",
+      );
+    });
+
+    it("says the reader is named for a mention elsewhere", async () => {
+      listElsewhereMock.mockResolvedValue([
+        elsewhereRoom("launch", { unreadMentionCount: 1 }),
+      ]);
+      renderOrganizationChatList({ withChatsHeading: true });
+      await findElsewhereRow("launch");
+
+      await userEvent.click(chatsHeading());
+
+      expect(chatsHeading()).toHaveTextContent(
+        "App.Channels.RoomMentions.mentionsYou",
+      );
+    });
+  });
+
+  // Catch up and Mark all as read keep to the active workspace (ADR-0061).
+  describe("Catch up", () => {
+    const CATCH_UP = "App.Channels.Signals.catchUp";
+    const MARK_ALL = "App.Channels.UnreadNav.markAllRead";
+
+    const mine = makeRoom({
+      id: "mine",
+      kind: "channel",
+      myAccess: "member",
+      unreadCount: 1,
+      channelUnreadCount: 1,
+    });
+
+    beforeEach(() => {
+      harnessRealCatchUp.current = true;
+    });
+
+    it("adds nothing to its count for a room elsewhere", async () => {
+      listElsewhereMock.mockResolvedValue([
+        elsewhereRoom("launch", {
+          unreadNeedsYouCount: 2,
+          unreadThreadCount: 3,
+          unreadThreadMentionCount: 1,
+        }),
+      ]);
+      renderOrganizationChatList({ withChatsHeading: true });
+      await findElsewhereRow("launch");
+
+      expect(screen.getByRole("link", { name: CATCH_UP }).textContent).toBe(
+        CATCH_UP,
+      );
+    });
+
+    it("leaves a room elsewhere unread when Mark all as read runs", async () => {
+      listRoomsMock.mockResolvedValue(emptyListResult([mine]));
+      listElsewhereMock.mockResolvedValue([
+        elsewhereRoom("launch", { unreadMentionCount: 1 }),
+      ]);
+      renderOrganizationChatList({ rooms: [mine], withChatsHeading: true });
+      await findElsewhereRow("launch");
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "All unreads" }),
+      );
+      await userEvent.click(screen.getByRole("button", { name: MARK_ALL }));
+
+      expect(markAllReadMock).toHaveBeenCalledExactlyOnceWith([
+        { roomId: "mine", readRoom: true, lookThreads: false },
+      ]);
+      expect(rowProps("launch").room.unreadMentionCount).toBe(1);
+    });
+
+    it("offers no Mark all as read while only a room elsewhere is unread", async () => {
+      listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
+      renderOrganizationChatList({ withChatsHeading: true });
+      await findElsewhereRow("launch");
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "All unreads" }),
+      );
+
+      expect(screen.queryByRole("button", { name: MARK_ALL })).toBeNull();
+    });
   });
 
   describe("live", () => {
