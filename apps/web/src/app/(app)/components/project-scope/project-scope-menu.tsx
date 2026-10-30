@@ -92,6 +92,7 @@ export function ProjectScopeMenu({
         <span className="min-w-0 flex-1 break-words leading-normal">
           {project.name}
         </span>
+        {project.id === selectedProjectId ? <CurrentMark /> : null}
         {pinned ? (
           <>
             <Pin
@@ -101,7 +102,6 @@ export function ProjectScopeMenu({
             <span className="sr-only">{t("pinned")}</span>
           </>
         ) : null}
-        <CurrentMark current={project.id === selectedProjectId} />
       </CommandItem>
     );
   }
@@ -225,15 +225,12 @@ export function ProjectScopeMenu({
 }
 
 /** The check on the current choice, with words for assistive tech. */
-function CurrentMark({ current }: { current: boolean }) {
+function CurrentMark() {
   const t = useTranslations("App.ProjectScope");
   return (
     <>
-      <Check
-        className={cn("size-4 shrink-0", current ? "opacity-100" : "opacity-0")}
-        aria-hidden
-      />
-      {current ? <span className="sr-only">{t("current")}</span> : null}
+      <Check className="size-4 shrink-0" aria-hidden />
+      <span className="sr-only">{t("current")}</span>
     </>
   );
 }

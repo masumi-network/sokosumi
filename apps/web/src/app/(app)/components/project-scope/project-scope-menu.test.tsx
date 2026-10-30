@@ -382,6 +382,19 @@ describe("ProjectScopeMenu", () => {
     ).toBeNull();
   });
 
+  it("keeps the pin on the trailing edge, with no hidden check beside it", async () => {
+    setup({ selectedProjectId: "pinned-1" });
+
+    const current = await screen.findByTestId("project-scope-item-pinned-1");
+    expect(current.querySelector("svg:last-of-type")).toHaveClass("lucide-pin");
+    expect(current.querySelector(".lucide-check")).not.toBeNull();
+    expect(
+      screen
+        .getByTestId("project-scope-item-active-1")
+        .querySelector(".lucide-check"),
+    ).toBeNull();
+  });
+
   it("marks no row current in the workspace view", async () => {
     setup({ selectedProjectId: null });
 
