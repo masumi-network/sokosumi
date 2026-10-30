@@ -7629,7 +7629,6 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Direct message",
       "headerSelfDirect": "Only you",
-      "headerMemberCount": "{count, plural, one {# member} other {# members}}",
       "participantOverflowCount": "{count} more participants",
       "chats": "Chats",
       "directMessages": "Direct messages",

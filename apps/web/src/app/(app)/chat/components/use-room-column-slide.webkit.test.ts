@@ -1,10 +1,10 @@
 /**
  * Opening a docked side panel (thread, threads, pinned, members) moves the
- * room's 56rem content column (header row, transcript, composer) as little as it can: it keeps its left edge
- * while it fits beside the panel, moves left only as far as it must, narrows
- * only at the pane edge, and slides there instead of jumping. Needs real
- * layout. Run with `pnpm --filter web test:webkit` (Chromium + WebKit
- * installed).
+ * room's 56rem content column (header row, transcript, composer) as little as
+ * it can: it keeps its left edge while it fits beside the panel, moves left
+ * only as far as it must, narrows only at the pane edge, and slides there
+ * instead of jumping. Needs real layout. Run with `pnpm --filter web
+ * test:webkit` (Chromium + WebKit installed).
  */
 import { type Browser, chromium, webkit } from "playwright";
 import type { ViteDevServer } from "vite";
@@ -47,7 +47,11 @@ describe.each([
     await browser?.close();
   });
 
-  async function openRoom(paneWidth: number, reducedMotion = false) {
+  async function openRoom(
+    paneWidth: number,
+    reducedMotion = false,
+    headerAtMount = true,
+  ) {
     const address = server.httpServer?.address();
     if (!address || typeof address === "string")
       throw new Error("Missing fixture port");
@@ -64,7 +68,7 @@ describe.each([
     await page.addScriptTag({
       type: "module",
       content: `const { renderRoomColumnSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
-        renderRoomColumnSlidePage();`,
+        renderRoomColumnSlidePage({ headerAtMount: ${headerAtMount} });`,
     });
     await page.waitForFunction(() => document.querySelector("main") !== null);
     return { page, errors };
@@ -144,6 +148,25 @@ describe.each([
     const resized = await page.evaluate(() => window.columns());
     expectPx(resized.composer.left, expected(1400, 420, resized.maxWidth).left);
     expect(resized.composer.slideFrom).toBeNull();
+    await page.close();
+  }, 60_000);
+
+  it("slides a header row that mounted after the room", async () => {
+    const { page, errors } = await openRoom(1504, false, false);
+    // Past the observer's first callback: nothing resizes as the header mounts.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    await page.evaluate(() => window.setHeader(true));
+
+    await page.evaluate(() => window.setPanel(420));
+    const open = await page.evaluate(() => window.columns());
+    expect(open.header.slideFrom).not.toBeNull();
+    expect(open.header.slideFrom).toBe(open.list.slideFrom);
+    expect(errors).toEqual([]);
     await page.close();
   }, 60_000);
 

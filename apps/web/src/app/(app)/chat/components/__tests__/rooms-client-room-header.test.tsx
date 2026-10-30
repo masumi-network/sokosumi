@@ -590,7 +590,7 @@ describe("RoomsClient room header chrome", () => {
     renderRoom(room);
 
     expect(screen.getByTestId("room-open-subtitle")).toHaveTextContent(
-      "headerMemberCount",
+      "Browse.memberCount",
     );
   });
 

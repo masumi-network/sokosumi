@@ -286,8 +286,8 @@ inside a full-width panel.
 - **Chat room:** the header row, transcript and composer share one centred `max-w-4xl`
   reading column (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`,
   applied by `RoomShellLayout`); the header's bottom rule and the scroller stay full width.
-  The title's mark sits over the transcript's avatars and the header actions end at the
-  column's right edge. The title always has a second line, so it never moves between rooms:
+  The title's mark starts at the transcript avatars' left edge and the header actions end at
+  the column's right edge. The title always has a second line, so it never moves between rooms:
   a Channel's topic, else the member count, "Direct message" or "Only you". The thread panel
   stays full width. A docked side panel (thread, threads, pinned, members) does not re-centre
   the column: it keeps its left edge while it fits, moves left only as far as it must, and

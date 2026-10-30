@@ -5,7 +5,10 @@ import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
-import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
+import {
+  CHAT_TITLE_MARK_CLASS,
+  ChannelDiscoverabilityIcon,
+} from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { RoomDecisionsPopover } from "@/components/chat/signals/room-decisions-popover";
@@ -22,26 +25,24 @@ import { RoomSearchPanel } from "./room-search-panel";
 import { UnreadThreadsPanel } from "./unread-threads-panel";
 
 /**
- * The room title as the way into its settings: a Channel's (its members panel
- * for anyone who cannot change them), or a group Direct's name.
- */
-const ROOM_TITLE_BUTTON_CLASS =
-  "text-foreground press [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2";
-
-/**
  * A 1:1 or self Direct's title is not a button, but keeps the button's box,
  * so every room's title text starts at one x.
  */
 const ROOM_TITLE_STATIC_CLASS =
   "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm md:gap-2";
 
-/** The box `ChannelDiscoverabilityIcon` draws, for a Direct's leading mark. */
-const ROOM_TITLE_MARK_CLASS =
-  "text-muted-foreground inline-flex size-7 shrink-0 items-center justify-center md:size-5";
+/**
+ * The room title as the way into its settings: a Channel's (its members panel
+ * for anyone who cannot change them), or a group Direct's name.
+ */
+const ROOM_TITLE_BUTTON_CLASS = cn(
+  ROOM_TITLE_STATIC_CLASS,
+  "press [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+);
 
 const DIRECT_ICON = (
-  <span className={ROOM_TITLE_MARK_CLASS} aria-hidden>
-    <MessageCircle className="size-4.5 md:size-3.5" />
+  <span className={cn("text-muted-foreground", CHAT_TITLE_MARK_CLASS)}>
+    <MessageCircle />
   </span>
 );
 
@@ -193,7 +194,7 @@ export function RoomHeaderChrome({
       ? t("headerSelfDirect")
       : isDirectRoom && !room.isGroupDirect
         ? t("headerDirect")
-        : t("headerMemberCount", {
+        : t("Browse.memberCount", {
             count: getRoomParticipantPreviews(room).length,
           }));
   const channelTitle = (
@@ -228,7 +229,7 @@ export function RoomHeaderChrome({
         ) : isDirectRoom ? (
           <div className={ROOM_TITLE_STATIC_CLASS}>
             {room.isSelfDirect ? (
-              <span className={ROOM_TITLE_MARK_CLASS}>
+              <span className={CHAT_TITLE_MARK_CLASS}>
                 <DirectRoomAvatarStack
                   room={room}
                   currentUserId={currentUserId}

@@ -2,8 +2,10 @@
  * The page `use-room-column-slide.webkit.test.ts` opens: an open room shell
  * filling the viewport (no app sidebar), so the room pane is the viewport
  * width. A docked side panel of any width opens and closes through
- * `window.setPanel`; `window.setOverlay` reshapes `wrapColumn` the way the
- * file drop zone does, which remounts the column body.
+ * `window.setPanel`; `window.setHeader` mounts the header row late, as the
+ * mobile header does when it moves back in on a resize to desktop;
+ * `window.setOverlay` reshapes `wrapColumn` the way the file drop zone does,
+ * which remounts the column body.
  */
 import { type ReactNode, useState } from "react";
 import { flushSync } from "react-dom";
@@ -26,6 +28,8 @@ declare global {
   interface Window {
     /** Dock a side panel `width` px wide, or close it with null. */
     setPanel: (width: number | null) => Promise<void>;
+    /** Show or drop the desktop header row. */
+    setHeader: (shown: boolean) => Promise<void>;
     /** Add or drop a second child beside the column body, as the drop zone does. */
     setOverlay: (shown: boolean) => Promise<void>;
     /** The header row, transcript and composer columns, and the column's max width. */
@@ -42,16 +46,19 @@ declare global {
 
 let showPanel: (width: number | null) => void = () => {};
 let showOverlay: (shown: boolean) => void = () => {};
+let showHeader: (shown: boolean) => void = () => {};
 
-function App() {
+function App({ headerAtMount }: { headerAtMount: boolean }) {
   const [panel, setPanel] = useState<number | null>(null);
   const [overlay, setOverlay] = useState(false);
+  const [header, setHeader] = useState(headerAtMount);
   showPanel = setPanel;
   showOverlay = setOverlay;
+  showHeader = setHeader;
   return (
     <RoomShellLayout
       rootClassName="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden"
-      desktopHeader={<span>Room</span>}
+      desktopHeader={header ? <span>Room</span> : null}
       listContent={<p>Short transcript, so the scroller shows no scrollbar.</p>}
       composer={
         <div data-testid="composer" className="h-24 border-t">
@@ -101,12 +108,20 @@ const twoFrames = () =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
 
-export function renderRoomColumnSlidePage(): void {
+export function renderRoomColumnSlidePage({
+  headerAtMount = true,
+}: {
+  headerAtMount?: boolean;
+} = {}): void {
   const host = document.getElementById("fixture");
   if (!host) throw new Error("Missing fixture host");
   window.setPanel = async (width) => {
     flushSync(() => showPanel(width));
     // The slide starts from the ResizeObserver, after the next layout.
+    await twoFrames();
+  };
+  window.setHeader = async (shown) => {
+    flushSync(() => showHeader(shown));
     await twoFrames();
   };
   window.setOverlay = async (shown) => {
@@ -125,5 +140,5 @@ export function renderRoomColumnSlidePage(): void {
       maxWidth: list ? Number.parseFloat(getComputedStyle(list).maxWidth) : 0,
     };
   };
-  createRoot(host).render(<App />);
+  createRoot(host).render(<App headerAtMount={headerAtMount} />);
 }

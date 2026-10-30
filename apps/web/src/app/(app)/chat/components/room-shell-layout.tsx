@@ -33,7 +33,8 @@ export const ROOM_SHELL_DESKTOP_HEADER_CLASSNAME =
 
 /**
  * The header's row, in `ROOM_CONTENT_COLUMN_CLASSNAME`. px-3.5 is the list's
- * px-5 less the title's own px-1.5: the title's mark sits over the avatars.
+ * px-5 less the title's own px-1.5: the title's mark starts at the avatars'
+ * left edge.
  */
 export const ROOM_SHELL_DESKTOP_HEADER_ROW_CLASSNAME = cn(
   ROOM_CONTENT_COLUMN_CLASSNAME,
