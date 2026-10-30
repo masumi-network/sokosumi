@@ -301,6 +301,14 @@ export const newsletterService = {
     return response.data;
   },
 
+  async resumeSendingDomainWarmup(projectId: string) {
+    const response =
+      await coreClient.postProjectsByIdNewsletterSendingDomainWarmupResume(
+        projectId,
+      );
+    return response.data;
+  },
+
   async connectSendingDomainWithCloudflare(
     projectId: string,
     apiToken: string,

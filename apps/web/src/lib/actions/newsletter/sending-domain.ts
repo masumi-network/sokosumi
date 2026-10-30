@@ -24,7 +24,12 @@ interface SendingDomainError {
   message: string;
 }
 
-type SendingDomainAction = "save" | "check" | "remove" | "cloudflare";
+type SendingDomainAction =
+  | "save"
+  | "check"
+  | "remove"
+  | "cloudflare"
+  | "resume";
 
 async function errorMessage(
   error: unknown,
@@ -38,7 +43,9 @@ async function errorMessage(
     case 404:
       return t("errors.notFound");
     case 409:
-      return t("errors.conflict");
+      return action === "resume"
+        ? t("errors.resumeUnavailable")
+        : t("errors.conflict");
     case 422:
       return action === "cloudflare"
         ? t("errors.cloudflareRejected")
@@ -98,6 +105,21 @@ export const checkNewsletterSendingDomain = withSession<
     return toActionResult(ok(domain));
   } catch (error) {
     return toActionResult(err({ message: await errorMessage(error, "check") }));
+  }
+});
+
+export const resumeNewsletterSendingDomainWarmup = withSession<
+  ProjectSendingDomainParameters,
+  ActionResultDto<NewsletterSendingDomain, SendingDomainError>
+>(async ({ projectId }) => {
+  try {
+    const domain = await newsletterService.resumeSendingDomainWarmup(projectId);
+    revalidate();
+    return toActionResult(ok(domain));
+  } catch (error) {
+    return toActionResult(
+      err({ message: await errorMessage(error, "resume") }),
+    );
   }
 });
 
