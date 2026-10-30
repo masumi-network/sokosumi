@@ -657,7 +657,7 @@ export function ContactsGrid({
             return (
               <TableRow
                 key={contact.id}
-                className="group/row hover:bg-card-background-hover"
+                className="group/row hover:bg-accent"
                 data-state={isSelected ? "selected" : undefined}
               >
                 <th

@@ -1159,7 +1159,7 @@ function TableWorkspace({
                     <TableRowShell
                       ref={ref}
                       className={cn(
-                        "group/row hover:bg-card-background-hover",
+                        "group/row hover:bg-accent",
                         isDragging && "opacity-50",
                         isOver && "bg-muted",
                       )}
