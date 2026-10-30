@@ -5,9 +5,28 @@ import {
   CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
   CHAT_MOBILE_HEIGHT_SHELL_CLASS,
   CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS,
+  CHAT_MOBILE_TABS,
   chatMobileComposerSafeAreaPbClass,
   chatMobileHeightShellClass,
 } from "./chat-mobile-tab-registry";
+
+describe("Newsletter mobile tab selection", () => {
+  it.each([
+    "/newsletter",
+    "/newsletter/issues",
+    "/newsletter/subscribers",
+    "/newsletter/calendar",
+    "/newsletter/analytics",
+    "/newsletter/settings",
+    "/newsletter/issues/issue-1",
+  ])("selects Home on %s", (pathname) => {
+    expect(
+      CHAT_MOBILE_TABS.filter((tab) => tab.isActive(pathname)).map(
+        (tab) => tab.id,
+      ),
+    ).toEqual(["home"]);
+  });
+});
 
 describe("chatMobileHeightShellClass", () => {
   it("uses no-tab-bar shell for rooms", () => {

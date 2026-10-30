@@ -118,7 +118,7 @@ export function ContactListDialog({
                     )}
                   >
                     {color === option ? (
-                      <Check className="text-primary-solid-foreground size-3" />
+                      <Check className="text-primary-foreground size-3" />
                     ) : null}
                   </span>
                 </label>
@@ -142,7 +142,7 @@ export function ContactListDialog({
             <p
               id="contact-list-error"
               role="alert"
-              className="text-semantic-destructive-label text-sm"
+              className="text-foreground text-sm"
             >
               {error}
             </p>

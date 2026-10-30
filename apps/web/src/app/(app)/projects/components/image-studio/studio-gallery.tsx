@@ -122,13 +122,13 @@ export function StudioGallery({
                   <figure
                     className={cn(
                       "group bg-card-background border-border relative overflow-hidden rounded-xl border transition-colors duration-200 hover:bg-card-background-hover",
-                      selected && "ring-primary ring-2",
+                      selected && "ring-ring ring-2",
                     )}
                     data-asset-id={asset.id}
                   >
                     <button
                       aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
-                      className="focus-visible:ring-ring-halo block w-full cursor-pointer outline-none focus-visible:ring-[3px]"
+                      className="focus-visible:ring-ring block w-full cursor-pointer outline-none focus-visible:ring-2"
                       onClick={() => onOpen(asset.id)}
                       type="button"
                     >
@@ -215,9 +215,9 @@ export function StudioGallery({
                             aria-pressed={selected}
                             className={cn(
                               "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border transition-colors",
-                              "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                              "focus-visible:ring-ring outline-none focus-visible:ring-2",
                               selected
-                                ? "border-primary bg-primary text-primary-foreground"
+                                ? "border-foreground bg-primary text-primary-foreground"
                                 : "border-border bg-background text-muted-foreground hover:text-foreground",
                             )}
                             onClick={() => onToggleSelect(asset.id)}
@@ -308,7 +308,7 @@ const GRID_CLASS = cn(
 
 const HOVER_ACTION_CLASS = cn(
   "bg-background text-foreground border-border flex size-10 md:size-8 items-center justify-center rounded-md border",
-  "hover:bg-background focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+  "hover:bg-background focus-visible:ring-ring outline-none focus-visible:ring-2",
 );
 
 function HoverAction({

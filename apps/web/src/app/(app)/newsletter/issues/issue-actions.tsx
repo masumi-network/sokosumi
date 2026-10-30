@@ -1,6 +1,9 @@
 "use client";
 
-import type { NewsletterIssue } from "@sokosumi/core-client";
+import type {
+  NewsletterIssue,
+  NewsletterSendingDomainState,
+} from "@sokosumi/core-client";
 import { CalendarClock, Check, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,22 +31,27 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { changeNewsletterIssue } from "@/lib/actions/newsletter/issue-lifecycle";
+import { hasNewsletterSender, IssueReadiness } from "./issue-readiness";
 
 type IssueAction = "submit" | "approve" | "schedule" | "sendNow" | "cancel";
 interface IssueActionsProps {
   issue: NewsletterIssue;
   projectId: string;
   activeSubscribers: number;
+  senderName: string;
+  sendingDomain: NewsletterSendingDomainState;
   disabled?: boolean;
   onChanged?: (issue: NewsletterIssue) => void;
   onBusyChange?: (busy: boolean) => void;
 }
 
-/** Shared by the list and editor so both expose the same approval flow. */
+/** The list opens this editor flow for review before approval, scheduling, or sending, keeping the same human confirmation steps. */
 export function IssueActions({
   issue,
   projectId,
   activeSubscribers,
+  senderName,
+  sendingDomain,
   disabled,
   onChanged,
   onBusyChange,
@@ -78,6 +86,16 @@ export function IssueActions({
 
   async function handleChange(action: IssueAction) {
     setError(null);
+    if (action === "sendNow" || action === "schedule") {
+      if (activeSubscribers === 0) {
+        setError(t("noSubscribers"));
+        return;
+      }
+      if (!hasNewsletterSender(sendingDomain)) {
+        setError(t("noSender"));
+        return;
+      }
+    }
     let instant: string | undefined;
     if (action === "schedule") {
       const date = new Date(scheduledAt);
@@ -131,10 +149,22 @@ export function IssueActions({
   }
 
   const locked = disabled || pending !== null;
+  const deliveryBlocked =
+    locked || activeSubscribers === 0 || !hasNewsletterSender(sendingDomain);
   const confirmation =
     dialog === "sendNow" || dialog === "cancel" ? dialog : null;
   return (
     <div ref={actionContainer} className="min-w-0 space-y-2">
+      {["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(issue.status) ? (
+        <IssueReadiness
+          issue={issue}
+          projectId={projectId}
+          activeSubscribers={activeSubscribers}
+          senderName={senderName}
+          sendingDomain={sendingDomain}
+          linksDisabled={Boolean(locked)}
+        />
+      ) : null}
       {issue.approvedAt && issue.approvedByUserId ? (
         <p className="text-muted-foreground text-sm">
           {t("approvedBy", {
@@ -143,7 +173,7 @@ export function IssueActions({
           })}
         </p>
       ) : null}
-      {issue.scheduledAt && ["SCHEDULED", "SENDING"].includes(issue.status) ? (
+      {issue.scheduledAt && issue.status === "SENDING" ? (
         <p className="text-muted-foreground text-sm">
           {t("scheduled", {
             date: format.dateTime(issue.scheduledAt, "dateTime", {
@@ -188,7 +218,7 @@ export function IssueActions({
           <>
             <Button
               variant="outline"
-              disabled={locked}
+              disabled={deliveryBlocked}
               onClick={(event) => handleDialog("schedule", event.currentTarget)}
             >
               <CalendarClock />
@@ -196,7 +226,7 @@ export function IssueActions({
             </Button>
             <Button
               variant="outline"
-              disabled={locked}
+              disabled={deliveryBlocked}
               onClick={(event) => handleDialog("sendNow", event.currentTarget)}
             >
               <Send />
@@ -215,7 +245,7 @@ export function IssueActions({
         ) : null}
       </div>
       {error && !dialog ? (
-        <p role="alert" className="text-semantic-destructive-label text-sm">
+        <p role="alert" className="text-foreground text-sm">
           {error}
         </p>
       ) : null}
@@ -225,11 +255,23 @@ export function IssueActions({
           if (!open && !pending) setDialog(null);
         }}
       >
-        <DialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain"
+          onCloseAutoFocus={handleCloseAutoFocus}
+        >
           <DialogHeader>
             <DialogTitle>{t("scheduleTitle")}</DialogTitle>
             <DialogDescription>{t("scheduleDescription")}</DialogDescription>
           </DialogHeader>
+          <IssueReadiness
+            issue={issue}
+            projectId={projectId}
+            activeSubscribers={activeSubscribers}
+            senderName={senderName}
+            sendingDomain={sendingDomain}
+            timing="schedule"
+            linksDisabled={Boolean(locked)}
+          />
           <div className="space-y-3">
             <Label id={whenId}>{t("when")}</Label>
             {earliest ? (
@@ -247,11 +289,7 @@ export function IssueActions({
               {t("timezone", { timezone })}
             </p>
             {error ? (
-              <p
-                id={errorId}
-                role="alert"
-                className="text-semantic-destructive-label text-sm"
-              >
+              <p id={errorId} role="alert" className="text-foreground text-sm">
                 {error}
               </p>
             ) : null}
@@ -266,6 +304,7 @@ export function IssueActions({
             </Button>
             <Button
               variant="primary"
+              disabled={deliveryBlocked}
               loading={pending === "schedule"}
               onClick={() => void handleChange("schedule")}
             >
@@ -280,7 +319,10 @@ export function IssueActions({
           if (!open && !pending) setDialog(null);
         }}
       >
-        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
+        <AlertDialogContent
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain"
+          onCloseAutoFocus={handleCloseAutoFocus}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t(confirmation === "sendNow" ? "sendTitle" : "cancelTitle")}
@@ -291,8 +333,19 @@ export function IssueActions({
                 : t("cancelDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmation === "sendNow" ? (
+            <IssueReadiness
+              issue={issue}
+              projectId={projectId}
+              activeSubscribers={activeSubscribers}
+              senderName={senderName}
+              sendingDomain={sendingDomain}
+              timing="sendNow"
+              linksDisabled={Boolean(locked)}
+            />
+          ) : null}
           {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
+            <p role="alert" className="text-foreground text-sm">
               {error}
             </p>
           ) : null}
@@ -301,6 +354,7 @@ export function IssueActions({
               {t("close")}
             </AlertDialogCancel>
             <AlertDialogAction
+              disabled={confirmation === "sendNow" && Boolean(deliveryBlocked)}
               loading={pending !== null}
               onClick={(event) => {
                 event.preventDefault();

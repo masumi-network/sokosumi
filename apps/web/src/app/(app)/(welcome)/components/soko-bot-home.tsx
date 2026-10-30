@@ -96,9 +96,9 @@ export async function SokoBotHome({
         awaitingInput > 0 ? (
           <Link
             href="/tasks"
-            className="bg-primary-quinary text-primary hover:bg-primary-quaternary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
+            className="bg-muted text-foreground hover:bg-quinary focus-visible:ring-ring inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2"
           >
-            <span aria-hidden className="bg-primary size-1.5 rounded-full" />
+            <span aria-hidden className="bg-foreground size-1.5 rounded-full" />
             {tStats("awaiting", { count: awaitingInput })}
           </Link>
         ) : null

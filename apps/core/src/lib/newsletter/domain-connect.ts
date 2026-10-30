@@ -18,7 +18,8 @@ export const DOMAIN_CONNECT_KEY_HOST = "_dck1";
 const DKIM_HOST = "resend._domainkey";
 const RETURN_PATH_HOST = "send";
 const DMARC_HOST = "_dmarc";
-const SPF_VALUE = "v=spf1 include:amazonses.com ~all";
+/** Resend's TXT SPF maps to the template's SPFM `include:amazonses.com`. */
+const RESEND_SPF_VALUE = "v=spf1 include:amazonses.com ~all";
 
 /** What to apply from `docs/domainconnect/sokosumi.com.newsletter.json`. */
 export interface DomainConnectTemplateInput {
@@ -58,7 +59,7 @@ export function domainConnectTemplateInput(
       record.record === "SPF" &&
       record.type === "TXT" &&
       host === RETURN_PATH_HOST &&
-      record.value === SPF_VALUE
+      record.value === RESEND_SPF_VALUE
     ) {
       spf = true;
     } else if (
@@ -95,7 +96,7 @@ export interface DomainConnectApplyUrlInput {
 /**
  * The synchronous Domain Connect apply URL, signed as the spec requires for a
  * template with `syncPubKeyDomain`: RSA-SHA256 over the query string, then
- * `sig` and `key` appended.
+ * `key` then `sig` appended (`sig` last, as Cloudflare requires).
  */
 export function buildDomainConnectApplyUrl(
   input: DomainConnectApplyUrlInput,
@@ -114,7 +115,7 @@ export function buildDomainConnectApplyUrl(
   const signer = createSign("RSA-SHA256");
   signer.update(unsigned);
   const sig = signer.sign(input.privateKey, "base64");
-  const signed = new URLSearchParams({ sig, key: DOMAIN_CONNECT_KEY_HOST });
+  const signed = new URLSearchParams({ key: DOMAIN_CONNECT_KEY_HOST, sig });
   const base = input.urlSyncUX.replace(/\/$/, "");
   return `${base}/v2/domainTemplates/providers/${DOMAIN_CONNECT_PROVIDER_ID}/services/${DOMAIN_CONNECT_SERVICE_ID}/apply?${unsigned}&${signed.toString()}`;
 }

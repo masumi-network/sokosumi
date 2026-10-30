@@ -41,7 +41,7 @@ struct PageBoundaryRow: View {
               .controlSize(.small)
           }
           Text(actionLabel)
-            .foregroundStyle(isLoading ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+            .foregroundStyle(isLoading ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
         }
       }
       .font(.callout)

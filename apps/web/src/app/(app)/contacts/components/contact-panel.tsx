@@ -628,16 +628,13 @@ function PanelBody({
                     : undefined
                 }
                 placeholder={t("panel.noFollowUp")}
-                displayClassName={cn(
-                  "tabular-nums",
-                  due && "text-semantic-destructive-label",
-                )}
+                displayClassName={cn("tabular-nums", due && "text-foreground")}
                 onSave={(followUpAt) =>
                   save({ followUpAt: followUpAt || null })
                 }
               />
               {due ? (
-                <span className="text-semantic-destructive-label shrink-0 text-xs">
+                <span className="text-foreground shrink-0 text-xs">
                   {t("grid.due")}
                 </span>
               ) : null}
@@ -707,7 +704,7 @@ function MergeBanner({
   if (!group || !others.length) return null;
   return (
     <div className="px-6 pb-5">
-      <Alert className="border-primary-tertiary bg-primary-quinary">
+      <Alert className="border-border bg-muted">
         <GitMerge aria-hidden className="size-4" />
         <AlertDescription className="grid gap-2">
           <p className="text-foreground text-sm">
@@ -934,7 +931,7 @@ function ChannelsSection({
           </div>
           {error ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <p role="alert" className="text-semantic-destructive-label">
+              <p role="alert" className="text-foreground">
                 {error}
               </p>
               {takenBy ? (

@@ -3367,16 +3367,11 @@
             "notice": "Drafted by Soko Bot — review before submitting for approval"
           },
           "emptyTitle": "No issues yet",
-          "emptyDescription": "Choose a template to start your first newsletter issue.",
+          "emptyDescription": "Start blank or choose a template for your first newsletter issue.",
           "subject": "Subject",
           "previewText": "Preview text",
           "status": "Status",
-          "deliveryDate": "Scheduled / sent",
-          "updatedAt": "Updated",
-          "actions": "Actions",
           "sentAt": "Sent {date}",
-          "scheduledAt": "Scheduled {date}",
-          "noDate": "Not scheduled",
           "firstPage": "First page",
           "nextPage": "Next page",
           "results": "{count, plural, one {# issue} other {# issues}}",
@@ -3389,7 +3384,7 @@
             "FAILED": "Failed",
             "CANCELED": "Canceled"
           },
-          "createError": "Failed to create issue. Try choosing the template again.",
+          "createError": "Failed to create issue. Try again.",
           "saveError": "Failed to save issue. Keep your changes and try again.",
           "conflict": "This issue changed or is no longer editable. Copy your changes, reload the page, and try again.",
           "invalid": "Check the highlighted fields and try again.",
@@ -3428,8 +3423,8 @@
             "content": "Check this block. Use HTTPS URLs and keep text within the field limits."
           },
           "Templates": {
-            "title": "Choose a template",
-            "description": "Start with a layout, then edit every block.",
+            "title": "Start an issue",
+            "description": "Write from scratch or use a template you can edit.",
             "subject": "Untitled issue",
             "heading": "This week’s highlights",
             "text": "Share the latest news, a useful idea, or an update with your subscribers.",
@@ -3448,7 +3443,10 @@
             "BUTTONS": {
               "title": "Buttons",
               "description": "A heading, text, a button, divider, and closing text."
-            }
+            },
+            "blank": "Start blank",
+            "blankDescription": "Bring your own copy and add only the blocks you need.",
+            "templateHeading": "Or start with a template"
           },
           "Preview": {
             "title": "Preview",
@@ -3482,9 +3480,9 @@
             "when": "When",
             "timezone": "Time zone: {timezone}",
             "scheduleTitle": "Schedule newsletter",
-            "scheduleDescription": "Choose a time between one minute and one year from now.",
+            "scheduleDescription": "Choose when sending should start, between one minute and one year from now.",
             "sendTitle": "Send this newsletter now?",
-            "sendDescription": "{count, plural, one {This issue will be sent to # active subscriber. Sending cannot be undone.} other {This issue will be sent to # active subscribers. Sending cannot be undone.}}",
+            "sendDescription": "{count, plural, one {Start sending this issue to the current audience of # active subscriber? Delivery may be gradual. Sending cannot be undone.} other {Start sending this issue to the current audience of # active subscribers? Delivery may be gradual. Sending cannot be undone.}}",
             "cancelTitle": "Cancel this newsletter’s schedule?",
             "cancelDescription": "This issue will return to draft. Submit it again for approval before scheduling or sending.",
             "saveFirst": "Save your changes before submitting, approving, scheduling, or sending.",
@@ -3497,7 +3495,52 @@
             "noSender": "Connect a sending domain in Newsletter settings, under Sending domain, before scheduling or sending.",
             "approvalRequired": "Submit this issue and get a person’s approval before scheduling or sending."
           },
-          "viewOnWeb": "View on web"
+          "viewOnWeb": "View on web",
+          "updated": "Updated {date}",
+          "nextActions": {
+            "DRAFT": "Continue writing",
+            "NEEDS_APPROVAL": "Review and approve",
+            "APPROVED": "Schedule or send",
+            "SCHEDULED": "View schedule",
+            "SENDING": "View progress",
+            "SENT": "View results",
+            "FAILED": "Review delivery",
+            "CANCELED": "View issue"
+          },
+          "Readiness": {
+            "title": "Before sending",
+            "sender": "Sender",
+            "fallbackSender": "{name} via Sokosumi",
+            "fallbackHint": "Using Sokosumi’s shared sending domain.",
+            "noSender": "Sending domain required",
+            "senderSettings": "Review sender settings",
+            "audience": "Current audience",
+            "audienceCount": "{count, plural, one {# active subscriber} other {# active subscribers}}",
+            "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
+            "manageSubscribers": "Manage subscribers",
+            "approval": "Approval",
+            "approved": "Approved",
+            "approvalRequired": "Human approval required",
+            "timing": "Delivery starts",
+            "afterConfirmation": "After confirmation",
+            "chooseTiming": "Choose send now or schedule",
+            "scheduled": "{date} ({timezone})",
+            "deliveryHint": "Delivery may be gradual while your sending domain warms up. The active audience is checked again when sending starts.",
+            "selectedTime": "At the selected time"
+          },
+          "Delivery": {
+            "partial": "Sent with delivery issues",
+            "details": "Last error:",
+            "partialHelp": "Some emails could not be sent or confirmed. Review the error before planning another issue; sending again could reach people twice.",
+            "failedHelp": "Delivery failed. Review the error and sender settings before planning another issue. Some attempts may be unconfirmed, so sending again could reach people twice.",
+            "reviewSettings": "Review sending settings",
+            "sending": "Sending is in progress. Domain warm-up may spread delivery over time. Check back for the outcome."
+          },
+          "details": "Issue details",
+          "saving": "Saving issue…",
+          "undo": "Undo removal",
+          "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",
+          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another."
         },
         "publicArchive": "Public archive",
         "SignupForm": {
@@ -3676,7 +3719,20 @@
             "domainRejected": "This domain can’t be used. Check the address and try again.",
             "providerFailed": "The email provider didn’t respond. Try again in a minute.",
             "cloudflareRejected": "Cloudflare rejected the token. Check it has Zone · DNS · Edit for this domain’s zone.",
-            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute."
+            "cloudflareFailed": "Cloudflare didn’t respond. Try again in a minute.",
+            "resumeUnavailable": "Verify this sending domain before resuming. Check its DNS records and try again."
+          },
+          "warmup": {
+            "title": "Domain warm-up",
+            "progress": "Day {day} · {used} of {cap} sent today (UTC)",
+            "unlimited": "Day {day} · {used} sent today (UTC) · Unlimited",
+            "description": "Recipients beyond today’s limit stay queued and send automatically when capacity returns. The daily limit resets at 00:00 UTC.",
+            "paused": "Sending paused",
+            "bounceReason": "Too many emails permanently bounced.",
+            "complaintReason": "Too many recipients marked emails as spam.",
+            "pausedDescription": "Queued recipients stay queued until a project member resumes sending. Review the subscriber list before resuming.",
+            "resume": "Resume sending",
+            "resumed": "Sending resumed. Queued recipients continue within the daily limit."
           }
         }
       }
@@ -4968,7 +5024,8 @@
           "accounts": "Accounts",
           "billing": "Billing & commercial",
           "catalog": "Marketplace catalog",
-          "operations": "Operations"
+          "operations": "Operations",
+          "reference": "Reference"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -5022,6 +5079,10 @@
           "badgeCampaigns": {
             "title": "Feature badges",
             "description": "Show a New badge on a sidebar feature for existing users, for a set time."
+          },
+          "designSystem": {
+            "title": "Design system",
+            "description": "Masumi Family brand and UI rules, rendered with our real components."
           }
         }
       },
@@ -6190,6 +6251,141 @@
           "saveFailed": "Couldn't save the campaign",
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
+        }
+      },
+      "DesignSystem": {
+        "title": "Design system",
+        "description": "Masumi Family brand and UI rules, rendered with our real components and the app's own tokens. Switch the app theme to see dark.",
+        "guideLink": "Brand guide",
+        "backToAdmin": "Back to admin",
+        "Theme": {
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "Color": {
+          "title": "Color",
+          "lead": "Neutral surfaces. One pink per view.",
+          "primaryName": "Iris Flower · primary",
+          "primaryRuleTitle": "Text on Iris Flower is always Neutral 950",
+          "primaryRule": "White on Iris Flower fails contrast. Never set Iris Flower text on a white page. Use it for fills, accents and active states.",
+          "palette": "Masumi palette",
+          "paletteRule": "Shared by all brands. Everything but Iris Flower is secondary. Never use Scarlet or Persimmon for status.",
+          "neutrals": "Neutrals",
+          "roles": "Theme roles",
+          "Roles": {
+            "page": "Page",
+            "panel": "Panel",
+            "border": "Border",
+            "fieldBorder": "Field border",
+            "text": "Text",
+            "mutedText": "Muted text",
+            "primary": "Primary",
+            "component": "Component on a panel",
+            "disabledText": "Disabled text",
+            "textOnPrimary": "Text on primary",
+            "scrim": "Overlay scrim"
+          },
+          "darkPrimaryRule": "In dark, the primary rests on Dark Iris (#D141D1, proposed). Iris Flower reads three times louder on near-black. Hover returns to Iris Flower.",
+          "status": "Status",
+          "Status": {
+            "done": "Positive",
+            "needsInput": "Warning",
+            "failed": "Destructive"
+          },
+          "statusRule": "Every status pairs color with a symbol and a label. Never color alone.",
+          "gradients": "Gradients",
+          "gradientRule": "To be decided. Backgrounds and hero areas only, never behind dense UI.",
+          "alpha": "Alpha tones",
+          "alphaRule": "Black at reduced opacity. Overlays and scrims over imagery only, never UI surfaces.",
+          "alphaStep": "Alpha {step}"
+        },
+        "Type": {
+          "title": "Typography",
+          "lead": "Inter only. Light from 20px, for display.",
+          "sample": "Agents at work",
+          "Roles": {
+            "display": "Display",
+            "heading": "Heading",
+            "subheading": "Subheading",
+            "body": "Body",
+            "label": "Label",
+            "caption": "Caption",
+            "micro": "Micro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Shape and depth",
+          "lead": "Borders first. Shadows only on floating overlays. No glow, no blur.",
+          "border": "Border",
+          "overlay": "Overlay"
+        },
+        "Components": {
+          "title": "Components",
+          "lead": "One filled primary per view. Verb first.",
+          "schedule": "Schedule post",
+          "duplicate": "Duplicate",
+          "cancel": "Cancel",
+          "delete": "Delete",
+          "showAll": "Show all",
+          "small": "Small",
+          "addTask": "Add task",
+          "saving": "Saving",
+          "postTitle": "Post title",
+          "postTitlePlaceholder": "e.g. Three lessons from our launch",
+          "budget": "Daily budget",
+          "budgetError": "Enter an amount above 0, like 25.",
+          "notify": "Notify me when a task needs input",
+          "review": "Review posts before they go out",
+          "calendar": "Calendar",
+          "drafts": "Drafts",
+          "cardTitle": "Competitor landscape",
+          "cardBody": "To get better aligned: which region do you sell in?",
+          "answer": "Answer",
+          "openTask": "Open task",
+          "toast": "Post scheduled",
+          "undo": "Undo",
+          "dialogTitle": "Delete 3 drafts?",
+          "dialogBody": "They will not be posted and cannot be restored.",
+          "deleteDrafts": "Delete drafts"
+        },
+        "Motion": {
+          "title": "Motion",
+          "lead": "Motion explains a change. Nothing more.",
+          "rules": "Animate transform and opacity, never layout. Name the properties you transition. No decorative loops. Reduced motion removes non-essential movement.",
+          "feedback": {
+            "title": "Feedback",
+            "body": "Press and hover on every control, ease-out."
+          },
+          "enter": {
+            "title": "Enter",
+            "body": "Lists, pages, dialogs and menus arriving."
+          }
+        },
+        "States": {
+          "title": "State",
+          "lead": "Every state is designed, not left over.",
+          "todo": "To do",
+          "inProgress": "In progress",
+          "needsInput": "Needs input",
+          "done": "Done",
+          "failed": "Failed",
+          "loading": "Drafting your posts",
+          "emptyTitle": "Drafts",
+          "emptyBody": "Posts you start but do not schedule wait here.",
+          "emptyAction": "Write a post",
+          "errorTitle": "LinkedIn did not accept the post",
+          "errorBody": "The image is over 5 MB. Choose a smaller one and try again.",
+          "errorAction": "Replace image",
+          "doneTitle": "5 posts scheduled",
+          "doneBody": "The first one goes out Thursday at 09:00, your time zone.",
+          "doneAction": "Open calendar"
         }
       }
     },

@@ -4,6 +4,10 @@ import {
   isChatRoomPathname,
   isChatShellPathname,
 } from "@/app/chat/utils/chat-route-base";
+import {
+  PROJECT_SCOPE_PARAM,
+  scopedHref,
+} from "@/app/components/project-scope/project-scope-href";
 
 /** Exact paths that show the mobile tab bar. */
 const MOBILE_TAB_LIST_PATHS = [
@@ -14,6 +18,12 @@ const MOBILE_TAB_LIST_PATHS = [
   "/schedules",
   "/contacts",
   "/social",
+  "/newsletter",
+  "/newsletter/issues",
+  "/newsletter/subscribers",
+  "/newsletter/calendar",
+  "/newsletter/analytics",
+  "/newsletter/settings",
   "/studio",
   "/projects",
   "/you",
@@ -85,6 +95,7 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
+  searchParams?: SearchParamsLike,
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
@@ -92,6 +103,20 @@ export function resolveMobileAppBackTarget(
   const root = findMainAppListRoot(pathname);
   if (!root) {
     return null;
+  }
+  if (root === "/newsletter") {
+    if (MOBILE_TAB_LIST_PATH_SET.has(pathname)) {
+      return { href: "/", labelKey: "back" };
+    }
+    return {
+      href: scopedHref(
+        pathname.startsWith("/newsletter/issues/")
+          ? "/newsletter/issues"
+          : "/newsletter",
+        searchParams?.get?.(PROJECT_SCOPE_PARAM) ?? null,
+      ),
+      labelKey: "back",
+    };
   }
   if (pathname === root) {
     if (
@@ -161,7 +186,9 @@ export function shouldShowMobileBrandLeading(
   if (
     pathname === "/agents" ||
     pathname === "/social" ||
-    pathname === "/studio"
+    pathname === "/studio" ||
+    pathname === "/newsletter" ||
+    pathname.startsWith("/newsletter/")
   ) {
     return false;
   }

@@ -18,10 +18,10 @@ import {
 
 const LEVEL_CLASS = [
   "bg-muted",
-  "bg-primary-quinary dark:bg-primary-tertiary",
-  "bg-primary-quaternary dark:bg-primary-solid",
-  "bg-primary-tertiary dark:bg-primary",
-  "bg-primary-solid dark:bg-chart-1",
+  "bg-muted dark:bg-quaternary",
+  "bg-quinary dark:bg-primary",
+  "bg-quaternary dark:bg-primary",
+  "bg-primary dark:bg-chart-1",
 ] as const;
 
 const UNKNOWN_CLASS =
