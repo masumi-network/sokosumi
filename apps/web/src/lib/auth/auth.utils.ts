@@ -24,6 +24,7 @@ interface AuthSessionResponse<TSession = unknown> {
   data?: {
     session?: TSession | null;
   } | null;
+  error?: unknown;
 }
 
 function waitForMs(ms: number): Promise<void> {
@@ -58,6 +59,9 @@ export function createAuthSessionGetter<TSession>(
 ): () => Promise<TSession | null> {
   return async () => {
     const sessionResponse = await getSessionResponse();
+    if (sessionResponse?.error) {
+      throw sessionResponse.error;
+    }
     return sessionResponse?.data?.session ?? null;
   };
 }

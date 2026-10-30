@@ -1,24 +1,82 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useEffectEvent, useRef } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+} from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
-export function AuthSessionGuard() {
+export const AuthSessionIdentityContext = createContext<
+  ((userId: string) => void) | null
+>(null);
+
+interface AuthSessionGuardProps {
+  children?: ReactNode;
+}
+
+export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
   const router = useRouter();
   const isRedirectingRef = useRef(false);
   const mountedRef = useRef(true);
   const probeGenerationRef = useRef(0);
+  const renderedUserIdRef = useRef<string | undefined>(undefined);
+  const freshSessionRef = useRef<
+    { userId: string; generation: number } | undefined
+  >(undefined);
   const getFreshSession = createAuthSessionGetter(() =>
     authClient.getSession({
       query: {
         disableCookieCache: true,
       },
     }),
+  );
+
+  const reconcileSession = useCallback(async () => {
+    const freshSession = freshSessionRef.current;
+    if (
+      !mountedRef.current ||
+      isRedirectingRef.current ||
+      !freshSession ||
+      freshSession.generation !== probeGenerationRef.current
+    ) {
+      return;
+    }
+    const generation = freshSession.generation;
+    const realtime = await import("@/lib/ably/realtime-singleton.client");
+    if (
+      !mountedRef.current ||
+      isRedirectingRef.current ||
+      generation !== probeGenerationRef.current
+    ) {
+      return;
+    }
+    if (
+      renderedUserIdRef.current &&
+      renderedUserIdRef.current !== freshSession.userId
+    ) {
+      isRedirectingRef.current = true;
+      realtime.retireAblyRealtimeClientForSessionChange();
+      window.location.reload();
+      return;
+    }
+    realtime.discardRetiredAblyRealtimeClient();
+  }, []);
+
+  const registerRenderedUser = useCallback(
+    (userId: string) => {
+      renderedUserIdRef.current = userId;
+      void reconcileSession().catch(() => {});
+    },
+    [reconcileSession],
   );
 
   const validateSession = useEffectEvent(async () => {
@@ -33,9 +91,14 @@ export function AuthSessionGuard() {
       if (
         !mountedRef.current ||
         isRedirectingRef.current ||
-        generation !== probeGenerationRef.current ||
-        session
+        generation !== probeGenerationRef.current
       ) {
+        return;
+      }
+      if (session) {
+        freshSessionRef.current = { userId: session.userId, generation };
+        // Another tab can restore this session without running this tab's sign-in flow.
+        await reconcileSession();
         return;
       }
     } catch {
@@ -77,5 +140,9 @@ export function AuthSessionGuard() {
     };
   }, []);
 
-  return null;
+  return (
+    <AuthSessionIdentityContext value={registerRenderedUser}>
+      {children}
+    </AuthSessionIdentityContext>
+  );
 }

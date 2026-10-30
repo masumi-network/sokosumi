@@ -711,6 +711,16 @@ describe("waitForAuthSession", () => {
 });
 
 describe("createAuthSessionGetter", () => {
+  it("preserves a structured session failure instead of confirming sign-out", async () => {
+    const error = { status: 503, message: "Temporary outage" };
+    const getSession = createAuthSessionGetter(async () => ({
+      data: null,
+      error,
+    }));
+
+    await expect(getSession()).rejects.toBe(error);
+  });
+
   it("unwraps session data from the Better Auth response shape", async () => {
     const getSession = createAuthSessionGetter(async () => ({
       data: {

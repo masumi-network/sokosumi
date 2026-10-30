@@ -1,19 +1,35 @@
 "use client";
 
 import { getBrowserNotificationPermission } from "@/lib/utils/browser-notification";
-import { isPushSupported } from "@/lib/utils/notification-service-worker";
+import {
+  hasWebPushSubscription,
+  isPushSupported,
+} from "@/lib/utils/notification-service-worker";
+import { getOrCreateAblyClientInstanceId } from "./ably-client-instance-id";
+import { fetchAblyBrowserAuthTokenRequest } from "./auth.client";
 
 import {
   hasPushPreference,
+  readPushPreferenceUserId,
   rememberPushPreference,
   wantsPushHere,
 } from "./push-preference.client";
-
-import { recordPushRepairOutcome } from "./push-repair-outcome.client";
-import { getPushTeardownVersion } from "./push-work-queue.client";
 import {
+  revokePushRenewalForUser,
+  stopBrowserDelivery,
+} from "./push-renewal.client";
+import { recordPushRepairOutcome } from "./push-repair-outcome.client";
+import {
+  getPushTeardownVersion,
+  notePushTeardown,
+  queuePushWork,
+} from "./push-work-queue.client";
+import {
+  forgetAblyPushRegistration,
   hasAblyPushRegistration,
   hasUnfinishedPushTeardown,
+  notePushTeardownStarted,
+  readPushDeviceOwner,
 } from "./release-push-device.client";
 
 /** Reconcile remembered consent with the browser and Ably after each wake. */
@@ -63,6 +79,13 @@ async function runHeal(
     const teardownVersion = getPushTeardownVersion();
 
     if (
+      isPushSupported() &&
+      (await stopForeignPushSubscription(userId, hadRegistration))
+    ) {
+      return false;
+    }
+
+    if (
       !isPushSupported() ||
       getBrowserNotificationPermission() !== "granted" ||
       hasUnfinishedPushTeardown() ||
@@ -98,4 +121,51 @@ async function runHeal(
 
     return undefined;
   }
+}
+
+/** A naturally expired session keeps push, but another account must not inherit it. */
+async function stopForeignPushSubscription(
+  userId: string,
+  hadRegistration: boolean,
+): Promise<boolean> {
+  function readOwner() {
+    return readPushDeviceOwner() ?? readPushPreferenceUserId();
+  }
+  const owner = readOwner();
+  if (!owner || owner === userId) return false;
+  if (!hadRegistration && !(await hasWebPushSubscription())) return false;
+  const version = getPushTeardownVersion();
+
+  // A stale tab still carries its previous userId. The token checks the current cookie first.
+  const clientInstanceId = getOrCreateAblyClientInstanceId();
+  const token = await fetchAblyBrowserAuthTokenRequest(clientInstanceId);
+  if (
+    token.clientId !== `${userId}:${clientInstanceId}` ||
+    version !== getPushTeardownVersion() ||
+    owner !== readOwner()
+  )
+    return true;
+
+  if (wantsPushHere(owner)) rememberPushPreference(owner, true);
+  notePushTeardown();
+  notePushTeardownStarted();
+  const teardownVersion = getPushTeardownVersion();
+  // Revoke before waiting behind an activation, so the worker cannot renew the old account.
+  const renewalRevoked = revokePushRenewalForUser(owner);
+  await queuePushWork(async () => {
+    const storageRevoked = await renewalRevoked;
+    if (teardownVersion !== getPushTeardownVersion() || owner !== readOwner())
+      return;
+    if (storageRevoked) {
+      const { dropBrowserPushSubscription } = await import(
+        "./push-activation.client"
+      );
+      await dropBrowserPushSubscription();
+    } else {
+      await stopBrowserDelivery();
+    }
+    forgetAblyPushRegistration();
+    notePushTeardownStarted();
+  });
+  return true;
 }
