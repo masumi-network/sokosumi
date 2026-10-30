@@ -12,6 +12,7 @@ import {
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
+  isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
@@ -2188,8 +2189,8 @@ export class SokoBotControlPlane {
           capability,
         ),
     );
-    const newsletterDraftAvailable =
-      routeCapabilities.includes("newsletter_draft_issue") &&
+    const newsletterAvailable =
+      routeCapabilities.some(isSokoBotNewsletterCapability) &&
       (await isNewsletterDraftAvailable({
         workspaceId: input.workspaceId,
         projectId: bot.projectId,
@@ -2203,7 +2204,7 @@ export class SokoBotControlPlane {
           : routeCapabilities) as readonly SokoBotCapability[],
     ).filter(
       (capability) =>
-        capability !== "newsletter_draft_issue" || newsletterDraftAvailable,
+        !isSokoBotNewsletterCapability(capability) || newsletterAvailable,
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +
