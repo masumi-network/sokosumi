@@ -36,7 +36,7 @@ export function TaskRelationRow({
   return (
     <TaskDetailLink
       href={href}
-      className="hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 text-sm transition-colors"
+      className="hover:bg-accent -mx-2 flex h-8 w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 text-sm transition-colors"
     >
       <span
         role="img"
@@ -46,7 +46,7 @@ export function TaskRelationRow({
       >
         <StatusMarker
           spec={marker}
-          tone={getToneStyle(marker.tone).labelOnSurface}
+          tone={getToneStyle(marker.tone).onSurface}
         />
       </span>
       <span className="truncate">{taskName}</span>

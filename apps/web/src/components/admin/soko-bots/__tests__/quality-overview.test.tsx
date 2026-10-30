@@ -108,7 +108,7 @@ describe("QualityOverview", () => {
 
     expect(container.querySelectorAll("polyline")).toHaveLength(3);
     expect(container.querySelector('[data-series="thumbs-up"]')).toHaveClass(
-      "stroke-semantic-success",
+      "stroke-muted-foreground",
     );
     expect(container.querySelector('[data-series="thumbs-down"]')).toHaveClass(
       "stroke-semantic-destructive",

@@ -433,7 +433,7 @@ export function TableCell({
           aria-hidden
           onMouseDown={(event) => event.preventDefault()}
           className={cn(
-            "bg-card-background group-hover/row:bg-card-background-hover absolute end-0.5 top-0.5 flex opacity-0 transition-opacity group-hover/cell:opacity-100",
+            "bg-card-background group-hover/row:bg-accent absolute end-0.5 top-0.5 flex opacity-0 transition-opacity group-hover/cell:opacity-100",
             active && "opacity-100",
           )}
         >

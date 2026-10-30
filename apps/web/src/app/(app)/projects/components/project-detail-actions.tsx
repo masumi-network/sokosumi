@@ -246,7 +246,7 @@ export function ProjectDetailActions({
             </AlertDialogDescription>
           </AlertDialogHeader>
           {labels.closeDialog.scheduledPostsWarning ? (
-            <p role="status" className="text-semantic-warning text-sm">
+            <p role="status" className="text-foreground text-sm">
               {labels.closeDialog.scheduledPostsWarning}
             </p>
           ) : null}
@@ -268,7 +268,7 @@ export function ProjectDetailActions({
               {labels.closeDialog.cancel}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               loading={isClosing}
               onClick={(event) => {
                 event.preventDefault();

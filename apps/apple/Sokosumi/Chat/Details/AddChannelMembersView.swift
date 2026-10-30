@@ -54,7 +54,7 @@ struct AddChannelMembersView: View {
         .frame(maxHeight: 520)
         HStack {
           Spacer()
-          Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+          Button("Done") { dismiss() }.buttonStyle(.brandPrimary).keyboardShortcut(.defaultAction)
         }
       } else {
         members
@@ -68,6 +68,7 @@ struct AddChannelMembersView: View {
               }
             }
           }
+          .buttonStyle(.brandPrimary)
           .keyboardShortcut(.defaultAction)
           .disabled(!model.canAdd)
         }

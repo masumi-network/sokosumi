@@ -16,10 +16,10 @@ import {
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
 import {
-  ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-  type OrganizationChatRoomsChangedDetail,
+  subscribeOrganizationChatRoomRead,
+  subscribeOrganizationChatRoomsChanged,
 } from "./organization-chat-events";
-import { keepRoomUnreadState, roomAttentionAfterRead } from "./room-attention";
+import { keepRoomUnreadState } from "./room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
@@ -264,38 +264,7 @@ export function useOrganizationChatRooms({
       return;
     }
 
-    const handleRoomRead = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ room?: ChatRoom; roomId?: string }>
-      ).detail;
-      if (!detail?.roomId) {
-        return;
-      }
-
-      if (detail.room) {
-        // Dual-baseline: leftover Participant Thread unread stays on the row.
-        rememberRoomRead(detail.room);
-      }
-
-      setRoomRows((current) =>
-        applyRoomReadOverlays(
-          current.map((room) => {
-            if (room.id !== detail.roomId) return room;
-            const updated = detail.room ?? {
-              ...room,
-              ...roomAttentionAfterRead(room),
-            };
-            if (!detail.room) rememberRoomRead(updated);
-            return updated;
-          }),
-        ),
-      );
-    };
-
-    window.addEventListener("organization-chat-room-read", handleRoomRead);
-    return () => {
-      window.removeEventListener("organization-chat-room-read", handleRoomRead);
-    };
+    return subscribeOrganizationChatRoomRead(setRoomRows);
   }, [paintOnly]);
 
   useEffect(() => {
@@ -303,11 +272,8 @@ export function useOrganizationChatRooms({
       return;
     }
 
-    const handleRoomsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
-        .detail;
-      const removedRoomId = detail?.removedRoomId;
-      if (removedRoomId) {
+    return subscribeOrganizationChatRoomsChanged({
+      onRemoved: (removedRoomId) => {
         latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
         latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
         setRoomRows((current) =>
@@ -318,28 +284,10 @@ export function useOrganizationChatRooms({
         setArchivedRows((current) =>
           current.filter((row) => row.id !== removedRoomId),
         );
-        return;
-      }
-
-      const room = detail?.room;
-      if (room) {
-        upsertRoomToTop(room);
-        return;
-      }
-
-      requestCollections(detail?.collections);
-    };
-
-    window.addEventListener(
-      ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-      handleRoomsChanged,
-    );
-    return () => {
-      window.removeEventListener(
-        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-        handleRoomsChanged,
-      );
-    };
+      },
+      onRoom: upsertRoomToTop,
+      onInvalidated: requestCollections,
+    });
   }, [paintOnly, requestCollections, upsertRoomToTop]);
 
   useEffect(() => {

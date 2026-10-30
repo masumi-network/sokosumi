@@ -69,7 +69,6 @@ import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
 import { TaskActivitySubscribeControl } from "./task-activity-subscribe";
 import {
-  getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
   TaskStatusInline,
 } from "./task-status-badge";
@@ -635,8 +634,6 @@ export function TaskActivitySection({
                 className={cn(
                   "rounded-lg pr-3 pl-3",
                   isCardEvent && "bg-card-background border-border border",
-                  shouldHighlightDoneBorder &&
-                    getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                 )}
               >
                 <div

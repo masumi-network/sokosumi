@@ -77,6 +77,7 @@ import SwiftUI
                 .accessibilityHidden(true)
             }
           }
+          .foregroundStyle(.primary)
           .font(.caption.weight(.medium))
           .padding(.top, 8)
         }

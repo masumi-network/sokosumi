@@ -128,7 +128,7 @@ export function TaskFormModal({
                   onClick={() => handleOpenChange(false)}
                   disabled={isDismissDisabled}
                 >
-                  <span className="text-primary text-sm">{cancelLabel}</span>
+                  <span className="text-foreground text-sm">{cancelLabel}</span>
                 </Button>
               </div>
             </div>
