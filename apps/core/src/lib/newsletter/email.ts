@@ -28,7 +28,7 @@ export const NEWSLETTER_SENDER_NOT_CONFIGURED_MESSAGE =
   "Connect a sending domain in Newsletter settings before sending";
 
 /**
- * The workspace's own address once Resend verifies it. Until then the shared
+ * The project's own address once Resend verifies it. Until then the shared
  * `NEWSLETTER_FROM_DOMAIN`, sent "via Sokosumi". Never the transactional
  * sender: with neither, sending is refused.
  */

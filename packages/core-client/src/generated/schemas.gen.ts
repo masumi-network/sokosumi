@@ -18685,184 +18685,6 @@ export const NewsletterAvailabilitySchema = {
     ]
 } as const;
 
-export const NewsletterSendingDomainStateSchema = {
-    type: 'object',
-    properties: {
-        sendingDomain: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/NewsletterSendingDomain'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Null until a workspace owner or admin adds one.'
-        },
-        canManage: {
-            type: 'boolean'
-        },
-        fallbackAvailable: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'sendingDomain',
-        'canManage',
-        'fallbackAvailable'
-    ]
-} as const;
-
-export const NewsletterSendingDomainSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        domain: {
-            type: 'string'
-        },
-        fromAddress: {
-            type: 'string'
-        },
-        status: {
-            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
-        },
-        dnsRecords: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/NewsletterDnsRecord'
-            }
-        },
-        lastCheckedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        failureReason: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'domain',
-        'fromAddress',
-        'status',
-        'dnsRecords',
-        'lastCheckedAt',
-        'failureReason',
-        'createdAt'
-    ]
-} as const;
-
-export const NewsletterSendingDomainStatusSchema = {
-    type: 'string',
-    enum: [
-        'PENDING',
-        'VERIFIED',
-        'FAILED'
-    ]
-} as const;
-
-export const NewsletterDnsRecordSchema = {
-    type: 'object',
-    properties: {
-        record: {
-            type: 'string'
-        },
-        type: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        value: {
-            type: 'string'
-        },
-        ttl: {
-            type: 'string'
-        },
-        priority: {
-            type: [
-                'number',
-                'null'
-            ]
-        },
-        status: {
-            type: 'string'
-        }
-    },
-    required: [
-        'record',
-        'type',
-        'name',
-        'value',
-        'ttl',
-        'priority',
-        'status'
-    ]
-} as const;
-
-export const PutNewsletterSendingDomainRequestSchema = {
-    type: 'object',
-    properties: {
-        fromAddress: {
-            type: 'string',
-            maxLength: 254,
-            format: 'email'
-        }
-    },
-    required: [
-        'fromAddress'
-    ]
-} as const;
-
-export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
-    type: 'object',
-    properties: {
-        apiToken: {
-            type: 'string',
-            minLength: 20,
-            maxLength: 256
-        }
-    },
-    required: [
-        'apiToken'
-    ]
-} as const;
-
-export const NewsletterSendingDomainConnectSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        providerName: {
-            type: 'string'
-        },
-        applyUrl: {
-            type: 'string',
-            format: 'uri'
-        }
-    },
-    required: [
-        'providerName',
-        'applyUrl'
-    ]
-} as const;
-
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -23538,6 +23360,184 @@ export const PutNewsletterRequestSchema = {
         'replyTo',
         'brand',
         'welcomeEmailEnabled'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStateSchema = {
+    type: 'object',
+    properties: {
+        sendingDomain: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/NewsletterSendingDomain'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a member adds a sending domain to this Project.'
+        },
+        canManage: {
+            type: 'boolean'
+        },
+        fallbackAvailable: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'sendingDomain',
+        'canManage',
+        'fallbackAvailable'
+    ]
+} as const;
+
+export const NewsletterSendingDomainSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        domain: {
+            type: 'string'
+        },
+        fromAddress: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/NewsletterSendingDomainStatus'
+        },
+        dnsRecords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/NewsletterDnsRecord'
+            }
+        },
+        lastCheckedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'domain',
+        'fromAddress',
+        'status',
+        'dnsRecords',
+        'lastCheckedAt',
+        'failureReason',
+        'createdAt'
+    ]
+} as const;
+
+export const NewsletterSendingDomainStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'VERIFIED',
+        'FAILED'
+    ]
+} as const;
+
+export const NewsletterDnsRecordSchema = {
+    type: 'object',
+    properties: {
+        record: {
+            type: 'string'
+        },
+        type: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        value: {
+            type: 'string'
+        },
+        ttl: {
+            type: 'string'
+        },
+        priority: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'record',
+        'type',
+        'name',
+        'value',
+        'ttl',
+        'priority',
+        'status'
+    ]
+} as const;
+
+export const PutNewsletterSendingDomainRequestSchema = {
+    type: 'object',
+    properties: {
+        fromAddress: {
+            type: 'string',
+            maxLength: 254,
+            format: 'email'
+        }
+    },
+    required: [
+        'fromAddress'
+    ]
+} as const;
+
+export const ConnectNewsletterSendingDomainCloudflareRequestSchema = {
+    type: 'object',
+    properties: {
+        apiToken: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 256
+        }
+    },
+    required: [
+        'apiToken'
+    ]
+} as const;
+
+export const NewsletterSendingDomainConnectSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        providerName: {
+            type: 'string'
+        },
+        applyUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'providerName',
+        'applyUrl'
     ]
 } as const;
 
