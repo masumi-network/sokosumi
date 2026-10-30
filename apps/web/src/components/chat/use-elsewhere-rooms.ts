@@ -62,6 +62,9 @@ function keepOpenRoomRow(
  * A room the reader has read or muted stays held until the next read, but only
  * the open room is answered: that is what takes a read row away once the reader
  * moves on.
+ *
+ * `answered` turns true once the first read has come back, listed or failed, so
+ * a caller can tell "nothing unread" from "not asked yet".
  */
 export function useElsewhereRooms({
   currentUserId,
@@ -75,6 +78,7 @@ export function useElsewhereRooms({
   paintOnly: boolean;
 }) {
   const [heldRooms, setHeldRooms] = useState<ChatRoom[]>([]);
+  const [answered, setAnswered] = useState(false);
   const scope = paintOnly
     ? null
     : `${organizationId ?? ""}:${currentUserId}:elsewhere`;
@@ -84,6 +88,7 @@ export function useElsewhereRooms({
   if (scope !== prevScope) {
     setPrevScope(scope);
     setHeldRooms([]);
+    setAnswered(false);
   }
   const activeRoomIdRef = useRef(activeRoomId);
   activeRoomIdRef.current = activeRoomId;
@@ -91,7 +96,9 @@ export function useElsewhereRooms({
   const refresh = useCallback(async (isCurrent: () => boolean) => {
     const requestRevision = beginRoomAttentionRefresh();
     const rooms = await fetchSidebarRoomCollection("elsewhere");
-    if (!isCurrent() || !rooms) return;
+    if (!isCurrent()) return;
+    setAnswered(true);
+    if (!rooms) return;
     const listed = reconcileRoomAttention(rooms, requestRevision);
     setHeldRooms((current) =>
       keepOpenRoomRow(current, listed, activeRoomIdRef.current),
@@ -212,7 +219,7 @@ export function useElsewhereRooms({
     return readRoom || lookThreads || room.id === activeRoomId;
   });
 
-  return { rooms, replaceRoom };
+  return { rooms, replaceRoom, answered };
 }
 
 /** A room action's answer does not load the Organization's name the row shows. */

@@ -4,10 +4,10 @@
 
 **Blocked by:** 02: Elsewhere rows
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Every unread room elsewhere is listed under its workspace, with the same mark its row would show
-- [ ] Opening a listed room starts a Room visit
-- [ ] The list is absent when nothing is unread elsewhere
-- [ ] The written summary keeps its current scope and content
-- [ ] New strings exist in every supported locale
+- [x] Every unread room elsewhere is listed under its workspace, with the same mark its row would show
+- [x] Opening a listed room starts a Room visit
+- [x] The list is absent when nothing is unread elsewhere
+- [x] The written summary keeps its current scope and content
+- [x] New strings exist in every supported locale

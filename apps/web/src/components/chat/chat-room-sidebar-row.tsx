@@ -46,16 +46,16 @@ import {
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import {
-  resolveRoomAttention,
-  roomBadgeCountsMentions,
-} from "@/components/chat/room-attention";
-import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
-import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
-import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
+import {
+  MentionAnnouncement,
+  NeedsYouAnnouncement,
+  RoomUnreadCount,
+  useRoomRowAttention,
+} from "@/components/chat/room-row-attention";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -154,70 +154,6 @@ export interface ChatRoomSidebarRowProps {
    * seem to do nothing, because Pinned lists the active workspace's rooms.
    */
   pinnable?: boolean;
-}
-
-/**
- * The reader's opt-in Room unread count, as the link announces it.
- *
- * The number itself is drawn by `MentionBadge`, in the trailing cluster,
- * outside the link and `aria-hidden`. This span is what carries it into the
- * link's accessible name beside the room name, the way `MentionAnnouncement`
- * carries the badge.
- *
- * A bare `span` is role `generic`, which prohibits an accessible name, so an
- * `aria-label` here can be dropped. Real text carries it instead.
- */
-function RoomUnreadCount({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.RoomUnread");
-
-  if (count <= 0) {
-    return null;
-  }
-
-  return (
-    <span className="sr-only">
-      {count > ROOM_COUNT_CAP
-        ? t("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
-        : t("unreadMessages", { count })}
-    </span>
-  );
-}
-
-/**
- * Unread @mentions and directs, never messages: the part the reader hears.
- *
- * `MentionBadge` draws the number in the trailing cluster, outside the link
- * and `aria-hidden`, so this span is what carries the mention into the link's
- * accessible name beside the room name. A translated string in its own
- * `sr-only` span, for the same reason the count carries one: `aria-label` on a
- * role `generic` span may be dropped, and an English literal would reach a
- * German or Spanish reader untranslated either way.
- */
-function MentionAnnouncement({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.RoomMentions");
-
-  if (count <= 0) {
-    return null;
-  }
-
-  return (
-    <span className="sr-only">
-      {count > ROOM_COUNT_CAP
-        ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
-        : t("mentions", { count })}
-    </span>
-  );
-}
-
-/** The needs-you pill in words, for the same reason the mention has some. */
-function NeedsYouAnnouncement({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.Signals");
-
-  if (count <= 0) {
-    return null;
-  }
-
-  return <span className="sr-only">{t("needsYouCount", { count })}</span>;
 }
 
 /**
@@ -333,19 +269,8 @@ export function ChatRoomSidebarRow({
   const isMuted = room.mutedAt != null;
   const isChannel = room.kind === "channel";
   const canLeave = canLeaveChannel(room);
-  const badgeCountsMentions = roomBadgeCountsMentions(room);
-  const showUnreadCount = useShowRoomUnreadCount();
   const { bold, mentionCount, needsYouCount, unreadTextCount } =
-    resolveRoomAttention({
-      unreadCount: room.unreadCount,
-      channelUnreadCount: room.channelUnreadCount,
-      unreadMentionCount: room.unreadMentionCount,
-      unreadNeedsYouCount: room.unreadNeedsYouCount,
-      markedUnread: room.markedUnread,
-      isMuted,
-      showUnreadCount,
-      badgeCountsMentions,
-    });
+    useRoomRowAttention(room);
   // The row's one number, whichever it is, stands in the badge's slot, so
   // the hole that keeps the name clear of it has to be held open for either.
   const hasRowCount =
