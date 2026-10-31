@@ -1,5 +1,11 @@
 # Linear MCP — Requirement Issues (CLI fallback)
 
+**Retired for this repo.** This repo no longer files work in Linear. Specs and tickets are Sokosumi Tasks. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/SKILL.md) and follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md).
+
+Do **not** call Linear CLI or Linear MCP for new Sokosumi monorepo work. Canonical Linear publish recipes remain in this folder for historical installs only. Do not use them for this repository.
+
+---
+
 Use this file **only when `linear` is not on PATH**. If `command -v linear` succeeds, use `LINEAR-CLI.md` instead and ignore Linear MCP.
 
 Run **only after** the user approves the draft in chat.
