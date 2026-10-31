@@ -415,9 +415,7 @@ describe.skipIf(!enabled)(
        * workspace filter, so it may pick up another suite's job first. The
        * loop runs until this document's job has been attempted and sums what
        * the ticks reported. A neighbour's failure would also raise `failed`,
-       * which is a small risk of a false pass; it cannot cause a false
-       * failure, because before the fix `failed` is zero however many passes
-       * run.
+       * which is a small risk of a false pass.
        */
       let failed = 0;
       let processed = 0;
@@ -443,8 +441,8 @@ describe.skipIf(!enabled)(
     }, 300_000);
 
     /**
-     * PASSES TODAY and must keep passing. These endings are genuine
-     * verdicts about the document, not provider failures, so they complete.
+     * These endings are genuine verdicts about the document, not provider
+     * failures, so they complete.
      *
      * `isJevRequestRejection` is the ending Patrick named, and it is
      * currently **unreachable** on this path: with the worst legal
@@ -561,10 +559,9 @@ describe.skipIf(!enabled)(
     }, 600_000);
 
     /**
-     * PASSES TODAY and must keep passing. The control: when the dispatch
-     * succeeds the document gets its labels through the same path, so cases 1,
-     * 7 and 8 are about the failure branch and not about the fixture, the
-     * stub or the actor.
+     * The control: when the dispatch succeeds the document gets its labels
+     * through the same path, so cases 1, 7 and 8 are about the failure
+     * branch and not about the fixture, the stub or the actor.
      */
     it("9. a document whose dispatch succeeds gets its labels", async () => {
       resetJevScheduler();
