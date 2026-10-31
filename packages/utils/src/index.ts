@@ -30,7 +30,6 @@ export {
 } from "./auth-captcha.js";
 export {
   BETA_ORGANIZATION_SLUGS,
-  isBetaOrganizationSlug,
   NEWSLETTER_BETA_ORGANIZATION_SLUG,
 } from "./beta-organizations.js";
 export {
