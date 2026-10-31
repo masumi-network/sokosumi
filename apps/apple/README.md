@@ -42,12 +42,6 @@ as an update, but it is offered the next Stable release.
    replaces `Sokosumi.dmg` and `appcast.xml` on `macos-latest`. Installed
    apps see the update on their next check.
 
-Before the first release (1.0.0) merges, `bootstrap-sha` in
-`release-please-config.json` moves to the then-current `main` so earlier
-commits stay out of the changelog. Delete the old `apple-latest` release
-only after 1.0.0 is on `macos-latest`; until then it is the only Stable
-download.
-
 A manual run of `apple.yml` (`workflow_dispatch`) builds, notarizes and signs
 the appcast with the production Sparkle key, and uploads both as run
 artifacts without touching a release. Those artifacts are real update
