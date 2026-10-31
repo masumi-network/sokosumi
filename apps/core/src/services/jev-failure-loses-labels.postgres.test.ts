@@ -61,8 +61,6 @@ function installFetch() {
   vi.stubGlobal("fetch", async (_url: string, init: { body?: string }) => {
     fetches += 1;
     if (mode === "reject400") {
-      // The status the latch treats as fatal. The body is the Gateway's own
-      // envelope; `error.param` names the field, which the client never reads.
       return new Response(
         JSON.stringify({
           error: {
@@ -265,10 +263,9 @@ describe.skipIf(!enabled)(
 
     afterAll(async () => {
       vi.unstubAllGlobals();
-      // The scheduler is a module singleton and the latch is module state;
-      // both outlive this file inside a worker. Cases 2 and 3 deliberately
-      // open the breaker, so leaving it open would deny admission in
-      // whatever suite ran next.
+      // The scheduler is a module singleton and outlives this file inside a
+      // worker. Cases 2 and 3 deliberately open the breaker, so leaving it
+      // open would deny admission in whatever suite ran next.
       resetJevScheduler();
       await prisma.fileResource.deleteMany({ where: { workspaceId } });
       await prisma.workspaceLabel.deleteMany({ where: { workspaceId } });
@@ -277,10 +274,6 @@ describe.skipIf(!enabled)(
       await prisma.user.deleteMany({ where: { id: ownerId } });
     });
 
-    /**
-     * FAILS TODAY. Measured: state=SUCCEEDED attempt=1 labels=0
-     * lastError=null completedAt=set, and no later tick ever leases it.
-     */
     it("1. one transient 503 does not cost the document its labels", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -312,11 +305,6 @@ describe.skipIf(!enabled)(
       ).toBeGreaterThan(0);
     }, 300_000);
 
-    /**
-     * FAILS TODAY. Measured: 1 dispatched call latches the process, the
-     * other 29 documents take the `model-disabled` branch without a call,
-     * and all 30 end SUCCEEDED with zero labels.
-     */
     it("2. a rejecting provider does not record 30 documents as done", async () => {
       resetJevScheduler();
       mode = "reject400";
@@ -349,11 +337,6 @@ describe.skipIf(!enabled)(
       ).toBe(0);
     }, 600_000);
 
-    /**
-     * FAILS TODAY. Measured: 0/30 recover as shipped, 10/30 with the latch
-     * deleted alone. This is the case that says the two changes land
-     * together or neither does.
-     */
     it("3. every document gets its labels once the provider recovers", async () => {
       resetJevScheduler();
       mode = "reject400";
@@ -388,11 +371,6 @@ describe.skipIf(!enabled)(
       ).toBe(ids.length);
     }, 900_000);
 
-    /**
-     * FAILS TODAY, for a different reason from the rest: the job never
-     * reaches a second attempt at all. Measured on the unmodified tree,
-     * attempt 1 ends SUCCEEDED and attempt 2 is not leasable.
-     */
     it("4. repeated provider failure ends FAILED with the reason recorded", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -426,12 +404,6 @@ describe.skipIf(!enabled)(
       ).not.toBeNull();
     }, 600_000);
 
-    /**
-     * FAILS TODAY. `result.failed` is incremented only in the catch block
-     * for a thrown error, so a dispatched provider failure is reported as
-     * an ordinary processed document and the sync line reads clean through
-     * an outage.
-     */
     it("5. the tick reports a dispatched failure as failed, not processed", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -524,15 +496,6 @@ describe.skipIf(!enabled)(
       ).toBe(false);
     }, 300_000);
 
-    /**
-     * FAILS TODAY, and this is the assertion that says why it matters rather
-     * than that it happens. Two documents, one whose dispatch the provider
-     * failed and one the model considered and declined, are compared field by
-     * field. Measured: both read
-     * `SUCCEEDED / attempt 1 / lastError null / completedAt set / 0 labels`.
-     * Nothing in the row distinguishes lost work from a considered answer, so
-     * no query, dashboard or support conversation can either.
-     */
     it("7. a failed dispatch is distinguishable from a declined document", async () => {
       resetJevScheduler();
 
@@ -564,14 +527,6 @@ describe.skipIf(!enabled)(
       ).not.toBe(shape(declinedRow));
     }, 300_000);
 
-    /**
-     * FAILS TODAY. The state is terminal, and this drives the real cron entry
-     * point rather than the single-job helper to say so. Measured: after the
-     * 503, twenty `processFileSuggestionJobs` passes against a healthy
-     * provider leased the document zero times, because
-     * `enqueueFileIndexJob` deliberately leaves SUCCEEDED rows alone and
-     * nothing else re-enqueues a SUGGEST job on a timer.
-     */
     it("8. the cron retries a document whose dispatch failed", async () => {
       resetJevScheduler();
       mode = "fail503";
