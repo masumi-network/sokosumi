@@ -1,58 +1,3 @@
-/**
- * REPRODUCTION ARTIFACT — a provider failure permanently costs a document
- * its labels, and one bad request costs every document after it.
- *
- * Written by the reviewer, not the implementer. This is the failing evidence
- * a fix has to satisfy; it contains no fix and touches no product code.
- *
- * **To run:** drop this file into `apps/core/src/services/`, then
- *
- *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgres://... \
- *     pnpm --filter core test .postgres.test.ts
- *
- * The CI step's substring filter picks it up with no further wiring.
- *
- * **Two defects, one line apart.**
- *
- * 1. `file-suggestions.service.ts`, the `if (!verdict.ok)` ending, calls
- *    `completeFileIndexJob`. A dispatched call that the provider failed is
- *    recorded as the document being done, with zero labels and a null
- *    `lastError`. Nothing re-leases a SUCCEEDED job, so the loss is terminal
- *    in the database and survives a restart. Twenty lines above it, the
- *    admission-denied branch carries a comment saying this exact bug was
- *    found and fixed for the capacity case.
- *
- * 2. `jev-client.ts` latches the whole process off on any HTTP 400 or 422,
- *    permanently, which makes `isJevConfigured()` false, which sends every
- *    later document down the `model-disabled` branch — also
- *    `completeFileIndexJob`. So one malformed request converts every
- *    document processed afterwards into a document recorded as having no
- *    labels.
- *
- * **Measured on PostgreSQL 18.6 against the branch at 535b933c4**, 30
- * documents, one workspace label, a stubbed Gateway:
- *
- *   as shipped                 : 1 dispatched call, breaker never opens,
- *                                30x SUCCEEDED/attempt1/labels0,
- *                                0/30 recover when the provider returns
- *   latch deleted only         : breaker opens after 20 calls,
- *                                20x SUCCEEDED/labels0 + 10x QUEUED/attempt0,
- *                                10/30 recover
- *   latch deleted + fail rule  : breaker opens after 20 calls,
- *                                30x QUEUED, 30/30 recover
- *
- * and for one transient 503 on a single document:
- *
- *   as shipped : state=SUCCEEDED attempt=1 labels=0 lastError=null
- *                completedAt=set — and it never gets another chance
- *   with rule  : state=QUEUED attempt=1 lastError=status-503 — and it
- *                recovers on the next tick
- *
- * **Cases 1 to 5, 7 and 8 fail today. Cases 6 and 9 pass today and must keep
- * passing** — 6 because a genuine verdict about a document should complete, and
- * 9 because it is the control that says the defect is the failure branch and
- * not the fixture.
- */
 import { randomUUID } from "node:crypto";
 import {
   FileIndexJobPipeline,
@@ -65,11 +10,6 @@ import {
 import { PrismaRaw } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-/**
- * The real Gateway client is used deliberately — `fetch` is stubbed rather
- * than the evaluator injected, because the latch lives inside the client and
- * an injected evaluator would bypass the defect under test.
- */
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     DATABASE_URL: process.env.DATABASE_URL,
@@ -121,8 +61,6 @@ function installFetch() {
   vi.stubGlobal("fetch", async (_url: string, init: { body?: string }) => {
     fetches += 1;
     if (mode === "reject400") {
-      // The status the latch treats as fatal. The body is the Gateway's own
-      // envelope; `error.param` names the field, which the client never reads.
       return new Response(
         JSON.stringify({
           error: {
@@ -325,10 +263,9 @@ describe.skipIf(!enabled)(
 
     afterAll(async () => {
       vi.unstubAllGlobals();
-      // The scheduler is a module singleton and the latch is module state;
-      // both outlive this file inside a worker. Cases 2 and 3 deliberately
-      // open the breaker, so leaving it open would deny admission in
-      // whatever suite ran next.
+      // The scheduler is a module singleton and outlives this file inside a
+      // worker. Cases 2 and 3 deliberately open the breaker, so leaving it
+      // open would deny admission in whatever suite ran next.
       resetJevScheduler();
       await prisma.fileResource.deleteMany({ where: { workspaceId } });
       await prisma.workspaceLabel.deleteMany({ where: { workspaceId } });
@@ -337,10 +274,6 @@ describe.skipIf(!enabled)(
       await prisma.user.deleteMany({ where: { id: ownerId } });
     });
 
-    /**
-     * FAILS TODAY. Measured: state=SUCCEEDED attempt=1 labels=0
-     * lastError=null completedAt=set, and no later tick ever leases it.
-     */
     it("1. one transient 503 does not cost the document its labels", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -372,11 +305,6 @@ describe.skipIf(!enabled)(
       ).toBeGreaterThan(0);
     }, 300_000);
 
-    /**
-     * FAILS TODAY. Measured: 1 dispatched call latches the process, the
-     * other 29 documents take the `model-disabled` branch without a call,
-     * and all 30 end SUCCEEDED with zero labels.
-     */
     it("2. a rejecting provider does not record 30 documents as done", async () => {
       resetJevScheduler();
       mode = "reject400";
@@ -409,11 +337,6 @@ describe.skipIf(!enabled)(
       ).toBe(0);
     }, 600_000);
 
-    /**
-     * FAILS TODAY. Measured: 0/30 recover as shipped, 10/30 with the latch
-     * deleted alone. This is the case that says the two changes land
-     * together or neither does.
-     */
     it("3. every document gets its labels once the provider recovers", async () => {
       resetJevScheduler();
       mode = "reject400";
@@ -448,11 +371,6 @@ describe.skipIf(!enabled)(
       ).toBe(ids.length);
     }, 900_000);
 
-    /**
-     * FAILS TODAY, for a different reason from the rest: the job never
-     * reaches a second attempt at all. Measured on the unmodified tree,
-     * attempt 1 ends SUCCEEDED and attempt 2 is not leasable.
-     */
     it("4. repeated provider failure ends FAILED with the reason recorded", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -486,12 +404,6 @@ describe.skipIf(!enabled)(
       ).not.toBeNull();
     }, 600_000);
 
-    /**
-     * FAILS TODAY. `result.failed` is incremented only in the catch block
-     * for a thrown error, so a dispatched provider failure is reported as
-     * an ordinary processed document and the sync line reads clean through
-     * an outage.
-     */
     it("5. the tick reports a dispatched failure as failed, not processed", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -503,9 +415,7 @@ describe.skipIf(!enabled)(
        * workspace filter, so it may pick up another suite's job first. The
        * loop runs until this document's job has been attempted and sums what
        * the ticks reported. A neighbour's failure would also raise `failed`,
-       * which is a small risk of a false pass; it cannot cause a false
-       * failure, because before the fix `failed` is zero however many passes
-       * run.
+       * which is a small risk of a false pass.
        */
       let failed = 0;
       let processed = 0;
@@ -531,8 +441,8 @@ describe.skipIf(!enabled)(
     }, 300_000);
 
     /**
-     * PASSES TODAY and must keep passing. These endings are genuine
-     * verdicts about the document, not provider failures, so they complete.
+     * These endings are genuine verdicts about the document, not provider
+     * failures, so they complete.
      *
      * `isJevRequestRejection` is the ending Patrick named, and it is
      * currently **unreachable** on this path: with the worst legal
@@ -584,15 +494,6 @@ describe.skipIf(!enabled)(
       ).toBe(false);
     }, 300_000);
 
-    /**
-     * FAILS TODAY, and this is the assertion that says why it matters rather
-     * than that it happens. Two documents, one whose dispatch the provider
-     * failed and one the model considered and declined, are compared field by
-     * field. Measured: both read
-     * `SUCCEEDED / attempt 1 / lastError null / completedAt set / 0 labels`.
-     * Nothing in the row distinguishes lost work from a considered answer, so
-     * no query, dashboard or support conversation can either.
-     */
     it("7. a failed dispatch is distinguishable from a declined document", async () => {
       resetJevScheduler();
 
@@ -624,14 +525,6 @@ describe.skipIf(!enabled)(
       ).not.toBe(shape(declinedRow));
     }, 300_000);
 
-    /**
-     * FAILS TODAY. The state is terminal, and this drives the real cron entry
-     * point rather than the single-job helper to say so. Measured: after the
-     * 503, twenty `processFileSuggestionJobs` passes against a healthy
-     * provider leased the document zero times, because
-     * `enqueueFileIndexJob` deliberately leaves SUCCEEDED rows alone and
-     * nothing else re-enqueues a SUGGEST job on a timer.
-     */
     it("8. the cron retries a document whose dispatch failed", async () => {
       resetJevScheduler();
       mode = "fail503";
@@ -666,10 +559,9 @@ describe.skipIf(!enabled)(
     }, 600_000);
 
     /**
-     * PASSES TODAY and must keep passing. The control: when the dispatch
-     * succeeds the document gets its labels through the same path, so cases 1,
-     * 7 and 8 are about the failure branch and not about the fixture, the
-     * stub or the actor.
+     * The control: when the dispatch succeeds the document gets its labels
+     * through the same path, so cases 1, 7 and 8 are about the failure
+     * branch and not about the fixture, the stub or the actor.
      */
     it("9. a document whose dispatch succeeds gets its labels", async () => {
       resetJevScheduler();
