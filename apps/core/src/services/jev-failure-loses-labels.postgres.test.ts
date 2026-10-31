@@ -1,58 +1,3 @@
-/**
- * REPRODUCTION ARTIFACT — a provider failure permanently costs a document
- * its labels, and one bad request costs every document after it.
- *
- * Written by the reviewer, not the implementer. This is the failing evidence
- * a fix has to satisfy; it contains no fix and touches no product code.
- *
- * **To run:** drop this file into `apps/core/src/services/`, then
- *
- *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgres://... \
- *     pnpm --filter core test .postgres.test.ts
- *
- * The CI step's substring filter picks it up with no further wiring.
- *
- * **Two defects, one line apart.**
- *
- * 1. `file-suggestions.service.ts`, the `if (!verdict.ok)` ending, calls
- *    `completeFileIndexJob`. A dispatched call that the provider failed is
- *    recorded as the document being done, with zero labels and a null
- *    `lastError`. Nothing re-leases a SUCCEEDED job, so the loss is terminal
- *    in the database and survives a restart. Twenty lines above it, the
- *    admission-denied branch carries a comment saying this exact bug was
- *    found and fixed for the capacity case.
- *
- * 2. `jev-client.ts` latches the whole process off on any HTTP 400 or 422,
- *    permanently, which makes `isJevConfigured()` false, which sends every
- *    later document down the `model-disabled` branch — also
- *    `completeFileIndexJob`. So one malformed request converts every
- *    document processed afterwards into a document recorded as having no
- *    labels.
- *
- * **Measured on PostgreSQL 18.6 against the branch at 535b933c4**, 30
- * documents, one workspace label, a stubbed Gateway:
- *
- *   as shipped                 : 1 dispatched call, breaker never opens,
- *                                30x SUCCEEDED/attempt1/labels0,
- *                                0/30 recover when the provider returns
- *   latch deleted only         : breaker opens after 20 calls,
- *                                20x SUCCEEDED/labels0 + 10x QUEUED/attempt0,
- *                                10/30 recover
- *   latch deleted + fail rule  : breaker opens after 20 calls,
- *                                30x QUEUED, 30/30 recover
- *
- * and for one transient 503 on a single document:
- *
- *   as shipped : state=SUCCEEDED attempt=1 labels=0 lastError=null
- *                completedAt=set — and it never gets another chance
- *   with rule  : state=QUEUED attempt=1 lastError=status-503 — and it
- *                recovers on the next tick
- *
- * **Cases 1 to 5, 7 and 8 fail today. Cases 6 and 9 pass today and must keep
- * passing** — 6 because a genuine verdict about a document should complete, and
- * 9 because it is the control that says the defect is the failure branch and
- * not the fixture.
- */
 import { randomUUID } from "node:crypto";
 import {
   FileIndexJobPipeline,
@@ -65,11 +10,6 @@ import {
 import { PrismaRaw } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-/**
- * The real Gateway client is used deliberately — `fetch` is stubbed rather
- * than the evaluator injected, because the latch lives inside the client and
- * an injected evaluator would bypass the defect under test.
- */
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     DATABASE_URL: process.env.DATABASE_URL,
