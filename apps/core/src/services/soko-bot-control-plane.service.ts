@@ -10,6 +10,7 @@ import {
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
+  getSokoBotVersion,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
   isSokoBotNewsletterCapability,
@@ -18,6 +19,7 @@ import {
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -334,12 +336,24 @@ function safeRuntimeDiagnostic(
   return redactSokoBotSensitiveText(value).slice(0, maxLength);
 }
 
+interface SokoBotUsageBySource {
+  costUsd: number;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 interface SokoBotTurnUsage {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
   costUsd: number;
+  /**
+   * The same spend split by where it went: each model id, "web_search",
+   * "exa/search". Kept on the turn because step events are pruned later.
+   */
+  bySource?: Record<string, SokoBotUsageBySource>;
 }
 
 function nonnegativeNumber(value: unknown): number {
@@ -365,6 +379,11 @@ function parseTurnUsage(value: unknown): SokoBotTurnUsage {
     cacheReadTokens: nonnegativeNumber(usage.cacheReadTokens),
     cacheWriteTokens: nonnegativeNumber(usage.cacheWriteTokens),
     costUsd: nonnegativeNumber(usage.costUsd),
+    ...(usage.bySource &&
+    typeof usage.bySource === "object" &&
+    !Array.isArray(usage.bySource)
+      ? { bySource: usage.bySource as Record<string, SokoBotUsageBySource> }
+      : {}),
   };
 }
 
@@ -377,10 +396,25 @@ function turnRanModel(value: unknown): boolean {
 function addTurnUsage(
   current: SokoBotTurnUsage,
   value: unknown,
+  source: unknown,
 ): SokoBotTurnUsage | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const increment = parseTurnUsage(value);
+  const key =
+    typeof source === "string" && source ? source.slice(0, 120) : "unknown";
+  const before = current.bySource?.[key];
   return {
+    bySource: {
+      ...current.bySource,
+      [key]: {
+        costUsd: nonnegativeNumber(before?.costUsd) + increment.costUsd,
+        calls: nonnegativeNumber(before?.calls) + 1,
+        inputTokens:
+          nonnegativeNumber(before?.inputTokens) + increment.inputTokens,
+        outputTokens:
+          nonnegativeNumber(before?.outputTokens) + increment.outputTokens,
+      },
+    },
     inputTokens: current.inputTokens + increment.inputTokens,
     outputTokens: current.outputTokens + increment.outputTokens,
     cacheReadTokens: current.cacheReadTokens + increment.cacheReadTokens,
@@ -680,6 +714,7 @@ export class SokoBotControlPlane {
             select: {
               sokoBotId: true,
               requestedByUserId: true,
+              systemKey: true,
               workspaceId: true,
               sokoBot: { select: { userId: true } },
             },
@@ -2170,8 +2205,24 @@ export class SokoBotControlPlane {
       )
       ?.originatingTurn.capabilityNames.filter(isSokoBotCapability);
     const writes = input.presetRoute?.writes ?? confirmedWrites;
+    // Cuso (CMO) has no personal reach: his version lists only marketing
+    // tools, and the owner approved the strategy he executes. An owner's chat
+    // request ("announce this on Tuesday") gets his whole toolset instead of
+    // whatever narrower write scope the classifier guessed, so he does the
+    // work instead of asking permission for it.
+    const cmoOwnerRequest =
+      version.profile === "cmo" &&
+      !input.presetRoute &&
+      !input.chat?.askedByBot &&
+      !unpromptedWork;
     const classified = capabilitiesForClassification(
-      classification.classification,
+      cmoOwnerRequest
+        ? {
+            ...classification.classification,
+            route: "MANAGE_WORK",
+            writeScope: "WORK",
+          }
+        : classification.classification,
     );
     const routeCapabilities = (
       personAsked
@@ -2251,6 +2302,7 @@ export class SokoBotControlPlane {
       sharedScope: sokoBotSharedScopeOf(bot),
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
+      clientTurnId,
       classification: classification.classification,
       personAsked,
       capturedPreference,
@@ -3100,6 +3152,7 @@ export class SokoBotControlPlane {
           const nextUsage = addTurnUsage(
             aggregateUsage,
             indexed.event.data.usage,
+            indexed.event.data.modelId,
           );
           if (nextUsage) {
             nextAggregateUsage = nextUsage;
@@ -3335,6 +3388,17 @@ export class SokoBotControlPlane {
     }
     const bot = await memberSokoBot(userId, workspaceId, selector);
     if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
+    // Cuso runs CMO's own version: any member may reach him (ADR 0061), and
+    // moving him off it would leave the business's CMO without its agent.
+    // Only the admin lab moves him.
+    if (
+      !options.allowUnpromoted &&
+      getSokoBotVersion(bot.versionId).profile === "cmo"
+    ) {
+      throw new SokoBotValidationError(
+        "Cuso runs CMO's own version, which cannot be changed here",
+      );
+    }
     const updated = await prisma.sokoBot.updateMany({
       where: { id: bot.id, archivedAt: null },
       data: { versionId },
@@ -3509,7 +3573,11 @@ export class SokoBotControlPlane {
 
   async listForAdmin(
     query: string | undefined,
-    options: { cursor?: string; take?: number } = {},
+    options: {
+      cursor?: string;
+      take?: number;
+      kind?: "all" | "assistant" | "cmo";
+    } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
     const term = query?.trim();
@@ -3522,17 +3590,36 @@ export class SokoBotControlPlane {
         : null;
     // Tombstones are emptied rows kept only so Tasks and billing still resolve;
     // they are not bots and never appear in the fleet.
-    const where: Prisma.SokoBotWhereInput = term
-      ? {
-          deletedAt: null,
-          OR: [
-            ...(idTerm ? [{ id: idTerm }] : []),
-            { name: { contains: term, mode: "insensitive" } },
-            { user: { name: { contains: term, mode: "insensitive" } } },
-            { user: { email: { contains: term, mode: "insensitive" } } },
-          ],
-        }
-      : { deletedAt: null };
+    const cmoVersionIds = SOKO_BOT_PRODUCT_VERSIONS.filter(
+      (version) => version.profile === "cmo",
+    ).map((version) => version.id);
+    const kindWhere: Prisma.SokoBotWhereInput =
+      options.kind === "cmo"
+        ? { versionId: { in: cmoVersionIds } }
+        : options.kind === "assistant"
+          ? {
+              OR: [
+                { versionId: null },
+                { versionId: { notIn: cmoVersionIds } },
+              ],
+            }
+          : {};
+    const where: Prisma.SokoBotWhereInput = {
+      deletedAt: null,
+      AND: [
+        kindWhere,
+        term
+          ? {
+              OR: [
+                ...(idTerm ? [{ id: idTerm }] : []),
+                { name: { contains: term, mode: "insensitive" } },
+                { user: { name: { contains: term, mode: "insensitive" } } },
+                { user: { email: { contains: term, mode: "insensitive" } } },
+              ],
+            }
+          : {},
+      ],
+    };
     const [items, total] = await prisma.$transaction([
       prisma.sokoBot.findMany({
         where,
@@ -3568,6 +3655,9 @@ export class SokoBotControlPlane {
     return {
       items: items.map(({ workspace: _workspace, ...bot }) => ({
         ...bot,
+        kind: cmoVersionIds.includes(bot.versionId ?? "")
+          ? ("cmo" as const)
+          : ("assistant" as const),
         outOfCredits: outOfCredits.has(bot.id),
       })),
       total,
@@ -4312,6 +4402,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
+            systemKey: scheduleRun.schedule.systemKey,
             sokoBot: bot,
           }),
           sokoBotId: bot.id,

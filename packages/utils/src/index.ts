@@ -30,7 +30,6 @@ export {
 } from "./auth-captcha.js";
 export {
   BETA_ORGANIZATION_SLUGS,
-  isBetaOrganizationSlug,
   NEWSLETTER_BETA_ORGANIZATION_SLUG,
 } from "./beta-organizations.js";
 export {
@@ -147,6 +146,12 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
+export {
+  CMO_CHANNELS,
+  type CmoChannelKey,
+  isCmoChannelFormat,
+  normalizeCmoChannelFormat,
+} from "./cmo-channels.js";
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,

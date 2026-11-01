@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountDelete from "./[id]/delete.js";
+import mountImport from "./[id]/import.js";
 import mountMembers from "./[id]/members.js";
 import mountPatch from "./[id]/patch.js";
 import mountGet from "./get.js";
@@ -15,5 +16,6 @@ mountPost(app);
 mountPatch(app);
 mountDelete(app);
 mountMembers(app);
+mountImport(app);
 
 export default app;

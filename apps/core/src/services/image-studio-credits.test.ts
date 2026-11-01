@@ -186,6 +186,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     prompt: BASE_INPUT.prompt,
     settings: BASE_INPUT.settings,
     referenceAssetIds: [],
+    referenceFileIds: [],
     parentAssetId: null,
     status: "PENDING",
     submitAttempts: 0,

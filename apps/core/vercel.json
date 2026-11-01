@@ -118,6 +118,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/cmo-production",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-turns",
       "schedule": "* * * * *"
     },

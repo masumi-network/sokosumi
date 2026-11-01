@@ -1,5 +1,5 @@
 import type { SokoBotAvatarView } from "@sokosumi/core-client";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -177,7 +177,16 @@ describe("SokoBotConsole", () => {
     expect(screen.queryByTestId("archive")).not.toBeInTheDocument();
     expect(screen.queryByTestId("delete")).not.toBeInTheDocument();
     expect(screen.queryByTestId("reset")).not.toBeInTheDocument();
+  });
+
+  it("shows schedules in the default view, not under Advanced", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({ canManage: false });
     expect(screen.getByTestId("schedule")).toHaveTextContent(BOT_ID);
+    cleanup();
+    viewMock.mockReturnValue("advanced");
+    renderConsole({ canManage: false });
+    expect(screen.queryByTestId("schedule")).not.toBeInTheDocument();
   });
 
   it("hides skills and avatar on a shared bot, and reads it by id", () => {
@@ -212,33 +221,31 @@ describe("SokoBotConsole", () => {
   describe("Ads section", () => {
     const connected = { configured: true, integrations: [] };
 
-    it("sits right after the connectors in the default view", () => {
+    it("is only under Advanced", () => {
       viewMock.mockReturnValue(null);
       renderConsole({
         integrations: connected,
         ads: { accounts: [], projectId: "p1" },
       });
-      const connectors = screen.getByTestId("connectors");
-      const ads = screen.getByTestId("ads");
-      expect(ads).toHaveTextContent("p1");
-      expect(screen.getByText("Ads.title")).toBeInTheDocument();
-      expect(
-        connectors.compareDocumentPosition(ads) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    });
-
-    it("sits right after the integrations under Advanced", () => {
+      expect(screen.queryByTestId("ads")).not.toBeInTheDocument();
+      cleanup();
+      viewMock.mockReturnValue("advanced");
       renderConsole({
         integrations: connected,
-        ads: { accounts: [], projectId: null },
+        ads: { accounts: [], projectId: "p1" },
       });
-      const integrationsEl = screen.getByTestId("integrations");
-      const ads = screen.getByTestId("ads");
-      expect(
-        integrationsEl.compareDocumentPosition(ads) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      expect(screen.getByTestId("ads")).toHaveTextContent("p1");
+    });
+
+    it("leaves the tools to the default view", () => {
+      viewMock.mockReturnValue(null);
+      renderConsole({ integrations: connected });
+      expect(screen.getByTestId("connectors")).toBeInTheDocument();
+      cleanup();
+      viewMock.mockReturnValue("advanced");
+      renderConsole({ integrations: connected });
+      expect(screen.queryByTestId("connectors")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("integrations")).not.toBeInTheDocument();
     });
 
     it.each([null, "advanced"])(

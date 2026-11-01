@@ -47,10 +47,6 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
 
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
 
-const MAIN_APP_MOBILE_LIST_PATH_SET = new Set<string>(
-  MAIN_APP_MOBILE_LIST_PATHS,
-);
-
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
 
 const MOBILE_NON_TAB_HUB_LIST_PATH_SET = new Set<string>(
@@ -68,16 +64,6 @@ export type MobileAppBackLabelKey = "backToChats" | "back";
 export interface MobileAppBackTarget {
   href: string;
   labelKey: MobileAppBackLabelKey;
-}
-
-/** True for exact main list routes. */
-export function isMainAppMobileChromePathname(
-  pathname: string | null | undefined,
-): boolean {
-  if (!pathname) {
-    return false;
-  }
-  return MAIN_APP_MOBILE_LIST_PATH_SET.has(pathname);
 }
 
 function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {

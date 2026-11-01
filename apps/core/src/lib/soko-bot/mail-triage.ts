@@ -77,69 +77,102 @@ export function mailTriageTag(
     : { tag: "BULK", probability: bulk };
 }
 
+function emailsState(mail: readonly SokoBotInboxMessage[]) {
+  return mail.map((message, index) => ({
+    key: `mail${index}`,
+    from: message.from.slice(0, FIELD_LENGTH),
+    to: message.to.slice(0, 5),
+    labels: message.labels.slice(0, 10),
+    subject: message.subject.slice(0, FIELD_LENGTH),
+    snippet: message.snippet.slice(0, FIELD_LENGTH),
+  }));
+}
+
 /**
- * Tags each mail with one batched Jev call; null when Jev is unavailable.
+ * Which mail a saved rule asks the bot to act on, by index. Its own Jev call:
+ * asked beside the triage choices, Jev scored a plain "New Invoice, please
+ * review the attached document" against "save invoice PDFs" at 0.46, and
+ * alone at 0.87 to 0.98. A failed call matches nothing; the triage stands.
+ */
+async function mailMatchingRules(
+  mail: readonly SokoBotInboxMessage[],
+  rules: readonly string[],
+): Promise<{ matches: Set<number>; costUsd: number }> {
+  if (rules.length === 0) return { matches: new Set(), costUsd: 0 };
+  try {
+    const { answers, costUsd } = await evaluateWithJev({
+      state: { ownerRules: [...rules], emails: emailsState(mail) },
+      questions: Object.fromEntries(
+        mail.map((_, index) => [
+          `rule${index}`,
+          {
+            type: "boolean" as const,
+            instructions: RULE_INSTRUCTIONS(`mail${index}`),
+          },
+        ]),
+      ),
+      timeoutMs: TIMEOUT_MS,
+    });
+    return {
+      matches: new Set(
+        mail.flatMap((_, index) => {
+          const rule = answers.get(`rule${index}`);
+          return rule?.type === "boolean" &&
+            rule.probability >= MIN_RULE_PROBABILITY
+            ? [index]
+            : [];
+        }),
+      ),
+      costUsd,
+    };
+  } catch (error) {
+    console.warn("Soko Bot mail rule check failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    return { matches: new Set(), costUsd: 0 };
+  }
+}
+
+/**
+ * Tags each mail with one batched Jev call, and asks which mail a saved rule
+ * covers in a second call beside it; null when the triage call fails.
  * No database: the owner's context comes in.
  */
 export async function tagMailWithJev(
   mail: readonly SokoBotInboxMessage[],
   owner: OwnerMailContext,
 ): Promise<{ mail: TriagedMail[]; costUsd: number } | null> {
+  const ruled = mailMatchingRules(mail, owner.rules);
   try {
-    const askRules = owner.rules.length > 0;
     const { answers, costUsd } = await evaluateWithJev({
       state: {
         ownerPreferences: owner.preferences,
-        ...(askRules ? { ownerRules: owner.rules } : {}),
         alreadyFlaggedToday: owner.alreadyFlaggedToday,
-        emails: mail.map((message, index) => ({
-          key: `mail${index}`,
-          from: message.from.slice(0, FIELD_LENGTH),
-          to: message.to.slice(0, 5),
-          labels: message.labels.slice(0, 10),
-          subject: message.subject.slice(0, FIELD_LENGTH),
-          snippet: message.snippet.slice(0, FIELD_LENGTH),
-        })),
+        emails: emailsState(mail),
       },
       questions: Object.fromEntries(
-        mail.flatMap((_, index) => [
-          [
-            `mail${index}`,
-            {
-              type: "choice" as const,
-              instructions: TRIAGE_INSTRUCTIONS(`mail${index}`),
-              criteria: MAIL_TRIAGE_CRITERIA,
-            },
-          ],
-          ...(askRules
-            ? [
-                [
-                  `rule${index}`,
-                  {
-                    type: "boolean" as const,
-                    instructions: RULE_INSTRUCTIONS(`mail${index}`),
-                  },
-                ] as const,
-              ]
-            : []),
+        mail.map((_, index) => [
+          `mail${index}`,
+          {
+            type: "choice" as const,
+            instructions: TRIAGE_INSTRUCTIONS(`mail${index}`),
+            criteria: MAIL_TRIAGE_CRITERIA,
+          },
         ]),
       ),
       timeoutMs: TIMEOUT_MS,
     });
+    const rules = await ruled;
     return {
-      mail: mail.map((message, index) => {
-        const rule = answers.get(`rule${index}`);
-        return {
-          message,
-          ...mailTriageTag(answers.get(`mail${index}`)),
-          matchesRule:
-            rule?.type === "boolean" &&
-            rule.probability >= MIN_RULE_PROBABILITY,
-        };
-      }),
-      costUsd,
+      mail: mail.map((message, index) => ({
+        message,
+        ...mailTriageTag(answers.get(`mail${index}`)),
+        matchesRule: rules.matches.has(index),
+      })),
+      costUsd: costUsd + rules.costUsd,
     };
   } catch (error) {
+    await ruled;
     console.warn("Soko Bot mail triage failed", {
       error: error instanceof Error ? error.name : "unknown",
     });
