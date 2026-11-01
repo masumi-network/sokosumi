@@ -43,6 +43,7 @@ const bob = randomUUID();
 const carla = randomUUID();
 const organizationId = randomUUID();
 const channelId = randomUUID();
+const quietChannelId = randomUUID();
 const HOUR = 60 * 60 * 1000;
 const now = Date.now();
 
@@ -185,7 +186,9 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
   });
 
   afterAll(async () => {
-    await prisma.chatRoom.deleteMany({ where: { id: channelId } });
+    await prisma.chatRoom.deleteMany({
+      where: { id: { in: [channelId, quietChannelId] } },
+    });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.user.deleteMany({
       where: { id: { in: [alice, bob, carla] } },
@@ -440,5 +443,76 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     });
     expect(row).toMatchObject({ state: "pending", lease: null, attempts: 1 });
     expect(row.availableAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("shows a mention in a Thread reply under Other messages", async () => {
+    await prisma.chatRoom.create({
+      data: {
+        id: quietChannelId,
+        organizationId,
+        name: "random",
+        slug: `random-${quietChannelId.slice(0, 8)}`,
+        kind: "channel",
+        discoverability: "public",
+        createdByUserId: bob,
+        userMembers: {
+          create: [alice, bob, carla].map((userId) => ({ userId })),
+        },
+        readStates: {
+          create: [alice, bob, carla].map((userId) => ({
+            userId,
+            lastReadAt: new Date(now - 7 * 24 * HOUR),
+            createdAt: new Date(now - 30 * 24 * HOUR),
+          })),
+        },
+      },
+    });
+    const parent = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: quietChannelId,
+        senderUserId: bob,
+        content: "Fun fact from the conference.",
+        createdAt: new Date(now - 3 * HOUR),
+      },
+    });
+    const reply = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: quietChannelId,
+        parentMessageId: parent.id,
+        senderUserId: carla,
+        content: "Alice would love this one.",
+        createdAt: new Date(now - 2 * HOUR),
+        userMentionsAsSource: { create: { userId: alice } },
+      },
+    });
+    await prisma.chatRoomMessage.create({
+      data: {
+        roomId: quietChannelId,
+        senderUserId: bob,
+        content: "Newer post, no mention.",
+        createdAt: new Date(now - HOUR),
+      },
+    });
+
+    const summary = await getChatCatchUpSummary(
+      { userId: alice, organizationId, roomId: null },
+      { generate: async () => ({ text: "{}", costUsd: 0 }) },
+    );
+    const quiet = summary.quietRooms.find(
+      (room) => room.roomId === quietChannelId,
+    );
+    expect(quiet).toMatchObject({
+      mentionsYou: true,
+      latest: { messageId: reply.id, parentMessageId: parent.id },
+    });
+    expect(summary.quietRooms[0].roomId).toBe(quietChannelId);
+
+    const forBob = await getChatCatchUpSummary(
+      { userId: bob, organizationId, roomId: null },
+      { generate: async () => ({ text: "{}", costUsd: 0 }) },
+    );
+    expect(
+      forBob.quietRooms.find((room) => room.roomId === quietChannelId),
+    ).toMatchObject({ mentionsYou: false });
   });
 });

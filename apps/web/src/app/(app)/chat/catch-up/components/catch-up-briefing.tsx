@@ -633,10 +633,18 @@ export function QuietRooms({
                 </span>
                 {room.latest ? (
                   <span className="text-muted-foreground line-clamp-2 text-sm">
-                    {room.roomKind === "channel" ||
-                    room.latest.senderName !== room.roomName
-                      ? `${room.latest.senderName}: `
-                      : ""}
+                    {room.mentionsYou ? (
+                      <span className="text-foreground font-medium">
+                        {t("mentionedYou", {
+                          name: room.latest.senderName,
+                        })}{" "}
+                      </span>
+                    ) : room.roomKind === "channel" ||
+                      room.latest.senderName !== room.roomName ? (
+                      `${room.latest.senderName}: `
+                    ) : (
+                      ""
+                    )}
                     {room.latest.excerpt}
                   </span>
                 ) : null}
