@@ -305,10 +305,20 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
   });
 
   it("writes the summary once and reuses it until a new tagged message", async () => {
-    const generate = vi.fn<ChatSummaryDeps["generate"]>(async () => ({
+    const generate = vi.fn<ChatSummaryDeps["generate"]>(async ({ prompt }) => ({
       text: JSON.stringify({
         headline: "Bob needs the pricing sheet; launch is Monday.",
-        rooms: [{ room: "r0", line: "Pricing sheet wanted, launch Monday." }],
+        topics: [
+          {
+            title: "Pricing sheet before the call",
+            summary: "Bob wants the pricing sheet; Dan set launch for Monday.",
+            status: "fyi",
+            messages: JSON.parse(prompt).rooms.flatMap(
+              (room: { messages: { key: string }[] }) =>
+                room.messages.map((message) => message.key),
+            ),
+          },
+        ],
       }),
       costUsd: 0.0001,
     }));
@@ -319,13 +329,21 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     expect(first.headline).toBe(
       "Bob needs the pricing sheet; launch is Monday.",
     );
-    expect(first.rooms).toEqual([
-      {
-        roomId: channelId,
-        roomName: "launch",
-        line: "Pricing sheet wanted, launch Monday.",
-      },
-    ]);
+    // One topic over both messages; it waits on Alice because Jev tagged a
+    // message in it as needing her, whatever the model called it.
+    expect(first.topics).toHaveLength(1);
+    expect(first.topics[0]).toMatchObject({
+      title: "Pricing sheet before the call",
+      status: "waitingOnYou",
+      roomId: channelId,
+      roomName: "launch",
+    });
+    expect(
+      first.topics[0].messages.map((item) => item.messageId).sort(),
+    ).toEqual([question, decision].sort());
+    expect(first.unreadMessageCount).toBeGreaterThanOrEqual(2);
+    expect(first.unreadRoomCount).toBe(1);
+    expect(first.quietRooms).toEqual([]);
     expect(first.needsYou.map((item) => item.messageId)).toEqual([question]);
     expect(first.counts).toEqual([
       { bucket: "needsYou", count: 1 },
@@ -337,7 +355,7 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
       senderName: "Bob",
       excerpt: "Alice, can you send the pricing sheet before the call?",
     });
-    // The prompt carries no ids, only room keys, authors, labels and text.
+    // The prompt carries no ids, only message keys, authors, labels and text.
     expect(generate.mock.calls[0][0].prompt).not.toContain(channelId);
 
     await getChatCatchUpSummary(

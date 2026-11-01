@@ -55,6 +55,8 @@ function sectionOfBucket(bucket: ChatCatchUpBucket): SectionKey {
 export function isCatchUpSummaryEmpty(summary: ChatCatchUpSummary): boolean {
   return (
     summary.headline == null &&
+    summary.topics.length === 0 &&
+    summary.quietRooms.length === 0 &&
     SECTIONS.every((section) => summary[section].length === 0)
   );
 }

@@ -13096,6 +13096,24 @@ export const ChatCatchUpSummarySchema = {
             type: 'integer',
             minimum: 0
         },
+        unreadMessageCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Every unread message, tagged or not, in the rooms covered.'
+        },
+        unreadRoomCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        awaySince: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'The earliest the viewer last read a room that now has unread messages.'
+        },
         counts: {
             type: 'array',
             items: {
@@ -13122,7 +13140,14 @@ export const ChatCatchUpSummarySchema = {
             ],
             description: 'A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.'
         },
-        rooms: {
+        topics: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpTopic'
+            },
+            description: 'What happened, one subject per topic, written by the model over the unread messages; what waits on the viewer first. Without the model, each message that needs the viewer, blocks, decides or announces is a topic of its own.'
+        },
+        quietRooms: {
             type: 'array',
             items: {
                 type: 'object',
@@ -13134,16 +13159,18 @@ export const ChatCatchUpSummarySchema = {
                     roomName: {
                         type: 'string'
                     },
-                    line: {
-                        type: 'string'
+                    unreadCount: {
+                        type: 'integer',
+                        minimum: 1
                     }
                 },
                 required: [
                     'roomId',
                     'roomName',
-                    'line'
+                    'unreadCount'
                 ]
-            }
+            },
+            description: 'Rooms with unread messages and no topic in them.'
         },
         generatedAt: {
             type: [
@@ -13196,9 +13223,13 @@ export const ChatCatchUpSummarySchema = {
     required: [
         'scope',
         'unreadTaggedCount',
+        'unreadMessageCount',
+        'unreadRoomCount',
+        'awaySince',
         'counts',
         'headline',
-        'rooms',
+        'topics',
+        'quietRooms',
         'generatedAt',
         'needsYou',
         'blockers',
@@ -13226,6 +13257,91 @@ export const ChatCatchUpBucketSchema = {
         'chitChat'
     ],
     description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
+export const ChatCatchUpTopicSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Its oldest message\'s id.'
+        },
+        title: {
+            type: 'string'
+        },
+        summary: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'waitingOnYou',
+                'decided',
+                'inProgress',
+                'fyi'
+            ]
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        people: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    imageUrl: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'name',
+                    'imageUrl'
+                ]
+            }
+        },
+        latestAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        messages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            },
+            description: 'The unread messages behind it, oldest first.'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'summary',
+        'status',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'people',
+        'latestAt',
+        'messages'
+    ]
 } as const;
 
 export const ChatCatchUpItemSchema = {

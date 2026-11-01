@@ -8430,9 +8430,7 @@
         "overdue": "{count, plural, one {# Tag überfällig} other {# Tage überfällig}}",
         "inReplyTo": "Antwort auf {name}: {text}",
         "done": "Erledigt",
-        "openAndReply": "Öffnen und antworten",
         "markRead": "Als gelesen markieren",
-        "inYourRooms": "In deinen Räumen",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
@@ -8485,8 +8483,7 @@
           "needsDecision": "Braucht eine Entscheidung",
           "commitment": "Zusage",
           "commitmentDue": "Zusage · fällig {date}",
-          "workRequest": "Arbeitsauftrag",
-          "question": "Frage"
+          "workRequest": "Arbeitsauftrag"
         },
         "Tags": {
           "question": "Stellt jemandem eine Frage",
@@ -8512,6 +8509,28 @@
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
           "threads": "Threads"
+        },
+        "Briefing": {
+          "welcomeBack": "Willkommen zurück",
+          "unread": "{messages, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}} in {rooms, plural, one {# Raum} other {# Räumen}}",
+          "unreadSince": "{unread} seit {date}",
+          "waitingOnYou": "Wartet auf dich",
+          "whileAway": "Während du weg warst",
+          "stillOpen": "Noch offen",
+          "nothingForYou": "Nichts für dich",
+          "unreadInRoom": "{count} ungelesen",
+          "messages": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+          "open": "Öffnen",
+          "reply": "Antworten",
+          "replyPlaceholder": "{name} antworten…",
+          "send": "Senden",
+          "replySent": "An {room} gesendet",
+          "replyError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+          "Status": {
+            "decided": "Entschieden",
+            "inProgress": "Läuft",
+            "fyi": "Zur Info"
+          }
         }
       },
       "Stickers": {

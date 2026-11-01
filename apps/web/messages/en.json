@@ -8430,9 +8430,7 @@
         "overdue": "{count, plural, one {# day overdue} other {# days overdue}}",
         "inReplyTo": "Replying to {name}: {text}",
         "done": "Done",
-        "openAndReply": "Open and reply",
         "markRead": "Mark read",
-        "inYourRooms": "In your rooms",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
@@ -8485,8 +8483,7 @@
           "needsDecision": "Needs a decision",
           "commitment": "Commitment",
           "commitmentDue": "Commitment · due {date}",
-          "workRequest": "Work request",
-          "question": "Question"
+          "workRequest": "Work request"
         },
         "Tags": {
           "question": "Asks someone a question",
@@ -8512,6 +8509,28 @@
           "label": "Catch up sections",
           "overview": "Overview",
           "threads": "Threads"
+        },
+        "Briefing": {
+          "welcomeBack": "Welcome back",
+          "unread": "{messages, plural, one {# unread message} other {# unread messages}} in {rooms, plural, one {# room} other {# rooms}}",
+          "unreadSince": "{unread} since {date}",
+          "waitingOnYou": "Waiting on you",
+          "whileAway": "While you were away",
+          "stillOpen": "Still open",
+          "nothingForYou": "Nothing for you",
+          "unreadInRoom": "{count} unread",
+          "messages": "{count, plural, one {# message} other {# messages}}",
+          "open": "Open",
+          "reply": "Reply",
+          "replyPlaceholder": "Reply to {name}…",
+          "send": "Send",
+          "replySent": "Sent to {room}",
+          "replyError": "Couldn't send your reply. Try again.",
+          "Status": {
+            "decided": "Decided",
+            "inProgress": "In progress",
+            "fyi": "FYI"
+          }
         }
       },
       "Stickers": {

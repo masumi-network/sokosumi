@@ -8430,9 +8430,7 @@
         "overdue": "{count, plural, one {# día de retraso} other {# días de retraso}}",
         "inReplyTo": "En respuesta a {name}: {text}",
         "done": "Hecho",
-        "openAndReply": "Abrir y responder",
         "markRead": "Marcar como leído",
-        "inYourRooms": "En tus salas",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
@@ -8485,8 +8483,7 @@
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
-          "workRequest": "Encargo",
-          "question": "Pregunta"
+          "workRequest": "Encargo"
         },
         "Tags": {
           "question": "Hace una pregunta a alguien",
@@ -8512,6 +8509,28 @@
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
           "threads": "Hilos"
+        },
+        "Briefing": {
+          "welcomeBack": "Bienvenido de nuevo",
+          "unread": "{messages, plural, one {# mensaje sin leer} other {# mensajes sin leer}} en {rooms, plural, one {# sala} other {# salas}}",
+          "unreadSince": "{unread} desde el {date}",
+          "waitingOnYou": "Te esperan",
+          "whileAway": "Mientras no estabas",
+          "stillOpen": "Aún pendiente",
+          "nothingForYou": "Nada para ti",
+          "unreadInRoom": "{count} sin leer",
+          "messages": "{count, plural, one {# mensaje} other {# mensajes}}",
+          "open": "Abrir",
+          "reply": "Responder",
+          "replyPlaceholder": "Responder a {name}…",
+          "send": "Enviar",
+          "replySent": "Enviado a {room}",
+          "replyError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
+          "Status": {
+            "decided": "Decidido",
+            "inProgress": "En curso",
+            "fyi": "Para tu información"
+          }
         }
       },
       "Stickers": {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildChatCatchUpTopics,
   buildChatSummaryPrompt,
   chatSummaryCacheCovers,
   parseChatSummaryText,
@@ -15,44 +16,176 @@ describe("chatSummaryCacheCovers", () => {
 });
 
 describe("parseChatSummaryText", () => {
-  const rooms = new Map([["r0", "room-1"]]);
+  const messages = new Map([
+    ["m0", "message-1"],
+    ["m1", "message-2"],
+  ]);
 
-  it("reads the JSON, even with text around it, and maps room keys", () => {
+  it("reads the JSON, even with text around it, and maps message keys", () => {
     expect(
       parseChatSummaryText(
-        'Here: {"headline": "Bob needs the pricing sheet.", "rooms": [{"room": "r0", "line": "Launch moved to Monday."}, {"room": "r9", "line": "x"}]}',
-        rooms,
+        `Here: ${JSON.stringify({
+          headline: "Bob needs the pricing sheet.",
+          topics: [
+            {
+              title: "Pricing sheet",
+              summary: "Bob wants it before the call.",
+              status: "waitingOnYou",
+              messages: ["m0", "m9"],
+            },
+            // m0 is taken; a topic left with nothing is dropped.
+            { title: "Again", summary: "x", status: "fyi", messages: ["m0"] },
+            {
+              title: "Launch",
+              summary: "Moved to Monday.",
+              status: "whatever",
+              messages: ["m1"],
+            },
+          ],
+        })}`,
+        messages,
       ),
     ).toEqual({
       headline: "Bob needs the pricing sheet.",
-      rooms: [{ roomId: "room-1", line: "Launch moved to Monday." }],
+      topics: [
+        {
+          title: "Pricing sheet",
+          summary: "Bob wants it before the call.",
+          status: "waitingOnYou",
+          messageIds: ["message-1"],
+        },
+        {
+          title: "Launch",
+          summary: "Moved to Monday.",
+          status: "fyi",
+          messageIds: ["message-2"],
+        },
+      ],
     });
   });
 
   it("is null for anything that is not the expected JSON", () => {
-    expect(parseChatSummaryText("no json here", rooms)).toBeNull();
-    expect(parseChatSummaryText('{"headline": 3}', rooms)).toBeNull();
+    expect(parseChatSummaryText("no json here", messages)).toBeNull();
+    expect(parseChatSummaryText('{"headline": 3}', messages)).toBeNull();
   });
 });
 
 describe("buildChatSummaryPrompt", () => {
-  it("labels what needs the reader and decisions, and cuts long text", () => {
+  it("keys and labels each message, and cuts long text", () => {
     const prompt = JSON.parse(
       buildChatSummaryPrompt([
         {
-          key: "r0",
           name: "launch",
           messages: [
-            { bucket: "needsYou", author: "Bob", text: "Can you decide?" },
-            { bucket: "decisionMade", author: "Dan", text: "We go with B" },
-            { bucket: "fyi", author: "Carla", text: "x".repeat(400) },
+            {
+              key: "m0",
+              bucket: "needsYou",
+              author: "Bob",
+              text: "Can you decide?",
+            },
+            {
+              key: "m1",
+              bucket: "decisionMade",
+              author: "Dan",
+              text: "We go with B",
+            },
+            {
+              key: "m2",
+              bucket: "fyi",
+              author: "Carla",
+              text: "x".repeat(400),
+            },
           ],
         },
       ]),
     );
     expect(
-      prompt.rooms[0].messages.map((m: { label: string }) => m.label),
-    ).toEqual(["NEEDS_YOU", "DECISION", "fyi"]);
+      prompt.rooms[0].messages.map(
+        (m: { key: string; label: string }) => `${m.key}:${m.label}`,
+      ),
+    ).toEqual(["m0:NEEDS_YOU", "m1:DECISION", "m2:fyi"]);
     expect(prompt.rooms[0].messages[2].text.length).toBe(301);
+  });
+});
+
+describe("buildChatCatchUpTopics", () => {
+  const room = {
+    id: "room-1",
+    name: "launch",
+    groupName: null,
+    kind: "channel",
+  };
+  const entry = (
+    id: string,
+    bucket: "needsYou" | "decisionMade" | "fyi" | "announcement",
+    name: string,
+    minute: number,
+  ) => ({
+    bucket,
+    room,
+    message: {
+      id,
+      roomId: room.id,
+      parentMessageId: null,
+      senderUserId: name,
+      content: `${name} says ${id}`,
+      createdAt: new Date(Date.UTC(2026, 9, 30, 9, minute)),
+      senderUser: { name, image: `https://img/${name}` },
+      senderCoworker: null,
+      senderSokoBot: null,
+      signal: null,
+    },
+  });
+  const bucketed = [
+    entry("d", "decisionMade", "Dan", 3),
+    entry("a", "announcement", "Carla", 2),
+    entry("q", "needsYou", "Bob", 1),
+    entry("f", "fyi", "Eve", 0),
+  ];
+
+  it("puts what waits on the reader first and keeps uncovered news on its own", () => {
+    const topics = buildChatCatchUpTopics(
+      [
+        {
+          title: "Launch plan",
+          summary: "Dan picked B.",
+          status: "decided",
+          messageIds: ["d"],
+        },
+        {
+          title: "Pricing sheet",
+          summary: "Bob needs it.",
+          status: "fyi",
+          messageIds: ["d", "q"],
+        },
+      ],
+      bucketed,
+      new Map(),
+    );
+    expect(topics.map((topic) => [topic.title, topic.status])).toEqual([
+      // A needs-you message makes it wait on the reader.
+      ["Pricing sheet", "waitingOnYou"],
+      ["Launch plan", "decided"],
+      // The announcement no topic covered; the plain fyi stays out.
+      ["Carla", "fyi"],
+    ]);
+    const pricing = topics[0];
+    // Oldest first, everyone once, with their picture.
+    expect(pricing.messages.map((item) => item.messageId)).toEqual(["q", "d"]);
+    expect(pricing.people).toEqual([
+      { name: "Bob", imageUrl: "https://img/Bob" },
+      { name: "Dan", imageUrl: "https://img/Dan" },
+    ]);
+    expect(pricing.id).toBe("q");
+    expect(pricing.latestAt).toEqual(new Date(Date.UTC(2026, 9, 30, 9, 3)));
+  });
+
+  it("never lets the model claim it waits on the reader without Jev", () => {
+    const [topic] = buildChatCatchUpTopics(
+      [{ title: "x", summary: "y", status: "waitingOnYou", messageIds: ["f"] }],
+      bucketed.filter((item) => item.message.id === "f"),
+      new Map(),
+    );
+    expect(topic.status).toBe("inProgress");
   });
 });

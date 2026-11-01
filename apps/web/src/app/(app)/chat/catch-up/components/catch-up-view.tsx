@@ -17,13 +17,13 @@ import {
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { CatchUpElsewhereRooms } from "./catch-up-elsewhere-rooms";
 import {
-  CatchUpHeader,
-  NeedsYouList,
+  BriefingHeader,
+  BriefingTopics,
   OpenLoopsList,
-  RoomCards,
-} from "./catch-up-inbox";
+  QuietRooms,
+} from "./catch-up-briefing";
+import { CatchUpElsewhereRooms } from "./catch-up-elsewhere-rooms";
 
 interface CatchUpViewProps {
   currentUserId: string;
@@ -31,10 +31,10 @@ interface CatchUpViewProps {
 }
 
 /**
- * The reader's "while you were away" across every room they have not muted,
- * full width: the written headline and Mark all as read on top; what needs
- * them as cards, then everything else unread as one card per room; on the
- * side, their open loops and the unread rooms of their other workspaces.
+ * The reader's "welcome back" across every room they have not muted, full
+ * width: how long they were away, the gist and Mark all as read on top; then
+ * what happened as topics, what waits on them first; on the side, what is
+ * still open, rooms with nothing for them and their other workspaces.
  * Loaded in the browser, so the page paints at once and the written summary
  * arrives when the model has it.
  */
@@ -119,15 +119,15 @@ export function CatchUpView({
       ) : (
         <>
           <div data-testid="catch-up-summary">
-            <CatchUpHeader summary={data} onChanged={reload} />
+            <BriefingHeader summary={data} onChanged={reload} />
           </div>
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
             <div className="flex min-w-0 flex-col gap-4">
-              <NeedsYouList items={data.needsYou} onChanged={reload} />
-              <RoomCards summary={data} onChanged={reload} />
+              <BriefingTopics topics={data.topics} onChanged={reload} />
             </div>
             <div className="flex min-w-0 flex-col gap-4">
               <OpenLoopsList items={data.openLoops} onChanged={reload} />
+              <QuietRooms rooms={data.quietRooms} onChanged={reload} />
               {elsewhere}
               <p className="text-muted-foreground px-2 text-xs text-pretty">
                 {t("aiNote")}

@@ -1,10 +1,18 @@
 import type {
   ChatCatchUpItem,
   ChatCatchUpSummary,
+  ChatCatchUpTopic,
   ChatRoom,
 } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
@@ -14,12 +22,14 @@ import { CatchUpView } from "./catch-up-view";
 const {
   listElsewhereMock,
   markAllReadMock,
+  sendMock,
   setLoopMock,
   showRoomUnreadCountMock,
   summaryActionMock,
 } = vi.hoisted(() => ({
   listElsewhereMock: vi.fn(),
   markAllReadMock: vi.fn(),
+  sendMock: vi.fn(),
   setLoopMock: vi.fn(),
   showRoomUnreadCountMock: vi.fn(),
   summaryActionMock: vi.fn(),
@@ -55,6 +65,7 @@ vi.mock("@/app/chat/signal-actions", () => ({
 
 vi.mock("@/app/chat/actions", () => ({
   markAllChatUnreadReadAction: (...args: unknown[]) => markAllReadMock(...args),
+  sendRoomMessageAction: (...args: unknown[]) => sendMock(...args),
 }));
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
@@ -98,6 +109,9 @@ function elsewhereRoom(
 const EMPTY_SUMMARY: ChatCatchUpSummary = {
   scope: "all",
   unreadTaggedCount: 0,
+  unreadMessageCount: 0,
+  unreadRoomCount: 0,
+  awaySince: null,
   headline: null,
   generatedAt: null,
   counts: [],
@@ -107,7 +121,8 @@ const EMPTY_SUMMARY: ChatCatchUpSummary = {
   announcements: [],
   openLoops: [],
   highlights: [],
-  rooms: [],
+  topics: [],
+  quietRooms: [],
 };
 
 function item(
@@ -127,6 +142,25 @@ function item(
     createdAt: new Date("2026-10-29T12:00:00.000Z"),
     dueAt: null,
     inReplyTo: null,
+    ...overrides,
+  };
+}
+
+function topic(
+  id: string,
+  overrides: Partial<ChatCatchUpTopic> = {},
+): ChatCatchUpTopic {
+  return {
+    id,
+    title: `title of ${id}`,
+    summary: `summary of ${id}`,
+    status: "fyi",
+    roomId: "room-a",
+    roomName: "Sokosumi",
+    roomKind: "channel",
+    people: [{ name: "Francis", imageUrl: null }],
+    latestAt: new Date("2026-10-29T12:00:00.000Z"),
+    messages: [item(`${id}-m`, { bucket: "fyi" })],
     ...overrides,
   };
 }
@@ -276,10 +310,7 @@ describe("CatchUpView's unread rooms elsewhere", () => {
 
   it("stands below the written summary, which keeps its content", async () => {
     listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
-    summaryAnswers({
-      headline: "A quiet morning",
-      rooms: [{ roomId: "own", roomName: "own room", line: "All settled" }],
-    });
+    summaryAnswers({ headline: "A quiet morning", topics: [topic("t1")] });
 
     renderCatchUp();
     const list = await findElsewhereList();
@@ -289,8 +320,6 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(within(summary).getByText("A quiet morning")).toBeTruthy();
-    // The headline already says it; no second pass room by room.
-    expect(within(summary).queryByText("All settled")).toBeNull();
     expect(within(summary).queryByText("launch")).toBeNull();
   });
 
@@ -363,77 +392,69 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     });
   });
 
-  describe("the summary", () => {
-    it("shows what needs you as cards, the rest as one card per room", async () => {
+  describe("the briefing", () => {
+    it("says how much came in since when, then what waits on you first", async () => {
       summaryAnswers({
         headline: "Francis needs your green light.",
-        needsYou: [item("q1"), item("q2")],
-        blockers: [
-          item("b1", { bucket: "blocker", roomId: "room-b", roomName: "NMKR" }),
-        ],
-        announcements: [item("a1", { bucket: "announcement" })],
-      });
-
-      renderCatchUp();
-      const needsYou = await screen.findByRole("region", {
-        name: "App.Channels.Signals.Sections.needsYou",
-      });
-      expect(
-        within(needsYou).getAllByRole("link", {
-          name: "App.Channels.Signals.openAndReply",
-        }),
-      ).toHaveLength(2);
-
-      const rooms = screen.getByRole("region", {
-        name: "App.Channels.Signals.inYourRooms",
-      });
-      expect(
-        within(rooms).getAllByRole("button", {
-          name: "App.Channels.Signals.markRead",
-        }),
-      ).toHaveLength(2);
-      expect(within(rooms).getByText("NMKR")).toBeTruthy();
-      expect(
-        within(rooms).getByText("App.Channels.Signals.Chips.blocker"),
-      ).toBeTruthy();
-      // What needs you is not repeated in its room's card.
-      expect(within(rooms).queryByText("text of q1")).toBeNull();
-    });
-
-    it("says how overdue a promise is, and what a decision answers", async () => {
-      summaryAnswers({
-        openLoops: [
-          item("loop", {
-            bucket: "commitment",
-            dueAt: new Date("2026-10-28T09:00:00.000Z"),
-          }),
-        ],
-        decisions: [
-          item("d1", {
-            bucket: "decisionMade",
-            excerpt: "Oh yes, send it",
-            inReplyTo: {
-              senderName: "Patrick",
-              excerpt: "Shall I send the deck?",
-            },
+        unreadMessageCount: 152,
+        unreadRoomCount: 8,
+        awaySince: new Date("2026-10-27T18:00:00.000Z"),
+        topics: [
+          topic("news", { status: "decided" }),
+          topic("ask", {
+            status: "waitingOnYou",
+            messages: [item("q1"), item("q2", { bucket: "fyi" })],
           }),
         ],
       });
 
       renderCatchUp();
-
       expect(
-        await screen.findByText("App.Channels.Signals.overdue 3"),
-      ).toBeTruthy();
-      expect(
-        screen.getByText(
-          "App.Channels.Signals.inReplyTo Patrick Shall I send the deck?",
+        await screen.findByText(
+          "App.Channels.Signals.Briefing.unreadSince App.Channels.Signals.Briefing.unread 152 8 Fri, Oct 30",
         ),
       ).toBeTruthy();
+      const waiting = screen.getByRole("region", {
+        name: "App.Channels.Signals.Briefing.waitingOnYou 1",
+      });
+      expect(within(waiting).getByText("title of ask")).toBeTruthy();
+      expect(within(waiting).getByText("summary of ask")).toBeTruthy();
+      const away = screen.getByRole("region", {
+        name: "App.Channels.Signals.Briefing.whileAway 1",
+      });
+      expect(within(away).getByText("title of news")).toBeTruthy();
+      expect(
+        within(away).getByText("App.Channels.Signals.Briefing.Status.decided"),
+      ).toBeTruthy();
+      // Only a topic waiting on you can be marked done.
+      expect(
+        within(away).queryByRole("button", {
+          name: "App.Channels.Signals.done",
+        }),
+      ).toBeNull();
     });
 
-    it("marks a card done and reloads the summary", async () => {
-      summaryAnswers({ needsYou: [item("q1")] });
+    it("folds out the messages behind a topic", async () => {
+      summaryAnswers({ topics: [topic("t1")] });
+
+      renderCatchUp();
+      const toggle = await screen.findByRole("button", {
+        name: /Briefing\.messages 1/,
+      });
+      expect(screen.queryByText("text of t1-m")).toBeNull();
+      await act(async () => toggle.click());
+      expect(screen.getByText("text of t1-m")).toBeTruthy();
+    });
+
+    it("marks a topic done by closing what asked you, and reloads", async () => {
+      summaryAnswers({
+        topics: [
+          topic("ask", {
+            status: "waitingOnYou",
+            messages: [item("q1"), item("f1", { bucket: "fyi" })],
+          }),
+        ],
+      });
       setLoopMock.mockResolvedValue({ ok: true, value: {} });
 
       renderCatchUp();
@@ -443,52 +464,88 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       summaryAnswers();
       await act(async () => done.click());
 
+      expect(setLoopMock).toHaveBeenCalledTimes(1);
       expect(setLoopMock).toHaveBeenCalledWith("q1", { closed: true });
       expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
     });
 
-    it("marks one room read from its card", async () => {
+    it("answers in the Thread the question came from", async () => {
       summaryAnswers({
-        needsYou: [item("q1")],
-        highlights: [
-          item("h1", {
-            parentMessageId: "parent",
-            bucket: "question",
-          }),
-          item("h2", {
-            roomId: "room-b",
-            roomName: "NMKR",
-            bucket: "question",
+        topics: [
+          topic("ask", {
+            status: "waitingOnYou",
+            messages: [item("q1", { parentMessageId: "parent" })],
           }),
         ],
+      });
+      sendMock.mockResolvedValue({ ok: true, value: {} });
+      setLoopMock.mockResolvedValue({ ok: true, value: {} });
+
+      renderCatchUp();
+      await act(async () =>
+        (
+          await screen.findByRole("button", {
+            name: "App.Channels.Signals.Briefing.reply",
+          })
+        ).click(),
+      );
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "Yes, go ahead" },
+      });
+      await act(async () =>
+        screen
+          .getByRole("button", { name: "App.Channels.Signals.Briefing.send" })
+          .click(),
+      );
+
+      expect(sendMock).toHaveBeenCalledWith("room-a", "Yes, go ahead", [], {
+        parentMessageId: "parent",
+      });
+      expect(setLoopMock).toHaveBeenCalledWith("q1", { closed: true });
+    });
+
+    it("says how overdue a promise is", async () => {
+      summaryAnswers({
+        openLoops: [
+          item("loop", {
+            bucket: "commitment",
+            dueAt: new Date("2026-10-28T09:00:00.000Z"),
+          }),
+        ],
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.overdue 3"),
+      ).toBeTruthy();
+    });
+
+    it("marks the rooms with nothing for you read", async () => {
+      summaryAnswers({
+        quietRooms: [{ roomId: "room-q", roomName: "random", unreadCount: 12 }],
       });
       markAllReadMock.mockResolvedValue({ ok: true, value: null });
 
       renderCatchUp();
-      const rooms = await screen.findByRole("region", {
-        name: "App.Channels.Signals.inYourRooms",
+      const quiet = await screen.findByRole("region", {
+        name: "App.Channels.Signals.Briefing.nothingForYou 1",
       });
-      const [sokosumi] = within(rooms).getAllByRole("button", {
-        name: "App.Channels.Signals.markRead",
-      });
-      await act(async () => sokosumi.click());
+      await act(async () =>
+        within(quiet)
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click(),
+      );
 
       expect(markAllReadMock).toHaveBeenCalledWith([
-        { roomId: "room-a", readRoom: true, lookThreads: true },
+        { roomId: "room-q", readRoom: true, lookThreads: true },
       ]);
     });
 
-    it("marks every listed room read at once", async () => {
+    it("marks every unread room read at once", async () => {
       summaryAnswers({
-        needsYou: [item("q1")],
-        highlights: [
-          item("h1", {
-            roomId: "room-b",
-            roomName: "NMKR",
-            parentMessageId: "parent",
-            bucket: "question",
-          }),
-        ],
+        topics: [topic("t1"), topic("t2", { roomId: "room-b" })],
+        quietRooms: [{ roomId: "room-q", roomName: "random", unreadCount: 2 }],
       });
       markAllReadMock.mockResolvedValue({ ok: true, value: null });
 
@@ -499,8 +556,9 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       await act(async () => button.click());
 
       expect(markAllReadMock).toHaveBeenCalledWith([
-        { roomId: "room-a", readRoom: true, lookThreads: false },
-        { roomId: "room-b", readRoom: false, lookThreads: true },
+        { roomId: "room-a", readRoom: true, lookThreads: true },
+        { roomId: "room-b", readRoom: true, lookThreads: true },
+        { roomId: "room-q", readRoom: true, lookThreads: true },
       ]);
     });
   });
