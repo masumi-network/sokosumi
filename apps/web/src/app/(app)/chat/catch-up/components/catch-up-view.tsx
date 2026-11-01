@@ -7,8 +7,8 @@ import {
   ChatCaughtUp,
   ChatUnreadViewHeader,
 } from "@/app/chat/components/chat-unread-view-header";
-import { getChatCatchUpSummaryAction } from "@/app/chat/signal-actions";
 import { isCatchUpSummaryEmpty } from "@/components/chat/signals/catch-up-summary-body";
+import { fetchCatchUpSummary } from "@/components/chat/signals/fetch-catch-up-summary";
 import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,11 +51,7 @@ export function CatchUpView({
     });
   const { data, isError, refetch, isFetching } = useQuery({
     queryKey: ["chat-catch-up-summary"],
-    queryFn: async (): Promise<ChatCatchUpSummary> => {
-      const result = await getChatCatchUpSummaryAction();
-      if (!result.ok) throw new Error(result.error.message ?? "");
-      return result.value;
-    },
+    queryFn: (): Promise<ChatCatchUpSummary> => fetchCatchUpSummary(),
     refetchOnWindowFocus: false,
     retry: false,
   });

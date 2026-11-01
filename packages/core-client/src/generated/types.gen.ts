@@ -3651,12 +3651,17 @@ export type ChatCatchUpSummary = {
      */
     topics: Array<ChatCatchUpTopic>;
     /**
-     * Rooms with unread messages and no topic in them.
+     * Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.
      */
     quietRooms: Array<{
         roomId: string;
         roomName: string;
+        roomKind: 'channel' | 'direct';
         unreadCount: number;
+        /**
+         * The room's newest top-level message from someone else.
+         */
+        latest: ChatCatchUpItem | null;
     }>;
     generatedAt: Date | null;
     needsYou: Array<ChatCatchUpItem>;
@@ -9004,6 +9009,7 @@ export type SokoBotActivity = {
     status: SokoBotStatus;
     activeTurnId: string | null;
     lastTurnAt: Date | null;
+    lastActivityAt: Date | null;
     avatarState: SokoBotAvatarState;
 };
 

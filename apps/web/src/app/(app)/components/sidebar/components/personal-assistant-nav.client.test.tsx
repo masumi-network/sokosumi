@@ -570,6 +570,29 @@ describe("PersonalAssistantNav live status", () => {
     expect(screen.getByText("label.done")).toBeInTheDocument();
   });
 
+  it("counts 'Active … ago' from the latest activity, without a reload", async () => {
+    const latest = new Date("2026-11-01T09:55:00.000Z");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          activity: {
+            status: SokoBotStatus.IDLE,
+            avatarState: "idle",
+            lastActivityAt: latest.toISOString(),
+          },
+        }),
+      })),
+    );
+    renderNav({
+      bot: { ...bot, lastActivityAt: new Date("2026-11-01T05:00:00.000Z") },
+    });
+    relativeTime.mockClear();
+    await flush();
+    expect(relativeTime).toHaveBeenLastCalledWith(latest, expect.anything());
+  });
+
   it("plays the new state once when it changes", async () => {
     vi.stubGlobal("fetch", activity("working"));
     renderNav({
