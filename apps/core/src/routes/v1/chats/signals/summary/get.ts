@@ -25,7 +25,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/summary",
     description:
-      'The viewer\'s "while you were away": what is unread since they last read each room, sorted by what it asks of them (needs you, decisions, open loops, highlights), from the messages Jev tagged. The sections are live; the written headline and room lines come from a cheap EU-routed model and are cached until a tagged message arrives that they have not read.',
+      'The viewer\'s "while you were away": what is unread since they last read each room, sorted by what it asks of them (needs you, blockers, decisions, announcements, open loops, highlights), from the messages Jev tagged. The sections are live; the written headline and topics come from a cheap EU-routed model and are cached until a tagged message arrives that they have not read.',
     tags: ["Chat Signals"],
     request: { query: querySchema },
     responses: {

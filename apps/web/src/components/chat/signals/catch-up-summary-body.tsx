@@ -1,25 +1,63 @@
 "use client";
 
 import type {
+  ChatCatchUpBucket,
   ChatCatchUpItem,
   ChatCatchUpSummary,
 } from "@sokosumi/core-client";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useId } from "react";
 import { CatchUpLine } from "@/components/chat/signals/catch-up-line";
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type SectionKey =
+  | "needsYou"
+  | "blockers"
+  | "decisions"
+  | "announcements"
+  | "openLoops"
+  | "highlights";
+
+/** Most pressing first; the order the page reads in. */
+const SECTIONS: readonly SectionKey[] = [
+  "needsYou",
+  "blockers",
+  "decisions",
+  "announcements",
+  "openLoops",
+  "highlights",
+];
+
+/** Where a count on the catch-up line jumps to. */
+function sectionOfBucket(bucket: ChatCatchUpBucket): SectionKey {
+  switch (bucket) {
+    case "needsYou":
+      return "needsYou";
+    case "escalation":
+    case "urgent":
+    case "blocker":
+      return "blockers";
+    case "decisionMade":
+      return "decisions";
+    case "announcement":
+      return "announcements";
+    default:
+      return "highlights";
+  }
+}
+
 /** Nothing written and nothing listed: the reader has read it all. */
 export function isCatchUpSummaryEmpty(summary: ChatCatchUpSummary): boolean {
   return (
     summary.headline == null &&
-    summary.needsYou.length === 0 &&
-    summary.decisions.length === 0 &&
-    summary.openLoops.length === 0 &&
-    summary.highlights.length === 0
+    summary.topics.length === 0 &&
+    summary.quietRooms.length === 0 &&
+    SECTIONS.every((section) => summary[section].length === 0)
   );
 }
 
@@ -27,26 +65,29 @@ interface CatchUpSummaryBodyProps {
   summary: ChatCatchUpSummary;
   /** Room-scoped: an item jumps in place instead of linking to its room. */
   onJump?: (messageId: string) => void;
-  /** The global view also lists one written line per room. */
-  showRooms?: boolean;
 }
 
 /**
- * A "while you were away": the written headline, then what needs the reader,
- * decisions, open loops and highlights, each a list of the messages behind
- * it. The written parts are a guide from a model; the lists are what Jev
- * tagged, so each item links to the message it came from.
+ * One room's "while you were away" (the Summary popover): the written
+ * headline, then what needs the reader, blockers, decisions, announcements,
+ * open loops and a few highlights, each a list of the messages behind it. The written part is a guide from a model;
+ * the lists are what Jev tagged, so each item links to the message it came
+ * from. Each count on the line under the headline jumps to its section.
  */
 export function CatchUpSummaryBody({
   summary,
   onJump,
-  showRooms = false,
 }: CatchUpSummaryBodyProps) {
   const t = useTranslations("App.Channels.Signals");
   const format = useFormatter();
+  const idPrefix = useId();
+  const sectionId = (section: SectionKey) => `${idPrefix}-${section}`;
+  const shown = new Set(
+    SECTIONS.filter((section) => summary[section].length > 0),
+  );
 
   return (
-    <div className="flex flex-col gap-5" data-testid="catch-up-summary">
+    <div className="flex flex-col gap-6" data-testid="catch-up-summary">
       <div className="flex flex-col gap-1.5">
         {summary.headline ? (
           <p className="text-base text-pretty">{summary.headline}</p>
@@ -54,6 +95,13 @@ export function CatchUpSummaryBody({
         <CatchUpLine
           buckets={summary.counts}
           className="text-muted-foreground"
+          onSelect={(bucket) => {
+            const section = sectionOfBucket(bucket);
+            if (!shown.has(section)) return;
+            document
+              .getElementById(sectionId(section))
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
         />
         {summary.generatedAt ? (
           <p className="text-muted-foreground text-xs">
@@ -63,89 +111,61 @@ export function CatchUpSummaryBody({
           </p>
         ) : null}
       </div>
-      {showRooms && summary.rooms.length > 0 ? (
-        <Section title={t("byRoom")}>
-          {summary.rooms.map((room) => (
-            <li key={room.roomId}>
-              <Link
-                href={`/chat/rooms/${encodeURIComponent(room.roomId)}`}
-                className={cn(
-                  POPOVER_ROW_CLASS,
-                  "flex flex-col gap-0.5 px-2 py-1.5",
-                )}
-              >
-                <span className="text-sm font-medium">{room.roomName}</span>
-                <span className="text-muted-foreground text-sm text-pretty">
-                  {room.line}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </Section>
-      ) : null}
-      <ItemSection
-        title={t("Sections.needsYou")}
-        items={summary.needsYou}
-        onJump={onJump}
-      />
-      <ItemSection
-        title={t("Sections.decisions")}
-        items={summary.decisions}
-        onJump={onJump}
-      />
-      <ItemSection
-        title={t("Sections.openLoops")}
-        items={summary.openLoops}
-        onJump={onJump}
-      />
-      <ItemSection
-        title={t("Sections.highlights")}
-        items={summary.highlights}
-        onJump={onJump}
-      />
+      {SECTIONS.map((section) =>
+        shown.has(section) ? (
+          <ItemSection
+            key={section}
+            id={sectionId(section)}
+            title={t(`Sections.${section}`)}
+            prominent={section === "needsYou"}
+            items={summary[section]}
+            onJump={onJump}
+          />
+        ) : null,
+      )}
     </div>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  const headingId = useId();
-  return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-1">
-      <h2
-        id={headingId}
-        className="text-muted-foreground px-2 text-xs font-medium"
-      >
-        {title}
-      </h2>
-      <ul className="flex flex-col">{children}</ul>
-    </section>
-  );
-}
-
 function ItemSection({
+  id,
   title,
+  prominent,
   items,
   onJump,
 }: {
+  id: string;
   title: string;
+  prominent: boolean;
   items: readonly ChatCatchUpItem[];
   onJump?: (messageId: string) => void;
 }) {
-  if (items.length === 0) return null;
+  const headingId = useId();
   return (
-    <Section title={title}>
-      {items.map((item) => (
-        <li key={item.messageId}>
-          <CatchUpItemRow item={item} onJump={onJump} />
-        </li>
-      ))}
-    </Section>
+    <section
+      id={id}
+      aria-labelledby={headingId}
+      className="flex scroll-mt-4 flex-col gap-1"
+    >
+      <h2
+        id={headingId}
+        className={cn(
+          "px-2",
+          prominent
+            ? "text-foreground text-sm font-semibold"
+            : "text-muted-foreground text-xs font-medium",
+        )}
+      >
+        {title}
+      </h2>
+      <ul className="flex flex-col">
+        {items.map((item) => (
+          <li key={item.messageId}>
+            <CatchUpItemRow item={item} onJump={onJump} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -168,18 +188,16 @@ function CatchUpItemRow({
         <time dateTime={item.createdAt.toISOString()} className="shrink-0">
           {format.relativeTime(item.createdAt)}
         </time>
-        {item.dueAt ? (
-          <span className="text-foreground shrink-0">
-            {t("due", {
-              date: format.dateTime(item.dueAt, {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-              }),
-            })}
-          </span>
-        ) : null}
+        {item.dueAt ? <DueLabel dueAt={item.dueAt} /> : null}
       </span>
+      {item.inReplyTo ? (
+        <span className="text-muted-foreground line-clamp-1 text-xs">
+          {t("inReplyTo", {
+            name: item.inReplyTo.senderName,
+            text: item.inReplyTo.excerpt,
+          })}
+        </span>
+      ) : null}
       <span className="line-clamp-2 text-sm text-pretty">{item.excerpt}</span>
     </>
   );
@@ -207,5 +225,31 @@ function CatchUpItemRow({
     >
       {body}
     </Link>
+  );
+}
+
+/** "Due Fri, Oct 30", or "2 days overdue" once the date has passed. */
+export function DueLabel({ dueAt }: { dueAt: Date }) {
+  const t = useTranslations("App.Channels.Signals");
+  const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
+  const overdueDays = Math.floor((now.getTime() - dueAt.getTime()) / DAY_MS);
+  if (overdueDays >= 1) {
+    return (
+      <span className="text-destructive shrink-0 font-medium">
+        {t("overdue", { count: overdueDays })}
+      </span>
+    );
+  }
+  return (
+    <span className="text-foreground shrink-0">
+      {t("due", {
+        date: format.dateTime(dueAt, {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        }),
+      })}
+    </span>
   );
 }
