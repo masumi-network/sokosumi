@@ -60,6 +60,7 @@ export const chatCatchUpItemSchema = z
     roomKind: z.enum(["channel", "direct"]),
     parentMessageId: z.string().uuid().nullable(),
     senderName: z.string(),
+    senderImageUrl: z.string().nullable(),
     excerpt: z.string(),
     bucket: chatCatchUpBucketSchema,
     createdAt: dateTimeSchema,
@@ -74,10 +75,37 @@ export const chatCatchUpItemSchema = z
   })
   .openapi("ChatCatchUpItem");
 
+export const chatCatchUpTopicSchema = z
+  .object({
+    id: z.string().uuid().openapi({ description: "Its oldest message's id." }),
+    title: z.string(),
+    summary: z.string(),
+    status: z.enum(["waitingOnYou", "decided", "inProgress", "fyi"]),
+    roomId: z.string().uuid(),
+    roomName: z.string(),
+    roomKind: z.enum(["channel", "direct"]),
+    people: z.array(
+      z.object({ name: z.string(), imageUrl: z.string().nullable() }),
+    ),
+    latestAt: dateTimeSchema,
+    messages: z.array(chatCatchUpItemSchema).openapi({
+      description: "The unread messages behind it, oldest first.",
+    }),
+  })
+  .openapi("ChatCatchUpTopic");
+
 export const chatCatchUpSummarySchema = z
   .object({
     scope: z.string().openapi({ description: "`all` or the room id." }),
     unreadTaggedCount: z.number().int().min(0),
+    unreadMessageCount: z.number().int().min(0).openapi({
+      description: "Every unread message, tagged or not, in the rooms covered.",
+    }),
+    unreadRoomCount: z.number().int().min(0),
+    awaySince: dateTimeSchema.nullable().openapi({
+      description:
+        "The earliest the viewer last read a room that now has unread messages.",
+    }),
     counts: z.array(
       z.object({
         bucket: chatCatchUpBucketSchema,
@@ -88,13 +116,21 @@ export const chatCatchUpSummarySchema = z
       description:
         "A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.",
     }),
-    rooms: z.array(
-      z.object({
-        roomId: z.string().uuid(),
-        roomName: z.string(),
-        line: z.string(),
+    topics: z.array(chatCatchUpTopicSchema).openapi({
+      description:
+        "What happened, one subject per topic, written by the model over the unread messages; what waits on the viewer first. Without the model, each message that needs the viewer, blocks, decides or announces is a topic of its own.",
+    }),
+    quietRooms: z
+      .array(
+        z.object({
+          roomId: z.string().uuid(),
+          roomName: z.string(),
+          unreadCount: z.number().int().min(1),
+        }),
+      )
+      .openapi({
+        description: "Rooms with unread messages and no topic in them.",
       }),
-    ),
     generatedAt: dateTimeSchema.nullable(),
     needsYou: z.array(chatCatchUpItemSchema),
     blockers: z.array(chatCatchUpItemSchema).openapi({
