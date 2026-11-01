@@ -8425,9 +8425,14 @@
         "dismissCatchUp": "Zusammenfassung ausblenden",
         "summarize": "Zusammenfassung",
         "summarizing": "Deine Zusammenfassung wird geschrieben…",
-        "writtenByAi": "Von KI geschrieben {time}",
-        "byRoom": "Nach Raum",
+        "writtenByAi": "Aktualisiert {time}",
         "due": "Fällig {date}",
+        "overdue": "{count, plural, one {# Tag überfällig} other {# Tage überfällig}}",
+        "inReplyTo": "Antwort auf {name}: {text}",
+        "done": "Erledigt",
+        "markRead": "Als gelesen markieren",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
         "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
@@ -8462,7 +8467,9 @@
         },
         "Sections": {
           "needsYou": "Wartet auf dich",
+          "blockers": "Blocker",
           "decisions": "Entscheidungen",
+          "announcements": "Ankündigungen",
           "openLoops": "Offene Punkte",
           "highlights": "Wichtiges"
         },
@@ -8502,6 +8509,28 @@
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
           "threads": "Threads"
+        },
+        "Briefing": {
+          "welcomeBack": "Willkommen zurück",
+          "unread": "{messages, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}} in {rooms, plural, one {# Raum} other {# Räumen}}",
+          "unreadSince": "{unread} seit {date}",
+          "waitingOnYou": "Wartet auf dich",
+          "whileAway": "Was passiert ist",
+          "stillOpen": "Noch offen",
+          "nothingForYou": "Nichts für dich",
+          "unreadInRoom": "{count} ungelesen",
+          "messages": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+          "open": "Öffnen",
+          "reply": "Antworten",
+          "replyPlaceholder": "{name} antworten…",
+          "send": "Senden",
+          "replySent": "An {room} gesendet",
+          "replyError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+          "Status": {
+            "decided": "Entschieden",
+            "inProgress": "Läuft",
+            "fyi": "Zur Info"
+          }
         }
       },
       "Stickers": {

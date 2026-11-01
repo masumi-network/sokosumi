@@ -3629,6 +3629,15 @@ export type ChatCatchUpSummary = {
      */
     scope: string;
     unreadTaggedCount: number;
+    /**
+     * Every unread message, tagged or not, in the rooms covered.
+     */
+    unreadMessageCount: number;
+    unreadRoomCount: number;
+    /**
+     * The earliest the viewer last read a room that now has unread messages.
+     */
+    awaySince: Date | null;
     counts: Array<{
         bucket: ChatCatchUpBucket;
         count: number;
@@ -3637,15 +3646,33 @@ export type ChatCatchUpSummary = {
      * A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.
      */
     headline: string | null;
-    rooms: Array<{
+    /**
+     * What happened, one subject per topic, written by the model over the unread messages; what waits on the viewer first. Without the model, each message that needs the viewer, blocks, decides or announces is a topic of its own.
+     */
+    topics: Array<ChatCatchUpTopic>;
+    /**
+     * Rooms with unread messages and no topic in them.
+     */
+    quietRooms: Array<{
         roomId: string;
         roomName: string;
-        line: string;
+        unreadCount: number;
     }>;
     generatedAt: Date | null;
     needsYou: Array<ChatCatchUpItem>;
+    /**
+     * Escalations, urgent messages and blockers.
+     */
+    blockers: Array<ChatCatchUpItem>;
     decisions: Array<ChatCatchUpItem>;
+    announcements: Array<ChatCatchUpItem>;
+    /**
+     * Questions to the viewer still unanswered and their overdue promises, the longest overdue first.
+     */
     openLoops: Array<ChatCatchUpItem>;
+    /**
+     * At most three other messages worth knowing: decisions to make, commitments, work requests, questions.
+     */
     highlights: Array<ChatCatchUpItem>;
 };
 
@@ -3672,6 +3699,28 @@ export const ChatCatchUpBucket = {
  */
 export type ChatCatchUpBucket = typeof ChatCatchUpBucket[keyof typeof ChatCatchUpBucket];
 
+export type ChatCatchUpTopic = {
+    /**
+     * Its oldest message's id.
+     */
+    id: string;
+    title: string;
+    summary: string;
+    status: 'waitingOnYou' | 'decided' | 'inProgress' | 'fyi';
+    roomId: string;
+    roomName: string;
+    roomKind: 'channel' | 'direct';
+    people: Array<{
+        name: string;
+        imageUrl: string | null;
+    }>;
+    latestAt: Date;
+    /**
+     * The unread messages behind it, oldest first.
+     */
+    messages: Array<ChatCatchUpItem>;
+};
+
 export type ChatCatchUpItem = {
     messageId: string;
     roomId: string;
@@ -3679,10 +3728,18 @@ export type ChatCatchUpItem = {
     roomKind: 'channel' | 'direct';
     parentMessageId: string | null;
     senderName: string;
+    senderImageUrl: string | null;
     excerpt: string;
     bucket: ChatCatchUpBucket;
     createdAt: Date;
     dueAt: Date | null;
+    /**
+     * For a decision: the earlier message it answers, so a bare reply reads on its own.
+     */
+    inReplyTo: {
+        senderName: string;
+        excerpt: string;
+    } | null;
 };
 
 export type ChatRoomCatchUp = {
