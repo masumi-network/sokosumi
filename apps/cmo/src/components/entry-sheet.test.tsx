@@ -42,6 +42,24 @@ describe("EntrySheet", () => {
     );
   });
 
+  it("opens a piece kept in the owner's Files instead of promising it", () => {
+    const html = renderToStaticMarkup(
+      <EntrySheet
+        entry={{
+          ...entry,
+          channel: "seo",
+          format: "article",
+          draft: undefined,
+          fileId: "file-1",
+        }}
+        onClose={() => {}}
+        loadText={async () => "Three checks before you add analytics."}
+      />,
+    );
+    expect(html).toContain("Opening it from your Files");
+    expect(html).not.toContain("once you subscribe");
+  });
+
   it("lays a carousel's slides out in order to swipe", () => {
     const html = renderToStaticMarkup(
       <EntrySheet

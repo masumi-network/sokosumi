@@ -16,6 +16,7 @@ import {
   type ChatResultReference,
   CMO_PRODUCTION_MEDIA_PER_RUN,
   CMO_PRODUCTION_TURN_PREFIX,
+  type CmoCalendarEntry,
   cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
@@ -302,7 +303,7 @@ import {
 } from "@/services/chat-result-preview.service";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
-import { CmoNotFoundError } from "@/services/cmo-cuso.service";
+import { CmoNotFoundError, findCusoForBot } from "@/services/cmo-cuso.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -317,6 +318,7 @@ import {
   cmoTurnExecutesPlan,
   saveCmoStrategy,
 } from "@/services/cmo-strategy.service";
+import { cusoDrive } from "@/services/cuso-project-files.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
@@ -342,8 +344,10 @@ import {
 } from "@/services/image-studio-jobs.service";
 import {
   approvedMarketingStrategy,
+  isMarketingFilePiece,
   readMarketingPlan,
 } from "@/services/marketing-strategy.service";
+import { writeMarketingStrategyFiles } from "@/services/marketing-strategy-files.service";
 import { getNewsletter } from "@/services/newsletter.service";
 import {
   generateNewsletterDraft,
@@ -2351,6 +2355,27 @@ export class SokoBotRuntimeService {
         `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
       );
     return { input, model, settings, credits, referenceFileIds };
+  }
+
+  /**
+   * Writes the saved pieces that are not Social posts as the Project's Files
+   * (an article, a page fix, ad copy, a newsletter issue) and links them to
+   * the approved version. Returns how many were written.
+   */
+  private async writeCmoPieceFiles(
+    authorized: AuthorizedSokoBotRuntime,
+    version: { id: string },
+    sent: { calendar?: unknown[] },
+  ): Promise<number> {
+    const entries = (sent.calendar ?? []) as CmoCalendarEntry[];
+    if (!entries.some(isMarketingFilePiece)) return 0;
+    const cuso = await findCusoForBot(authorized.turn.sokoBotId);
+    const drive = cuso ? await cusoDrive(cuso) : null;
+    if (!drive)
+      throw new SokoBotRuntimeValidationError(
+        "Cuso's Files are not available, so these pieces could not be written.",
+      );
+    return writeMarketingStrategyFiles({ version, drive, entries });
   }
 
   /** Reference Files for an image: image Files the owner may open, in order. */
@@ -5255,20 +5280,36 @@ export class SokoBotRuntimeService {
               tx,
             ),
           );
+          const approved = saved.approvedAt !== null;
+          // Pieces that are not Social posts become the Project's Files.
+          const filed =
+            pieces && approved
+              ? await this.writeCmoPieceFiles(authorized, saved, sent)
+              : 0;
           // A running plan's social pieces are its Social posts.
           const stored = await readMarketingPlan(saved);
           const calendar = stored?.calendar ?? [];
-          const approved = saved.approvedAt !== null;
           const review = await this.reviewCmoPlan(authorized, input, {
             approved,
             strategy: stored,
             planSent: sent.summary !== undefined,
           });
-          // Once the plan runs, the drafts are checked against the copy rules.
-          const draftProblems = approved ? cmoDraftProblems(calendar) : [];
+          // Once the plan runs, the drafts are checked against the copy rules,
+          // a filed piece's words as sent (the calendar holds only its file).
+          const draftProblems = approved
+            ? cmoDraftProblems([
+                ...calendar,
+                ...(sent.calendar ?? []).filter(
+                  (entry) =>
+                    isMarketingFilePiece(entry) && Boolean(entry.draft),
+                ),
+              ])
+            : [];
+          const written = (entry: (typeof calendar)[number]) =>
+            Boolean(entry.draft || entry.fileId);
           // Says which pieces still have no draft.
           const undrafted = calendar
-            .filter((entry) => entry.status !== "skipped" && !entry.draft)
+            .filter((entry) => entry.status !== "skipped" && !written(entry))
             .map((entry) => entry.date)
             .sort();
           return {
@@ -5279,7 +5320,8 @@ export class SokoBotRuntimeService {
               approved,
               updatedAt: saved.updatedAt.toISOString(),
               entries: calendar.length,
-              drafted: calendar.filter((entry) => entry.draft).length,
+              drafted: calendar.filter(written).length,
+              ...(filed > 0 ? { filed } : {}),
               undrafted: undrafted.length,
               firstUndrafted: undrafted[0],
               ...(review ? { review } : {}),
@@ -5291,7 +5333,7 @@ export class SokoBotRuntimeService {
                 : draftProblems.length > 0
                   ? {
                       problems: draftProblems,
-                      next: "Rewrite these drafts on their Social posts (the ids) with update_social_post.",
+                      next: "Rewrite these drafts: a Social post (by its id) with update_social_post, any other piece with save_strategy part pieces.",
                     }
                   : {}),
             },

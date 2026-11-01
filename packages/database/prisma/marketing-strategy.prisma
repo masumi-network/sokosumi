@@ -31,8 +31,33 @@ model MarketingStrategy {
   approvedByUser   User?     @relation("MarketingStrategyApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   socialPosts SocialPost[]
+  files       MarketingStrategyFile[]
 
   @@unique([projectId], map: "marketing_strategy_one_approved_key", where: { approvedAt: { not: null } })
   @@index([projectId, createdAt])
   @@map("marketing_strategy")
+}
+
+/// A piece of an approved version that is not a Social post (an article, a
+/// page fix, ad copy, a newsletter issue), written as one of the Project's
+/// Files: the owner pastes, launches or sends it. One file per calendar entry.
+model MarketingStrategyFile {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  marketingStrategyId String            @db.Uuid
+  marketingStrategy   MarketingStrategy @relation(fields: [marketingStrategyId], references: [id], onDelete: Cascade)
+  /// The plan's calendar entry id.
+  entryId             String
+
+  fileResourceId String       @db.Uuid
+  fileResource   FileResource @relation(fields: [fileResourceId], references: [id], onDelete: Cascade)
+  /// The piece's pictures by file id, the cover first (an ad's image, a
+  /// carousel ad's cards); they stay Content Studio files.
+  mediaFileIds   String[]     @default([])
+
+  @@unique([marketingStrategyId, entryId])
+  @@index([fileResourceId])
+  @@map("marketing_strategy_file")
 }

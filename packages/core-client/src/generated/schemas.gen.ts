@@ -27687,6 +27687,10 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    fileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -28940,6 +28944,10 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 100
                                 },
                                 maxItems: 10
+                            },
+                            fileId: {
+                                type: 'string',
+                                maxLength: 100
                             },
                             taskId: {
                                 type: 'string',
@@ -40480,6 +40488,10 @@ export const CmoOverviewSchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    fileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -41423,6 +41435,18 @@ export const CmoAdBudgetRequestSchema = {
     required: [
         'monthly',
         'currency'
+    ]
+} as const;
+
+export const CmoPieceTextSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string'
+        }
+    },
+    required: [
+        'text'
     ]
 } as const;
 

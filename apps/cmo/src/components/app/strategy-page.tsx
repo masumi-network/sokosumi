@@ -75,11 +75,14 @@ export function StrategyVersions({
 export function StrategyPage({
   overview,
   onAsk,
+  loadText,
   onSetAds,
   onApprove,
 }: {
   overview: CmoOverview;
   onAsk: (text: string) => Promise<void>;
+  /** The words of a piece kept in the owner's Files. */
+  loadText?: (entryId: string) => Promise<string | null>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
   /** Approves an earlier version again: Cuso goes back to that plan. */
   onApprove?: (versionId: string) => Promise<void>;
@@ -178,6 +181,7 @@ export function StrategyPage({
             media={overview.media.find((item) => item.entryId === open.id)}
             onClose={() => setOpen(null)}
             onAsk={onAsk}
+            loadText={loadText}
           />
         ) : null}
       </AnimatePresence>

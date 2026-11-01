@@ -18,9 +18,12 @@ import {
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
+  isMarketingFilePiece,
+  listMarketingStrategyFiles,
   listMarketingStrategyPosts,
   type MarketingStrategyPost,
   parseMarketingPlan,
+  withMarketingFiles,
   withSocialPostCalendar,
 } from "@/services/marketing-strategy.service";
 
@@ -88,7 +91,8 @@ export function cmoPieceReady(
   connected: ReadonlySet<string>,
 ): boolean {
   if (piece.status === "published" || piece.status === "skipped") return true;
-  if (!piece.draft?.trim()) return false;
+  // A piece that is not a Social post keeps its words in its Project file.
+  if (!piece.draft?.trim() && !piece.fileId) return false;
   if (
     cmoPieceNeedsMedia(piece) &&
     new Set(piece.media).size < Math.max(1, cmoPieceMinSlides(piece))
@@ -118,23 +122,36 @@ export function cmoReadyPieceIds(
   return ready;
 }
 
-/** The month's Social posts still to come: what production makes and counts. */
+/**
+ * The month's pieces still to come: what production makes and counts. Social
+ * pieces are the version's Social posts; every other piece is a calendar
+ * entry whose words become a Project file.
+ */
 export function cmoProductionPieces(
   posts: MarketingStrategyPost[],
   now: Date,
+  calendar: CmoCalendarEntry[] = [],
 ): CmoPiece[] {
   const today = now.toISOString().slice(0, 10);
-  return posts
-    .map((post) => ({
+  const filePieces = calendar.filter(isMarketingFilePiece).map((entry) => ({
+    ...entry,
+    media: [
+      ...(entry.imageFileId ? [entry.imageFileId] : []),
+      ...(entry.slideFileIds ?? []),
+    ],
+  }));
+  return [
+    ...posts.map((post) => ({
       ...post.entry,
       media: post.media.map((file) => file.pathname),
-    }))
-    .filter(
-      (piece) =>
-        piece.date >= today &&
-        piece.status !== "published" &&
-        piece.status !== "skipped",
-    );
+    })),
+    ...filePieces,
+  ].filter(
+    (piece) =>
+      piece.date >= today &&
+      piece.status !== "published" &&
+      piece.status !== "skipped",
+  );
 }
 
 export interface CmoProductionStatus {
@@ -185,7 +202,13 @@ function pieceLine(piece: CmoPiece): string {
     `"${piece.title}"`,
     piece.brief ? `brief: ${piece.brief}` : "",
     cmoPieceMinSlides(piece) > 0 ? carouselNote(piece) : "",
-    piece.draft ? "(words written; finish what is missing)" : "",
+    isMarketingFilePiece(piece)
+      ? piece.fileId
+        ? "(file written; finish what is missing)"
+        : "(Project file: save its words with save_strategy part pieces)"
+      : piece.draft
+        ? "(words written; finish what is missing)"
+        : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -224,7 +247,12 @@ export function cmoProductionMessage(input: {
     !input.topUp && input.attempt > 1
       ? "An earlier run made part of the month; these pieces are still missing something."
       : "",
-    "Each piece is already a draft Social post, under the id below: never create another post for it. Put its words and its pictures on that post with update_social_post (read get_social_post first for its revision).",
+    batch.some((piece) => !isMarketingFilePiece(piece))
+      ? "Each social piece is already a draft Social post, under the id below: never create another post for it. Put its words and its pictures on that post with update_social_post (read get_social_post first for its revision)."
+      : "",
+    batch.some(isMarketingFilePiece)
+      ? "Every other piece (an article, a page fix, ad copy, a newsletter issue) becomes a file in the owner's Files: write it in full, ready to paste, launch or send, and save it with save_strategy part pieces, sending only that entry with its id and draft (and imageFileId once its picture is made). Core writes the file; never upload it yourself."
+      : "",
     `Connected networks: ${connected.length > 0 ? connected.join(", ") : "none yet"}. On a connected network, schedule each post with schedule_social_post at its date and time; on any other network it stays a finished draft until the owner connects it.`,
     `The mix, as planned: ${cmoMixLedger(strategy)}. Each piece keeps its approach.`,
     "",
@@ -388,9 +416,15 @@ export async function readCmoProduction(
       pending: [],
       runs: [],
     };
-  const posts = await listMarketingStrategyPosts(approved);
-  const strategy = withSocialPostCalendar(plan, posts);
-  const pieces = cmoProductionPieces(posts, now);
+  const [posts, files] = await Promise.all([
+    listMarketingStrategyPosts(approved),
+    listMarketingStrategyFiles(approved),
+  ]);
+  const strategy = withMarketingFiles(
+    withSocialPostCalendar(plan, posts),
+    files,
+  );
+  const pieces = cmoProductionPieces(posts, now, strategy.calendar);
   const ready = cmoReadyPieceIds(pieces, connected);
   const pending = pieces.filter((piece) => !ready.has(piece.id));
   const read = (

@@ -7556,6 +7556,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             socialPostId?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
+            fileId?: string;
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -7772,6 +7773,7 @@ export type MarketingStrategyRequest = {
             socialPostId?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
+            fileId?: string;
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -10596,6 +10598,7 @@ export type CmoOverview = {
             socialPostId?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
+            fileId?: string;
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -10800,6 +10803,10 @@ export type CmoAdBudgetRequest = {
      * ISO 4217, such as EUR.
      */
     currency: string;
+};
+
+export type CmoPieceText = {
+    text: string;
 };
 
 export type CmoMeasurementConnect = {
@@ -67627,6 +67634,81 @@ export type PauseCmoCalendarEntryResponses = {
 };
 
 export type PauseCmoCalendarEntryResponse = PauseCmoCalendarEntryResponses[keyof PauseCmoCalendarEntryResponses];
+
+export type GetCmoCalendarEntryTextData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/calendar/{id}/text';
+};
+
+export type GetCmoCalendarEntryTextErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not written yet, or Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoCalendarEntryTextError = GetCmoCalendarEntryTextErrors[keyof GetCmoCalendarEntryTextErrors];
+
+export type GetCmoCalendarEntryTextResponses = {
+    /**
+     * The piece's words
+     */
+    200: {
+        data: CmoPieceText;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoCalendarEntryTextResponse = GetCmoCalendarEntryTextResponses[keyof GetCmoCalendarEntryTextResponses];
 
 export type ConnectCmoMeasurementData = {
     body?: {

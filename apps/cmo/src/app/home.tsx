@@ -27,6 +27,7 @@ import {
   finishAccounts,
   loadMessages,
   loadOverview,
+  loadPieceText,
   loadPlans,
   loadState,
   onboard,
@@ -190,6 +191,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       actions={{
         loadState,
         sendMessage,
+        loadPieceText,
         approveStrategy,
         setAdBudget,
         revertUpdate,

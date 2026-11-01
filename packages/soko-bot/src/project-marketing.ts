@@ -321,6 +321,12 @@ export const cmoCalendarEntrySchema = z.object({
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
+  /**
+   * The Project file a piece that is not a Social post was written to (an
+   * article, a page fix, ad copy, a newsletter). Set by Core when its draft
+   * is saved; Cuso never sends it.
+   */
+  fileId: z.string().max(100).optional(),
   taskId: z.string().max(100).optional(),
   /** The campaign this piece belongs to, by campaign id. */
   campaignId: z.string().trim().min(1).max(64).optional(),

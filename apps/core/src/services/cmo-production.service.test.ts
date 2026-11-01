@@ -18,9 +18,11 @@ const {
   scheduleUpdateMany,
   approvedStrategy,
   listPosts,
+  listFiles,
 } = vi.hoisted(() => ({
   approvedStrategy: vi.fn(),
   listPosts: vi.fn(),
+  listFiles: vi.fn(),
   cmoRunnerUserId: vi.fn(),
   listCusos: vi.fn(),
   scheduleUpdateMany: vi.fn(),
@@ -53,6 +55,7 @@ vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
   >()),
   approvedMarketingStrategy: approvedStrategy,
   listMarketingStrategyPosts: listPosts,
+  listMarketingStrategyFiles: listFiles,
 }));
 
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
@@ -141,15 +144,26 @@ type Run = {
   completedAt?: Date | null;
 };
 
-/** A hire whose Project's approved version became these Social posts. */
-function cuso(posts: MarketingStrategyPost[], runs: Run[] = []) {
+/**
+ * A hire whose Project's approved version became these Social posts, and
+ * whose plan holds these other pieces with the files written so far.
+ */
+function cuso(
+  posts: MarketingStrategyPost[],
+  runs: Run[] = [],
+  other: {
+    calendar?: CmoCalendarEntry[];
+    files?: Map<string, { fileId: string; media: string[] }>;
+  } = {},
+) {
   approvedStrategy.mockResolvedValue({
     id: "strategy-1",
     projectId: "project-1",
-    plan: strategy([]),
+    plan: strategy(other.calendar ?? []),
     approvedAt: new Date(APPROVED),
   });
   listPosts.mockResolvedValue(posts);
+  listFiles.mockResolvedValue(other.files ?? new Map());
   turnFindMany.mockResolvedValue(
     runs.map((run) => ({ completedAt: null, ...run })),
   );
@@ -195,6 +209,38 @@ describe("cmoPieceReady", () => {
   it("counts published and skipped pieces as done", () => {
     expect(cmoPieceReady(piece({ status: "published" }), connected)).toBe(true);
     expect(cmoPieceReady(piece({ status: "skipped" }), connected)).toBe(true);
+  });
+});
+
+describe("a piece kept in the Project's Files", () => {
+  it("is made once its file is written, and an ad also needs its picture", () => {
+    const article = piece({ channel: "seo", format: "article" });
+    expect(cmoPieceReady(article, new Set())).toBe(false);
+    expect(cmoPieceReady({ ...article, fileId: "file-1" }, new Set())).toBe(
+      true,
+    );
+    const ad = piece({ channel: "meta_ads", format: "image_ad", fileId: "f" });
+    expect(cmoPieceReady(ad, new Set())).toBe(false);
+    expect(cmoPieceReady({ ...ad, media: ["image-1"] }, new Set())).toBe(true);
+  });
+
+  it("is counted with the month and briefed to be saved as a file", async () => {
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy([]),
+      pending: [
+        piece({ id: "seo-1", channel: "seo", format: "article" }),
+        piece({ id: "x-1", channel: "x", format: "post" }),
+      ],
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    expect(message).toContain(
+      "(Project file: save its words with save_strategy part pieces)",
+    );
+    expect(message).toContain("Core writes the file");
+    expect(message).toContain("update_social_post");
   });
 });
 
@@ -338,6 +384,37 @@ describe("advanceCmoProduction", () => {
       background: { parentTurnId: "turn-0", destinationRoomId: "room-1" },
       presetRoute: { sandbox: false },
     });
+  });
+
+  it("is not finished while an article has no file, and is once it has one", async () => {
+    const article = entry({ id: "seo-1", channel: "seo", format: "article" });
+    const missing = await advanceCmoProduction(
+      cuso([post({ draft: "Done." })], [], { calendar: [article] }),
+      NOW,
+    );
+    expect(missing).toMatchObject({ state: "running", ready: 1, total: 2 });
+    expect(startTurn.mock.calls[0]?.[0].message).toContain("seo-1");
+
+    startTurn.mockClear();
+    const written = await advanceCmoProduction(
+      cuso(
+        [post({ draft: "Done." })],
+        [
+          {
+            clientTurnId: `${RUN}:1:1`,
+            status: "COMPLETED",
+            createdAt: hoursAgo(1),
+          },
+        ],
+        {
+          calendar: [article],
+          files: new Map([["seo-1", { fileId: "file-1", media: [] }]]),
+        },
+      ),
+      NOW,
+    );
+    expect(written).toMatchObject({ state: "ready", ready: 2, total: 2 });
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("reads the runs from Cuso's production turns", async () => {

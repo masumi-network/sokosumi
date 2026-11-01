@@ -23,6 +23,7 @@ export function EntrySheet({
   media,
   onClose,
   onAsk,
+  loadText,
 }: {
   entry: Entry;
   /** The image or video Cuso made for this piece, once he has. */
@@ -30,7 +31,24 @@ export function EntrySheet({
   onClose: () => void;
   /** Sends Cuso a change to this one piece. */
   onAsk?: (text: string) => Promise<void>;
+  /** The words of a piece kept in the owner's Files (an article, a newsletter). */
+  loadText?: (entryId: string) => Promise<string | null>;
 }) {
+  const filed = Boolean(entry.fileId && !entry.draft);
+  const [filedText, setFiledText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!filed || !loadText) return;
+    let current = true;
+    loadText(entry.id)
+      .then((text) => {
+        if (current) setFiledText(text);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [entry.id, filed, loadText]);
+  const draft = entry.draft ?? filedText;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -113,10 +131,17 @@ export function EntrySheet({
         ) : media?.kind === "image" ? (
           <img className="sheet-media" src={media.url} alt={entry.title} />
         ) : null}
-        {entry.draft ? (
+        {draft ? (
           <div className="sheet-draft">
-            <DraftText text={entry.draft} title={entry.title} />
+            <DraftText text={draft} title={entry.title} />
+            {filed ? (
+              <p className="note">
+                In your Files, ready to paste, launch or send.
+              </p>
+            ) : null}
           </div>
+        ) : filed ? (
+          <p className="note">Opening it from your Files…</p>
         ) : (
           <>
             {entry.hook ? (

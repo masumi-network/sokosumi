@@ -292,7 +292,7 @@ function canceledPost(now: Date) {
 }
 
 /** Only live social networks become Social posts; other channels stay in the plan. */
-function socialPostProvider(channel: string): SocialPostProvider | null {
+export function socialPostProvider(channel: string): SocialPostProvider | null {
   const entry = (
     CMO_CHANNELS as Record<string, { group: string; status: string }>
   )[channel];
@@ -552,9 +552,67 @@ export function withSocialPostCalendar(
   };
 }
 
+/** Whether a calendar entry is written as a Project file. */
+export function isMarketingFilePiece(
+  entry: Pick<CmoCalendarEntry, "channel">,
+): boolean {
+  return socialPostProvider(entry.channel) === null;
+}
+
+/** A written piece that is not a Social post: its file and its pictures. */
+export interface MarketingStrategyFilePiece {
+  fileId: string;
+  /** Picture file ids, the cover first. */
+  media: string[];
+}
+
+/** The version's written pieces that are Project files, by calendar entry id. */
+export async function listMarketingStrategyFiles(
+  version: Pick<MarketingStrategy, "id">,
+  db: Prisma.TransactionClient = prisma,
+): Promise<Map<string, MarketingStrategyFilePiece>> {
+  const links = await db.marketingStrategyFile.findMany({
+    where: {
+      marketingStrategyId: version.id,
+      fileResource: { lifecycle: "ACTIVE" },
+    },
+    select: { entryId: true, fileResourceId: true, mediaFileIds: true },
+  });
+  return new Map(
+    links.map((link) => [
+      link.entryId,
+      { fileId: link.fileResourceId, media: link.mediaFileIds },
+    ]),
+  );
+}
+
+/** The plan with each written piece's file and pictures: drafts that live in Files. */
+export function withMarketingFiles(
+  plan: MarketingStrategyPlan,
+  files: ReadonlyMap<string, MarketingStrategyFilePiece>,
+): MarketingStrategyPlan {
+  if (files.size === 0) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.map((entry) => {
+      const piece = files.get(entry.id);
+      if (!piece || !isMarketingFilePiece(entry)) return entry;
+      const [cover] = piece.media;
+      return {
+        ...entry,
+        fileId: piece.fileId,
+        ...(cover ? { imageFileId: cover } : {}),
+        ...(piece.media.length > 1 ? { slideFileIds: piece.media } : {}),
+        status: entry.status === "idea" ? "draft" : entry.status,
+      };
+    }),
+  };
+}
+
 /**
  * A version's plan as its readers see it: once approved, its social
- * entries are the Project's Social posts.
+ * entries are the Project's Social posts and its other written pieces the
+ * Project's Files.
  */
 export async function readMarketingPlan(
   version: MarketingStrategy | null,
@@ -562,9 +620,9 @@ export async function readMarketingPlan(
 ): Promise<MarketingStrategyPlan | null> {
   const plan = parseMarketingPlan(version?.plan);
   if (!plan || !version?.approvedAt) return plan;
-  return withSocialPostCalendar(
-    plan,
-    await listMarketingStrategyPosts(version, db),
+  return withMarketingFiles(
+    withSocialPostCalendar(plan, await listMarketingStrategyPosts(version, db)),
+    await listMarketingStrategyFiles(version, db),
   );
 }
 

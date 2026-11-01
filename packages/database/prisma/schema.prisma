@@ -5735,12 +5735,14 @@ model FileResource {
   lineageId String?      @db.Uuid
   lineage   FileLineage? @relation(fields: [lineageId], references: [id], onDelete: SetNull)
 
-  versions  FileVersion[]
-  labels    FileLabel[]
-  links     FileProjectLink[]
-  overrides FileFieldOverride[]
-  jobs      FileIndexJob[]
-  shares    DriveShare[]
+  versions               FileVersion[]
+  labels                 FileLabel[]
+  links                  FileProjectLink[]
+  overrides              FileFieldOverride[]
+  jobs                   FileIndexJob[]
+  shares                 DriveShare[]
+  /// The Marketing strategy pieces written as this file.
+  marketingStrategyFiles MarketingStrategyFile[]
 
   @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
   @@index([workspaceId, lifecycle, updatedAt])

@@ -13,6 +13,7 @@ import {
   connectCmoMeasurement,
   finalizeCmoMeasurement,
   getChatsRoomsByIdMessages,
+  getCmoCalendarEntryText,
   getCmoOverview,
   getContactLists,
   getSubscriptionCatalog,
@@ -299,6 +300,16 @@ export async function loadMessages(): Promise<CusoMessage[]> {
   const overview = await loadOverview();
   if (!overview) return [];
   return messagesFor(core, overview);
+}
+
+/** The words of a piece Cuso wrote into the owner's Files. */
+export async function loadPieceText(entryId: string): Promise<string | null> {
+  const core = await requireCore();
+  const { data } = await getCmoCalendarEntryText({
+    ...core,
+    path: { id: entryId },
+  });
+  return data?.data.text ?? null;
 }
 
 /** Overview and messages in one go, for the app's polling. */

@@ -243,6 +243,8 @@ const client = {
     createMany: postCreateMany,
     updateMany: postUpdateMany,
   },
+  // No piece of the approved version is written to Files unless a test says so.
+  marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.
   sokoBotSchedule: { findFirst: async () => null },
   sokoBotRuntimeEvent: { findFirst: eventFindFirst },

@@ -5,11 +5,7 @@ import {
 } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { type BrandBrain, brandBrainSchema } from "@sokosumi/soko-bot";
-import {
-  buildOrganizationDriveFilePathnameWithFolder,
-  buildUserDriveFilePathnameWithFolder,
-} from "@sokosumi/utils";
-import { list, put } from "@vercel/blob";
+import { list } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
 
@@ -24,10 +20,9 @@ import {
 } from "@/lib/site-capture";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import {
-  activateDriveUploadResource,
-  reserveDriveUploadResource,
-} from "@/services/file-catalog.service";
-import { updateFileMetadata } from "@/services/file-metadata.service";
+  cusoDrive,
+  saveCusoProjectFile,
+} from "@/services/cuso-project-files.service";
 
 /** Where the material lands: the Project's files, in this Drive folder. */
 export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
@@ -286,103 +281,6 @@ export function cmoCompetitorPages(
     .slice(0, MAX_COMPETITORS);
 }
 
-interface Drive {
-  workspaceId: string;
-  organizationId: string | null;
-  userId: string;
-  /** Cuso's Project: every saved file is confirmed as one of its files. */
-  projectId: string;
-}
-
-/** Confirms the file on the Project, as Cuso's runner; best effort. */
-async function linkToProject(drive: Drive, resourceId: string): Promise<void> {
-  try {
-    // The index job queued on upload may edit the metadata at the same time.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const resource = await prisma.fileResource.findUnique({
-        where: { id: resourceId },
-        select: { metadataRevision: true },
-      });
-      if (!resource) return;
-      const outcome = await updateFileMetadata({
-        workspaceId: drive.workspaceId,
-        actor: {
-          userId: drive.userId,
-          organizationId: drive.organizationId,
-          kind: "soko_bot",
-        },
-        resourceId,
-        request: {
-          expectedMetadataRevision: resource.metadataRevision,
-          confirmProjectIds: [drive.projectId],
-        },
-      });
-      if (outcome.status !== "conflict") return;
-    }
-  } catch (error) {
-    console.warn("CMO brand media not linked to the Project", {
-      projectId: drive.projectId,
-      resourceId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
-  }
-}
-
-/**
- * Writes bytes into the organization's Files (the runner's when there is no
- * organization), as a re-upload when the name exists, and confirms the file
- * on the Project.
- */
-async function saveToDrive(
-  drive: Drive,
-  path: { folder: string; filename: string },
-  body: Buffer,
-  contentType: string,
-): Promise<void> {
-  const pathname = drive.organizationId
-    ? buildOrganizationDriveFilePathnameWithFolder(
-        drive.organizationId,
-        path.folder,
-        path.filename,
-      )
-    : buildUserDriveFilePathnameWithFolder(
-        drive.userId,
-        path.folder,
-        path.filename,
-      );
-  const key = drive.organizationId
-    ? {
-        workspaceId: drive.workspaceId,
-        scope: "organization" as const,
-        ownerId: drive.organizationId,
-        pathname,
-      }
-    : {
-        workspaceId: drive.workspaceId,
-        scope: "user" as const,
-        ownerId: drive.userId,
-        pathname,
-      };
-  await reserveDriveUploadResource({
-    key,
-    displayName: path.filename,
-    mimeType: contentType,
-    sizeBytes: body.length,
-  });
-  await put(pathname, body, {
-    access: "public",
-    contentType,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-  const activated = await activateDriveUploadResource({
-    key,
-    sizeBytes: body.length,
-    mimeType: contentType,
-  });
-  if (activated) await linkToProject(drive, activated.resourceId);
-}
-
 /** Runs `work` over `items`, `PARALLEL` at a time, keeping their order. */
 async function inBatches<T, R>(
   items: T[],
@@ -494,9 +392,7 @@ export function scheduleCmoBrandMedia(sokoBotId: string): void {
 export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
   // service imports this module.
-  const { cmoRunnerUserId, findCusoForBot } = await import(
-    "@/services/cmo-cuso.service"
-  );
+  const { findCusoForBot } = await import("@/services/cmo-cuso.service");
   // The workspace, website and Brand Brain are the Project's (ADR 0062).
   const cuso = await findCusoForBot(sokoBotId);
   const brain = brandBrainSchema.safeParse(cuso?.brandBrain);
@@ -510,19 +406,8 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     select: { id: true },
   });
   if (recent) return;
-  const runnerId = await cmoRunnerUserId(cuso);
-  if (!runnerId) return;
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: cuso.workspaceId },
-    select: { organizationId: true },
-  });
-  if (!workspace) return;
-  const drive: Drive = {
-    workspaceId: cuso.workspaceId,
-    organizationId: workspace.organizationId,
-    userId: runnerId,
-    projectId: cuso.projectId,
-  };
+  const drive = await cusoDrive(cuso);
+  if (!drive) return;
   const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data);
   const competitorPages = cmoCompetitorPages(brain.data);
 
@@ -562,14 +447,14 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   // File names carry what CMO shows and Cuso picks by (cmoBrandMedia).
   for (const { page, capture } of media.own) {
     if (!capture) continue;
-    await saveToDrive(
+    await saveCusoProjectFile(
       drive,
       { folder: CMO_BRAND_MEDIA_FOLDER, filename: `${slug(page.label)}.jpg` },
       capture.screenshot,
       "image/jpeg",
     );
     if (page.label === "Home" && media.phone) {
-      await saveToDrive(
+      await saveCusoProjectFile(
         drive,
         { folder: CMO_BRAND_MEDIA_FOLDER, filename: "home-mobile.jpg" },
         media.phone.screenshot,
@@ -580,7 +465,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
 
   for (const { page, capture } of media.rivals) {
     if (!capture) continue;
-    await saveToDrive(
+    await saveCusoProjectFile(
       drive,
       {
         folder: `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
@@ -597,7 +482,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     const filename = image.alt.trim()
       ? `${slot}-${slug(image.alt)}.jpg`
       : `picture-${slot}.jpg`;
-    await saveToDrive(
+    await saveCusoProjectFile(
       drive,
       { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
       body,

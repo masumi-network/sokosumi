@@ -14,6 +14,7 @@ import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   CmoConflictError,
+  CmoNotFoundError,
   type Cuso,
   requireCuso,
   startCmoTurn,
@@ -25,6 +26,7 @@ import {
   planMarketingStrategyPosts,
   STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
+import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 
 /**
  * No sandbox on the strategy turn: it plans from the Brand Brain it already
@@ -506,6 +508,24 @@ export async function pauseCmoCalendarEntry(input: {
     postId: input.entryId,
     revision: post.revision,
   });
+}
+
+/**
+ * The words of one approved piece that lives in the Project's Files (an
+ * article, a page fix, ad copy, a newsletter issue), for its sheet in CMO.
+ */
+export async function readCmoPieceText(input: {
+  userId: string;
+  entryId: string;
+}): Promise<string> {
+  const cuso = await requireCuso({ userId: input.userId });
+  const approved = await approvedMarketingStrategy(cuso.projectId);
+  const text = approved
+    ? await readMarketingPieceText(approved, input.entryId)
+    : null;
+  if (text === null)
+    throw new CmoNotFoundError("This piece is not written yet");
+  return text;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

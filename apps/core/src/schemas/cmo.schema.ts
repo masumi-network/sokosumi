@@ -68,6 +68,11 @@ export const cmoUpdateIdParamsSchema = z.object({
   id: z.string().min(1).max(64),
 });
 
+/** The words of a piece that lives in the Project's Files. */
+export const cmoPieceTextSchema = z
+  .object({ text: z.string() })
+  .openapi("CmoPieceText");
+
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
 

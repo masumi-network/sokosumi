@@ -48,11 +48,14 @@ import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
   listMarketingStrategies,
+  listMarketingStrategyFiles,
   listMarketingStrategyPosts,
+  type MarketingStrategyFilePiece,
   type MarketingStrategyVersion,
   mayApproveMarketingStrategy,
   newestMarketingStrategy,
   parseMarketingPlan,
+  withMarketingFiles,
   withSocialPostCalendar,
 } from "@/services/marketing-strategy.service";
 
@@ -261,12 +264,18 @@ export async function getCmoOverview(
       skip: undefined,
     }),
   ]);
-  // Once approved, a version's social pieces are the Project's Social posts.
-  const posts = approved ? await listMarketingStrategyPosts(approved) : [];
+  // Once approved, a version's social pieces are the Project's Social posts
+  // and its other written pieces the Project's Files.
+  const [posts, files] = approved
+    ? await Promise.all([
+        listMarketingStrategyPosts(approved),
+        listMarketingStrategyFiles(approved),
+      ])
+    : [[], new Map<string, MarketingStrategyFilePiece>()];
   const planOf = (version: typeof newest) => {
     const plan = parseMarketingPlan(version?.plan);
     return plan && version?.approvedAt
-      ? withSocialPostCalendar(plan, posts)
+      ? withMarketingFiles(withSocialPostCalendar(plan, posts), files)
       : plan;
   };
   const strategy = planOf(newest);

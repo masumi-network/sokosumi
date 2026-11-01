@@ -81,6 +81,8 @@ export interface CmoAppActions {
     messages: CusoMessage[];
   }>;
   sendMessage: (content: string) => Promise<void>;
+  /** The words of a piece kept in the owner's Files. */
+  loadPieceText: (entryId: string) => Promise<string | null>;
   approveStrategy: (versionId?: string) => Promise<CmoOverview>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
@@ -486,6 +488,7 @@ export function CmoApp({
               {view === "strategy" ? (
                 <StrategyPage
                   overview={overview}
+                  loadText={actions.loadPieceText}
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
                     await refresh();
