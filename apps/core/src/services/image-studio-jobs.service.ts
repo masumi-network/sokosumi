@@ -20,7 +20,10 @@ import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
-import { downloadDriveFile } from "@/helpers/drive-file-download";
+import {
+  DriveFileDownloadError,
+  downloadDriveFile,
+} from "@/helpers/drive-file-download";
 import {
   notFound,
   tooManyRequests,
@@ -529,14 +532,21 @@ async function uploadFileReference(
   });
   if (!file?.mimeType?.startsWith("image/"))
     throw notFound("A reference image was not found in this workspace");
-  const { bytes, mimeType } = await downloadDriveFile(
-    (await head(file.sourceId)).url,
-    {
+  const url = (await head(file.sourceId)).url;
+  const download = () =>
+    downloadDriveFile(url, {
       maxBytes: LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES,
       timeoutMs: 30_000,
       acceptsMimeType: (mime) => mime.startsWith("image/"),
-    },
-  );
+    });
+  // One retry: a live test once got a passing error status for a stored
+  // photo, and nothing is charged before the job is sent.
+  const { bytes, mimeType } = await download().catch(async (error) => {
+    if (!(error instanceof DriveFileDownloadError)) throw error;
+    if (error.reason !== "unavailable") throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    return await download();
+  });
   return await uploadReference({
     bytes,
     contentType: mimeType,

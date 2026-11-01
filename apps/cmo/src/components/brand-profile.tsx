@@ -17,6 +17,7 @@ import {
   type ReactNode,
   useEffect,
   useId,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -350,7 +351,11 @@ function Offers({
   brain: BrandBrain;
   onSave: (brain: BrandBrain) => Promise<void>;
 }) {
-  const offers = brain.offers ?? [];
+  // The list changes on the tap; the save follows.
+  const [offers, showOffers] = useOptimistic(
+    brain.offers ?? [],
+    (_shown, next: NonNullable<BrandBrain["offers"]>) => next,
+  );
   // What the owner just removed, so one tap brings it back.
   const [removed, setRemoved] = useState<{
     offer: (typeof offers)[number];
@@ -359,6 +364,7 @@ function Offers({
   const [saving, startSaving] = useTransition();
   const save = (next: typeof offers) =>
     startSaving(async () => {
+      showOffers(next);
       await onSave({ ...brain, offers: next });
     });
 
@@ -642,23 +648,34 @@ function Accounts({
 }) {
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const save = async (next: BrandBrain["channels"]) => {
-    setError(null);
-    try {
-      await onSave({ ...brain, channels: next });
-    } catch {
-      setError("That didn't save. Try again.");
-    }
-  };
+  // The list changes on the tap; the save follows.
+  const [channels, showChannels] = useOptimistic(
+    brain.channels,
+    (_shown, next: BrandBrain["channels"]) => next,
+  );
+  const [, startSaving] = useTransition();
+  const save = (next: BrandBrain["channels"]) =>
+    new Promise<void>((resolve) =>
+      startSaving(async () => {
+        setError(null);
+        showChannels(next);
+        try {
+          await onSave({ ...brain, channels: next });
+        } catch {
+          setError("That didn't save. Try again.");
+        }
+        resolve();
+      }),
+    );
   return (
     <div className="bb-accounts">
       <p className="note">
         Where your business shows up today. These are links so Cuso knows your
         voice; you connect accounts for posting later.
       </p>
-      {brain.channels.length > 0 ? (
+      {channels.length > 0 ? (
         <ul className="bb-account-list">
-          {brain.channels.map((channel) => (
+          {channels.map((channel) => (
             <li key={`${channel.name}:${channel.url ?? ""}`}>
               <ChannelIcon
                 channel={channelKey(channel.name, channel.url)}
@@ -677,7 +694,7 @@ function Accounts({
                 className="bb-remove"
                 aria-label={`Remove ${channel.name}`}
                 onClick={() =>
-                  save(brain.channels.filter((item) => item !== channel))
+                  save(channels.filter((item) => item !== channel))
                 }
               >
                 <X size={14} aria-hidden="true" />
@@ -688,7 +705,7 @@ function Accounts({
       ) : (
         <p className="note">Cuso found no profiles yet.</p>
       )}
-      {brain.channels.length < 12 ? (
+      {channels.length < 12 ? (
         <form
           className="bp-ask"
           action={async () => {
@@ -699,7 +716,7 @@ function Accounts({
               );
               return;
             }
-            await save([...brain.channels, account]);
+            await save([...channels, account]);
             setLink("");
           }}
         >

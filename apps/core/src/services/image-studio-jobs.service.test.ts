@@ -455,6 +455,50 @@ describe("image studio job submission", () => {
     );
   });
 
+  it("tries a reference File once more when its download fails", async () => {
+    jobCreateMock.mockImplementation(async ({ data }) =>
+      jobRow({
+        kind: data.kind,
+        model: data.model,
+        referenceFileIds: data.referenceFileIds,
+      }),
+    );
+    jobFindUniqueOrThrowMock.mockResolvedValue(
+      jobRow({
+        kind: "EDIT",
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
+        referenceFileIds: ["file-1"],
+      }),
+    );
+    fileFindFirstMock.mockResolvedValue({
+      sourceId: "drive/w/dashboard.jpg",
+      mimeType: "image/jpeg",
+    });
+    blobHeadMock.mockResolvedValue({
+      url: "https://store.public.blob.vercel-storage.com/drive/w/dashboard.jpg",
+    });
+    ssrfSafeFetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array([1]), {
+          headers: { "content-type": "image/jpeg" },
+        }),
+      );
+    uploadReferenceMock.mockResolvedValue("https://v3b.fal.media/files/d.jpg");
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-4" });
+
+    await createImageJob({ ...BASE_INPUT, referenceFileIds: ["file-1"] });
+
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(2);
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          image_urls: ["https://v3b.fal.media/files/d.jpg"],
+        }),
+      }),
+    );
+  });
+
   it("sends a workspace image File as a reference to the edit endpoint", async () => {
     jobCreateMock.mockImplementation(async ({ data }) =>
       jobRow({

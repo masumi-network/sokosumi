@@ -7,6 +7,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { formatDay, planWeeks } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
+import { strategyApproved } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { withoutLabel } from "../showcases";
@@ -108,9 +109,11 @@ export function StrategyStep({
               : fitting
                 ? "I'm fitting your plan to your answers. About two minutes."
                 : "I'm finishing your plan."
-            : ahead
+            : ahead && strategyApproved(overview)
               ? "Your approved plan. Ask for a change and I send it back for your OK."
-              : `Your next four weeks: ${pieces} pieces to get ${goal}. Tell me what to change, below.`
+              : ahead && changes.length > 0
+                ? "I fitted your plan to your answers. See what changed, then approve it."
+                : `Your next four weeks: ${pieces} pieces to get ${goal}. Tell me what to change, below.`
         }
         note={
           ahead || writing

@@ -56,13 +56,22 @@ async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
   return readSkippedSteps(cookie?.value);
 }
 
+/**
+ * Core's overview with the steps this person skipped. Every overview CMO
+ * shows goes through here: the poll once showed Accounts again after the
+ * person had moved on to Pricing.
+ */
+async function withSkipped(overview: CmoOverview): Promise<CmoOverview> {
+  return withSkippedSteps(overview, await skippedSteps(overview.projectId));
+}
+
 /** The Cuso the person works with, or null before they hire him. */
 export async function loadOverview(): Promise<CmoOverview | null> {
   const core = await requireCore();
   const { data, response } = await getCmoOverview(core);
   if (response?.status === 404) return null;
   if (!data) throw new Error("Could not load CMO");
-  return withSkippedSteps(data.data, await skippedSteps(data.data.projectId));
+  return withSkipped(data.data);
 }
 
 /** Remembers a skipped hiring step in CMO's cookie for this Cuso. */
@@ -234,7 +243,7 @@ export async function pauseEntry(id: string): Promise<CmoOverview> {
   const core = await requireCore();
   const { data } = await pauseCmoCalendarEntry({ ...core, path: { id } });
   if (!data) throw new Error("Could not pause this entry");
-  return data.data;
+  return withSkipped(data.data);
 }
 
 /** Starts learning again; a refusal (such as no credits) comes back as text. */
@@ -251,7 +260,7 @@ export async function retryLearning(): Promise<{
       ? String((error as { message: unknown }).message)
       : null;
   return {
-    overview: data.data,
+    overview: await withSkipped(data.data),
     error: error ? (message ?? "Could not start") : null,
   };
 }
@@ -260,7 +269,7 @@ export async function revertUpdate(id: string): Promise<CmoOverview> {
   const core = await requireCore();
   const { data } = await revertCmoUpdate({ ...core, path: { id } });
   if (!data) throw new Error("Could not revert the changes");
-  return data.data;
+  return withSkipped(data.data);
 }
 
 type Core = Awaited<ReturnType<typeof requireCore>>;
@@ -302,7 +311,7 @@ export async function loadState(): Promise<{
   if (response?.status === 404 || !data)
     return { overview: null, messages: [] };
   return {
-    overview: data.data,
+    overview: await withSkipped(data.data),
     messages: await messagesFor(core, data.data),
   };
 }
@@ -376,7 +385,7 @@ export async function chooseMockPlan(
     };
   }
   revalidatePath("/");
-  return { overview: data.data, error: null };
+  return { overview: await withSkipped(data.data), error: null };
 }
 
 /**
