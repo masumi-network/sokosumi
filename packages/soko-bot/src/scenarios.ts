@@ -47,7 +47,7 @@ export type SokoBotScenarioTrigger =
        * the same path the cron uses; `delta` is the hourly mail ingest. Between
        * them and `task_event` every automated trigger has lab coverage.
        */
-      beat: "standup" | "weekly-wrap" | "delta";
+      beat: "standup" | "weekly-wrap" | "dreaming" | "delta";
     };
 
 export interface SokoBotScenario {
@@ -564,6 +564,21 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "dreaming",
+    title: "Dreams silently",
+    intent:
+      "The nightly dream reads recent activity, rewrites memory where the evidence calls for it, and tells nobody.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "dreaming" },
+    rubric:
+      'Memory changes only where the activity or memory supports it: a preference or correction the owner gave in chat is saved, repeated mistakes become one-line lessons, duplicates are merged, stale follow-ups are dropped, and nothing is invented or silently lost. It never starts work, hires or writes Tasks. The answer is exactly "Nothing to add" unless the owner must act, then one or two lines.',
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      forbiddenTools: ["hire_agent", "create_task", "assign_task"],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "quick-research-task",
     title: "Starts a research task from one line",
     intent:
@@ -763,6 +778,44 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
         "hire_agent",
       ],
       noInventedIds: true,
+    },
+  },
+];
+
+/** Never in front of a founder: template gaps and hedges instead of facts. */
+export const CMO_PLACEHOLDER_PATTERN =
+  "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
+
+/** Cuso (CMO) behaviour; run against a CMO bot, not the personal assistant. */
+export const CMO_SCENARIOS: SokoBotScenario[] = [
+  {
+    id: "cmo-asks-before-planning",
+    title: "Asks before planning a business it could not learn",
+    intent:
+      "When the site tells it nothing, Cuso asks two or three short questions instead of proposing a strategy full of gaps.",
+    prompt:
+      "New CMO client: acme-unknown.example (https://acme-unknown.example). Their main marketing goal: More leads. Learn the business and plan the month.",
+    rubric:
+      "The site does not load, so what Acme sells, to whom and the offer stay unknown. Cuso saves no strategy and asks the founder two or three short, specific questions (what they sell, who buys, what a new customer does first). Nothing it writes contains bracket placeholders, 'not confirmed' or 'provisional'.",
+    expect: {
+      routes: ["MANAGE_WORK"],
+      forbiddenTools: ["save_strategy"],
+      asksQuestion: true,
+      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+    },
+  },
+  {
+    id: "cmo-brand-fit",
+    title: "Writes in the brand's voice, without filler",
+    intent:
+      "A post Cuso drafts follows the Brand Brain's voice and avoids generic AI marketing copy.",
+    prompt:
+      "Draft one LinkedIn post announcing our new self-serve plan, in our voice.",
+    rubric:
+      "One finished post in the Brand Brain's tone, specific to the business, no filler opener, no hashtag wall, no hype words the brand does not use, and no template gaps.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|#\\w+\\s+#\\w+\\s+#\\w+`,
     },
   },
 ];

@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   CalendarClock,
+  ClipboardList,
   Download,
   FileText,
   FolderKanban,
@@ -67,6 +68,7 @@ const icons = {
   file: FileText,
   decision: MessageSquare,
   project_selection: FolderKanban,
+  cmo_report: ClipboardList,
 };
 
 /**
@@ -470,6 +472,27 @@ function DetailValue({ value }: { value: string }) {
   );
 }
 
+/** How often a card asks again while an image or video is still being made. */
+const PENDING_STUDIO_POLL_MS = 4_000;
+
+/**
+ * A Studio card is recorded when the bot starts the generation, so it says
+ * "Queued". Until it is done, the card keeps asking; Core reads the job's
+ * live state each time and adds the image once it exists.
+ */
+export function hasPendingStudioJob(
+  results: readonly ChatResultPreview[] | undefined,
+): boolean {
+  return (
+    results?.some(
+      (result) =>
+        result.state === "available" &&
+        result.kind === "studio_job" &&
+        (result.status === "QUEUED" || result.status === "RUNNING"),
+    ) ?? false
+  );
+}
+
 interface ResultPreviewsProps {
   descriptors: ChatResultDescriptor[];
   source:
@@ -535,6 +558,8 @@ function AuthorizedResultPreviews({
     gcTime: 0,
     retry: false,
     refetchOnMount: "always",
+    refetchInterval: (current) =>
+      hasPendingStudioJob(current.state.data) ? PENDING_STUDIO_POLL_MS : false,
   });
   if (query.isError)
     return (
@@ -555,7 +580,8 @@ function AuthorizedResultPreviews({
         {renderFooter?.([])}
       </>
     );
-  if (!session?.user.id || query.isFetching || !query.data)
+  // A refetch keeps the cards on screen; only the first load shows "Loading".
+  if (!session?.user.id || !query.data)
     return (
       <>
         <p role="status" className="text-muted-foreground text-xs">

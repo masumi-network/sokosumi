@@ -187,8 +187,17 @@ export interface ChatCatchUpSummary {
   counts: { bucket: ChatCatchUpBucket; count: number }[];
   headline: string | null;
   topics: ChatCatchUpTopic[];
-  /** Rooms with unread messages and no topic: nothing in them for the reader. */
-  quietRooms: { roomId: string; roomName: string; unreadCount: number }[];
+  /**
+   * Rooms with unread messages and no topic: nothing to do in them, but worth
+   * a glance, so each carries its newest message from someone else.
+   */
+  quietRooms: {
+    roomId: string;
+    roomName: string;
+    roomKind: string;
+    unreadCount: number;
+    latest: ChatCatchUpItem | null;
+  }[];
   generatedAt: Date | null;
   needsYou: ChatCatchUpItem[];
   blockers: ChatCatchUpItem[];
@@ -514,6 +523,50 @@ async function nameDirectRooms(
   );
 }
 
+/**
+ * Each quiet room with its newest top-level message from someone else, Directs
+ * first, then the most recent first.
+ */
+async function withLatestMessages(
+  rooms: readonly { room: Room; unreadCount: number }[],
+  userId: string,
+): Promise<ChatCatchUpSummary["quietRooms"]> {
+  const latest = await Promise.all(
+    rooms.map(({ room }) =>
+      prisma.chatRoomMessage.findFirst({
+        where: {
+          roomId: room.id,
+          parentMessageId: null,
+          deletedAt: null,
+          OR: [{ senderUserId: null }, { senderUserId: { not: userId } }],
+        },
+        orderBy: { createdAt: "desc" },
+        select: messageSelect,
+      }),
+    ),
+  );
+  const names = await mentionNames(
+    latest.flatMap((message) => (message ? [message.content] : [])),
+  );
+  return rooms
+    .map(({ room, unreadCount }, index) => {
+      const message = latest[index];
+      return {
+        roomId: room.id,
+        roomName: roomName(room),
+        roomKind: room.kind,
+        unreadCount,
+        latest: message ? toItem(message, room, "fyi", names) : null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.roomKind === "direct") - Number(a.roomKind === "direct") ||
+        (b.latest?.createdAt.getTime() ?? 0) -
+          (a.latest?.createdAt.getTime() ?? 0),
+    );
+}
+
 /** How much is unread per room, and since when the reader has been away. */
 async function unreadOverview(
   rooms: readonly Room[],
@@ -739,14 +792,13 @@ export async function getChatCatchUpSummary(
     names,
   );
   const topicRoomIds = new Set(topics.map((topic) => topic.roomId));
-  const quietRooms = [...overview.counts]
-    .flatMap(([roomId, unreadCount]) => {
+  const quietRooms = await withLatestMessages(
+    [...overview.counts].flatMap(([roomId, unreadCount]) => {
       const room = roomById.get(roomId);
-      return room && !topicRoomIds.has(roomId)
-        ? [{ roomId, roomName: roomName(room), unreadCount }]
-        : [];
-    })
-    .sort((a, b) => b.unreadCount - a.unreadCount);
+      return room && !topicRoomIds.has(roomId) ? [{ room, unreadCount }] : [];
+    }),
+    input.userId,
+  );
 
   return {
     scope,

@@ -1,10 +1,11 @@
 import { Prisma } from "@sokosumi/database";
 import {
+  CMO_SOKO_BOT_VERSION_ID,
   createEmptySokoBotMemory,
   renderSokoBotMemory,
 } from "@sokosumi/soko-bot";
 import { channelSlugWithId } from "@/helpers/channel-slug";
-import { forbidden } from "@/helpers/error";
+import { conflict, forbidden } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import { memberSokoBot } from "@/helpers/soko-bot-resolver";
@@ -32,6 +33,11 @@ export interface CreateSharedSokoBotInput {
   personalityStyle?: number | null;
   /** IANA timezone, validated by the route; the column default otherwise. */
   timezone?: string;
+  /**
+   * Pin a specific version instead of the promoted default: how products
+   * built on Soko Bots (CMO's Cuso) create their bot.
+   */
+  versionId?: string;
 }
 
 async function requireOrganizationId(
@@ -93,7 +99,7 @@ export async function createSharedSokoBot(
   const organizationId = await requireOrganizationId(input.workspaceId, client);
   const markdown = renderSokoBotMemory(createEmptySokoBotMemory());
   const hash = memoryHash(markdown);
-  const versionId = await getDefaultSokoBotVersionId();
+  const versionId = input.versionId ?? (await getDefaultSokoBotVersionId());
 
   const created = await client.$transaction(
     async (tx) => {
@@ -132,6 +138,25 @@ export async function createSharedSokoBot(
         throw new SokoBotValidationError(
           "The project is not an open project of this workspace",
         );
+      }
+      // CMO's Cuso is one per Project (ADR 0062). No index holds it: the
+      // Project row written above makes a second create wait for this one
+      // and then see its bot.
+      const sameVersionBot =
+        input.projectId && input.versionId === CMO_SOKO_BOT_VERSION_ID
+          ? await tx.sokoBot.findFirst({
+              where: {
+                projectId: input.projectId,
+                versionId: input.versionId,
+                userId: null,
+                deletedAt: null,
+                archivedAt: null,
+              },
+              select: { name: true },
+            })
+          : null;
+      if (sameVersionBot) {
+        throw conflict(`This Project already has ${sameVersionBot.name}`);
       }
       const bot = await tx.sokoBot.create({
         data: {
