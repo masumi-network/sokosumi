@@ -219,10 +219,10 @@ it("preserves banner-only mentions without reviving previously silenced mentions
   );
   if (banner) banner.enabled = true;
   await emit("message-2");
-  expect(rows.filter((row) => row.inApp)).toHaveLength(1);
+  expect(rows.filter((row) => row.inApp)).toHaveLength(2);
   expect(
     published.mock.calls.map(([event]) => event.notification.groupCount),
-  ).toEqual([1, 2]);
+  ).toEqual([1, 2, 2]);
   if (banner) banner.enabled = false;
   await emit("message-3", false);
   expect(published.mock.calls.at(-1)?.[0].notification.groupCount).toBe(3);
@@ -331,6 +331,50 @@ it("delivers opted-in room notifications for assistant channel replies", async (
       }),
     }),
   );
+});
+
+it("keeps opted-in room banners when an assistant mention only covers the toast", async () => {
+  assistantRoom.kind = "channel";
+  const toast = reader.notificationPreferences.find(
+    (preference) =>
+      preference.category === "CHAT_MENTION" && preference.channel === "IN_APP",
+  );
+  if (toast) toast.enabled = true;
+  await emitChatMessageNotifications({
+    messageId: "assistant-channel-mention",
+    mentionedUserIds: ["reader"],
+  });
+  await drainPublishes();
+  expect(published).toHaveBeenCalledWith(
+    expect.objectContaining({
+      push: true,
+      notification: expect.objectContaining({
+        messageKey: "Notifications.Chat.roomMessage",
+        inApp: false,
+        osBanner: true,
+        groupCount: 1,
+      }),
+    }),
+  );
+});
+
+it("deduplicates room companions without dropping later counted arrivals", async () => {
+  const banner = reader.notificationPreferences.find(
+    (preference) =>
+      preference.category === "CHAT_MENTION" &&
+      preference.channel === "OS_BANNER",
+  );
+  if (banner) banner.enabled = true;
+  await emit("mentioned-first");
+  await emit("ordinary-second", false);
+  await emit("mentioned-third");
+
+  const roomRows = rows.filter(
+    (row) => row.messageKey === "Notifications.Chat.roomMessage" && row.inApp,
+  );
+  expect(roomRows).toHaveLength(2);
+  expect(JSON.parse(roomRows[0].messageParams).count).toBe(2);
+  expect(published.mock.calls.at(-1)?.[0].notification.groupCount).toBe(3);
 });
 
 it("keeps internal replay receipts out of unread arrival queries", async () => {

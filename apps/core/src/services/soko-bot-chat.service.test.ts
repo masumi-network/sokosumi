@@ -79,14 +79,19 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
-  vi.hoisted(() => ({
-    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
-  }));
+const {
+  persistChatHumanMentionsMock,
+  emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotificationsMock,
+} = vi.hoisted(() => ({
+  persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+  emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
   emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
@@ -344,6 +349,7 @@ describe("introduceSokoBot", () => {
       roomId: "room-a",
       collections: ["active"],
     });
+    expect(emitChatMessageNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("greets the owner of a personal bot by name", async () => {
@@ -494,6 +500,10 @@ describe("postSokoBotOwnerNotice", () => {
     );
     expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
     expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
+      messageId: "notice-1",
+      mentionedUserIds: [],
+    });
   });
 
   describe("for a shared bot", () => {
@@ -535,7 +545,7 @@ describe("postSokoBotOwnerNotice", () => {
           content: "@member Your Task failed.",
         },
       );
-      expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+      expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
         messageId: "notice-1",
         mentionedUserIds: ["member"],
       });

@@ -334,6 +334,12 @@ describe("emitChatRoomMessageCreatedEffects", () => {
       subscriber(SUBSCRIBER_ID),
       subscriber(MENTIONED_ID),
     ]);
+    resolveDeliveryMock.mockImplementation(
+      async ({ suppressMentionDelivery }) =>
+        suppressMentionDelivery
+          ? { inApp: false, osBanner: false, email: false }
+          : { inApp: true, osBanner: true, email: false },
+    );
 
     await emit({
       memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, MENTIONED_ID],
@@ -350,8 +356,9 @@ describe("emitChatRoomMessageCreatedEffects", () => {
    * The mention reaches them by email alone, which is still the mention
    * arriving. Writing the room row too would mail them about the room when
    * the message was addressed to them (SOK-1142).
+   * The channel complement now keeps the toast without sending a second email.
    */
-  it("skips a member whose mention reaches them by email alone", async () => {
+  it("keeps the room toast when a mention reaches the member by email alone", async () => {
     userFindManyMock.mockResolvedValue([
       subscriber(MENTIONED_ID, {
         pushOptIn: false,
@@ -369,7 +376,12 @@ describe("emitChatRoomMessageCreatedEffects", () => {
       mentionedUserIds: [MENTIONED_ID],
     });
 
-    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: MENTIONED_ID,
+        suppressMentionDelivery: true,
+      }),
+    );
   });
 
   /**

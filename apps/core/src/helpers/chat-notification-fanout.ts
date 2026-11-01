@@ -291,7 +291,9 @@ export async function fanOutChatNotifications(
     };
 
     try {
-      if (params.countPerRoom) {
+      // A mentioned message has its own companion row, so arrival counts can
+      // subtract its overlap without losing other messages in a counted row.
+      if (params.countPerRoom && !input.suppressMentionDelivery) {
         await deliverToCurrentRoomMember(
           params.roomId,
           params.organizationId,

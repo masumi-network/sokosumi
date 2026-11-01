@@ -186,7 +186,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
           },
         );
     } else if (effect.purpose === "CHAT_MESSAGE") {
-      const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
+      const { emitChatMessageNotifications, persistChatHumanMentions } =
         await import("@/helpers/chat-human-mentions");
       const payload = chatPayload.parse(effect.payload);
       const prepared = await serializableTransaction(async (tx) => {
@@ -297,10 +297,6 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
       const { invalidateChatRoomMessageReaders } = await import(
         "@/helpers/chat-room-message-created-effects"
       );
-      const {
-        emitChatDirectMessageNotifications,
-        shouldEmitChatDirectMessageNotifications,
-      } = await import("@/helpers/chat-direct-message-notifications");
       if (!(await renewLease())) return false;
       await publishChatRoomMessageRealtimeById(message.id, "create", {
         throwOnError: true,
@@ -316,27 +312,7 @@ export async function deliverSokoBotEffect(id: string): Promise<boolean> {
         select: { userId: true },
       });
       const mentionedUserIds = humanMentions.map((mention) => mention.userId);
-      if (
-        shouldEmitChatDirectMessageNotifications({
-          kind: room.kind,
-          memberUserIds: payload.userIds,
-        })
-      ) {
-        await emitChatDirectMessageNotifications({
-          roomId: room.id,
-          roomName: room.name,
-          organizationId: room.organizationId,
-          messageId: message.id,
-          content: message.content,
-          authorUserId: null,
-          authorName: message.senderSokoBot.name ?? "Assistant",
-          recipientUserIds: payload.userIds,
-          mentionedUserIds,
-          throwOnError: true,
-        });
-      }
-      if (!(await renewLease())) return false;
-      await emitChatHumanMentionNotifications({
+      await emitChatMessageNotifications({
         messageId: message.id,
         mentionedUserIds,
         throwOnError: true,

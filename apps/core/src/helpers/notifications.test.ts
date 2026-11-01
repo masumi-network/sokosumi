@@ -1194,6 +1194,7 @@ describe("chat room arrival count", () => {
     async (messageKey, inApp) => {
       const source = chatRecord({
         id: "source_message",
+        eventId: "source_message",
         messageKey: "Notifications.Chat.directMessage",
       });
       const reminder = chatRecord({
@@ -1204,6 +1205,7 @@ describe("chat room arrival count", () => {
       });
       const nextMessage = chatRecord({
         id: "next_message",
+        eventId: "next_message",
         messageKey: "Notifications.Chat.directMessage",
       });
       notificationFindManyMock.mockResolvedValue([
@@ -1278,12 +1280,14 @@ describe("chat room arrival count", () => {
     notificationFindManyMock.mockResolvedValue([
       {
         id: "notification_1",
+        eventId: "message_1",
         inApp: true,
         metadata: null,
         messageParams: "not json",
       },
       {
         id: "notification_2",
+        eventId: "message_2",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ count: "many" }),
@@ -1291,6 +1295,25 @@ describe("chat room arrival count", () => {
     ]);
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
+
+    expect(publishedGroupCount()).toBe(2);
+  });
+
+  it("counts one arrival when retries leave Direct, room, and mention rows for one message", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      chatRecord({ messageKey: "Notifications.Chat.directMessage" }),
+      chatRecord({
+        messageKey: "Notifications.Chat.roomMessage",
+        messageParams: JSON.stringify({ count: 2 }),
+      }),
+      chatRecord({ messageKey: "Notifications.Chat.mentioned" }),
+    ]);
 
     await publishNotificationRow(chatRecord(), {
       inApp: true,

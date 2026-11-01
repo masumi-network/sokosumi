@@ -29,14 +29,30 @@ interface Reader {
  * row written for them, so nothing dispatches and the cell they pressed
  * reaches nothing (SOK-1142).
  */
-function arrives(reader: Reader, category: NotificationCategory): boolean {
+function arrives(
+  reader: Reader,
+  category: NotificationCategory,
+  suppressMentionDelivery = false,
+): boolean {
   const delivery = resolveNotificationDelivery({
     category,
     preferences: reader.notificationPreferences,
     pushOptIn: reader.pushOptIn,
   });
 
-  return delivery.inApp || delivery.osBanner || delivery.email;
+  const mention = suppressMentionDelivery
+    ? resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: reader.notificationPreferences,
+        pushOptIn: reader.pushOptIn,
+      })
+    : null;
+
+  return (
+    (delivery.inApp && !mention?.inApp) ||
+    (delivery.osBanner && !mention?.osBanner) ||
+    (delivery.email && !mention?.email)
+  );
 }
 
 export interface ChatRoomMessageCreatedEffectsParams {
@@ -207,10 +223,8 @@ export async function emitChatRoomMessageNotifications(
   });
   const mentioned = new Set(params.mentionedUserIds ?? []);
   const recipientUserIds = readers
-    .filter(
-      (reader) =>
-        arrives(reader, "CHAT_ROOM_MESSAGE") &&
-        !(mentioned.has(reader.id) && arrives(reader, "CHAT_MENTION")),
+    .filter((reader) =>
+      arrives(reader, "CHAT_ROOM_MESSAGE", mentioned.has(reader.id)),
     )
     .map((reader) => reader.id);
 
@@ -229,6 +243,11 @@ export async function emitChatRoomMessageNotifications(
     authorUserId: params.authorUserId,
     authorName: params.authorName,
     recipientUserIds,
+    mentionedUserIds: readers
+      .filter(
+        (reader) => mentioned.has(reader.id) && arrives(reader, "CHAT_MENTION"),
+      )
+      .map((reader) => reader.id),
     messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
     notificationType: "chat-room-message-notification",
     // A mention and a direct message are each about themselves. This one is
