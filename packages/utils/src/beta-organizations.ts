@@ -6,10 +6,3 @@ export const BETA_ORGANIZATION_SLUGS = {
 
 export const NEWSLETTER_BETA_ORGANIZATION_SLUG =
   BETA_ORGANIZATION_SLUGS.newsletter;
-
-export function isBetaOrganizationSlug(
-  feature: keyof typeof BETA_ORGANIZATION_SLUGS,
-  slug: string | null | undefined,
-): boolean {
-  return slug === BETA_ORGANIZATION_SLUGS[feature];
-}

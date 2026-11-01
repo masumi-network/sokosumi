@@ -20,7 +20,7 @@ Ready when:
 
 Preconditions before launch:
 
-- Node **24.x** on `PATH` (`node -v`)
+- Node **26.x** on `PATH` (`node -v`)
 - `pnpm install` already done (`portless` is a root devDependency). Utils `dist` comes from package `prepare` on install; `@sokosumi/database` has no build (ADR 0035 — Core consumes it from source)
 - Prisma client generated (`pnpm prisma:generate`)
 - `apps/web/.env` and `apps/core/.env` present. **`verify-sokosumi launch` (and `pnpm env:bootstrap`) copy `.env.example` and sanitize placeholders.** **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see [`docs/agents/cloud-environment.md`](../../../docs/agents/cloud-environment.md)): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
@@ -196,6 +196,6 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)
-- Node **24.x** required
+- Node **26.x** required
 - `/signin` is two steps: email first (Google / Microsoft / Passkey below it), then the code or the password — automation must target `[data-testid="auth-*"]` only
 - New signup users may land on `/setup` (workspace onboarding) before `/agents` works — still authenticated if not bounced to `/signin`

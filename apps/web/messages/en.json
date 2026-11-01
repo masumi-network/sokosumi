@@ -8425,9 +8425,14 @@
         "dismissCatchUp": "Hide catch-up",
         "summarize": "Summary",
         "summarizing": "Writing your summary…",
-        "writtenByAi": "Summary written by AI {time}",
-        "byRoom": "By room",
+        "writtenByAi": "Updated {time}",
         "due": "Due {date}",
+        "overdue": "{count, plural, one {# day overdue} other {# days overdue}}",
+        "inReplyTo": "Replying to {name}: {text}",
+        "done": "Done",
+        "markRead": "Mark read",
+        "markAllRead": "Mark all as read",
+        "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
         "aiNote": "Jev sorts messages by what they ask of you. It can be wrong, so nothing is hidden: correct a tag on any message with one click.",
@@ -8462,7 +8467,9 @@
         },
         "Sections": {
           "needsYou": "Needs you",
+          "blockers": "Blockers",
           "decisions": "Decisions",
+          "announcements": "Announcements",
           "openLoops": "Open loops",
           "highlights": "Highlights"
         },
@@ -8502,6 +8509,28 @@
           "label": "Catch up sections",
           "overview": "Overview",
           "threads": "Threads"
+        },
+        "Briefing": {
+          "welcomeBack": "Welcome back",
+          "unread": "{messages, plural, one {# unread message} other {# unread messages}} in {rooms, plural, one {# room} other {# rooms}}",
+          "unreadSince": "{unread} since {date}",
+          "waitingOnYou": "Waiting on you",
+          "whileAway": "What happened",
+          "stillOpen": "Still open",
+          "nothingForYou": "Nothing for you",
+          "unreadInRoom": "{count} unread",
+          "messages": "{count, plural, one {# message} other {# messages}}",
+          "open": "Open",
+          "reply": "Reply",
+          "replyPlaceholder": "Reply to {name}…",
+          "send": "Send",
+          "replySent": "Sent to {room}",
+          "replyError": "Couldn't send your reply. Try again.",
+          "Status": {
+            "decided": "Decided",
+            "inProgress": "In progress",
+            "fyi": "FYI"
+          }
         }
       },
       "Stickers": {
