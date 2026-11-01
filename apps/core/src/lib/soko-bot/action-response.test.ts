@@ -1488,6 +1488,45 @@ describe("authoritative action responses", () => {
     },
   );
 
+  it("keeps the nightly dream silent when it only rewrote memory", async () => {
+    const memory = receipt({ capability: "update_memory", targetId: null });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([memory]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Nothing to add.",
+    );
+    expect(result.answerText).toBe("Nothing to add.");
+  });
+
+  it("says it updated memory when the owner asked", async () => {
+    const memory = receipt({ capability: "update_memory", targetId: null });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([memory]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "CHAT" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Nothing to add.",
+    );
+    expect(result.answerText).toMatch(/updated memory/i);
+  });
+
+  it("still posts a dream that has something for the owner", async () => {
+    const memory = receipt({ capability: "update_memory", targetId: null });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([memory]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "Your invoice rule never fired this week.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toContain(
+      "Your invoice rule never fired this week.",
+    );
+  });
+
   it("drops a held-back reply on a turn the bot started itself", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
     db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "EVENT" });

@@ -100,10 +100,10 @@ export const SYSTEM_TURN_ROUTES = {
     writeScope: "MEMORY",
     reason: "Monthly review: summarise and update memory.",
   },
-  "memory-cleanup": {
+  dreaming: {
     route: "MANAGE_WORK",
     writeScope: "MEMORY",
-    reason: "Memory cleanup: drop stale goals and follow-ups.",
+    reason: "Dreaming: learn from recent activity and tidy memory.",
   },
   /**
    * CMO daily run: keeps the month the production run made current (gaps,

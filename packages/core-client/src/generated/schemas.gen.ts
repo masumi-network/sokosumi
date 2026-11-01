@@ -13323,18 +13323,38 @@ export const ChatCatchUpSummarySchema = {
                     roomName: {
                         type: 'string'
                     },
+                    roomKind: {
+                        type: 'string',
+                        enum: [
+                            'channel',
+                            'direct'
+                        ]
+                    },
                     unreadCount: {
                         type: 'integer',
                         minimum: 1
+                    },
+                    latest: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/ChatCatchUpItem'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The room\'s newest top-level message from someone else.'
                     }
                 },
                 required: [
                     'roomId',
                     'roomName',
-                    'unreadCount'
+                    'roomKind',
+                    'unreadCount',
+                    'latest'
                 ]
             },
-            description: 'Rooms with unread messages and no topic in them.'
+            description: 'Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.'
         },
         generatedAt: {
             type: [
@@ -41931,6 +41951,14 @@ export const SokoBotActivitySchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        lastActivityAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         avatarState: {
             $ref: '#/components/schemas/SokoBotAvatarState'
         }
@@ -41939,6 +41967,7 @@ export const SokoBotActivitySchema = {
         'status',
         'activeTurnId',
         'lastTurnAt',
+        'lastActivityAt',
         'avatarState'
     ]
 } as const;

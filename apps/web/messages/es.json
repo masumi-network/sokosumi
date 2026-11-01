@@ -8560,7 +8560,6 @@
           "waitingOnYou": "Te esperan",
           "whileAway": "Qué pasó",
           "stillOpen": "Aún pendiente",
-          "nothingForYou": "Nada para ti",
           "unreadInRoom": "{count} sin leer",
           "messages": "{count, plural, one {# mensaje} other {# mensajes}}",
           "open": "Abrir",
@@ -8573,7 +8572,9 @@
             "decided": "Decidido",
             "inProgress": "En curso",
             "fyi": "Para tu información"
-          }
+          },
+          "otherMessages": "Otros mensajes",
+          "otherMessagesHint": "Nada que hacer en estos, pero están sin leer."
         }
       },
       "Stickers": {
@@ -8920,10 +8921,8 @@
       },
       "HowItWorks": {
         "title": "Cómo funciona",
-        "description": "Qué hace por su cuenta, y cuándo.",
-        "rhythms": "Rutinas",
-        "triggers": "Disparadores",
-        "paused": "En pausa"
+        "description": "Qué lo hace actuar por su cuenta.",
+        "triggers": "Disparadores"
       },
       "Integrations": {
         "connected": "Cuenta conectada.",

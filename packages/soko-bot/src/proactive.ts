@@ -28,7 +28,7 @@ export interface SokoBotSystemSchedule {
     | "follow-ups"
     | "monday-plan"
     | "monthly-review"
-    | "memory-cleanup";
+    | "dreaming";
   name: string;
   /** Cron in the bot's timezone. */
   cronExpression: string;
@@ -136,15 +136,15 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     ),
   },
   {
-    key: "memory-cleanup",
-    name: "Memory cleanup",
-    cronExpression: "0 18 * * 0",
+    key: "dreaming",
+    name: "Dreaming",
+    cronExpression: "0 3 * * *",
     description:
-      "Sunday evenings, silently: drops goals and follow-ups that are done or out of date.",
+      "Every night, silently: learns from the day's chats, mistakes and feedback, and tidies its memory.",
     prompt:
-      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed or belong to someone else, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the owner unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
+      'Dreaming. Nobody is asking you anything right now. Go over what happened since your last dream (below) and your memory (in your context), then rewrite your memory once with update_memory so that tomorrow you need telling less. Work through it in this order:\n1. Lessons. For each pattern below, add or sharpen one line in Decisions, written as "When <situation>, <do this>": the owner corrected you or gave a thumbs down; go through "Tools that failed" line by line: each tool that failed the same way more than once and that you can avoid next time (not failures of the platform itself, like a service that was unavailable); a reviewer found answers weak for the same reason; a saved rule should have acted and the activity shows it did not. A one-off is not a lesson.\n2. Preferences. A standing preference or correction the owner gave in a chat that is not in Preferences yet goes there, in their words. A request from someone else is not a preference of the owner.\n3. Tidy. Merge entries that say the same thing; when two contradict, keep the newer. Decisions hold rules that still apply, not a log: rewrite an entry that records finished work (costs, counts, "completed", "reports", dates) to the rule that lasts, keeping any caution in it ("validate before outreach", "never claim full coverage"), or drop it. Never repeat a Preference as a Decision. Drop goals and follow-ups that are done, about Tasks that are closed or belong to someone else, or listed below as dated more than a week ago; keep the rest.\nNever add anything your memory or the activity below does not support, and never drop a preference unless the owner later said otherwise. When nothing calls for a change, do not call update_memory.\nAnswer exactly: Nothing to add. Speak only when a saved rule of the owner\'s is not working or a lesson needs the owner\'s decision, in one or two lines. Never remind about goals, deadlines or follow-ups: the morning stand-up does that.',
     promptShared:
-      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed or outside what you can see, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the team unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
+      'Dreaming. Nobody is asking you anything right now. Go over what happened since your last dream (below) and your memory (in your context), then rewrite your memory once with update_memory so that tomorrow you need telling less. Work through it in this order:\n1. Lessons. For each pattern below, add or sharpen one line in Decisions, written as "When <situation>, <do this>": the team corrected you or gave a thumbs down; go through "Tools that failed" line by line: each tool that failed the same way more than once and that you can avoid next time (not failures of the platform itself, like a service that was unavailable); a reviewer found answers weak for the same reason; a saved rule should have acted and the activity shows it did not. A one-off is not a lesson.\n2. Preferences. A standing preference or correction the team gave in a chat that is not in Preferences yet goes there, in their words. A request from someone else is not a preference of the team.\n3. Tidy. Merge entries that say the same thing; when two contradict, keep the newer. Decisions hold rules that still apply, not a log: rewrite an entry that records finished work (costs, counts, "completed", "reports", dates) to the rule that lasts, keeping any caution in it ("validate before outreach", "never claim full coverage"), or drop it. Never repeat a Preference as a Decision. Drop goals and follow-ups that are done, about Tasks that are closed or outside what you can see, or listed below as dated more than a week ago; keep the rest.\nNever add anything your memory or the activity below does not support, and never drop a preference unless the team later said otherwise. When nothing calls for a change, do not call update_memory.\nAnswer exactly: Nothing to add. Speak only when a saved rule of the team\'s is not working or a lesson needs the team\'s decision, in one or two lines. Never remind about goals, deadlines or follow-ups: the morning stand-up does that.',
   },
 ];
 

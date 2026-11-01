@@ -8560,7 +8560,6 @@
           "waitingOnYou": "Waiting on you",
           "whileAway": "What happened",
           "stillOpen": "Still open",
-          "nothingForYou": "Nothing for you",
           "unreadInRoom": "{count} unread",
           "messages": "{count, plural, one {# message} other {# messages}}",
           "open": "Open",
@@ -8573,7 +8572,9 @@
             "decided": "Decided",
             "inProgress": "In progress",
             "fyi": "FYI"
-          }
+          },
+          "otherMessages": "Other messages",
+          "otherMessagesHint": "Nothing to do in these, but they're unread."
         }
       },
       "Stickers": {
@@ -8920,10 +8921,8 @@
       },
       "HowItWorks": {
         "title": "How it works",
-        "description": "What it does on its own, and when.",
-        "rhythms": "Rhythms",
-        "triggers": "Triggers",
-        "paused": "Paused"
+        "description": "What makes it act on its own.",
+        "triggers": "Triggers"
       },
       "Integrations": {
         "connected": "Account connected.",
