@@ -14225,6 +14225,153 @@ export const ContactListColorSchema = {
     ]
 } as const;
 
+export const ContactSuggestionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        listId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        profileUrl: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        role: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        organization: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        location: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        reason: {
+            type: 'string',
+            description: 'Why this person fits the list.'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'SUGGESTED',
+                'ADDED',
+                'DISMISSED'
+            ]
+        },
+        contactId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'listId',
+        'profileUrl',
+        'name',
+        'role',
+        'organization',
+        'location',
+        'reason',
+        'status',
+        'contactId',
+        'createdAt'
+    ]
+} as const;
+
+export const ContactPeopleSearchResultSchema = {
+    type: 'object',
+    properties: {
+        found: {
+            type: 'integer'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken; 0 when nobody was found.'
+        },
+        suggestions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactSuggestion'
+            }
+        }
+    },
+    required: [
+        'found',
+        'credits',
+        'suggestions'
+    ]
+} as const;
+
+export const ContactPeopleSearchInputSchema = {
+    type: 'object',
+    properties: {
+        brief: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 1000,
+            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used.'
+        },
+        size: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        10
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        25
+                    ]
+                }
+            ],
+            default: 10,
+            description: 'How many people to find: 10 costs 5 credits, 25 costs 10.'
+        }
+    }
+} as const;
+
+export const ContactSuggestionIdsSchema = {
+    type: 'object',
+    properties: {
+        ids: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'ids'
+    ]
+} as const;
+
 export const ContactSchema = {
     type: 'object',
     properties: {
@@ -45707,6 +45854,9 @@ export const TransactionHistoryItemSchema = {
             $ref: '#/components/schemas/TransactionHistorySokoBotItem'
         },
         {
+            $ref: '#/components/schemas/TransactionHistoryContactsItem'
+        },
+        {
             $ref: '#/components/schemas/TransactionHistoryTopUpItem'
         },
         {
@@ -45721,6 +45871,7 @@ export const TransactionHistoryItemSchema = {
             task: '#/components/schemas/TransactionHistoryTaskItem',
             coworker: '#/components/schemas/TransactionHistoryCoworkerItem',
             sokoBot: '#/components/schemas/TransactionHistorySokoBotItem',
+            contacts: '#/components/schemas/TransactionHistoryContactsItem',
             topUp: '#/components/schemas/TransactionHistoryTopUpItem',
             unattributed: '#/components/schemas/TransactionHistoryUnattributedItem'
         }
@@ -46190,6 +46341,88 @@ export const TransactionHistorySokoBotItemSchema = {
         'owner',
         'kind',
         'sokoBotId'
+    ]
+} as const;
+
+export const TransactionHistoryContactsItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        title: {
+            type: 'string',
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits this row moved, always positive. `kind: topUp` added them; every other kind took them. The magnitude of the signed ledger amount.',
+            example: 5
+        },
+        consumedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits moved (`Transaction.createdAt`). The list sorts by this field.'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'contacts'
+            ]
+        },
+        contactListId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Contact list a Find people run searched for. Null once the list is deleted.',
+            example: '01960001-0001-7001-8001-000000000077'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'credits',
+        'consumedAt',
+        'projectId',
+        'owner',
+        'kind',
+        'contactListId'
     ]
 } as const;
 

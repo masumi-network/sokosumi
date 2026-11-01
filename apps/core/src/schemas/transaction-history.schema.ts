@@ -16,6 +16,7 @@ export const transactionHistoryKinds = [
   "task",
   "coworker",
   "sokoBot",
+  "contacts",
   "topUp",
   "unattributed",
 ] as const;
@@ -153,6 +154,17 @@ export const transactionHistorySokoBotItemSchema =
     })
     .openapi("TransactionHistorySokoBotItem");
 
+const transactionHistoryContactsItemSchema = transactionHistoryBaseItemSchema
+  .extend({
+    kind: z.literal("contacts"),
+    contactListId: z.string().uuid().nullable().openapi({
+      description:
+        "Contact list a Find people run searched for. Null once the list is deleted.",
+      example: "01960001-0001-7001-8001-000000000077",
+    }),
+  })
+  .openapi("TransactionHistoryContactsItem");
+
 const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("topUp"),
@@ -207,6 +219,7 @@ const transactionHistoryItemSchema = z
     transactionHistoryTaskItemSchema,
     transactionHistoryCoworkerItemSchema,
     transactionHistorySokoBotItemSchema,
+    transactionHistoryContactsItemSchema,
     transactionHistoryTopUpItemSchema,
     transactionHistoryUnattributedItemSchema,
   ])
