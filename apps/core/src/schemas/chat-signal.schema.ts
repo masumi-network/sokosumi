@@ -125,11 +125,17 @@ export const chatCatchUpSummarySchema = z
         z.object({
           roomId: z.string().uuid(),
           roomName: z.string(),
+          roomKind: z.enum(["channel", "direct"]),
           unreadCount: z.number().int().min(1),
+          latest: z.union([chatCatchUpItemSchema, z.null()]).openapi({
+            description:
+              "The room's newest top-level message from someone else.",
+          }),
         }),
       )
       .openapi({
-        description: "Rooms with unread messages and no topic in them.",
+        description:
+          "Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.",
       }),
     generatedAt: dateTimeSchema.nullable(),
     needsYou: z.array(chatCatchUpItemSchema),

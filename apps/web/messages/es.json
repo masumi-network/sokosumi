@@ -8517,7 +8517,6 @@
           "waitingOnYou": "Te esperan",
           "whileAway": "Qué pasó",
           "stillOpen": "Aún pendiente",
-          "nothingForYou": "Nada para ti",
           "unreadInRoom": "{count} sin leer",
           "messages": "{count, plural, one {# mensaje} other {# mensajes}}",
           "open": "Abrir",
@@ -8530,7 +8529,9 @@
             "decided": "Decidido",
             "inProgress": "En curso",
             "fyi": "Para tu información"
-          }
+          },
+          "otherMessages": "Otros mensajes",
+          "otherMessagesHint": "Nada que hacer en estos, pero están sin leer."
         }
       },
       "Stickers": {

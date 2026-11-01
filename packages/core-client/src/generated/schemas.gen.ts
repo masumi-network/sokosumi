@@ -13159,18 +13159,38 @@ export const ChatCatchUpSummarySchema = {
                     roomName: {
                         type: 'string'
                     },
+                    roomKind: {
+                        type: 'string',
+                        enum: [
+                            'channel',
+                            'direct'
+                        ]
+                    },
                     unreadCount: {
                         type: 'integer',
                         minimum: 1
+                    },
+                    latest: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/ChatCatchUpItem'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The room\'s newest top-level message from someone else.'
                     }
                 },
                 required: [
                     'roomId',
                     'roomName',
-                    'unreadCount'
+                    'roomKind',
+                    'unreadCount',
+                    'latest'
                 ]
             },
-            description: 'Rooms with unread messages and no topic in them.'
+            description: 'Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.'
         },
         generatedAt: {
             type: [
