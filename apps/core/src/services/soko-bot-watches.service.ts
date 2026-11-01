@@ -121,7 +121,7 @@ export function followUpMessage(input: {
     "",
     `Your plan: ${input.then}`,
     "",
-    "Carry the plan out now with the tools you have; the owner already asked for it, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where it was asked: start it with DONE: and say in one or two sentences what you did, with links.",
+    "Carry the plan out now with the tools you have; the owner already asked for it, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where the owner asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
   ].join("\n");
 }
 
