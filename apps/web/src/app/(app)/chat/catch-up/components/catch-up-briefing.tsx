@@ -279,7 +279,12 @@ function InlineReply({
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey && text.trim()) {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing &&
+            text.trim()
+          ) {
             event.preventDefault();
             send();
           }
