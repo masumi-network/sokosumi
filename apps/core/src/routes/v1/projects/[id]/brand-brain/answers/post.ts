@@ -26,7 +26,7 @@ const route = withCoworkerContextHeaderParameters(
     operationId: "answerProjectBrandBrainQuestion",
     tags: ["Projects"],
     description:
-      "A member answers one of the Brand Brain's yes/no questions: yes, no (with what is true instead) or not sure. A yes or a no with a note lands in its section as a confirmed finding.",
+      "A member answers one of the Brand Brain's yes/no questions: yes, no (with what is true instead) or not sure. A yes lands in its section as a confirmed finding; a no lands as what is true instead (or that the statement is not true) and stays uncorrected until the section is rewritten, which the next strategy request asks Cuso to do first.",
     request: {
       params: brandBrainProjectParamsSchema,
       body: {
