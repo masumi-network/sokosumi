@@ -9009,6 +9009,7 @@ export type SokoBotActivity = {
     status: SokoBotStatus;
     activeTurnId: string | null;
     lastTurnAt: Date | null;
+    lastActivityAt: Date | null;
     avatarState: SokoBotAvatarState;
 };
 
