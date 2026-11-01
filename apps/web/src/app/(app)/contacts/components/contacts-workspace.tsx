@@ -73,6 +73,7 @@ import {
 } from "./contacts-toolbar";
 import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
@@ -386,6 +387,9 @@ export function ContactsWorkspace({
           <p className="text-muted-foreground -mt-1 truncate text-sm">
             {viewList.description}
           </p>
+        ) : null}
+        {viewList?.kind === "manual" ? (
+          <ListSuggestions key={viewList.id} list={viewList} />
         ) : null}
         <div className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
