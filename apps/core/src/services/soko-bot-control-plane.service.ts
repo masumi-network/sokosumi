@@ -2313,7 +2313,13 @@ export class SokoBotControlPlane {
           ? "TEAMMATE"
           : "OWNER",
       askedByUserId: input.chat?.askedByUserId ?? null,
-      roomId: conversationMention?.message.roomId ?? null,
+      // A teammate's follow-up reads the room it answers in, never the
+      // owner's own chat.
+      roomId:
+        conversationMention?.message.roomId ??
+        (askedByTeammate
+          ? (input.background?.destinationRoomId ?? null)
+          : null),
       referencedTaskIds: [
         ...new Set([
           ...classifierContext.namedTaskIds,
