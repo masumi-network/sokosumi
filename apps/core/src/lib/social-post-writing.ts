@@ -88,6 +88,43 @@ const MARKDOWN: readonly { pattern: RegExp; label: string }[] = [
   { pattern: /`[^`\n]+`/, label: "`code`" },
 ];
 
+/** Lines that make a post read like AI or an ad, with what to tell the bot. */
+const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
+  {
+    pattern: /\bit'?s not [^.,;]{1,40}, it'?s\b/i,
+    problem: "uses \"it's not X, it's Y\"",
+  },
+  {
+    pattern:
+      /\b(game[- ]changer|unlock|elevate|seamless|say goodbye to|reimagined|in today's fast-paced world)\b/i,
+    problem:
+      "uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined)",
+  },
+  {
+    pattern: /\b(agree|thoughts)\?\s*$/im,
+    problem: 'ends on engagement bait ("Agree?", "Thoughts?")',
+  },
+  { pattern: /—/, problem: "has an em dash" },
+  {
+    pattern:
+      /\b(check|read|compare|see)\b[^.!?\n]{0,50}\b(product page|details|product details|product information)\b/i,
+    problem:
+      "tells people to check the details instead of giving one: name the product, its price or a real detail of the business",
+  },
+  {
+    pattern: /\b(vary|varies) by (style|product|item|region|size)\b/i,
+    problem:
+      'hedges ("varies by style"): say what is true for the product in the post, or leave it out',
+  },
+];
+
+/** What a text breaks of the copy rules every bot's writing guide states. */
+export function bannedCopyProblems(text: string): string[] {
+  return BANNED_COPY.filter(({ pattern }) => pattern.test(text)).map(
+    ({ problem }) => problem,
+  );
+}
+
 const HASHTAG = /(?:^|\s)#[\p{L}\p{N}_]+/gu;
 const URL = /https?:\/\/\S+/i;
 /** Networks whose captions do not make a URL clickable. */
@@ -118,6 +155,10 @@ export function socialPostFormattingError(
     problems.push(
       `it uses Markdown (${markdown.join(", ")}), which ${provider} shows as raw symbols; write plain text`,
     );
+  const copy = [
+    ...new Set(post.texts.flatMap((text) => bannedCopyProblems(text ?? ""))),
+  ];
+  if (copy.length > 0) problems.push(`it ${copy.join("; it ")}`);
   const hashtags = Math.max(
     0,
     ...post.texts.map((text) => text?.match(HASHTAG)?.length ?? 0),
