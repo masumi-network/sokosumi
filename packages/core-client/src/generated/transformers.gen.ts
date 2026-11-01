@@ -1434,6 +1434,12 @@ const chatCatchUpSummarySchemaResponseTransformer = (data: any) => {
         data.awaySince = new Date(data.awaySince);
     }
     data.topics = data.topics.map((item: any) => chatCatchUpTopicSchemaResponseTransformer(item));
+    data.quietRooms = data.quietRooms.map((item: any) => {
+        if (item.latest) {
+            item.latest = chatCatchUpItemSchemaResponseTransformer(item.latest);
+        }
+        return item;
+    });
     if (data.generatedAt) {
         data.generatedAt = new Date(data.generatedAt);
     }

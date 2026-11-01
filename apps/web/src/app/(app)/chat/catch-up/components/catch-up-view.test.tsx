@@ -59,8 +59,15 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/app/chat/signal-actions", () => ({
-  getChatCatchUpSummaryAction: () => summaryActionMock(),
   setChatSignalLoopAction: (...args: unknown[]) => setLoopMock(...args),
+}));
+
+vi.mock("@/components/chat/signals/fetch-catch-up-summary", () => ({
+  fetchCatchUpSummary: async () => {
+    const result = await summaryActionMock();
+    if (!result.ok) throw new Error(result.error.message);
+    return result.value;
+  },
 }));
 
 vi.mock("@/app/chat/actions", () => ({
@@ -446,7 +453,7 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       expect(screen.getByText("text of t1-m")).toBeTruthy();
     });
 
-    it("marks a topic done by closing what asked you, and reloads", async () => {
+    it("takes a topic off at once, closes its messages, and reloads", async () => {
       summaryAnswers({
         topics: [
           topic("ask", {
@@ -464,9 +471,29 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       summaryAnswers();
       await act(async () => done.click());
 
-      expect(setLoopMock).toHaveBeenCalledTimes(1);
       expect(setLoopMock).toHaveBeenCalledWith("q1", { closed: true });
+      expect(setLoopMock).toHaveBeenCalledWith("f1", { closed: true });
       expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+    });
+
+    it("hides a topic before the save answers, and puts it back if it fails", async () => {
+      summaryAnswers({ topics: [topic("ask", { status: "waitingOnYou" })] });
+      let answer: (value: unknown) => void = () => {};
+      setLoopMock.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+
+      renderCatchUp();
+      const done = await screen.findByRole("button", {
+        name: "App.Channels.Signals.done",
+      });
+      await act(async () => done.click());
+      expect(screen.queryByText("title of ask")).toBeNull();
+
+      await act(async () => answer({ ok: false, error: { message: "x" } }));
+      expect(await screen.findByText("title of ask")).toBeTruthy();
     });
 
     it("answers in the Thread the question came from", async () => {
@@ -523,14 +550,28 @@ describe("CatchUpView's unread rooms elsewhere", () => {
 
     it("marks the rooms with nothing for you read", async () => {
       summaryAnswers({
-        quietRooms: [{ roomId: "room-q", roomName: "random", unreadCount: 12 }],
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "Andreas",
+            roomKind: "direct",
+            unreadCount: 12,
+            latest: item("dm", {
+              roomId: "room-q",
+              senderName: "Andreas",
+              excerpt: "See you tomorrow",
+            }),
+          },
+        ],
       });
       markAllReadMock.mockResolvedValue({ ok: true, value: null });
 
       renderCatchUp();
       const quiet = await screen.findByRole("region", {
-        name: "App.Channels.Signals.Briefing.nothingForYou 1",
+        name: "App.Channels.Signals.Briefing.otherMessages 1",
       });
+      // Who wrote last and what, without opening it.
+      expect(within(quiet).getByText("See you tomorrow")).toBeTruthy();
       await act(async () =>
         within(quiet)
           .getByRole("button", { name: "App.Channels.Signals.markRead" })
@@ -545,7 +586,15 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     it("marks every unread room read at once", async () => {
       summaryAnswers({
         topics: [topic("t1"), topic("t2", { roomId: "room-b" })],
-        quietRooms: [{ roomId: "room-q", roomName: "random", unreadCount: 2 }],
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "random",
+            roomKind: "channel",
+            unreadCount: 2,
+            latest: null,
+          },
+        ],
       });
       markAllReadMock.mockResolvedValue({ ok: true, value: null });
 

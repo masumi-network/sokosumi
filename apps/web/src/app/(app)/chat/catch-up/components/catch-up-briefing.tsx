@@ -60,14 +60,41 @@ function useMarkRead(onDone: () => void) {
   return { isMarking, markRead };
 }
 
-/** Closes every question to the reader in it, for everyone in the room. */
-async function closeTopic(topic: ChatCatchUpTopic): Promise<boolean> {
+/** Closes every message in it, for everyone in the room, so it leaves every catch-up. */
+async function closeMessages(messageIds: readonly string[]): Promise<boolean> {
   const results = await Promise.all(
-    topic.messages
-      .filter((item) => item.bucket === "needsYou")
-      .map((item) => setChatSignalLoopAction(item.messageId, { closed: true })),
+    messageIds.map((id) => setChatSignalLoopAction(id, { closed: true })),
   );
   return results.every((result) => result.ok);
+}
+
+function topicMessageIds(topic: ChatCatchUpTopic): string[] {
+  return topic.messages.map((item) => item.messageId);
+}
+
+/**
+ * Done takes a row off the page at once and saves in the background; a save
+ * that fails puts the row back and says so.
+ */
+function useDone(onChanged: () => void) {
+  const t = useTranslations("App.Channels.Signals");
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  const done = (id: string, messageIds: readonly string[]) => {
+    setHidden((current) => new Set(current).add(id));
+    void closeMessages(messageIds).then((ok) => {
+      if (ok) {
+        onChanged();
+        return;
+      }
+      setHidden((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      toast.error(t("error"));
+    });
+  };
+  return { hidden, done };
 }
 
 /**
@@ -242,6 +269,7 @@ function InlineReply({
   onSent,
 }: {
   topic: ChatCatchUpTopic;
+  /** Answered, so the topic is done. */
   onSent: () => void;
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
@@ -263,7 +291,6 @@ function InlineReply({
         return;
       }
       setText("");
-      await closeTopic(topic);
       toast.success(t("replySent", { room: topic.roomName }));
       onSent();
     });
@@ -315,10 +342,10 @@ function InlineReply({
  */
 function TopicCard({
   topic,
-  onChanged,
+  onDone,
 }: {
   topic: ChatCatchUpTopic;
-  onChanged: () => void;
+  onDone: () => void;
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
@@ -326,7 +353,6 @@ function TopicCard({
   const sourcesId = useId();
   const [showSources, setShowSources] = useState(false);
   const [replying, setReplying] = useState(false);
-  const [isClosing, startClosing] = useTransition();
   const waits = topic.status === "waitingOnYou";
   const latest = topic.messages.at(-1);
 
@@ -368,7 +394,7 @@ function TopicCard({
           ))}
         </ul>
       ) : null}
-      {replying ? <InlineReply topic={topic} onSent={onChanged} /> : null}
+      {replying ? <InlineReply topic={topic} onSent={onDone} /> : null}
       <div className="-ml-2 mt-auto flex flex-wrap items-center gap-1">
         <Button
           size="sm"
@@ -401,17 +427,7 @@ function TopicCard({
                 {t("reply")}
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              loading={isClosing}
-              onClick={() =>
-                startClosing(async () => {
-                  if (await closeTopic(topic)) onChanged();
-                  else toast.error(tSignals("error"));
-                })
-              }
-            >
+            <Button size="sm" variant="ghost" onClick={onDone}>
               <Check aria-hidden />
               {tSignals("done")}
             </Button>
@@ -436,8 +452,18 @@ export function BriefingTopics({
   const t = useTranslations("App.Channels.Signals.Briefing");
   const waitingId = useId();
   const awayId = useId();
-  const waiting = topics.filter((topic) => topic.status === "waitingOnYou");
-  const rest = topics.filter((topic) => topic.status !== "waitingOnYou");
+  const { hidden, done } = useDone(onChanged);
+  const shown = topics.filter((topic) => !hidden.has(topic.id));
+  const waiting = shown.filter((topic) => topic.status === "waitingOnYou");
+  const rest = shown.filter((topic) => topic.status !== "waitingOnYou");
+  const card = (topic: ChatCatchUpTopic) => (
+    <li key={topic.id}>
+      <TopicCard
+        topic={topic}
+        onDone={() => done(topic.id, topicMessageIds(topic))}
+      />
+    </li>
+  );
   return (
     <>
       {waiting.length > 0 ? (
@@ -447,13 +473,7 @@ export function BriefingTopics({
             title={t("waitingOnYou")}
             count={waiting.length}
           />
-          <ul className="flex flex-col gap-2">
-            {waiting.map((topic) => (
-              <li key={topic.id}>
-                <TopicCard topic={topic} onChanged={onChanged} />
-              </li>
-            ))}
-          </ul>
+          <ul className="flex flex-col gap-2">{waiting.map(card)}</ul>
         </section>
       ) : null}
       {rest.length > 0 ? (
@@ -463,13 +483,7 @@ export function BriefingTopics({
             title={t("whileAway")}
             count={rest.length}
           />
-          <ul className="grid gap-2 xl:grid-cols-2">
-            {rest.map((topic) => (
-              <li key={topic.id}>
-                <TopicCard topic={topic} onChanged={onChanged} />
-              </li>
-            ))}
-          </ul>
+          <ul className="grid gap-2 xl:grid-cols-2">{rest.map(card)}</ul>
         </section>
       ) : null}
     </>
@@ -491,17 +505,18 @@ export function OpenLoopsList({
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
   const headingId = useId();
-  const [closing, setClosing] = useState<string | null>(null);
-  if (items.length === 0) return null;
+  const { hidden, done } = useDone(onChanged);
+  const shown = items.filter((item) => !hidden.has(item.messageId));
+  if (shown.length === 0) return null;
   return (
     <section aria-labelledby={headingId} className={HOLDER_CLASS}>
       <SectionHeading
         id={headingId}
         title={t("stillOpen")}
-        count={items.length}
+        count={shown.length}
       />
       <ul className={cn(HOLDER_ITEM_CLASS, "flex flex-col p-1")}>
-        {items.map((item) => (
+        {shown.map((item) => (
           <li key={item.messageId} className="flex items-start gap-1">
             <Link
               href={chatRoomMessageHref(item.roomId, item.messageId)}
@@ -528,16 +543,7 @@ export function OpenLoopsList({
               size="sm"
               variant="ghost"
               className="mt-1.5 mr-1"
-              loading={closing === item.messageId}
-              onClick={async () => {
-                setClosing(item.messageId);
-                const result = await setChatSignalLoopAction(item.messageId, {
-                  closed: true,
-                });
-                setClosing(null);
-                if (result.ok) onChanged();
-                else toast.error(tSignals("error"));
-              }}
+              onClick={() => done(item.messageId, [item.messageId])}
             >
               <Check aria-hidden />
               {tSignals("done")}
@@ -549,7 +555,10 @@ export function OpenLoopsList({
   );
 }
 
-/** Rooms with unread messages and nothing in them for the reader. */
+/**
+ * Rooms with unread messages and nothing to do in them. Each shows who wrote
+ * last and what, so a Direct can be read at a glance without opening it.
+ */
 export function QuietRooms({
   rooms,
   onChanged,
@@ -559,6 +568,7 @@ export function QuietRooms({
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
+  const format = useFormatter();
   const headingId = useId();
   const { isMarking, markRead } = useMarkRead(onChanged);
   if (rooms.length === 0) return null;
@@ -567,7 +577,7 @@ export function QuietRooms({
       <div className="flex items-center gap-2 pr-1">
         <SectionHeading
           id={headingId}
-          title={t("nothingForYou")}
+          title={t("otherMessages")}
           count={rooms.length}
         />
         <Button
@@ -581,19 +591,58 @@ export function QuietRooms({
           {tSignals("markRead")}
         </Button>
       </div>
+      <p className="text-muted-foreground px-2 pb-2 text-xs">
+        {t("otherMessagesHint")}
+      </p>
       <ul className={cn(HOLDER_ITEM_CLASS, "flex flex-col p-1")}>
         {rooms.map((room) => (
           <li key={room.roomId}>
             <Link
-              href={chatRoomHref(room.roomId)}
+              href={
+                room.latest
+                  ? chatRoomMessageHref(room.roomId, room.latest.messageId)
+                  : chatRoomHref(room.roomId)
+              }
               className={cn(
                 HOLDER_ITEM_HOVER_CLASS,
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                "flex gap-2.5 rounded-md px-2 py-2",
               )}
             >
-              <span className="min-w-0 flex-1 truncate">{room.roomName}</span>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {t("unreadInRoom", { count: room.unreadCount })}
+              {room.latest ? (
+                <PersonAvatar
+                  name={room.latest.senderName}
+                  imageUrl={room.latest.senderImageUrl}
+                  className="mt-0.5 size-7"
+                />
+              ) : (
+                <span className="bg-muted text-muted-foreground mt-0.5 grid size-7 shrink-0 place-items-center rounded-full">
+                  <Hash className="size-3.5" aria-hidden />
+                </span>
+              )}
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <span className="truncate font-medium">
+                    {room.roomKind === "channel" ? "# " : ""}
+                    {room.roomName}
+                  </span>
+                  <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
+                    {room.latest
+                      ? format.relativeTime(room.latest.createdAt)
+                      : null}
+                  </span>
+                </span>
+                {room.latest ? (
+                  <span className="text-muted-foreground line-clamp-2 text-sm">
+                    {room.roomKind === "channel" ||
+                    room.latest.senderName !== room.roomName
+                      ? `${room.latest.senderName}: `
+                      : ""}
+                    {room.latest.excerpt}
+                  </span>
+                ) : null}
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {t("unreadInRoom", { count: room.unreadCount })}
+                </span>
               </span>
             </Link>
           </li>

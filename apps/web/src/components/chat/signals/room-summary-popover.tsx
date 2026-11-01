@@ -8,7 +8,7 @@ import {
   CatchUpSummaryBody,
   isCatchUpSummaryEmpty,
 } from "@/components/chat/signals/catch-up-summary-body";
-import { fetchRoomSummary } from "@/components/chat/signals/fetch-room-summary";
+import { fetchCatchUpSummary } from "@/components/chat/signals/fetch-catch-up-summary";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -32,7 +32,7 @@ interface RoomSummaryPopoverProps {
 export function useRoomSummary(roomId: string, enabled: boolean) {
   return useQuery({
     queryKey: ["chat-room-summary", roomId],
-    queryFn: () => fetchRoomSummary(roomId),
+    queryFn: () => fetchCatchUpSummary(roomId),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,
     // Kept for the visit only: the next visit has a different unread set.
