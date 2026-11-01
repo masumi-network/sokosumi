@@ -99,15 +99,18 @@ export async function saveBrandBrain(
       ...kept,
     });
     const before = parseBrandBrain(stored);
+    const questions = withCorrections(
+      save.brandBrain
+        ? keepAnswers(save.brandBrain.questions, before?.questions ?? [])
+        : (before?.questions ?? []),
+      before?.questions ?? [],
+      rewrittenSections(stored.profile, profile),
+    );
     const essentials = save.brandBrain
-      ? {
-          ...save.brandBrain,
-          questions: keepAnswers(
-            save.brandBrain.questions,
-            before?.questions ?? [],
-          ),
-        }
-      : before;
+      ? { ...save.brandBrain, questions }
+      : before
+        ? { ...before, questions }
+        : null;
     const body = essentials ? { ...essentials, profile } : { profile };
     const updatedAt = essentials ? { updatedAt: new Date() } : {};
     return tx.brandBrain.upsert({
@@ -119,13 +122,56 @@ export async function saveBrandBrain(
   return db ? write(db) : prisma.$transaction(write);
 }
 
-/** What an answer adds to its section: a yes confirms, a no with a note corrects. */
+/** The sections whose answer a save changed. */
+function rewrittenSections(
+  before: CmoBrandProfile,
+  after: CmoBrandProfile,
+): Set<CmoBrandSectionKey> {
+  return new Set(
+    CMO_BRAND_SECTION_KEYS.filter(
+      (key) => after[key] && after[key]?.answer !== before[key]?.answer,
+    ),
+  );
+}
+
+/**
+ * A no waits for its section to be rewritten (by Cuso or a member); Core
+ * alone keeps the flag, so whatever a save sends for it is ignored.
+ */
+function withCorrections(
+  questions: CmoBrandQuestion[],
+  stored: CmoBrandQuestion[],
+  rewritten: ReadonlySet<CmoBrandSectionKey>,
+): CmoBrandQuestion[] {
+  return questions.map(({ corrected: _sent, ...question }) => {
+    if (question.answer !== "no") return question;
+    const waiting =
+      stored.find((candidate) => candidate.id === question.id)?.corrected ===
+      false;
+    return {
+      ...question,
+      corrected: !waiting || rewritten.has(question.section),
+    };
+  });
+}
+
+/** The answers whose sections still say what the owner said is not true. */
+export function brandBrainCorrections(brain: BrandBrain): CmoBrandQuestion[] {
+  return brain.questions.filter(
+    (question) => question.answer === "no" && question.corrected === false,
+  );
+}
+
+/**
+ * What an answer adds to its section: a yes confirms the statement, a no
+ * records what is true instead or, without a note, that the statement is not.
+ */
 function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
   const point =
     question.answer === "yes"
       ? question.statement
       : question.answer === "no"
-        ? question.note
+        ? (question.note ?? notTrue(question.statement))
         : undefined;
   return point
     ? {
@@ -135,6 +181,10 @@ function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
         asOf: new Date().toISOString().slice(0, 7),
       }
     : null;
+}
+
+function notTrue(statement: string): string {
+  return `Not true: ${statement}`.slice(0, 400);
 }
 
 /**
@@ -174,12 +224,19 @@ export async function answerBrandBrainQuestion(
     if (!brain || !question) {
       throw notFound("That question is not in the Brand Brain");
     }
+    const { corrected: _earlier, ...asked } = question;
     const answered: CmoBrandQuestion = {
-      ...question,
+      ...asked,
       answer: input.answer,
       note: answerNote(input.answer, input.note),
+      // A no stays open until its section says what is true instead.
+      ...(input.answer === "no" ? { corrected: false } : {}),
     };
-    const earlier = [question.statement, question.note].filter(Boolean);
+    const earlier = [
+      question.statement,
+      notTrue(question.statement),
+      question.note,
+    ].filter(Boolean);
     const section = brain.profile[question.section];
     const finding = answerFinding(answered);
     const findings = [

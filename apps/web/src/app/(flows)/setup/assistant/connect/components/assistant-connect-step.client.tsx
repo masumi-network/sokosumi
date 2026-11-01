@@ -6,10 +6,14 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
-import { SokoBotSetupSteps } from "@/components/soko-bot/setup-steps";
+import {
+  SOKO_BOT_SETUP_FRAME_CLASS,
+  SokoBotSetupSteps,
+} from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
 import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
+import { cn } from "@/lib/utils";
 
 interface AssistantConnectStepProps {
   botName: string;
@@ -42,7 +46,7 @@ export function AssistantConnectStep({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-12 md:py-20">
+    <div className={cn(SOKO_BOT_SETUP_FRAME_CLASS, "items-center")}>
       <div className="mb-8 w-full">
         <SokoBotSetupSteps current={3} />
       </div>

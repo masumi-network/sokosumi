@@ -41,7 +41,7 @@ const {
   projectFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/services/image-studio-files.service", () => ({
+vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@sokosumi/database/repositories", () => ({

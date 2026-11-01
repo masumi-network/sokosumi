@@ -142,6 +142,9 @@ function stepIndex(step: OnboardingStep): number {
 const POLL_MS = 2_500;
 /** A hidden tab still checks in, so coming back shows where Cuso is now. */
 const HIDDEN_POLL_MS = 20_000;
+/** The change request after a no, once a plan exists. */
+const BRAND_CORRECTED =
+  "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
 
 /** Who is signed in, with the way out; closes on a click outside or Escape. */
 function AccountMenu({
@@ -430,8 +433,12 @@ export function OnboardingFlow({
               );
             }}
             onPlan={async () => {
-              const result = await actions.requestStrategy();
+              // Once a plan exists, the corrected Brand Brain changes it.
+              const result = await actions.requestStrategy(
+                overview.strategy ? BRAND_CORRECTED : undefined,
+              );
               if (result.overview) setOverview(result.overview);
+              if (!result.error) setViewing(null);
               return result.error;
             }}
           />

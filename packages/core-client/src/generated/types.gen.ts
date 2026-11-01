@@ -7061,6 +7061,7 @@ export type BrandBrain = {
             section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
             answer?: 'yes' | 'no' | 'unsure';
             note?: string;
+            corrected?: boolean;
         }>;
     } | null;
     /**
@@ -7378,6 +7379,7 @@ export type BrandBrainRequest = {
             section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
             answer?: 'yes' | 'no' | 'unsure';
             note?: string;
+            corrected?: boolean;
         }>;
     };
 };
@@ -10446,6 +10448,7 @@ export type CmoOverview = {
             section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
             answer?: 'yes' | 'no' | 'unsure';
             note?: string;
+            corrected?: boolean;
         }>;
     } | null;
     brandBrainUpdatedAt: Date | null;
