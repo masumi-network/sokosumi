@@ -4,6 +4,10 @@ import type {
   SocialPostStatus,
 } from "@sokosumi/database";
 import {
+  type SocialPostPlanning,
+  socialPostPlanningSchema,
+} from "@sokosumi/soko-bot";
+import {
   CORE_API_ERROR_KINDS,
   isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -207,6 +211,9 @@ export interface SocialPostSummary {
   lastAttemptAt: Date | null;
   lastAttempt: SocialPostLastAttempt | null;
   revision: number;
+  /** The Marketing strategy version that planned it, and its planning record. */
+  marketingStrategyId?: string | null;
+  planning?: SocialPostPlanning | null;
   createdAt: Date;
   updatedAt: Date;
   canEdit: boolean;
@@ -437,6 +444,8 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     lastAttemptAt: record.lastAttemptAt,
     lastAttempt: record.attempts[0] ?? null,
     revision: record.revision,
+    marketingStrategyId: record.marketingStrategyId ?? null,
+    planning: socialPostPlanningSchema.safeParse(record.planning).data ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     canEdit:

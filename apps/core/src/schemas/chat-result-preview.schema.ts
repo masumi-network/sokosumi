@@ -83,6 +83,7 @@ export const chatResultAvailableSchema = z
       "file",
       "decision",
       "project_selection",
+      "cmo_report",
     ]),
     title: z.string().max(500),
     // Each resource retains its native state; Core reads it, never the model.

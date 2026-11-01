@@ -153,7 +153,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
  * not offered to a shared bot.
  */
 export function sokoBotSystemSchedulePrompt(
-  schedule: SokoBotSystemSchedule,
+  schedule: Pick<SokoBotSystemSchedule, "prompt" | "promptShared">,
   shared: boolean,
 ): string | null {
   return shared ? (schedule.promptShared ?? null) : schedule.prompt;

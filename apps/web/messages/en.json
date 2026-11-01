@@ -1027,7 +1027,8 @@
         "studio_job": "Studio generation",
         "job": "Agent result",
         "file": "File",
-        "decision": "Approval"
+        "decision": "Approval",
+        "cmo_report": "Report"
       },
       "status": {
         "DRAFT": "Draft",
@@ -1156,7 +1157,8 @@
       "termsOfServices": "Terms of Service",
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
-      "acceptableUse": "Acceptable Use"
+      "acceptableUse": "Acceptable Use",
+      "usesSokosumi": "Uses your Sokosumi account."
     },
     "Aside": {
       "titleLine1": "AI coworkers",
@@ -1215,7 +1217,9 @@
         "Header": {
           "title": "Log in",
           "description": "Hire agents on our platform",
-          "descriptionFor": "Log in with your Sokosumi account to continue to {client}"
+          "descriptionFor": "Log in with your Sokosumi account to continue to {client}",
+          "titleCmo": "Log in to CMO.xyz",
+          "descriptionCmo": "Cuso runs your marketing."
         },
         "Form": {
           "submit": "Log in",
@@ -1273,7 +1277,9 @@
           "title": "Create your account",
           "viaInvitation": "(via invitation)",
           "description": "Hire agents on our platform",
-          "descriptionFor": "Create your Sokosumi account to continue to {client}"
+          "descriptionFor": "Create your Sokosumi account to continue to {client}",
+          "titleCmo": "Create your CMO.xyz account",
+          "descriptionCmo": "Cuso runs your marketing."
         },
         "Form": {
           "submit": "Register",
@@ -5099,6 +5105,10 @@
             "title": "Feature badges",
             "description": "Show a New badge on a sidebar feature for existing users, for a set time."
           },
+          "cmoSpend": {
+            "title": "CMO spend",
+            "description": "What each CMO bot (Cuso) spent, what owners were charged, and where the money went."
+          },
           "designSystem": {
             "title": "Design system",
             "description": "Masumi Family brand and UI rules, rendered with our real components."
@@ -5585,7 +5595,14 @@
           "archived": "Archived",
           "version": "Version",
           "showDormant": "Show unused and archived ({count})",
-          "chat": "Chat"
+          "chat": "Chat",
+          "kindLabel": "Show",
+          "kind": {
+            "all": "All",
+            "assistant": "Soko Bots",
+            "cmo": "Cuso"
+          },
+          "cmoBadge": "CMO"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",
@@ -6271,6 +6288,32 @@
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
         }
+      },
+      "CmoSpend": {
+        "title": "CMO spend",
+        "description": "What each CMO bot spent on its work, what its owner was charged, and where the money went: each model, web search, Exa, overhead and images.",
+        "summary": "{bots, plural, one {# CMO bot} other {# CMO bots}} spent {spent} and charged {charged} credits.",
+        "period": "Period",
+        "days": "{days} days",
+        "empty": "No CMO bot worked in this period.",
+        "business": "Business",
+        "turns": "Turns",
+        "spent": "Spent",
+        "charged": "Charged (credits)",
+        "where": "Where it went",
+        "tools": "Tools used",
+        "calls": "{calls, plural, one {# call} other {# calls}}",
+        "exa": "Exa search",
+        "webSearch": "Web search",
+        "overhead": "Routing and quality checks (not billed)",
+        "images": "credits on images",
+        "planChecks": "Plan checks",
+        "checksNone": "None yet",
+        "checked": "{checked, plural, one {# save checked} other {# saves checked}}",
+        "sentBack": "{count} sent back to fix",
+        "drifted": "{count} off the main offer",
+        "unavailable": "{count} without the evaluator",
+        "lastProblems": "Last sent back {at}:"
       },
       "DesignSystem": {
         "title": "Design system",

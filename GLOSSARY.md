@@ -94,6 +94,22 @@ _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 The product at cmo.xyz: an AI agent that runs a business's marketing end to end (social media, content, ads, SEO, graphics), built on Sokosumi. People use it with their Sokosumi account and Workspaces; it holds no accounts or product data of its own. Its brand guide lives in the CMO.XYZ-Style-Guide repository.
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
+**Cuso**:
+CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that works in one Project of the business's organization, for every member of it. A Project has at most one, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+_Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
+
+**Hiring Cuso**:
+CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
+_Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
+
+**Marketing strategy**:
+A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its calendar is the Project's Social posts.
+_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Social posts)
+
+**Brand Brain**:
+What a Project knows about the business it works for (summary, voice, audience, products, competitors, channels). Every bot in the Project reads it and any member of its Workspace edits it; Cuso drafts it while Hiring Cuso. Its look (logo, colours, fonts) is the Project's logo and DESIGN.md, not part of it.
+_Avoid_: Brand profile, business profile, brand guidelines (that is a Project's DESIGN.md), Project memory (what bots learned while working)
+
 ### Tasks
 
 **Task Manager**:
@@ -195,6 +211,10 @@ _Avoid_: Engagement over the selected period, treating an unavailable counter as
 **Social account post**:
 A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
 _Avoid_: Draft, scheduled Social post, importing history as publishable content
+
+**Social comment**:
+A comment someone left on one of a Project's published Social posts. Mentions, direct messages, and comments on Social account posts published outside Sokosumi are not Social comments.
+_Avoid_: Social interaction, engagement, reply (when meaning the comment)
 
 ### Ads
 

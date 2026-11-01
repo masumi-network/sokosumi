@@ -1,0 +1,1478 @@
+/*
+ * First run, full screen. Follows Sokosumi's app: 14px body, 10px radius,
+ * hairline borders, near-white surfaces, one accent. Tokens come from
+ * globals.css.
+ */
+body:has(.ob) .site-header {
+  display: none;
+}
+
+.ob {
+  --ob-line: light-dark(#e2e2e2, #2a2a2a);
+  --ob-tint: light-dark(#fafafa, #121212);
+  --ob-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ob-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: color-mix(in srgb, var(--background) 86%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ob-line);
+}
+
+.ob-top .logo {
+  font-size: 15px;
+}
+
+.ob-steps {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  transition:
+    background 200ms var(--ob-ease),
+    color 200ms var(--ob-ease);
+}
+
+.ob-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+button.ob-step {
+  cursor: pointer;
+}
+
+.ob-steps li:has(button.ob-step):hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.ob-steps li.now {
+  background: var(--surface);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.ob-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--ob-line);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-steps li.now .ob-dot {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+.ob-steps li.done .ob-dot {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.ob-who {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.ob-who-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px 4px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ob-who-button:hover,
+.ob-who-button[aria-expanded="true"] {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.ob-who-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  box-shadow: var(--shadow-lg);
+}
+
+.ob-who-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ob-who-item:hover {
+  background: var(--surface);
+}
+
+.ob-who-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+  animation: ob-in 360ms var(--ob-ease);
+}
+
+@keyframes ob-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Type */
+.ob-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ob-title {
+  margin: 0;
+  font-size: clamp(26px, 3.4vw, 34px);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.ob-lede {
+  max-width: 560px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  text-wrap: pretty;
+}
+
+.ob-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ob-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.ob-link:hover {
+  color: var(--foreground);
+}
+
+.ob-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.ob-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ob-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--ob-line);
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.ob-chip-button {
+  cursor: pointer;
+  transition:
+    background 150ms,
+    border-color 150ms;
+}
+
+.ob-chip-button:hover:not(:disabled) {
+  background: var(--surface);
+}
+
+.ob-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ob-tag.runs {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--ok);
+}
+
+.ob-tag.accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Buttons */
+.ob-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--foreground);
+  border-radius: var(--radius);
+  background: var(--foreground);
+  color: var(--background);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    opacity 150ms,
+    transform 150ms var(--ob-ease),
+    background 150ms;
+}
+
+.ob-button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.ob-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.ob-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ob-button-quiet {
+  background: var(--background);
+  color: var(--foreground);
+  border-color: var(--ob-line);
+}
+
+.ob-button-quiet:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--surface);
+}
+
+.ob-button-lg {
+  height: 42px;
+  padding: 0 18px;
+  font-size: 15px;
+}
+
+.ob-alert {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.ob-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--ob-line);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.ob-input:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--ob-line));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.ob-spin {
+  animation: ob-spin 900ms linear infinite;
+}
+
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ob-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+/* Step 1: website and goal */
+.ob-start {
+  display: grid;
+  gap: 0;
+  max-width: 520px;
+  margin: 0 auto;
+  padding-top: 24px;
+}
+
+.ob-field {
+  display: grid;
+  gap: 2px;
+  margin: 24px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.ob-url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--ob-line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.ob-url:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--ob-line));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/*
+ * The field's frame draws the focus ring (:focus-within); a transparent
+ * outline on the input keeps one ring, which forced-colors mode still shows.
+ */
+.ob-url input:focus-visible {
+  outline: 2px solid transparent;
+}
+
+.ob-url input {
+  flex: 1;
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 15px;
+}
+
+.ob-start-button {
+  justify-self: start;
+  margin-top: 28px;
+}
+
+.ob-next {
+  display: grid;
+  gap: 8px;
+  margin: 36px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--ob-line);
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ob-next li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Step 2: research */
+.ob-research {
+  display: grid;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (min-width: 880px) {
+  .ob-research {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 56px;
+    padding-top: 32px;
+  }
+}
+
+.ob-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ob-cursor {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  margin-bottom: 20px;
+  border-radius: 24px;
+  background: var(--stage);
+}
+
+.ob-cursor img {
+  position: relative;
+  height: 48px;
+  width: auto;
+}
+
+.ob-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  border: 1px solid var(--accent);
+}
+
+.ob-elapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-phases {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-phase {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  transition: color 200ms;
+}
+
+.ob-phase.now,
+.ob-phase.done {
+  color: var(--foreground);
+}
+
+.ob-phase-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--ob-line);
+}
+
+.ob-phase.done .ob-phase-dot {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+.ob-phase.now .ob-phase-dot {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ob-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.ob-ask {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 24px;
+}
+
+.ob-ask-question {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  white-space: pre-wrap;
+}
+
+.ob-ask .ob-button {
+  justify-self: start;
+}
+
+.ob-feed {
+  border: 1px solid var(--ob-line);
+  border-radius: 14px;
+  background: var(--ob-tint);
+  padding: 6px;
+  min-height: 320px;
+}
+
+.ob-feed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ob-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.ob-live.on {
+  background: var(--ok);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 50%, transparent);
+  animation: ob-pulse 1.6s infinite;
+}
+
+@keyframes ob-pulse {
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.ob-feed-empty {
+  margin: 0;
+  padding: 24px 10px;
+  color: var(--muted);
+}
+
+.ob-feed-list {
+  display: grid;
+  gap: 2px;
+  max-height: 460px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ob-feed-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--background);
+  border: 1px solid var(--ob-line);
+}
+
+.ob-feed-item.done .ob-feed-state {
+  color: var(--ok);
+}
+
+.ob-feed-item.failed .ob-feed-state {
+  color: var(--warn);
+}
+
+.ob-feed-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.ob-favicon {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ob-feed-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-feed-state {
+  display: grid;
+  color: var(--muted);
+}
+
+/* Step 3: Brand Brain */
+.ob-brain {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.ob-cuso-said {
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+
+/* Step 4: strategy */
+.ob-strategy {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.ob-changed {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+.ob-changed .ob-label {
+  color: var(--accent);
+}
+
+.ob-weeks {
+  border: 1px solid var(--ob-line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.ob-weekdays,
+.ob-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.ob-weekdays {
+  padding-left: 72px;
+  background: var(--ob-tint);
+  border-bottom: 1px solid var(--ob-line);
+}
+
+.ob-weekdays span {
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ob-week {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.ob-week + .ob-week {
+  border-top: 1px solid var(--ob-line);
+}
+
+.ob-week-label {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--ob-tint);
+  border-right: 1px solid var(--ob-line);
+}
+
+.ob-day {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 92px;
+  padding: 6px;
+  border-left: 1px solid var(--ob-line);
+}
+
+.ob-day:first-child {
+  border-left: 0;
+}
+
+.ob-day-blank {
+  background: var(--ob-tint);
+}
+
+.ob-day-n {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-entry {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--ob-line);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms,
+    transform 150ms var(--ob-ease),
+    box-shadow 150ms;
+}
+
+.ob-entry:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--ob-line));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
+  transform: translateY(-1px);
+}
+
+.ob-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-entry-written {
+  margin-left: auto;
+  color: var(--ok);
+}
+
+.ob-entry-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+@media (max-width: 760px) {
+  .ob-weekdays {
+    display: none;
+  }
+
+  .ob-week {
+    grid-template-columns: 1fr;
+  }
+
+  .ob-week-label {
+    border-right: 0;
+    border-bottom: 1px solid var(--ob-line);
+  }
+
+  .ob-days {
+    grid-template-columns: 1fr;
+  }
+
+  .ob-day {
+    min-height: 0;
+    border-left: 0;
+    border-top: 1px solid var(--ob-line);
+  }
+
+  .ob-day:first-child {
+    border-top: 0;
+  }
+
+  .ob-day-blank {
+    display: none;
+  }
+}
+
+.ob-change {
+  display: grid;
+  gap: 10px;
+  margin-top: 40px;
+  padding: 18px;
+  border: 1px solid var(--ob-line);
+  border-radius: 14px;
+  background: var(--ob-tint);
+}
+
+.ob-change-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ob-button {
+  white-space: nowrap;
+}
+
+/* Pinned to the viewport; the page leaves room for it below. */
+.ob-strategy {
+  padding-bottom: 96px;
+}
+
+/* Step 5: accounts. Step 6: plan. */
+.ob-narrow {
+  max-width: 600px;
+  margin: 0 auto;
+  padding-top: 24px;
+}
+
+.ob-connect-list {
+  display: grid;
+  gap: 8px;
+  margin: 28px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-connect-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--ob-line);
+  border-radius: 12px;
+}
+
+.ob-connect-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ob-connect-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ob-safe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ob-pricing {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.ob-plans {
+  display: grid;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+@media (min-width: 760px) {
+  .ob-plans {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 759px) {
+  .ob-plan.featured {
+    order: -1;
+  }
+}
+
+.ob-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--ob-line);
+  border-radius: 16px;
+  background: var(--background);
+}
+
+.ob-plan.featured {
+  border-color: var(--foreground);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.08);
+}
+
+.ob-plan.active {
+  border-color: var(--ok);
+}
+
+.ob-plan-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ob-plan h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ob-price {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-price span {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.ob-checks {
+  flex: 1;
+  padding: 0;
+  list-style: none;
+  gap: 8px;
+}
+
+.ob-checks li {
+  display: flex;
+  gap: 8px;
+}
+
+.ob-checks svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--ok);
+}
+
+.ob-waiting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+@media (max-width: 760px) {
+  .ob-top {
+    grid-template-columns: auto 1fr;
+    padding: 10px 16px;
+  }
+
+  .ob-steps {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow-x: auto;
+  }
+
+  .ob-step-label {
+    display: none;
+  }
+
+  .ob-steps li.now .ob-step-label {
+    display: inline;
+  }
+
+  .ob-main {
+    padding: 24px 16px 96px;
+  }
+
+  .ob-change-row {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-main,
+  .ob-spin,
+  .ob-live.on {
+    animation: none;
+  }
+}
+
+.ob-plans-mock {
+  margin-top: 32px;
+}
+
+/* A day reads "9" in the week grid, "Mon 9 Nov" in the phone list */
+.ob-day-long {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .ob-day-short {
+    display: none;
+  }
+
+  .ob-day-long {
+    display: inline;
+  }
+}
+
+.ob-phase-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ob-strategy > .rv {
+  margin-top: 16px;
+}
+
+.ob-connect-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.ob-mailing {
+  display: grid;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ob-connect-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ob-mailing-form {
+  display: grid;
+  gap: 8px;
+}
+
+.ob-mailing-form textarea {
+  min-height: 96px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.ob-mailing-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ob-month {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 28px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.ob-month-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-month-tiles li {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ob-month-n {
+  color: var(--foreground);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.ob-connect-group .ob-connect-list {
+  margin: 0;
+}
+
+.ob-connect-soon {
+  margin: 20px 0 6px;
+}
+
+/* Each step opens with Cuso saying what he did and the one decision to make. */
+.ob-head {
+  position: sticky;
+  top: var(--ob-top-h, 57px);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+  margin: -16px 0 32px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--ob-line);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.ob-head-cuso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The mascot is black and white; its tile stays light in dark mode too. */
+.ob-head-mascot {
+  flex: none;
+  border-radius: 16px;
+  background: var(--stage);
+  transform-origin: 50% 90%;
+}
+
+.ob-bubble {
+  position: relative;
+  min-width: 0;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+/* The bubble's tail points at Cuso. */
+.ob-bubble::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--surface);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.ob-head-step {
+  position: relative;
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ob-head-say {
+  position: relative;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.ob-head-action {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  gap: 6px;
+}
+
+.ob-head-note {
+  max-width: 340px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .ob-head {
+    position: static;
+    margin: 0 0 24px;
+    padding: 0 0 16px;
+    background: none;
+    backdrop-filter: none;
+  }
+
+  /* On a phone the decision sits under the thumb. */
+  .ob-head-action {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    justify-items: stretch;
+    padding: 10px 16px;
+    border-top: 1px solid var(--ob-line);
+    background: var(--background);
+  }
+
+  .ob-head-note {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+/* Results: the numbers per funnel step, Cuso's rhythm, and when he changes course. */
+.ob-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-metrics li {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.ob-metrics b {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.ob-rhythm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ob-rhythm-card {
+  padding: 20px;
+  border: 1px solid var(--ob-line);
+  border-radius: var(--radius-lg);
+}
+
+.ob-rhythm-when {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.ob-rhythm-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.ob-rules {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-rules li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.ob-rules li > svg {
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .ob-rules li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .ob-rules li > svg {
+    display: none;
+  }
+}
+
+/* Questions: one card each, answered with a tap */
+.ob-qlist {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-q {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+  border: 1px solid var(--ob-line);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+}
+
+.ob-q.answered {
+  background: var(--surface);
+}
+
+.ob-q-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ob-q-text {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.ob-q-answers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-answer {
+  min-width: 72px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--ob-line);
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    border-color 150ms,
+    transform 150ms var(--ob-ease);
+}
+
+.ob-answer:hover:not(:disabled) {
+  border-color: var(--foreground);
+}
+
+.ob-answer:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ob-answer.selected {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.ob-answer:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-q-note {
+  display: flex;
+  gap: 8px;
+}
+
+.ob-q-note .ob-input {
+  flex: 1;
+}
+
+.ob-q-said {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* The change box stays in reach while the founder reads the plan. */
+.ob-change-dock {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  background: var(--background);
+  box-shadow: var(--shadow-lg);
+}
+
+.ob-change-dock .ob-chips {
+  display: none;
+}
+
+.ob-change-dock:focus-within .ob-chips {
+  display: flex;
+}

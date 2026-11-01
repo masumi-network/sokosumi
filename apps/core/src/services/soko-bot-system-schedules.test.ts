@@ -1,4 +1,8 @@
-import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
+import {
+  CMO_SOKO_BOT_VERSION_ID,
+  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_SYSTEM_SCHEDULES,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { scheduleFindManyMock, scheduleCreateMock } = vi.hoisted(() => ({
@@ -8,6 +12,7 @@ const { scheduleFindManyMock, scheduleCreateMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBot: { findUnique: vi.fn().mockResolvedValue({ versionId: "v19" }) },
     sokoBotSchedule: {
       findMany: scheduleFindManyMock,
       create: scheduleCreateMock,
@@ -90,6 +95,29 @@ describe("ensureSystemSchedules", () => {
       expect(row.enabled).toBe(false);
       expect(row.requestedByUserId).toBeNull();
       expect(row.prompt).toBe(rhythm?.promptShared);
+    }
+  });
+
+  it("gives a shared Cuso his rhythms on, run as the member who hired him", async () => {
+    scheduleFindManyMock.mockResolvedValue([]);
+    await ensureSystemSchedules({
+      ...bot,
+      userId: null,
+      createdByUserId: "hirer-1",
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+    });
+    const rows = scheduleCreateMock.mock.calls.map((call) => call[0].data);
+    expect(rows.map((row) => row.systemKey)).toEqual(
+      SOKO_BOT_CMO_SCHEDULES.map((schedule) => schedule.key),
+    );
+    for (const row of rows) {
+      expect(row).not.toHaveProperty("enabled");
+      expect(row.requestedByUserId).toBe("hirer-1");
+      expect(row.prompt).toBe(
+        SOKO_BOT_CMO_SCHEDULES.find(
+          (schedule) => schedule.key === row.systemKey,
+        )?.prompt,
+      );
     }
   });
 });
