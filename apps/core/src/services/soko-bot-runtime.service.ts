@@ -6,6 +6,7 @@ import {
   FileSourceScope,
   jobInclude,
   type Prisma,
+  type Project,
   TaskStatus,
 } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
@@ -373,6 +374,7 @@ import {
   listProjectSocialConnections,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
+import { createProject, updateProject } from "@/services/projects.service";
 import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
@@ -6047,6 +6049,47 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /**
+   * Projects belong to the workspace: a bot creates and edits them for the
+   * member who asked, the same way that member would on the Projects page.
+   */
+  private async executeProjectTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { workspaceId } = authorized.turn;
+    await requireSokoBotWorkspaceAccess(
+      prisma,
+      actingMemberOf(authorized),
+      workspaceId,
+    );
+    let project: Project;
+    try {
+      if (input.capability === "create_project") {
+        project = await createProject(
+          workspaceId,
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_project.parse(input.input),
+        );
+      } else {
+        const { projectId, ...fields } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_project.parse(input.input);
+        project = await updateProject(workspaceId, projectId, fields);
+      }
+    } catch (error) {
+      if (error instanceof HTTPException && error.status < 500)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+    return this.commitReceipt(authorized, input.toolCallId, project.id, {
+      projectId: project.id,
+      name: project.name,
+      identifier: project.identifier,
+      websiteUrl: project.websiteUrl,
+      hasBriefing: Boolean(project.briefing),
+      link: `/projects/${project.id}`,
+    });
+  }
+
   /** Social tools use the turn's owner/workspace, never actor fields from model input. */
   private async requireSocialAccess(
     authorized: AuthorizedSokoBotRuntime,
@@ -6860,6 +6903,9 @@ export class SokoBotRuntimeService {
       case "merge_contacts":
       case "manage_contact_lists":
         return this.executeContactTool(input, authorized);
+      case "create_project":
+      case "update_project":
+        return this.executeProjectTool(input, authorized);
       case "list_tables":
       case "read_table":
       case "create_table":

@@ -36,6 +36,8 @@ export const ACTION_LABELS: Record<string, string> = {
   log_contact_interaction: "Logged a contact interaction",
   merge_contacts: "Merged contacts",
   manage_contact_lists: "Updated contact list",
+  create_project: "Created project",
+  update_project: "Updated project",
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
@@ -193,6 +195,17 @@ function actionTarget(
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
   if (CONTACT_CAPABILITIES.has(call.capability))
     return contactTarget(call.result);
+  if (
+    call.capability === "create_project" ||
+    call.capability === "update_project"
+  ) {
+    const project = z
+      .object({ name: z.string().min(1) })
+      .safeParse(call.result);
+    return project.success
+      ? `[${linkText(project.data.name)}](/projects/${encodeURIComponent(id)})`
+      : "";
+  }
   if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
     const post = z
       .object({ projectId: z.string().min(1) })
