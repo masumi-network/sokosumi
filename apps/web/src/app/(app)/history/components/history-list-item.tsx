@@ -24,6 +24,7 @@ export interface HistoryListItemLabels {
     task: string;
     coworker: string;
     sokoBot: string;
+    contacts: string;
     topUp: string;
     unattributed: string;
   };

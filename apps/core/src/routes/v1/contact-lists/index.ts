@@ -3,6 +3,7 @@ import mountDelete from "./[id]/delete.js";
 import mountImport from "./[id]/import.js";
 import mountMembers from "./[id]/members.js";
 import mountPatch from "./[id]/patch.js";
+import mountSuggestions from "./[id]/suggestions.js";
 import mountGet from "./get.js";
 import mountPost from "./post.js";
 
@@ -17,5 +18,6 @@ mountPatch(app);
 mountDelete(app);
 mountMembers(app);
 mountImport(app);
+mountSuggestions(app);
 
 export default app;
