@@ -358,6 +358,7 @@ async function isTainted(turnId: string): Promise<boolean> {
 /**
  * The owner typed this turn, or started this background run from one: the
  * work and its spending are theirs, so a page read on the way may not end it.
+ * A teammate's or another bot's follow-up is not.
  */
 export async function isOwnerDirected(turnId: string): Promise<boolean> {
   const turn = await prisma.sokoBotTurn.findUnique({
@@ -371,12 +372,11 @@ export async function isOwnerDirected(turnId: string): Promise<boolean> {
     },
   });
   if (!turn) return false;
+  const ownerAsked = turn.askedByUserId === null && turn.chainDepth === 0;
   return (
-    turn.parentTurnId !== null ||
-    (turn.source === "CHAT" &&
-      turn.chatMentionId !== null &&
-      turn.askedByUserId === null &&
-      turn.chainDepth === 0)
+    ownerAsked &&
+    (turn.parentTurnId !== null ||
+      (turn.source === "CHAT" && turn.chatMentionId !== null))
   );
 }
 
