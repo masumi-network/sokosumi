@@ -308,7 +308,7 @@ describe("cmoDraftProblems", () => {
       ]),
     ).toEqual([
       'b opens like a ("before choosing a shoe…"); give it its own first line.',
-      "c tells people to check the details instead of giving one: name the product, its price or a real detail from the Brand Brain.",
+      "c tells people to check the details instead of giving one: name the product, its price or a real detail of the business.",
       "d uses \"it's not X, it's Y\".",
     ]);
   });
