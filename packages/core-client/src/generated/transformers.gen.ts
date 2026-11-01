@@ -1423,12 +1423,24 @@ const chatCatchUpItemSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const chatCatchUpTopicSchemaResponseTransformer = (data: any) => {
+    data.latestAt = new Date(data.latestAt);
+    data.messages = data.messages.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
+    return data;
+};
+
 const chatCatchUpSummarySchemaResponseTransformer = (data: any) => {
+    if (data.awaySince) {
+        data.awaySince = new Date(data.awaySince);
+    }
+    data.topics = data.topics.map((item: any) => chatCatchUpTopicSchemaResponseTransformer(item));
     if (data.generatedAt) {
         data.generatedAt = new Date(data.generatedAt);
     }
     data.needsYou = data.needsYou.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
+    data.blockers = data.blockers.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     data.decisions = data.decisions.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
+    data.announcements = data.announcements.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     data.openLoops = data.openLoops.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     data.highlights = data.highlights.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     return data;
