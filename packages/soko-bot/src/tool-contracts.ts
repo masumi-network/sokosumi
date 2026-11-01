@@ -989,6 +989,27 @@ const sokoBotRunSubagentInputSchema = z
   .object({ task: z.string().trim().min(1).max(4_000) })
   .strict();
 
+export const SOKO_BOT_WAIT_KINDS = [
+  "studio_job",
+  "background_run",
+  "chat_reply",
+] as const;
+
+export const sokoBotWaitForInputSchema = z
+  .object({
+    /** studio_job: an image or video; background_run: a run; chat_reply: a room. */
+    kind: z.enum(SOKO_BOT_WAIT_KINDS),
+    /** The jobId from generate_image/generate_video, the runId, or the roomId. */
+    id: z.string().trim().min(1),
+    /** The Project of a studio_job. */
+    projectId: z.string().trim().min(1).optional(),
+    /** What to do once it is done, with every id it needs. */
+    then: z.string().trim().min(1).max(2_000),
+    /** How long to wait at most; then the plan runs with what there is. */
+    timeoutMinutes: z.number().int().min(1).max(1_440).optional(),
+  })
+  .strict();
+
 export const sokoBotStartBackgroundRunInputSchema = z
   .object({
     /** Short name the owner sees, e.g. "Gmail CRM, Oct 2023 – Oct 2026". */
@@ -1035,6 +1056,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
     search: z.string().trim().min(1).max(254).optional(),
   }),
   start_background_run: sokoBotStartBackgroundRunInputSchema,
+  wait_for: sokoBotWaitForInputSchema,
   list_background_runs: z.object({}).strict(),
   stop_background_run: backgroundRunRefSchema,
   list_project_social_accounts: socialProjectInputSchema,
@@ -1183,6 +1205,8 @@ const ADS_NEVER_CONNECT = `Ads run only through the Project's connected ad accou
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   start_background_run:
     "Start work that takes longer than a few minutes as a background run: it gets your tools, its own computer and up to six hours, while you keep talking with the owner. Use it for bulk work — going through months of email, building or filling a large table, research across many sources, hiring Agents and waiting for their results. Write a complete brief: the goal, what done looks like, where results go (a Files table, a Task, a chat message) and any ids; the run does not see this conversation. Tell the owner it has started. When it finishes, its final answer is posted in this chat. At most three run at once.",
+  wait_for:
+    'Wait for something without blocking, then act on it: an image or video you started (kind studio_job, its jobId and projectId), a background run (background_run, its runId), or the next answer in a chat room (chat_reply, its roomId, for example after ask_coworker). Core checks every minute; once it is done, or after timeoutMinutes (default 60), it starts a follow-up with your current tools that gets the result and your `then`, and posts its answer in this chat. Put everything the next step needs in `then`, with ids. "Here" or "this chat" means the chat you are talking in right now: the follow-up\'s own answer appears there, so write "show the image here with one sentence" and never post_chat it into another room. Name another room only when the owner named it in this message ("post it in #Sokosumi, room <roomId>"). After calling it, end your turn and tell the owner in one sentence what happens when it is done. Never wait with `bash` `sleep` or poll in a loop. When the owner said "once X is done, do Y", that is their go-ahead for Y: put Y in `then` and do not ask again.',
   list_background_runs:
     "Your background runs, newest first: title, status, when it started and must end, its latest plan, and its final answer once done. Use it when the owner asks how a long job is going.",
   stop_background_run:
@@ -1275,7 +1299,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   open_direct_chat:
     "Write to a person in your owner\u2019s organization who is not already in a room with you. Name them the way your owner did \u2014 a name or an email address \u2014 and give the message to send; the chat is opened and your message posted together. Nobody can leave a direct chat once it exists, so write only when you have something worth that person\u2019s attention, and open by saying who you are and who you work for.",
   ask_coworker:
-    "Ask one to three AI Coworkers a question in a private group chat with your owner, before you give them work: can they do it, what would they need, how long or how much. The chat is opened (or the existing one with exactly these Coworkers reused) and your question posted with each Coworker mentioned; each answers there within a few minutes. Wait with `bash` `sleep 60`, then `read_chat` the returned roomId until every Coworker has answered; a follow-up goes in the same room with `post_chat`, mentioning the Coworker as `@slug`. Answers are claims, not commitments: the work itself still goes in a Task. Only for your owner's own requests.",
+    "Ask one to three AI Coworkers a question in a private group chat with your owner, before you give them work: can they do it, what would they need, how long or how much. The chat is opened (or the existing one with exactly these Coworkers reused) and your question posted with each Coworker mentioned; each answers there within a few minutes. To wait for the answers, call wait_for with kind chat_reply and the returned roomId, saying in `then` what you will do with them, and end your turn; a follow-up goes in the same room with `post_chat`, mentioning the Coworker as `@slug`. Answers are claims, not commitments: the work itself still goes in a Task. Only for your owner's own requests.",
   list_tables:
     "Discover live tables in the authorized workspace. Include the assigned taskId for task-driven work; selected tasks discover only their table. Reuse an existing table for follow-ups; paginate rather than loading everything.",
   read_table:
@@ -1307,11 +1331,11 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
   generate_image:
-    "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. To show a real product, pass up to four of the owner's image Files as referenceFileIds (a product photo) and say in the prompt what to keep from them. Generation takes a minute; check it with get_image.",
+    "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. To show a real product, pass up to four of the owner's image Files as referenceFileIds (a product photo) and say in the prompt what to keep from them. Generation takes a minute: to act on the result (post it, use it in a social post), call wait_for with its jobId and end your turn; get_image tells you where it stands now.",
   get_image:
     "Check an image started with generate_image: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as media in create_social_post or update_social_post. A variation or edit is a new generate_image with a new prompt; there is no in-place edit.",
   generate_video:
-    "Generate a short video (5, 10 or 15 seconds; 9:16 by default for Reels, Shorts and TikTok) in a Project's Content Studio from a prompt, or animate a finished image by passing its generate_image jobId as imageJobId. It spends the owner's credits: set maxCredits, and it refuses when the video would cost more. Only for a request the owner made in this chat. Generation takes a few minutes; check it with get_video.",
+    "Generate a short video (5, 10 or 15 seconds; 9:16 by default for Reels, Shorts and TikTok) in a Project's Content Studio from a prompt, or animate a finished image by passing its generate_image jobId as imageJobId. It spends the owner's credits: set maxCredits, and it refuses when the video would cost more. Only for a request the owner made in this chat. Generation takes a few minutes: to act on the result, call wait_for with its jobId and end your turn; get_video tells you where it stands now.",
   get_video:
     "Check a video started with generate_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
   read_file:

@@ -121,6 +121,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
+  "wait_for",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -235,6 +236,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "delete_ad_campaign",
   // A brief is a prompt for a turn with this one's tools; a page must not write it.
   "start_background_run",
+  "wait_for",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -335,6 +337,7 @@ const BACKGROUND_RUN_CAPABILITIES = [
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */
 const SCHEDULE_CAPABILITIES = [
+  "wait_for",
   "create_schedule",
   "update_schedule",
   "manage_reminder",
@@ -544,7 +547,7 @@ export function capabilitiesForClassification(
   > = {
     MEMORY: ["update_memory", ...SKILL_CAPABILITIES],
     SCHEDULE: SCHEDULE_CAPABILITIES,
-    CHAT: ["post_chat", "open_direct_chat", "ask_coworker"],
+    CHAT: ["post_chat", "open_direct_chat", "ask_coworker", "wait_for"],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",
@@ -552,6 +555,7 @@ export function capabilitiesForClassification(
       "save_email_attachment",
       "generate_image",
       "generate_video",
+      "wait_for",
       "create_table",
       "write_table_rows",
       "update_table_columns",

@@ -6824,6 +6824,13 @@ export class SokoBotRuntimeService {
       case "edit_ad_campaign":
       case "delete_ad_campaign":
         return this.executeAdsTool(input, authorized);
+      case "wait_for": {
+        const watches = await import("@/services/soko-bot-watches.service");
+        return watches.registerWatch(
+          authorized,
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.wait_for.parse(input.input),
+        );
+      }
       case "start_background_run":
       case "list_background_runs":
       case "stop_background_run": {
