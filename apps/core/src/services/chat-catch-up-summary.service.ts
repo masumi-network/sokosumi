@@ -3,6 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { buildChatMessagePreview, readChatMentionKeys } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { z } from "zod";
+import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import {
   CHAT_CATCH_UP_BUCKETS,
   type ChatCatchUpBucket,
@@ -421,8 +422,8 @@ interface BucketedMessage {
  * The written topics over what is still unread, then every message that asks
  * something of the reader, blocks, decides or announces and no topic covers,
  * as a topic of its own: without the model, the briefing still lists them.
- * What waits on the reader comes first; a topic waits on them only when Jev
- * tagged a message in it as needing them.
+ * What waits on the reader comes first; a topic Jev tagged a message in as
+ * needing them always does, whatever the model called it.
  */
 export function buildChatCatchUpTopics(
   written: ChatCatchUpSummaryText["topics"],
@@ -450,11 +451,7 @@ export function buildChatCatchUpTopics(
       id: first.message.id,
       title: text.title,
       summary: text.summary,
-      status: waits
-        ? "waitingOnYou"
-        : text.status === "waitingOnYou"
-          ? "inProgress"
-          : text.status,
+      status: waits ? "waitingOnYou" : text.status,
       roomId: first.room.id,
       roomName: roomName(first.room),
       roomKind: first.room.kind,
@@ -494,6 +491,27 @@ export function buildChatCatchUpTopics(
     )
     .slice(0, MAX_TOPICS)
     .map(({ item }) => item);
+}
+
+/**
+ * Gives each direct room the name the reader's sidebar shows: the stored name
+ * is a snapshot from its creator's side, so it can name the reader themselves.
+ */
+async function nameDirectRooms(
+  rooms: readonly Room[],
+  userId: string,
+): Promise<void> {
+  await Promise.all(
+    [...new Set(rooms)]
+      .filter((room) => room.kind === "direct")
+      .map(async (room) => {
+        const names = await loadDirectRoomNamesByReader({
+          roomId: room.id,
+          readerUserIds: [userId],
+        });
+        room.groupName = names.get(userId) ?? room.groupName;
+      }),
+  );
 }
 
 /** How much is unread per room, and since when the reader has been away. */
@@ -637,6 +655,12 @@ export async function getChatCatchUpSummary(
     listChatOpenLoops(input.userId, input.organizationId),
     unreadOverview(rooms, input.userId),
   ]);
+  await nameDirectRooms(
+    [...overview.counts.keys(), ...loops.map((loop) => loop.room.id)].flatMap(
+      (roomId) => roomById.get(roomId) ?? [],
+    ),
+    input.userId,
+  );
   const names = await mentionNames([
     ...messages.map((message) => message.content),
     ...loops.map((loop) => loop.message.content),
