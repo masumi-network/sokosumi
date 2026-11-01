@@ -495,6 +495,35 @@ export const sokoBotUpdateContactInputSchema = contactFieldsSchema
   })
   .strict();
 
+const projectBriefingSchema = z.string().trim().max(20_000);
+const projectWebsiteSchema = z
+  .url({ protocol: /^https?$/ })
+  .max(2048)
+  .describe("The project's website, http or https");
+
+export const sokoBotCreateProjectInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    briefing: projectBriefingSchema.optional(),
+    websiteUrl: projectWebsiteSchema.optional(),
+  })
+  .strict();
+
+export const sokoBotUpdateProjectInputSchema = z
+  .object({
+    projectId: z.uuid(),
+    name: z.string().trim().min(1).max(200).optional(),
+    /** Replaces the whole briefing; null clears it. */
+    briefing: projectBriefingSchema.nullable().optional(),
+    websiteUrl: projectWebsiteSchema.nullable().optional(),
+  })
+  .strict()
+  .refine(
+    ({ name, briefing, websiteUrl }) =>
+      name !== undefined || briefing !== undefined || websiteUrl !== undefined,
+    { message: "Give name, briefing or websiteUrl to change" },
+  );
+
 export const sokoBotManageContactListsInputSchema = z
   .object({
     action: z.enum(["create", "update", "delete", "add", "remove"]),
@@ -1140,6 +1169,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
     .strict(),
   merge_contacts: mergeContactsSchema,
   manage_contact_lists: sokoBotManageContactListsInputSchema,
+  create_project: sokoBotCreateProjectInputSchema,
+  update_project: sokoBotUpdateProjectInputSchema,
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_chats: emptyInputSchema,
@@ -1328,6 +1359,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Fold duplicates into one contact: channels, interactions, lists and history move to winnerId, its empty fields are filled from the others in order, and the others stay as tombstones. Only merge when you are sure it is one person.",
   manage_contact_lists:
     "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
+  create_project:
+    "Create a Project in the workspace when someone asks for one: a name, and the briefing (what it is for, its goals and audience) and website when you know them. First check your context for a Project with that name and use it instead of making a second one.",
+  update_project:
+    "Rename a Project or change its briefing or website. briefing replaces the whole text, so read it from your context first and keep what still holds; null clears it. Closing or deleting a Project stays with a person on the Project page.",
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
   generate_image:

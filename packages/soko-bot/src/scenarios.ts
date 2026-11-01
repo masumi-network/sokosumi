@@ -881,6 +881,8 @@ const MUTATING_TOOLS = new Set([
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "create_project",
+  "update_project",
   "upload_file",
   "run_integration_tool",
   "create_schedule",
