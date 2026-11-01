@@ -8,8 +8,7 @@ import {
   CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
 import {
-  highlightRoomTranscriptMessage,
-  highlightThreadMessage,
+  highlightListMessage,
   ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE,
   ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS,
   ROOM_MESSAGE_HIGHLIGHT_MS,
@@ -68,7 +67,7 @@ describe("room message highlight", () => {
   it("scrolls the landed message into view instantly and marks it", () => {
     const article = row("msg-1");
 
-    expect(highlightRoomTranscriptMessage("msg-1")).toBe(true);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-1")).toBe(true);
 
     expect(article.scrollIntoView).toHaveBeenCalledWith({
       behavior: "auto",
@@ -81,7 +80,9 @@ describe("room message highlight", () => {
   });
 
   it("reports false for a message that is not rendered", () => {
-    expect(highlightRoomTranscriptMessage("msg-missing")).toBe(false);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-missing")).toBe(
+      false,
+    );
   });
 
   /**
@@ -99,8 +100,8 @@ describe("room message highlight", () => {
       return rect;
     });
 
-    highlightRoomTranscriptMessage("msg-40");
-    highlightRoomTranscriptMessage("msg-40");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-40");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-40");
 
     expect(markWhenRead).toEqual([undefined, undefined]);
     expect(article.dataset.searchLanded).toBe("true");
@@ -110,7 +111,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-3");
 
-    highlightRoomTranscriptMessage("msg-3");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-3");
     expect(article.dataset.searchLanded).toBe("true");
 
     vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS - 1);
@@ -124,7 +125,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-50");
 
-    highlightRoomTranscriptMessage("msg-50");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-50");
     vi.advanceTimersByTime(
       Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
     );
@@ -144,7 +145,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-51");
 
-    highlightRoomTranscriptMessage("msg-51");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-51");
     vi.advanceTimersByTime(
       Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
     );
@@ -162,7 +163,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-57");
 
-    highlightRoomTranscriptMessage("msg-57");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-57");
     vi.advanceTimersByTime(
       Math.ceil(
         ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE,
@@ -182,7 +183,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-59");
 
-    highlightRoomTranscriptMessage("msg-59");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-59");
     vi.advanceTimersByTime(
       Math.floor(
         ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE,
@@ -197,7 +198,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-60");
 
-    highlightRoomTranscriptMessage("msg-60");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-60");
     vi.advanceTimersByTime(
       Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
     );
@@ -214,7 +215,7 @@ describe("room message highlight", () => {
     vi.useFakeTimers();
     const article = row("msg-58");
 
-    highlightRoomTranscriptMessage("msg-58");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-58");
     vi.advanceTimersByTime(
       Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
     );
@@ -236,7 +237,7 @@ describe("room message highlight", () => {
     const article = row("msg-52");
     const scroller = scrollerAround();
 
-    highlightRoomTranscriptMessage("msg-52");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-52");
     scroller.dispatchEvent(new Event("scroll"));
     article.dispatchEvent(new Event("scroll"));
 
@@ -254,8 +255,8 @@ describe("room message highlight", () => {
     const parent = row("msg-53", CHAT_MESSAGE_LIST_ROOM);
     const reply = row("msg-54", CHAT_MESSAGE_LIST_THREAD);
 
-    highlightRoomTranscriptMessage("msg-53");
-    highlightThreadMessage("msg-54");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-53");
+    highlightListMessage(CHAT_MESSAGE_LIST_THREAD, "msg-54");
     vi.advanceTimersByTime(
       Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
     );
@@ -274,7 +275,7 @@ describe("room message highlight", () => {
     const article = row("msg-55");
     scrollerAround();
 
-    highlightRoomTranscriptMessage("msg-55");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-55");
     document.dispatchEvent(new Event("wheel"));
     document.body.dispatchEvent(new Event("wheel"));
 
@@ -293,7 +294,7 @@ describe("room message highlight", () => {
     const removed = vi.spyOn(window, "removeEventListener");
     row("msg-56");
 
-    highlightRoomTranscriptMessage("msg-56");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-56");
     vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS);
 
     const watched = added.mock.calls.filter(
@@ -311,9 +312,9 @@ describe("room message highlight", () => {
     const first = row("msg-4", CHAT_MESSAGE_LIST_ROOM);
     const second = row("msg-5", CHAT_MESSAGE_LIST_ROOM);
 
-    highlightRoomTranscriptMessage("msg-4");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-4");
     vi.advanceTimersByTime(1000);
-    highlightRoomTranscriptMessage("msg-5");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-5");
 
     expect(first.dataset.searchLanded).toBeUndefined();
     expect(second.dataset.searchLanded).toBe("true");
@@ -337,7 +338,7 @@ describe("room message highlight", () => {
     const thread = row("msg-10", CHAT_MESSAGE_LIST_THREAD);
     const room = row("msg-10", CHAT_MESSAGE_LIST_ROOM);
 
-    expect(highlightRoomTranscriptMessage("msg-10")).toBe(true);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-10")).toBe(true);
 
     expect(room.scrollIntoView).toHaveBeenCalledWith({
       behavior: "auto",
@@ -351,30 +352,32 @@ describe("room message highlight", () => {
   it("reports false for a parent the transcript has not loaded", () => {
     row("msg-12", CHAT_MESSAGE_LIST_ROOM);
 
-    expect(highlightRoomTranscriptMessage("msg-13")).toBe(false);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-13")).toBe(false);
   });
 
   /**
-   * Both lists render a thread's parent. Each function answers for its own
-   * list, so which copy a jump lands on never rests on where the panel sits in
-   * the document.
+   * Both lists render a thread's parent. The list name picks that copy, so
+   * which row a jump lands on never rests on where the panel sits in the
+   * document.
    */
   it("keeps the two copies of a parent apart", () => {
     const thread = row("msg-30", CHAT_MESSAGE_LIST_THREAD);
     const room = row("msg-30", CHAT_MESSAGE_LIST_ROOM);
 
-    expect(highlightRoomTranscriptMessage("msg-30")).toBe(true);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-30")).toBe(true);
     expect(room.dataset.searchLanded).toBe("true");
     expect(thread.dataset.searchLanded).toBeUndefined();
 
-    expect(highlightThreadMessage("msg-30")).toBe(true);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_THREAD, "msg-30")).toBe(true);
     expect(thread.dataset.searchLanded).toBe("true");
   });
 
   it("reports false for a reply the thread has not loaded", () => {
     row("msg-31", CHAT_MESSAGE_LIST_THREAD);
 
-    expect(highlightThreadMessage("msg-32")).toBe(false);
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_THREAD, "msg-32")).toBe(
+      false,
+    );
   });
 
   /**
@@ -386,8 +389,8 @@ describe("room message highlight", () => {
     const parent = row("msg-20", CHAT_MESSAGE_LIST_ROOM);
     const reply = row("msg-21", CHAT_MESSAGE_LIST_THREAD);
 
-    highlightThreadMessage("msg-21");
-    highlightRoomTranscriptMessage("msg-20");
+    highlightListMessage(CHAT_MESSAGE_LIST_THREAD, "msg-21");
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-20");
 
     expect(reply.dataset.searchLanded).toBe("true");
     expect(parent.dataset.searchLanded).toBe("true");
