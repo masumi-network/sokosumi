@@ -8878,10 +8878,8 @@
       },
       "HowItWorks": {
         "title": "How it works",
-        "description": "What it does on its own, and when.",
-        "rhythms": "Rhythms",
-        "triggers": "Triggers",
-        "paused": "Paused"
+        "description": "What makes it act on its own.",
+        "triggers": "Triggers"
       },
       "Integrations": {
         "connected": "Account connected.",

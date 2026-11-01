@@ -55,6 +55,7 @@ export async function getSokoBotActivity(
   status: string;
   activeTurnId: string | null;
   lastTurnAt: Date | null;
+  lastActivityAt: Date | null;
   avatarState: AvatarState;
 } | null> {
   const where = await stateWhere(viewerUserId, workspaceId, selector);
@@ -69,6 +70,7 @@ export async function getSokoBotActivity(
       id: true,
       status: true,
       lastTurnAt: true,
+      lastActivityAt: true,
       archivedAt: true,
       adminPausedAt: true,
       pendingDecisions: avatarStateRelations().pendingDecisions,
@@ -98,6 +100,7 @@ export async function getSokoBotActivity(
     status: bot.status,
     activeTurnId: activeTurn?.id ?? null,
     lastTurnAt: bot.lastTurnAt,
+    lastActivityAt: bot.lastActivityAt,
     avatarState: deriveAvatarState({
       status: bot.status,
       archivedAt: bot.archivedAt,
