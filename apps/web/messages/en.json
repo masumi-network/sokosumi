@@ -8560,6 +8560,7 @@
           "waitingOnYou": "Waiting on you",
           "whileAway": "What happened",
           "stillOpen": "Still open",
+          "mentionedYou": "{name} mentioned you:",
           "unreadInRoom": "{count} unread",
           "messages": "{count, plural, one {# message} other {# messages}}",
           "open": "Open",

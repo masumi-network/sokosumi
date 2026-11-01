@@ -197,6 +197,8 @@ export interface ChatCatchUpSummary {
     roomKind: string;
     unreadCount: number;
     latest: ChatCatchUpItem | null;
+    /** `latest` is an unread message that names the reader. */
+    mentionsYou: boolean;
   }[];
   generatedAt: Date | null;
   needsYou: ChatCatchUpItem[];
@@ -523,26 +525,69 @@ async function nameDirectRooms(
   );
 }
 
+/** The newest unread message naming the reader in each room, Thread replies too. */
+async function unreadMentions(
+  roomIds: readonly string[],
+  userId: string,
+): Promise<Map<string, SummaryMessage>> {
+  if (roomIds.length === 0) return new Map();
+  const user = `$${roomIds.length + 1}`;
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT DISTINCT ON (m."roomId") m.id
+    FROM "chat_room_user_mention" um
+    INNER JOIN "chat_room_message" m ON m.id = um."messageId"
+    LEFT JOIN "chat_room_read_state" room_read
+      ON room_read."roomId" = m."roomId" AND room_read."userId" = ${user}
+    LEFT JOIN "chat_room_thread_read_state" thread_read
+      ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${user}
+    WHERE um."userId" = ${user}
+      AND m."roomId" IN (${roomIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
+      AND m."deletedAt" IS NULL
+      AND (m."senderUserId" IS NULL OR m."senderUserId" <> ${user})
+      AND (
+        (m."parentMessageId" IS NULL
+          AND m."createdAt" > COALESCE(room_read."lastReadAt", '-infinity'::timestamp))
+        OR (m."parentMessageId" IS NOT NULL
+          AND m."createdAt" > COALESCE(thread_read."lastReadAt", room_read."createdAt", '-infinity'::timestamp))
+      )
+    ORDER BY m."roomId", m."createdAt" DESC`,
+    ...roomIds,
+    userId,
+  );
+  const messages = await prisma.chatRoomMessage.findMany({
+    where: { id: { in: rows.map((row) => row.id) } },
+    select: messageSelect,
+  });
+  return new Map(messages.map((message) => [message.roomId, message]));
+}
+
 /**
- * Each quiet room with its newest top-level message from someone else, Directs
- * first, then the most recent first.
+ * Each quiet room with the unread message that names the reader, else its
+ * newest top-level message from someone else. Mentions first, then Directs,
+ * then the most recent.
  */
 async function withLatestMessages(
   rooms: readonly { room: Room; unreadCount: number }[],
   userId: string,
 ): Promise<ChatCatchUpSummary["quietRooms"]> {
+  const mentions = await unreadMentions(
+    rooms.map(({ room }) => room.id),
+    userId,
+  );
   const latest = await Promise.all(
-    rooms.map(({ room }) =>
-      prisma.chatRoomMessage.findFirst({
-        where: {
-          roomId: room.id,
-          parentMessageId: null,
-          deletedAt: null,
-          OR: [{ senderUserId: null }, { senderUserId: { not: userId } }],
-        },
-        orderBy: { createdAt: "desc" },
-        select: messageSelect,
-      }),
+    rooms.map(
+      ({ room }) =>
+        mentions.get(room.id) ??
+        prisma.chatRoomMessage.findFirst({
+          where: {
+            roomId: room.id,
+            parentMessageId: null,
+            deletedAt: null,
+            OR: [{ senderUserId: null }, { senderUserId: { not: userId } }],
+          },
+          orderBy: { createdAt: "desc" },
+          select: messageSelect,
+        }),
     ),
   );
   const names = await mentionNames(
@@ -557,10 +602,12 @@ async function withLatestMessages(
         roomKind: room.kind,
         unreadCount,
         latest: message ? toItem(message, room, "fyi", names) : null,
+        mentionsYou: mentions.has(room.id),
       };
     })
     .sort(
       (a, b) =>
+        Number(b.mentionsYou) - Number(a.mentionsYou) ||
         Number(b.roomKind === "direct") - Number(a.roomKind === "direct") ||
         (b.latest?.createdAt.getTime() ?? 0) -
           (a.latest?.createdAt.getTime() ?? 0),
