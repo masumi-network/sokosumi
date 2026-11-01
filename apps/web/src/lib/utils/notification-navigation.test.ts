@@ -201,6 +201,28 @@ describe("handleNotificationNavigation", () => {
     };
 
     it.each([
+      ["a Channel", room, "org_2"],
+      ["a private Channel", { ...room, discoverability: "private" }, "org_2"],
+      [
+        "a coworker Direct",
+        {
+          ...room,
+          kind: "direct",
+          discoverability: null,
+          coworkerMembers: [{ id: "coworker_1" }],
+        },
+        "org_2",
+      ],
+      [
+        "a Soko Bot Direct",
+        {
+          ...room,
+          kind: "direct",
+          discoverability: null,
+          sokoBotMembers: [{ id: "soko_bot_1" }],
+        },
+        "org_2",
+      ],
       [
         "an External channel",
         { ...room, discoverability: "external" },
@@ -212,7 +234,7 @@ describe("handleNotificationNavigation", () => {
         null,
       ],
     ])(
-      "opens %s in the current workspace",
+      "opens %s of another workspace as a Room visit, with no switch or notice",
       async (_label, chatRoom, activeOrgId) => {
         getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
         getChatRoomMock.mockResolvedValueOnce({ data: chatRoom });
@@ -225,28 +247,20 @@ describe("handleNotificationNavigation", () => {
           t,
         );
 
-        expect(getChatRoomMock).toHaveBeenCalledWith("room_1");
         expect(handleSelectWorkspace).not.toHaveBeenCalled();
+        expect(t).not.toHaveBeenCalledWith(
+          "switchedWorkspace",
+          expect.anything(),
+        );
         expect(pushMock).toHaveBeenCalledWith(
           "/chat/rooms/room_1?message=message_1",
         );
       },
     );
 
-    it.each([
-      ["a Channel", room],
-      [
-        "an AI 1:1",
-        {
-          ...room,
-          kind: "direct",
-          discoverability: null,
-          coworkerMembers: [{ id: "coworker_1" }],
-        },
-      ],
-    ])("still switches to the workspace of %s", async (_label, chatRoom) => {
+    it("switches with the usual notice for a room the reader has left", async () => {
       getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
-      getChatRoomMock.mockResolvedValueOnce({ data: chatRoom });
+      getChatRoomMock.mockRejectedValueOnce(new Error("Room not found"));
 
       await handleNotificationNavigation(
         chatNotification,
@@ -264,24 +278,32 @@ describe("handleNotificationNavigation", () => {
         "/chat/rooms/room_1?message=message_1",
       );
     });
+  });
 
-    it("switches as before when the room cannot be read", async () => {
-      getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
-      getChatRoomMock.mockRejectedValueOnce(new Error("not found"));
+  it("switches with the usual notice for a job notification", async () => {
+    getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
 
-      await handleNotificationNavigation(
-        chatNotification,
-        "org_2",
-        router,
-        handleSelectWorkspace,
-        t,
-      );
+    await handleNotificationNavigation(
+      createNotification({
+        kind: "JOB",
+        referenceId: "job_1",
+        messageKey: "Notifications.Job.completed",
+        metadata: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          agentId: "agent_1",
+        },
+      }),
+      "org_2",
+      router,
+      handleSelectWorkspace,
+      t,
+    );
 
-      expect(handleSelectWorkspace).toHaveBeenCalled();
-      expect(pushMock).toHaveBeenCalledWith(
-        "/chat/rooms/room_1?message=message_1",
-      );
+    expect(handleSelectWorkspace).toHaveBeenCalledWith("org_1", {
+      shouldRedirectAgentJobsBasePath: false,
+      successMessage: "switched:Org One",
     });
+    expect(pushMock).toHaveBeenCalledWith("/agents/agent_1/jobs/job_1");
   });
 
   it("deep-links pending vendor grant and switches workspace when needed", async () => {

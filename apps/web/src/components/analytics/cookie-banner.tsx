@@ -210,7 +210,7 @@ function Category({
     >
       <input
         type="checkbox"
-        className="accent-primary mt-1 size-4"
+        className="accent-foreground mt-1 size-4"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.checked)}

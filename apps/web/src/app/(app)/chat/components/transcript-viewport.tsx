@@ -790,7 +790,7 @@ export function TranscriptViewport({
             type="button"
             variant="outline"
             size="sm"
-            className="text-primary border-primary-tertiary bg-background hover:bg-primary-quaternary hover:text-foreground dark:bg-background dark:hover:bg-primary-quaternary pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
+            className="text-foreground border-border bg-background hover:bg-quinary dark:bg-background dark:hover:bg-quinary pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
             onClick={() => {
               // Ends a restore still placing its anchor, which would pull
               // the view back up.

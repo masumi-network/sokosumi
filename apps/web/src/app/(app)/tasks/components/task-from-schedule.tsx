@@ -45,7 +45,7 @@ export async function TaskFromSchedule({ scheduleId }: { scheduleId: string }) {
     <Link
       href={taskSchedulePath(schedule.id)}
       title={`${rule} · ${status}`}
-      className="hover:text-primary flex min-w-0 items-center gap-1.5 text-sm font-medium transition-colors"
+      className="hover:text-foreground flex min-w-0 items-center gap-1.5 text-sm font-medium transition-colors"
     >
       <CalendarSync
         className="text-muted-foreground size-4 shrink-0"

@@ -400,7 +400,7 @@ export function SocialPostSchedulePicker({
                   className={cn(
                     POPOVER_ROW_CLASS,
                     "px-2 py-1.5 text-start text-sm tabular-nums",
-                    isSelected && "bg-primary-quinary font-medium",
+                    isSelected && "bg-muted font-medium",
                     tooSoon &&
                       "text-muted-foreground pointer-events-none opacity-50",
                   )}

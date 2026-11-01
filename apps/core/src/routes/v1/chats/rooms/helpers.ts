@@ -88,27 +88,57 @@ type ChatRoomPresence = "online" | "afk" | "offline";
 export function membershipVisibleActiveRoomWhere(
   organizationId: string | null | undefined,
 ) {
-  const shownEverywhere = [
-    { kind: "channel" as const, discoverability: "external" as const },
-    {
-      organizationId: null,
-      kind: "channel" as const,
-      discoverability: "matched" as const,
-    },
-    {
-      organizationId: null,
-      kind: "direct" as const,
-      coworkerMembers: { none: {} },
-      sokoBotMembers: { none: {} },
-    },
-  ];
   return {
     archivedAt: null,
     OR: [
       organizationId
         ? { organizationId }
         : { organizationId: null, kind: "direct" as const },
-      ...shownEverywhere,
+      ...ROOMS_SHOWN_EVERYWHERE,
+    ],
+  };
+}
+
+const ROOMS_SHOWN_EVERYWHERE = [
+  { kind: "channel" as const, discoverability: "external" as const },
+  {
+    organizationId: null,
+    kind: "channel" as const,
+    discoverability: "matched" as const,
+  },
+  {
+    organizationId: null,
+    kind: "direct" as const,
+    coworkerMembers: { none: {} },
+    sokoBotMembers: { none: {} },
+  },
+];
+
+/**
+ * The live rooms another workspace shows and this one's sidebar does not: the
+ * complement of `membershipVisibleActiveRoomWhere` (ADR-0061). The caller adds
+ * the membership check.
+ *
+ * Not a `NOT` over that filter's `OR`: `organizationId` is nullable, and SQL's
+ * `NOT (NULL = 'org')` is not true, so it would drop every personal room.
+ */
+export function elsewhereActiveRoomWhere(
+  organizationId: string | null | undefined,
+) {
+  return {
+    archivedAt: null,
+    AND: [
+      organizationId
+        ? { OR: [{ organizationId: null }, { NOT: { organizationId } }] }
+        : { NOT: { organizationId: null, kind: "direct" as const } },
+      // The same trap: a channel's `discoverability` is nullable, and a NULL one
+      // would answer the `NOT` below with NULL and lose the room.
+      {
+        OR: [
+          { kind: "channel" as const, discoverability: null },
+          { NOT: { OR: ROOMS_SHOWN_EVERYWHERE } },
+        ],
+      },
     ],
   };
 }
@@ -289,6 +319,10 @@ export interface MapChatRoomAttentionOptions {
   myAccess?: "member" | "guest";
   /** Host org display name when batch-loaded (Task 5+); null for directs. */
   organizationName?: string | null;
+  /** Host org logo when batch-loaded for the sidebar's Workspace tile. */
+  organizationLogo?: string | null;
+  /** Host org website when batch-loaded for the sidebar's Workspace tile. */
+  organizationWebsiteUrl?: string | null;
   /** Other humans on this Direct are Members of the caller's active org. */
   peerInActiveOrganization?: boolean;
   /** Profiles of this Direct's former members, from `loadFormerDirectUserMembers`. */
@@ -337,6 +371,8 @@ export function mapChatRoom(
     markedUnread = false,
     myAccess: myAccessOverride,
     organizationName = null,
+    organizationLogo,
+    organizationWebsiteUrl,
     peerInActiveOrganization = false,
     formerUserMembers = [],
   } = attention;
@@ -354,6 +390,8 @@ export function mapChatRoom(
     id: room.id,
     organizationId: room.organizationId,
     organizationName,
+    organizationLogo,
+    organizationWebsiteUrl,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",

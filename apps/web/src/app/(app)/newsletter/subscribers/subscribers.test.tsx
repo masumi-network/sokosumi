@@ -166,6 +166,42 @@ beforeEach(() => {
 });
 
 describe("newsletter subscribers", () => {
+  it.each(["en", "de", "es"] as const)(
+    "labels subscriber card metadata in %s",
+    (locale) => {
+      const copy = { en, de, es }[locale].App.Projects.Newsletter.Subscribers;
+      const email = `${"long-address".repeat(6)}@example.com`;
+      renderSubscribers({
+        locale,
+        data: { ...DATA, subscribers: [{ ...PERSON, email }] },
+      });
+      const card = within(
+        within(screen.getByRole("list", { name: copy.title })).getByRole(
+          "listitem",
+        ),
+      );
+      expect(card.getByRole("heading", { name: email })).toBeInTheDocument();
+      expect(card.getByText(copy.statuses.ACTIVE)).toBeInTheDocument();
+      expect(card.getByText(copy.columns.source).tagName).toBe("DT");
+      expect(card.getByText(copy.sources.MANUAL).tagName).toBe("DD");
+      expect(card.getByText(copy.columns.subscribedAt).tagName).toBe("DT");
+      expect(
+        card.getByText(copy.columns.subscribedAt).nextElementSibling,
+      ).toHaveTextContent("2026");
+    },
+  );
+
+  it("keeps a zero-result card and filter recovery when the audience exists", () => {
+    renderSubscribers({
+      data: { ...DATA, subscribers: [] },
+      searchParams: "?search=missing",
+    });
+    const cards = within(screen.getByRole("list", { name: COPY.title }));
+    expect(cards.getByText("No matching subscribers")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: COPY.clearFilters }),
+    ).toBeEnabled();
+  });
   it.each([
     NewsletterSubscriberStatus.UNSUBSCRIBED,
     NewsletterSubscriberStatus.BOUNCED,
@@ -244,10 +280,14 @@ describe("newsletter subscribers", () => {
         ],
       },
     });
-    expect(screen.getByRole("link", { name: "Ada Lovelace" })).toHaveAttribute(
-      "href",
-      "/contacts?contact=c1",
-    );
+    for (const surface of [
+      screen.getByRole("table"),
+      screen.getByRole("list", { name: COPY.title }),
+    ]) {
+      expect(
+        within(surface).getByRole("link", { name: "Ada Lovelace" }),
+      ).toHaveAttribute("href", "/contacts?contact=c1");
+    }
     expect(
       screen.getByRole("link", { name: COPY.openContactList }),
     ).toHaveAttribute("href", "/contacts?list=list1");
@@ -256,7 +296,9 @@ describe("newsletter subscribers", () => {
 
   it("keeps names without a contact as plain text", () => {
     renderSubscribers();
-    expect(screen.getByText("Ada")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: COPY.title })).getByText("Ada"),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ada" })).not.toBeInTheDocument();
   });
 
@@ -611,22 +653,32 @@ describe("newsletter subscribers", () => {
     );
   });
 
-  it("unsubscribes an active subscriber", async () => {
-    const user = userEvent.setup();
-    renderSubscribers({
-      data: { ...DATA, subscribers: [PERSON] },
-    });
-    await user.click(
-      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
-    );
-    await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
-    expect(mocks.status).toHaveBeenCalledWith({
-      projectId: "p1",
-      subscriberId: PERSON.id,
-      status: NewsletterSubscriberStatus.UNSUBSCRIBED,
-    });
-    expect(mocks.refresh).toHaveBeenCalled();
-  });
+  it.each(["list", "table"] as const)(
+    "unsubscribes an active subscriber from the %s",
+    async (surface) => {
+      const user = userEvent.setup();
+      renderSubscribers({
+        data: { ...DATA, subscribers: [PERSON] },
+      });
+      await user.click(
+        within(
+          screen.getByRole(
+            surface,
+            surface === "list" ? { name: COPY.title } : undefined,
+          ),
+        ).getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
+      );
+      await user.click(
+        screen.getByRole("menuitem", { name: COPY.unsubscribe }),
+      );
+      expect(mocks.status).toHaveBeenCalledWith({
+        projectId: "p1",
+        subscriberId: PERSON.id,
+        status: NewsletterSubscriberStatus.UNSUBSCRIBED,
+      });
+      expect(mocks.refresh).toHaveBeenCalled();
+    },
+  );
 
   it("offers removal only for a pending subscriber", async () => {
     const user = userEvent.setup();
@@ -639,7 +691,10 @@ describe("newsletter subscribers", () => {
       },
     });
     await user.click(
-      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
+      within(screen.getByRole("list", { name: COPY.title })).getByRole(
+        "button",
+        { name: `Manage subscriber ${PERSON.email}` },
+      ),
     );
     expect(screen.getAllByRole("menuitem")).toHaveLength(1);
     expect(
@@ -671,7 +726,10 @@ describe("newsletter subscribers", () => {
     const user = userEvent.setup();
     renderSubscribers();
     await user.click(
-      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
+      within(screen.getByRole("list", { name: COPY.title })).getByRole(
+        "button",
+        { name: `Manage subscriber ${PERSON.email}` },
+      ),
     );
     await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
     expect(mocks.error).toHaveBeenCalledWith(COPY.transitionError, {
@@ -689,7 +747,10 @@ describe("newsletter subscribers", () => {
     const user = userEvent.setup();
     renderSubscribers();
     await user.click(
-      screen.getByRole("button", { name: `Manage subscriber ${PERSON.email}` }),
+      within(screen.getByRole("list", { name: COPY.title })).getByRole(
+        "button",
+        { name: `Manage subscriber ${PERSON.email}` },
+      ),
     );
     await user.click(screen.getByRole("menuitem", { name: COPY.remove }));
     const dialog = within(screen.getByRole("alertdialog"));

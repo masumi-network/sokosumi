@@ -41,16 +41,16 @@ describe("NotificationRowIcon", () => {
     // at once.
     const circle = renderIcon(false);
 
-    expect(circle.className).toContain("bg-primary-quaternary");
-    expect(circle.className).toContain("text-primary");
+    expect(circle.className).toContain("bg-quinary");
+    expect(circle.className).toContain("text-foreground");
   });
 
   it("recedes on a read row", () => {
     const circle = renderIcon(true);
 
-    expect(circle.className).toContain("bg-quinary");
+    expect(circle.className).toContain("bg-muted");
     expect(circle.className).toContain("text-muted-foreground");
-    expect(circle.className).not.toContain("bg-primary-quaternary");
+    expect(circle.className).not.toContain("bg-quinary");
   });
 
   it("keeps the same geometry in both states", () => {

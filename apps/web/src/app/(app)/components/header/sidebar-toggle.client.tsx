@@ -52,7 +52,7 @@ function HiddenSidebarToggle() {
       {showUnreadDot ? (
         <span
           data-slot="sidebar-toggle-unread-dot"
-          className="bg-primary ring-sidebar absolute top-1 right-1 size-1.5 rounded-full ring-2"
+          className="bg-foreground ring-sidebar absolute top-1 right-1 size-1.5 rounded-full ring-2"
         >
           <span id={dotId} className="sr-only">
             {t("unreadChats")}

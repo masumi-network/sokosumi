@@ -142,6 +142,8 @@ describe("switchScopeHref", () => {
     for (const tab of [
       "/newsletter/issues",
       "/newsletter/subscribers",
+      "/newsletter/calendar",
+      "/newsletter/analytics",
       "/newsletter/settings",
     ]) {
       expect(scopedHref(tab, "p1")).toBe(`${tab}?projectId=p1`);

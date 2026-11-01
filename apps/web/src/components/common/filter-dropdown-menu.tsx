@@ -136,7 +136,7 @@ export function FilterDropdownMenu({
             {showActiveIndicator ? (
               <span
                 aria-hidden
-                className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+                className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
               />
             ) : null}
           </Button>
@@ -166,7 +166,7 @@ export function FilterDropdownMenu({
           {showActiveIndicator ? (
             <span
               aria-hidden
-              className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+              className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
             />
           ) : null}
         </Button>

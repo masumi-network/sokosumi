@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
+  isSokoBotNewsletterCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
@@ -467,7 +469,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it.each([true, false])(
-    "offers newsletter drafting only when availability passes: %s",
+    "offers newsletter tools only when availability passes: %s",
     async (available) => {
       newsletterDraftAvailableMock.mockResolvedValue(available);
       botFindFirstMock.mockResolvedValue(adminBot());
@@ -500,14 +502,14 @@ describe("SokoBotControlPlane lifecycle", () => {
         workspaceId: "workspace_1",
         projectId: undefined,
       });
-      expect(result.capabilities.includes("newsletter_draft_issue")).toBe(
-        available,
-      );
-      expect(
-        turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames.includes(
-          "newsletter_draft_issue",
-        ),
-      ).toBe(available);
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES) {
+        expect(result.capabilities.includes(capability)).toBe(available);
+        expect(granted.includes(capability)).toBe(available);
+      }
+      // Unrelated reads stay either way.
+      expect(granted).toContain("list_social_posts");
     },
   );
 
@@ -2335,7 +2337,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(granted).toContain("hire_agent");
     expect(granted).toEqual(
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
-        (capability) => capability !== "newsletter_draft_issue",
+        (capability) => !isSokoBotNewsletterCapability(capability),
       ),
     );
   });

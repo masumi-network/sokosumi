@@ -35,7 +35,7 @@ export async function ImpersonationBanner({
       data-testid="impersonation-banner"
       className={cn(
         "flex items-center gap-3 border-b px-4 py-2",
-        "border-semantic-warning-tertiary bg-semantic-warning-quinary text-semantic-warning",
+        "border-border bg-muted text-foreground",
       )}
     >
       <Users className="size-4 shrink-0" aria-hidden />
@@ -45,7 +45,7 @@ export async function ImpersonationBanner({
       <ImpersonationBannerExit
         label={t("exit")}
         errorMessage={t("stopError")}
-        className="border-semantic-warning-tertiary bg-transparent text-semantic-warning hover:bg-semantic-warning-quinary hover:text-semantic-warning"
+        className="border-border bg-transparent text-foreground hover:bg-muted hover:text-foreground"
       />
     </div>
   );

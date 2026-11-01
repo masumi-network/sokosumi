@@ -147,4 +147,55 @@ describe("workspace switch with a room open", () => {
     expect(screen.queryByText("history row")).toBeNull();
     expect(screen.queryByLabelText("draft")).toBeNull();
   });
+
+  describe("on a Room visit", () => {
+    async function openVisit() {
+      // The room belongs to org-1; the reader is in org-2.
+      const view = render(
+        <Frame workspaceId="org-2" pageWorkspaceId="org-2" room={orgChannel} />,
+        { wrapper: TestQueryProvider },
+      );
+      expect(await screen.findByText("history row")).toBeTruthy();
+      fireEvent.change(screen.getByLabelText("draft"), {
+        target: { value: "half a thought" },
+      });
+      return view;
+    }
+
+    it("opens without moving the workspace", async () => {
+      await openVisit();
+
+      expect(screen.getByText("history row")).toBeTruthy();
+    });
+
+    it("stays open with its draft on a switch to the room's workspace", async () => {
+      const view = await openVisit();
+
+      view.rerender(
+        <Frame workspaceId="org-1" pageWorkspaceId="org-2" room={orgChannel} />,
+      );
+      await act(async () => {});
+      expect(screen.getByText("history row")).toBeTruthy();
+      expect(screen.getByLabelText("draft")).toHaveValue("half a thought");
+
+      view.rerender(
+        <Frame workspaceId="org-1" pageWorkspaceId="org-1" room={orgChannel} />,
+      );
+      await act(async () => {});
+      expect(screen.getByText("history row")).toBeTruthy();
+      expect(screen.getByLabelText("draft")).toHaveValue("half a thought");
+    });
+
+    it("closes on a switch to any other workspace", async () => {
+      const view = await openVisit();
+
+      view.rerender(
+        <Frame workspaceId="org-3" pageWorkspaceId="org-2" room={orgChannel} />,
+      );
+      await act(async () => {});
+
+      expect(screen.queryByText("history row")).toBeNull();
+      expect(screen.queryByLabelText("draft")).toBeNull();
+    });
+  });
 });

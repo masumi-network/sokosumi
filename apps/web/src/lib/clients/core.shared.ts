@@ -248,6 +248,7 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsRoomsElsewhere as coreGetChatsRoomsElsewhere,
   getChatsSignalsMessagesByMessageIdRouting as coreGetChatsSignalsMessagesByMessageIdRouting,
   getChatsSignalsRoomsByIdCatchUp as coreGetChatsSignalsRoomsByIdCatchUp,
   getChatsSignalsRoomsByIdDecisions as coreGetChatsSignalsRoomsByIdDecisions,
@@ -471,6 +472,7 @@ import {
   postProjectsByIdNewsletterIssuesPreview as corePostProjectsByIdNewsletterIssuesPreview,
   postProjectsByIdNewsletterSendingDomainCheck as corePostProjectsByIdNewsletterSendingDomainCheck,
   postProjectsByIdNewsletterSendingDomainCloudflare as corePostProjectsByIdNewsletterSendingDomainCloudflare,
+  postProjectsByIdNewsletterSendingDomainWarmupResume as corePostProjectsByIdNewsletterSendingDomainWarmupResume,
   postProjectsByIdNewsletterSubscribers as corePostProjectsByIdNewsletterSubscribers,
   postProjectsByIdNewsletterSubscribersFromContacts as corePostProjectsByIdNewsletterSubscribersFromContacts,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
@@ -1014,6 +1016,20 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdNewsletterSendingDomainWarmupResume(
+    id: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdNewsletterSendingDomainWarmupResume({
+          client,
+          path: { id },
+        }),
+      "Failed to resume the newsletter sending domain",
+    );
+  }
+
   /** The token passes straight through to Core, which uses it once. */
   async function postProjectsByIdNewsletterSendingDomainCloudflare(
     id: string,
@@ -1350,6 +1366,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { token },
         }),
       "Failed to accept room invite link",
+    );
+  }
+
+  async function getElsewhereChatRooms() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsElsewhere({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch unread chat rooms of other workspaces",
     );
   }
 
@@ -6598,6 +6626,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,
+    getElsewhereChatRooms,
     markChatRoomRead,
     markChatRoomThreadsRead,
     markChatRoomThreadRead,
@@ -6896,6 +6925,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteProjectsByIdNewsletterSendingDomain,
     postProjectsByIdNewsletterSendingDomainCheck,
     postProjectsByIdNewsletterSendingDomainCloudflare,
+    postProjectsByIdNewsletterSendingDomainWarmupResume,
     getProjectsByIdNewsletterSendingDomainDomainConnect,
     getProjectsByIdNewsletterAnalytics,
     getProjectsByIdNewsletterIssuesByIssueIdAnalytics,

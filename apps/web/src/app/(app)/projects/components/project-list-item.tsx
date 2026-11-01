@@ -92,7 +92,7 @@ export function ProjectListItem({
           {isPinned ? (
             <span
               data-testid="project-pinned-mark"
-              className="text-primary -ms-1.5 shrink-0"
+              className="text-foreground -ms-1.5 shrink-0"
             >
               <Pin aria-hidden className="size-3.5 fill-current" />
               <span className="sr-only">{labels.pinned}</span>

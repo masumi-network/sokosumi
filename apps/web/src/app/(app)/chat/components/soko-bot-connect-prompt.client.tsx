@@ -146,10 +146,12 @@ export function SokoBotConnectCard({
                 >
                   {Logo ? <Logo className="size-4 shrink-0" /> : null}
                   {offer.connected ? (
-                    <Check
+                    <span
                       aria-hidden
-                      className="bg-background text-semantic-success absolute -end-0.5 -bottom-0.5 size-3 rounded-full"
-                    />
+                      className="bg-semantic-success text-semantic-success-foreground absolute -end-0.5 -bottom-0.5 flex size-3 items-center justify-center rounded-full"
+                    >
+                      <Check className="size-2" strokeWidth={3} />
+                    </span>
                   ) : null}
                 </Button>
               </TooltipTrigger>

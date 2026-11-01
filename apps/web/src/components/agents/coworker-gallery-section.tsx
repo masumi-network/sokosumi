@@ -51,7 +51,7 @@ interface OfferItem {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 // Initial caps so the section stays tight as the team grows; both expand on
 // demand and are bypassed entirely while searching.
@@ -587,8 +587,8 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
           <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
-          {/* Brand gradient ring + soft glow; intensifies on focus. */}
-          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 shadow-md transition-[--tw-gradient-from,--tw-gradient-to,box-shadow] duration-300 focus-within:shadow-lg">
+          {/* Brand gradient ring; intensifies on focus. */}
+          <div className="from-quaternary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 transition-[--tw-gradient-from,--tw-gradient-to] duration-300">
             <div className="relative rounded-full">
               <Search
                 aria-hidden
@@ -627,7 +627,7 @@ function CoworkerGallerySectionInner({
                   type="button"
                   onClick={() => setQuery(suggestion)}
                   className={cn(
-                    "bg-card border-border text-muted-foreground press hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
+                    "bg-card border-border text-muted-foreground press hover:text-foreground rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
                   )}
                 >

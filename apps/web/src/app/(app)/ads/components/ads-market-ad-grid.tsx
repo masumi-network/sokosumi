@@ -54,7 +54,7 @@ export function AdsMarketAdGrid({
             </div>
             {ad.previewUrl ? (
               <a
-                className="text-primary w-fit text-sm underline-offset-4 hover:underline"
+                className="text-foreground w-fit text-sm underline-offset-4 underline"
                 href={ad.previewUrl}
                 rel="noopener noreferrer"
                 target="_blank"

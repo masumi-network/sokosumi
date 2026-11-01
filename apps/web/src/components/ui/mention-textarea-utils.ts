@@ -56,7 +56,7 @@ export const MENTION_COMPOSER_GAP_PX = 4;
 export const MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX =
   POPUP_HEIGHT_PX + MENTION_COMPOSER_GAP_PX + VIEWPORT_PADDING_PX;
 export const MENTION_CLASSNAME =
-  "text-primary cursor-pointer font-semibold hover:underline";
+  "text-foreground cursor-pointer font-semibold hover:underline";
 export const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
 
 export function filterNormalizedMentions<TData = unknown>(

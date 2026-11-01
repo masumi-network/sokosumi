@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
+  isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
@@ -194,6 +196,46 @@ describe("Soko Bot route capability ceilings", () => {
         expect(allowed).not.toContain(write);
       }
     }
+  });
+
+  it("reads newsletters on every owner route and drafts only on write routes", () => {
+    const reads = SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
+      (capability) => capability !== "newsletter_draft_issue",
+    );
+    expect(reads).toEqual([
+      "get_newsletter",
+      "list_newsletter_issues",
+      "get_newsletter_issue",
+      "get_newsletter_analytics",
+      "list_newsletter_subscribers",
+    ]);
+    for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
+      for (const read of reads)
+        expect(capabilities as readonly string[]).toContain(read);
+    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const)
+      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain(
+        "newsletter_draft_issue",
+      );
+    for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES) {
+      expect(isSokoBotNewsletterCapability(capability)).toBe(true);
+      expect(
+        SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
+      ).not.toContain(capability);
+    }
+    expect(isSokoBotNewsletterCapability("list_social_posts")).toBe(false);
+    // Reading the open web must not stop a bot from reading its newsletter.
+    for (const read of reads)
+      expect(
+        SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[],
+      ).not.toContain(read);
+    expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(
+      "newsletter_draft_issue",
+    );
+  });
+
+  it("has no newsletter tool that approves, schedules or sends", () => {
+    for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES)
+      expect(capability).not.toMatch(/approve|schedule|send|publish/);
   });
 
   it("lets every owner route ask Jev, and keeps it off bot-to-bot turns", () => {

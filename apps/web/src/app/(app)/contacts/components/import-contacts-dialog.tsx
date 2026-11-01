@@ -142,7 +142,7 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
                           "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm has-focus-visible:ring-2",
                           pending && "cursor-default",
                           tableId === item.id
-                            ? "border-primary-tertiary bg-primary-quinary"
+                            ? "border-border bg-muted"
                             : "hover:bg-accent transition-colors",
                         )}
                       >
@@ -244,10 +244,7 @@ export function ImportContactsDialog({ onClose }: { onClose: () => void }) {
               </p>
             ) : null}
             {error ? (
-              <p
-                role="alert"
-                className="text-semantic-destructive-label text-sm"
-              >
+              <p role="alert" className="text-foreground text-sm">
                 {error}
               </p>
             ) : null}

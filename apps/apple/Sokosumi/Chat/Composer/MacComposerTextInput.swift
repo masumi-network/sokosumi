@@ -43,6 +43,7 @@
       scroll.hasVerticalScroller = true
       let input = InputView(frame: scroll.contentView.bounds)
       input.isRichText = true
+      input.linkTextAttributes = [.foregroundColor: NSColor.labelColor, .underlineStyle: NSUnderlineStyle.single.rawValue, .cursor: NSCursor.pointingHand]
       input.allowsUndo = true
       input.isAutomaticQuoteSubstitutionEnabled = false
       input.isAutomaticDashSubstitutionEnabled = false

@@ -540,7 +540,7 @@ describe("GET /chats/rooms", () => {
     });
     expect(organizationFindManyMock).toHaveBeenCalledWith({
       where: { id: { in: [HOST_ORG_ID] } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, logo: true, metadata: true },
     });
   });
 

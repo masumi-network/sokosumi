@@ -10,7 +10,7 @@ import { ProjectAvatar } from "./project-avatar";
  * visible where the rows' rounded list clips the outer one.
  */
 export const WORKSPACE_COLUMN_FOCUS_RING =
-  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 const ROW_CLASS = cn(
   HOLDER_ITEM_HOVER_CLASS,

@@ -954,6 +954,26 @@
         "ACCEPTED": "Freigegeben und ausgeführt.",
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
+      },
+      "AvatarState": {
+        "alt": "{name}, {state}",
+        "label": {
+          "idle": "Bereit",
+          "thinking": "Denkt nach",
+          "working": "Arbeitet",
+          "done": "Fertig",
+          "needs_you": "Braucht dich",
+          "offline": "Offline"
+        },
+        "line": {
+          "idle": "Bereit, wenn du es bist",
+          "thinking": "Überlegt sich den nächsten Schritt",
+          "working": "Arbeitet an einer Anfrage",
+          "done": "Hat die letzte Anfrage erledigt",
+          "needs_you": "Eine Entscheidung wartet auf dich",
+          "offline": "Nimmt gerade keine Anfragen an"
+        },
+        "lastActive": "Zuletzt aktiv {time}"
       }
     },
     "Mermaid": {
@@ -3373,16 +3393,11 @@
             "notice": "Von Soko Bot entworfen — vor dem Einreichen zur Freigabe prüfen"
           },
           "emptyTitle": "Noch keine Ausgaben",
-          "emptyDescription": "Wähle eine Vorlage für deine erste Newsletter-Ausgabe.",
+          "emptyDescription": "Beginne mit einer leeren Ausgabe oder wähle eine Vorlage für deinen ersten Newsletter.",
           "subject": "Betreff",
           "previewText": "Vorschautext",
           "status": "Status",
-          "deliveryDate": "Geplant / gesendet",
-          "updatedAt": "Aktualisiert",
-          "actions": "Aktionen",
           "sentAt": "Gesendet am {date}",
-          "scheduledAt": "Geplant für {date}",
-          "noDate": "Nicht geplant",
           "firstPage": "Erste Seite",
           "nextPage": "Nächste Seite",
           "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
@@ -3395,7 +3410,7 @@
             "FAILED": "Fehlgeschlagen",
             "CANCELED": "Abgebrochen"
           },
-          "createError": "Ausgabe konnte nicht erstellt werden. Wähle die Vorlage erneut.",
+          "createError": "Ausgabe konnte nicht erstellt werden. Versuche es erneut.",
           "saveError": "Ausgabe konnte nicht gespeichert werden. Behalte deine Änderungen und versuche es erneut.",
           "conflict": "Diese Ausgabe wurde geändert oder kann nicht mehr bearbeitet werden. Kopiere deine Änderungen, lade die Seite neu und versuche es erneut.",
           "invalid": "Prüfe die markierten Felder und versuche es erneut.",
@@ -3434,8 +3449,8 @@
             "content": "Prüfe diesen Block. Verwende HTTPS-URLs und halte die Zeichenbegrenzungen ein."
           },
           "Templates": {
-            "title": "Vorlage auswählen",
-            "description": "Beginne mit einem Layout und bearbeite anschließend jeden Block.",
+            "title": "Ausgabe beginnen",
+            "description": "Beginne mit einer leeren Ausgabe oder einer anpassbaren Vorlage.",
             "subject": "Unbenannte Ausgabe",
             "heading": "Die Höhepunkte dieser Woche",
             "text": "Teile Neuigkeiten, eine nützliche Idee oder ein Update mit deinen Abonnenten.",
@@ -3454,7 +3469,10 @@
             "BUTTONS": {
               "title": "Schaltflächen",
               "description": "Eine Überschrift, Text, eine Schaltfläche, eine Trennlinie und ein Abschlusstext."
-            }
+            },
+            "blank": "Leer beginnen",
+            "blankDescription": "Verwende deine eigenen Texte und füge nur die benötigten Blöcke hinzu.",
+            "templateHeading": "Oder mit einer Vorlage beginnen"
           },
           "Preview": {
             "title": "Vorschau",
@@ -3488,9 +3506,9 @@
             "when": "Zeitpunkt",
             "timezone": "Zeitzone: {timezone}",
             "scheduleTitle": "Newsletter planen",
-            "scheduleDescription": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt.",
+            "scheduleDescription": "Wähle den Versandbeginn zwischen einer Minute und einem Jahr ab jetzt.",
             "sendTitle": "Diesen Newsletter jetzt senden?",
-            "sendDescription": "{count, plural, one {Diese Ausgabe wird an # aktiven Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.} other {Diese Ausgabe wird an # aktive Abonnenten gesendet. Der Versand kann nicht rückgängig gemacht werden.}}",
+            "sendDescription": "{count, plural, one {Den Versand dieser Ausgabe an die aktuelle Zielgruppe mit # aktivem Abonnenten starten? Der Versand kann schrittweise erfolgen und lässt sich nicht rückgängig machen.} other {Den Versand dieser Ausgabe an die aktuelle Zielgruppe mit # aktiven Abonnenten starten? Der Versand kann schrittweise erfolgen und lässt sich nicht rückgängig machen.}}",
             "cancelTitle": "Versandplanung für diesen Newsletter aufheben?",
             "cancelDescription": "Diese Ausgabe wird wieder zum Entwurf. Reiche sie erneut zur Freigabe ein, bevor du sie planst oder sendest.",
             "saveFirst": "Speichere deine Änderungen, bevor du die Ausgabe einreichst, freigibst, planst oder sendest.",
@@ -3503,7 +3521,52 @@
             "noSender": "Verbinde in den Newsletter-Einstellungen unter „Absenderdomain“ eine Domain, bevor du planst oder sendest.",
             "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
           },
-          "viewOnWeb": "Im Web ansehen"
+          "viewOnWeb": "Im Web ansehen",
+          "updated": "Aktualisiert am {date}",
+          "nextActions": {
+            "DRAFT": "Weiterschreiben",
+            "NEEDS_APPROVAL": "Prüfen und freigeben",
+            "APPROVED": "Planen oder senden",
+            "SCHEDULED": "Zeitplan ansehen",
+            "SENDING": "Fortschritt ansehen",
+            "SENT": "Ergebnisse ansehen",
+            "FAILED": "Versand prüfen",
+            "CANCELED": "Ausgabe ansehen"
+          },
+          "Readiness": {
+            "title": "Vor dem Versand",
+            "sender": "Absender",
+            "fallbackSender": "{name} via Sokosumi",
+            "fallbackHint": "Versand über die gemeinsame Versanddomain von Sokosumi.",
+            "noSender": "Versanddomain erforderlich",
+            "senderSettings": "Absendereinstellungen prüfen",
+            "audience": "Aktuelle Zielgruppe",
+            "audienceCount": "{count, plural, one {# aktiver Abonnent} other {# aktive Abonnenten}}",
+            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
+            "manageSubscribers": "Abonnenten verwalten",
+            "approval": "Freigabe",
+            "approved": "Freigegeben",
+            "approvalRequired": "Freigabe durch eine Person erforderlich",
+            "timing": "Versandbeginn",
+            "afterConfirmation": "Nach der Bestätigung",
+            "chooseTiming": "Sofort senden oder Termin wählen",
+            "scheduled": "{date} ({timezone})",
+            "deliveryHint": "Während der Aufwärmphase deiner Versanddomain kann der Versand schrittweise erfolgen. Die aktiven Abonnenten werden beim Versandbeginn erneut geprüft.",
+            "selectedTime": "Zum gewählten Zeitpunkt"
+          },
+          "Delivery": {
+            "partial": "Mit Versandproblemen gesendet",
+            "details": "Letzter Fehler:",
+            "partialHelp": "Einige E-Mails konnten nicht gesendet oder bestätigt werden. Prüfe den Fehler, bevor du eine weitere Ausgabe planst. Ein erneuter Versand könnte Personen doppelt erreichen.",
+            "failedHelp": "Der Versand ist fehlgeschlagen. Prüfe den Fehler und die Absendereinstellungen, bevor du eine weitere Ausgabe planst. Einige Versandversuche sind möglicherweise unbestätigt. Ein erneuter Versand könnte Personen doppelt erreichen.",
+            "reviewSettings": "Versandeinstellungen prüfen",
+            "sending": "Der Versand läuft. Die Aufwärmphase der Domain kann den Versand zeitlich verteilen. Schau später nach dem Ergebnis."
+          },
+          "details": "Details der Ausgabe",
+          "saving": "Ausgabe wird gespeichert…",
+          "undo": "Entfernen rückgängig machen",
+          "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen."
         },
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
@@ -3682,7 +3745,20 @@
             "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
             "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
             "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
-            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut."
+            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut.",
+            "resumeUnavailable": "Verifiziere diese Absenderdomain vor dem Fortsetzen. Prüfe ihre DNS-Einträge und versuche es erneut."
+          },
+          "warmup": {
+            "title": "Aufwärmphase der Domain",
+            "progress": "Tag {day} · Heute {used} von {cap} versendet (UTC)",
+            "unlimited": "Tag {day} · Heute {used} versendet (UTC) · Unbegrenzt",
+            "description": "Empfänger über dem heutigen Limit bleiben in der Warteschlange und werden automatisch angeschrieben, sobald wieder Kapazität verfügbar ist. Das Tageslimit wird um 00:00 UTC zurückgesetzt.",
+            "paused": "Versand pausiert",
+            "bounceReason": "Zu viele E-Mails waren dauerhaft unzustellbar.",
+            "complaintReason": "Zu viele Empfänger haben E-Mails als Spam markiert.",
+            "pausedDescription": "Empfänger bleiben in der Warteschlange, bis ein Projektmitglied den Versand fortsetzt. Prüfe vorher die Abonnentenliste.",
+            "resume": "Versand fortsetzen",
+            "resumed": "Versand fortgesetzt. Empfänger in der Warteschlange werden innerhalb des Tageslimits angeschrieben."
           }
         }
       }
@@ -4547,7 +4623,6 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
-          "workingNow": "Arbeitet gerade",
           "needsAttention": "Braucht Aufmerksamkeit",
           "activeAgo": "Aktiv {time}",
           "ready": "Bereit",
@@ -4795,7 +4870,8 @@
           "accounts": "Konten",
           "billing": "Abrechnung & Vertrieb",
           "catalog": "Marketplace-Katalog",
-          "operations": "Betrieb"
+          "operations": "Betrieb",
+          "reference": "Referenz"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4853,6 +4929,10 @@
           "cmoSpend": {
             "title": "CMO-Kosten",
             "description": "Was jeder CMO-Bot (Cuso) ausgegeben hat, was den Inhabern belastet wurde und wofür."
+          },
+          "designSystem": {
+            "title": "Designsystem",
+            "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
           }
         }
       },
@@ -6198,6 +6278,141 @@
         "drifted": "{count} weg vom Hauptangebot",
         "unavailable": "{count} ohne Prüfmodell",
         "lastProblems": "Zuletzt zurück {at}:"
+      },
+      "DesignSystem": {
+        "title": "Designsystem",
+        "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten und den Tokens der App. Für den Dunkelmodus das Theme der App umstellen.",
+        "guideLink": "Markenrichtlinie",
+        "backToAdmin": "Zurück zum Admin",
+        "Theme": {
+          "light": "Hell",
+          "dark": "Dunkel"
+        },
+        "Color": {
+          "title": "Farbe",
+          "lead": "Neutrale Flächen. Ein Pink pro Ansicht.",
+          "primaryName": "Iris Flower · Primärfarbe",
+          "primaryRuleTitle": "Text auf Iris Flower ist immer Neutral 950",
+          "primaryRule": "Weiß auf Iris Flower hat zu wenig Kontrast. Setze Iris Flower nie als Textfarbe auf einer weißen Seite. Nutze sie für Flächen, Akzente und aktive Zustände.",
+          "palette": "Masumi-Palette",
+          "paletteRule": "Für alle Marken gleich. Alles außer Iris Flower ist sekundär. Scarlet und Persimmon nie für Status verwenden.",
+          "neutrals": "Neutraltöne",
+          "roles": "Theme-Rollen",
+          "Roles": {
+            "page": "Seite",
+            "panel": "Panel",
+            "border": "Rahmen",
+            "fieldBorder": "Feldrahmen",
+            "text": "Text",
+            "mutedText": "Gedämpfter Text",
+            "primary": "Primär",
+            "component": "Komponente auf einem Panel",
+            "disabledText": "Deaktivierter Text",
+            "textOnPrimary": "Text auf Primärfarbe",
+            "scrim": "Overlay-Abdunklung"
+          },
+          "darkPrimaryRule": "Im Dark Mode ruht die Primärfarbe auf Dark Iris (#D141D1, Vorschlag). Iris Flower wirkt auf fast Schwarz dreimal so laut. Beim Hover kehrt Iris Flower zurück.",
+          "status": "Status",
+          "Status": {
+            "done": "Positiv",
+            "needsInput": "Warnung",
+            "failed": "Destruktiv"
+          },
+          "statusRule": "Jeder Status kombiniert Farbe mit Symbol und Text. Nie nur Farbe.",
+          "gradients": "Verläufe",
+          "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI.",
+          "alpha": "Alpha-Töne",
+          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen.",
+          "alphaStep": "Alpha {step}"
+        },
+        "Type": {
+          "title": "Typografie",
+          "lead": "Nur Inter. Light ab 20px, für Display.",
+          "sample": "Agenten bei der Arbeit",
+          "Roles": {
+            "display": "Display",
+            "heading": "Überschrift",
+            "subheading": "Zwischenüberschrift",
+            "body": "Fließtext",
+            "label": "Label",
+            "caption": "Bildunterschrift",
+            "micro": "Mikro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Form und Tiefe",
+          "lead": "Zuerst Rahmen. Schatten nur bei schwebenden Overlays. Kein Glow, kein Blur.",
+          "border": "Rahmen",
+          "overlay": "Overlay"
+        },
+        "Components": {
+          "title": "Komponenten",
+          "lead": "Ein gefüllter Primärbutton pro Ansicht. Verb zuerst.",
+          "schedule": "Post planen",
+          "duplicate": "Duplizieren",
+          "cancel": "Abbrechen",
+          "delete": "Löschen",
+          "showAll": "Alle anzeigen",
+          "small": "Klein",
+          "addTask": "Aufgabe hinzufügen",
+          "saving": "Wird gespeichert",
+          "postTitle": "Titel des Posts",
+          "postTitlePlaceholder": "z. B. Drei Erkenntnisse aus unserem Launch",
+          "budget": "Tagesbudget",
+          "budgetError": "Gib einen Betrag über 0 ein, etwa 25.",
+          "notify": "Benachrichtige mich, wenn eine Aufgabe Eingaben braucht",
+          "review": "Posts vor der Veröffentlichung prüfen",
+          "calendar": "Kalender",
+          "drafts": "Entwürfe",
+          "cardTitle": "Wettbewerbsanalyse",
+          "cardBody": "Damit wir besser abgestimmt sind: In welcher Region verkaufst du?",
+          "answer": "Antworten",
+          "openTask": "Aufgabe öffnen",
+          "toast": "Post geplant",
+          "undo": "Rückgängig",
+          "dialogTitle": "3 Entwürfe löschen?",
+          "dialogBody": "Sie werden nicht veröffentlicht und lassen sich nicht wiederherstellen.",
+          "deleteDrafts": "Entwürfe löschen"
+        },
+        "Motion": {
+          "title": "Bewegung",
+          "lead": "Bewegung erklärt eine Änderung. Mehr nicht.",
+          "rules": "Animiere Transform und Deckkraft, nie das Layout. Benenne die animierten Eigenschaften. Keine dekorativen Schleifen. Reduzierte Bewegung entfernt alles Unnötige.",
+          "feedback": {
+            "title": "Feedback",
+            "body": "Drücken und Hovern bei jedem Bedienelement, ease-out."
+          },
+          "enter": {
+            "title": "Einblenden",
+            "body": "Listen, Seiten, Dialoge und Menüs erscheinen."
+          }
+        },
+        "States": {
+          "title": "Zustand",
+          "lead": "Jeder Zustand ist gestaltet, nicht übrig geblieben.",
+          "todo": "Zu erledigen",
+          "inProgress": "In Arbeit",
+          "needsInput": "Eingabe nötig",
+          "done": "Erledigt",
+          "failed": "Fehlgeschlagen",
+          "loading": "Deine Posts werden entworfen",
+          "emptyTitle": "Entwürfe",
+          "emptyBody": "Posts, die du beginnst, aber nicht planst, warten hier.",
+          "emptyAction": "Post schreiben",
+          "errorTitle": "LinkedIn hat den Post nicht angenommen",
+          "errorBody": "Das Bild ist größer als 5 MB. Wähle ein kleineres und versuche es erneut.",
+          "errorAction": "Bild ersetzen",
+          "doneTitle": "5 Posts geplant",
+          "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
+          "doneAction": "Kalender öffnen"
+        }
       }
     },
     "Billing": {
@@ -7706,11 +7921,13 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "headerDirect": "Direktnachricht",
       "headerSelfDirect": "Nur du",
+      "headerVisitSwitch": "Zu {workspace} wechseln",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "chats": "Chats",
       "directMessages": "Direktnachrichten",
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
+      "inWorkspace": "in {workspace}",
       "reorderPinnedDone": "Sortieren beenden",
       "SectionLimit": {
         "showMore": "{count} weitere anzeigen",
@@ -7723,7 +7940,6 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "In Datei umwandeln",
       "NoOrganization": {
-        "title": "Channels kommen bald",
         "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."
       },
       "Empty": {
@@ -7871,7 +8087,9 @@
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "justRead": "Gerade gelesen"
+        "justRead": "Gerade gelesen",
+        "elsewhereLabel": "Ungelesen in anderen Arbeitsbereichen",
+        "elsewhereMore": "{count} weitere in anderen Arbeitsbereichen"
       },
       "ThreadsView": {
         "title": "Threads",
@@ -8250,9 +8468,14 @@
         "dismissCatchUp": "Zusammenfassung ausblenden",
         "summarize": "Zusammenfassung",
         "summarizing": "Deine Zusammenfassung wird geschrieben…",
-        "writtenByAi": "Von KI geschrieben {time}",
-        "byRoom": "Nach Raum",
+        "writtenByAi": "Aktualisiert {time}",
         "due": "Fällig {date}",
+        "overdue": "{count, plural, one {# Tag überfällig} other {# Tage überfällig}}",
+        "inReplyTo": "Antwort auf {name}: {text}",
+        "done": "Erledigt",
+        "markRead": "Als gelesen markieren",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
         "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
@@ -8287,7 +8510,9 @@
         },
         "Sections": {
           "needsYou": "Wartet auf dich",
+          "blockers": "Blocker",
           "decisions": "Entscheidungen",
+          "announcements": "Ankündigungen",
           "openLoops": "Offene Punkte",
           "highlights": "Wichtiges"
         },
@@ -8327,6 +8552,28 @@
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
           "threads": "Threads"
+        },
+        "Briefing": {
+          "welcomeBack": "Willkommen zurück",
+          "unread": "{messages, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}} in {rooms, plural, one {# Raum} other {# Räumen}}",
+          "unreadSince": "{unread} seit {date}",
+          "waitingOnYou": "Wartet auf dich",
+          "whileAway": "Was passiert ist",
+          "stillOpen": "Noch offen",
+          "nothingForYou": "Nichts für dich",
+          "unreadInRoom": "{count} ungelesen",
+          "messages": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+          "open": "Öffnen",
+          "reply": "Antworten",
+          "replyPlaceholder": "{name} antworten…",
+          "send": "Senden",
+          "replySent": "An {room} gesendet",
+          "replyError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+          "Status": {
+            "decided": "Entschieden",
+            "inProgress": "Läuft",
+            "fyi": "Zur Info"
+          }
         }
       },
       "Stickers": {
@@ -8944,7 +9191,6 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
-        "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
@@ -9007,7 +9253,65 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "loadError": "Bilder konnten nicht geladen werden.",
-        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
+        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
+        "edit": "Bild bearbeiten",
+        "Studio": {
+          "metadata": "Bild-Studio",
+          "back": "Zurück zu {name}",
+          "title": "Wie soll {name} aussehen?",
+          "description": "Ändere das Tier oder füge ein Accessoire hinzu. Der Schreibtisch bleibt: Dort arbeitet dein Bot.",
+          "draftAlt": "Neuer Look für {name}, noch nicht gespeichert",
+          "making": "Dein neuer Look entsteht · etwa 10 s",
+          "sizes": "Profil oben · Bild in Chat und Aufgaben",
+          "states": "Zustände",
+          "statesPlay": "Wähle einen Zustand, um ihn einmal abzuspielen",
+          "statesDraft": "Bewegt sich, sobald du ihn behältst",
+          "statesProgress": "Die Animationen entstehen · {ready} von {total} fertig",
+          "creature": "Tier",
+          "accessory": "Accessoire",
+          "creatures": {
+            "owl": "Eule",
+            "frog": "Frosch",
+            "hedgehog": "Igel",
+            "otter": "Otter",
+            "penguin": "Pinguin"
+          },
+          "accessories": {
+            "beanie": "Mütze",
+            "glasses": "Brille",
+            "scarf": "Schal",
+            "headphones": "Kopfhörer",
+            "magnifier": "Lupe"
+          },
+          "describe": "Oder beschreibe eine Änderung",
+          "placeholder": "Gib ihm einen kleinen Zauberhut",
+          "apply": "Anwenden",
+          "ideas": {
+            "wizard": "Ein kleiner Zauberhut",
+            "coffee": "Kaffee auf dem Schreibtisch",
+            "snow": "Lass es schneien",
+            "sleepy": "Lass es müde aussehen",
+            "beach": "Ab an den Strand"
+          },
+          "keep": "Diesen Look behalten",
+          "shuffle": "Zufällig",
+          "cancel": "Abbrechen",
+          "saved": "Gespeichert.",
+          "error": "Der Look konnte nicht geändert werden. Versuch es erneut.",
+          "keepError": "Der Look konnte nicht gespeichert werden. Versuch es erneut.",
+          "cancelError": "Der aktuelle Look konnte nicht wiederhergestellt werden. Versuch es erneut.",
+          "redo": "Animation neu erstellen",
+          "retry": "Erneut versuchen",
+          "redoing": "Wird erstellt…",
+          "drawing": "Wird gezeichnet…",
+          "animating": "Wird animiert…",
+          "redoError": "Die Animation konnte nicht neu erstellt werden. Versuch es erneut.",
+          "redoLimit": "Du hast heute schon viele Animationen neu erstellt. Versuch es morgen wieder.",
+          "redoBusy": "Diese Animation wird noch erstellt.",
+          "empty": "Noch kein Look. Wähle ein Tier oder tippe auf „Zufällig“, um zu starten.",
+          "rateLimited": "Du hast sehr viele neue Looks erstellt. Versuch es später noch einmal.",
+          "unavailable": "Der Look lässt sich gerade nicht ändern."
+        }
       },
       "Skills": {
         "builtIn": "Enthalten",

@@ -106,13 +106,15 @@ export function ProjectPinButton({
         // project instead of doing nothing.
         "before:absolute before:-inset-1.5 before:content-['']",
         "disabled:pointer-events-none disabled:opacity-50",
-        // Pinned carries two signals, hue and fill, because at 16px a filled
+        // Pinned carries two signals, tone and fill, because at 16px a filled
         // pin is barely distinguishable from an outlined one, and one step of
         // grey did not read at all. No tinted ground: beside the plain ghost
         // "More" button a filled square read as a different kind of control.
         // Both states hover like that ghost button.
         "hover:bg-accent",
-        pinned ? "text-primary" : "text-muted-foreground hover:text-foreground",
+        pinned
+          ? "text-foreground"
+          : "text-muted-foreground hover:text-foreground",
         className,
       )}
     >

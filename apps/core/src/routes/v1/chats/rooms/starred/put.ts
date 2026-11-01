@@ -13,14 +13,12 @@ import {
   starredChatRoomOrderSchema,
 } from "@/schemas/chat-room.schema";
 
-import { membershipVisibleActiveRoomWhere } from "../helpers";
-
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "put",
     path: "/starred",
     description:
-      "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
+      "Set the order of the current user's starred chat rooms, one order across every workspace (ADR-0062). The listed rooms take the places those same rooms already hold in that order, and every other pin keeps its place, so a client listing every pin sets the whole order and one listing a single workspace's pins rearranges only those. Rewrites `starredAt`, the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room.",
     tags: ["Chat Rooms"],
     request: {
       body: {
@@ -46,29 +44,24 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { userId, organizationId } = requireUserAuthContext(
-      c.var.authContext,
-    );
+    const { userId } = requireUserAuthContext(c.var.authContext);
     const { roomIds } = c.req.valid("json");
 
     const order = await prisma.$transaction(async (tx) => {
       const starred = await tx.chatRoomUserMember.findMany({
-        where: {
-          userId,
-          starredAt: { not: null },
-          room: membershipVisibleActiveRoomWhere(organizationId),
-        },
+        where: { userId, starredAt: { not: null } },
         orderBy: [{ starredAt: "asc" }, { roomId: "asc" }],
         select: { roomId: true, starredAt: true },
       });
       const starredIds = new Set(starred.map((row) => row.roomId));
-      // Listed starred ids first (deduped), then the rest in their old order.
-      const ordered = [
-        ...new Set([
-          ...roomIds.filter((id) => starredIds.has(id)),
-          ...starredIds,
-        ]),
-      ];
+      // Listed starred ids (deduped), each taking the next place one of them
+      // holds. Every other pin stays where it is.
+      const listed = [...new Set(roomIds)].filter((id) => starredIds.has(id));
+      const listedIds = new Set(listed);
+      let nextListed = 0;
+      const ordered = starred.map(({ roomId }) =>
+        listedIds.has(roomId) ? listed[nextListed++] : roomId,
+      );
 
       if (ordered.every((roomId, index) => roomId === starred[index]?.roomId)) {
         return starred;

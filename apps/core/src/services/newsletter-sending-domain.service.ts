@@ -30,7 +30,6 @@ import {
   domainConnectTemplateInput,
 } from "@/lib/newsletter/domain-connect";
 import {
-  type NewsletterSendingDomainSender,
   newsletterSenderMailbox,
   newsletterSenderOptions,
 } from "@/lib/newsletter/email";
@@ -44,6 +43,11 @@ import {
   withDmarcRecord,
   zoneCandidates,
 } from "@/lib/newsletter/sending-domain";
+import {
+  utcDay,
+  warmupDailyCap,
+  warmupDay,
+} from "@/lib/newsletter/sending-domain-warmup";
 import { newsletterDnsRecordsSchema } from "@/schemas/newsletter-sending-domain.schema";
 
 /** A pending domain is re-read from Resend at most this often on its own. */
@@ -66,6 +70,25 @@ function statusCodeOf(error: unknown): number | null {
 
 async function findSendingDomain(projectId: string) {
   return prisma.newsletterSendingDomain.findUnique({ where: { projectId } });
+}
+
+function withWarmupState(row: NewsletterSendingDomain) {
+  const now = new Date();
+  const day = row.warmupStartedAt ? warmupDay(row.warmupStartedAt, now) : null;
+  return {
+    ...row,
+    warmup: {
+      startedAt: row.warmupStartedAt,
+      day,
+      dailyCap: day === null ? null : warmupDailyCap(day),
+      sentToday:
+        row.warmupSentOnDayUtc?.getTime() === utcDay(now).getTime()
+          ? row.warmupSentCount
+          : 0,
+      pausedAt: row.warmupPausedAt,
+      pauseReason: row.warmupPauseReason,
+    },
+  };
 }
 
 async function requireSendingDomain(projectId: string) {
@@ -92,17 +115,37 @@ async function refreshSendingDomain(
     dmarc ? await hasDmarcPolicy(row.domain) : null,
   );
   const status = toSendingDomainStatus(remote.status);
-  try {
-    return await prisma.newsletterSendingDomain.update({
+  const now = new Date();
+  const update = (client: Pick<DbClient, "newsletterSendingDomain">) =>
+    client.newsletterSendingDomain.update({
       where: { id: row.id },
       data: {
         status,
         dnsRecords,
-        lastCheckedAt: new Date(),
+        lastCheckedAt: now,
         failureReason:
           status === "FAILED" ? sendingDomainFailureReason(dnsRecords) : null,
       },
     });
+  try {
+    if (
+      status === "VERIFIED" &&
+      row.status !== "VERIFIED" &&
+      !row.warmupStartedAt
+    ) {
+      return await prisma.$transaction(async (tx) => {
+        await tx.newsletterSendingDomain.updateMany({
+          where: {
+            id: row.id,
+            warmupStartedAt: null,
+            status: { not: "VERIFIED" },
+          },
+          data: { warmupStartedAt: now },
+        });
+        return update(tx);
+      });
+    }
+    return await update(prisma);
   } catch (error) {
     if (isPrismaRecordNotFoundError(error)) {
       throw notFound("No newsletter sending domain");
@@ -133,9 +176,10 @@ async function withLazyRefresh(
 }
 
 export async function getNewsletterSendingDomain(projectId: string) {
-  return withLazyRefresh(await findSendingDomain(projectId), {
+  const row = await withLazyRefresh(await findSendingDomain(projectId), {
     dmarc: true,
   });
+  return row ? withWarmupState(row) : null;
 }
 
 /**
@@ -153,10 +197,12 @@ export async function putNewsletterSendingDomain(
     if (existing.domain !== domain) {
       throw conflict("Remove the current sending domain before adding another");
     }
-    return prisma.newsletterSendingDomain.update({
-      where: { id: existing.id },
-      data: { fromAddress: address },
-    });
+    return withWarmupState(
+      await prisma.newsletterSendingDomain.update({
+        where: { id: existing.id },
+        data: { fromAddress: address },
+      }),
+    );
   }
   if (
     await prisma.newsletterSendingDomain.findUnique({
@@ -186,17 +232,22 @@ export async function putNewsletterSendingDomain(
     await hasDmarcPolicy(domain),
   );
   try {
-    return await prisma.newsletterSendingDomain.create({
-      data: {
-        projectId,
-        domain,
-        fromAddress: address,
-        resendDomainId: created.id,
-        status: toSendingDomainStatus(created.status),
-        dnsRecords,
-        lastCheckedAt: new Date(),
-      },
-    });
+    return withWarmupState(
+      await prisma.newsletterSendingDomain.create({
+        data: {
+          projectId,
+          domain,
+          fromAddress: address,
+          resendDomainId: created.id,
+          status: toSendingDomainStatus(created.status),
+          ...(toSendingDomainStatus(created.status) === "VERIFIED"
+            ? { warmupStartedAt: new Date() }
+            : {}),
+          dnsRecords,
+          lastCheckedAt: new Date(),
+        },
+      }),
+    );
   } catch (error) {
     // Don't strand a Resend domain no row points at.
     await removeEmailDomain(created.id).catch(() => undefined);
@@ -209,9 +260,11 @@ export async function putNewsletterSendingDomain(
 
 /** "Check now": asks Resend to verify the DNS records, then stores the result. */
 export async function checkNewsletterSendingDomain(projectId: string) {
-  return refreshSendingDomain(await requireSendingDomain(projectId), {
-    verify: true,
-  });
+  return withWarmupState(
+    await refreshSendingDomain(await requireSendingDomain(projectId), {
+      verify: true,
+    }),
+  );
 }
 
 /** Deletes the domain in Resend, then the row. Resend already lacking it is fine. */
@@ -286,7 +339,9 @@ export async function connectNewsletterSendingDomainWithCloudflare(
     throw badGateway(error.message);
   }
   // Records were written; a slow Resend check must not hide that.
-  return refreshSendingDomain(row, { verify: true }).catch(() => row);
+  return withWarmupState(
+    await refreshSendingDomain(row, { verify: true }).catch(() => row),
+  );
 }
 
 /**
@@ -326,13 +381,38 @@ export async function getNewsletterSendingDomainConnect(projectId: string) {
   };
 }
 
-async function sendingDomainSender(
-  projectId: string,
-): Promise<NewsletterSendingDomainSender | null> {
-  const row = await withLazyRefresh(await findSendingDomain(projectId), {
-    dmarc: false,
-  });
-  return row ? { fromAddress: row.fromAddress, status: row.status } : null;
+export async function resolveNewsletterSendingContext(newsletter: {
+  projectId: string;
+  senderName: string;
+  replyTo: string;
+}) {
+  const row = await withLazyRefresh(
+    await findSendingDomain(newsletter.projectId),
+    {
+      dmarc: false,
+    },
+  );
+  return {
+    // Preserve the custom sender while paused; the dispatch gate blocks it.
+    sender: newsletterSenderOptions(
+      newsletter,
+      row?.warmupPausedAt
+        ? { fromAddress: row.fromAddress, status: "VERIFIED" }
+        : row,
+    ),
+    domain:
+      row && (row.status === "VERIFIED" || row.warmupPausedAt) ? row : null,
+  };
+}
+
+function assertWarmupNotPaused(
+  domain: { status: string; warmupPausedAt: Date | null } | null,
+) {
+  if (domain?.warmupPausedAt) {
+    throw conflict(
+      "Newsletter sending domain warm-up is paused. Resume it in Newsletter settings.",
+    );
+  }
 }
 
 /** From and Reply-To for a newsletter email, per {@link newsletterSenderOptions}. */
@@ -341,9 +421,23 @@ export async function resolveNewsletterSender(newsletter: {
   senderName: string;
   replyTo: string;
 }) {
-  return newsletterSenderOptions(
-    newsletter,
-    await sendingDomainSender(newsletter.projectId),
+  const { sender, domain } = await resolveNewsletterSendingContext(newsletter);
+  assertWarmupNotPaused(domain);
+  return sender;
+}
+
+export async function resumeNewsletterSendingDomainWarmup(projectId: string) {
+  const row = await requireSendingDomain(projectId);
+  if (row.status !== "VERIFIED" || !row.warmupStartedAt) {
+    throw conflict(
+      "Verify the newsletter sending domain before resuming warm-up",
+    );
+  }
+  return withWarmupState(
+    await prisma.newsletterSendingDomain.update({
+      where: { id: row.id },
+      data: { warmupPausedAt: null, warmupPauseReason: null },
+    }),
   );
 }
 
@@ -356,10 +450,10 @@ export async function assertNewsletterSenderConfigured(
   projectId: string,
   client: Pick<DbClient, "newsletterSendingDomain"> = prisma,
 ): Promise<void> {
-  newsletterSenderMailbox(
-    await client.newsletterSendingDomain.findUnique({
-      where: { projectId },
-      select: { fromAddress: true, status: true },
-    }),
-  );
+  const domain = await client.newsletterSendingDomain.findUnique({
+    where: { projectId },
+    select: { fromAddress: true, status: true, warmupPausedAt: true },
+  });
+  assertWarmupNotPaused(domain);
+  newsletterSenderMailbox(domain);
 }

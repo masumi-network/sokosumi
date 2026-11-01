@@ -30,7 +30,6 @@ export {
 } from "./auth-captcha.js";
 export {
   BETA_ORGANIZATION_SLUGS,
-  isBetaOrganizationSlug,
   NEWSLETTER_BETA_ORGANIZATION_SLUG,
 } from "./beta-organizations.js";
 export {
@@ -332,6 +331,7 @@ export {
   newsletterBlockSchema,
   newsletterContentSchema,
   newsletterDraftInputSchema,
+  newsletterSignupLinks,
 } from "./newsletter.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,

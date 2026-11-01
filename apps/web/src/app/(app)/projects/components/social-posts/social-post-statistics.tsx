@@ -624,7 +624,7 @@ export function SocialPostStatistics(
             </div>
           </div>
           {statusAccount?.status && statusAccount.status !== "active" ? (
-            <p className="text-semantic-warning text-sm">
+            <p className="text-foreground text-sm">
               {t("reconnectHint")}{" "}
               <Link
                 className="underline underline-offset-4"
@@ -636,17 +636,17 @@ export function SocialPostStatistics(
           ) : null}
           {statusAccount &&
           (statusSnapshot?.error || syncErrors[statusAccount.id]) ? (
-            <p role="status" className="text-semantic-warning text-sm">
+            <p role="status" className="text-foreground text-sm">
               {syncErrors[statusAccount.id] ?? t("accountMetricsIncomplete")}
             </p>
           ) : null}
           {statusSnapshot?.metricWarning ? (
-            <p role="status" className="text-semantic-warning text-sm">
+            <p role="status" className="text-foreground text-sm">
               {t("postMetricsIncomplete")}
             </p>
           ) : null}
           {statusSnapshot?.historyError ? (
-            <p role="status" className="text-semantic-warning text-sm">
+            <p role="status" className="text-foreground text-sm">
               {t("historyLimited")}
             </p>
           ) : null}

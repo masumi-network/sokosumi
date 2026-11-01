@@ -1,4 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
+import {
+  avatarFields,
+  avatarStateRelations,
+  deriveAvatarState,
+} from "@/helpers/soko-bot-avatar-state";
 import { canManageSokoBot } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -7,6 +12,8 @@ import {
 } from "@/helpers/soko-bot-resolver";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
+import { type AvatarState } from "@/lib/soko-bot-avatar/style";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import {
   ACTIVE_TURN_STATUSES,
   FOREGROUND_TURN,
@@ -37,7 +44,8 @@ async function stateWhere(
  * The console watches turns it did not start, so it has to poll often enough
  * to catch one that runs for a few seconds. Polling the full chat state that
  * often is not affordable, so this carries only what tells the client
- * whether to go and fetch it.
+ * whether to go and fetch it, and the avatar state for a surface that shows
+ * nothing else (the sidebar).
  */
 export async function getSokoBotActivity(
   viewerUserId: string,
@@ -47,18 +55,23 @@ export async function getSokoBotActivity(
   status: string;
   activeTurnId: string | null;
   lastTurnAt: Date | null;
+  avatarState: AvatarState;
 } | null> {
   const where = await stateWhere(viewerUserId, workspaceId, selector);
   if (!where) return null;
   // One Prisma call, though not one SQL statement: the generator does not
-  // enable `relationJoins`. Both predicates are indexed and the payload is
-  // three columns, which is what makes it affordable to ask every couple of
+  // enable `relationJoins`. The predicates are indexed and the payload is a
+  // few columns, which is what makes it affordable to ask every couple of
   // seconds.
   const bot = await prisma.sokoBot.findFirst({
     where,
     select: {
+      id: true,
       status: true,
       lastTurnAt: true,
+      archivedAt: true,
+      adminPausedAt: true,
+      pendingDecisions: avatarStateRelations().pendingDecisions,
       turns: {
         where: {
           ...FOREGROUND_TURN,
@@ -66,15 +79,33 @@ export async function getSokoBotActivity(
         },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { id: true },
+        select: { id: true, status: true, completedAt: true },
       },
     },
   });
   if (!bot) return null;
+  const activeTurn = bot.turns[0] ?? null;
+  // With nothing running, "done" and "idle" turn on the latest settled turn.
+  const latestTurn =
+    activeTurn ??
+    (await prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId: bot.id, ...FOREGROUND_TURN },
+      orderBy: { createdAt: "desc" },
+      select: { status: true, completedAt: true },
+    }));
+  const { disabled: availabilityDisabled } = await getSokoBotAvailability();
   return {
     status: bot.status,
-    activeTurnId: bot.turns[0]?.id ?? null,
+    activeTurnId: activeTurn?.id ?? null,
     lastTurnAt: bot.lastTurnAt,
+    avatarState: deriveAvatarState({
+      status: bot.status,
+      archivedAt: bot.archivedAt,
+      adminPausedAt: bot.adminPausedAt,
+      availabilityDisabled,
+      latestTurn,
+      hasOpenDecision: bot.pendingDecisions.length > 0,
+    }),
   };
 }
 
@@ -100,12 +131,17 @@ export async function getSokoBotState(
         take: 10,
       },
       schedules: { orderBy: { createdAt: "desc" } },
+      avatar: avatarStateRelations().avatar,
+      turns: avatarStateRelations().turns,
     },
   });
   if (!bot) return null;
   const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
+  const { turns: _turns, avatar: avatarRow, ...rest } = bot;
+  const { disabled: availabilityDisabled } = await getSokoBotAvailability();
   return {
-    ...bot,
+    ...rest,
+    ...avatarFields({ ...bot, avatar: avatarRow, availabilityDisabled }),
     memoryHash: memoryRevisions[0]?.hash ?? bot.memoryHash,
     memoryRevisions,
     viewerCanManage: await canManageSokoBot(viewerUserId, bot),
@@ -142,6 +178,8 @@ export async function listSharedSokoBots(
       status: true,
       archivedAt: true,
       sharedRoomId: true,
+      adminPausedAt: true,
+      ...avatarStateRelations(),
     },
   });
   const first = bots[0];
@@ -149,10 +187,47 @@ export async function listSharedSokoBots(
   const viewerCanManage = first
     ? await canManageSokoBot(viewerUserId, first)
     : false;
-  return bots.map(({ userId: _userId, workspaceId: _workspaceId, ...bot }) => ({
-    ...bot,
-    scope:
-      bot.projectId === null ? ("workspace" as const) : ("project" as const),
-    viewerCanManage,
-  }));
+  const { disabled: availabilityDisabled } = await getSokoBotAvailability();
+  return bots.map((bot) => {
+    const {
+      userId: _userId,
+      workspaceId: _workspaceId,
+      adminPausedAt: _adminPausedAt,
+      avatar: _avatar,
+      turns: _turns,
+      pendingDecisions: _pendingDecisions,
+      ...rest
+    } = bot;
+    return {
+      ...rest,
+      ...avatarFields({ ...bot, availabilityDisabled }),
+      scope:
+        bot.projectId === null ? ("workspace" as const) : ("project" as const),
+      viewerCanManage,
+    };
+  });
+}
+
+/**
+ * `avatarState` and `avatar` for one bot by id, for responses that are built
+ * from another read (the admin detail, which is redacted after loading).
+ */
+export async function getSokoBotAvatarFields(
+  sokoBotId: string,
+  availabilityDisabled?: boolean,
+) {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: {
+      status: true,
+      archivedAt: true,
+      adminPausedAt: true,
+      avatarImageUrl: true,
+      ...avatarStateRelations(),
+    },
+  });
+  if (!bot) return {};
+  const disabled =
+    availabilityDisabled ?? (await getSokoBotAvailability()).disabled;
+  return avatarFields({ ...bot, availabilityDisabled: disabled });
 }

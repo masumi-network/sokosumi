@@ -44,7 +44,7 @@ export function ContactsEmptyState({
     <div className="content-rise mx-auto flex max-w-md flex-col items-center gap-5 px-6 py-16 text-center">
       <span
         aria-hidden
-        className="bg-primary-quinary text-primary flex size-12 items-center justify-center rounded-full"
+        className="bg-muted text-foreground flex size-12 items-center justify-center rounded-full"
       >
         <Users className="size-6" />
       </span>

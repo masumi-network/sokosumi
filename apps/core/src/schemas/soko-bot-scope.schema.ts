@@ -2,6 +2,10 @@ import { z } from "@hono/zod-openapi";
 import { isValidTimezone } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { sokoBotSchema, sokoBotStatusSchema } from "./soko-bot.schema";
+import {
+  sokoBotAvatarOrNullSchema,
+  sokoBotAvatarStateSchema,
+} from "./soko-bot-avatar.schema";
 
 /** Personal (one owner), project or workspace (shared by the organization). */
 export const sokoBotScopeSchema = z
@@ -59,6 +63,10 @@ export const sharedSokoBotSummarySchema = z
     projectId: z.string().uuid().nullable(),
     avatarSeed: z.string().nullable(),
     avatarImageUrl: z.string().nullable(),
+    // Always sent. Optional in the contract so clients written before them
+    // keep compiling; tighten once every consumer reads them.
+    avatarState: sokoBotAvatarStateSchema.optional(),
+    avatar: sokoBotAvatarOrNullSchema.optional(),
     status: sokoBotStatusSchema,
     archivedAt: dateTimeSchema.nullable(),
     /** The room every member shares with this bot. */

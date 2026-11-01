@@ -156,7 +156,7 @@ describe("SidebarAccountChip", () => {
 
     const summary = screen.getByText("compactCredits 42 42");
 
-    expect(summary.parentElement?.className).toContain("text-semantic-warning");
+    expect(summary.parentElement?.className).toContain("text-foreground");
   });
 
   it("leaves an unavailable balance unflagged", () => {
@@ -164,7 +164,7 @@ describe("SidebarAccountChip", () => {
 
     expect(
       screen.getByText("detailsUnavailable").parentElement?.className,
-    ).not.toContain("text-semantic-warning");
+    ).not.toContain("text-foreground");
   });
 
   it("hides the usage bar until a subscription period grants credits", () => {

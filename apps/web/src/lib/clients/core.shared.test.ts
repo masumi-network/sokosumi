@@ -263,6 +263,14 @@ describe("createCoreClient newsletter sending domains", () => {
       dnsRecords: [],
       lastCheckedAt: null,
       failureReason: null,
+      warmup: {
+        startedAt: null,
+        day: null,
+        dailyCap: null,
+        sentToday: 0,
+        pausedAt: null,
+        pauseReason: null,
+      },
       createdAt: "2026-10-29T12:00:00Z",
     };
     const client = createClient({
@@ -302,6 +310,7 @@ describe("createCoreClient newsletter sending domains", () => {
       "one-time-token",
     );
     await core.getProjectsByIdNewsletterSendingDomainDomainConnect("project-2");
+    await core.postProjectsByIdNewsletterSendingDomainWarmupResume("project-2");
     await core.deleteProjectsByIdNewsletterSendingDomain("project-2");
     await core.getProjectsByIdNewsletterSendingDomain("project-3");
 
@@ -313,6 +322,7 @@ describe("createCoreClient newsletter sending domains", () => {
       ["POST", `${path}/check`],
       ["POST", `${path}/cloudflare`],
       ["GET", `${path}/domain-connect`],
+      ["POST", `${path}/warmup/resume`],
       ["DELETE", path],
       [
         "GET",

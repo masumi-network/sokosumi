@@ -20,7 +20,9 @@
         // An explicit foreground style does not dim with `.disabled`, so the disabled Save turns tertiary.
         // While a save is in flight the composer is disabled and dims both controls itself.
         Button("Save", systemImage: "checkmark.circle.fill", action: save)
-          .foregroundStyle(canSave || !isEnabled ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+          .symbolRenderingMode(.palette)
+          .foregroundStyle(canSave || !isEnabled ? AnyShapeStyle(Color.onBrand) : AnyShapeStyle(.background),
+                           canSave || !isEnabled ? AnyShapeStyle(Color("BrandSolid")) : AnyShapeStyle(.tertiary))
           .disabled(!canSave)
           .help("Save (Return)")
           .accessibilityLabel("Save")

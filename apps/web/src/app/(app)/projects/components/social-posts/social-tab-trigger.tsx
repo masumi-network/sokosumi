@@ -76,7 +76,7 @@ export function SocialTabTrigger({
       >
         <Icon
           aria-hidden
-          className={cn("size-4", alert && "text-semantic-warning")}
+          className={cn("size-4", alert && "text-foreground")}
         />
         {count ? (
           <CornerCountBadge className="bg-muted text-foreground -top-2 -right-3 @min-[42rem]:hidden">

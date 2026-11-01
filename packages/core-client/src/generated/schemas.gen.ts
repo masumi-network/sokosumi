@@ -2569,6 +2569,30 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
+        avatarStyleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The style of the bot\'s claimed avatar, null when it has none. Always sent; optional so clients written before it compile.',
+            example: 'crafted-desk'
+        },
+        idleLoopUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The bot\'s Idle loop (silent MP4), played on its face while its hover card is open. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.',
+            example: 'https://example.com/idle-480.mp4'
+        },
+        workingLoopUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The bot\'s Working loop (silent MP4), played on its face while a reply is in progress. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.',
+            example: 'https://example.com/working-480.mp4'
+        },
         ownerUserId: {
             type: [
                 'string',
@@ -3606,6 +3630,138 @@ export const SokoBotScheduleSchema = {
         'consecutiveFailures',
         'createdAt',
         'updatedAt'
+    ]
+} as const;
+
+export const SokoBotAvatarStateSchema = {
+    type: 'string',
+    enum: [
+        'idle',
+        'thinking',
+        'working',
+        'done',
+        'needs_you',
+        'offline'
+    ]
+} as const;
+
+export const SokoBotAvatarViewSchema = {
+    type: 'object',
+    properties: {
+        styleId: {
+            type: 'string'
+        },
+        styleVersion: {
+            type: 'integer'
+        },
+        stillUrl: {
+            type: 'string'
+        },
+        states: {
+            type: 'object',
+            properties: {
+                idle: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                thinking: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                working: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                done: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                needs_you: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                offline: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarStateAssets'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                }
+            },
+            required: [
+                'idle',
+                'thinking',
+                'working',
+                'done',
+                'needs_you',
+                'offline'
+            ]
+        }
+    },
+    required: [
+        'styleId',
+        'styleVersion',
+        'stillUrl',
+        'states'
+    ]
+} as const;
+
+export const SokoBotAvatarStateAssetsSchema = {
+    type: 'object',
+    properties: {
+        stillUrl: {
+            type: 'string'
+        },
+        loopUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        loopLargeUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'stillUrl',
+        'loopUrl',
+        'loopLargeUrl'
     ]
 } as const;
 
@@ -4707,6 +4863,19 @@ export const SokoBotSchema = {
                 'null'
             ]
         },
+        avatarState: {
+            $ref: '#/components/schemas/SokoBotAvatarState'
+        },
+        avatar: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarView'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         versionId: {
             type: [
                 'string',
@@ -4817,6 +4986,286 @@ export const ClaimSokoBotAvatarRequestSchema = {
     },
     required: [
         'avatarId'
+    ]
+} as const;
+
+export const SokoBotAvatarStudioSchema = {
+    type: 'object',
+    properties: {
+        avatar: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarView'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        look: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarLook'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        draft: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarDraft'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        progress: {
+            type: 'object',
+            properties: {
+                ready: {
+                    type: 'integer'
+                },
+                failed: {
+                    type: 'integer'
+                },
+                total: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'ready',
+                'failed',
+                'total'
+            ]
+        },
+        options: {
+            type: 'object',
+            properties: {
+                creatures: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id'
+                        ]
+                    }
+                },
+                accessories: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'creatures',
+                'accessories'
+            ]
+        }
+    },
+    required: [
+        'avatar',
+        'look',
+        'draft',
+        'progress',
+        'options'
+    ]
+} as const;
+
+export const SokoBotAvatarLookSchema = {
+    type: 'object',
+    properties: {
+        creature: {
+            type: 'string'
+        },
+        accessories: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        typed: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        traits: {
+            type: 'object',
+            additionalProperties: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'creature',
+        'accessories',
+        'typed'
+    ]
+} as const;
+
+export const SokoBotAvatarDraftSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        imageUrl: {
+            type: 'string'
+        },
+        look: {
+            $ref: '#/components/schemas/SokoBotAvatarLook'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'imageUrl',
+        'look',
+        'expiresAt'
+    ]
+} as const;
+
+export const SokoBotAvatarDraftResultSchema = {
+    type: 'object',
+    properties: {
+        draft: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarDraft'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        note: {
+            type: 'string'
+        }
+    },
+    required: [
+        'draft',
+        'note'
+    ]
+} as const;
+
+export const CreateSokoBotAvatarDraftRequestSchema = {
+    type: 'object',
+    properties: {
+        change: {
+            $ref: '#/components/schemas/SokoBotAvatarChange'
+        },
+        draftId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'change'
+    ]
+} as const;
+
+export const SokoBotAvatarChangeSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'creature'
+                    ]
+                },
+                creature: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                }
+            },
+            required: [
+                'kind',
+                'creature'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'accessory'
+                    ]
+                },
+                accessory: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 40
+                },
+                enabled: {
+                    type: 'boolean',
+                    default: true
+                }
+            },
+            required: [
+                'kind',
+                'accessory'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'shuffle'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'typed'
+                    ]
+                },
+                text: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'kind',
+                'text'
+            ]
+        }
     ]
 } as const;
 
@@ -6766,6 +7215,13 @@ export const SokoBotSummarySchema = {
             ],
             example: 'https://blob.example/mascot.png'
         },
+        avatarStyleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'crafted-desk'
+        },
         owner: {
             anyOf: [
                 {
@@ -7099,6 +7555,13 @@ export const TaskEventSchema = {
                         'null'
                     ],
                     example: 'https://blob.example/mascot.png'
+                },
+                avatarStyleId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'crafted-desk'
                 },
                 owner: {
                     anyOf: [
@@ -10259,6 +10722,22 @@ export const ChatRoomSchema = {
             description: 'Host organization display name. Required for guest rows in list; may be null for personal directs.',
             example: 'Acme Corp'
         },
+        organizationLogo: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Host organization logo, on rooms of the sidebar\'s lists only. Null when it has none, and for personal rooms.',
+            example: 'https://example.com/acme.png'
+        },
+        organizationWebsiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Host organization website, on rooms of the sidebar\'s lists only. Null when it has none, and for personal rooms.',
+            example: 'https://acme.com'
+        },
         name: {
             type: 'string',
             example: 'Launch Room'
@@ -11960,6 +12439,14 @@ export const ChatResultAvailableSchema = {
                             ],
                             maxLength: 200,
                             default: null
+                        },
+                        avatarStyleId: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 200,
+                            default: null
                         }
                     },
                     required: [
@@ -12002,6 +12489,14 @@ export const ChatResultAvailableSchema = {
                                 maxLength: 200
                             },
                             avatarSeed: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                maxLength: 200,
+                                default: null
+                            },
+                            avatarStyleId: {
                                 type: [
                                     'string',
                                     'null'
@@ -12145,6 +12640,14 @@ export const ChatResultAvailableSchema = {
                     maxLength: 200
                 },
                 avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                },
+                avatarStyleId: {
                     type: [
                         'string',
                         'null'
@@ -12757,6 +13260,24 @@ export const ChatCatchUpSummarySchema = {
             type: 'integer',
             minimum: 0
         },
+        unreadMessageCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Every unread message, tagged or not, in the rooms covered.'
+        },
+        unreadRoomCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        awaySince: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'The earliest the viewer last read a room that now has unread messages.'
+        },
         counts: {
             type: 'array',
             items: {
@@ -12783,7 +13304,14 @@ export const ChatCatchUpSummarySchema = {
             ],
             description: 'A short written summary, cached until a tagged message arrives that it has not read. Null when nothing is unread or the model was unavailable.'
         },
-        rooms: {
+        topics: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpTopic'
+            },
+            description: 'What happened, one subject per topic, written by the model over the unread messages; what waits on the viewer first. Without the model, each message that needs the viewer, blocks, decides or announces is a topic of its own.'
+        },
+        quietRooms: {
             type: 'array',
             items: {
                 type: 'object',
@@ -12795,16 +13323,18 @@ export const ChatCatchUpSummarySchema = {
                     roomName: {
                         type: 'string'
                     },
-                    line: {
-                        type: 'string'
+                    unreadCount: {
+                        type: 'integer',
+                        minimum: 1
                     }
                 },
                 required: [
                     'roomId',
                     'roomName',
-                    'line'
+                    'unreadCount'
                 ]
-            }
+            },
+            description: 'Rooms with unread messages and no topic in them.'
         },
         generatedAt: {
             type: [
@@ -12820,7 +13350,20 @@ export const ChatCatchUpSummarySchema = {
                 $ref: '#/components/schemas/ChatCatchUpItem'
             }
         },
+        blockers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            },
+            description: 'Escalations, urgent messages and blockers.'
+        },
         decisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        announcements: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/ChatCatchUpItem'
@@ -12830,24 +13373,32 @@ export const ChatCatchUpSummarySchema = {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/ChatCatchUpItem'
-            }
+            },
+            description: 'Questions to the viewer still unanswered and their overdue promises, the longest overdue first.'
         },
         highlights: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/ChatCatchUpItem'
-            }
+            },
+            description: 'At most three other messages worth knowing: decisions to make, commitments, work requests, questions.'
         }
     },
     required: [
         'scope',
         'unreadTaggedCount',
+        'unreadMessageCount',
+        'unreadRoomCount',
+        'awaySince',
         'counts',
         'headline',
-        'rooms',
+        'topics',
+        'quietRooms',
         'generatedAt',
         'needsYou',
+        'blockers',
         'decisions',
+        'announcements',
         'openLoops',
         'highlights'
     ]
@@ -12870,6 +13421,91 @@ export const ChatCatchUpBucketSchema = {
         'chitChat'
     ],
     description: 'The one bucket an unread message counts in, the most pressing first: `needsYou` (a question or decision addressed to the viewer) outranks every tag.'
+} as const;
+
+export const ChatCatchUpTopicSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Its oldest message\'s id.'
+        },
+        title: {
+            type: 'string'
+        },
+        summary: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'waitingOnYou',
+                'decided',
+                'inProgress',
+                'fyi'
+            ]
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        roomKind: {
+            type: 'string',
+            enum: [
+                'channel',
+                'direct'
+            ]
+        },
+        people: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    imageUrl: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'name',
+                    'imageUrl'
+                ]
+            }
+        },
+        latestAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        messages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            },
+            description: 'The unread messages behind it, oldest first.'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'summary',
+        'status',
+        'roomId',
+        'roomName',
+        'roomKind',
+        'people',
+        'latestAt',
+        'messages'
+    ]
 } as const;
 
 export const ChatCatchUpItemSchema = {
@@ -12903,6 +13539,12 @@ export const ChatCatchUpItemSchema = {
         senderName: {
             type: 'string'
         },
+        senderImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         excerpt: {
             type: 'string'
         },
@@ -12921,6 +13563,25 @@ export const ChatCatchUpItemSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        inReplyTo: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                senderName: {
+                    type: 'string'
+                },
+                excerpt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'senderName',
+                'excerpt'
+            ],
+            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
         }
     },
     required: [
@@ -12930,10 +13591,12 @@ export const ChatCatchUpItemSchema = {
         'roomKind',
         'parentMessageId',
         'senderName',
+        'senderImageUrl',
         'excerpt',
         'bucket',
         'createdAt',
-        'dueAt'
+        'dueAt',
+        'inReplyTo'
     ]
 } as const;
 
@@ -29905,6 +30568,9 @@ export const NewsletterSendingDomainSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        warmup: {
+            $ref: '#/components/schemas/NewsletterSendingDomainWarmup'
         }
     },
     required: [
@@ -29915,7 +30581,8 @@ export const NewsletterSendingDomainSchema = {
         'dnsRecords',
         'lastCheckedAt',
         'failureReason',
-        'createdAt'
+        'createdAt',
+        'warmup'
     ]
 } as const;
 
@@ -29964,6 +30631,65 @@ export const NewsletterDnsRecordSchema = {
         'ttl',
         'priority',
         'status'
+    ]
+} as const;
+
+export const NewsletterSendingDomainWarmupSchema = {
+    type: 'object',
+    properties: {
+        startedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        day: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        dailyCap: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        sentToday: {
+            type: 'integer',
+            minimum: 0
+        },
+        pausedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pauseReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'BOUNCE_RATE',
+                'COMPLAINT_RATE',
+                null
+            ]
+        }
+    },
+    required: [
+        'startedAt',
+        'day',
+        'dailyCap',
+        'sentToday',
+        'pausedAt',
+        'pauseReason'
     ]
 } as const;
 
@@ -40993,6 +41719,19 @@ export const SokoBotStateSchema = {
                         'null'
                     ]
                 },
+                avatarState: {
+                    $ref: '#/components/schemas/SokoBotAvatarState'
+                },
+                avatar: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotAvatarView'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
                 versionId: {
                     type: [
                         'string',
@@ -41098,6 +41837,19 @@ export const SharedSokoBotSummarySchema = {
                 'null'
             ]
         },
+        avatarState: {
+            $ref: '#/components/schemas/SokoBotAvatarState'
+        },
+        avatar: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotAvatarView'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         status: {
             $ref: '#/components/schemas/SokoBotStatus'
         },
@@ -41154,12 +41906,16 @@ export const SokoBotActivitySchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        avatarState: {
+            $ref: '#/components/schemas/SokoBotAvatarState'
         }
     },
     required: [
         'status',
         'activeTurnId',
-        'lastTurnAt'
+        'lastTurnAt',
+        'avatarState'
     ]
 } as const;
 
@@ -41893,6 +42649,19 @@ export const SokoBotTeamSchema = {
                                 type: [
                                     'string',
                                     'null'
+                                ]
+                            },
+                            avatarState: {
+                                $ref: '#/components/schemas/SokoBotAvatarState'
+                            },
+                            avatar: {
+                                anyOf: [
+                                    {
+                                        $ref: '#/components/schemas/SokoBotAvatarView'
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
                                 ]
                             },
                             avatarSeed: {
@@ -43750,6 +44519,12 @@ export const TaskScheduleAssigneesSchema = {
                     ]
                 },
                 avatarImageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                avatarStyleId: {
                     type: [
                         'string',
                         'null'

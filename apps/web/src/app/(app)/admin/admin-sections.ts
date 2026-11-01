@@ -9,6 +9,7 @@ import {
   ListTodo,
   type LucideIcon,
   MessagesSquare,
+  Palette,
   Receipt,
   Sparkles,
   Store,
@@ -21,7 +22,8 @@ export type AdminSectionGroup =
   | "accounts"
   | "billing"
   | "catalog"
-  | "operations";
+  | "operations"
+  | "reference";
 
 export interface AdminSection {
   /** Stable key used for the React key and i18n lookups. */
@@ -40,6 +42,7 @@ export const ADMIN_SECTION_GROUPS: AdminSectionGroup[] = [
   "billing",
   "catalog",
   "operations",
+  "reference",
 ];
 
 /**
@@ -133,5 +136,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     href: "/admin/badge-campaigns",
     Icon: Sparkles,
     group: "operations",
+  },
+  {
+    key: "designSystem",
+    href: "/admin/design-system",
+    Icon: Palette,
+    group: "reference",
   },
 ];

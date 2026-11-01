@@ -123,8 +123,8 @@ export function ChatUnreadsFilterChip({
       className={cn(
         UNREADS_CHIP_CLASS,
         unreadOnly
-          ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant active:bg-primary-quaternary"
-          : "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant",
+          ? "bg-quinary text-foreground hover:bg-quinary active:bg-quinary"
+          : "chat-unreads-boot:bg-quinary chat-unreads-boot:text-foreground",
       )}
     >
       {t("allUnreads")}
@@ -181,7 +181,7 @@ export function ChatMarkAllReadButton({
       disabled={isMarking}
       aria-busy={isMarking}
       onClick={handleMarkAllRead}
-      className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-primary-variant")}
+      className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-foreground")}
     >
       {isMarking ? (
         <Loader2
@@ -198,6 +198,8 @@ export function ChatMarkAllReadButton({
 interface ChatUnreadNavRowsProps {
   /** The sidebar's live rooms. The row reads these and nothing of its own. */
   rooms: readonly ChatRoom[];
+  /** What Mark all as read clears: `rooms`, and Pinned rooms of elsewhere. */
+  markAllRooms: readonly ChatRoom[];
   /** When false, render plain links (page-mounted list outside a Sheet). */
   dismissSheetOnNavigate?: boolean;
   /** The All unreads filter: the list below shows only rooms with unread. */
@@ -221,6 +223,7 @@ interface ChatUnreadNavRowsProps {
  */
 export function ChatUnreadNavRows({
   rooms,
+  markAllRooms,
   dismissSheetOnNavigate = true,
   unreadOnly,
   onUnreadOnlyChange,
@@ -242,7 +245,7 @@ export function ChatUnreadNavRows({
     0,
   );
   const showMarkAll =
-    showsChip && unreadOnly && markAllReadTargets(rooms).length > 0;
+    showsChip && unreadOnly && markAllReadTargets(markAllRooms).length > 0;
   // While the filter is on, the list below is the count; the row makes room
   // for Mark all instead (where the row carries the chip; on the heading,
   // Mark all sits beside it there).
@@ -329,7 +332,10 @@ export function ChatUnreadNavRows({
         </SidebarMenuButton>
         {onUnreadOnlyChange ? (
           <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
-            <ChatMarkAllReadButton rooms={rooms} unreadOnly={unreadOnly} />
+            <ChatMarkAllReadButton
+              rooms={markAllRooms}
+              unreadOnly={unreadOnly}
+            />
             <ChatUnreadsFilterChip
               unreadOnly={unreadOnly}
               onUnreadOnlyChange={onUnreadOnlyChange}

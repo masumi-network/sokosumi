@@ -40,25 +40,15 @@ import {
   connectNewsletterSendingDomainWithCloudflare,
   getNewsletterSendingDomainConnect,
   removeNewsletterSendingDomain,
+  resumeNewsletterSendingDomainWarmup,
   saveNewsletterSendingDomain,
 } from "@/lib/actions/newsletter/sending-domain";
 
-const STATUS_STYLE = {
-  PENDING: {
-    icon: Clock,
-    className:
-      "border-transparent bg-semantic-warning-quaternary text-semantic-warning-label",
-  },
-  VERIFIED: {
-    icon: CircleCheck,
-    className:
-      "border-transparent bg-semantic-success-quaternary text-semantic-success-label",
-  },
-  FAILED: {
-    icon: CircleAlert,
-    className:
-      "border-transparent bg-semantic-destructive-quaternary text-semantic-destructive-label",
-  },
+// Status chips are neutral; the glyph and the word carry the state.
+const STATUS_ICON = {
+  PENDING: Clock,
+  VERIFIED: CircleCheck,
+  FAILED: CircleAlert,
 } as const;
 
 type RecordPurpose = "dkim" | "spf" | "bounce" | "dmarc" | "other";
@@ -191,7 +181,7 @@ function AddDomainForm({
           <p
             id="newsletter-from-address-error"
             role="alert"
-            className="text-semantic-destructive-label text-sm"
+            className="text-semantic-destructive text-sm"
           >
             {error}
           </p>
@@ -226,9 +216,9 @@ function ConnectedDomain({
   const format = useFormatter();
   const router = useRouter();
   const [checking, setChecking] = useState(false);
-  const { icon: StatusIcon, className: statusClassName } =
-    STATUS_STYLE[domain.status];
+  const StatusIcon = STATUS_ICON[domain.status];
   const verified = domain.status === "VERIFIED";
+  const paused = Boolean(domain.warmup.pausedAt);
   // Core lists a suggested DMARC record only while the domain lacks a policy.
   const dmarcMissing = domain.dnsRecords.some(
     (record) => record.record === "DMARC" && record.status !== "verified",
@@ -261,7 +251,7 @@ function ConnectedDomain({
           <span className="min-w-0 font-mono text-sm font-medium wrap-anywhere">
             {domain.fromAddress}
           </span>
-          <Badge className={statusClassName}>
+          <Badge className="border-border bg-muted text-foreground">
             <StatusIcon aria-hidden />
             {t(`status.${domain.status}`)}
           </Badge>
@@ -279,28 +269,36 @@ function ConnectedDomain({
         {domain.status === "FAILED" && domain.failureReason ? (
           <p
             role="status"
-            className="text-semantic-destructive-label text-sm wrap-anywhere"
+            className="text-semantic-destructive text-sm wrap-anywhere"
           >
             {domain.failureReason}
           </p>
         ) : null}
-        {verified ? (
+        {verified && !paused ? (
           <p className="text-muted-foreground text-sm text-pretty">
             {t("verifiedDescription")}
           </p>
-        ) : (
+        ) : !verified && !paused ? (
           <FallbackNote fallbackAvailable={fallbackAvailable} />
-        )}
+        ) : null}
       </div>
+
+      {paused || (verified && domain.warmup.startedAt) ? (
+        <WarmupStatus
+          warmup={domain.warmup}
+          canManage={canManage}
+          projectId={projectId}
+        />
+      ) : null}
 
       {dmarcMissing ? (
         <div
           role="status"
-          className="bg-semantic-warning-quinary border-semantic-warning-tertiary flex min-w-0 gap-2 rounded-md border p-3"
+          className="bg-muted border-border flex min-w-0 gap-2 rounded-md border p-3"
         >
           <CircleAlert
             aria-hidden
-            className="text-semantic-warning-label mt-0.5 size-4 shrink-0"
+            className="text-foreground mt-0.5 size-4 shrink-0"
           />
           <div className="min-w-0 space-y-1 text-sm">
             <p className="font-medium">{t("dmarc.title")}</p>
@@ -337,6 +335,99 @@ function ConnectedDomain({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function WarmupStatus({
+  warmup,
+  canManage,
+  projectId,
+}: {
+  warmup: NewsletterSendingDomain["warmup"];
+  canManage: boolean;
+  projectId: string;
+}) {
+  const t = useTranslations("App.Projects.Newsletter.SendingDomain");
+  const format = useFormatter();
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const paused = Boolean(warmup.pausedAt);
+
+  async function handleResume() {
+    setPending(true);
+    setError("");
+    try {
+      const result = await resumeNewsletterSendingDomainWarmup({ projectId });
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      toast.success(t("warmup.resumed"));
+      router.refresh();
+    } catch {
+      setError(t("errors.generic"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section
+      aria-labelledby="newsletter-domain-warmup"
+      className={
+        paused
+          ? "bg-semantic-warning-quinary border-semantic-warning-tertiary min-w-0 space-y-2 rounded-md border p-3"
+          : "bg-muted min-w-0 space-y-2 rounded-md p-3"
+      }
+    >
+      <h4 id="newsletter-domain-warmup" className="text-sm font-medium">
+        {paused ? t("warmup.paused") : t("warmup.title")}
+      </h4>
+      <p className="text-sm tabular-nums">
+        {warmup.dailyCap === null
+          ? t("warmup.unlimited", {
+              day: warmup.day ?? 0,
+              used: format.number(warmup.sentToday),
+            })
+          : t("warmup.progress", {
+              day: warmup.day ?? 0,
+              used: format.number(warmup.sentToday),
+              cap: format.number(warmup.dailyCap),
+            })}
+      </p>
+      {paused ? (
+        <>
+          <p className="text-sm">
+            {warmup.pauseReason === "COMPLAINT_RATE"
+              ? t("warmup.complaintReason")
+              : t("warmup.bounceReason")}
+          </p>
+          <p className="text-muted-foreground text-sm text-pretty">
+            {t("warmup.pausedDescription")}
+          </p>
+          {canManage ? (
+            <Button
+              type="button"
+              variant="outline"
+              loading={pending}
+              onClick={() => void handleResume()}
+            >
+              {t("warmup.resume")}
+            </Button>
+          ) : null}
+        </>
+      ) : warmup.dailyCap !== null ? (
+        <p className="text-muted-foreground text-sm text-pretty">
+          {t("warmup.description")}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-semantic-destructive-label text-sm">
+          {error}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -405,7 +496,7 @@ function DomainConnectOption({ projectId }: { projectId: string }) {
         </>
       )}
       {error ? (
-        <p role="alert" className="text-semantic-destructive-label text-sm">
+        <p role="alert" className="text-semantic-destructive text-sm">
           {error}
         </p>
       ) : null}
@@ -483,7 +574,7 @@ function CloudflareOption({ projectId }: { projectId: string }) {
         <p
           id="newsletter-cloudflare-token-error"
           role="alert"
-          className="text-semantic-destructive-label text-sm"
+          className="text-semantic-destructive text-sm"
         >
           {error}
         </p>
@@ -524,7 +615,7 @@ function DnsRecords({ records }: { records: NewsletterDnsRecord[] }) {
               {record.status === "verified" ? (
                 <CircleCheck
                   aria-label={t("records.found")}
-                  className="text-semantic-success size-4"
+                  className="text-foreground size-4"
                 />
               ) : null}
             </div>
@@ -621,7 +712,7 @@ function RemoveDomainButton({
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (
-          <p role="alert" className="text-semantic-destructive-label text-sm">
+          <p role="alert" className="text-semantic-destructive text-sm">
             {error}
           </p>
         ) : null}
@@ -631,7 +722,7 @@ function RemoveDomainButton({
           </AlertDialogCancel>
           <AlertDialogAction
             loading={pending}
-            className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+            className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
             onClick={(event) => {
               event.preventDefault();
               void handleRemove();

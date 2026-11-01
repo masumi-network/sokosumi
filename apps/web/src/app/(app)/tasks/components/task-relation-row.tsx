@@ -46,7 +46,7 @@ export function TaskRelationRow({
       >
         <StatusMarker
           spec={marker}
-          tone={getToneStyle(marker.tone).labelOnSurface}
+          tone={getToneStyle(marker.tone).onSurface}
         />
       </span>
       <span className="truncate">{taskName}</span>

@@ -83,10 +83,10 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                           className={cn(
                             "rounded px-1.5 py-0.5 text-xs font-medium tabular-nums",
                             turn.qualityScore >= 4
-                              ? "bg-semantic-success-quaternary text-foreground"
+                              ? "bg-quinary text-foreground"
                               : turn.qualityScore >= 3
-                                ? "bg-semantic-warning-quaternary text-foreground"
-                                : "bg-semantic-destructive-quaternary text-foreground",
+                                ? "bg-quinary text-foreground"
+                                : "bg-quinary text-foreground",
                           )}
                         >
                           {turn.qualityScore}/5

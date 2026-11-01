@@ -13,6 +13,7 @@ import {
   getSokoBotVersion,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
+  isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
@@ -1267,7 +1268,14 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
+        if (input.avatarId) {
+          // Recorded for the daily keep cap, never refused by it: creating a bot
+          // must not fail because of a limit on how often looks are kept.
+          await claimAvatar(updated.id, input.avatarId, {
+            tx,
+            keptBy: input.userId,
+          });
+        }
         return updated;
       }
 
@@ -1299,7 +1307,12 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
+      if (input.avatarId) {
+        await claimAvatar(bot.id, input.avatarId, {
+          tx,
+          keptBy: input.userId,
+        });
+      }
       return bot;
     });
     const { ensureSystemSchedules } = await import(
@@ -2227,8 +2240,8 @@ export class SokoBotControlPlane {
           capability,
         ),
     );
-    const newsletterDraftAvailable =
-      routeCapabilities.includes("newsletter_draft_issue") &&
+    const newsletterAvailable =
+      routeCapabilities.some(isSokoBotNewsletterCapability) &&
       (await isNewsletterDraftAvailable({
         workspaceId: input.workspaceId,
         projectId: bot.projectId,
@@ -2242,7 +2255,7 @@ export class SokoBotControlPlane {
           : routeCapabilities) as readonly SokoBotCapability[],
     ).filter(
       (capability) =>
-        capability !== "newsletter_draft_issue" || newsletterDraftAvailable,
+        !isSokoBotNewsletterCapability(capability) || newsletterAvailable,
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +

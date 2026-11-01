@@ -86,7 +86,7 @@
   struct ComposerAttachmentDropOverlay: View {
     var body: some View {
       ZStack {
-        Color.accentColor.opacity(0.12)
+        Color.primary.opacity(0.08)
         Label("Drop files to attach", systemImage: "paperclip")
           .font(.headline)
           .padding()

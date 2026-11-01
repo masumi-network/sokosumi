@@ -84,7 +84,7 @@ export function ArchiveIssues({
         ))}
       </ul>
       {error ? (
-        <p role="alert" className="text-semantic-destructive-label text-sm">
+        <p role="alert" className="text-foreground text-sm">
           {error}
         </p>
       ) : null}

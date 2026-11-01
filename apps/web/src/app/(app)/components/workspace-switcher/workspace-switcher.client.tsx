@@ -328,7 +328,7 @@ export function WorkspaceSwitcherProvider({
               className={cn(
                 "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "personal" &&
-                  "border-primary bg-card-background",
+                  "border-foreground bg-card-background",
               )}
             >
               <RadioGroupItem
@@ -350,7 +350,7 @@ export function WorkspaceSwitcherProvider({
               className={cn(
                 "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "organization" &&
-                  "border-primary bg-card-background",
+                  "border-foreground bg-card-background",
               )}
             >
               <RadioGroupItem

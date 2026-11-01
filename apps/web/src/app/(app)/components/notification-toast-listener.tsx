@@ -231,7 +231,7 @@ export function NotificationToastListener({
           toasterId: NOTIFICATION_TOASTER_ID,
           duration: 10_000,
           dismissible: true,
-          icon: <Icon className="text-primary size-5 shrink-0" />,
+          icon: <Icon className="text-foreground size-5 shrink-0" />,
         },
       );
     },

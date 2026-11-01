@@ -18,3 +18,14 @@ export function useRoomDisplayName(): (
       t("SelfDirect.youNamed", { name }),
     );
 }
+
+/** The workspace a room belongs to, as the surfaces that name it say it. */
+export function useRoomWorkspaceName(): (
+  room: Pick<ChatRoom, "organizationId" | "organizationName">,
+) => string | null | undefined {
+  const t = useTranslations("App.Tasks.Detail");
+  return (room) =>
+    room.organizationId === null
+      ? t("personalWorkspace")
+      : room.organizationName;
+}

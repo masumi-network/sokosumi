@@ -29,6 +29,9 @@ const setAvatarRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    // Claiming runs in a Serializable transaction, so a concurrent change can
+    // lose the race and be worth retrying verbatim.
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -39,7 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireAdminAuthContext(c.var.authContext);
     const { sokoBotId } = c.req.valid("param");
     const bot = await prisma.sokoBot.findUnique({
-      where: { id: sokoBotId },
+      where: { id: sokoBotId, deletedAt: null },
       select: { id: true },
     });
     if (!bot) throw notFound("Soko Bot not found");
