@@ -197,7 +197,7 @@ function SuggestionRow({
         <Button
           size="icon"
           variant="ghost"
-          className="size-8"
+          className="size-10 md:size-8"
           aria-label={t("dismiss", { name: row.name })}
           disabled={busy}
           onClick={onDismiss}
