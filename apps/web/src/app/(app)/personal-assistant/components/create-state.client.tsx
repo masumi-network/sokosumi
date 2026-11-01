@@ -1,23 +1,30 @@
 "use client";
 
 import type { SokoBotAvatar } from "@sokosumi/core-client";
-import { Check } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { SokoBotSetupSteps } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
+import { setupAssistantConnectPath } from "@/lib/workspace-gate";
 
 import { AvatarPicker } from "./avatar-picker.client";
 import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 
 /**
- * First visit: the bot's orb, what it does, a name, and a picture.
- * Core upserts on the user, so this also reactivates an archived bot.
+ * First visit, in steps: a name, a picture, then (on the setup page) mail and
+ * calendar. Core upserts on the user, so this also reactivates an archived bot.
  */
 export function CreateState({
   paidByOrganization,
@@ -41,6 +48,12 @@ export function CreateState({
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{ name: string } | null>(null);
+  const [step, setStep] = useState<"name" | "picture">("name");
+
+  function handleContinue(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (name.trim()) setStep("picture");
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,15 +73,9 @@ export function CreateState({
         return;
       }
       setCreated({ name: result.value.name ?? trimmed });
-      // Let the reveal play before the chat takes over.
-      const reveal = new Promise((resolve) => setTimeout(resolve, 1800));
-      const roomId = await openNewSokoBotRoom(result.value.id);
-      await reveal;
-      if (roomId) {
-        router.push(`/chat/rooms/${encodeURIComponent(roomId)}`);
-        return;
-      }
-      router.refresh();
+      // Let the reveal play, then the last step: mail and calendar.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      router.push(setupAssistantConnectPath(SOKO_BOT_ROUTE));
     });
   }
 
@@ -100,36 +107,22 @@ export function CreateState({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-12 md:py-20">
-      <h1 className="text-foreground text-center text-2xl font-light text-balance md:text-3xl tracking-tight">
-        {t("title")}
-      </h1>
-      <p className="text-muted-foreground mt-3 max-w-md text-center text-sm leading-relaxed text-pretty md:text-base">
-        {t("description")}
-      </p>
-
-      {/* People meet the idea here for the first time: say what it does in
-          their terms before asking them to name one. */}
-      <ul
-        aria-label={t("examplesLabel")}
-        className="mt-8 w-full space-y-3 text-sm leading-relaxed"
+    <div className="mx-auto flex w-full max-w-md flex-col gap-8 px-4 py-12 md:py-20">
+      <SokoBotSetupSteps current={step === "name" ? 1 : 2} />
+      <form
+        hidden={step !== "name"}
+        onSubmit={handleContinue}
+        className={step === "name" ? "flex flex-col gap-8" : "hidden"}
       >
-        {(["exampleDelegate", "exampleBrief", "exampleMemory"] as const).map(
-          (key) => (
-            <li key={key} className="flex gap-3">
-              <Check
-                aria-hidden
-                className="text-muted-foreground mt-0.5 size-4 shrink-0"
-              />
-              <span className="text-foreground text-pretty">{t(key)}</span>
-            </li>
-          ),
-        )}
-      </ul>
-
-      <form onSubmit={handleSubmit} className="mt-10 w-full space-y-6">
-        <p className="text-foreground text-sm font-medium">{t("nameIntro")}</p>
-        <div className="space-y-2">
+        <header className="flex flex-col gap-2 text-center">
+          <h1 className="text-foreground text-3xl font-light tracking-tight text-balance">
+            {t("nameTitle")}
+          </h1>
+          <p className="text-muted-foreground text-sm text-pretty">
+            {t("nameHint")}
+          </p>
+        </header>
+        <div className="flex flex-col gap-2">
           <Label htmlFor={nameId}>{t("nameLabel")}</Label>
           <Input
             id={nameId}
@@ -142,25 +135,65 @@ export function CreateState({
             autoFocus
           />
         </div>
-
-        <div className="space-y-2">
-          <Label>{t("avatarLabel")}</Label>
-          <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
+        <div className="flex flex-col gap-2">
+          <Button type="submit" variant="primary" className="w-full">
+            {t("continue")}
+          </Button>
+          {secondaryAction}
         </div>
-
-        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-          {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
-        </p>
-
-        <Button
-          type="submit"
-          className="w-full"
-          loading={isPending}
-          disabled={name.trim().length === 0}
-        >
-          {t("submit")}
-        </Button>
-        {secondaryAction}
+      </form>
+      {/* Mounted from the start, so the pictures load while the name is typed. */}
+      <form
+        hidden={step !== "picture"}
+        onSubmit={handleSubmit}
+        className={step === "picture" ? "flex flex-col gap-8" : "hidden"}
+      >
+        <header className="flex flex-col items-center gap-4 text-center">
+          {avatar ? (
+            <img
+              src={avatar.imageUrl}
+              alt=""
+              className="size-24 rounded-full border object-cover"
+            />
+          ) : (
+            <span className="bg-muted size-24 animate-pulse rounded-full" />
+          )}
+          <div className="flex flex-col gap-2">
+            <h1 className="text-foreground text-3xl font-light tracking-tight text-balance">
+              {t("pictureTitle", { name: name.trim() })}
+            </h1>
+            <p className="text-muted-foreground text-sm text-pretty">
+              {t(
+                paidByOrganization ? "spendNoticeOrganization" : "spendNotice",
+              )}
+            </p>
+          </div>
+        </header>
+        <div className={HOLDER_CLASS}>
+          <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
+            <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full"
+            loading={isPending}
+          >
+            {t("submit", { name: name.trim() })}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            disabled={isPending}
+            onClick={() => setStep("name")}
+          >
+            <ArrowLeft aria-hidden />
+            {t("back")}
+          </Button>
+        </div>
       </form>
     </div>
   );
