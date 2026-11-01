@@ -64,6 +64,13 @@ export const chatCatchUpItemSchema = z
     bucket: chatCatchUpBucketSchema,
     createdAt: dateTimeSchema,
     dueAt: dateTimeSchema.nullable(),
+    inReplyTo: z
+      .object({ senderName: z.string(), excerpt: z.string() })
+      .nullable()
+      .openapi({
+        description:
+          "For a decision: the earlier message it answers, so a bare reply reads on its own.",
+      }),
   })
   .openapi("ChatCatchUpItem");
 
@@ -90,9 +97,19 @@ export const chatCatchUpSummarySchema = z
     ),
     generatedAt: dateTimeSchema.nullable(),
     needsYou: z.array(chatCatchUpItemSchema),
+    blockers: z.array(chatCatchUpItemSchema).openapi({
+      description: "Escalations, urgent messages and blockers.",
+    }),
     decisions: z.array(chatCatchUpItemSchema),
-    openLoops: z.array(chatCatchUpItemSchema),
-    highlights: z.array(chatCatchUpItemSchema),
+    announcements: z.array(chatCatchUpItemSchema),
+    openLoops: z.array(chatCatchUpItemSchema).openapi({
+      description:
+        "Questions to the viewer still unanswered and their overdue promises, the longest overdue first.",
+    }),
+    highlights: z.array(chatCatchUpItemSchema).openapi({
+      description:
+        "At most three other messages worth knowing: decisions to make, commitments, work requests, questions.",
+    }),
   })
   .openapi("ChatCatchUpSummary");
 

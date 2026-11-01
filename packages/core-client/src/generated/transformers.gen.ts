@@ -1428,7 +1428,9 @@ const chatCatchUpSummarySchemaResponseTransformer = (data: any) => {
         data.generatedAt = new Date(data.generatedAt);
     }
     data.needsYou = data.needsYou.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
+    data.blockers = data.blockers.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     data.decisions = data.decisions.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
+    data.announcements = data.announcements.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     data.openLoops = data.openLoops.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     data.highlights = data.highlights.map((item: any) => chatCatchUpItemSchemaResponseTransformer(item));
     return data;

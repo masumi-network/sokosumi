@@ -1,4 +1,8 @@
-import type { ChatCatchUpSummary, ChatRoom } from "@sokosumi/core-client";
+import type {
+  ChatCatchUpItem,
+  ChatCatchUpSummary,
+  ChatRoom,
+} from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -7,12 +11,21 @@ import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 
 import { CatchUpView } from "./catch-up-view";
 
-const { listElsewhereMock, showRoomUnreadCountMock, summaryActionMock } =
-  vi.hoisted(() => ({
-    listElsewhereMock: vi.fn(),
-    showRoomUnreadCountMock: vi.fn(),
-    summaryActionMock: vi.fn(),
-  }));
+const {
+  listElsewhereMock,
+  markAllReadMock,
+  setLoopMock,
+  showRoomUnreadCountMock,
+  summaryActionMock,
+} = vi.hoisted(() => ({
+  listElsewhereMock: vi.fn(),
+  markAllReadMock: vi.fn(),
+  setLoopMock: vi.fn(),
+  showRoomUnreadCountMock: vi.fn(),
+  summaryActionMock: vi.fn(),
+}));
+
+const NOW = new Date("2026-10-31T12:00:00.000Z");
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -28,11 +41,20 @@ vi.mock("next-intl", () => ({
         namespace ? `${namespace}.${key}` : key,
         ...Object.values(values ?? {}),
       ].join(" "),
-  useFormatter: () => ({ relativeTime: () => "just now" }),
+  useFormatter: () => ({
+    relativeTime: () => "just now",
+    dateTime: () => "Fri, Oct 30",
+  }),
+  useNow: () => NOW,
 }));
 
 vi.mock("@/app/chat/signal-actions", () => ({
   getChatCatchUpSummaryAction: () => summaryActionMock(),
+  setChatSignalLoopAction: (...args: unknown[]) => setLoopMock(...args),
+}));
+
+vi.mock("@/app/chat/actions", () => ({
+  markAllChatUnreadReadAction: (...args: unknown[]) => markAllReadMock(...args),
 }));
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
@@ -80,11 +102,33 @@ const EMPTY_SUMMARY: ChatCatchUpSummary = {
   generatedAt: null,
   counts: [],
   needsYou: [],
+  blockers: [],
   decisions: [],
+  announcements: [],
   openLoops: [],
   highlights: [],
   rooms: [],
 };
+
+function item(
+  messageId: string,
+  overrides: Partial<ChatCatchUpItem> = {},
+): ChatCatchUpItem {
+  return {
+    messageId,
+    roomId: "room-a",
+    roomName: "Sokosumi",
+    roomKind: "channel",
+    parentMessageId: null,
+    senderName: "Francis",
+    excerpt: `text of ${messageId}`,
+    bucket: "needsYou",
+    createdAt: new Date("2026-10-29T12:00:00.000Z"),
+    dueAt: null,
+    inReplyTo: null,
+    ...overrides,
+  };
+}
 
 function summaryAnswers(summary: Partial<ChatCatchUpSummary> = {}) {
   summaryActionMock.mockResolvedValue({
@@ -229,7 +273,7 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     expect(elsewhereList()).toBeNull();
   });
 
-  it("stands above the written summary, which keeps its content", async () => {
+  it("stands below the written summary, which keeps its content", async () => {
     listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
     summaryAnswers({
       headline: "A quiet morning",
@@ -240,11 +284,12 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     const list = await findElsewhereList();
     const summary = await screen.findByTestId("catch-up-summary");
 
-    expect(list.compareDocumentPosition(summary)).toBe(
+    expect(summary.compareDocumentPosition(list)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(within(summary).getByText("A quiet morning")).toBeTruthy();
-    expect(within(summary).getByText("All settled")).toBeTruthy();
+    // The headline already says it; no second pass room by room.
+    expect(within(summary).queryByText("All settled")).toBeNull();
     expect(within(summary).queryByText("launch")).toBeNull();
   });
 
@@ -314,6 +359,113 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       renderCatchUp();
 
       expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+    });
+  });
+
+  describe("the summary", () => {
+    it("lists each section once, rooms named once inside it", async () => {
+      summaryAnswers({
+        headline: "Francis needs your green light.",
+        needsYou: [
+          item("q1"),
+          item("q2"),
+          item("q3", { roomId: "room-b", roomName: "NMKR" }),
+        ],
+        blockers: [item("b1", { bucket: "blocker" })],
+        announcements: [item("a1", { bucket: "announcement" })],
+      });
+
+      renderCatchUp();
+      const summary = await screen.findByTestId("catch-up-summary");
+
+      const needsYou = within(summary).getByRole("region", {
+        name: "App.Channels.Signals.Sections.needsYou",
+      });
+      expect(within(needsYou).getAllByText("Sokosumi")).toHaveLength(1);
+      expect(within(needsYou).getByText("NMKR")).toBeTruthy();
+      expect(
+        within(summary).getByRole("region", {
+          name: "App.Channels.Signals.Sections.blockers",
+        }),
+      ).toBeTruthy();
+      expect(
+        within(summary).getByRole("region", {
+          name: "App.Channels.Signals.Sections.announcements",
+        }),
+      ).toBeTruthy();
+    });
+
+    it("says how overdue a promise is, and what a decision answers", async () => {
+      summaryAnswers({
+        openLoops: [
+          item("loop", {
+            bucket: "commitment",
+            dueAt: new Date("2026-10-28T09:00:00.000Z"),
+          }),
+        ],
+        decisions: [
+          item("d1", {
+            bucket: "decisionMade",
+            excerpt: "Oh yes, send it",
+            inReplyTo: {
+              senderName: "Patrick",
+              excerpt: "Shall I send the deck?",
+            },
+          }),
+        ],
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.overdue 3"),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          "App.Channels.Signals.inReplyTo Patrick Shall I send the deck?",
+        ),
+      ).toBeTruthy();
+    });
+
+    it("marks a row done and reloads the summary", async () => {
+      summaryAnswers({ needsYou: [item("q1")] });
+      setLoopMock.mockResolvedValue({ ok: true, value: {} });
+
+      renderCatchUp();
+      const done = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markDone",
+      });
+      summaryAnswers();
+      await act(async () => done.click());
+
+      expect(setLoopMock).toHaveBeenCalledWith("q1", { closed: true });
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+    });
+
+    it("marks every listed room read, a Thread reply by its Threads", async () => {
+      summaryAnswers({
+        needsYou: [item("q1")],
+        highlights: [
+          item("h1", {
+            roomId: "room-b",
+            roomName: "NMKR",
+            parentMessageId: "parent",
+            bucket: "question",
+          }),
+        ],
+      });
+      markAllReadMock.mockResolvedValue({ ok: true, value: null });
+
+      renderCatchUp();
+      const button = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+      await act(async () => button.click());
+
+      expect(markAllReadMock).toHaveBeenCalledWith([
+        { roomId: "room-a", readRoom: true, lookThreads: false },
+        { roomId: "room-b", readRoom: false, lookThreads: true },
+      ]);
     });
   });
 });
