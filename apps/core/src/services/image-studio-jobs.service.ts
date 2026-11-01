@@ -76,7 +76,7 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { publishStudioAssetToFiles } from "@/services/image-studio-files.service";
+import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -1468,7 +1468,6 @@ export async function settleWithMedia(
   // Only the settler that stored the asset gets here, so this runs once per job.
   await publishStudioAssetToFiles({
     jobId: job.id,
-    projectId: project.id,
     workspaceId: project.workspaceId,
     organizationId: project.organizationId,
     userId: job.requestedByUserId,

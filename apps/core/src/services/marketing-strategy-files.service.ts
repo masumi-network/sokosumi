@@ -7,7 +7,10 @@ import {
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
 import { downloadBlob } from "@/services/file-index.service";
-import { isMarketingFilePiece } from "@/services/marketing-strategy.service";
+import {
+  entryMedia,
+  isMarketingFilePiece,
+} from "@/services/marketing-strategy.service";
 
 /**
  * The pieces of an approved Marketing strategy that are not Social posts (an
@@ -50,16 +53,6 @@ export function marketingPieceText(markdown: string): string {
   return markdown.replace(/^# [^\n]*\n+/, "").trim();
 }
 
-/** The pictures a save names for a piece, the cover first. */
-function sentMedia(entry: CmoCalendarEntry): string[] {
-  return [
-    ...new Set([
-      ...(entry.imageFileId ? [entry.imageFileId] : []),
-      ...(entry.slideFileIds ?? []),
-    ]),
-  ];
-}
-
 /**
  * Writes each sent piece that is not a Social post as the version's file:
  * a new piece with its words gets a file under Marketing/<month>, a piece
@@ -76,7 +69,7 @@ export async function writeMarketingStrategyFiles(input: {
     (entry) =>
       isMarketingFilePiece(entry) &&
       entry.status !== "skipped" &&
-      (Boolean(entry.draft?.trim()) || sentMedia(entry).length > 0),
+      (Boolean(entry.draft?.trim()) || entryMedia(entry).length > 0),
   );
   if (pieces.length === 0) return 0;
   const links = await prisma.marketingStrategyFile.findMany({
@@ -92,7 +85,7 @@ export async function writeMarketingStrategyFiles(input: {
   let written = 0;
   for (const entry of pieces) {
     const link = links.find((item) => item.entryId === entry.id);
-    const media = sentMedia(entry);
+    const media = entryMedia(entry);
     if (!entry.draft?.trim()) {
       // Only pictures: they join a piece already written.
       if (!link) continue;

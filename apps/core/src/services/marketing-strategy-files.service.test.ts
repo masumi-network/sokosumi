@@ -20,7 +20,10 @@ vi.mock("@/services/cuso-project-files.service", () => ({
 }));
 vi.mock("@/services/file-index.service", () => ({ downloadBlob: download }));
 
-import { withMarketingFiles } from "./marketing-strategy.service";
+import {
+  carryOverMadePieces,
+  withMarketingFiles,
+} from "./marketing-strategy.service";
 import {
   marketingPieceMarkdown,
   marketingPieceText,
@@ -197,5 +200,74 @@ describe("withMarketingFiles", () => {
       slideFileIds: ["a", "b"],
     });
     expect(calendar[2]).not.toHaveProperty("fileId");
+  });
+});
+
+describe("carryOverMadePieces", () => {
+  it("hands the made pieces to the approved version, unless their title changed", async () => {
+    const tx = {
+      socialPost: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "post-1",
+            planning: { id: "x-1", title: "Same post", format: "post" },
+          },
+          {
+            id: "post-2",
+            planning: { id: "x-2", title: "Old idea", format: "post" },
+          },
+          {
+            id: "post-3",
+            planning: { id: "x-3", title: "Dropped", format: "post" },
+          },
+        ]),
+        updateMany: vi.fn(),
+      },
+      marketingStrategyFile: {
+        findMany: vi.fn().mockResolvedValue([
+          { entryId: "seo-1", fileResourceId: "file-1", mediaFileIds: [] },
+          { entryId: "seo-2", fileResourceId: "file-2", mediaFileIds: [] },
+        ]),
+        createMany: vi.fn(),
+      },
+    };
+    await carryOverMadePieces(tx as never, {
+      from: {
+        id: "old",
+        plan: {
+          month: "2026-11",
+          summary: "Short articles that answer what small sites ask.",
+          goals: ["More trials"],
+          pillars: ["Simple analytics"],
+          channels: [{ channel: "seo", cadence: "2 a month" }],
+          calendar: [
+            entry({ id: "seo-1", title: "An article" }),
+            entry({ id: "seo-2", title: "Before" }),
+          ],
+        },
+      },
+      toId: "new",
+      entries: [
+        { id: "x-1", title: "Same post!" },
+        { id: "x-2", title: "A new idea" },
+        { id: "seo-1", title: "An article" },
+        { id: "seo-2", title: "After" },
+      ],
+    });
+    expect(tx.socialPost.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["post-1"] } },
+      data: { marketingStrategyId: "new", revision: { increment: 1 } },
+    });
+    expect(tx.marketingStrategyFile.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          entryId: "seo-1",
+          fileResourceId: "file-1",
+          mediaFileIds: [],
+          marketingStrategyId: "new",
+        },
+      ],
+      skipDuplicates: true,
+    });
   });
 });

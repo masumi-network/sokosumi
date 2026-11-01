@@ -53,7 +53,7 @@ vi.mock("@vercel/blob", async (importOriginal) => ({
 
 // The submit-time balance check: read-only, and not what this suite is about.
 // Money is covered end to end in `image-studio-credits.test.ts`.
-vi.mock("@/services/image-studio-files.service", () => ({
+vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@sokosumi/database/repositories", () => ({

@@ -18,6 +18,7 @@ import {
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
+  entryMedia,
   isMarketingFilePiece,
   listMarketingStrategyFiles,
   listMarketingStrategyPosts,
@@ -135,10 +136,7 @@ export function cmoProductionPieces(
   const today = now.toISOString().slice(0, 10);
   const filePieces = calendar.filter(isMarketingFilePiece).map((entry) => ({
     ...entry,
-    media: [
-      ...(entry.imageFileId ? [entry.imageFileId] : []),
-      ...(entry.slideFileIds ?? []),
-    ],
+    media: entryMedia(entry),
   }));
   return [
     ...posts.map((post) => ({
@@ -396,6 +394,8 @@ interface ProductionRead {
   pending: CmoPiece[];
   /** This approval's runs, newest first. */
   runs: ProductionRun[];
+  /** A run is still working, possibly one from an earlier approval. */
+  working: boolean;
 }
 
 /** Where the month's production stands; reads only, never starts a run. */
@@ -415,6 +415,7 @@ export async function readCmoProduction(
       approvedAt,
       pending: [],
       runs: [],
+      working: false,
     };
   const [posts, files] = await Promise.all([
     listMarketingStrategyPosts(approved),
@@ -430,6 +431,7 @@ export async function readCmoProduction(
   const read = (
     state: CmoProductionStatus["state"],
     runs: ProductionRun[] = [],
+    working = false,
   ): ProductionRead => ({
     status: {
       state,
@@ -446,13 +448,15 @@ export async function readCmoProduction(
     approvedAt,
     pending,
     runs,
+    working,
   });
   if (!context.subscribed) return read("waiting");
   const all = await productionRuns(cuso.sokoBotId, approvedAt, now);
   const prefix = approvalRunPrefix(cuso.sokoBotId, approvedAt);
   const runs = all.filter((run) => run.clientTurnId.startsWith(prefix));
-  if (pending.length === 0) return read("ready", runs);
-  if (all[0] && RUN_ACTIVE.has(all[0].status)) return read("running", runs);
+  const working = Boolean(all[0] && RUN_ACTIVE.has(all[0].status));
+  if (pending.length === 0) return read("ready", runs, working);
+  if (working) return read("running", runs, true);
   const today = all.filter(
     (run) => now.getTime() - run.createdAt.getTime() < DAY_MS,
   );
@@ -487,13 +491,14 @@ export async function advanceCmoProduction(
     approvedAt,
     pending,
     runs,
+    working,
   } = await readCmoProduction(cuso, {
     connected,
     subscribed: await isCmoSubscribed(cuso),
     now,
   });
-  if (!strategy || !approvedAt || current.state !== "running") return current;
-  if (runs[0] && RUN_ACTIVE.has(runs[0].status)) return current;
+  if (!strategy || !approvedAt || current.state !== "running" || working)
+    return current;
   const attempt = runs.length + 1;
   await startProductionRun(
     cuso,
