@@ -537,6 +537,24 @@ describe("advanceCmoProduction", () => {
     );
     expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
   });
+
+  it("waits for a run still working on the version approved before", async () => {
+    const status = await advanceCmoProduction(
+      cuso(
+        [post({})],
+        [
+          {
+            clientTurnId: "cmo:production:bot-1:1759309200000:1:0",
+            status: "RUNNING",
+            createdAt: hoursAgo(1),
+          },
+        ],
+      ),
+      NOW,
+    );
+    expect(status.state).toBe("running");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
 });
 
 describe("syncCmoProduction", () => {
