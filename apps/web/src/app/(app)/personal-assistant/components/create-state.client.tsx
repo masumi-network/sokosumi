@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { SokoBotSetupSteps } from "@/components/soko-bot/setup-steps";
+import {
+  SOKO_BOT_SETUP_FRAME_CLASS,
+  SokoBotSetupSteps,
+} from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -107,7 +110,7 @@ export function CreateState({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-8 px-4 py-12 md:py-20">
+    <div className={cn(SOKO_BOT_SETUP_FRAME_CLASS, "gap-8")}>
       <SokoBotSetupSteps current={step === "name" ? 1 : 2} />
       <form
         hidden={step !== "name"}
