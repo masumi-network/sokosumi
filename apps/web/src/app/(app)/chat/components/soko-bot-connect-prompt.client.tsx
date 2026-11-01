@@ -107,7 +107,7 @@ export function SokoBotConnectCard({
     <section
       data-testid="soko-bot-connect-prompt"
       aria-label={t("connectTitle", { bot: botName })}
-      className="border-border bg-background-muted mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
+      className="border-border bg-card-background mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
     >
       <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
       {/* Wraps (up to three lines) rather than truncating: on a 320px phone one line
