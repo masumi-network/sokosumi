@@ -3,6 +3,13 @@
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
+/**
+ * One frame for every setup step. Setup pages centre their content, so the
+ * same height keeps the progress bar still from one step to the next.
+ */
+export const SOKO_BOT_SETUP_FRAME_CLASS =
+  "mx-auto flex w-full max-w-md flex-col px-4 py-12 md:min-h-[42rem] md:py-20";
+
 const STEPS = ["stepName", "stepPicture", "stepConnect"] as const;
 
 /** Where a new Soko Bot's setup stands: name, picture, then connect. */

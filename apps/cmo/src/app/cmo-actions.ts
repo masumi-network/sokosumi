@@ -319,8 +319,10 @@ export async function loadState(): Promise<{
 }> {
   const core = await requireCore();
   const { data, response } = await getCmoOverview(core);
-  if (response?.status === 404 || !data)
-    return { overview: null, messages: [] };
+  if (response?.status === 404) return { overview: null, messages: [] };
+  // Any other failure is not "not hired": showing the hire flow would offer
+  // a second business.
+  if (!data) throw new Error("Could not load Cuso");
   return {
     overview: await withSkipped(data.data),
     messages: await messagesFor(core, data.data),

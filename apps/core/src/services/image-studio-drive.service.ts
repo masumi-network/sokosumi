@@ -25,21 +25,22 @@ export interface StudioAssetDriveFile {
   size: number;
 }
 
-/** The pathname a studio file named `name` has in the owner's Content Studio folder. */
-function studioDrivePathname(input: {
+/** The pathname a file named `name` has in a folder of the owner's Drive. */
+export function ownerDrivePathname(input: {
   organizationId: string | null;
   userId: string;
+  folder: string;
   name: string;
 }): string {
   return input.organizationId
     ? buildOrganizationDriveFilePathnameWithFolder(
         input.organizationId,
-        IMAGE_STUDIO_DRIVE_FOLDER,
+        input.folder,
         input.name,
       )
     : buildUserDriveFilePathnameWithFolder(
         input.userId,
-        IMAGE_STUDIO_DRIVE_FOLDER,
+        input.folder,
         input.name,
       );
 }
@@ -56,8 +57,29 @@ export async function writeStudioDriveFile(input: {
   bytes: Uint8Array;
   contentType: string;
 }): Promise<(StudioAssetDriveFile & { url: string }) | null> {
-  const { name, bytes, contentType } = input;
-  const pathname = studioDrivePathname(input);
+  return writeOwnerDriveFile({
+    ...input,
+    pathname: ownerDrivePathname({
+      ...input,
+      folder: IMAGE_STUDIO_DRIVE_FOLDER,
+    }),
+  });
+}
+
+/**
+ * Writes `bytes` at `pathname` in the owner's Drive, replacing what is there
+ * (a re-upload keeps the file's id). Null when it could not be activated.
+ */
+export async function writeOwnerDriveFile(input: {
+  workspaceId: string;
+  organizationId: string | null;
+  userId: string;
+  pathname: string;
+  name: string;
+  bytes: Uint8Array;
+  contentType: string;
+}): Promise<(StudioAssetDriveFile & { url: string }) | null> {
+  const { pathname, name, bytes, contentType } = input;
   const key = {
     workspaceId: input.workspaceId,
     scope: input.organizationId ? ("organization" as const) : ("user" as const),
@@ -122,7 +144,11 @@ export async function ensureStudioAssetDriveFile(input: {
   const prompt = input.prompt ?? asset.prompt;
   const jobId = input.jobId ?? asset.jobId;
   const name = studioAssetFileName(prompt, jobId, asset.contentType);
-  const pathname = studioDrivePathname({ ...input, name });
+  const pathname = ownerDrivePathname({
+    ...input,
+    folder: IMAGE_STUDIO_DRIVE_FOLDER,
+    name,
+  });
   const live = await prisma.fileResource.findUnique({
     where: {
       workspaceId_sourceKind_sourceScope_sourceId: {

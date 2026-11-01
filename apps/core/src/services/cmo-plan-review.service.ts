@@ -1,5 +1,6 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
 
+import { bannedCopyProblems } from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
@@ -114,35 +115,6 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
 
 const MAX_DRAFT_PROBLEMS = 6;
 
-/** Lines the production skill bans, with what to tell Cuso. */
-const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
-  {
-    pattern: /\bit'?s not [^.,;]{1,40}, it'?s\b/i,
-    problem: "uses \"it's not X, it's Y\"",
-  },
-  {
-    pattern: /\b(game[- ]changer|unlock|say goodbye to|reimagined)\b/i,
-    problem:
-      "uses a stock phrase (game-changer, unlock, say goodbye to, reimagined)",
-  },
-  {
-    pattern: /\b(agree|thoughts)\?\s*$/im,
-    problem: 'ends on engagement bait ("Agree?", "Thoughts?")',
-  },
-  { pattern: /\u2014/, problem: "has an em dash" },
-  {
-    pattern:
-      /\b(check|read|compare|see)\b[^.!?\n]{0,50}\b(product page|details|product details|product information)\b/i,
-    problem:
-      "tells people to check the details instead of giving one: name the product, its price or a real detail from the Brand Brain",
-  },
-  {
-    pattern: /\b(vary|varies) by (style|product|item|region|size)\b/i,
-    problem:
-      'hedges ("varies by style"): say what is true for the product in the post, or leave it out',
-  },
-];
-
 function opening(draft: string): string {
   return draft
     .toLowerCase()
@@ -168,9 +140,8 @@ export function cmoDraftProblems(
   const seen = new Map<string, string>();
   for (const entry of drafted) {
     const draft = entry.draft ?? "";
-    for (const rule of BANNED_COPY)
-      if (rule.pattern.test(draft))
-        problems.push(`${entry.id} ${rule.problem}.`);
+    for (const problem of bannedCopyProblems(draft))
+      problems.push(`${entry.id} ${problem}.`);
     const start = opening(draft);
     const first = seen.get(start);
     if (start.split(" ").length === 4 && first)
