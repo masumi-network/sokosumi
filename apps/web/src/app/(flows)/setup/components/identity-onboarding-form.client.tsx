@@ -10,6 +10,7 @@ import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fi
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
@@ -223,15 +224,16 @@ export function IdentityOnboardingForm({
                     }
                   }}
                   aria-label={t("choiceLabel")}
-                  className="grid gap-3"
+                  className={cn(HOLDER_CLASS, "grid gap-2")}
                   data-testid="workspace-gate-identity-choice"
                 >
                   <Label
                     htmlFor="workspace-choice-personal"
                     className={cn(
-                      "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                      choice === "personal" &&
-                        "border-foreground bg-card-background",
+                      "border-border bg-background press flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors duration-150",
+                      choice === "personal"
+                        ? "border-primary"
+                        : "hover:border-control-border",
                     )}
                   >
                     <RadioGroupItem
@@ -251,9 +253,10 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-organization"
                     className={cn(
-                      "border-control-border press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                      choice === "organization" &&
-                        "border-foreground bg-card-background",
+                      "border-border bg-background press flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors duration-150",
+                      choice === "organization"
+                        ? "border-primary"
+                        : "hover:border-control-border",
                     )}
                   >
                     <RadioGroupItem
@@ -271,7 +274,7 @@ export function IdentityOnboardingForm({
                     </span>
                   </Label>
                 </RadioGroup>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-center text-xs">
                   {t("choiceHint")}
                 </p>
               </div>
@@ -281,6 +284,7 @@ export function IdentityOnboardingForm({
                 disable the button and fade its loading bar. */}
             <Button
               type="submit"
+              variant="primary"
               loading={busy}
               className="w-full"
               data-testid="workspace-gate-identity-submit"

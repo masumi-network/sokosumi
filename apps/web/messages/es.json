@@ -10403,8 +10403,8 @@
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "¿Cómo quieres trabajar?",
-    "identityDescriptionChoose": "Elige una opción.",
-    "identityDescriptionEnter": "Introduce tu nombre.",
+    "identityDescriptionChoose": "Elige dónde empiezas.",
+    "identityDescriptionEnter": "Escribe tu nombre y elige dónde empiezas.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescriptionInvitations": "Acepta una invitación de organización para abrir Sokosumi en esa organización.",
     "pendingInvitesDescriptionJoin": "Únete con el enlace de invitación para abrir Sokosumi en esa organización.",
