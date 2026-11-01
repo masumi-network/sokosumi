@@ -17,7 +17,7 @@ export type SokoBotWatchKind = WaitForInput["kind"];
 
 const DEFAULT_TIMEOUT_MINUTES = 60;
 /** Waits one bot may hold at once; more is a loop, not a plan. */
-const MAX_WAITING_PER_BOT = 10;
+const MAX_WAITING_PER_BOT = 25;
 const BATCH = 50;
 const OUTCOME_CHARS = 1_500;
 const PENDING_STUDIO = new Set([
@@ -121,45 +121,34 @@ export function followUpMessage(input: {
     "",
     `Your plan: ${input.then}`,
     "",
-    "Carry the plan out now with the tools you have; the owner already asked for it, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where the owner asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
+    "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where it was asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
   ].join("\n");
 }
 
 /**
- * wait_for: records what to wait on and what to do then. Owner requests only,
- * like a background run, since the follow-up runs as one. Something already
- * done is said so at once, for the bot to act on in this turn.
+ * wait_for: records what to wait on and what to do then, for any turn. The
+ * follow-up runs for whoever asked, with their turn's tools and audience.
+ * Something already done is said so at once, for the bot to act on in this
+ * turn.
  */
 export async function registerWatch(
   authorized: AuthorizedSokoBotRuntime,
   input: WaitForInput,
 ) {
-  if (authorized.reader.sharedScope)
-    throw new SokoBotRuntimeValidationError(
-      "A shared Soko Bot cannot wait in the background; do the next step when someone asks again.",
-    );
   const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: authorized.turn.id },
-    select: { parentTurnId: true, askedByUserId: true, chainDepth: true },
+    select: { parentTurnId: true },
   });
-  if (turn.askedByUserId || turn.chainDepth > 0)
-    throw new SokoBotRuntimeValidationError(
-      "Only the owner's own requests can wait in the background.",
-    );
-  // A follow-up may wait again (post, then wait for the replies); its own
-  // follow-up belongs to the turn the owner asked in. A plain background run
-  // waits inside itself.
+  // A follow-up or background run may wait too (post, then wait for the
+  // replies); its follow-up belongs to the turn that was asked, so it keeps
+  // that turn's tools and posts where it was asked.
   let originTurnId = authorized.turn.id;
   if (turn.parentTurnId) {
     const parentWatch = await prisma.sokoBotWatch.findFirst({
       where: { firedTurnId: authorized.turn.id },
       select: { turnId: true },
     });
-    if (!parentWatch)
-      throw new SokoBotRuntimeValidationError(
-        "A background run waits inside itself; check again later in this run.",
-      );
-    originTurnId = parentWatch.turnId;
+    originTurnId = parentWatch?.turnId ?? turn.parentTurnId;
   }
   const { sokoBotId, workspaceId } = authorized.turn;
   const waiting = await prisma.sokoBotWatch.count({
@@ -234,7 +223,7 @@ export async function registerWatch(
     waiting: true,
     watchId: watch.id,
     until: watch.expiresAt,
-    note: "Waiting in the background. End your turn now and tell the owner in one sentence what happens once it is done; the follow-up posts its answer in this chat.",
+    note: "Waiting in the background. End your turn now and say in one sentence what happens once it is done; the follow-up posts its answer in this chat.",
   };
 }
 
@@ -278,6 +267,8 @@ export async function syncSokoBotWatches(input: {
         select: {
           id: true,
           requestedByUserId: true,
+          askedByUserId: true,
+          chainDepth: true,
           workspaceId: true,
           source: true,
           versionId: true,
@@ -331,6 +322,17 @@ export async function syncSokoBotWatches(input: {
           capabilities,
           sandbox: capabilities.some(isSokoBotSandboxCapability),
         },
+        // Whoever asked the first turn still asks: a teammate's or another
+        // bot's follow-up keeps their audience, never the owner's.
+        ...(watch.turn.askedByUserId || watch.turn.chainDepth > 0
+          ? {
+              chat: {
+                askedByUserId: watch.turn.askedByUserId,
+                askedByBot: watch.turn.chainDepth > 0,
+                chainDepth: watch.turn.chainDepth,
+              },
+            }
+          : {}),
         background: {
           parentTurnId: watch.turn.id,
           title: `Follow-up: ${clip(watch.then, 60)}`,

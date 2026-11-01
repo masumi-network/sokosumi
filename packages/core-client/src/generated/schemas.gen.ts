@@ -13343,7 +13343,11 @@ export const ChatCatchUpSummarySchema = {
                                 type: 'null'
                             }
                         ],
-                        description: 'The room\'s newest top-level message from someone else.'
+                        description: 'The newest unread message naming the viewer (Thread replies too), else the room\'s newest top-level message from someone else.'
+                    },
+                    mentionsYou: {
+                        type: 'boolean',
+                        description: '`latest` is an unread message naming the viewer.'
                     }
                 },
                 required: [
@@ -13351,10 +13355,11 @@ export const ChatCatchUpSummarySchema = {
                     'roomName',
                     'roomKind',
                     'unreadCount',
-                    'latest'
+                    'latest',
+                    'mentionsYou'
                 ]
             },
-            description: 'Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.'
+            description: 'Rooms with unread messages and no topic in them: nothing to do, mentions first, then Directs, newest first.'
         },
         generatedAt: {
             type: [

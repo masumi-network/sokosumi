@@ -3687,7 +3687,7 @@ export type ChatCatchUpSummary = {
      */
     topics: Array<ChatCatchUpTopic>;
     /**
-     * Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.
+     * Rooms with unread messages and no topic in them: nothing to do, mentions first, then Directs, newest first.
      */
     quietRooms: Array<{
         roomId: string;
@@ -3695,9 +3695,13 @@ export type ChatCatchUpSummary = {
         roomKind: 'channel' | 'direct';
         unreadCount: number;
         /**
-         * The room's newest top-level message from someone else.
+         * The newest unread message naming the viewer (Thread replies too), else the room's newest top-level message from someone else.
          */
         latest: ChatCatchUpItem | null;
+        /**
+         * `latest` is an unread message naming the viewer.
+         */
+        mentionsYou: boolean;
     }>;
     generatedAt: Date | null;
     needsYou: Array<ChatCatchUpItem>;

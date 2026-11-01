@@ -561,6 +561,7 @@ describe("CatchUpView's unread rooms elsewhere", () => {
               senderName: "Andreas",
               excerpt: "See you tomorrow",
             }),
+            mentionsYou: false,
           },
         ],
       });
@@ -583,6 +584,37 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       ]);
     });
 
+    it("says who mentioned you, Thread replies too", async () => {
+      summaryAnswers({
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "Sokosumi",
+            roomKind: "channel",
+            unreadCount: 8,
+            latest: item("reply", {
+              roomId: "room-q",
+              parentMessageId: "parent",
+              senderName: "Phil",
+              excerpt: "Patrick would love this",
+            }),
+            mentionsYou: true,
+          },
+        ],
+      });
+
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", {
+        name: "App.Channels.Signals.Briefing.otherMessages 1",
+      });
+      expect(
+        within(quiet).getByText(
+          "App.Channels.Signals.Briefing.mentionedYou Phil",
+        ),
+      ).toBeTruthy();
+      expect(within(quiet).queryByText(/^Phil: /)).toBeNull();
+    });
+
     it("marks every unread room read at once", async () => {
       summaryAnswers({
         topics: [topic("t1"), topic("t2", { roomId: "room-b" })],
@@ -593,6 +625,7 @@ describe("CatchUpView's unread rooms elsewhere", () => {
             roomKind: "channel",
             unreadCount: 2,
             latest: null,
+            mentionsYou: false,
           },
         ],
       });

@@ -129,13 +129,16 @@ export const chatCatchUpSummarySchema = z
           unreadCount: z.number().int().min(1),
           latest: z.union([chatCatchUpItemSchema, z.null()]).openapi({
             description:
-              "The room's newest top-level message from someone else.",
+              "The newest unread message naming the viewer (Thread replies too), else the room's newest top-level message from someone else.",
+          }),
+          mentionsYou: z.boolean().openapi({
+            description: "`latest` is an unread message naming the viewer.",
           }),
         }),
       )
       .openapi({
         description:
-          "Rooms with unread messages and no topic in them: nothing to do, Directs first, newest first.",
+          "Rooms with unread messages and no topic in them: nothing to do, mentions first, then Directs, newest first.",
       }),
     generatedAt: dateTimeSchema.nullable(),
     needsYou: z.array(chatCatchUpItemSchema),

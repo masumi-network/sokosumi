@@ -169,11 +169,14 @@ describe("registerWatch", () => {
     then: "post it in #Sokosumi",
   };
 
-  it("waits an hour by default and belongs to the turn that asked", async () => {
+  const queued = () =>
     db.projectImageJob.findUnique.mockResolvedValue({
       status: "QUEUED",
       kind: "GENERATE",
     });
+
+  it("waits an hour by default and belongs to the turn that asked", async () => {
+    queued();
     const result = await registerWatch(authorized(), input);
     expect(result).toMatchObject({ waiting: true, watchId: "watch-1" });
     expect(db.sokoBotWatch.create.mock.calls[0][0].data).toMatchObject({
@@ -195,18 +198,11 @@ describe("registerWatch", () => {
     expect(db.sokoBotWatch.create).not.toHaveBeenCalled();
   });
 
-  it("refuses a teammate's request and a shared bot", async () => {
-    db.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
-      parentTurnId: null,
-      askedByUserId: "teammate",
-      chainDepth: 0,
-    });
-    await expect(registerWatch(authorized(), input)).rejects.toThrow(
-      "Only the owner's own requests",
-    );
+  it("works for a teammate's request and a shared bot too", async () => {
+    queued();
     await expect(
       registerWatch(authorized({ reader: { sharedScope: {} } }), input),
-    ).rejects.toThrow("shared Soko Bot");
+    ).resolves.toMatchObject({ waiting: true });
   });
 
   it("lets a follow-up wait again, for the turn the owner asked in", async () => {
@@ -225,16 +221,14 @@ describe("registerWatch", () => {
     expect(db.sokoBotWatch.create.mock.calls[0][0].data.turnId).toBe("turn-0");
   });
 
-  it("leaves a plain background run to wait inside itself", async () => {
+  it("lets a background run wait, for the turn that started it", async () => {
+    queued();
     db.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
       parentTurnId: "turn-0",
-      askedByUserId: null,
-      chainDepth: 0,
     });
     db.sokoBotWatch.findFirst.mockResolvedValueOnce(null);
-    await expect(registerWatch(authorized(), input)).rejects.toThrow(
-      "waits inside itself",
-    );
+    await registerWatch(authorized(), input);
+    expect(db.sokoBotWatch.create.mock.calls[0][0].data.turnId).toBe("turn-0");
   });
 
   it("needs the Project of a Studio job and a room the bot is in", async () => {
@@ -265,6 +259,8 @@ describe("syncSokoBotWatches", () => {
     turn: {
       id: "turn-1",
       requestedByUserId: "user-1",
+      askedByUserId: null,
+      chainDepth: 0,
       workspaceId: "ws-1",
       source: "CHAT",
       versionId: "v31",
@@ -302,6 +298,30 @@ describe("syncSokoBotWatches", () => {
       where: { id: "watch-1" },
       data: { firedTurnId: "follow-1" },
     });
+  });
+
+  it("runs a teammate's follow-up for that teammate, not the owner", async () => {
+    db.sokoBotWatch.findMany.mockResolvedValue([
+      waiting({
+        turn: {
+          ...waiting().turn,
+          askedByUserId: "teammate-1",
+          destinationRoomId: "channel-1",
+        },
+      }),
+    ]);
+    db.projectImageJob.findUnique.mockResolvedValue({
+      status: "SUCCEEDED",
+      kind: "GENERATE",
+    });
+    await sync();
+    const start = startTurnMock.mock.calls[0][0];
+    expect(start.chat).toEqual({
+      askedByUserId: "teammate-1",
+      askedByBot: false,
+      chainDepth: 0,
+    });
+    expect(start.background.destinationRoomId).toBe("channel-1");
   });
 
   it("keeps waiting while the image is being made", async () => {
