@@ -488,6 +488,7 @@ const SOKO_BOT_SYSTEM_SCHEDULE_LABELS: Record<string, string> = {
   "monday-plan": "Monday plan",
   "monthly-review": "Monthly review",
   "memory-cleanup": "Memory cleanup",
+  dreaming: "Dreaming",
 };
 
 const SOKO_BOT_SOURCE_LABELS: Record<string, string> = {

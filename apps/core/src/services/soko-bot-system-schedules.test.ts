@@ -48,7 +48,7 @@ describe("ensureSystemSchedules", () => {
       "follow-ups",
       "monday-plan",
       "monthly-review",
-      "memory-cleanup",
+      "dreaming",
     ]);
   });
 
@@ -81,7 +81,7 @@ describe("ensureSystemSchedules", () => {
       "end-of-day",
       "monday-plan",
       "monthly-review",
-      "memory-cleanup",
+      "dreaming",
     ]);
     for (const row of rows) {
       const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(

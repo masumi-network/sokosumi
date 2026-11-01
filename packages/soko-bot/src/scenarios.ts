@@ -47,7 +47,7 @@ export type SokoBotScenarioTrigger =
        * the same path the cron uses; `delta` is the hourly mail ingest. Between
        * them and `task_event` every automated trigger has lab coverage.
        */
-      beat: "standup" | "weekly-wrap" | "delta";
+      beat: "standup" | "weekly-wrap" | "dreaming" | "delta";
     };
 
 export interface SokoBotScenario {
@@ -561,6 +561,21 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       forbiddenTools: ["hire_agent"],
       noInventedIds: true,
       noEmptyPromise: true,
+    },
+  },
+  {
+    id: "dreaming",
+    title: "Dreams silently",
+    intent:
+      "The nightly dream reads recent activity, rewrites memory where the evidence calls for it, and tells nobody.",
+    prompt: "",
+    trigger: { kind: "ingest", beat: "dreaming" },
+    rubric:
+      'Memory changes only where the activity or memory supports it: a preference or correction the owner gave in chat is saved, repeated mistakes become one-line lessons, duplicates are merged, stale follow-ups are dropped, and nothing is invented or silently lost. It never starts work, hires or writes Tasks. The answer is exactly "Nothing to add" unless the owner must act, then one or two lines.',
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      forbiddenTools: ["hire_agent", "create_task", "assign_task"],
+      noInventedIds: true,
     },
   },
   {

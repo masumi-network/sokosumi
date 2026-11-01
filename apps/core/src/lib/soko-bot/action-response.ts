@@ -807,11 +807,21 @@ export async function buildActionResponse(
   // silent like "Nothing to add." instead of posting a placeholder.
   const nothingToSay =
     !calls.length && !narrativeText.length && !actionText.length;
+  // Rewriting its own memory is bookkeeping: on a turn nobody asked for (the
+  // nightly dream), "Updated memory." alone is not worth a post either.
+  const onlyMemory =
+    calls.length > 0 &&
+    calls.every((call) => call.capability === "update_memory") &&
+    !(await isOwnerStarted());
   const silent =
-    !calls.length &&
-    (narrative?.kind === "SILENT" ||
-      isSokoBotSilentAnswer(answerText) ||
-      (actionRequested && nothingToSay && !(await isOwnerStarted())));
+    (!calls.length &&
+      (narrative?.kind === "SILENT" ||
+        isSokoBotSilentAnswer(answerText) ||
+        (actionRequested && nothingToSay && !(await isOwnerStarted())))) ||
+    (onlyMemory &&
+      !question &&
+      (narrative?.kind === "SILENT" ||
+        isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
   return {
     appliedReceiptIds,
     narrative,
