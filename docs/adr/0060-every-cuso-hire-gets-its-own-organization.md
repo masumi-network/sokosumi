@@ -2,7 +2,7 @@
 
 - Status: Partially superseded by [ADR-0061](./0061-cuso-is-a-shared-project-bot.md). Cuso no longer works for one person: every member of the hire's organization works with him.
 
-Cuso works for one person at a time, so CMO no longer asks where it will be used. Hiring Cuso creates a new organization named after the business's website host, owned by the person and made preferred, and puts Cuso, his marketing Project and the Brand Brain there. `POST /v1/cmo/onboarding` takes only the website and the goal; Core creates the organization through the same helper `POST /v1/users/me/workspaces` uses, so organization hooks, the free plan and the organization limit all apply. This supersedes [ADR 0053](superseded/cuso-works-in-the-preferred-workspace.md).
+Cuso works for one person at a time, so CMO no longer asks where it will be used. Hiring Cuso creates a new organization named after the business's website host, owned by the person and made preferred, and puts Cuso, his marketing Project and the Brand Brain there. `POST /v1/cmo/onboarding` takes only the website; Core creates the organization through the same helper `POST /v1/users/me/workspaces` uses, so organization hooks, the free plan and the organization limit all apply. This supersedes [ADR 0053](superseded/cuso-works-in-the-preferred-workspace.md).
 
 ## Considered Options
 

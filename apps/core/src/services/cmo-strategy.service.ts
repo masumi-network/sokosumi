@@ -25,13 +25,14 @@ import {
   parseMarketingPlan,
   planMarketingStrategyPosts,
   STRATEGY_TURN_PREFIX,
+  sameTitle,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 
 /**
  * No sandbox on the strategy turn: it plans from the Brand Brain it already
- * has. It writes no drafts or Social posts; after the owner approves, the
- * daily run drafts each piece three days before it goes out.
+ * has. It writes no drafts or Social posts; once the owner approves and pays,
+ * production makes the whole month (cmo-production.service).
  */
 const CMO_STRATEGY_ROUTE: PresetRoute = {
   route: "MANAGE_WORK",
@@ -233,11 +234,6 @@ function withHiddenCalendar(
   );
 }
 
-function sameTitle(left: string, right: string): boolean {
-  const squash = (text: string) => text.toLowerCase().replace(/\W+/g, "");
-  return squash(left) === squash(right);
-}
-
 /**
  * Guards a bot's save against the two ways a revision loses work: an entry
  * kept under the same id and title without its draft gets the draft back,
@@ -306,8 +302,8 @@ export function withoutDashes<T>(value: T): T {
  * Saves the strategy as a version of the Project's Marketing strategy. A
  * turn's first save adds a version and its later saves complete it (a plan
  * goes in two calls) until it is approved; no save changes another version.
- * Pieces fill in the approved version's Social posts and nothing else:
- * entries on other channels (ads, articles, newsletters) are not produced.
+ * Pieces fill in the approved version's Social posts; the runtime then
+ * writes the other pieces (ads, articles, newsletters) as Project files.
  */
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
@@ -482,8 +478,8 @@ export async function applyCmoPlanAnswers(
 /**
  * The owner pauses one calendar entry from Up next: its Social post (the
  * entry's id) is canceled so it cannot go out; one already going out is
- * refused (409). Only Social posts are produced, so any other entry is
- * refused too and the approved plan stays as it is.
+ * refused (409). Any other piece is a Project file the owner uses
+ * themselves, so nothing goes out to pause: it is refused too.
  */
 export async function pauseCmoCalendarEntry(input: {
   userId: string;
