@@ -1,16 +1,10 @@
-import {
-  buildOrganizationDriveFilePathnameWithFolder,
-  buildUserDriveFilePathnameWithFolder,
-} from "@sokosumi/utils";
-import { put } from "@vercel/blob";
-
 import prisma from "@/lib/db/prisma";
 import type { Cuso } from "@/services/cmo-cuso.service";
-import {
-  activateDriveUploadResource,
-  reserveDriveUploadResource,
-} from "@/services/file-catalog.service";
 import { updateFileMetadata } from "@/services/file-metadata.service";
+import {
+  ownerDrivePathname,
+  writeOwnerDriveFile,
+} from "@/services/image-studio-drive.service";
 
 /**
  * Where Cuso saves files: the organization's Files (the runner's when there is
@@ -96,51 +90,17 @@ export async function saveCusoProjectFile(
   body: Buffer,
   contentType: string,
 ): Promise<string | null> {
-  const pathname =
-    "pathname" in target
-      ? target.pathname
-      : drive.organizationId
-        ? buildOrganizationDriveFilePathnameWithFolder(
-            drive.organizationId,
-            target.folder,
-            target.filename,
-          )
-        : buildUserDriveFilePathnameWithFolder(
-            drive.userId,
-            target.folder,
-            target.filename,
-          );
-  const key = drive.organizationId
-    ? {
-        workspaceId: drive.workspaceId,
-        scope: "organization" as const,
-        ownerId: drive.organizationId,
-        pathname,
-      }
-    : {
-        workspaceId: drive.workspaceId,
-        scope: "user" as const,
-        ownerId: drive.userId,
-        pathname,
-      };
-  await reserveDriveUploadResource({
-    key,
-    displayName: target.filename,
-    mimeType: contentType,
-    sizeBytes: body.length,
-  });
-  await put(pathname, body, {
-    access: "public",
+  const file = await writeOwnerDriveFile({
+    ...drive,
+    pathname:
+      "pathname" in target
+        ? target.pathname
+        : ownerDrivePathname({ ...drive, ...target, name: target.filename }),
+    name: target.filename,
+    bytes: body,
     contentType,
-    addRandomSuffix: false,
-    allowOverwrite: true,
   });
-  const activated = await activateDriveUploadResource({
-    key,
-    sizeBytes: body.length,
-    mimeType: contentType,
-  });
-  if (!activated) return null;
-  await linkToProject(drive, activated.resourceId);
-  return activated.resourceId;
+  if (!file) return null;
+  await linkToProject(drive, file.id);
+  return file.id;
 }
