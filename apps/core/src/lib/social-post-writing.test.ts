@@ -110,6 +110,23 @@ describe("formatting a bot's post", () => {
     ).toBeNull();
   });
 
+  it("sends back copy the writing guide bans: em dashes, stock phrases, hedges", () => {
+    expect(
+      socialPostFormattingError(
+        "linkedin",
+        post("Our new plan — a game-changer for teams. Agree?"),
+      ),
+    ).toBe(
+      'Rewrite the post: it uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined); it ends on engagement bait ("Agree?", "Thoughts?"); it has an em dash.',
+    );
+    expect(
+      socialPostFormattingError("instagram", post("Sizes vary by style.")),
+    ).toMatch(/hedges/);
+    expect(
+      socialPostFormattingError("x", post("Fine.", { firstComment: "A — B" })),
+    ).toMatch(/em dash/);
+  });
+
   it("refuses a link Instagram would not make clickable", () => {
     expect(
       socialPostFormattingError("instagram", post("Shop at https://nmkr.io")),

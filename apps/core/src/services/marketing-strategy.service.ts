@@ -238,11 +238,29 @@ export async function approveMarketingStrategy(
     });
     if (!version) throw notFound("Marketing strategy version not found");
     if (version.approvedAt) return version;
+    const replaced = await tx.marketingStrategy.findFirst({
+      where: { projectId: input.projectId, approvedAt: { not: null } },
+      select: { id: true, plan: true },
+    });
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const entries = (parseMarketingPlan(version.plan)?.calendar ?? []).filter(
+      (entry) =>
+        entry.date >= today &&
+        entry.status !== "published" &&
+        entry.status !== "skipped",
+    );
+    if (replaced) {
+      await carryOverMadePieces(tx, {
+        from: replaced,
+        toId: version.id,
+        entries,
+      });
+    }
     await tx.marketingStrategy.updateMany({
       where: { projectId: input.projectId, approvedAt: { not: null } },
       data: { approvedAt: null, approvedByUserId: null },
     });
-    const now = new Date();
     const approved = await tx.marketingStrategy.update({
       where: { id: version.id },
       data: { approvedAt: now, approvedByUserId: input.userId },
@@ -257,22 +275,84 @@ export async function approveMarketingStrategy(
       },
       data: canceledPost(now),
     });
-    const today = now.toISOString().slice(0, 10);
     await planMarketingStrategyPosts(tx, {
       version,
       workspaceId: input.workspaceId,
-      entries: (parseMarketingPlan(version.plan)?.calendar ?? []).filter(
-        (entry) =>
-          entry.date >= today &&
-          entry.status !== "published" &&
-          entry.status !== "skipped",
-      ),
+      entries,
       creator: version.authorSokoBotId
         ? { sokoBotId: version.authorSokoBotId }
         : { userId: input.userId },
     });
     return approved;
   });
+}
+
+/**
+ * Hands what the replaced version already made to the version being approved,
+ * entry by entry: its Social posts not gone out yet and its written files. A
+ * changed strategy keeps the month's words, pictures and files; a piece it
+ * adds, drops or gives another title is made or canceled.
+ */
+export async function carryOverMadePieces(
+  tx: Prisma.TransactionClient,
+  input: {
+    from: Pick<MarketingStrategy, "id" | "plan">;
+    toId: string;
+    entries: Pick<CmoCalendarEntry, "id" | "title">[];
+  },
+): Promise<void> {
+  if (input.from.id === input.toId || input.entries.length === 0) return;
+  const titles = new Map(input.entries.map((entry) => [entry.id, entry.title]));
+  const same = (entryId: string, title: string | undefined) => {
+    const kept = titles.get(entryId);
+    return kept !== undefined && title !== undefined && sameTitle(kept, title);
+  };
+  const posts = await tx.socialPost.findMany({
+    where: {
+      marketingStrategyId: input.from.id,
+      status: { in: [...UNPUBLISHED_POST_STATUSES] },
+    },
+    select: { id: true, planning: true },
+  });
+  const moved = posts
+    .filter((post) => {
+      const planning = parseSocialPostPlanning(post.planning);
+      return same(planning?.id ?? post.id, planning?.title);
+    })
+    .map((post) => post.id);
+  if (moved.length > 0) {
+    await tx.socialPost.updateMany({
+      where: { id: { in: moved } },
+      data: { marketingStrategyId: input.toId, revision: { increment: 1 } },
+    });
+  }
+  const before = new Map(
+    (parseMarketingPlan(input.from.plan)?.calendar ?? []).map((entry) => [
+      entry.id,
+      entry.title,
+    ]),
+  );
+  const files = (
+    await tx.marketingStrategyFile.findMany({
+      where: {
+        marketingStrategyId: input.from.id,
+        entryId: { in: [...titles.keys()] },
+      },
+      select: { entryId: true, fileResourceId: true, mediaFileIds: true },
+    })
+  ).filter((file) => same(file.entryId, before.get(file.entryId)));
+  if (files.length > 0) {
+    await tx.marketingStrategyFile.createMany({
+      data: files.map((file) => ({ ...file, marketingStrategyId: input.toId })),
+      skipDuplicates: true,
+    });
+  }
+}
+
+/** Two titles name the same piece when only case, spaces or marks differ. */
+export function sameTitle(left: string, right: string): boolean {
+  const squash = (text: string) => text.toLowerCase().replace(/\W+/g, "");
+  return squash(left) === squash(right);
 }
 
 /** A version's posts a newer approval cancels: planned, not gone out yet. */
@@ -557,6 +637,18 @@ export function isMarketingFilePiece(
   entry: Pick<CmoCalendarEntry, "channel">,
 ): boolean {
   return socialPostProvider(entry.channel) === null;
+}
+
+/** The pictures an entry names, the cover first, each once. */
+export function entryMedia(
+  entry: Pick<CmoCalendarEntry, "imageFileId" | "slideFileIds">,
+): string[] {
+  return [
+    ...new Set([
+      ...(entry.imageFileId ? [entry.imageFileId] : []),
+      ...(entry.slideFileIds ?? []),
+    ]),
+  ];
 }
 
 /** A written piece that is not a Social post: its file and its pictures. */

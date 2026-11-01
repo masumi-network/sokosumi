@@ -64,6 +64,8 @@ export function AvatarPicker({
           }).then((r) => (r.ok ? r.value : []))
         : result.value;
       setAvatars(next);
+      // A new bot starts with a picture; picking another stays one click.
+      if (value === null && !currentImageUrl && next[0]) onChange(next[0]);
       setSeen((prev) =>
         nextSeenAvatarIds(
           prev,
