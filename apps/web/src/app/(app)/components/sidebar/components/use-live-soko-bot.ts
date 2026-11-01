@@ -14,18 +14,25 @@ const activityResponseSchema = z.object({
   activity: z.object({
     status: z.enum(SokoBotStatus),
     avatarState: z.enum(SokoBotAvatarState),
+    // Optional until every Core answers with it; a missing one keeps the
+    // rendered time.
+    lastActivityAt: z.coerce.date().nullable().optional(),
   }),
 });
 
-type LiveFields = z.infer<typeof activityResponseSchema>["activity"];
+type LiveFields = Omit<
+  z.infer<typeof activityResponseSchema>["activity"],
+  "lastActivityAt"
+> & { lastActivityAt: Date | null };
 
 /**
- * Your bot as the server rendered it, kept current. The layout renders once and
- * stays mounted across navigation, so without this the row never changes.
+ * Your bot as the server rendered it, kept current: state, status and when it
+ * was last active. The layout renders once and stays mounted across
+ * navigation, so without this the row never changes.
  * Asks only while the tab is visible, and a failed ask keeps what it knows.
  */
 export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
-  const [live, setLive] = useState<LiveFields | null>(null);
+  const [live, setLive] = useState<Partial<LiveFields> | null>(null);
   const [prevBot, setPrevBot] = useState(bot);
 
   // Discard the poll overlay when the server-rendered bot identity changes.
@@ -49,7 +56,12 @@ export function useLiveSokoBot<Bot extends LiveFields>(bot: Bot): Bot {
         });
         if (!response.ok) return;
         const body = activityResponseSchema.safeParse(await response.json());
-        if (body.success && !stopped) setLive(body.data.activity);
+        if (body.success && !stopped) {
+          const { lastActivityAt, ...rest } = body.data.activity;
+          setLive(
+            lastActivityAt === undefined ? rest : { ...rest, lastActivityAt },
+          );
+        }
       } catch {
         // Offline or timed out: the next ask retries.
       } finally {
