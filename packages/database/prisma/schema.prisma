@@ -2206,6 +2206,41 @@ model SokoBotTaskWatch {
   @@map("soko_bot_task_watch")
 }
 
+/// A background check the bot set (wait_for): something to wait on and what
+/// to do once it is done. The events sync checks it every minute and, when the
+/// target settles or `expiresAt` passes, runs `then` as a background run of
+/// the turn that set it, with that turn's tools, posted where it was asked.
+model SokoBotWatch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String      @db.Uuid
+  sokoBot   SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// The turn that set it; the follow-up runs as its background run.
+  turnId    String      @db.Uuid
+  turn      SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  /// studio_job | background_run | chat_reply
+  kind      String
+  /// The Studio job, the run's turn, or the chat room.
+  targetId  String
+  projectId String?
+  /// What the bot will do once the target is done.
+  then      String
+  expiresAt DateTime
+
+  /// WAITING until it fires; then FIRED with what it found.
+  status      String    @default("WAITING")
+  outcome     String?
+  firedAt     DateTime?
+  firedTurnId String?   @db.Uuid
+
+  @@index([status, createdAt])
+  @@index([sokoBotId, status])
+  @@map("soko_bot_watch")
+}
+
 enum SokoBotIntegrationStatus {
   PENDING
   ACTIVE
@@ -2360,6 +2395,7 @@ model SokoBot {
   integrations          SokoBotIntegration[]
   mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
+  watches               SokoBotWatch[]
   nudges                SokoBotNudge[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
@@ -2709,6 +2745,7 @@ model SokoBotTurn {
   runtimeEvents    SokoBotRuntimeEvent[]
   toolCalls        SokoBotToolCall[]
   delegations      SokoBotDelegation[]
+  watches          SokoBotWatch[]
   pendingDecisions SokoBotPendingDecision[]
   memoryRevisions  SokoBotMemoryRevision[]
   scheduleRun      SokoBotScheduleRun?
