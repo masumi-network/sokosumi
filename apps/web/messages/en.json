@@ -8515,7 +8515,7 @@
           "unread": "{messages, plural, one {# unread message} other {# unread messages}} in {rooms, plural, one {# room} other {# rooms}}",
           "unreadSince": "{unread} since {date}",
           "waitingOnYou": "Waiting on you",
-          "whileAway": "While you were away",
+          "whileAway": "What happened",
           "stillOpen": "Still open",
           "nothingForYou": "Nothing for you",
           "unreadInRoom": "{count} unread",

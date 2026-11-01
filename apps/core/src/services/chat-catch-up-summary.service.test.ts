@@ -180,12 +180,12 @@ describe("buildChatCatchUpTopics", () => {
     expect(pricing.latestAt).toEqual(new Date(Date.UTC(2026, 9, 30, 9, 3)));
   });
 
-  it("never lets the model claim it waits on the reader without Jev", () => {
+  it("trusts the model when it says a topic waits on the reader", () => {
     const [topic] = buildChatCatchUpTopics(
       [{ title: "x", summary: "y", status: "waitingOnYou", messageIds: ["f"] }],
       bucketed.filter((item) => item.message.id === "f"),
       new Map(),
     );
-    expect(topic.status).toBe("inProgress");
+    expect(topic.status).toBe("waitingOnYou");
   });
 });
