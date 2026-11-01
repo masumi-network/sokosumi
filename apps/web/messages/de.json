@@ -8878,10 +8878,8 @@
       },
       "HowItWorks": {
         "title": "So arbeitet er",
-        "description": "Was er von sich aus tut, und wann.",
-        "rhythms": "Rhythmen",
-        "triggers": "Auslöser",
-        "paused": "Pausiert"
+        "description": "Was es von selbst handeln lässt.",
+        "triggers": "Auslöser"
       },
       "Integrations": {
         "connected": "Konto verbunden.",

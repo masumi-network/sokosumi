@@ -8878,10 +8878,8 @@
       },
       "HowItWorks": {
         "title": "Cómo funciona",
-        "description": "Qué hace por su cuenta, y cuándo.",
-        "rhythms": "Rutinas",
-        "triggers": "Disparadores",
-        "paused": "En pausa"
+        "description": "Qué lo hace actuar por su cuenta.",
+        "triggers": "Disparadores"
       },
       "Integrations": {
         "connected": "Cuenta conectada.",

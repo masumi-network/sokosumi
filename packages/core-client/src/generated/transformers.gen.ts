@@ -4200,6 +4200,9 @@ const sokoBotActivitySchemaResponseTransformer = (data: any) => {
     if (data.lastTurnAt) {
         data.lastTurnAt = new Date(data.lastTurnAt);
     }
+    if (data.lastActivityAt) {
+        data.lastActivityAt = new Date(data.lastActivityAt);
+    }
     return data;
 };
 
