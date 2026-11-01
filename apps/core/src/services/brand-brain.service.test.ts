@@ -14,6 +14,7 @@ vi.mock(
 
 import {
   answerBrandBrainQuestion,
+  brandBrainCorrections,
   saveBrandBrain,
 } from "./brand-brain.service";
 
@@ -218,5 +219,93 @@ describe("Brand Brain questions", () => {
       answer: "no",
       note: "LinkedIn",
     });
+  });
+
+  it("marks a no without a note as not true, and waits for the section to be rewritten", async () => {
+    brainFindUnique.mockResolvedValue(stored());
+
+    await answerBrandBrainQuestion(PROJECT_ID, {
+      questionId: question.id,
+      answer: "no",
+    });
+
+    const brain = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(brain.questions[0]).toMatchObject({
+      answer: "no",
+      corrected: false,
+    });
+    expect(brain.profile.marketing.findings[0].point).toBe(
+      `Not true: ${question.statement}`,
+    );
+    expect(brandBrainCorrections(brain)).toHaveLength(1);
+  });
+
+  it("drops the not-true finding when a later yes replaces the no", async () => {
+    brainFindUnique.mockResolvedValue(
+      stored({
+        questions: [{ ...question, answer: "no", corrected: false }],
+        profile: {
+          marketing: {
+            answer: "Mostly referrals.",
+            findings: [
+              {
+                point: `Not true: ${question.statement}`,
+                evidence: "fact",
+                confidence: "high",
+              },
+            ],
+            openQuestions: [],
+          },
+        },
+      }),
+    );
+
+    await answerBrandBrainQuestion(PROJECT_ID, {
+      questionId: question.id,
+      answer: "yes",
+    });
+
+    const brain = brainUpdate.mock.lastCall?.[0].data.body;
+    expect(brain.questions[0]).not.toHaveProperty("corrected");
+    expect(
+      brain.profile.marketing.findings.map((f: { point: string }) => f.point),
+    ).toEqual([question.statement]);
+  });
+
+  it("closes the no once its section is rewritten, and only then", async () => {
+    const waiting = { ...question, answer: "no" as const, corrected: false };
+    brainFindUnique.mockResolvedValue(stored({ questions: [waiting] }));
+
+    await saveBrandBrain(PROJECT_ID, {
+      sections: {
+        company: { answer: "Acme builds rockets.", findings: [] },
+      },
+    });
+    expect(
+      brainUpsert.mock.lastCall?.[0].update.body.questions[0],
+    ).toMatchObject({ corrected: false });
+
+    await saveBrandBrain(PROJECT_ID, {
+      sections: {
+        marketing: { answer: "Mostly LinkedIn and referrals.", findings: [] },
+      },
+    });
+    const saved = brainUpsert.mock.lastCall?.[0].update.body;
+    expect(saved.questions[0]).toMatchObject({ corrected: true });
+    expect(saved.profile.marketing.findings).toHaveLength(1);
+  });
+
+  it("ignores a corrected flag a save sends", async () => {
+    const waiting = { ...question, answer: "no" as const, corrected: false };
+    brainFindUnique.mockResolvedValue(stored({ questions: [waiting] }));
+    const { body } = stored();
+
+    await saveBrandBrain(PROJECT_ID, {
+      brandBrain: { ...body, questions: [{ ...waiting, corrected: true }] },
+    });
+
+    expect(
+      brainUpsert.mock.lastCall?.[0].update.body.questions[0],
+    ).toMatchObject({ corrected: false });
   });
 });

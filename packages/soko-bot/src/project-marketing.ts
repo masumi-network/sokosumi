@@ -198,12 +198,18 @@ export const cmoBrandQuestionSchema = z.object({
   answer: z.enum(CMO_BRAND_ANSWERS).optional(),
   /** The owner's own words after a no: what is true instead. */
   note: shortText.optional(),
+  /**
+   * Set by Core on a no: false until the section is rewritten to match it,
+   * then true. Anything a save sends here is ignored.
+   */
+  corrected: z.boolean().optional(),
 });
 export type CmoBrandQuestion = z.infer<typeof cmoBrandQuestionSchema>;
 
 /** A yes/no check of one plan assumption, answered after the plan; a no changes it. */
 export const cmoPlanQuestionSchema = cmoBrandQuestionSchema.omit({
   section: true,
+  corrected: true,
 });
 export type CmoPlanQuestion = z.infer<typeof cmoPlanQuestionSchema>;
 
