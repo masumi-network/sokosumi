@@ -332,6 +332,11 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
       { bucket: "decisionMade", count: 1 },
     ]);
     expect(first.decisions.map((item) => item.messageId)).toEqual([decision]);
+    // A decision carries what it answers, so a bare reply reads on its own.
+    expect(first.decisions[0].inReplyTo).toEqual({
+      senderName: "Bob",
+      excerpt: "Alice, can you send the pricing sheet before the call?",
+    });
     // The prompt carries no ids, only room keys, authors, labels and text.
     expect(generate.mock.calls[0][0].prompt).not.toContain(channelId);
 

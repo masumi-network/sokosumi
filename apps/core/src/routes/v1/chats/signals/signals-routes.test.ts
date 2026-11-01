@@ -177,7 +177,9 @@ describe("chat signal routes", () => {
       rooms: [],
       generatedAt: null,
       needsYou: [],
+      blockers: [],
       decisions: [],
+      announcements: [],
       openLoops: [],
       highlights: [],
     });

@@ -3644,8 +3644,19 @@ export type ChatCatchUpSummary = {
     }>;
     generatedAt: Date | null;
     needsYou: Array<ChatCatchUpItem>;
+    /**
+     * Escalations, urgent messages and blockers.
+     */
+    blockers: Array<ChatCatchUpItem>;
     decisions: Array<ChatCatchUpItem>;
+    announcements: Array<ChatCatchUpItem>;
+    /**
+     * Questions to the viewer still unanswered and their overdue promises, the longest overdue first.
+     */
     openLoops: Array<ChatCatchUpItem>;
+    /**
+     * At most three other messages worth knowing: decisions to make, commitments, work requests, questions.
+     */
     highlights: Array<ChatCatchUpItem>;
 };
 
@@ -3683,6 +3694,13 @@ export type ChatCatchUpItem = {
     bucket: ChatCatchUpBucket;
     createdAt: Date;
     dueAt: Date | null;
+    /**
+     * For a decision: the earlier message it answers, so a bare reply reads on its own.
+     */
+    inReplyTo: {
+        senderName: string;
+        excerpt: string;
+    } | null;
 };
 
 export type ChatRoomCatchUp = {

@@ -1428,7 +1428,7 @@ export const getChatsSignalsOpenLoops = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * The viewer's "while you were away": what is unread since they last read each room, sorted by what it asks of them (needs you, decisions, open loops, highlights), from the messages Jev tagged. The sections are live; the written headline and room lines come from a cheap EU-routed model and are cached until a tagged message arrives that they have not read.
+ * The viewer's "while you were away": what is unread since they last read each room, sorted by what it asks of them (needs you, blockers, decisions, announcements, open loops, highlights), from the messages Jev tagged. The sections are live; the written headline and room lines come from a cheap EU-routed model and are cached until a tagged message arrives that they have not read.
  */
 export const getChatsSignalsSummary = <ThrowOnError extends boolean = false>(options?: Options<GetChatsSignalsSummaryData, ThrowOnError>): RequestResult<GetChatsSignalsSummaryResponses, GetChatsSignalsSummaryErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsSignalsSummaryResponses, GetChatsSignalsSummaryErrors, ThrowOnError>({
     responseTransformer: getChatsSignalsSummaryResponseTransformer,

@@ -34,19 +34,21 @@ const MAX_OUTPUT_TOKENS = 1_200;
 const MAX_MESSAGES = 80;
 const MAX_TEXT_LENGTH = 300;
 const MAX_ITEMS_PER_SECTION = 8;
+/** Highlights are what is left after the named sections: only the top few. */
+const MAX_HIGHLIGHTS = 3;
 
 /** Buckets a summary leaves out: nothing to catch up on in small talk. */
 const QUIET_BUCKETS: readonly ChatCatchUpBucket[] = ["chitChat"];
-const HIGHLIGHT_BUCKETS: readonly ChatCatchUpBucket[] = [
+const BLOCKER_BUCKETS: readonly ChatCatchUpBucket[] = [
   "escalation",
   "urgent",
   "blocker",
-  "announcement",
+];
+const HIGHLIGHT_BUCKETS: readonly ChatCatchUpBucket[] = [
   "needsDecision",
   "commitment",
   "workRequest",
   "question",
-  "fyi",
 ];
 
 /** The written part, as cached: a headline and one line per busy room. */
@@ -115,6 +117,8 @@ export interface ChatCatchUpItem {
   bucket: ChatCatchUpBucket;
   createdAt: Date;
   dueAt: Date | null;
+  /** For a decision: the message it answers, so "Yes, send it" reads. */
+  inReplyTo: { senderName: string; excerpt: string } | null;
 }
 
 export interface ChatCatchUpSummary {
@@ -125,7 +129,9 @@ export interface ChatCatchUpSummary {
   rooms: { roomId: string; roomName: string; line: string }[];
   generatedAt: Date | null;
   needsYou: ChatCatchUpItem[];
+  blockers: ChatCatchUpItem[];
   decisions: ChatCatchUpItem[];
+  announcements: ChatCatchUpItem[];
   openLoops: ChatCatchUpItem[];
   highlights: ChatCatchUpItem[];
 }
@@ -164,6 +170,7 @@ const messageSelect = {
   id: true,
   roomId: true,
   parentMessageId: true,
+  senderUserId: true,
   content: true,
   createdAt: true,
   senderUser: { select: { name: true } },
@@ -191,6 +198,7 @@ async function unreadTaggedMessages(
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${user}
     WHERE s."roomId" IN (${roomIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
       AND s.state = 'tagged'
+      AND s."loopClosedAt" IS NULL
       AND m."deletedAt" IS NULL
       AND (m."senderUserId" IS NULL OR m."senderUserId" <> ${user})
       AND NOT ${sqlChatSignalHasTag("s", "chitChat")}
@@ -250,7 +258,54 @@ function toItem(
     bucket,
     createdAt: message.createdAt,
     dueAt,
+    inReplyTo: null,
   };
+}
+
+/**
+ * What a decision answers: the newest earlier message from someone else in
+ * the same conversation (the room, or the Thread and then its parent).
+ */
+async function withReplyContext(
+  items: ChatCatchUpItem[],
+  senderById: ReadonlyMap<string, string | null>,
+): Promise<ChatCatchUpItem[]> {
+  const select = {
+    content: true,
+    senderUser: { select: { name: true } },
+  } as const;
+  return Promise.all(
+    items.map(async (item) => {
+      const senderUserId = senderById.get(item.messageId) ?? null;
+      const earlier =
+        (await prisma.chatRoomMessage.findFirst({
+          where: {
+            roomId: item.roomId,
+            parentMessageId: item.parentMessageId,
+            createdAt: { lt: item.createdAt },
+            deletedAt: null,
+            ...(senderUserId ? { senderUserId: { not: senderUserId } } : {}),
+          },
+          orderBy: { createdAt: "desc" },
+          select,
+        })) ??
+        (item.parentMessageId
+          ? await prisma.chatRoomMessage.findFirst({
+              where: { id: item.parentMessageId, deletedAt: null },
+              select,
+            })
+          : null);
+      if (!earlier) return item;
+      const names = await mentionNames([earlier.content]);
+      return {
+        ...item,
+        inReplyTo: {
+          senderName: earlier.senderUser?.name ?? "Someone",
+          excerpt: buildChatMessagePreview(earlier.content, names),
+        },
+      };
+    }),
+  );
 }
 
 /** The prompt: unread messages grouped by room, each labelled, as data. */
@@ -371,10 +426,13 @@ export async function getChatCatchUpSummary(
   for (const { bucket } of bucketed) {
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
-  const section = (accept: (bucket: ChatCatchUpBucket) => boolean) =>
+  const section = (
+    accept: (bucket: ChatCatchUpBucket) => boolean,
+    max = MAX_ITEMS_PER_SECTION,
+  ) =>
     bucketed
       .filter(({ bucket }) => accept(bucket))
-      .slice(0, MAX_ITEMS_PER_SECTION)
+      .slice(0, max)
       .map(({ message, bucket, room }) => toItem(message, room, bucket, names));
 
   // A question still unread is already under "needs you"; listing it again
@@ -384,6 +442,12 @@ export async function getChatCatchUpSummary(
     .filter(
       (loop: ChatSignalListItem) =>
         roomById.has(loop.room.id) && !unreadIds.has(loop.message.id),
+    )
+    // A promise past its date first, the longest overdue on top.
+    .sort(
+      (a, b) =>
+        (a.dueAt?.getTime() ?? Number.POSITIVE_INFINITY) -
+        (b.dueAt?.getTime() ?? Number.POSITIVE_INFINITY),
     )
     .slice(0, MAX_ITEMS_PER_SECTION)
     .map((loop) =>
@@ -396,13 +460,22 @@ export async function getChatCatchUpSummary(
       ),
     );
 
-  const written = await writtenSummary({
-    userId: input.userId,
-    scope,
-    messages: bucketed,
-    names,
-    deps,
-  });
+  const senderById = new Map(
+    bucketed.map(({ message }) => [message.id, message.senderUserId]),
+  );
+  const [written, decisions] = await Promise.all([
+    writtenSummary({
+      userId: input.userId,
+      scope,
+      messages: bucketed,
+      names,
+      deps,
+    }),
+    withReplyContext(
+      section((bucket) => bucket === "decisionMade"),
+      senderById,
+    ),
+  ]);
 
   return {
     scope,
@@ -422,9 +495,14 @@ export async function getChatCatchUpSummary(
       }) ?? [],
     generatedAt: written?.generatedAt ?? null,
     needsYou: section((bucket) => bucket === "needsYou"),
-    decisions: section((bucket) => bucket === "decisionMade"),
+    blockers: section((bucket) => BLOCKER_BUCKETS.includes(bucket)),
+    decisions,
+    announcements: section((bucket) => bucket === "announcement"),
     openLoops,
-    highlights: section((bucket) => HIGHLIGHT_BUCKETS.includes(bucket)),
+    highlights: section(
+      (bucket) => HIGHLIGHT_BUCKETS.includes(bucket),
+      MAX_HIGHLIGHTS,
+    ),
   };
 }
 

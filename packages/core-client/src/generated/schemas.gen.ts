@@ -13159,7 +13159,20 @@ export const ChatCatchUpSummarySchema = {
                 $ref: '#/components/schemas/ChatCatchUpItem'
             }
         },
+        blockers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            },
+            description: 'Escalations, urgent messages and blockers.'
+        },
         decisions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatCatchUpItem'
+            }
+        },
+        announcements: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/ChatCatchUpItem'
@@ -13169,13 +13182,15 @@ export const ChatCatchUpSummarySchema = {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/ChatCatchUpItem'
-            }
+            },
+            description: 'Questions to the viewer still unanswered and their overdue promises, the longest overdue first.'
         },
         highlights: {
             type: 'array',
             items: {
                 $ref: '#/components/schemas/ChatCatchUpItem'
-            }
+            },
+            description: 'At most three other messages worth knowing: decisions to make, commitments, work requests, questions.'
         }
     },
     required: [
@@ -13186,7 +13201,9 @@ export const ChatCatchUpSummarySchema = {
         'rooms',
         'generatedAt',
         'needsYou',
+        'blockers',
         'decisions',
+        'announcements',
         'openLoops',
         'highlights'
     ]
@@ -13260,6 +13277,25 @@ export const ChatCatchUpItemSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        inReplyTo: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                senderName: {
+                    type: 'string'
+                },
+                excerpt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'senderName',
+                'excerpt'
+            ],
+            description: 'For a decision: the earlier message it answers, so a bare reply reads on its own.'
         }
     },
     required: [
@@ -13272,7 +13308,8 @@ export const ChatCatchUpItemSchema = {
         'excerpt',
         'bucket',
         'createdAt',
-        'dueAt'
+        'dueAt',
+        'inReplyTo'
     ]
 } as const;
 
