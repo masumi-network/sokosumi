@@ -11,7 +11,10 @@ import {
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
-import { parseBrandBrain } from "@/services/brand-brain.service";
+import {
+  brandBrainCorrections,
+  parseBrandBrain,
+} from "@/services/brand-brain.service";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -143,24 +146,26 @@ export async function requestCmoStrategy(input: {
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
-    message: (input.note
-      ? [
-          `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
-          "",
-          "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
-          "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
-        ]
-      : [
-          `Write ${cuso.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-          `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
-          "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
-          ...ownerAnswers(brain),
-          "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
-          "",
-          "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-          "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId) whose approach shares match the mix. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
-        ]
-    )
+    message: brandCorrections(brain)
+      .concat(
+        input.note
+          ? [
+              `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
+              "",
+              "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
+              "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
+            ]
+          : [
+              `Write ${cuso.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+              `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
+              "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
+              ...ownerAnswers(brain),
+              "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
+              "",
+              "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
+              "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why and campaignId) whose approach shares match the mix. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
+            ],
+      )
       .concat([
         "Do not create Social posts or images yet; that starts after the owner approves.",
         "Then tell the owner in one or two sentences what the plan does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
@@ -168,6 +173,24 @@ export async function requestCmoStrategy(input: {
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
+}
+
+/**
+ * First the Brand Brain: each section the owner said no to is rewritten
+ * before the plan is built on it. None when every no is already in.
+ */
+function brandCorrections(brain: BrandBrain): string[] {
+  const corrections = brandBrainCorrections(brain);
+  if (corrections.length === 0) return [];
+  return [
+    "First correct the Brand Brain. The owner said no to what you wrote:",
+    ...corrections.map(
+      (question) =>
+        `- ${question.section}: you wrote "${question.statement}". ${question.note ? `True instead: ${question.note}` : 'The owner says this is not true: say the opposite plainly, never "unconfirmed" or "unclear".'}`,
+    ),
+    "Call save_brand_brain once, with sections holding only these sections. Rewrite each one's answer (and its headline, if it says the same) so it states what is true and never repeats what the owner rejected; keep everything else the answer says that still holds, and send findings empty to keep them. Then plan from the corrected Brand Brain.",
+    "",
+  ];
 }
 
 /** The owner's answers, for the strategy request; none when nothing was answered. */

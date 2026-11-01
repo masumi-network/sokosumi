@@ -47,6 +47,12 @@ export function QuestionsStep({
   const [planning, startPlanning] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const done = answered === questions.length;
+  // A no waits for Cuso to rewrite its section; opened again after the plan,
+  // the step sends him to fix it instead of moving on.
+  const corrections = questions.filter(
+    (question) => question.answer === "no" && question.corrected === false,
+  ).length;
+  const lead = corrections > 0 ? undefined : ahead;
 
   return (
     <section className="ob-questions">
@@ -55,9 +61,13 @@ export function QuestionsStep({
         title="Questions"
         mood="point"
         say={
-          done
-            ? "That's everything I needed. Now I plan your month."
-            : "A few things I couldn't confirm. Yes or no is enough."
+          !done
+            ? "A few things I couldn't confirm. Yes or no is enough."
+            : corrections > 0
+              ? `Thanks. I'll fix what I got wrong in your Brand Brain, then ${ahead ? "update" : "plan"} your month.`
+              : ahead
+                ? "That's everything I needed. Your plan is built on it."
+                : "That's everything I needed. Now I plan your month."
         }
         note={
           questions.length > 0
@@ -65,13 +75,13 @@ export function QuestionsStep({
             : undefined
         }
         action={
-          ahead ? (
+          lead ? (
             <button
               type="button"
               className="ob-button ob-button-lg"
-              onClick={ahead.onClick}
+              onClick={lead.onClick}
             >
-              Continue to {ahead.label}
+              Continue to {lead.label}
               <ArrowRight size={16} aria-hidden="true" />
             </button>
           ) : (
@@ -96,7 +106,11 @@ export function QuestionsStep({
                 </>
               ) : (
                 <>
-                  {done ? "Plan my month" : "Skip, plan my month"}
+                  {ahead
+                    ? "Fix it and update my plan"
+                    : done
+                      ? "Plan my month"
+                      : "Skip, plan my month"}
                   <ArrowRight size={16} aria-hidden="true" />
                 </>
               )}

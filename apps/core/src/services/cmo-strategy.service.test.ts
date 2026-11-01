@@ -127,6 +127,58 @@ describe("requestCmoStrategy", () => {
     expect(strategyRows).toHaveLength(1);
   });
 
+  it("has Cuso correct each section the owner said no to before he plans", async () => {
+    const question = {
+      id: "q1",
+      question: "Do most customers find you through Google?",
+      statement: "Most customers find the business through Google",
+      section: "marketing",
+    };
+    cusoFind.mockResolvedValue({
+      ...cuso,
+      brandBrain: {
+        ...brandBrain,
+        questions: [
+          { ...question, answer: "no", note: "LinkedIn", corrected: false },
+          { ...question, id: "q2", answer: "no", corrected: true },
+          {
+            ...question,
+            id: "q3",
+            section: "company",
+            answer: "no",
+            corrected: false,
+          },
+        ],
+      },
+    });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ userId: "user-1" });
+    await requestCmoStrategy({ userId: "user-1", note: "Fewer posts" });
+
+    for (const [call] of startTurn.mock.calls) {
+      const message: string = JSON.stringify(call);
+      expect(message).toContain("First correct the Brand Brain");
+      expect(message).toContain(
+        '- marketing: you wrote \\"Most customers find the business through Google\\". True instead: LinkedIn',
+      );
+      expect(message).toContain("- company: you wrote");
+      expect(message).toContain("say the opposite plainly");
+      expect(message.match(/- \w+: you wrote/g)).toHaveLength(2);
+    }
+  });
+
+  it("asks for no correction once every no is in the Brand Brain", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ userId: "user-1" });
+
+    expect(JSON.stringify(startTurn.mock.lastCall)).not.toContain(
+      "First correct the Brand Brain",
+    );
+  });
+
   it("writes one version for an ad budget, which Cuso's re-plan completes", async () => {
     cusoFind.mockResolvedValue(cuso);
     const running = seedStrategy(strategy, {

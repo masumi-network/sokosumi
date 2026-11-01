@@ -223,6 +223,33 @@ describe("onboarding steps", () => {
     expect(html).toContain("Skip, plan my month");
   });
 
+  it("opened again after the plan, a no sends the fix instead of moving on", () => {
+    const question = {
+      id: "offer",
+      question: "Is the 14-day trial your main offer?",
+      statement: "The 14-day trial is the main offer",
+      section: "offer" as const,
+      answer: "no" as const,
+    };
+    const render = (corrected: boolean) =>
+      renderToStaticMarkup(
+        <QuestionsStep
+          overview={overview({
+            brandBrainConfirmedAt: new Date(),
+            brandBrain: { ...brain, questions: [{ ...question, corrected }] },
+          })}
+          onAnswer={async () => {}}
+          onPlan={async () => null}
+          ahead={{ label: "Strategy", onClick: () => {} }}
+        />,
+      );
+    const waiting = render(false);
+    expect(waiting).toContain("Fix it and update my plan");
+    expect(waiting).toContain("fix what I got wrong in your Brand Brain");
+    expect(waiting).not.toContain("Continue to Strategy");
+    expect(render(true)).toContain("Continue to Strategy");
+  });
+
   it("resumes on the plan after the Accounts step, even on a reload", () => {
     // Core reads the step from a Social connection or the person's skip.
     expect(

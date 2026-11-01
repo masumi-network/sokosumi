@@ -24571,6 +24571,9 @@ export const BrandBrainSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    corrected: {
+                                        type: 'boolean'
                                     }
                                 },
                                 required: [
@@ -26432,6 +26435,9 @@ export const BrandBrainRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            corrected: {
+                                type: 'boolean'
                             }
                         },
                         required: [
@@ -39309,6 +39315,9 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    corrected: {
+                                        type: 'boolean'
                                     }
                                 },
                                 required: [
