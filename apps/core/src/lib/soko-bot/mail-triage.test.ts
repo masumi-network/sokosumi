@@ -131,18 +131,22 @@ describe("triageMail", () => {
         matchesRule: false,
       },
     ]);
-    expect(evaluateMock).toHaveBeenCalledOnce();
-    const { state, questions } = evaluateMock.mock.calls[0][0];
+    // Triage in one call, the saved rules in a call of their own.
+    expect(evaluateMock).toHaveBeenCalledTimes(2);
+    const triageCall = evaluateMock.mock.calls.find(
+      ([call]) => "mail0" in call.questions,
+    )?.[0];
+    const ruleCall = evaluateMock.mock.calls.find(
+      ([call]) => "rule0" in call.questions,
+    )?.[0];
+    const { state, questions } = triageCall;
     expect(state.ownerPreferences).toEqual([
       "Do not flag Make scenario errors or DigitalOcean deployment failures.",
     ]);
     expect(state.alreadyFlaggedToday).toEqual(["Stripe: your payout failed."]);
-    expect(Object.keys(questions)).toEqual([
-      "mail0",
-      "rule0",
-      "mail1",
-      "rule1",
-    ]);
+    expect(Object.keys(questions)).toEqual(["mail0", "mail1"]);
+    expect(Object.keys(ruleCall.questions)).toEqual(["rule0", "rule1"]);
+    expect(Object.keys(ruleCall.state)).toEqual(["ownerRules", "emails"]);
     expect(questions.mail0).toMatchObject({
       type: "choice",
       criteria: MAIL_TRIAGE_CRITERIA,
@@ -172,12 +176,29 @@ describe("triageMail", () => {
       mail("b", "Weekly digest"),
     ]);
     expect(tagged.map((item) => item.matchesRule)).toEqual([true, false]);
-    const { state, questions } = evaluateMock.mock.calls[0][0];
+    expect(evaluateMock).toHaveBeenCalledTimes(2);
+    const { state, questions } = evaluateMock.mock.calls.find(
+      ([call]) => "rule0" in call.questions,
+    )?.[0];
     expect(state.ownerRules).toEqual([
       "Save invoice attachments into Finance/Invoices.",
     ]);
     expect(questions.rule0).toMatchObject({ type: "boolean" });
     expect(questions.rule0.instructions).toMatch(/ownerRules/);
+  });
+
+  it("keeps the triage when only the rule call fails", async () => {
+    memoryMock.mockResolvedValue({
+      markdown:
+        "# Soko Bot memory\n\n## Decisions\n\n- Save invoice attachments into Finance/Invoices.\n",
+    });
+    evaluateMock.mockImplementation(async ({ questions }) => {
+      if ("rule0" in questions) throw new Error("timeout");
+      return { answers: { mail0: choice(0, 1, 0) } };
+    });
+    const { mail: tagged, failed } = await triage([mail("a", "Invoice")]);
+    expect(failed).toBe(false);
+    expect(tagged[0]).toMatchObject({ tag: "NOTABLE", matchesRule: false });
   });
 
   it("asks no rule questions when the owner saved none", async () => {
