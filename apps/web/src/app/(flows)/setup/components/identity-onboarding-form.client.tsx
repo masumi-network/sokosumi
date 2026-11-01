@@ -232,7 +232,7 @@ export function IdentityOnboardingForm({
                     className={cn(
                       "border-border bg-background press flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors duration-150",
                       choice === "personal"
-                        ? "border-primary"
+                        ? "border-foreground"
                         : "hover:border-control-border",
                     )}
                   >
@@ -255,7 +255,7 @@ export function IdentityOnboardingForm({
                     className={cn(
                       "border-border bg-background press flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors duration-150",
                       choice === "organization"
-                        ? "border-primary"
+                        ? "border-foreground"
                         : "hover:border-control-border",
                     )}
                   >
