@@ -8429,7 +8429,10 @@
         "due": "Vence {date}",
         "overdue": "{count, plural, one {# día de retraso} other {# días de retraso}}",
         "inReplyTo": "En respuesta a {name}: {text}",
-        "markDone": "Marcar como hecho",
+        "done": "Hecho",
+        "openAndReply": "Abrir y responder",
+        "markRead": "Marcar como leído",
+        "inYourRooms": "En tus salas",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
@@ -8482,7 +8485,8 @@
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
-          "workRequest": "Encargo"
+          "workRequest": "Encargo",
+          "question": "Pregunta"
         },
         "Tags": {
           "question": "Hace una pregunta a alguien",

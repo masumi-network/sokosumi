@@ -13259,6 +13259,12 @@ export const ChatCatchUpItemSchema = {
         senderName: {
             type: 'string'
         },
+        senderImageUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         excerpt: {
             type: 'string'
         },
@@ -13305,6 +13311,7 @@ export const ChatCatchUpItemSchema = {
         'roomKind',
         'parentMessageId',
         'senderName',
+        'senderImageUrl',
         'excerpt',
         'bucket',
         'createdAt',

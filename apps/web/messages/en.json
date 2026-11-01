@@ -8429,7 +8429,10 @@
         "due": "Due {date}",
         "overdue": "{count, plural, one {# day overdue} other {# days overdue}}",
         "inReplyTo": "Replying to {name}: {text}",
-        "markDone": "Mark done",
+        "done": "Done",
+        "openAndReply": "Open and reply",
+        "markRead": "Mark read",
+        "inYourRooms": "In your rooms",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
@@ -8482,7 +8485,8 @@
           "needsDecision": "Needs a decision",
           "commitment": "Commitment",
           "commitmentDue": "Commitment · due {date}",
-          "workRequest": "Work request"
+          "workRequest": "Work request",
+          "question": "Question"
         },
         "Tags": {
           "question": "Asks someone a question",

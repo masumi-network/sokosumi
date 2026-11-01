@@ -60,6 +60,7 @@ export const chatCatchUpItemSchema = z
     roomKind: z.enum(["channel", "direct"]),
     parentMessageId: z.string().uuid().nullable(),
     senderName: z.string(),
+    senderImageUrl: z.string().nullable(),
     excerpt: z.string(),
     bucket: chatCatchUpBucketSchema,
     createdAt: dateTimeSchema,

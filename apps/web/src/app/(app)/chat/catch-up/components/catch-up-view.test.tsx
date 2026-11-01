@@ -121,6 +121,7 @@ function item(
     roomKind: "channel",
     parentMessageId: null,
     senderName: "Francis",
+    senderImageUrl: null,
     excerpt: `text of ${messageId}`,
     bucket: "needsYou",
     createdAt: new Date("2026-10-29T12:00:00.000Z"),
@@ -363,36 +364,40 @@ describe("CatchUpView's unread rooms elsewhere", () => {
   });
 
   describe("the summary", () => {
-    it("lists each section once, rooms named once inside it", async () => {
+    it("shows what needs you as cards, the rest as one card per room", async () => {
       summaryAnswers({
         headline: "Francis needs your green light.",
-        needsYou: [
-          item("q1"),
-          item("q2"),
-          item("q3", { roomId: "room-b", roomName: "NMKR" }),
+        needsYou: [item("q1"), item("q2")],
+        blockers: [
+          item("b1", { bucket: "blocker", roomId: "room-b", roomName: "NMKR" }),
         ],
-        blockers: [item("b1", { bucket: "blocker" })],
         announcements: [item("a1", { bucket: "announcement" })],
       });
 
       renderCatchUp();
-      const summary = await screen.findByTestId("catch-up-summary");
-
-      const needsYou = within(summary).getByRole("region", {
+      const needsYou = await screen.findByRole("region", {
         name: "App.Channels.Signals.Sections.needsYou",
       });
-      expect(within(needsYou).getAllByText("Sokosumi")).toHaveLength(1);
-      expect(within(needsYou).getByText("NMKR")).toBeTruthy();
       expect(
-        within(summary).getByRole("region", {
-          name: "App.Channels.Signals.Sections.blockers",
+        within(needsYou).getAllByRole("link", {
+          name: "App.Channels.Signals.openAndReply",
         }),
-      ).toBeTruthy();
+      ).toHaveLength(2);
+
+      const rooms = screen.getByRole("region", {
+        name: "App.Channels.Signals.inYourRooms",
+      });
       expect(
-        within(summary).getByRole("region", {
-          name: "App.Channels.Signals.Sections.announcements",
+        within(rooms).getAllByRole("button", {
+          name: "App.Channels.Signals.markRead",
         }),
+      ).toHaveLength(2);
+      expect(within(rooms).getByText("NMKR")).toBeTruthy();
+      expect(
+        within(rooms).getByText("App.Channels.Signals.Chips.blocker"),
       ).toBeTruthy();
+      // What needs you is not repeated in its room's card.
+      expect(within(rooms).queryByText("text of q1")).toBeNull();
     });
 
     it("says how overdue a promise is, and what a decision answers", async () => {
@@ -427,13 +432,13 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       ).toBeTruthy();
     });
 
-    it("marks a row done and reloads the summary", async () => {
+    it("marks a card done and reloads the summary", async () => {
       summaryAnswers({ needsYou: [item("q1")] });
       setLoopMock.mockResolvedValue({ ok: true, value: {} });
 
       renderCatchUp();
       const done = await screen.findByRole("button", {
-        name: "App.Channels.Signals.markDone",
+        name: "App.Channels.Signals.done",
       });
       summaryAnswers();
       await act(async () => done.click());
@@ -442,7 +447,38 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
     });
 
-    it("marks every listed room read, a Thread reply by its Threads", async () => {
+    it("marks one room read from its card", async () => {
+      summaryAnswers({
+        needsYou: [item("q1")],
+        highlights: [
+          item("h1", {
+            parentMessageId: "parent",
+            bucket: "question",
+          }),
+          item("h2", {
+            roomId: "room-b",
+            roomName: "NMKR",
+            bucket: "question",
+          }),
+        ],
+      });
+      markAllReadMock.mockResolvedValue({ ok: true, value: null });
+
+      renderCatchUp();
+      const rooms = await screen.findByRole("region", {
+        name: "App.Channels.Signals.inYourRooms",
+      });
+      const [sokosumi] = within(rooms).getAllByRole("button", {
+        name: "App.Channels.Signals.markRead",
+      });
+      await act(async () => sokosumi.click());
+
+      expect(markAllReadMock).toHaveBeenCalledWith([
+        { roomId: "room-a", readRoom: true, lookThreads: true },
+      ]);
+    });
+
+    it("marks every listed room read at once", async () => {
       summaryAnswers({
         needsYou: [item("q1")],
         highlights: [

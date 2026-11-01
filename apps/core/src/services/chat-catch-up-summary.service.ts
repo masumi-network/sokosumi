@@ -113,6 +113,7 @@ export interface ChatCatchUpItem {
   roomKind: string;
   parentMessageId: string | null;
   senderName: string;
+  senderImageUrl: string | null;
   excerpt: string;
   bucket: ChatCatchUpBucket;
   createdAt: Date;
@@ -173,7 +174,9 @@ const messageSelect = {
   senderUserId: true,
   content: true,
   createdAt: true,
-  senderUser: { select: { name: true } },
+  senderUser: { select: { name: true, image: true } },
+  senderCoworker: { select: { name: true, image: true } },
+  senderSokoBot: { select: { name: true, avatarImageUrl: true } },
   signal: { select: chatSignalSelect },
 } as const satisfies Prisma.ChatRoomMessageSelect;
 
@@ -233,6 +236,35 @@ async function mentionNames(
   return new Map(users.map((user) => [user.id, user.name]));
 }
 
+interface MessageSender {
+  senderUser: { name: string; image: string | null } | null;
+  senderCoworker: { name: string; image: string | null } | null;
+  senderSokoBot: { name: string | null; avatarImageUrl: string | null } | null;
+}
+
+/** Who wrote it: a person, a Coworker or a Soko Bot, with their picture. */
+function messageSender(message: MessageSender): {
+  senderName: string;
+  senderImageUrl: string | null;
+} {
+  if (message.senderUser) {
+    return {
+      senderName: message.senderUser.name,
+      senderImageUrl: message.senderUser.image,
+    };
+  }
+  if (message.senderCoworker) {
+    return {
+      senderName: message.senderCoworker.name,
+      senderImageUrl: message.senderCoworker.image,
+    };
+  }
+  return {
+    senderName: message.senderSokoBot?.name ?? "Someone",
+    senderImageUrl: message.senderSokoBot?.avatarImageUrl ?? null,
+  };
+}
+
 function toItem(
   message: {
     id: string;
@@ -240,8 +272,7 @@ function toItem(
     parentMessageId: string | null;
     content: string;
     createdAt: Date;
-    senderUser: { name: string } | null;
-  },
+  } & MessageSender,
   room: Room,
   bucket: ChatCatchUpBucket,
   names: ReadonlyMap<string, string>,
@@ -253,7 +284,7 @@ function toItem(
     roomName: roomName(room),
     roomKind: room.kind,
     parentMessageId: message.parentMessageId,
-    senderName: message.senderUser?.name ?? "Someone",
+    ...messageSender(message),
     excerpt: buildChatMessagePreview(message.content, names),
     bucket,
     createdAt: message.createdAt,
@@ -547,7 +578,7 @@ async function writtenSummary(input: {
     };
     group.messages.push({
       bucket,
-      author: message.senderUser?.name ?? "Someone",
+      author: messageSender(message).senderName,
       text: readableChatSignalText(message.content, input.names),
     });
     groups.set(room.id, group);

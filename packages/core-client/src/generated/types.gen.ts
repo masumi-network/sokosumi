@@ -3690,6 +3690,7 @@ export type ChatCatchUpItem = {
     roomKind: 'channel' | 'direct';
     parentMessageId: string | null;
     senderName: string;
+    senderImageUrl: string | null;
     excerpt: string;
     bucket: ChatCatchUpBucket;
     createdAt: Date;

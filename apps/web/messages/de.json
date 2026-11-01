@@ -8429,7 +8429,10 @@
         "due": "Fällig {date}",
         "overdue": "{count, plural, one {# Tag überfällig} other {# Tage überfällig}}",
         "inReplyTo": "Antwort auf {name}: {text}",
-        "markDone": "Als erledigt markieren",
+        "done": "Erledigt",
+        "openAndReply": "Öffnen und antworten",
+        "markRead": "Als gelesen markieren",
+        "inYourRooms": "In deinen Räumen",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
@@ -8482,7 +8485,8 @@
           "needsDecision": "Braucht eine Entscheidung",
           "commitment": "Zusage",
           "commitmentDue": "Zusage · fällig {date}",
-          "workRequest": "Arbeitsauftrag"
+          "workRequest": "Arbeitsauftrag",
+          "question": "Frage"
         },
         "Tags": {
           "question": "Stellt jemandem eine Frage",
