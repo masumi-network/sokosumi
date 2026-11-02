@@ -9972,6 +9972,7 @@ describe("find_agents", () => {
     } as never);
 
   beforeEach(() => {
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     marketplace.list.mockResolvedValue({
       count: 2,
       agents: [listing("a", "Company Researcher"), listing("b", "SEO Auditor")],
