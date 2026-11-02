@@ -10138,15 +10138,9 @@ export type CmoOverview = {
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan or this person chose to subscribe later. CMO opens on the chat once done; Cuso makes and spends nothing until a plan is active.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'plan' | 'done';
-    /**
-     * CMO offers its own mock tiers instead of Sokosumi checkout.
-     */
-    mockBilling: boolean;
-    mockPlan: string | null;
-    mockPlanActivatedAt: Date | null;
+    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -10833,13 +10827,6 @@ export type CmoOnboardingRequest = {
      * The business's website. Cuso is hired into a new organization named after it.
      */
     websiteUrl: string;
-};
-
-export type CmoMockPlanRequest = {
-    /**
-     * A CMO tier id from CMO's own plan config.
-     */
-    plan: string;
 };
 
 export type CmoTurnStarted = {
@@ -67573,182 +67560,6 @@ export type StartCmoOnboardingResponses = {
 };
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
-
-export type ChooseCmoMockPlanData = {
-    body: CmoMockPlanRequest;
-    path?: never;
-    query?: never;
-    url: '/cmo/mock-plan';
-};
-
-export type ChooseCmoMockPlanErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Mock billing is off on this server
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ChooseCmoMockPlanError = ChooseCmoMockPlanErrors[keyof ChooseCmoMockPlanErrors];
-
-export type ChooseCmoMockPlanResponses = {
-    /**
-     * Mock plan active
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ChooseCmoMockPlanResponse = ChooseCmoMockPlanResponses[keyof ChooseCmoMockPlanResponses];
-
-export type CompleteCmoOnboardingData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/cmo/onboarding/complete';
-};
-
-export type CompleteCmoOnboardingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Cuso is not hired yet
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * The strategy is not approved yet
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type CompleteCmoOnboardingError = CompleteCmoOnboardingErrors[keyof CompleteCmoOnboardingErrors];
-
-export type CompleteCmoOnboardingResponses = {
-    /**
-     * Cuso started
-     */
-    200: {
-        data: CmoOverview;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type CompleteCmoOnboardingResponse = CompleteCmoOnboardingResponses[keyof CompleteCmoOnboardingResponses];
 
 export type RetryCmoOnboardingData = {
     body?: never;

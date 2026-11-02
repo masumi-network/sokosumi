@@ -8,7 +8,6 @@ import { showcaseEntries } from "../showcases";
 import { CheckStep } from "./check-step";
 import { strategySocialChannels } from "./connect-step";
 import { onboardingStep } from "./flow";
-import { PricingStep } from "./pricing-step";
 import { QuestionsStep } from "./questions-step";
 import { ResearchStep } from "./research-step";
 import { ResultsStep } from "./results-step";
@@ -96,9 +95,6 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     },
     projectLogo: null,
     onboardingStep: "brandBrain",
-    mockBilling: false,
-    mockPlan: null,
-    mockPlanActivatedAt: null,
     routines: [],
     subscriptionActive: false,
     viewerCanApprove: true,
@@ -250,28 +246,15 @@ describe("onboarding steps", () => {
     expect(render(true)).toContain("Continue to Strategy");
   });
 
-  it("resumes on the plan after the Accounts step, even on a reload", () => {
-    // Core reads the step from a Social connection or the person's skip.
-    expect(
-      onboardingStep(
-        overview({
-          ...cmoStrategyVersion(new Date()),
-          onboardingStep: "plan",
-        }),
-      ),
-    ).toBe("pricing");
-  });
-
-  it("skips Accounts when the plan has no social network", () => {
+  it("ends on Accounts once the plan is approved; there is no plan step", () => {
     expect(
       onboardingStep(
         overview({
           ...cmoStrategyVersion(new Date()),
           onboardingStep: "accounts",
-          strategy: { ...strategy, channels: [] },
         }),
       ),
-    ).toBe("pricing");
+    ).toBe("connect");
   });
 
   it("offers to connect only the social networks in the plan", () => {
@@ -454,7 +437,7 @@ describe("plan check", () => {
         onApprove={async () => {}}
       />,
     );
-    expect(allYes).toContain("Step 5 of 8");
+    expect(allYes).toContain("Step 5 of 7");
     expect(allYes).toContain("Do you sell 0 things?");
     expect(allYes).toContain("Approve plan");
     const withNo = renderToStaticMarkup(
@@ -520,7 +503,7 @@ describe("results", () => {
         onConnectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
-    expect(html).toContain("Step 6 of 8");
+    expect(html).toContain("Step 6 of 7");
     expect(html).toContain("Not measured yet");
     expect(html).toContain("Google Search Console");
     expect(html).toContain("Connected");
@@ -531,121 +514,5 @@ describe("results", () => {
     expect(html).toContain("Swap it for one that works");
     expect(html).toContain("UTM links on every post");
     expect(html).toContain("Continue to accounts");
-  });
-});
-
-describe("pricing", () => {
-  const plan = (name: "starter" | "standard" | "pro", amount: number) => ({
-    name,
-    credits: amount * 10,
-    currency: "eur",
-    monthlyAmount: amount * 100,
-    priceId: `price_${name}`,
-    productId: `prod_${name}`,
-    slug: name,
-  });
-  const plans = {
-    free: { ...plan("starter", 0), name: "free" as const },
-    starter: plan("starter", 25),
-    standard: plan("standard", 75),
-    pro: plan("pro", 200),
-  };
-
-  it("prices Sokosumi's real plans and sends checkout to Sokosumi", () => {
-    const html = renderToStaticMarkup(
-      <PricingStep
-        overview={overview()}
-        plans={plans}
-        onStart={async () => {}}
-        onSubscribeLater={async () => {}}
-        onRefresh={async () => {}}
-        onChooseMockPlan={async () => null}
-      />,
-    );
-    expect(html).toContain("€75");
-    expect(html).toContain("750 credits every month");
-    expect(html).toContain('href="http://web/billing?tab=subscription"');
-    // Subscribe later opens the chat; Cuso spends nothing until a plan.
-    expect(html).toContain("Subscribe later");
-    expect(html).not.toContain("Choose Growth");
-  });
-
-  it("keeps which organization pays on the checkout link", () => {
-    const html = renderToStaticMarkup(
-      <PricingStep
-        overview={{
-          ...overview(),
-          subscribeUrl: "http://web/billing?organizationId=org-cuso",
-        }}
-        plans={plans}
-        onStart={async () => {}}
-        onSubscribeLater={async () => {}}
-        onRefresh={async () => {}}
-        onChooseMockPlan={async () => null}
-      />,
-    );
-    expect(html).toContain(
-      'href="http://web/billing?organizationId=org-cuso&amp;tab=subscription"',
-    );
-  });
-
-  it("offers CMO's own mock tiers instead of checkout while mock billing is on", () => {
-    const html = renderToStaticMarkup(
-      <PricingStep
-        overview={overview({ mockBilling: true })}
-        plans={plans}
-        onStart={async () => {}}
-        onSubscribeLater={async () => {}}
-        onRefresh={async () => {}}
-        onChooseMockPlan={async () => null}
-      />,
-    );
-    expect(html).toContain("Choose Growth");
-    expect(html).toContain("Recommended");
-    expect(html).toContain("Yearly");
-    expect(html).not.toContain("http://web/billing");
-  });
-
-  it("marks the active mock tier and lets the founder start", () => {
-    const html = renderToStaticMarkup(
-      <PricingStep
-        overview={overview({
-          mockBilling: true,
-          mockPlan: "growth",
-          subscriptionActive: true,
-        })}
-        plans={plans}
-        onStart={async () => {}}
-        onSubscribeLater={async () => {}}
-        onRefresh={async () => {}}
-        onChooseMockPlan={async () => null}
-      />,
-    );
-    expect(html).toContain("Your plan");
-    expect(html).toContain("Growth is active");
-    expect(html).toContain("Start Cuso");
-  });
-
-  it("lets a subscribed founder start", () => {
-    const html = renderToStaticMarkup(
-      <PricingStep
-        overview={overview({
-          subscriptionActive: true,
-          billing: {
-            plan: "standard",
-            subscriptionStatus: "active",
-            availableCredits: 750,
-          },
-        })}
-        plans={plans}
-        onStart={async () => {}}
-        onSubscribeLater={async () => {}}
-        onRefresh={async () => {}}
-        onChooseMockPlan={async () => null}
-      />,
-    );
-    expect(html).toContain("Your plan");
-    expect(html).toContain("Start Cuso");
-    expect(html).not.toContain("Subscribe later");
   });
 });

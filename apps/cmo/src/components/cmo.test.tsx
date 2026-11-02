@@ -147,14 +147,14 @@ describe("thread", () => {
     ]);
   });
 
-  it("asks to subscribe and connect only after approval", () => {
+  it("asks to connect only after approval, never to subscribe", () => {
     const before = buildThread(overview(), []).map((item) => item.kind);
-    expect(before).not.toContain("subscribe");
+    expect(before).not.toContain("connect");
     const after = buildThread(
       overview(cmoStrategyVersion(new Date("2026-10-01T09:05:00Z"))),
       [],
     ).map((item) => item.kind);
-    expect(after.slice(-2)).toEqual(["subscribe", "connect"]);
+    expect(after.slice(-2)).toEqual(["strategy", "connect"]);
   });
 
   it("says what Cuso is waiting for", () => {

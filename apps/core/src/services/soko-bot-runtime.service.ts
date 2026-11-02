@@ -2142,7 +2142,7 @@ export class SokoBotRuntimeService {
     )
       return true;
     // Cuso's own rhythms and the month's production run (an EVENT run Core
-    // starts after payment) act once the owner approved the plan.
+    // starts after approval) act once the owner approved the plan.
     if (
       (turn.source !== "SCHEDULE" && turn.source !== "EVENT") ||
       getSokoBotVersion(turn.versionId).profile !== "cmo"

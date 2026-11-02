@@ -7,8 +7,6 @@ import {
   approveProjectMarketingStrategy,
   type CmoMeasurement,
   type CmoOverview,
-  chooseCmoMockPlan,
-  completeCmoOnboarding,
   confirmProjectBrandBrain,
   connectCmoMeasurement,
   finalizeCmoMeasurement,
@@ -16,7 +14,6 @@ import {
   getCmoCalendarEntryText,
   getCmoOverview,
   getContactLists,
-  getSubscriptionCatalog,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   postContactLists,
@@ -26,7 +23,6 @@ import {
   requestCmoStrategy,
   retryCmoOnboarding,
   revertCmoUpdate,
-  type SubscriptionCatalog,
   setCmoAdBudget,
   startCmoOnboarding,
   updateProjectBrandBrain,
@@ -60,7 +56,7 @@ async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
 /**
  * Core's overview with the steps this person skipped. Every overview CMO
  * shows goes through here: the poll once showed Accounts again after the
- * person had moved on to Pricing.
+ * person had moved on.
  */
 async function withSkipped(overview: CmoOverview): Promise<CmoOverview> {
   return withSkippedSteps(overview, await skippedSteps(overview.projectId));
@@ -385,28 +381,14 @@ export async function setAdBudget(
   };
 }
 
-/** Activates a CMO tier without checkout (Core's CMO_MOCK_BILLING). */
-export async function chooseMockPlan(
-  plan: string,
-): Promise<{ overview: CmoOverview | null; error: string | null }> {
-  const core = await requireCore();
-  const { data, error } = await chooseCmoMockPlan({ ...core, body: { plan } });
-  if (!data) {
-    return {
-      overview: null,
-      error: errorText(error, "Could not pick that plan"),
-    };
-  }
-  revalidatePath("/");
-  return { overview: await withSkipped(data.data), error: null };
-}
-
 /**
- * The founder moved on from the Accounts step. A connection already counts;
- * skipping is kept in CMO's cookie, so a reload resumes on the plan.
+ * The founder moved on from the Accounts step, the last one: CMO opens on the
+ * chat. A connection already counts; skipping is kept in CMO's cookie.
  */
 export async function finishAccounts(): Promise<CmoOverview> {
-  return skipStep("accounts");
+  const overview = await skipStep("accounts");
+  revalidatePath("/");
+  return overview;
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
@@ -451,23 +433,6 @@ export async function addMailingList(
     };
   }
   return { overview: await loadOverview(), error: null };
-}
-
-/** The founder is done with onboarding: CMO opens on the chat. */
-export async function completeOnboarding(): Promise<void> {
-  const core = await requireCore();
-  const { error } = await completeCmoOnboarding(core);
-  if (error) throw new Error(errorText(error, "Could not finish onboarding"));
-  revalidatePath("/");
-}
-
-/**
- * The founder chose Subscribe later on the plan step: kept in CMO's cookie,
- * so CMO opens on the chat. Cuso makes nothing until a plan.
- */
-export async function subscribeLater(): Promise<void> {
-  await skipStep("plan");
-  revalidatePath("/");
 }
 
 /** Where the provider sends the founder back after connecting. */
@@ -566,11 +531,4 @@ export async function finalizeMeasurement(
     path: { provider },
   });
   return !error;
-}
-
-/** Sokosumi's subscription plans, as Core prices them. */
-export async function loadPlans(): Promise<SubscriptionCatalog | null> {
-  const core = await requireCore();
-  const { data } = await getSubscriptionCatalog(core);
-  return data?.data ?? null;
 }

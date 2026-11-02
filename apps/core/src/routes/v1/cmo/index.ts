@@ -5,8 +5,6 @@ import mountGetCmoCalendarEntryText from "./calendar/[id]/text/get.js";
 import mountGetCmoOverview from "./get.js";
 import mountConnectCmoMeasurement from "./measurement/[provider]/connect/post.js";
 import mountFinalizeCmoMeasurement from "./measurement/[provider]/finalize/post.js";
-import mountChooseCmoMockPlan from "./mock-plan/post.js";
-import mountCompleteCmoOnboarding from "./onboarding/complete/post.js";
 import mountStartCmoOnboarding from "./onboarding/post.js";
 import mountRetryCmoOnboarding from "./onboarding/retry/post.js";
 import mountSetCmoAdBudget from "./strategy/ads/post.js";
@@ -23,8 +21,6 @@ const app = new OpenAPIHonoWithAuth();
 
 mountGetCmoOverview(app);
 mountStartCmoOnboarding(app);
-mountChooseCmoMockPlan(app);
-mountCompleteCmoOnboarding(app);
 mountRetryCmoOnboarding(app);
 mountRequestCmoStrategy(app);
 mountSetCmoAdBudget(app);
