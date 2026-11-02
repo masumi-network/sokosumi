@@ -30,6 +30,19 @@ const getFeaturedCoworkersMock = vi.fn();
 const subscriptionSuccessModalMock = vi.fn();
 const creditsCheckoutReturnMock = vi.fn();
 const subscriptionCheckoutReturnMock = vi.fn();
+const getMyMembersWithOrganizationsMock = vi.fn();
+const autoContextSwitchMock = vi.fn();
+
+vi.mock("@/app/components/auto-context-switch", () => ({
+  AutoContextSwitch: (props: unknown) => {
+    autoContextSwitchMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/components/default-loading", () => ({
+  default: () => <div data-testid="default-loading" />,
+}));
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -88,6 +101,8 @@ vi.mock("@/lib/services/user.service", () => ({
       getActiveOrganizationMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
+    getMyMembersWithOrganizations: (...args: unknown[]) =>
+      getMyMembersWithOrganizationsMock(...args),
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
 }));
@@ -309,6 +324,46 @@ describe("BillingPage", () => {
       purchasedSeats: 1,
       unusedSeats: 0,
     });
+  });
+
+  it("switches to the organization a billing link names before showing its plans", async () => {
+    getActiveOrganizationMock.mockResolvedValue({ id: "org-utxo" });
+    getMyMembersWithOrganizationsMock.mockResolvedValue([
+      { organizationId: "org-cuso", organization: { name: "plausible.io" } },
+    ]);
+
+    const { default: BillingPage } = await import("./page");
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          organizationId: "org-cuso",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(autoContextSwitchMock).toHaveBeenCalledWith({
+      activeOrganizationId: "org-utxo",
+      targetOrganizationId: "org-cuso",
+      successMessage: 'switchedWorkspace:{"account":"plausible.io"}',
+    });
+    expect(view.getByTestId("default-loading")).toBeTruthy();
+    expect(billingTabsMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a billing link to an organization the reader is not in", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getMyMembersWithOrganizationsMock.mockResolvedValue([]);
+
+    const { default: BillingPage } = await import("./page");
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({ organizationId: "org-other" }),
+      }),
+    );
+
+    expect(autoContextSwitchMock).not.toHaveBeenCalled();
+    expect(personalSubscriptionSectionMock).toHaveBeenCalled();
   });
 
   it("allows purchase on personal billing for free-plan users when canPurchaseOnFreePlan is true", async () => {

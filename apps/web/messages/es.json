@@ -6416,6 +6416,7 @@
       }
     },
     "Billing": {
+      "switchedWorkspace": "Cambiado a la cuenta de {account}",
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Tus Credits actuales en la cuenta personal.",
       "balanceDescriptionOrganization": "Credits actuales para {organization}. {purchased, plural, =1 {# Seat comprado} other {# Seats comprados}}, {assigned, plural, =1 {# asignado} other {# asignados}}, {unused, plural, =1 {# sin usar} other {# sin usar}}, {members, plural, =1 {# miembro} other {# miembros}}.",

@@ -6452,6 +6452,7 @@
       }
     },
     "Billing": {
+      "switchedWorkspace": "Switched to {account} account",
       "balanceTitle": "Balance",
       "balanceDescriptionPersonal": "Your current credits in personal account.",
       "balanceDescriptionOrganization": "Current credits for {organization}. {purchased, plural, =1 {# purchased seat} other {# purchased seats}}, {assigned, plural, =1 {# assigned} other {# assigned}}, {unused, plural, =1 {# unused} other {# unused}}, {members, plural, =1 {# member} other {# members}}.",
