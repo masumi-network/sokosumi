@@ -5278,7 +5278,7 @@ How to test: open the app in light, click a room, then click the sidebar again s
 
 ## Every attachment of a quoted message (17b), 2026-11-02
 
-Follows web and Core [#6788](https://github.com/masumi-network/sokosumi/pull/6788) (`43413e45f`).
+Draft [#6799](https://github.com/masumi-network/sokosumi/pull/6799). Follows web and Core [#6788](https://github.com/masumi-network/sokosumi/pull/6788) (`43413e45f`).
 
 ### Behaviour
 
