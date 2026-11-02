@@ -2770,7 +2770,42 @@ export const ChatRoomMessageQuoteSchema = {
             example: 'Can you summarize this launch risk?'
         },
         attachment: {
-            $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                fileName: {
+                    type: 'string',
+                    example: 'launch.png'
+                },
+                url: {
+                    type: 'string',
+                    example: 'https://blob.example/launch.png'
+                },
+                mediaKind: {
+                    type: 'string',
+                    enum: [
+                        'image',
+                        'file'
+                    ],
+                    example: 'image'
+                }
+            },
+            required: [
+                'fileName',
+                'url',
+                'mediaKind'
+            ],
+            deprecated: true,
+            description: 'One attachment for shipped Mac builds: the first image, else the first file. Use `attachments`.'
+        },
+        attachments: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
+            },
+            description: 'Every file and image linked in the quoted message, in body order. Absent on an older quote that had none.'
         },
         roomId: {
             type: 'string',
@@ -2787,10 +2822,7 @@ export const ChatRoomMessageQuoteSchema = {
 } as const;
 
 export const ChatRoomMessageQuoteAttachmentSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         fileName: {
             type: 'string',
@@ -37612,7 +37644,7 @@ export const CmoOverviewSchema = {
         },
         viewerCanApprove: {
             type: 'boolean',
-            description: 'Whether this member may approve the strategy and start the paid month: the organization\'s owners and admins only. Every other member works with Cuso but cannot.'
+            description: 'Whether this member may approve the strategy: the organization\'s owners and admins only. Every other member works with Cuso but cannot.'
         },
         work: {
             anyOf: [
@@ -41515,7 +41547,7 @@ export const CmoProductionSchema = {
         'total',
         'finishedAt'
     ],
-    description: 'After payment Cuso makes the whole month at once: how many of its pieces are made.'
+    description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
 
 export const CmoOnboardingRequestSchema = {
