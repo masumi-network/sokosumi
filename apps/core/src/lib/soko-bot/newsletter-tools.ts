@@ -9,10 +9,12 @@ import { getWebAppBaseUrl } from "@/config/env";
 import { conflict } from "@/helpers/error";
 import {
   createNewsletterIssueRequestSchema,
+  newsletterBrandSchema,
   newsletterIssueSchema,
   newsletterSchema,
   newsletterSubscriberSchema,
   patchNewsletterIssueRequestSchema,
+  putNewsletterRequestSchema,
 } from "@/schemas/newsletter.schema";
 import {
   newsletterAnalyticsQuerySchema,
@@ -24,6 +26,7 @@ import {
   getNewsletter,
   listNewsletterSubscribers,
   type NewsletterScope,
+  putNewsletter,
 } from "@/services/newsletter.service";
 import {
   getNewsletterAnalytics,
@@ -274,6 +277,79 @@ export async function runNewsletterWriteTool(
       );
     }
   }
+}
+
+/**
+ * Settings that change what every future email says, or (an enabled welcome
+ * email) send mail by themselves to each new subscriber.
+ */
+const OWNER_ONLY_NEWSLETTER_SETTINGS = [
+  "senderName",
+  "replyTo",
+  "welcomeEmailEnabled",
+  "welcomeSubject",
+  "welcomeBody",
+] as const;
+
+/** Whether a settings change needs the owner's word in chat this turn. */
+export function newsletterSettingsNeedOwner(rawInput: unknown) {
+  const input =
+    SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings.parse(rawInput);
+  return OWNER_ONLY_NEWSLETTER_SETTINGS.some(
+    (field) => input[field] !== undefined,
+  );
+}
+
+/**
+ * Changes only the given settings. The settings page saves them whole, so
+ * this reads the newsletter in the caller's transaction, merges, and saves
+ * the result through the page's own schema and service.
+ */
+export async function updateNewsletterSettings(
+  rawInput: unknown,
+  scope: NewsletterScope,
+  client: Prisma.TransactionClient,
+) {
+  const {
+    projectId: _projectId,
+    brand = {},
+    ...settings
+  } = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings.parse(rawInput);
+  const changed = Object.fromEntries(
+    Object.entries(settings).filter(([, field]) => field !== undefined),
+  );
+  const current = await getNewsletter(scope, client);
+  const mergedBrand = {
+    ...newsletterBrandSchema.parse(current.brand),
+    ...brand,
+  };
+  const saved = await putNewsletter(
+    scope,
+    putNewsletterRequestSchema.parse({
+      name: current.name,
+      senderName: current.senderName,
+      replyTo: current.replyTo,
+      welcomeEmailEnabled: current.welcomeEmailEnabled,
+      welcomeSubject: current.welcomeSubject,
+      welcomeBody: current.welcomeBody,
+      ...changed,
+      // null removes a brand field.
+      brand: Object.fromEntries(
+        Object.entries(mergedBrand).filter(([, field]) => field != null),
+      ),
+    }),
+    client,
+  );
+  return {
+    id: saved.id,
+    projectId: saved.projectId,
+    updated: [
+      ...Object.keys(changed),
+      ...Object.keys(brand).map((field) => `brand.${field}`),
+    ],
+    updatedAt: saved.updatedAt.toISOString(),
+    url: `/newsletter/settings?projectId=${encodeURIComponent(saved.projectId)}`,
+  };
 }
 
 /** Runs a newsletter read in a scope the caller has already authorized. */
