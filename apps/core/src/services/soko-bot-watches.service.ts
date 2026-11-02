@@ -16,6 +16,9 @@ type WaitForInput = z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["wait_for"]>;
 export type SokoBotWatchKind = WaitForInput["kind"];
 
 const DEFAULT_TIMEOUT_MINUTES = 60;
+/** Someone may connect the app later in the day; no one needs a reminder. */
+const APP_CONNECTED_TIMEOUT_MINUTES = 1_440;
+const PROVIDER_SLUG = /^[a-z0-9_-]{1,64}$/;
 /** Waits one bot may hold at once; more is a loop, not a plan. */
 const MAX_WAITING_PER_BOT = 25;
 const BATCH = 50;
@@ -34,6 +37,11 @@ const ACTIVE_TURN = new Set([
   "CANCEL_REQUESTED",
 ]);
 /** A follow-up does the next step itself; it does not start runs. */
+/** The app it waited for is new to the turn that asked, so its tools come too. */
+const INTEGRATION_TOOLS: SokoBotCapability[] = [
+  "list_integration_tools",
+  "run_integration_tool",
+];
 const RUN_MANAGEMENT_TOOLS = new Set<SokoBotCapability>([
   "start_background_run",
   "stop_background_run",
@@ -67,6 +75,20 @@ export async function watchOutcome(watch: {
     return job.status === "SUCCEEDED"
       ? `The ${video ? "video" : "image"} is ready (job ${watch.targetId}). Call ${read} with jobId ${watch.targetId}${watch.projectId ? ` and projectId ${watch.projectId}` : ""} for its link and fileId.`
       : `The Studio job ended ${job.status} (job ${watch.targetId}); ${read} says why.`;
+  }
+  if (watch.kind === "app_connected") {
+    const integration = await prisma.sokoBotIntegration.findUnique({
+      where: {
+        sokoBotId_provider: {
+          sokoBotId: watch.sokoBotId,
+          provider: watch.targetId,
+        },
+      },
+      select: { status: true },
+    });
+    return integration?.status === "ACTIVE"
+      ? `${watch.targetId} is connected now. Call list_integration_tools with provider ${watch.targetId}, then run_integration_tool.`
+      : null;
   }
   if (watch.kind === "background_run") {
     const run = await prisma.sokoBotTurn.findUnique({
@@ -181,6 +203,11 @@ export async function registerWatch(
       throw new SokoBotRuntimeValidationError(
         "No background run of yours with that runId.",
       );
+  } else if (input.kind === "app_connected") {
+    if (!PROVIDER_SLUG.test(input.id))
+      throw new SokoBotRuntimeValidationError(
+        "Use the app's provider from find_integrations, like hubspot.",
+      );
   } else {
     const member = await prisma.chatRoomSokoBotMember.findUnique({
       where: { roomId_sokoBotId: { roomId: input.id, sokoBotId } },
@@ -209,7 +236,11 @@ export async function registerWatch(
       outcome: already,
       note: "It is already done: do the next step now, in this turn.",
     };
-  const timeoutMinutes = input.timeoutMinutes ?? DEFAULT_TIMEOUT_MINUTES;
+  const timeoutMinutes =
+    input.timeoutMinutes ??
+    (input.kind === "app_connected"
+      ? APP_CONNECTED_TIMEOUT_MINUTES
+      : DEFAULT_TIMEOUT_MINUTES);
   const watch = await prisma.sokoBotWatch.create({
     data: {
       ...draft,
@@ -239,10 +270,12 @@ export interface SokoBotWatchesSyncResult {
  * out, starts its follow-up as a background run of the turn that set it, with
  * that turn's tools, posting where it was asked. The claim (WAITING → FIRED)
  * comes first, so a follow-up starts once; a busy bot puts it back for the
- * next tick.
+ * next tick. `sokoBotId` checks one bot's waits now, as when an app connects.
+ * An app nobody connected in time just ends: there is nothing to follow up.
  */
 export async function syncSokoBotWatches(input: {
   shouldContinue: () => boolean;
+  sokoBotId?: string;
 }): Promise<SokoBotWatchesSyncResult> {
   const result: SokoBotWatchesSyncResult = {
     checked: 0,
@@ -251,7 +284,10 @@ export async function syncSokoBotWatches(input: {
     failed: 0,
   };
   const watches = await prisma.sokoBotWatch.findMany({
-    where: { status: "WAITING" },
+    where: {
+      status: "WAITING",
+      ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
+    },
     orderBy: { createdAt: "asc" },
     take: BATCH,
     select: {
@@ -287,6 +323,13 @@ export async function syncSokoBotWatches(input: {
     const outcome = await watchOutcome(watch).catch(() => null);
     const timedOut = !outcome && watch.expiresAt <= new Date();
     if (!outcome && !timedOut) continue;
+    if (!outcome && watch.kind === "app_connected") {
+      await prisma.sokoBotWatch.updateMany({
+        where: { id: watch.id, status: "WAITING" },
+        data: { status: "EXPIRED", outcome: "never connected" },
+      });
+      continue;
+    }
     const claimed = await prisma.sokoBotWatch.updateMany({
       where: { id: watch.id, status: "WAITING" },
       data: {
@@ -296,11 +339,16 @@ export async function syncSokoBotWatches(input: {
       },
     });
     if (claimed.count === 0) continue;
-    const capabilities = watch.turn.capabilityNames.filter(
-      (name): name is SokoBotCapability =>
-        isSokoBotCapability(name) &&
-        !RUN_MANAGEMENT_TOOLS.has(name as SokoBotCapability),
-    );
+    const capabilities = [
+      ...new Set([
+        ...watch.turn.capabilityNames.filter(
+          (name): name is SokoBotCapability =>
+            isSokoBotCapability(name) &&
+            !RUN_MANAGEMENT_TOOLS.has(name as SokoBotCapability),
+        ),
+        ...(watch.kind === "app_connected" ? INTEGRATION_TOOLS : []),
+      ]),
+    ];
     try {
       const started = await sokoBotControlPlane.startTurn({
         userId: watch.turn.requestedByUserId,
