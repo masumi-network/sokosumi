@@ -31,6 +31,15 @@ struct MessageQuoteTests {
     #expect(quote.snippet == "see and , again")
   }
 
+  /// `buildRoomQuoteSnippetParts` deletes the link and leaves the lines around it.
+  @Test func previewKeepsTheLinesAroundALiftedLink() throws {
+    let quote = try #require(messageQuote(from: message(
+      "first\n[a.png](https://example.com/a.png)\nsecond\n[b.png](https://example.com/b.png)\nthird"
+    )))
+    #expect(quote.attachments?.map(\.fileName) == ["a.png", "b.png"])
+    #expect(quote.snippet == "first\n\nsecond\n\nthird")
+  }
+
   @Test func previewKeepsEveryImageOfAnImageOnlyMessage() throws {
     let names = ["a.png", "b.png", "c.png", "d.png"]
     let quote = try #require(messageQuote(from: message(names.map { "[\($0)](https://example.com/\($0))" }.joined(separator: "\n\n"))))
