@@ -258,6 +258,49 @@ export async function registerWatch(
   };
 }
 
+/**
+ * An app was just connected: the latest answer of the past day that gave its
+ * connect link gets a follow-up, so the bot finishes that request without
+ * being asked again. A wait the bot set itself is used as it is.
+ */
+export async function followUpConnectedApp(
+  sokoBotId: string,
+  provider: string,
+): Promise<void> {
+  if (!PROVIDER_SLUG.test(provider)) return;
+  const since = new Date(Date.now() - APP_CONNECTED_TIMEOUT_MINUTES * 60_000);
+  const linked = new RegExp(`[?&]connect=${provider}(?![a-z0-9_-])`);
+  const turns = await prisma.sokoBotTurn.findMany({
+    where: {
+      sokoBotId,
+      createdAt: { gte: since },
+      finalAnswer: { contains: `connect=${provider}` },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { id: true, userMessage: true, finalAnswer: true },
+  });
+  const turn = turns.find((row) => linked.test(row.finalAnswer ?? ""));
+  if (turn) {
+    const set = await prisma.sokoBotWatch.findFirst({
+      where: { turnId: turn.id, kind: "app_connected", targetId: provider },
+      select: { id: true },
+    });
+    if (!set)
+      await prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId,
+          turnId: turn.id,
+          kind: "app_connected",
+          targetId: provider,
+          then: `Finish what was asked, which needed ${provider}: "${clip(turn.userMessage, 1_000)}"`,
+          expiresAt: new Date(Date.now() + 5 * 60_000),
+        },
+      });
+  }
+  await syncSokoBotWatches({ shouldContinue: () => true, sokoBotId });
+}
+
 export interface SokoBotWatchesSyncResult {
   checked: number;
   fired: number;
