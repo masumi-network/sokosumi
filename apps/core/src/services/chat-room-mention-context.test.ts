@@ -128,6 +128,16 @@ describe("roomMessagePromptText", () => {
       "> Alice: Launch risk is the vendor.",
     );
   });
+
+  it("names the files of the quoted message", () => {
+    expect(
+      roomMessagePromptText("who can handle this?", {
+        authorName: "Alice",
+        snippet: "",
+        attachments: [{ fileName: "a.png" }, { fileName: "b.png" }],
+      }),
+    ).toBe("> Alice: (attached: a.png, b.png)\n\nwho can handle this?");
+  });
 });
 
 describe("loadRoomContextMessages", () => {
