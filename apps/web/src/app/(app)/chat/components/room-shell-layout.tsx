@@ -1,4 +1,5 @@
-import type { ReactNode, Ref } from "react";
+import { AnimatePresence } from "motion/react";
+import type { ReactNode, Ref, RefObject } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -7,7 +8,10 @@ import {
   ROOM_CONTENT_COLUMN_CLASSNAME,
   ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
 } from "@/app/chat/components/room-message-list-skeleton";
-import { useRoomColumnSlide } from "@/app/chat/components/use-room-column-slide";
+import {
+  useRoomPanelSlide,
+  useRoomPanelSlideOut,
+} from "@/app/chat/components/use-room-panel-slide";
 import { cn } from "@/lib/utils";
 
 /** Root height for open room (no mobile tab bar). Instant + live must match. */
@@ -27,19 +31,13 @@ export const ROOM_SHELL_SECTION_CLASSNAME =
 export const ROOM_SHELL_COLUMN_CLASSNAME =
   "flex min-h-0 min-w-0 flex-1 flex-col";
 
-/** The rule spans the pane; its contents ride the reading column. */
-export const ROOM_SHELL_DESKTOP_HEADER_CLASSNAME =
-  "flex h-16 shrink-0 border-b";
-
 /**
- * The header's row, in `ROOM_CONTENT_COLUMN_CLASSNAME`. px-3.5 is the list's
- * px-5 less the title's own px-1.5: the title's mark starts at the avatars'
- * left edge.
+ * Spans the section, outside the reading column. px-3.5 is the list's px-5 less
+ * the title's own px-1.5: where the column fills the section, the title's mark
+ * starts at the avatars' left edge.
  */
-export const ROOM_SHELL_DESKTOP_HEADER_ROW_CLASSNAME = cn(
-  ROOM_CONTENT_COLUMN_CLASSNAME,
-  "flex min-w-0 flex-1 items-center justify-between gap-4 px-3.5",
-);
+export const ROOM_SHELL_DESKTOP_HEADER_CLASSNAME =
+  "flex h-16 shrink-0 items-center justify-between gap-4 border-b px-3.5";
 
 /** Empty desktop header slot (Instant). Same outer box as live header. */
 export const ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME =
@@ -76,6 +74,33 @@ interface RoomShellLayoutProps {
 }
 
 /**
+ * The box a docked side panel slides in. Below `lg` it has none (`contents`), so
+ * a panel's `absolute inset-0` still measures against the room shell. A closing
+ * panel leaves the flow at once, and the room takes its width while it slides.
+ */
+function RoomSidePanelSlot({
+  panelRef,
+  children,
+}: {
+  panelRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  const isPresent = useRoomPanelSlideOut(panelRef);
+  return (
+    <div
+      ref={panelRef}
+      inert={!isPresent}
+      className={cn(
+        "contents lg:flex lg:min-h-0 lg:shrink-0",
+        !isPresent && "lg:absolute lg:inset-y-0 lg:right-0",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * Shared open-room chrome tree for Instant loading and progressive RoomsClient.
  */
 export function RoomShellLayout({
@@ -91,17 +116,12 @@ export function RoomShellLayout({
   composer,
   mainEnd = null,
 }: RoomShellLayoutProps): React.ReactElement {
-  const { mainRef, sectionRef, headerRef, listRef, composerRef } =
-    useRoomColumnSlide();
+  const { mainRef, sectionRef, panelRef, listRef, composerRef } =
+    useRoomPanelSlide();
   const header =
     desktopHeader != null ? (
       <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
-        <div
-          ref={headerRef}
-          className={ROOM_SHELL_DESKTOP_HEADER_ROW_CLASSNAME}
-        >
-          {desktopHeader}
-        </div>
+        {desktopHeader}
       </header>
     ) : reserveDesktopHeader ? (
       <div className={ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME} aria-hidden />
@@ -148,7 +168,15 @@ export function RoomShellLayout({
         <section ref={sectionRef} className={ROOM_SHELL_SECTION_CLASSNAME}>
           {column}
         </section>
-        {mainEnd}
+        {/* One key, so swapping one panel for another keeps the slot and does
+            not slide. */}
+        <AnimatePresence initial={false}>
+          {mainEnd != null ? (
+            <RoomSidePanelSlot key="panel" panelRef={panelRef}>
+              {mainEnd}
+            </RoomSidePanelSlot>
+          ) : null}
+        </AnimatePresence>
       </main>
     </div>
   );
