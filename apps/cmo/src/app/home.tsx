@@ -35,6 +35,7 @@ import {
   saveBrandBrain,
   sendMessage,
   setAdBudget,
+  startOver,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -167,6 +168,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           addMailingList,
           connectChannel,
           connectMeasurement,
+          startOver,
           signOut,
         }}
       />
@@ -192,6 +194,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         pauseEntry,
         connectChannel,
         connectMeasurement,
+        startOver,
         signOut,
       }}
     />

@@ -10,6 +10,7 @@ import { strategyApproved } from "../../lib/strategy";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import type { ConnectMeasurement } from "../onboarding/results-step";
+import { StartOver } from "../start-over";
 import { MeasureFunnel } from "../strategy-core";
 
 interface PageProps {
@@ -255,10 +256,12 @@ export function SettingsPage({
   overview,
   name,
   email,
+  startOver,
   signOut,
 }: PageProps & {
   name: string;
   email: string;
+  startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }) {
   return (
@@ -320,6 +323,14 @@ export function SettingsPage({
             </li>
           ))}
         </ul>
+      </section>
+      <section className="panel">
+        <h3>Another website</h3>
+        <p className="muted">Hire Cuso again for a different website.</p>
+        <StartOver
+          className="button button-secondary button-small"
+          startOver={startOver}
+        />
       </section>
       <section className="panel">
         <h3>Account</h3>

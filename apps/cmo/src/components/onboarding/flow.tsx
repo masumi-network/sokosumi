@@ -10,6 +10,7 @@ import type { CusoMessage } from "../../lib/chat-messages";
 import { strategyApproved } from "../../lib/strategy";
 import { BusinessMark } from "../business-mark";
 import { Logo } from "../logo";
+import { StartOver } from "../start-over";
 import { ThemeToggle } from "../theme-toggle";
 import { BrainStep } from "./brain-step";
 import { CheckStep } from "./check-step";
@@ -71,6 +72,8 @@ export interface OnboardingActions {
     provider: CmoOverview["measurement"][number]["provider"],
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
+  /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
+  startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -140,10 +143,12 @@ const BRAND_CORRECTED =
 function AccountMenu({
   overview,
   name,
+  startOver,
   signOut,
 }: {
   overview: CmoOverview;
   name: string;
+  startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -183,13 +188,16 @@ function AccountMenu({
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open ? (
-        <form className="ob-who-menu" role="menu" action={signOut}>
+        <div className="ob-who-menu" role="menu">
           <ThemeToggle className="ob-who-item" role="menuitem" withLabel />
-          <button type="submit" role="menuitem" className="ob-who-item">
-            <LogOut size={14} aria-hidden="true" />
-            Sign out
-          </button>
-        </form>
+          <StartOver className="ob-who-item" startOver={startOver} />
+          <form action={signOut}>
+            <button type="submit" role="menuitem" className="ob-who-item">
+              <LogOut size={14} aria-hidden="true" />
+              Sign out
+            </button>
+          </form>
+        </div>
       ) : null}
     </div>
   );
@@ -363,6 +371,7 @@ export function OnboardingFlow({
         <AccountMenu
           overview={overview}
           name={name}
+          startOver={actions.startOver}
           signOut={actions.signOut}
         />
       </header>

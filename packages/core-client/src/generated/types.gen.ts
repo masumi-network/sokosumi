@@ -67813,6 +67813,81 @@ export type RetryCmoOnboardingResponses = {
 
 export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
 
+export type StartCmoOverData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/start-over';
+};
+
+export type StartCmoOverErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Only an organization owner or admin can
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartCmoOverError = StartCmoOverErrors[keyof StartCmoOverErrors];
+
+export type StartCmoOverResponses = {
+    /**
+     * Cuso is archived
+     */
+    200: {
+        data: {
+            startedOver: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartCmoOverResponse = StartCmoOverResponses[keyof StartCmoOverResponses];
+
 export type RequestCmoStrategyData = {
     body?: CmoStrategyRequest;
     path?: never;
