@@ -82,7 +82,7 @@ export function ContactsPresetTabs({
       className="justify-start overflow-x-auto"
     >
       {CONTACT_PRESET_IDS.map((preset) => (
-        <ToggleGroupItem key={preset} value={preset} className="shrink-0">
+        <ToggleGroupItem key={preset} value={preset} className="flex-none">
           {t(`presets.${preset}`)}
         </ToggleGroupItem>
       ))}
