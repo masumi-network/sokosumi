@@ -171,10 +171,7 @@ export function AddSubscriberDialog({
               />
             </fieldset>
             {form.formState.errors.root?.message ? (
-              <p
-                role="alert"
-                className="text-semantic-destructive-label text-sm"
-              >
+              <p role="alert" className="text-foreground text-sm">
                 {form.formState.errors.root.message}
               </p>
             ) : null}

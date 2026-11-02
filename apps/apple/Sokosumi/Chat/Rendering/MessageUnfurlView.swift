@@ -52,7 +52,7 @@ struct MessageUnfurlView: View {
         .padding(10)
         .frame(maxWidth: 400, alignment: .leading)
         .background(.primary.opacity(hovered ? 0.08 : 0.04), in: .rect(cornerRadius: 6))
-        .overlay(alignment: .leading) { Rectangle().fill(.tint.opacity(0.6)).frame(width: 2) }
+        .overlay(alignment: .leading) { Rectangle().fill(Color.primary.opacity(0.2)).frame(width: 2) }
         .clipShape(.rect(cornerRadius: 6))
         .contentShape(.rect)
       }

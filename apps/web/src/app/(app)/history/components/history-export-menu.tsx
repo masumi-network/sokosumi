@@ -13,6 +13,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
+import { cn } from "@/lib/utils";
 import {
   buildExportHref,
   type ExportRange,
@@ -55,7 +57,7 @@ export function HistoryExportMenu({ filters }: { filters: HistoryFilters }) {
               asChild
               variant="ghost"
               size="sm"
-              className="justify-start"
+              className={cn(POPOVER_ROW_CLASS, "justify-start")}
             >
               <a href={buildExportHref(preset.range, filters)} download>
                 {preset.label}

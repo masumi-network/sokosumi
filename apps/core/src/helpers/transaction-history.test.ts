@@ -34,6 +34,9 @@ function sokoBotRow(
     sokoBotTurnSource: "CHAT",
     sokoBotScheduleName: null,
     sokoBotScheduleKey: null,
+    contactListId: null,
+    contactListName: null,
+    contactFound: null,
     bucketSource: null,
     topUpSource: null,
     topUpNote: null,
@@ -131,6 +134,28 @@ function taskRefundRow(
     ...overrides,
   });
 }
+
+describe("mapTransactionHistoryRow Find people rows", () => {
+  it("names the list and how many people were found", () => {
+    const row = sokoBotRow({
+      kind: "contacts",
+      sokoBotId: null,
+      sokoBotName: null,
+      contactListId: "01960001-0001-7001-8001-000000000077",
+      contactListName: "Investors",
+      contactFound: 12,
+    });
+    expect(map(row)).toMatchObject({
+      kind: "contacts",
+      title: "Find people · Investors",
+      description: "12 people found",
+      contactListId: "01960001-0001-7001-8001-000000000077",
+    });
+    expect(
+      map({ ...row, contactListId: null, contactListName: null }).title,
+    ).toBe("Find people · Deleted list");
+  });
+});
 
 describe("mapTransactionHistoryRow refund rows", () => {
   it("says why a job was refunded and links to it", () => {

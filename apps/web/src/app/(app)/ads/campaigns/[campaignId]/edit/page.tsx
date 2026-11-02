@@ -20,5 +20,5 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function EditAdsCampaignPage(
   props: EditAdsCampaignPageProps,
 ) {
-  return AdsCampaignEdit({ ...props, breadcrumb: true });
+  return AdsCampaignEdit(props);
 }

@@ -8,7 +8,9 @@ import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -126,17 +128,30 @@ export function DirectRoomAvatarStack({
             style={{ zIndex: participants.length - index }}
             data-testid={`dm-sidebar-avatar-${participant.id}`}
           >
-            <Avatar
-              className={cn(
-                "border-sidebar size-5 border",
-                room.isReadOnly && "opacity-50 grayscale",
-              )}
-            >
-              <AvatarImage alt="" src={participant.image ?? undefined} />
-              <AvatarFallback className="text-2xs font-medium">
-                {getInitials(participant.name)}
-              </AvatarFallback>
-            </Avatar>
+            {participant.kind === "sokoBot" &&
+            participant.image &&
+            isCraftedStyle(participant.avatarStyleId) ? (
+              <AvatarFace
+                src={participant.image}
+                crafted
+                className={cn(
+                  "border-sidebar size-5 border",
+                  room.isReadOnly && "opacity-50 grayscale",
+                )}
+              />
+            ) : (
+              <Avatar
+                className={cn(
+                  "border-sidebar size-5 border",
+                  room.isReadOnly && "opacity-50 grayscale",
+                )}
+              >
+                <AvatarImage alt="" src={participant.image ?? undefined} />
+                <AvatarFallback className="text-2xs font-medium">
+                  {getInitials(participant.name)}
+                </AvatarFallback>
+              </Avatar>
+            )}
             {showsPresence ? (
               <LiveMemberPresenceDot
                 className="-right-0.5 -bottom-0.5 absolute size-2 border"

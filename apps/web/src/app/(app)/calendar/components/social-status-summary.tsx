@@ -48,8 +48,8 @@ export function SocialStatusSummary({
               <button
                 aria-pressed={active}
                 className={cn(
-                  "press border-control-border bg-background hover:bg-muted text-foreground inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border ps-1 pe-2.5 text-xs font-medium outline-none focus-visible:ring-ring-halo focus-visible:ring-2 max-md:min-h-10 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
-                  active && "border-primary bg-primary-quinary",
+                  "press border-control-border bg-background hover:bg-muted text-foreground inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border ps-1 pe-2.5 text-xs font-medium outline-none focus-visible:ring-ring focus-visible:ring-2 max-md:min-h-10 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+                  active && "border-foreground bg-muted",
                 )}
                 data-testid={`calendar-status-pill-${status}`}
                 key={status}

@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
-import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
+import {
+  NEWSLETTER_ISSUE,
+  NEWSLETTER_PROJECT_ID,
+  NEWSLETTER_SENDING_DOMAIN_STATE,
+} from "@/test/newsletter";
 
 const m = vi.hoisted(() => ({
   change: vi.fn(),
@@ -34,6 +38,10 @@ function show(
   issue = NEWSLETTER_ISSUE,
   disabled = false,
   locale: "en" | "de" | "es" = "en",
+  readiness: {
+    activeSubscribers?: number;
+    sendingDomain?: NewsletterSendingDomainState;
+  } = {},
 ) {
   return render(
     <NextIntlClientProvider
@@ -47,7 +55,11 @@ function show(
       <IssueActions
         issue={issue}
         projectId={NEWSLETTER_PROJECT_ID}
-        activeSubscribers={3}
+        activeSubscribers={readiness.activeSubscribers ?? 3}
+        senderName="Ada"
+        sendingDomain={
+          readiness.sendingDomain ?? NEWSLETTER_SENDING_DOMAIN_STATE
+        }
         onChanged={m.changed}
         disabled={disabled}
       />
@@ -60,6 +72,91 @@ beforeEach(() => {
 });
 
 describe("newsletter issue actions", () => {
+  it.each([
+    { audience: 0, fallback: true },
+    { audience: 3, fallback: false },
+  ])(
+    "links to missing prerequisites and blocks sending and scheduling: %j",
+    async ({ audience, fallback }) => {
+      const user = userEvent.setup();
+      show(APPROVED, false, "en", {
+        activeSubscribers: audience,
+        sendingDomain: {
+          ...NEWSLETTER_SENDING_DOMAIN_STATE,
+          fallbackAvailable: fallback,
+        },
+      });
+      expect(screen.getByRole("button", { name: COPY.sendNow })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: COPY.schedule }),
+      ).toBeDisabled();
+      const readiness = en.App.Projects.Newsletter.Issues.Readiness;
+      expect(
+        screen.getByRole("link", { name: readiness.manageSubscribers }),
+      ).toHaveAttribute(
+        "href",
+        `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+      expect(
+        screen.getByRole("link", { name: readiness.senderSettings }),
+      ).toHaveAttribute(
+        "href",
+        `/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}#newsletter-sending-domain`,
+      );
+      expect(
+        screen.getByText(
+          audience === 0 ? readiness.noSubscribers : readiness.noSender,
+        ),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: COPY.sendNow }));
+      expect(m.change).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["VERIFIED", "PENDING", "FAILED"] as const)(
+    "shows the effective sender for a %s domain before confirming",
+    async (status) => {
+      const user = userEvent.setup();
+      show(APPROVED, false, "en", {
+        sendingDomain: {
+          ...NEWSLETTER_SENDING_DOMAIN_STATE,
+          fallbackAvailable: status !== "VERIFIED",
+          sendingDomain: {
+            id: "domain_1",
+            domain: "example.com",
+            fromAddress: "news@example.com",
+            status,
+            dnsRecords: [],
+            lastCheckedAt: null,
+            failureReason: null,
+            createdAt: new Date("2026-10-01T00:00:00Z"),
+            warmup: {
+              startedAt: null,
+              day: null,
+              dailyCap: null,
+              sentToday: 0,
+              pausedAt: null,
+              pauseReason: null,
+            },
+          },
+        },
+      });
+      await user.click(screen.getByRole("button", { name: COPY.sendNow }));
+      const dialog = within(screen.getByRole("alertdialog"));
+      if (status === "VERIFIED") {
+        expect(dialog.getByText("news@example.com")).toBeInTheDocument();
+        expect(dialog.queryByText("Ada via Sokosumi")).not.toBeInTheDocument();
+      } else {
+        expect(dialog.getByText("Ada via Sokosumi")).toBeInTheDocument();
+        expect(dialog.queryByText("news@example.com")).not.toBeInTheDocument();
+      }
+      expect(
+        dialog.getByText(
+          en.App.Projects.Newsletter.Issues.Readiness.deliveryHint,
+        ),
+      ).toBeInTheDocument();
+      expect(m.change).not.toHaveBeenCalled();
+    },
+  );
   it("submits a draft with its revision and disables the action while it is dirty", async () => {
     const user = userEvent.setup();
     const view = show();
@@ -132,6 +229,8 @@ describe("newsletter issue actions", () => {
     await user.click(screen.getByRole("button", { name: COPY.schedule }));
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Time zone:");
+    expect(dialog).toHaveTextContent("3 active subscribers");
+    expect(dialog).toHaveTextContent("Ada via Sokosumi");
     await user.click(
       within(dialog).getByRole("button", { name: COPY.schedule }),
     );
@@ -198,3 +297,5 @@ describe("newsletter issue actions", () => {
     },
   );
 });
+
+import type { NewsletterSendingDomainState } from "@sokosumi/core-client";

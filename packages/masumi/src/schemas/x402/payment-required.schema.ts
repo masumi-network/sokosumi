@@ -409,9 +409,7 @@ export function normalizeX402PaymentRequired(
  * own, never the argument, and the result is re-validated against the node
  * shape before it is returned.
  *
- * NOT dead code: the pay route lands on branch `x402-5-pay` and must call
- * this with the entry `verifyX402DemandAgainstAgentSources` returned. It
- * ships here because the schema owns the payload shape.
+ * It ships here because the schema owns the payload shape.
  *
  * Pure: the input payload is not mutated.
  */

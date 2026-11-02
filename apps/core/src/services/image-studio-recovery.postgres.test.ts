@@ -50,7 +50,7 @@ vi.mock("@/config/env", async (importOriginal) => {
     getBetterAuthPublicBaseUrl: () => null,
   };
 });
-vi.mock("@/services/image-studio-files.service", () => ({
+vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));

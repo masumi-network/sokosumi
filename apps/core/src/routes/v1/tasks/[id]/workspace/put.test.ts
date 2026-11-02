@@ -68,9 +68,12 @@ vi.mock("@/helpers/access-control", async (importOriginal) => {
     requireOwnerForPersonalWorkspace: actual.requireOwnerForPersonalWorkspace,
     requireTaskMoveAccess: actual.requireTaskMoveAccess,
     requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-    requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
   };
 });
+
+vi.mock("@/helpers/soko-bot-task-assign", () => ({
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
+}));
 
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,

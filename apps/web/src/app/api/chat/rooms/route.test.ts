@@ -9,11 +9,13 @@ const {
   getSessionResultMock,
   listRoomsMock,
   listArchivedMock,
+  listElsewhereMock,
   listPendingMock,
 } = vi.hoisted(() => ({
   getSessionResultMock: vi.fn(),
   listRoomsMock: vi.fn(),
   listArchivedMock: vi.fn(),
+  listElsewhereMock: vi.fn(),
   listPendingMock: vi.fn(),
 }));
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -23,6 +25,7 @@ vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: listRoomsMock,
     listArchivedRooms: listArchivedMock,
+    listElsewhereRooms: listElsewhereMock,
     listPendingInvitations: listPendingMock,
   },
 }));
@@ -45,6 +48,14 @@ describe("GET /api/chat/rooms", () => {
     });
     listArchivedMock.mockResolvedValue({ rooms: [], nextCursor: null });
     listPendingMock.mockResolvedValue([]);
+  });
+
+  it("answers Elsewhere rooms as Core lists them", async () => {
+    listElsewhereMock.mockResolvedValue([{ id: "room-2" }]);
+    const result = await GET(request("elsewhere"));
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ data: [{ id: "room-2" }] });
+    expect(listRoomsMock).not.toHaveBeenCalled();
   });
 
   it("uses the existing full room list without waiting for invitations", async () => {

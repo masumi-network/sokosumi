@@ -55,6 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: m.updateMany,
     },
     newsletterEvent: { create: m.eventCreate },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
 }));
@@ -233,7 +234,7 @@ describe("public newsletter confirmation", () => {
     const [email, options] = m.send.mock.calls[0]!;
     expect(email).toMatchObject({
       to: "reader@example.com",
-      from: '"Ada" <newsletter@news.example.com>',
+      from: '"Ada via Sokosumi" <newsletter@news.example.com>',
       replyTo: "ada@example.com",
       subject: "Welcome aboard",
       headers: { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },

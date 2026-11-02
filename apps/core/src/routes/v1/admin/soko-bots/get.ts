@@ -21,6 +21,10 @@ const listRoute = createRoute({
   request: {
     query: sokoBotPaginationQuerySchema.extend({
       query: z.string().trim().max(200).optional(),
+      kind: z
+        .enum(["all", "assistant", "cmo"])
+        .default("all")
+        .describe("Personal Soko Bots, Cuso (CMO.xyz) bots, or both."),
     }),
   },
   responses: {
@@ -37,6 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const fleet = await sokoBotControlPlane.listForAdmin(query.query, {
       cursor,
       take,
+      kind: query.kind,
     });
     const items = fleet.items.map(({ _count, user, ...bot }) => ({
       ...bot,

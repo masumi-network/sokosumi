@@ -10,8 +10,10 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
+  getSendingDomain: vi.fn(),
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
+  requireScope: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -32,6 +34,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   newsletterService: {
     isEnabled: mocks.enabled,
     getSettings: mocks.getSettings,
+    getSendingDomain: mocks.getSendingDomain,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -39,6 +42,12 @@ vi.mock("@/lib/services/project.service", () => ({
     getProjectById: mocks.getProject,
     listProjects: mocks.listProjects,
   },
+}));
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: (request: object) => mocks.requireScope(request),
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
 }));
 vi.mock("../newsletter-settings-form", () => ({
   NewsletterSettingsForm: (props: object) => {
@@ -50,6 +59,11 @@ vi.mock("../newsletter-settings-form", () => ({
 import NewsletterSettingsPage, { generateMetadata } from "./page";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const SENDING_DOMAIN_STATE = {
+  sendingDomain: null,
+  canManage: true,
+  fallbackAvailable: true,
+};
 const PAGE = messages.App.Newsletter;
 const SETTINGS = messages.App.Projects.Newsletter;
 
@@ -67,6 +81,7 @@ beforeEach(() => {
     logo: "https://example.com/logo.png",
   });
   mocks.getSettings.mockResolvedValue(null);
+  mocks.getSendingDomain.mockResolvedValue(SENDING_DOMAIN_STATE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 
@@ -129,6 +144,13 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({ newsletter }),
       );
+      // The selected project's sending domain card rides along with its settings.
+      expect(mocks.getSendingDomain).toHaveBeenCalledWith(PROJECT_ID);
+      const { sendingDomain } = mocks.form.mock.calls[0]![0];
+      expect(sendingDomain.props).toEqual({
+        state: SENDING_DOMAIN_STATE,
+        projectId: PROJECT_ID,
+      });
       const nav = screen.getByRole("navigation", {
         name: SETTINGS.navigation,
       });
@@ -168,15 +190,7 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("without a project", () => {
-    it("lists workspace projects linking to their newsletter", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [
-          { id: "project-1", name: "Launch plan" },
-          { id: "project-2", name: "Weekly update" },
-        ],
-        pagination: null,
-      });
-
+    it("asks for a project in the header's selector", async () => {
       render(await NewsletterSettingsPage(props()));
 
       expect(
@@ -185,47 +199,22 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
       ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.description)).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-        "href",
-        "/newsletter/settings?projectId=project-1",
+      expect(mocks.requireScope).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: PAGE.description, required: true }),
       );
-      expect(
-        screen.getByRole("link", { name: "Weekly update" }),
-      ).toHaveAttribute("href", "/newsletter/settings?projectId=project-2");
+      // No button of its own: the selector opens by itself, over sample issues.
+      expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+      expect(screen.queryByRole("button")).toBeNull();
       expect(mocks.getProject).not.toHaveBeenCalled();
+      expect(mocks.listProjects).not.toHaveBeenCalled();
       expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();
     });
 
-    it("shows an empty state with a way to create a project", async () => {
+    it("treats a blank project ID as none", async () => {
       render(await NewsletterSettingsPage(props({ projectId: " " })));
 
-      expect(
-        screen.getByRole("heading", { name: PAGE.empty.title }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.empty.description)).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: PAGE.empty.action }),
-      ).toHaveAttribute("href", "/projects?create=true");
+      expect(mocks.requireScope).toHaveBeenCalled();
       expect(mocks.getProject).not.toHaveBeenCalled();
-    });
-
-    it("keeps later projects reachable through Core's pagination", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [{ id: "project-2", name: "Later project" }],
-        pagination: { nextCursor: "next/page" },
-      });
-
-      render(await NewsletterSettingsPage(props({ cursor: "current-page" })));
-
-      expect(mocks.listProjects).toHaveBeenCalledWith({
-        limit: 20,
-        cursor: "current-page",
-      });
-      expect(screen.getByRole("link", { name: PAGE.nextPage })).toHaveAttribute(
-        "href",
-        "/newsletter/settings?cursor=next%2Fpage",
-      );
     });
   });
 
@@ -235,7 +224,9 @@ describe("NewsletterSettingsPage", () => {
       render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.listProjects).toHaveBeenCalled();
+      expect(mocks.requireScope).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: PAGE.pickUnavailable }),
+      );
       expect(mocks.getSettings).not.toHaveBeenCalled();
     });
 

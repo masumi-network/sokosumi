@@ -62,10 +62,9 @@ export function TaskCard({
     >
       <article
         className={cn(
-          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-primary hover:shadow-sm press content-in",
+          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-foreground hover:shadow-sm press content-in",
           compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
-          dragHandleProps?.isDragging &&
-            "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
+          dragHandleProps?.isDragging && "shadow-lg",
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">

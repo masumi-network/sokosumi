@@ -14,6 +14,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { useSelfPresence } from "@/hooks/use-self-presence";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -120,7 +121,8 @@ function SidebarAccountChipDesktop({
       className={cn(
         // `pl-1` rather than `p-2`: footer chrome it may be, but its face
         // still sits on the 28px leading axis every row's mark uses.
-        "group/chip focus-visible:ring-sidebar-ring press hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        SIDEBAR_CONTROL_INTERACTION_CLASS,
+        "group/chip press flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors",
       )}
     >
       <span className="relative shrink-0">
@@ -166,7 +168,7 @@ function SidebarAccountChipDesktop({
         <span
           className={cn(
             "flex w-full items-center gap-1 text-xs leading-tight",
-            isLowCredits ? "text-semantic-warning" : "text-muted-foreground",
+            isLowCredits ? "text-foreground" : "text-muted-foreground",
           )}
         >
           {isLowCredits ? (

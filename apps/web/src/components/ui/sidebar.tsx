@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
   SIDEBAR_COMPACT_MEDIA_QUERY,
+  SIDEBAR_USER_WIDTH_VAR,
   parseSidebarStateCookieHeader,
   serializeSidebarStateCookie,
 } from "@/lib/ui-preferences/sidebar-state";
@@ -204,7 +205,8 @@ function SidebarProvider({
           data-slot="sidebar-wrapper"
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
+              // The reader's dragged width, set on `<html>` before paint.
+              "--sidebar-width": `var(${SIDEBAR_USER_WIDTH_VAR}, ${SIDEBAR_WIDTH})`,
               ...style,
             } as React.CSSProperties
           }
@@ -298,7 +300,9 @@ function Sidebar({
             // width back as the panel slides out. A reader who asks for less
             // motion gets the end state on the next frame instead — the
             // geometry is identical either way, only the travel goes.
-            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION}`,
+            // Dragging the edge sets `data-resizing`: the width follows the
+            // pointer, so it must not ease behind it.
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
           )}
@@ -310,7 +314,7 @@ function Sidebar({
             // and the accessibility tree even before React hydrates, when the
             // boot script is what hid it. Transitioned, it flips only once
             // the panel has slid out, and before it slides back in.
-            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible md:flex`,
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible group-data-[resizing=true]/sidebar-wrapper:transition-none md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -477,12 +481,26 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
  * box by hand is exactly how a room's mark drifted 2px off the nav icons'
  * line and the account face 4px off both.
  */
-function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
+function SidebarRowSlot({
+  className,
+  tile = false,
+  ...props
+}: React.ComponentProps<"span"> & {
+  /**
+   * The mark is an avatar drawn as a tile at the icon's size, as a project's
+   * is, rather than as a 20px face. These rules outrank the avatar's own size
+   * and rounding, unlike the icon's `:where()`. The ring keeps the tile's edge
+   * on the current row, whose fill is the same grey as an initial's tile.
+   */
+  tile?: boolean;
+}) {
   return (
     <span
       data-slot="sidebar-row-slot"
       className={cn(
         "inline-flex h-6 min-w-6 shrink-0 items-center justify-center [:where(&>svg)]:size-4 md:[:where(&>svg)]:size-3.5",
+        tile &&
+          "[&>[data-slot=avatar]]:ring-sidebar-border [&>[data-slot=avatar]]:size-4 [&>[data-slot=avatar]]:rounded [&>[data-slot=avatar]]:ring-1 md:[&>[data-slot=avatar]]:size-3.5 [&_[data-slot=avatar-fallback]]:rounded [&_[data-slot=avatar-fallback]]:text-2xs",
         className,
       )}
       {...props}

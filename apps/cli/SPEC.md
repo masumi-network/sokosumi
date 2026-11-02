@@ -74,7 +74,7 @@ V10: API-key input ∉ argv. Target-coded prefix selects target locally. Legacy 
 V11: OAuth credentials save before user-key mint. Mint failure preserves OAuth session and supports retry.
 V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. CLI never mints locally.
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
-[CORRECTION, REPORTED: user clarification, 2026-09-24] Earlier V14 said Workspace connect later. User specified private Workspace-only access at registration. Current CLI does not yet attach Workspace access.
+[CORRECTION, REPORTED: user clarification, 2026-09-24] Earlier V14 said Workspace connect later. User specified private Workspace-only access at registration. `coworkers register` and `coworkers connect` attach Workspace access via `grantCoworkerWorkspaceAccess` [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts:358`, `apps/cli/src/cli/commands/coworkers.ts:474`].
 V14: Signed-in TUI ∈ {Vendors, Workspaces, Sign out}. ⊥ Register preset menu {pi-sokosumi, Eve, Hermes, OpenClaw}. Coworker create remains headless `coworkers register` until T41. Headless registration selects Workspace; `GRANTED` permits use, `PENDING` reports approval requested. ⊥ Hire Agent.
 V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
 V16: hosted target OAuth launch/refresh → registered target client ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) by default; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override; resolved ID stays consistent through refresh.

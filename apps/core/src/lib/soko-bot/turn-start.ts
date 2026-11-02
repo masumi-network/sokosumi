@@ -46,10 +46,13 @@ export interface StartSokoBotTurnInput {
     title: string;
     destinationRoomId: string | null;
   };
-  /** Set when a chat-room mention started the turn; the reply lands there. */
+  /**
+   * Set when a chat-room mention started the turn; the reply lands there. A
+   * follow-up carries only who asked, so it keeps that person's grant.
+   */
   chat?: {
-    mentionId: string;
-    responseMessageId: string;
+    mentionId?: string;
+    responseMessageId?: string;
     /** Teammate who asked; turns they trigger are read-only. */
     askedByUserId?: string | null;
     /**

@@ -16,7 +16,6 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import {
-  getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
   TaskStatusBadge,
   TaskStatusInline,
@@ -313,8 +312,6 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                         "rounded-lg pr-3 pl-3",
                         isCommentEvent &&
                           "bg-card-background border-border border",
-                        shouldHighlightDoneBorder &&
-                          getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                       )}
                     >
                       <div

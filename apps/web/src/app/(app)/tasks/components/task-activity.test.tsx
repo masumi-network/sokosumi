@@ -451,7 +451,7 @@ describe("TaskActivitySection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("highlights completed comment events with a success border", () => {
+  it("frames a completed comment event as a card", () => {
     const events: TaskEvent[] = [
       createEvent("completed-with-comment", {
         createdAt: "2026-01-01T12:00:00.000Z",
@@ -464,7 +464,7 @@ describe("TaskActivitySection", () => {
       <TaskActivitySection {...baseProps} events={events} />,
     );
 
-    const row = container.querySelector(".border-semantic-success-tertiary");
+    const row = container.querySelector(".border-border");
     expect(row).toBeInTheDocument();
   });
 
@@ -500,23 +500,6 @@ describe("TaskActivitySection", () => {
       "data-default-open",
       "false",
     );
-  });
-
-  it("does not highlight completed status-only events", () => {
-    const events: TaskEvent[] = [
-      createEvent("completed-status-only", {
-        createdAt: "2026-01-01T12:00:00.000Z",
-        status: TaskStatus.COMPLETED,
-      }),
-    ];
-
-    const { container } = render(
-      <TaskActivitySection {...baseProps} events={events} />,
-    );
-
-    expect(
-      container.querySelector(".border-semantic-success-tertiary"),
-    ).not.toBeInTheDocument();
   });
 
   it("renders status dots for all status-only events", () => {

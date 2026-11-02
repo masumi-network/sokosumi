@@ -283,9 +283,13 @@ function recordKey(messageKey: string, referenceId: string): string {
  * from its events, not stored, so the answer cannot be a join. The list and
  * the counts route both read from here, which is what keeps the tab's number
  * equal to the rows under it.
+ *
+ * With `projectId`, only tasks and jobs in that project wait: a vendor grant
+ * or coworker access request belongs to no project.
  */
 export async function findNeedsActionNotificationIds(
   userId: string,
+  projectId?: string,
 ): Promise<string[]> {
   const asked: NeedsActionCandidate[] = await prisma.notification.findMany({
     where: { userId, messageKey: { in: [...NEEDS_ACTION_MESSAGE_KEYS] } },
@@ -307,21 +311,29 @@ export async function findNeedsActionNotificationIds(
 
   const taskIds = referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY);
   const jobIds = referenceIdsFor(JOB_INPUT_REQUIRED_MESSAGE_KEY);
-  const grantIds = referenceIdsFor(VENDOR_GRANT_PENDING_MESSAGE_KEY);
-  const accessIds = referenceIdsFor(COWORKER_ACCESS_PENDING_MESSAGE_KEY);
+  const grantIds = projectId
+    ? []
+    : referenceIdsFor(VENDOR_GRANT_PENDING_MESSAGE_KEY);
+  const accessIds = projectId
+    ? []
+    : referenceIdsFor(COWORKER_ACCESS_PENDING_MESSAGE_KEY);
 
   const [waitingTasks, jobs, pendingGrants, pendingAccesses] =
     await Promise.all([
       taskIds.length === 0
         ? []
         : prisma.task.findMany({
-            where: { id: { in: taskIds }, status: TaskStatus.INPUT_REQUIRED },
+            where: {
+              id: { in: taskIds },
+              status: TaskStatus.INPUT_REQUIRED,
+              projectId,
+            },
             select: { id: true },
           }),
       jobIds.length === 0
         ? []
         : prisma.job.findMany({
-            where: { id: { in: jobIds } },
+            where: { id: { in: jobIds }, projectId },
             select: { id: true, ...jobForStatusComputeSelect },
           }),
       grantIds.length === 0

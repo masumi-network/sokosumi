@@ -9,7 +9,7 @@ import {
 } from "./action-response";
 
 const db = vi.hoisted(() => ({
-  sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn() },
+  sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
   sokoBotTurn: { findUnique: vi.fn() },
   task: { findFirst: vi.fn(), findMany: vi.fn() },
   job: { findMany: vi.fn() },
@@ -74,6 +74,56 @@ describe("action lines the owner reads", () => {
       `Drafted newsletter issue for review ([Review draft](/newsletter/issues/issue-one?projectId=${projectId}&draftedBySokoBot=true)).`,
     );
     expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
+  });
+
+  it.each([
+    [
+      "create_newsletter_issue",
+      "Created newsletter draft ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
+    ],
+    [
+      "update_newsletter_issue",
+      "Updated newsletter issue ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
+    ],
+    [
+      "delete_newsletter_issue",
+      "Deleted newsletter issue ([Open issues](/newsletter/issues?projectId={p})).",
+    ],
+    [
+      "submit_newsletter_issue",
+      "Submitted newsletter issue for approval ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
+    ],
+    [
+      "update_newsletter_settings",
+      "Updated newsletter settings ([Open settings](/newsletter/settings?projectId={p})).",
+    ],
+    [
+      "add_newsletter_subscriber",
+      "Added newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "import_newsletter_subscribers",
+      "Imported newsletter subscribers ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "add_newsletter_subscribers_from_contacts",
+      "Added contacts to the newsletter ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "update_newsletter_subscriber",
+      "Updated newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "remove_newsletter_subscriber",
+      "Removed newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+  ])("links a verified %s to the Newsletter", async (capability, line) => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability, targetId: "issue-one", result: { projectId } }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(line.replace("{p}", projectId));
   });
 
   it("says a hire once and links the job", async () => {
@@ -783,6 +833,71 @@ describe("authoritative action responses", () => {
     );
   });
 
+  it("reports a created ad campaign with a link to open it", async () => {
+    const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_ad_campaign",
+        targetId: "123",
+        verification: "PROVIDER_ACK",
+        result: { campaignId: "123", status: "PAUSED", link },
+      }),
+    ]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "The campaign is live.",
+    );
+    expect(response.answerText).toBe(
+      `Created paused ad campaign ([Open campaign](${link})).`,
+    );
+  });
+
+  it.each([
+    [
+      "update_ad_campaign",
+      "Updated ad campaign",
+      { campaignId: "123", updated: true as const },
+    ],
+    [
+      "edit_ad_campaign",
+      "Edited ad campaign",
+      { campaignId: "123", edited: true as const },
+    ],
+  ])(
+    "reports %s with a link to open the campaign",
+    async (capability, label, proof) => {
+      const link = "/ads/campaigns/123?projectId=p1&accountId=a1";
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+        receipt({
+          capability,
+          targetId: "123",
+          verification: "PROVIDER_ACK",
+          result: { ...proof, link },
+        }),
+      ]);
+      const response = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Done.",
+      );
+      expect(response.answerText).toBe(`${label} ([Open campaign](${link})).`);
+    },
+  );
+
+  it("reports delete_ad_campaign with no link, since the campaign is gone", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "delete_ad_campaign",
+        targetId: "123",
+        verification: "PROVIDER_ACK",
+        result: { campaignId: "123", deleted: true },
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Deleted ad campaign.");
+  });
+
   it.each([false, true])(
     "quotes connected social account evidence with availability metadata %s",
     async (withAvailability) => {
@@ -831,6 +946,108 @@ describe("authoritative action responses", () => {
       expect(response.answerText).not.toContain("job");
     },
   );
+
+  it("lets Cuso's report card stand in for the receipts", async () => {
+    const posted = receipt({
+      capability: "create_social_post",
+      targetId: "post-one",
+    });
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      versionId: "cmo-v1",
+    });
+    db.sokoBotToolCall.count.mockResolvedValue(1);
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([posted]);
+    const cuso = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "Two posts are scheduled; the card has the details.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(cuso.answerText).toBe(
+      "Two posts are scheduled; the card has the details.",
+    );
+
+    // A personal Soko Bot keeps its receipt lines.
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      versionId: "v19",
+    });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([posted]);
+    const personal = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: "Done.",
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+    expect(personal.answerText).toContain("Created social post");
+  });
+
+  it("keeps Cuso's answer after he saved the Brand Brain", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v1",
+    });
+    db.sokoBotToolCall.count.mockImplementation(
+      async (args: { where: { capability: unknown } }) =>
+        JSON.stringify(args.where.capability).includes("save_brand_brain")
+          ? 1
+          : 0,
+    );
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Updated: your audience is CTOs now.",
+      true,
+    );
+    expect(response.answerText).toBe("Updated: your audience is CTOs now.");
+  });
+
+  it("never posts raw observations to a CMO (Cuso) chat", async () => {
+    const read = receipt({
+      capability: "list_project_social_accounts",
+      result: [
+        {
+          id: "account-one",
+          provider: "linkedin",
+          externalHandle: "acme",
+          status: "active",
+          connectedAt: "2026-09-28T10:00:00Z",
+          disconnectedAt: null,
+        },
+      ],
+    });
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([read]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      versionId: "cmo-v1",
+    });
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: null,
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    // The read is still recorded; it just never becomes a chat message.
+    expect(response.observations.length).toBeGreaterThan(0);
+    expect(response.answerText).not.toContain("Observed social account");
+    expect(response.answerText).not.toContain("account-one");
+  });
 
   it("shows the bot's own words instead of restating what it read", async () => {
     const read = receipt({
@@ -1320,6 +1537,45 @@ describe("authoritative action responses", () => {
       expect(result.answerText).toBe("Nothing to add.");
     },
   );
+
+  it("keeps the nightly dream silent when it only rewrote memory", async () => {
+    const memory = receipt({ capability: "update_memory", targetId: null });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([memory]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Nothing to add.",
+    );
+    expect(result.answerText).toBe("Nothing to add.");
+  });
+
+  it("says it updated memory when the owner asked", async () => {
+    const memory = receipt({ capability: "update_memory", targetId: null });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([memory]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "CHAT" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Nothing to add.",
+    );
+    expect(result.answerText).toMatch(/updated memory/i);
+  });
+
+  it("still posts a dream that has something for the owner", async () => {
+    const memory = receipt({ capability: "update_memory", targetId: null });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([memory]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "Your invoice rule never fired this week.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toContain(
+      "Your invoice rule never fired this week.",
+    );
+  });
 
   it("drops a held-back reply on a turn the bot started itself", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);

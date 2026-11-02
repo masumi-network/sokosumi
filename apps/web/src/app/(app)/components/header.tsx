@@ -1,7 +1,7 @@
 import { Suspense } from "react";
+import { HeaderProjectScope } from "@/app/components/project-scope/header-project-scope";
 import { ProjectScopeGuard } from "@/app/components/project-scope/project-scope-guard";
 import { SidebarScopeMobileChip } from "@/app/components/project-scope/sidebar-project-scope-mobile";
-import BreadcrumbNavigation from "@/components/breadcrumb-navigation/breadcrumb-navigation";
 
 import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
@@ -10,6 +10,7 @@ import {
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
 import HeaderProfileSection from "./header/header-profile-section";
+import { HeaderProjectScopeFallback } from "./header/header-project-scope-fallback";
 import { HeaderTrailing } from "./header/header-trailing.client";
 import { SidebarToggle } from "./header/sidebar-toggle.client";
 
@@ -29,7 +30,9 @@ export default function Header({ className }: HeaderProps) {
       <SidebarToggle />
 
       <HeaderCenter>
-        <BreadcrumbNavigation className="flex flex-1" />
+        <Suspense fallback={<HeaderProjectScopeFallback />}>
+          <HeaderProjectScope />
+        </Suspense>
       </HeaderCenter>
 
       <Suspense fallback={null}>

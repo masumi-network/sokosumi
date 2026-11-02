@@ -30,4 +30,4 @@ Preconditions:
 - Empty projects is valid for a new fixture user — do not require existing projects.
 - True empty uses heading **No projects yet**. A search/filter miss uses **No projects match "…"**, not the empty title.
 - Creating a project (`?create=true` / modal) is out of scope for this entry; list/empty landing only.
-- Desktop sidebar omits the old Projects row (`menu-items.tsx`). Breadcrumb on `/projects` still says **Projects**.
+- Desktop sidebar omits the old Projects row (`menu-items.tsx`).

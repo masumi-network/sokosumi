@@ -265,7 +265,7 @@ function CompactSocialPostCalendarEvent({
           type="button"
           aria-label={accessibleName}
           className={cn(
-            "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+            "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
             showThumb
               ? "@container items-center gap-1 px-1 py-1"
               : "items-center gap-1 px-1.5 py-1",
@@ -326,7 +326,7 @@ function SocialPostPreviewCard({
   const { account, accessibleName, handle, providerLabel, scheduler } =
     useSocialPostCalendarCopy(item, timeZone);
   const className =
-    "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
+    "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -511,7 +511,7 @@ function SocialPostCalendarChip({
   const week = density === "week";
   const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
   const className = cn(
-    "group/chip bg-background text-foreground press hover:bg-muted border-border relative flex w-full min-w-0 select-none overflow-hidden rounded-md border text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring-halo focus-visible:ring-2 focus-visible:outline-none",
+    "group/chip bg-background text-foreground press hover:bg-muted border-border relative flex w-full min-w-0 select-none overflow-hidden rounded-md border text-start text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
     week
       ? "@container flex-col gap-1 py-1.5 ps-2.5 pe-1.5"
       : "items-center gap-1 py-0.5 ps-2 pe-1",
@@ -665,7 +665,7 @@ function SocialPostCalendarChip({
           time,
           text: item.text || t("mediaOnly"),
         })}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo hit-area absolute end-1 bottom-1 flex size-6 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring hit-area absolute end-1 bottom-1 flex size-6 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
         data-testid="calendar-social-post-reschedule"
         onClick={() => reschedule(item)}
         title={t("reschedule")}

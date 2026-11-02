@@ -7,30 +7,20 @@ import { Gavel } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { listChatRoomDecisionsAction } from "@/app/chat/signal-actions";
+import { chatMessageSenderName } from "@/components/chat/signals/signal-chips";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface RoomDecisionsPopoverProps {
   room: ChatRoom;
   onJumpToMessage: (message: ChatRoomMessage) => void;
-}
-
-function senderName(message: ChatRoomMessage): string {
-  switch (message.sender.type) {
-    case "user":
-      return message.sender.user.name;
-    case "coworker":
-      return message.sender.coworker.name;
-    case "sokoBot":
-      return message.sender.sokoBot.name ?? "";
-    default:
-      return "";
-  }
 }
 
 /**
@@ -129,11 +119,16 @@ function DecisionsList({
             <li key={message.id}>
               <button
                 type="button"
-                className="hover:bg-muted flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-start"
+                className={cn(
+                  POPOVER_ROW_CLASS,
+                  "flex w-full flex-col gap-0.5 px-2 py-1.5 text-start",
+                )}
                 onClick={() => onJump(message)}
               >
                 <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                  <span className="truncate">{senderName(message)}</span>
+                  <span className="truncate">
+                    {chatMessageSenderName(message)}
+                  </span>
                   <span aria-hidden>·</span>
                   <time dateTime={message.createdAt.toISOString()}>
                     {format.dateTime(message.createdAt, {

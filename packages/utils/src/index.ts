@@ -16,13 +16,20 @@ export {
   type RealtimeChannelEnvironment,
 } from "./ably-channel.js";
 export {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
+  type AdCampaignSettableStatus,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
+  type GoogleDisplayImageRole,
+  type GoogleKeywordMatchType,
+} from "./ads.js";
+export {
   AUTH_CAPTCHA_ACTION,
   AUTH_CAPTCHA_HEADER,
   TURNSTILE_ALWAYS_PASS_SECRET,
 } from "./auth-captcha.js";
 export {
   BETA_ORGANIZATION_SLUGS,
-  isBetaOrganizationSlug,
   NEWSLETTER_BETA_ORGANIZATION_SLUG,
 } from "./beta-organizations.js";
 export {
@@ -68,6 +75,7 @@ export {
   CHAT_MENTION_ALL_KEY,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
   canonicalUuidSpelling,
+  chatMessageTextWithNames,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview.js";
@@ -123,6 +131,7 @@ export {
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
+  chatRoomQuotePromptLine,
 } from "./chat-room-quote-snippet.js";
 export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
 export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";
@@ -138,6 +147,12 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
+export {
+  CMO_CHANNELS,
+  type CmoChannelKey,
+  isCmoChannelFormat,
+  normalizeCmoChannelFormat,
+} from "./cmo-channels.js";
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
@@ -317,6 +332,7 @@ export {
   newsletterBlockSchema,
   newsletterContentSchema,
   newsletterDraftInputSchema,
+  newsletterSignupLinks,
 } from "./newsletter.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,

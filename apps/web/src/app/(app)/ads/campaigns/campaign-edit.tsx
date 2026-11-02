@@ -1,15 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 
-import {
-  CORE_RANGE_BY_PARAM,
-  campaignDetailsHref,
-  campaignEditHref,
-  campaignsHref,
-} from "@/app/ads/ads-query";
+import { CORE_RANGE_BY_PARAM } from "@/app/ads/ads-query";
 import { campaignLoadFailure } from "@/app/ads/campaigns/campaign-load-failure";
 import { loadGoogleCampaignPage } from "@/app/ads/campaigns/google-campaign-page";
-import { AdsCampaignBreadcrumb } from "@/app/ads/components/ads-campaign-breadcrumb";
 import { AdsEditCampaignModal } from "@/app/ads/components/ads-edit-campaign-modal";
 import { googleFormValuesFromDetails } from "@/lib/ads/google-form-values";
 import { loadGoogleSetup } from "@/lib/ads/google-setup";
@@ -18,19 +12,12 @@ import { adsService } from "@/lib/services/ads.service";
 interface AdsCampaignEditProps {
   params: Promise<{ campaignId: string }>;
   searchParams: Promise<SearchParams>;
-  /**
-   * Gives the page its breadcrumb, for a direct link. Over the details page
-   * their breadcrumb stays: the modal's slot outlives it closing, and would
-   * keep saying Edit.
-   */
-  breadcrumb?: boolean;
 }
 
 /** Rendered by both the edit route and the details page's `@modal/(.)edit`. */
 export async function AdsCampaignEdit({
   params,
   searchParams,
-  breadcrumb = false,
 }: AdsCampaignEditProps) {
   const { campaignId, query, project, account } = await loadGoogleCampaignPage(
     params,
@@ -38,7 +25,6 @@ export async function AdsCampaignEdit({
   );
   const t = await getTranslations("App.Ads");
 
-  let name: string | null = null;
   let modal: React.ReactNode;
   try {
     // The setup never fails (a lookup that does hides its part), so it loads
@@ -53,7 +39,6 @@ export async function AdsCampaignEdit({
       loadGoogleSetup(project.id, account.id),
     ]);
     const { campaign } = details;
-    name = campaign.name;
     modal = campaign.editable ? (
       <AdsEditCampaignModal
         campaign={{
@@ -95,29 +80,5 @@ export async function AdsCampaignEdit({
     );
   }
 
-  if (!breadcrumb) return modal;
-  const detailsHref = campaignDetailsHref(
-    project.id,
-    account.id,
-    campaignId,
-    query.range,
-  );
-  return (
-    <>
-      <AdsCampaignBreadcrumb
-        adsHref={campaignsHref(project.id, account.id, query.range)}
-        campaign={name ? { name, href: detailsHref } : undefined}
-        page={{
-          label: "edit",
-          href: campaignEditHref(
-            project.id,
-            account.id,
-            campaignId,
-            query.range,
-          ),
-        }}
-      />
-      {modal}
-    </>
-  );
+  return modal;
 }

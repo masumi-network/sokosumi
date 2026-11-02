@@ -1,0 +1,28 @@
+/* ============================================================
+   CMO.XYZ — gradient accent.
+   Wraps each capability mockup card in a vivid gradient frame.
+   ============================================================ */
+
+.v3x .cap {
+  padding: 8px;
+  border-radius: 30px;
+  background: url("/site/assets/aurora-bg.png") center / cover no-repeat;
+  box-shadow: 0 32px 64px -28px rgba(124, 58, 237, 0.55);
+}
+.v3x .cap::before { display: none; } /* drop the base grey glow behind the card */
+.v3x .cap-card { border-radius: 22px; box-shadow: none; }
+
+/* The mascot peeks in beside the framed card (like the WorkOS robot). */
+.v3x .panel__media { overflow: visible; }
+.v3x .panel__media::after {
+  content: "";
+  position: absolute;
+  right: -36px;
+  bottom: -42px;
+  width: 132px;
+  height: 132px;
+  background: url("/site/assets/mascot.webp") center / contain no-repeat;
+  filter: drop-shadow(0 16px 24px rgba(16, 20, 28, 0.28));
+  z-index: 4;
+  pointer-events: none;
+}

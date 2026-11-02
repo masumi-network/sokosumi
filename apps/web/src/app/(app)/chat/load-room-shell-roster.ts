@@ -26,7 +26,7 @@ export async function loadRoomShellRoster(
     loadOrganizationMembers(organizationId),
     coworkerService.listCoworkers("chat"),
     sokoBotService.getMine().catch(() => null),
-    getTranslations("App.Chat"),
+    getTranslations("App.Channels"),
   ]);
 
   return {
@@ -40,6 +40,7 @@ export async function loadRoomShellRoster(
             name: bot.name?.trim() || t("personalAssistantBadge"),
             image: bot.avatarImageUrl ?? null,
             avatarSeed: bot.avatarSeed,
+            avatarStyleId: bot.avatar?.styleId ?? null,
           },
         ]
       : [],

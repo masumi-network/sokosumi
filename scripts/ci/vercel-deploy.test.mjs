@@ -5,8 +5,12 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  changesVercelConfig,
   createGitDeployment,
+  deleteForkPreviewBranch,
   deployTargets,
+  FORK_PREVIEW_COMMENT_MARKER,
+  forkPreviewCommentBody,
   GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
   isPreviewRelevantPath,
@@ -15,15 +19,21 @@ import {
   listPullRequestFiles,
   noPreviewChangesMessage,
   parseDeployComment,
+  pointForkPreviewBranch,
   pollDeploymentUntilSettled,
+  previewUrl,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
   settlePreviewDeployments,
   summarizeCliDeployResult,
+  upsertForkPreviewComment,
   usageMessage,
   VERCEL_PROJECTS,
   VERCEL_TEAM_ID,
 } from "./vercel-deploy.mjs";
+
+const FORK_SHA = "a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0";
+const STALE_SHA = "b".repeat(40);
 
 const GIT_DEPLOYMENT_ENABLED = {
   "*": false,
@@ -89,35 +99,66 @@ describe("parseDeployComment", () => {
     assert.deepEqual(parseDeployComment("/deploy mainnet"), {
       kind: "deploy",
       networks: ["mainnet"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy preprod"), {
       kind: "deploy",
       networks: ["preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy mainnet preprod"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy preprod mainnet"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/Deploy MAINNET"), {
       kind: "deploy",
       networks: ["mainnet"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy mainnet mainnet"), {
       kind: "deploy",
       networks: ["mainnet"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy all"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
     assert.deepEqual(parseDeployComment("/deploy ALL"), {
       kind: "deploy",
       networks: ["mainnet", "preprod"],
+      sha: null,
     });
+  });
+
+  it("reads one full head SHA and refuses short or competing SHAs", () => {
+    assert.deepEqual(parseDeployComment(`/deploy preprod ${FORK_SHA}`), {
+      kind: "deploy",
+      networks: ["preprod"],
+      sha: FORK_SHA,
+    });
+    assert.deepEqual(
+      parseDeployComment(`/deploy ${FORK_SHA.toUpperCase()} all`),
+      { kind: "deploy", networks: ["mainnet", "preprod"], sha: FORK_SHA },
+    );
+    // A short prefix is brute-forceable, so it is not an approval.
+    assert.deepEqual(parseDeployComment("/deploy preprod a1b2c3d"), {
+      kind: "usage",
+    });
+    assert.deepEqual(parseDeployComment(`/deploy ${FORK_SHA}`), {
+      kind: "usage",
+    });
+    assert.deepEqual(
+      parseDeployComment(`/deploy preprod ${FORK_SHA} ${STALE_SHA}`),
+      { kind: "usage" },
+    );
   });
 });
 
@@ -373,46 +414,159 @@ describe("runPreviewDeployComment", () => {
     assert.match(posted[0], /write access/i);
   });
 
-  it("refuses fork pull requests", async () => {
+  function commentDeploy(
+    commentBody,
+    {
+      headRepo = { id: 2, fork: true },
+      headRef = "main",
+      files = [{ filename: "apps/web/app/page.tsx" }],
+    } = {},
+  ) {
     const posted = [];
-    const result = await runPreviewDeployComment({
-      commentBody: "/deploy mainnet",
+    const reactions = [];
+    const created = [];
+    const prepared = [];
+    const steps = [];
+    const upserts = [];
+    const result = runPreviewDeployComment({
+      commentBody,
       isPullRequest: true,
       commentAuthor: "alice",
+      issueNumber: 12,
+      repoId: 1,
       readPermission: async () => "write",
       readPullRequest: async () => ({
         state: "open",
         number: 12,
-        head: { sha: "abc", ref: "feat", repo: { id: 2, fork: true } },
+        // A fork branch may share a name with one of ours.
+        head: { sha: FORK_SHA, ref: headRef, repo: headRepo },
         base: { repo: { id: 1 } },
       }),
+      listFiles: async () => files,
+      pointBranch: async ({ branch, sha }) => {
+        steps.push({ branch, sha });
+      },
+      prepareResources: async (options) => {
+        steps.push("prepare");
+        prepared.push(options);
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.app}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
       postComment: async (body) => {
         posted.push(body);
       },
+      addReaction: async (content) => {
+        reactions.push(content);
+      },
+      upsertPreviewComment: async (input) => {
+        upserts.push(input);
+      },
     });
-    assert.equal(result.kind, "fork");
-    assert.match(posted[0], /fork/i);
+    return { result, posted, reactions, created, prepared, steps, upserts };
+  }
+
+  it("asks a fork pull request for the head SHA before touching anything", async () => {
+    const run = commentDeploy("/deploy preprod");
+    assert.equal((await run.result).kind, "sha-required");
+    assert.equal(run.posted.length, 1);
+    assert.match(run.posted[0], /fork/i);
+    assert.ok(run.posted[0].includes("`/deploy preprod <sha>`"));
+    // Pasting the current head would approve commits nobody reviewed.
+    assert.ok(!run.posted[0].includes(FORK_SHA));
+    assert.deepEqual(run.reactions, []);
+    assert.deepEqual(run.prepared, []);
+    assert.deepEqual(run.created, []);
   });
 
-  it("refuses pull requests whose head repo is missing", async () => {
-    const posted = [];
-    const result = await runPreviewDeployComment({
-      commentBody: "/deploy mainnet",
-      isPullRequest: true,
-      commentAuthor: "alice",
-      readPermission: async () => "write",
-      readPullRequest: async () => ({
-        state: "open",
-        number: 12,
-        head: { sha: "abc", ref: "feat", repo: null },
-        base: { repo: { id: 1 } },
-      }),
-      postComment: async (body) => {
-        posted.push(body);
-      },
+  it("refuses a fork deploy whose SHA is not the current head", async () => {
+    const run = commentDeploy(`/deploy preprod ${STALE_SHA}`);
+    assert.equal((await run.result).kind, "sha-mismatch");
+    assert.ok(run.posted[0].includes(STALE_SHA));
+    // Pasting the current head would approve commits nobody reviewed.
+    assert.ok(!run.posted[0].includes(FORK_SHA));
+    assert.deepEqual(run.reactions, []);
+    assert.deepEqual(run.prepared, []);
+    assert.deepEqual(run.created, []);
+  });
+
+  it("deploys exactly the approved fork commit from our fork preview branch", async () => {
+    const run = commentDeploy(`/deploy preprod ${FORK_SHA}`);
+    assert.equal((await run.result).kind, "deploy");
+    assert.deepEqual(run.posted, []);
+    assert.deepEqual(run.reactions, ["eyes", "rocket"]);
+    // Vercel refuses env vars for a branch that does not exist yet.
+    assert.deepEqual(run.steps, [
+      { branch: "preview-fork/pr-12", sha: FORK_SHA },
+      "prepare",
+    ]);
+    assert.equal(run.created.length, 2);
+    for (const input of run.created) {
+      assert.equal(input.repoId, 1);
+      assert.equal(input.sha, FORK_SHA);
+      assert.equal(input.ref, "preview-fork/pr-12");
+    }
+    // Core env vars are scoped to that branch, never the fork's `main`.
+    assert.equal(run.prepared[0].ref, "preview-fork/pr-12");
+    // Vercel never comments on the fork PR, so the workflow lists the URLs.
+    assert.equal(run.upserts.length, 1);
+    assert.equal(run.upserts[0].issueNumber, 12);
+    assert.equal(run.upserts[0].sha, FORK_SHA);
+    assert.deepEqual(
+      run.upserts[0].deployments.map(({ id }) => id),
+      ["dpl_web", "dpl_core"],
+    );
+  });
+
+  it("refuses a fork that changes Vercel config, or whose file list is capped", async () => {
+    for (const files of [
+      [{ filename: "apps/core/vercel.json" }],
+      Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, index) => ({
+        filename: `apps/web/file-${index}.ts`,
+      })),
+    ]) {
+      const run = commentDeploy(`/deploy preprod ${FORK_SHA}`, { files });
+      assert.equal((await run.result).kind, "fork-vercel-config");
+      assert.match(run.posted[0], /vercel\.json/);
+      assert.deepEqual(run.steps, []);
+      assert.deepEqual(run.created, []);
+    }
+  });
+
+  it("refuses a same-repo pull request from a reserved preview-fork branch", async () => {
+    const run = commentDeploy("/deploy preprod", {
+      headRepo: { id: 1 },
+      headRef: "preview-fork/pr-3",
     });
-    assert.equal(result.kind, "fork");
-    assert.match(posted[0], /fork/i);
+    assert.equal((await run.result).kind, "reserved-branch");
+    assert.deepEqual(run.steps, []);
+    assert.deepEqual(run.created, []);
+  });
+
+  it("never writes a branch for a same-repo pull request", async () => {
+    const run = commentDeploy("/deploy preprod", { headRepo: { id: 1 } });
+    assert.equal((await run.result).kind, "deploy");
+    assert.deepEqual(run.steps, ["prepare"]);
+    assert.equal(run.created[0].ref, "main");
+    // Vercel comments on a same-repo PR itself.
+    assert.deepEqual(run.upserts, []);
+  });
+
+  it("treats a pull request whose head repo was deleted as a fork", async () => {
+    const run = commentDeploy("/deploy preprod", { headRepo: null });
+    assert.equal((await run.result).kind, "sha-required");
+    assert.deepEqual(run.created, []);
+  });
+
+  it("refuses a same-repo deploy that names a stale SHA", async () => {
+    const run = commentDeploy(`/deploy preprod ${STALE_SHA}`, {
+      headRepo: { id: 1 },
+    });
+    assert.equal((await run.result).kind, "sha-mismatch");
+    assert.equal(run.posted.length, 1);
+    assert.deepEqual(run.created, []);
   });
 
   it("creates web, core, and CMO previews for mainnet", async () => {
@@ -588,6 +742,240 @@ describe("runPreviewDeployComment", () => {
       /Preview deploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
     assert.deepEqual(reactions, ["eyes"]);
+  });
+});
+
+describe("fork preview comment", () => {
+  const web = {
+    id: "dpl_web",
+    name: "sokosumi-app-mainnet",
+    url: "sokosumi-app-mainnet-ewf2cvdf2.preview.sokosumi.com",
+    alias: ["sokosumi-app-mainnet-git-preview-fork-pr-12.preview.sokosumi.com"],
+    readyState: "READY",
+  };
+  const preprod = {
+    id: "dpl_preprod",
+    name: "sokosumi-app-preprod",
+    url: "sokosumi-app-preprod-abc.preview.sokosumi.com",
+    alias: ["sokosumi-app-preprod-git-preview-fork-pr-12.preview.sokosumi.com"],
+    readyState: "READY",
+  };
+
+  it("prefers Vercel's branch alias over the deployment URL", () => {
+    assert.equal(
+      previewUrl({
+        url: "x-abc.vercel.app",
+        alias: ["custom.example.com", "x-git-preview-fork-pr-12.vercel.app"],
+      }),
+      "https://x-git-preview-fork-pr-12.vercel.app",
+    );
+    assert.equal(
+      previewUrl({ url: "x-abc.vercel.app" }),
+      "https://x-abc.vercel.app",
+    );
+  });
+
+  it("lists each project's alias, state, and approved commit", () => {
+    const body = forkPreviewCommentBody([web], FORK_SHA);
+    assert.ok(body.startsWith(FORK_PREVIEW_COMMENT_MARKER));
+    assert.ok(
+      body.includes(
+        `| \`sokosumi-app-mainnet\` | https://sokosumi-app-mainnet-git-preview-fork-pr-12.preview.sokosumi.com | READY | ${FORK_SHA} |`,
+      ),
+    );
+  });
+
+  it("replaces a redeployed project's row and keeps the others", () => {
+    const first = forkPreviewCommentBody([web, preprod], STALE_SHA);
+    const body = forkPreviewCommentBody([web], FORK_SHA, first);
+    const rows = body.split("\n").filter((line) => line.startsWith("| `"));
+    assert.deepEqual(rows, [
+      `| \`sokosumi-app-mainnet\` | https://${web.alias[0]} | READY | ${FORK_SHA} |`,
+      `| \`sokosumi-app-preprod\` | https://${preprod.alias[0]} | READY | ${STALE_SHA} |`,
+    ]);
+  });
+
+  function github(pages) {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({
+        url: String(url),
+        method: init.method ?? "GET",
+        body: init.body ? JSON.parse(init.body).body : undefined,
+      });
+      const body = init.method ? { id: 1 } : (pages.shift() ?? []);
+      return new Response(JSON.stringify(body), { status: 200 });
+    };
+    return { calls, fetchImpl };
+  }
+
+  const upsert = (fetchImpl, deployments = [web]) =>
+    upsertForkPreviewComment({
+      fetchImpl,
+      githubToken: "gh",
+      repoOwner: "masumi-network",
+      repoName: "sokosumi",
+      issueNumber: 12,
+      deployments,
+      sha: FORK_SHA,
+    });
+
+  it("posts a new comment when the bot has none", async () => {
+    // A commenter can paste the marker; only the bot's comment counts.
+    const { calls, fetchImpl } = github([
+      [
+        {
+          id: 5,
+          user: { login: "mallory" },
+          body: FORK_PREVIEW_COMMENT_MARKER,
+        },
+      ],
+    ]);
+    await upsert(fetchImpl);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].method, "POST");
+    assert.equal(
+      calls[1].url,
+      "https://api.github.com/repos/masumi-network/sokosumi/issues/12/comments",
+    );
+    assert.equal(calls[1].body, forkPreviewCommentBody([web], FORK_SHA));
+  });
+
+  it("edits the bot's earlier comment in place, on a later page too", async () => {
+    const earlier = forkPreviewCommentBody([preprod], STALE_SHA);
+    const { calls, fetchImpl } = github([
+      Array.from({ length: 100 }, (_, index) => ({
+        id: index,
+        user: { login: "alice" },
+        body: "LGTM",
+      })),
+      [{ id: 777, user: { login: "github-actions[bot]" }, body: earlier }],
+    ]);
+    await upsert(fetchImpl);
+    assert.deepEqual(
+      calls.map(({ method }) => method),
+      ["GET", "GET", "PATCH"],
+    );
+    assert.ok(calls[1].url.includes("page=2"));
+    assert.equal(
+      calls[2].url,
+      "https://api.github.com/repos/masumi-network/sokosumi/issues/comments/777",
+    );
+    assert.equal(
+      calls[2].body,
+      forkPreviewCommentBody([web], FORK_SHA, earlier),
+    );
+  });
+
+  it("keeps a fork deploy successful when the comment fails", async () => {
+    const run = runPreviewDeployComment({
+      commentBody: `/deploy preprod ${FORK_SHA}`,
+      isPullRequest: true,
+      issueNumber: 12,
+      repoId: 1,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        state: "open",
+        number: 12,
+        head: { sha: FORK_SHA, ref: "main", repo: { id: 2 } },
+        base: { repo: { id: 1 } },
+      }),
+      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      pointBranch: async () => {},
+      prepareResources: async () => {},
+      createDeployment: async ({ target }) => ({
+        id: `dpl_${target.app}`,
+        readyState: "READY",
+      }),
+      pollDeployment: async (deployment) => deployment,
+      postComment: async () => assert.fail("no failure reply"),
+      addReaction: async () => {},
+      upsertPreviewComment: async () => {
+        throw new Error("GitHub 403");
+      },
+    });
+    assert.equal((await run).kind, "deploy");
+  });
+});
+
+describe("fork preview branch", () => {
+  function github(responses) {
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      calls.push({
+        url: String(url),
+        method: init.method,
+        body: init.body ? JSON.parse(init.body) : undefined,
+      });
+      const [status, body] = responses.shift();
+      return new Response(body === undefined ? null : JSON.stringify(body), {
+        status,
+      });
+    };
+    const options = {
+      fetchImpl,
+      githubToken: "token",
+      repoOwner: "owner",
+      repoName: "repo",
+      branch: "preview-fork/pr-12",
+    };
+    return { calls, options };
+  }
+  const refs = "https://api.github.com/repos/owner/repo/git/refs";
+
+  it("creates the branch at the approved commit", async () => {
+    const { calls, options } = github([[201, {}]]);
+    await pointForkPreviewBranch({ ...options, sha: FORK_SHA });
+    assert.deepEqual(calls, [
+      {
+        url: refs,
+        method: "POST",
+        body: { ref: "refs/heads/preview-fork/pr-12", sha: FORK_SHA },
+      },
+    ]);
+  });
+
+  it("force-moves an existing branch to the approved commit", async () => {
+    const { calls, options } = github([
+      [422, { message: "Reference already exists" }],
+      [200, { object: { sha: FORK_SHA } }],
+    ]);
+    await pointForkPreviewBranch({ ...options, sha: FORK_SHA });
+    assert.deepEqual(calls[1], {
+      url: `${refs}/heads/preview-fork/pr-12`,
+      method: "PATCH",
+      body: { sha: FORK_SHA, force: true },
+    });
+  });
+
+  it("throws when GitHub moves the branch to another commit", async () => {
+    const { options } = github([
+      [422, { message: "Reference already exists" }],
+      [200, { object: { sha: STALE_SHA } }],
+    ]);
+    await assert.rejects(
+      pointForkPreviewBranch({ ...options, sha: FORK_SHA }),
+      /did not move preview-fork\/pr-12/,
+    );
+  });
+
+  it("throws when GitHub refuses the branch", async () => {
+    const { options } = github([[403, { message: "Resource not accessible" }]]);
+    await assert.rejects(
+      pointForkPreviewBranch({ ...options, sha: FORK_SHA }),
+      /GitHub 403: .*Resource not accessible/,
+    );
+  });
+
+  it("deletes the branch and treats a missing one as deleted", async () => {
+    for (const status of [204, 404, 422]) {
+      const { calls, options } = github([[status]]);
+      await deleteForkPreviewBranch(options);
+      assert.equal(calls[0].method, "DELETE");
+      assert.equal(calls[0].url, `${refs}/heads/preview-fork/pr-12`);
+    }
+    const { options } = github([[403, { message: "nope" }]]);
+    await assert.rejects(deleteForkPreviewBranch(options), /GitHub 403/);
   });
 });
 
@@ -828,6 +1216,34 @@ describe("summarizeCliDeployResult", () => {
     assert.deepEqual(summarizeCliDeployResult({ kind: "ignore" }), {
       kind: "ignore",
     });
+  });
+});
+
+describe("changesVercelConfig", () => {
+  it("matches Vercel project config files only", () => {
+    for (const filename of [
+      "apps/core/vercel.json",
+      "vercel.json",
+      "apps/web/vercel.ts",
+      "now.json",
+    ]) {
+      assert.ok(changesVercelConfig([{ filename }]), filename);
+    }
+    assert.ok(
+      !changesVercelConfig([
+        { filename: "docs/vercel.md" },
+        { filename: "apps/web/vercel.json.bak" },
+        { filename: "scripts/ci/vercel-deploy.mjs" },
+      ]),
+    );
+    assert.ok(
+      changesVercelConfig([
+        {
+          filename: "apps/core/config.json",
+          previous_filename: "apps/core/vercel.json",
+        },
+      ]),
+    );
   });
 });
 

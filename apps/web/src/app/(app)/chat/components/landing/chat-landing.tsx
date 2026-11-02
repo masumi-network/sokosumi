@@ -1,5 +1,6 @@
 import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 
@@ -16,6 +17,8 @@ interface ChatLandingProps {
   summary: TaskActivitySummary | null;
   /** Given name already resolved, or null for the nameless greeting. */
   userName: null | string;
+  /** Home's quiet Needs you list, below the coworkers; nothing when empty. */
+  needsYou?: ReactNode;
 }
 
 /**
@@ -34,6 +37,7 @@ export async function ChatLanding({
   isOrganizationWorkspace,
   summary,
   userName,
+  needsYou,
 }: ChatLandingProps) {
   const t = await getTranslations("App.Chat.Landing");
   const featured = resolveFeaturedCoworker(coworkers);
@@ -68,6 +72,12 @@ export async function ChatLanding({
             />
           </OpenCoworkerRoomProvider>
         ) : null}
+
+        {/* Below the coworkers, in the welcome's own column; the wrapper
+            collapses while the list loads. */}
+        <div className="mt-10 w-full max-w-3xl self-center px-4 text-left empty:hidden lg:mt-14">
+          {needsYou}
+        </div>
       </div>
 
       <div

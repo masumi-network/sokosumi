@@ -41,14 +41,15 @@ import UniformTypeIdentifiers
     private let parentMessageId: String?
     private let onAccepted: (() -> Void)?
 
-    init(userId: String, organizationId: String?, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, transcriptShown: Bool = false, onAccepted: (() -> Void)? = nil) {
+    init(userId: String, draftScope: ComposeDraftScope, roomId: String, parentMessageId: String? = nil, pendingQuote: Binding<Components.Schemas.ChatRoomMessageQuote?> = .constant(nil), quoteFocusRequest: String? = nil, transcriptShown: Bool = false, onAccepted: (() -> Void)? = nil) {
       _pendingQuote = pendingQuote
       self.quoteFocusRequest = quoteFocusRequest
       self.transcriptShown = transcriptShown
       self.onAccepted = onAccepted
       self.roomId = roomId
       self.parentMessageId = parentMessageId
-      let savedDraft = SavedComposeDraft(userId: userId, organizationId: organizationId, roomId: roomId, parentMessageId: parentMessageId)
+      let savedDraft = SavedComposeDraft(userId: userId, scope: draftScope, roomId: roomId, parentMessageId: parentMessageId)
+      savedDraft.moveLegacyDraft()
       self.savedDraft = savedDraft
       _draft = State(initialValue: savedDraft.load())
     }

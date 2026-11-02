@@ -81,7 +81,7 @@ export function ViewModeSwitch({
               type="single"
               value={value}
               onValueChange={handleChange}
-              className="bg-background grid w-full grid-cols-2 gap-0.5"
+              className="grid w-full grid-cols-2"
             >
               <PopoverClose asChild>
                 <ToggleGroupItem
@@ -116,7 +116,7 @@ export function ViewModeSwitch({
               type="single"
               value={density}
               onValueChange={handleDensityChange}
-              className="bg-background grid w-full grid-cols-2 gap-0.5"
+              className="grid w-full grid-cols-2"
             >
               <PopoverClose asChild>
                 <ToggleGroupItem

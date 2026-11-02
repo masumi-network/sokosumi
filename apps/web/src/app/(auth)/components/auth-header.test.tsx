@@ -40,6 +40,20 @@ describe("AuthHeader", () => {
     },
   );
 
+  it.each([
+    ["signIn", "Log in to CMO.xyz"],
+    ["signUp", "Create your CMO.xyz account"],
+  ] as const)(
+    "speaks as CMO.xyz on %s when it wears its look",
+    (mode, title) => {
+      renderHeader({ mode, client: { ...CMO, brand: "cmo" } });
+
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+      expect(screen.getByText("Cuso runs your marketing.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Back to CMO" })).toBeVisible();
+    },
+  );
+
   it.each(["signIn", "signUp"] as const)(
     "stays the plain %s header without an OAuth request",
     (mode) => {

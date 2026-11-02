@@ -207,7 +207,6 @@ function revalidateProjectMutationRoutes(projectId: string) {
 
 function revalidateProjectCloseRoutes(projectId: string) {
   revalidateProjectMutationRoutes(projectId);
-  revalidatePath(`/projects/${projectId}/calendar`);
   revalidatePath("/calendar");
   revalidatePath("/tasks");
 }

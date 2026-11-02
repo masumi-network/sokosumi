@@ -464,6 +464,9 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  /// What the website runs on when it is a shop system Cuso can measure
+  /// (only "shopify" today), learned once from the site; null otherwise.
+  sitePlatform            String?
   logo                    String?
   designMdUrl             String?
   designMdExtractionId    String?
@@ -485,13 +488,19 @@ model Project {
   closeOperation   ProjectCloseOperation?
   events           ProjectEvent[]
   stars            ProjectStar[]
+  hides            ProjectHide[]
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
+  socialComments          SocialComment[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
-  newsletter       Newsletter?
-  newsletterIssues NewsletterIssue[]
+  brandBrain              BrandBrain?
+  newsletter              Newsletter?
+  newsletterSendingDomain NewsletterSendingDomain?
+  newsletterIssues        NewsletterIssue[]
+
+  marketingStrategies MarketingStrategy[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -564,6 +573,29 @@ model ProjectStar {
   // non-leading FK.
   @@index([projectId])
   @@map("project_star")
+}
+
+/// One user's Hide on one project: the per-user opposite of a ProjectStar,
+/// personal and never shared, and membership does not change (ADR 0036).
+/// Hiding deletes the user's star on the project and starring deletes the
+/// hide, so the two never coexist. Reads drop a Hidden project from the
+/// Projects list's Open view, the Project switcher and Recent activity;
+/// Needs you ignores it.
+model ProjectHide {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  hiddenAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  // Same reason as ProjectStar: the unique key leads with userId.
+  @@index([projectId])
+  @@map("project_hide")
 }
 
 model ProjectSocialConnection {
@@ -880,7 +912,17 @@ model SocialPost {
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
+  /// The Marketing strategy version whose calendar planned this post (ADR
+  /// 0062). Approving another version cancels its unpublished posts.
+  marketingStrategyId String?            @db.Uuid
+  marketingStrategy   MarketingStrategy? @relation(fields: [marketingStrategyId], references: [id], onDelete: SetNull)
+  /// What the plan intends with it: its calendar entry's id, title, format,
+  /// hook, brief, why, approach, pillar and campaign, validated by
+  /// `socialPostPlanningSchema` in `@sokosumi/soko-bot`.
+  planning            Json?
+
   attempts    SocialPostPublishAttempt[]
+  comments    SocialComment[]
   threadParts SocialPostThreadPart[]
 
   @@index([projectId, status, scheduledAt])
@@ -895,7 +937,51 @@ model SocialPost {
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
+  @@index([marketingStrategyId])
   @@map("social_post")
+}
+
+enum SocialCommentStatus {
+  /// Seen, not handled yet.
+  NEW
+  REPLIED
+  /// Spam, a bot, or a thread a reply would not help.
+  SKIPPED
+  /// Needs the owner: a complaint, refund, legal or press question.
+  OWNER
+}
+
+/// A comment someone left on one of the Project's published Social posts, as
+/// Cuso's daily reply round read it, and what he did with it. One row per
+/// provider comment, so nothing is answered twice.
+model SocialComment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId    String     @db.Uuid
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  socialPostId String     @db.Uuid
+  socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+
+  provider          String
+  externalCommentId String
+  authorName        String?
+  authorExternalId  String?
+  text              String
+  commentedAt       DateTime?
+
+  status          SocialCommentStatus @default(NEW)
+  reply           String?
+  replyExternalId String?
+  /// Why it was skipped or handed to the owner.
+  note            String?
+  handledAt       DateTime?
+
+  @@unique([provider, externalCommentId])
+  @@index([projectId, status])
+  @@index([socialPostId])
+  @@map("social_comment")
 }
 
 /// Additional X posts in one account's thread; position 1 remains on SocialPost.
@@ -2185,6 +2271,42 @@ model SokoBotTaskWatch {
   @@map("soko_bot_task_watch")
 }
 
+/// A background check the bot set (wait_for): something to wait on and what
+/// to do once it is done. The events sync checks it every minute and, when the
+/// target settles or `expiresAt` passes, runs `then` as a background run of
+/// the turn that set it, with that turn's tools, posted where it was asked.
+model SokoBotWatch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String      @db.Uuid
+  sokoBot   SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// The turn that set it; the follow-up runs as its background run.
+  turnId    String      @db.Uuid
+  turn      SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  /// studio_job | background_run | chat_reply | app_connected
+  kind      String
+  /// The Studio job, the run's turn, the chat room, or the app's provider.
+  targetId  String
+  projectId String?
+  /// What the bot will do once the target is done.
+  then      String
+  expiresAt DateTime
+
+  /// WAITING until it fires; then FIRED with what it found, or EXPIRED for
+  /// an app nobody connected.
+  status      String    @default("WAITING")
+  outcome     String?
+  firedAt     DateTime?
+  firedTurnId String?   @db.Uuid
+
+  @@index([status, createdAt])
+  @@index([sokoBotId, status])
+  @@map("soko_bot_watch")
+}
+
 enum SokoBotIntegrationStatus {
   PENDING
   ACTIVE
@@ -2331,6 +2453,7 @@ model SokoBot {
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
+  marketingStrategies   MarketingStrategy[]
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
@@ -2339,6 +2462,7 @@ model SokoBot {
   integrations          SokoBotIntegration[]
   mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
+  watches               SokoBotWatch[]
   nudges                SokoBotNudge[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
@@ -2455,10 +2579,102 @@ model SokoBotAvatar {
   /// Every read filters on it; the pool cron sweeps stale ones.
   reservedAt DateTime?
 
+  /// The style that drew it (an id in Core's style registry). `mascot` is the
+  /// legacy recipe: read, never drawn again.
+  styleId        String  @default("mascot")
+  styleVersion   Int     @default(1)
+  /// What the look is made of: `{ creature, accessories[], typed[] }`. Null for
+  /// legacy rows.
+  look           Json?
+  /// The avatar this look was edited from, if any. Not a relation: the parent
+  /// may be swept first.
+  parentAvatarId String? @db.Uuid
+
+  /// Set while the look is private to one bot: a draft, or the tombstone of a
+  /// kept look the bot has replaced. Such a row is never part of the pool, and
+  /// it is swept once `draftExpiresAt` passes unless a bot has claimed it.
+  /// Plain columns, not a relation: the sweep owns their lifetime.
+  draftForSokoBotId String?   @db.Uuid
+  draftExpiresAt    DateTime?
+
+  /// The combination of creature, coat, scene details and accessory this look
+  /// is, so no two bots share a face. Set for pool and claimed looks only
+  /// (a draft gets it when a bot keeps it, a replaced look loses it), so the
+  /// unique below covers exactly what a bot can hold or be offered. Null for
+  /// legacy rows.
+  traitKey String?
+
+  /// Drawn by the pool, not for one bot. A pool look taken as a draft goes back
+  /// to the pool when the draft expires; a look drawn for a bot is deleted.
+  fromPool Boolean @default(false)
+
+  /// When and by whom the look was kept. Read by the per-user daily keep cap,
+  /// so the row stays (as a tombstone, without renders) for the cap window
+  /// after the bot replaces the look.
+  keptAt       DateTime?
+  keptByUserId String?
+
+  renders SokoBotAvatarRender[]
+
   @@unique([subject, background, seed])
+  @@unique([styleId, styleVersion, traitKey])
   @@index([claimedAt])
   @@index([requestedByUserId, createdAt])
+  @@index([keptByUserId, keptAt])
+  @@index([draftForSokoBotId])
   @@map("soko_bot_avatar")
+}
+
+enum SokoBotAvatarState {
+  IDLE
+  THINKING
+  WORKING
+  DONE
+  NEEDS_YOU
+  OFFLINE
+}
+
+enum SokoBotAvatarRenderStatus {
+  PENDING
+  STILL_READY
+  /// Claimed for the paid video call; no provider operation stored yet.
+  VIDEO_SUBMITTING
+  VIDEO_SUBMITTED
+  READY
+  /// The submit call may have been billed and its outcome is unknown. Never
+  /// resubmitted: the still stays.
+  SUBMISSION_UNCERTAIN
+  FAILED
+}
+
+/// One state of a kept avatar: a still and a looping animation. The cron walks
+/// each row PENDING → STILL_READY → VIDEO_SUBMITTED → READY (ADR 0039: no queue).
+model SokoBotAvatarRender {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  avatarId String             @db.Uuid
+  avatar   SokoBotAvatar      @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+  state    SokoBotAvatarState
+
+  status       SokoBotAvatarRenderStatus @default(PENDING)
+  stillUrl     String?
+  loopUrl      String?
+  loopLargeUrl String?
+
+  /// Paid attempts at the current step, counted when the lease is taken.
+  attempts          Int       @default(0)
+  /// Whoever holds this is the only worker allowed to spend on the row.
+  leaseUntil        DateTime?
+  /// The Gateway's opaque video operation, stored as soon as the submit returns.
+  providerOperation Json?
+  submittedAt       DateTime?
+  lastError         String?
+
+  @@unique([avatarId, state])
+  @@index([status, leaseUntil])
+  @@map("soko_bot_avatar_render")
 }
 
 model SokoBotLegacyMessage {
@@ -2591,14 +2807,17 @@ model SokoBotTurn {
   responseContract      Json?
   deliveries            SokoBotDelivery[]
 
-  contextSnapshot  SokoBotContextSnapshot?
-  events           SokoBotEvent[]
-  runtimeEvents    SokoBotRuntimeEvent[]
-  toolCalls        SokoBotToolCall[]
-  delegations      SokoBotDelegation[]
-  pendingDecisions SokoBotPendingDecision[]
-  memoryRevisions  SokoBotMemoryRevision[]
-  scheduleRun      SokoBotScheduleRun?
+  contextSnapshot     SokoBotContextSnapshot?
+  events              SokoBotEvent[]
+  runtimeEvents       SokoBotRuntimeEvent[]
+  toolCalls           SokoBotToolCall[]
+  delegations         SokoBotDelegation[]
+  watches             SokoBotWatch[]
+  pendingDecisions    SokoBotPendingDecision[]
+  memoryRevisions     SokoBotMemoryRevision[]
+  scheduleRun         SokoBotScheduleRun?
+  /// Marketing strategy versions this turn wrote.
+  marketingStrategies MarketingStrategy[]
 
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])
@@ -5094,6 +5313,9 @@ model ProjectImageJob {
   /// Assets whose bytes were sent as references. Stored as ids, never as URLs:
   /// a URL in this column would be a durable public handle on a private asset.
   referenceAssetIds String[] @db.Uuid
+  /// Files (a brand's product photos) sent as references after the assets,
+  /// readable by the person who asked. Ids for the same reason as above.
+  referenceFileIds  String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 
@@ -5555,12 +5777,14 @@ model FileResource {
   lineageId String?      @db.Uuid
   lineage   FileLineage? @relation(fields: [lineageId], references: [id], onDelete: SetNull)
 
-  versions  FileVersion[]
-  labels    FileLabel[]
-  links     FileProjectLink[]
-  overrides FileFieldOverride[]
-  jobs      FileIndexJob[]
-  shares    DriveShare[]
+  versions               FileVersion[]
+  labels                 FileLabel[]
+  links                  FileProjectLink[]
+  overrides              FileFieldOverride[]
+  jobs                   FileIndexJob[]
+  shares                 DriveShare[]
+  /// The Marketing strategy pieces written as this file.
+  marketingStrategyFiles MarketingStrategyFile[]
 
   @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
   @@index([workspaceId, lifecycle, updatedAt])

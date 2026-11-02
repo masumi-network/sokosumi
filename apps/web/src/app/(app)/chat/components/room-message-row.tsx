@@ -29,6 +29,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
@@ -55,6 +56,7 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
+  isPersistedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -92,6 +94,7 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -135,6 +138,7 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -173,7 +177,6 @@ import {
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
-type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /**
  * Keeps the last line of a body clear of the Seen by faces in the row's
@@ -313,10 +316,10 @@ function messageImageGallery(
 function MessageQuoteAttachmentThumb({
   attachment,
 }: {
-  attachment: RoomQuoteAttachment;
+  attachment: ChatRoomMessageQuoteAttachment;
 }) {
   const thumbClassName =
-    "bg-card-background mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
+    "bg-card-background size-10 shrink-0 overflow-hidden rounded-xl border";
 
   switch (attachment.mediaKind) {
     case "image":
@@ -410,10 +413,10 @@ function MessageQuoteBlock({
       resetKey: `${quote.messageId}\0${quote.snippet}`,
     });
 
-  const attachment = quote.attachment ?? null;
+  const attachments = quote.attachments ?? [];
 
   return (
-    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-1.5">
+    <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-border px-2.5 py-1.5">
       <button
         type="button"
         className="press hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
@@ -457,14 +460,21 @@ function MessageQuoteBlock({
             />
           </div>
         ) : null}
-        {attachment ? (
-          <MessageQuoteAttachmentThumb attachment={attachment} />
+        {attachments.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {attachments.map((attachment) => (
+              <MessageQuoteAttachmentThumb
+                key={attachment.url}
+                attachment={attachment}
+              />
+            ))}
+          </div>
         ) : null}
       </button>
       {expanded || overflows ? (
         <button
           type="button"
-          className="text-primary press hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          className="text-foreground press underline underline-offset-4 mt-0.5 text-xs font-medium rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -542,7 +552,7 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-border px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
@@ -763,18 +773,32 @@ export function ChannelMessageText({
                 className="my-2 flex w-full min-w-0 max-w-full flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
-                {segment.links.map((link) => (
-                  <FileChipMiniPreviewFrame
-                    key={`${link.index}-${link.url}`}
-                    url={link.url}
-                    fileName={link.fileName}
-                    variant={useLargeImage ? "large" : "thumb"}
-                    sizeClass={useLargeImage ? undefined : "size-16"}
-                    onOpenImage={() => {
-                      setOpenImageSrc(link.url);
-                    }}
-                  />
-                ))}
+                {segment.links.map((link) =>
+                  /^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\/stickers\//.test(
+                    link.url,
+                  ) ? (
+                    <Image
+                      key={`${link.index}-${link.url}`}
+                      src={link.url}
+                      alt={link.fileName}
+                      width={160}
+                      height={160}
+                      unoptimized
+                      className="size-40 object-contain"
+                    />
+                  ) : (
+                    <FileChipMiniPreviewFrame
+                      key={`${link.index}-${link.url}`}
+                      url={link.url}
+                      fileName={link.fileName}
+                      variant={useLargeImage ? "large" : "thumb"}
+                      sizeClass={useLargeImage ? undefined : "size-16"}
+                      onOpenImage={() => {
+                        setOpenImageSrc(link.url);
+                      }}
+                    />
+                  ),
+                )}
               </div>
             );
           }
@@ -1062,7 +1086,7 @@ function MessageActionControls({
                 size="icon"
                 className={cn(
                   "group/quick-reaction size-10 rounded-full text-sm md:size-8",
-                  reacted && "bg-primary-quinary hover:bg-primary-quaternary",
+                  reacted && "bg-muted hover:bg-quinary",
                 )}
                 title={
                   shortcode
@@ -1661,8 +1685,7 @@ function TouchMessageActionsSheet({
                   size="icon"
                   className={cn(
                     "size-11 rounded-full text-xl",
-                    reactedEmojis.has(emoji) &&
-                      "bg-primary-quinary hover:bg-primary-quaternary",
+                    reactedEmojis.has(emoji) && "bg-muted hover:bg-quinary",
                   )}
                   aria-label={t("Reactions.toggle", { emoji })}
                   aria-pressed={reactedEmojis.has(emoji)}
@@ -2065,7 +2088,7 @@ function FailedMentionActions({
     >
       <button
         type="button"
-        className="text-primary press hover:text-primary-hover font-medium"
+        className="text-foreground press underline underline-offset-4 font-medium"
         data-testid="coworker-mention-retry"
         onClick={onRetryMention}
       >
@@ -2101,7 +2124,7 @@ function OutboundFailedActions({
       {onRetryOutbound ? (
         <button
           type="button"
-          className="text-primary press hover:text-primary-hover font-medium"
+          className="text-foreground press underline underline-offset-4 font-medium"
           onClick={() => onRetryOutbound(message)}
         >
           {t("Outbound.retry")}
@@ -2110,7 +2133,7 @@ function OutboundFailedActions({
       {onRemoveOutbound ? (
         <button
           type="button"
-          className="text-primary press hover:text-primary-hover font-medium"
+          className="text-foreground press underline underline-offset-4 font-medium"
           onClick={() => onRemoveOutbound(message)}
         >
           {t("Outbound.remove")}
@@ -2127,6 +2150,7 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
+  busy = false,
 }: {
   sender: MessageSenderProfile;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
@@ -2135,6 +2159,8 @@ function SenderFace({
   fallbackClassName: string;
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
+  /** Its reply is in progress: a crafted bot loops its Working state. */
+  busy?: boolean;
 }) {
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
@@ -2143,6 +2169,22 @@ function SenderFace({
         size={orbSize}
         alt=""
         className={cn("ring-border ring-1", className)}
+      />
+    );
+  }
+  if (
+    sender.kind === "sokoBot" &&
+    sender.image &&
+    isCraftedStyle(sender.avatarStyleId)
+  ) {
+    return (
+      <AvatarFace
+        src={sender.image}
+        crafted
+        className={className}
+        loopSrc={sender.workingLoopUrl}
+        playing={busy}
+        loop
       />
     );
   }
@@ -2192,7 +2234,7 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-primary press hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press underline underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2204,7 +2246,7 @@ function ThreadReplyBar({
         // message; on a painted bar it pushes the rule and the rounded edge
         // into the content column's `overflow-x-clip`, which cuts them off.
         unreadReplyCount > 0 &&
-          "bg-primary-quaternary text-primary-variant mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+          "bg-quinary text-foreground mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
       )}
       onClick={() => onOpenThread(message)}
     >
@@ -2296,7 +2338,7 @@ function MessageMetaFooter({
                       "border-border bg-background inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       onToggleReaction && "press hover:bg-muted",
                       reaction.reactedByCurrentUser &&
-                        "border-primary-tertiary bg-primary-quinary text-primary",
+                        "border-border bg-muted text-foreground",
                     )}
                     aria-label={t("Reactions.toggle", {
                       emoji: reaction.emoji,
@@ -2667,7 +2709,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // end of one line of a message you are already looking at — cheaper
         // than 16rem that every row gives up forever so that one hovered row
         // has somewhere to put eight buttons.
-        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-card-background",
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -2725,6 +2767,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
+              busy={
+                isStreamOverlay ||
+                isPersistedMentionThoughtShell(message.metadata)
+              }
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>

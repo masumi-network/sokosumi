@@ -102,7 +102,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
           ) : query.isError ? (
             <>
               <TriangleAlert
-                className="text-semantic-warning mt-0.5 size-4 shrink-0"
+                className="text-foreground mt-0.5 size-4 shrink-0"
                 aria-hidden="true"
               />
               <p className="leading-relaxed">{t("error")}</p>
@@ -184,7 +184,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
                           className={cn(
                             "flex items-center gap-1.5 text-xs leading-relaxed",
                             hasDeliveryProblem
-                              ? "text-semantic-warning"
+                              ? "text-foreground"
                               : "text-muted-foreground",
                           )}
                         >
