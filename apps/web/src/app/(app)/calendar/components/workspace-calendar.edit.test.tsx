@@ -390,7 +390,7 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.dayCellClass).toContain("motion-safe:ease-out");
   });
 
-  it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {
+  it("follows the Project scope in pagination and has no project filter of its own", async () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
         <WorkspaceCalendar
@@ -405,9 +405,9 @@ describe("WorkspaceCalendar editing", () => {
     const topLevelSections = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
       sections: Array<{ id: string }>;
     };
-    expect(topLevelSections.sections.map((section) => section.id)).toContain(
-      "source",
-    );
+    expect(
+      topLevelSections.sections.map((section) => section.id),
+    ).not.toContain("source");
 
     await waitFor(() =>
       expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
@@ -539,80 +539,10 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
-  it("prefills the active Workspace source on the workspace Calendar", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: null }),
-    );
-  });
-
-  it("does not prefill an unschedulable Workspace source", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES.map((source) =>
-            source.sourceType === "WORKSPACE"
-              ? { ...source, isSchedulable: false }
-              : source,
-          )}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: undefined }),
-    );
-  });
-
   it("prefills the active Project source on the workspace Calendar", async () => {
     const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: "project-1" }),
-    );
-  });
-
-  it("prefills a Project source supplied through the source filter", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=project%3Aproject-1">
         <WorkspaceCalendar
           coworkers={[{ id: "coworker-1", name: "Ada" }]}
           initialDate="2030-01-02"

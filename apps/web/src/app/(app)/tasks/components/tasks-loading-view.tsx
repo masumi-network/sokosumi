@@ -12,10 +12,6 @@ import { cn } from "@/lib/utils";
 import { ColumnHeader } from "./column-header";
 
 export interface TasksLoadingLabels {
-  tabs: {
-    tasks: string;
-    calendar: string;
-  };
   columns: Record<KanbanColumnId, string>;
   display: {
     button: string;
@@ -29,10 +25,6 @@ interface TasksLoadingViewProps {
 
 /** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
 export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
-  tabs: {
-    tasks: "Board",
-    calendar: "Calendar",
-  },
   columns: {
     backlog: "Backlog",
     todo: "Todo",
@@ -66,18 +58,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div className="flex flex-row items-center justify-between gap-3">
-        <div>
-          <div className="bg-card-background flex items-center gap-1 self-start rounded-lg p-1">
-            <div className="bg-background text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium shadow-sm">
-              {labels.tabs.tasks}
-            </div>
-            <div className="text-muted-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors">
-              {labels.tabs.calendar}
-            </div>
-          </div>
-        </div>
-
+      <div className="flex flex-row items-center justify-end gap-3">
         <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="outline" size="sm" className="gap-2" disabled>
             <SlidersHorizontal className="size-4" aria-hidden />

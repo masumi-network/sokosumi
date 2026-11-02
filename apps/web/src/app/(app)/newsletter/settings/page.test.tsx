@@ -163,7 +163,7 @@ describe("NewsletterSettingsPage", () => {
         [SETTINGS.Issues.title, `/newsletter/issues?projectId=${PROJECT_ID}`],
         [
           SETTINGS.Calendar.title,
-          `/newsletter/calendar?projectId=${PROJECT_ID}`,
+          `/calendar?types=newsletter&projectId=${PROJECT_ID}`,
         ],
         [
           SETTINGS.Subscribers.title,

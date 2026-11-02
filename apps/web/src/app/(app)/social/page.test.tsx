@@ -64,15 +64,13 @@ vi.mock("@/app/calendar/load-calendar-page", () => ({
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
   WorkspaceCalendar: (props: {
-    includeSocialPosts?: boolean;
     lockedProjectId?: string;
-    socialPostsOnly?: boolean;
+    types?: string[];
   }) => (
     <div
       data-testid="social-calendar"
-      data-include-social={String(props.includeSocialPosts)}
       data-locked-project={props.lockedProjectId ?? ""}
-      data-social-only={String(props.socialPostsOnly)}
+      data-types={props.types?.join(",")}
     />
   ),
 }));
@@ -206,7 +204,6 @@ const CALENDAR = {
   calendarKey: "key-1",
   coworkerOptions: [],
   currentUserId: "user-1",
-  includeSocialPosts: true,
   initialDate: "2026-06-01",
   items: [],
   latestDate: "2026-08-30",
@@ -287,8 +284,8 @@ describe("SocialPage", () => {
       await visit({ projectId });
 
       expect(screen.getByTestId("social-calendar")).toHaveAttribute(
-        "data-include-social",
-        "true",
+        "data-types",
+        "social",
       );
       expect(
         screen.getByTestId(
@@ -312,7 +309,7 @@ describe("SocialPage", () => {
     await visit({ view: "week" });
 
     const calendar = screen.getByTestId("social-calendar");
-    expect(calendar).toHaveAttribute("data-social-only", "true");
+    expect(calendar).toHaveAttribute("data-types", "social");
     expect(calendar).toHaveAttribute("data-locked-project", "");
     // Starting a post still works: the menu asks for a project itself.
     expect(screen.getByTestId("social-new-post")).toHaveAttribute(
@@ -394,24 +391,17 @@ describe("SocialPage", () => {
     await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
   });
 
-  it("loads the month range for a stale view=agenda link", async () => {
+  // The loader drops a stale view=agenda for Social posts alone.
+  it.each([
+    ["the scoped project", { projectId: "project-1" }],
+    ["every project", {}],
+  ])("loads only Social posts for %s", async (_label, query) => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
-    await visit({ projectId: "project-1", view: "agenda" });
+    await visit({ ...query, view: "agenda" });
 
-    // Social has no agenda list; the agenda range would leave the month
-    // grid missing posts.
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ view: undefined });
-  });
-
-  it("drops view=agenda on the all-projects calendar too", async () => {
-    await visit({ view: "agenda" });
-
-    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ view: undefined });
-    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
+    const [{ types }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(types).toEqual(["social"]);
   });
 
   it("opens the scoped project's posts, calendar and accounts", async () => {
@@ -549,11 +539,8 @@ describe("SocialPage", () => {
     await visit({ projectId: "project-1" });
 
     const calendar = screen.getByTestId("social-calendar");
-    expect(calendar).toHaveAttribute("data-social-only", "true");
+    expect(calendar).toHaveAttribute("data-types", "social");
     expect(calendar).toHaveAttribute("data-locked-project", "project-1");
-    // Without the opt-in Core returns no Social posts at all, so a locked
-    // Social calendar that forgot it would render empty forever.
-    expect(calendar).toHaveAttribute("data-include-social", "true");
     expect(loadWorkspaceCalendarPageMock).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "project-1" }),
     );

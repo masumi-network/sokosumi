@@ -1661,10 +1661,6 @@
         "title": "Task manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
       },
-      "Tabs": {
-        "tasks": "Board",
-        "calendar": "Calendar"
-      },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Todo",
@@ -3362,15 +3358,7 @@
           }
         },
         "Calendar": {
-          "title": "Calendar",
-          "description": "See when each newsletter issue is scheduled or was sent.",
-          "navigation": "Change month",
-          "previous": "Previous month",
-          "next": "Next month",
-          "today": "Today",
-          "emptyTitle": "No newsletters this month",
-          "emptyDescription": "Scheduled and sent issues appear here on their delivery date. Schedule an issue to plan your next send.",
-          "viewIssues": "View issues"
+          "title": "Calendar"
         },
         "Issues": {
           "title": "Issues",
@@ -9476,7 +9464,7 @@
     "Calendar": {
       "Metadata": {
         "title": "Calendar",
-        "description": "Browse scheduled task releases in your workspace."
+        "description": "See everything scheduled in your workspace."
       },
       "previous": "Previous period",
       "next": "Next period",
@@ -9488,9 +9476,15 @@
         "week": "Week",
         "agenda": "Agenda"
       },
+      "show": {
+        "label": "Show",
+        "tasks": "Tasks",
+        "social": "Social posts",
+        "newsletter": "Newsletter",
+        "contacts": "Follow-ups",
+        "marketing": "Marketing plan"
+      },
       "source": {
-        "label": "Source",
-        "all": "All sources",
         "WORKSPACE": "Workspace",
         "PROJECT": "Project"
       },
@@ -9501,6 +9495,7 @@
         "skipRun": "Skip run",
         "restoreRun": "Restore run",
         "openSchedule": "Open schedule",
+        "allDay": "All day",
         "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
         "runInvalidTime": "Choose a time in the future, within the next 90 days.",
         "runError": "Couldn't change this run. Try again."
@@ -9543,7 +9538,7 @@
         "showing": "Times in {zone}"
       },
       "empty": {
-        "title": "No scheduled releases match these filters.",
+        "title": "Nothing scheduled matches these filters.",
         "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
@@ -9587,9 +9582,6 @@
         "cancel": "Cancel",
         "invalid": "Choose a valid date and time.",
         "past": "Choose a time in the future."
-      },
-      "socialOnly": {
-        "label": "Social posts only"
       }
     },
     "You": {

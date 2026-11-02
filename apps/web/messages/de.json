@@ -1661,10 +1661,6 @@
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
       },
-      "Tabs": {
-        "tasks": "Board",
-        "calendar": "Kalender"
-      },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Offen",
@@ -3362,15 +3358,7 @@
           }
         },
         "Calendar": {
-          "title": "Kalender",
-          "description": "Sieh, wann jede Newsletter-Ausgabe geplant ist oder versendet wurde.",
-          "navigation": "Monat wechseln",
-          "previous": "Vorheriger Monat",
-          "next": "Nächster Monat",
-          "today": "Heute",
-          "emptyTitle": "Keine Newsletter in diesem Monat",
-          "emptyDescription": "Geplante und versendete Ausgaben erscheinen hier an ihrem Versanddatum. Plane eine Ausgabe für deinen nächsten Versand.",
-          "viewIssues": "Ausgaben ansehen"
+          "title": "Kalender"
         },
         "Issues": {
           "title": "Ausgaben",
@@ -9476,7 +9464,7 @@
     "Calendar": {
       "Metadata": {
         "title": "Kalender",
-        "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
+        "description": "Alles, was im Workspace geplant ist, auf einen Blick."
       },
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
@@ -9488,9 +9476,15 @@
         "week": "Woche",
         "agenda": "Agenda"
       },
+      "show": {
+        "label": "Anzeigen",
+        "tasks": "Aufgaben",
+        "social": "Social-Beiträge",
+        "newsletter": "Newsletter",
+        "contacts": "Nachfassungen",
+        "marketing": "Marketingplan"
+      },
       "source": {
-        "label": "Quelle",
-        "all": "Alle Quellen",
         "WORKSPACE": "Workspace",
         "PROJECT": "Projekt"
       },
@@ -9501,6 +9495,7 @@
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
         "openSchedule": "Zeitplan öffnen",
+        "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
         "runInvalidTime": "Wähle eine Zeit in der Zukunft, innerhalb der nächsten 90 Tage.",
         "runError": "Dieser Lauf konnte nicht geändert werden. Versuche es erneut."
@@ -9543,7 +9538,7 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
+        "title": "Nichts Geplantes entspricht diesen Filtern.",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
@@ -9587,9 +9582,6 @@
         "cancel": "Abbrechen",
         "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
         "past": "Wähle einen Zeitpunkt in der Zukunft."
-      },
-      "socialOnly": {
-        "label": "Nur Social-Beiträge"
       }
     },
     "You": {

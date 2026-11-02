@@ -16,10 +16,9 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -46,23 +45,9 @@ import {
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
-import {
-  applyTasksTabSearchParam,
-  parseTasksTab,
-  TASKS_TAB_PARAM,
-  type TasksTabValue,
-} from "@/app/tasks/utils/tasks-tab";
 import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
@@ -180,7 +165,6 @@ interface TasksViewProps {
   userId?: string | null;
   activeOrganizationId: string | null;
   initialFilters: TasksFilters;
-  calendar?: ReactNode;
   defaultViewMode?: TasksViewMode;
   defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
@@ -188,12 +172,7 @@ interface TasksViewProps {
   initialCreateTaskPrompt?: string | null;
   createTaskModalResetKey?: string;
   canCreateTask?: boolean;
-  initialTab?: TasksTabValue;
   labels: {
-    tabs: {
-      tasks: string;
-      calendar: string;
-    };
     filters: {
       title: string;
       searchPlaceholder: string;
@@ -239,7 +218,6 @@ export function TasksView({
   userId,
   activeOrganizationId,
   initialFilters,
-  calendar,
   defaultViewMode,
   defaultDensity,
   initialCreateTaskOpen = false,
@@ -247,11 +225,9 @@ export function TasksView({
   initialCreateTaskPrompt = null,
   createTaskModalResetKey = "default",
   canCreateTask = false,
-  initialTab = "tasks",
   labels,
 }: TasksViewProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
   const tTasks = useTranslations("App.Tasks");
@@ -282,15 +258,6 @@ export function TasksView({
   const [density, setDensity] = useState<TasksDensity>(
     defaultDensity ?? "normal",
   );
-  const tabFromUrl = parseTasksTab(
-    searchParams.get(TASKS_TAB_PARAM) ?? undefined,
-  );
-  const [activeTab, setActiveTab] = useState<TasksTabValue>(initialTab);
-  const [prevTabFromUrl, setPrevTabFromUrl] = useState(tabFromUrl);
-  if (tabFromUrl !== prevTabFromUrl) {
-    setPrevTabFromUrl(tabFromUrl);
-    setActiveTab(tabFromUrl);
-  }
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
@@ -836,66 +803,33 @@ export function TasksView({
     listCursor,
   ]);
 
-  const tabsContent = (
-    <Tabs
-      value={activeTab}
-      onValueChange={(value) => {
-        const next = parseTasksTab(value);
-        setActiveTab(next);
-        const params = applyTasksTabSearchParam(
-          new URLSearchParams(window.location.search),
-          next,
-        );
-        const query = params.toString();
-        router.replace(query ? `${pathname}?${query}` : pathname);
-      }}
+  const content = (
+    <div
       className={cn(
         "flex h-full min-h-0 flex-1 flex-col gap-5",
-        activeTab === "tasks" && LIST_MOBILE_CREATE_FAB_CLEARANCE,
+        LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div className="flex flex-row items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
-            <TabsTrigger
-              value="tasks"
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-            >
-              {labels.tabs.tasks}
-            </TabsTrigger>
-            <TabsTrigger
-              value="calendar"
-              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-            >
-              {labels.tabs.calendar}
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          {activeTab === "tasks" ? (
-            <TasksViewToolbarActions
-              filters={{
-                activeOrganizationId,
-                userId,
-                coworkerOptions,
-                projectOptions,
-                labels: labels.filters,
-              }}
-              display={{
-                value: viewMode,
-                onChange: handleViewModeChange,
-                density,
-                onDensityChange: handleDensityChange,
-                labels: labels.display,
-              }}
-            />
-          ) : null}
-        </div>
+      <div className="flex flex-row items-center justify-end gap-2 sm:gap-3">
+        <TasksViewToolbarActions
+          filters={{
+            activeOrganizationId,
+            userId,
+            coworkerOptions,
+            projectOptions,
+            labels: labels.filters,
+          }}
+          display={{
+            value: viewMode,
+            onChange: handleViewModeChange,
+            density,
+            onDensityChange: handleDensityChange,
+            labels: labels.display,
+          }}
+        />
       </div>
 
-      <TabsContent
-        value="tasks"
+      <div
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-4",
           viewMode === "board" ? "max-h-[calc(100dvh-150px)]" : "max-h-full",
@@ -995,11 +929,8 @@ export function TasksView({
             )}
           </div>
         </div>
-      </TabsContent>
-      <TabsContent value="calendar" className="flex min-h-0 flex-1 flex-col">
-        {calendar}
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
   );
 
   return (
@@ -1027,19 +958,15 @@ export function TasksView({
       ) : null}
       {/* The page's seat check is fresher than the layout's after a soft navigation. */}
       <OrganizationSeatContext value={canCreateTask}>
-        {tabsContent}
+        {content}
       </OrganizationSeatContext>
-      {activeTab === "tasks" && canCreateTask ? (
-        <TasksMobileCreateFabSlot />
-      ) : null}
-      {activeTab === "tasks" ? (
-        <CreateTaskModal
-          coworkerOptions={coworkerOptions}
-          projectOptions={projectOptions}
-          defaultProjectId={defaultProjectId}
-          initialCreateTaskOpen={initialCreateTaskOpen}
-        />
-      ) : null}
+      {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
+      <CreateTaskModal
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        defaultProjectId={defaultProjectId}
+        initialCreateTaskOpen={initialCreateTaskOpen}
+      />
       <TaskReopenToReadyDialog
         open={pendingBoardReopen != null}
         onOpenChange={handleBoardReopenOpenChange}

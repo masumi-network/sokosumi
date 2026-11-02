@@ -1661,10 +1661,6 @@
         "title": "Task Manager",
         "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
       },
-      "Tabs": {
-        "tasks": "Tablero",
-        "calendar": "Calendario"
-      },
       "Columns": {
         "backlog": "Pendiente",
         "todo": "Por hacer",
@@ -3362,15 +3358,7 @@
           }
         },
         "Calendar": {
-          "title": "Calendario",
-          "description": "Consulta cuándo está programada o se envió cada edición del boletín.",
-          "navigation": "Cambiar de mes",
-          "previous": "Mes anterior",
-          "next": "Mes siguiente",
-          "today": "Hoy",
-          "emptyTitle": "No hay boletines este mes",
-          "emptyDescription": "Las ediciones programadas y enviadas aparecen aquí en su fecha de envío. Programa una edición para planificar tu próximo envío.",
-          "viewIssues": "Ver ediciones"
+          "title": "Calendario"
         },
         "Issues": {
           "title": "Ediciones",
@@ -9476,7 +9464,7 @@
     "Calendar": {
       "Metadata": {
         "title": "Calendario",
-        "description": "Consulta las ejecuciones programadas de tareas en tu espacio de trabajo."
+        "description": "Consulta todo lo programado en tu espacio de trabajo."
       },
       "previous": "Periodo anterior",
       "next": "Periodo siguiente",
@@ -9488,9 +9476,15 @@
         "week": "Semana",
         "agenda": "Agenda"
       },
+      "show": {
+        "label": "Mostrar",
+        "tasks": "Tareas",
+        "social": "Publicaciones sociales",
+        "newsletter": "Newsletter",
+        "contacts": "Seguimientos",
+        "marketing": "Plan de marketing"
+      },
       "source": {
-        "label": "Origen",
-        "all": "Todos los orígenes",
         "WORKSPACE": "Espacio de trabajo",
         "PROJECT": "Proyecto"
       },
@@ -9501,6 +9495,7 @@
         "skipRun": "Omitir ejecución",
         "restoreRun": "Restaurar ejecución",
         "openSchedule": "Abrir programación",
+        "allDay": "Todo el día",
         "runStale": "Esta programación cambió en otro lugar. El calendario se está recargando; inténtalo de nuevo.",
         "runInvalidTime": "Elige una hora en el futuro, dentro de los próximos 90 días.",
         "runError": "No se pudo cambiar esta ejecución. Inténtalo de nuevo."
@@ -9543,7 +9538,7 @@
         "showing": "Horas en {zone}"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "title": "Nada programado coincide con estos filtros.",
         "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
@@ -9587,9 +9582,6 @@
         "cancel": "Cancelar",
         "invalid": "Elige una fecha y hora válidas.",
         "past": "Elige una hora en el futuro."
-      },
-      "socialOnly": {
-        "label": "Solo publicaciones sociales"
       }
     },
     "You": {

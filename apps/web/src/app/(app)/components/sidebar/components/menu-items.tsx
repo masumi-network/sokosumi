@@ -3,6 +3,7 @@
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
+  CalendarDays,
   FolderKanban,
   HardDrive,
   House,
@@ -180,6 +181,14 @@ function ScopedMenuItems({
       label: t("schedules"),
       Icon: Repeat,
       feature: AnnouncedFeature.SCHEDULES,
+      group: "work",
+    },
+    // Every dated feature is a filter on this one page.
+    {
+      key: "calendar",
+      href: "/calendar",
+      label: t("calendar"),
+      Icon: CalendarDays,
       group: "work",
     },
     // Workspace-wide like Files, so it is not scoped to the reader's project.

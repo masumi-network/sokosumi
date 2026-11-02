@@ -103,8 +103,8 @@ CMO's flow after identity onboarding, from the start form (website and main goal
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
 **Marketing strategy**:
-A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its calendar is the Project's Social posts.
-_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Social posts)
+A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
+_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
 
 **Brand Brain**:
 What a Project knows about the business it works for (summary, voice, audience, products, competitors, channels). Every bot in the Project reads it and any member of its Workspace edits it; Cuso drafts it while Hiring Cuso. Its look (logo, colours, fonts) is the Project's logo and DESIGN.md, not part of it.
@@ -162,6 +162,12 @@ _Avoid_: Context user, on-behalf-of user, initiator, owner
 A person who follows a Task to hear about it. Distinct from Participant, which belongs to Threads.
 _Avoid_: Participant (when meaning a Task), follower, watcher
 
+### Calendar
+
+**Calendar**:
+A destination of its own in the sidebar (`/calendar`) that shows everything with a date. Each feature is a filter on it, chosen with Show: Tasks (Runs and Run at), Social posts, Newsletter, Follow-ups and Marketing plan. It follows the Project scope. Social embeds it locked to Social posts.
+_Avoid_: Tasks calendar tab, content calendar (one calendar per feature)
+
 ### Social publishing
 
 **Social account**:
@@ -173,7 +179,7 @@ A Project's authorization to publish through one Social account. A Project may h
 _Avoid_: Social account (when meaning the Project authorization), integration account
 
 **Social**:
-The workspace page (`/social`) where a Project's Social posts are planned, scoped to one Project by `?projectId=`. It is not one area of a Project's own page: like the Calendar it is a destination of its own that happens to be read one Project at a time.
+The workspace page (`/social`) where a Project's Social posts are planned, scoped to one Project by `?projectId=`. It is not one area of a Project's own page: like the Calendar it is a destination of its own that reads the Project scope, and it embeds the Calendar locked to Social posts.
 _Avoid_: Social module page, Project social tab, Social media page
 
 **Social accounts**:

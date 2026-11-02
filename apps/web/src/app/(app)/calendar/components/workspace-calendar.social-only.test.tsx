@@ -20,9 +20,9 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
  *
  * Scheduled posts share the calendar with task runs, which is right for
  * planning a week and wrong for planning a feed: a busy workspace buries six
- * posts under sixty runs. These pin the two ways the posts come forward — a
- * toggle on the workspace calendar, and the lock Social's own page sets — and
- * that neither one leaves a task filter behind that would empty the grid.
+ * posts under sixty runs. These pin the two ways the posts come forward — the
+ * Show filter on the Calendar, and the lock Social's own page sets — and that
+ * both give Social's month and week, with no task filter that would empty it.
  */
 
 interface FullCalendarProps {
@@ -262,91 +262,34 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
   });
 
-  it("offers no toggle where Social posts are not on the calendar", () => {
-    renderCalendar();
-
-    // Outside the beta the calendar carries no posts, so a control that
-    // filters to them would only ever empty the grid.
-    expect(
-      screen.queryByTestId("calendar-social-only"),
-    ).not.toBeInTheDocument();
-  });
-
   it("shows runs and posts together until the reader asks for posts alone", () => {
-    renderCalendar({ includeSocialPosts: true });
+    renderCalendar();
 
     expect(renderedEventTitles()).toEqual([
       "Prepare release notes",
       "Launch news",
     ]);
-    expect(screen.getByTestId("calendar-social-only")).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
     expect(screen.getByTestId("calendar-views")).not.toHaveClass("min-h-11");
   });
 
-  it("drops the runs once the toggle is pressed", () => {
-    renderCalendar(
-      { includeSocialPosts: true },
-      "?timezone=UTC&view=week&socialOnly=true",
-    );
+  it("plans the feed once Social posts are the only feature shown", () => {
+    // The page asked Core for just the posts, so no runs arrive.
+    renderCalendar({ items: [POST] }, "?timezone=UTC&view=week&types=social");
 
     expect(renderedEventTitles()).toEqual(["Launch news"]);
-    expect(screen.getByTestId("calendar-social-only")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-  });
-
-  /**
-   * A Social post has no assignee and no task status, so the existing filters
-   * already drop every post while one of them is set. Pressing the toggle
-   * therefore clears them rather than handing back an empty grid.
-   */
-  it("clears the task filters it would otherwise contradict", async () => {
-    const onUrlUpdate = vi.fn();
-    const user = userEvent.setup();
-    renderCalendar(
-      { includeSocialPosts: true },
-      "?timezone=UTC&view=week&status=COMPLETED&assigneeId=coworker-1",
-      onUrlUpdate,
-    );
-
-    await user.click(screen.getByTestId("calendar-social-only"));
-
-    const search = onUrlUpdate.mock.lastCall?.[0].searchParams;
-    expect(search?.get("socialOnly")).toBe("true");
-    expect(search?.get("status")).toBeNull();
-    expect(search?.get("assigneeId")).toBeNull();
-  });
-
-  it("clears the post status when Social-only is turned off", async () => {
-    const onUrlUpdate = vi.fn();
-    const user = userEvent.setup();
-    renderCalendar(
-      { includeSocialPosts: true },
-      "?timezone=UTC&view=week&socialOnly=true&postStatus=FAILED",
-      onUrlUpdate,
-    );
-
-    await user.click(screen.getByTestId("calendar-social-only"));
-
-    const search = onUrlUpdate.mock.lastCall?.[0].searchParams;
-    expect(search?.get("socialOnly")).toBeNull();
-    expect(search?.get("postStatus")).toBeNull();
+    expect(screen.getByTestId("calendar-status-summary")).toBeInTheDocument();
   });
 
   it("hides the filters that cannot apply to a post", () => {
     renderCalendar(
-      { includeSocialPosts: true, activeOrganizationId: "org-1" },
-      "?timezone=UTC&view=week&socialOnly=true",
+      { activeOrganizationId: "org-1" },
+      "?timezone=UTC&view=week&types=social",
     );
 
     const ids = filterSectionIds();
-    // Scope and source still narrow posts; coworker, human and task status
-    // do not. Posts have their own status and platform filters.
-    expect(ids).toContain("source");
+    // Scope still narrows posts; coworker, human and task status do not.
+    // Posts have their own status and platform filters.
+    expect(ids).toContain("scope");
     expect(ids).toContain("timezone");
     expect(ids).toContain("postStatus");
     expect(ids).toContain("provider");
@@ -358,8 +301,7 @@ describe("WorkspaceCalendar Social-only view", () => {
   it("narrows posts by post status, not a task status", () => {
     renderCalendar(
       {
-        includeSocialPosts: true,
-        socialPostsOnly: true,
+        types: ["social"],
         items: [
           POST,
           {
@@ -380,8 +322,7 @@ describe("WorkspaceCalendar Social-only view", () => {
   it("narrows posts by platform", () => {
     renderCalendar(
       {
-        includeSocialPosts: true,
-        socialPostsOnly: true,
+        types: ["social"],
         items: [
           POST,
           {
@@ -399,46 +340,22 @@ describe("WorkspaceCalendar Social-only view", () => {
     expect(renderedEventTitles()).toEqual(["LinkedIn news"]);
   });
 
-  it("clears the platform when Social-only is turned off", async () => {
-    const onUrlUpdate = vi.fn();
-    const user = userEvent.setup();
-    renderCalendar(
-      { includeSocialPosts: true },
-      "?timezone=UTC&view=week&socialOnly=true&provider=x",
-      onUrlUpdate,
-    );
-
-    await user.click(screen.getByTestId("calendar-social-only"));
-
-    const search = onUrlUpdate.mock.lastCall?.[0].searchParams;
-    expect(search?.get("socialOnly")).toBeNull();
-    expect(search?.get("provider")).toBeNull();
-  });
-
   it("says the period holds no posts rather than no releases", () => {
-    renderCalendar(
-      { includeSocialPosts: true, items: [RUN] },
-      "?timezone=UTC&view=week&socialOnly=true",
-    );
+    renderCalendar({ items: [] }, "?timezone=UTC&view=week&types=social");
 
     expect(screen.getByText("empty.socialOnly")).toBeInTheDocument();
   });
 
   describe("locked to Social", () => {
-    it("shows posts alone, with no toggle to undo it", () => {
-      renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
+    it("shows posts alone, with no Show filter to undo it", () => {
+      renderCalendar({ types: ["social"], items: [POST] });
 
       expect(renderedEventTitles()).toEqual(["Launch news"]);
-      expect(
-        screen.queryByTestId("calendar-social-only"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("calendar-show")).not.toBeInTheDocument();
     });
 
     it("opens on the month, not the workspace calendar's week", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC",
-      );
+      renderCalendar({ types: ["social"] }, "?timezone=UTC");
 
       expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
     });
@@ -461,10 +378,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       );
 
       try {
-        renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true },
-          "?timezone=UTC",
-        );
+        renderCalendar({ types: ["social"] }, "?timezone=UTC");
 
         await waitFor(() =>
           expect(screen.getByTestId("calendar-month")).toBeInTheDocument(),
@@ -496,10 +410,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("offers month and week, and no agenda list", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=agenda",
-      );
+      renderCalendar({ types: ["social"] }, "?timezone=UTC&view=agenda");
 
       expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
       expect(
@@ -510,7 +421,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("gives the view tabs and filters 44px phone targets", () => {
-      renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
+      renderCalendar({ types: ["social"] });
 
       expect(screen.getByTestId("calendar-views")).toHaveClass("min-h-11");
       for (const view of within(
@@ -542,7 +453,7 @@ describe("WorkspaceCalendar Social-only view", () => {
           vi.useRealTimers();
         });
         renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true },
+          { types: ["social"] },
           `?timezone=Europe/Prague&date=${date}`,
         );
 
@@ -571,10 +482,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     );
 
     it("keeps a view the reader picked", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=week",
-      );
+      renderCalendar({ types: ["social"] }, "?timezone=UTC&view=week");
 
       expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
@@ -582,8 +490,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     it("draws the week as rich chips: account, words, media and status", () => {
       renderCalendar(
         {
-          includeSocialPosts: true,
-          socialPostsOnly: true,
+          types: ["social"],
           items: [
             {
               ...POST,
@@ -612,10 +519,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("lets the week fill the screen and keeps every post of a day", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=week",
-      );
+      renderCalendar({ types: ["social"] }, "?timezone=UTC&view=week");
 
       expect(fullCalendarMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ dayMaxEvents: false }),
@@ -623,10 +527,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("shows three posts a day on the month, then a +N more", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=month",
-      );
+      renderCalendar({ types: ["social"] }, "?timezone=UTC&view=month");
 
       const props = fullCalendarMock.mock.lastCall?.[0] as {
         dayMaxEvents: number;
@@ -643,7 +544,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("leaves the workspace calendar's day cells alone", () => {
-      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=month");
+      renderCalendar({}, "?timezone=UTC&view=month");
 
       const props = fullCalendarMock.mock.lastCall?.[0] as object;
       expect(props).not.toHaveProperty("dayMaxEvents");
@@ -651,7 +552,7 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("leaves mixed week posts as one line without a media tile", () => {
-      renderCalendar({ includeSocialPosts: true }, "?timezone=UTC&view=week");
+      renderCalendar({}, "?timezone=UTC&view=week");
 
       expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
         "compactLabel",
@@ -662,31 +563,24 @@ describe("WorkspaceCalendar Social-only view", () => {
     });
 
     it("keeps the full post card on the month", () => {
-      renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=month",
-      );
+      renderCalendar({ types: ["social"] }, "?timezone=UTC&view=month");
 
       expect(screen.getByTestId("calendar-social-post")).toHaveTextContent(
         "Launch news",
       );
     });
 
-    it("ignores a socialOnly=false left in the URL by the workspace calendar", () => {
+    it("keeps the features the page fixed over a types left in the URL", () => {
       renderCalendar(
-        { includeSocialPosts: true, socialPostsOnly: true },
-        "?timezone=UTC&view=week&socialOnly=false",
+        { types: ["social"], items: [POST] },
+        "?timezone=UTC&view=week&types=tasks",
       );
 
-      expect(renderedEventTitles()).toEqual(["Launch news"]);
+      expect(screen.getByTestId("calendar-status-summary")).toBeInTheDocument();
     });
 
     it("offers neither task creation nor the schedules link", () => {
-      renderCalendar({
-        includeSocialPosts: true,
-        lockedProjectId: "project-1",
-        socialPostsOnly: true,
-      });
+      renderCalendar({ lockedProjectId: "project-1", types: ["social"] });
 
       // Social's page is for posts: a Schedule a task affordance here would
       // create something the page cannot then show.
@@ -722,7 +616,7 @@ describe("WorkspaceCalendar Social-only view", () => {
 
       it("counts the month's posts by status", () => {
         renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true, items: ITEMS },
+          { types: ["social"], items: ITEMS },
           "?timezone=UTC&view=month&date=2030-01-02",
         );
 
@@ -741,7 +635,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       it("presses a pill to set the Filters menu's post status", async () => {
         const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
         renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true, items: ITEMS },
+          { types: ["social"], items: ITEMS },
           "?timezone=UTC&view=month&date=2030-01-02",
           onUrlUpdate,
         );
@@ -762,7 +656,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       it("keeps the other pills while one is pressed, and lets it go", async () => {
         const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
         renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true, items: ITEMS },
+          { types: ["social"], items: ITEMS },
           "?timezone=UTC&view=month&date=2030-01-02&postStatus=FAILED",
           onUrlUpdate,
         );
@@ -783,7 +677,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       });
 
       it("stays off the workspace calendar", () => {
-        renderCalendar({ includeSocialPosts: true, items: ITEMS });
+        renderCalendar({ items: ITEMS });
 
         expect(
           screen.queryByTestId("calendar-status-summary"),
@@ -820,8 +714,7 @@ describe("WorkspaceCalendar Social-only view", () => {
         );
         renderCalendar(
           {
-            includeSocialPosts: true,
-            socialPostsOnly: true,
+            types: ["social"],
             items: [POST, PUBLISHED],
           },
           "?timezone=Europe/Prague&view=week&date=2030-01-02",
@@ -853,7 +746,7 @@ describe("WorkspaceCalendar Social-only view", () => {
           error: { message: "Account disconnected" },
         });
         renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true, items: [POST] },
+          { types: ["social"], items: [POST] },
           "?timezone=UTC&view=week&date=2030-01-02",
         );
 
@@ -871,7 +764,7 @@ describe("WorkspaceCalendar Social-only view", () => {
 
       it("refuses a time already gone without calling Core", async () => {
         renderCalendar(
-          { includeSocialPosts: true, socialPostsOnly: true, items: [POST] },
+          { types: ["social"], items: [POST] },
           "?timezone=UTC&view=week&date=2030-01-02",
         );
 
@@ -886,7 +779,7 @@ describe("WorkspaceCalendar Social-only view", () => {
         stubPhone();
         try {
           renderCalendar(
-            { includeSocialPosts: true, socialPostsOnly: true, items: [POST] },
+            { types: ["social"], items: [POST] },
             "?timezone=UTC&date=2030-01-03",
           );
           await userEvent.click(
@@ -914,8 +807,7 @@ describe("WorkspaceCalendar Social-only view", () => {
       try {
         renderCalendar(
           {
-            includeSocialPosts: true,
-            socialPostsOnly: true,
+            types: ["social"],
             items: [POST, { ...POST, id: "social:failed", status: "FAILED" }],
           },
           "?timezone=UTC&date=2030-01-03",

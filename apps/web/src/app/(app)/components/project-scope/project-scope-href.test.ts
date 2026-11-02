@@ -142,7 +142,6 @@ describe("switchScopeHref", () => {
     for (const tab of [
       "/newsletter/issues",
       "/newsletter/subscribers",
-      "/newsletter/calendar",
       "/newsletter/analytics",
       "/newsletter/settings",
     ]) {

@@ -1,3 +1,4 @@
+import { calendarUrl } from "@/app/calendar/calendar-url";
 import { PROJECT_SCOPE_PARAM } from "@/app/components/project-scope/project-scope-href";
 import type { ProjectTab } from "@/app/projects/components/project-tabs";
 
@@ -7,9 +8,9 @@ export function newsletterHref(path: string, projectId: string): string {
 }
 
 /**
- * The newsletter section's tabs, in one place so a new section (a Calendar
- * tab, say) is added here. Until the newsletter exists only Settings, where
- * it is created, is there.
+ * The newsletter section's tabs, in one place so a new section is added here.
+ * Until the newsletter exists only Settings, where it is created, is there.
+ * Calendar is the Calendar page filtered to Newsletter issues.
  */
 export function getNewsletterTabs(
   projectId: string,
@@ -30,7 +31,7 @@ export function getNewsletterTabs(
     },
     {
       id: "calendar",
-      href: newsletterHref("/newsletter/calendar", projectId),
+      href: calendarUrl({ types: "newsletter", projectId }),
       label: t("Calendar.title"),
     },
     {
