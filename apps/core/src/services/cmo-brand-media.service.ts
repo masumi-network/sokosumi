@@ -14,12 +14,13 @@ import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   capturePage,
   MOBILE,
-  type PageCapture,
   type SiteImage,
   withBrowser,
 } from "@/lib/site-capture";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
+import type { Cuso } from "@/services/cmo-cuso.service";
 import {
+  type CusoDrive,
   cusoDrive,
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
@@ -359,7 +360,56 @@ async function asJpeg(
 }
 
 const RECAPTURE_AFTER_MS = 10 * 60_000;
+/** The homepage shots hiring takes first; they never hold up the full capture. */
+const HOMEPAGE_FILES = ["home.jpg", "home-mobile.jpg"];
 const capturing = new Set<string>();
+
+function saveShot(
+  drive: CusoDrive,
+  folder: string,
+  name: string,
+  screenshot: Buffer,
+): Promise<string | null> {
+  return saveCusoProjectFile(
+    drive,
+    { folder, filename: `${slug(name)}.jpg` },
+    screenshot,
+    "image/jpeg",
+  );
+}
+
+/**
+ * The homepage, on a desktop and on a phone, the moment Cuso is hired: it
+ * needs nothing from research, so the Brand Brain opens with it. Each shot is
+ * saved as soon as it is taken. Best effort, like the full capture.
+ */
+export async function captureCmoHomepage(
+  cuso: Pick<Cuso, "workspaceId" | "sokoBotId" | "projectId" | "websiteUrl">,
+): Promise<void> {
+  const drive = await cusoDrive(cuso);
+  if (!drive) return;
+  const home = new URL("/", cuso.websiteUrl).href;
+  await withBrowser(async (browser: Browser) => {
+    await Promise.all([
+      capturePage(browser, home).then(
+        (capture) =>
+          capture &&
+          saveShot(drive, CMO_BRAND_MEDIA_FOLDER, "home", capture.screenshot),
+      ),
+      capturePage(browser, home, MOBILE).then(
+        (capture) =>
+          capture &&
+          saveShot(
+            drive,
+            CMO_BRAND_MEDIA_FOLDER,
+            "home-mobile",
+            capture.screenshot,
+          ),
+      ),
+    ]);
+  });
+  nudgeFileIndexing();
+}
 
 /**
  * Captures in the background once Cuso saves the essentials (competitors
@@ -385,9 +435,10 @@ export function scheduleCmoBrandMedia(sokoBotId: string): void {
  * Captures what research can show, not just say: the brand's own pages (and
  * its homepage on a phone), each competitor's homepage, and the large
  * pictures on the brand's pages. Everything is saved as the Project's files
- * under "Brand research", for every member and for later posts. Best effort:
- * a page that does not load is left out. Nothing runs when the last capture
- * is minutes old.
+ * under "Brand research", for every member and for later posts, each file as
+ * soon as it is taken so CMO shows the first ones while the rest load. Best
+ * effort: a page that does not load is left out. Nothing runs when the last
+ * capture is minutes old; the homepage shots hiring took do not count.
  */
 export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
@@ -401,7 +452,12 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     where: {
       projectId: cuso.projectId,
       updatedAt: { gte: new Date(Date.now() - RECAPTURE_AFTER_MS) },
-      resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
+      resource: {
+        sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` },
+        NOT: HOMEPAGE_FILES.map((name) => ({
+          sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${name}` },
+        })),
+      },
     },
     select: { id: true },
   });
@@ -412,22 +468,45 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   const competitorPages = cmoCompetitorPages(brain.data);
 
   const media = await withBrowser(async (browser: Browser) => {
-    const own = await inBatches(ownPages, async (page) => ({
-      page,
-      capture: await capturePage(browser, page.url),
-    }));
+    const own = await inBatches(ownPages, async (page) => {
+      const capture = await capturePage(browser, page.url);
+      if (capture) {
+        await saveShot(
+          drive,
+          CMO_BRAND_MEDIA_FOLDER,
+          page.label,
+          capture.screenshot,
+        );
+      }
+      return capture;
+    });
     const phone = await capturePage(
       browser,
       ownPages[0]?.url ?? cuso.websiteUrl,
       MOBILE,
     );
-    const rivals = await inBatches(competitorPages, async (page) => ({
-      page,
-      capture: await capturePage(browser, page.url),
-    }));
+    if (phone) {
+      await saveShot(
+        drive,
+        CMO_BRAND_MEDIA_FOLDER,
+        "home-mobile",
+        phone.screenshot,
+      );
+    }
+    await inBatches(competitorPages, async (page) => {
+      const capture = await capturePage(browser, page.url);
+      if (capture) {
+        await saveShot(
+          drive,
+          `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
+          page.name,
+          capture.screenshot,
+        );
+      }
+    });
     const seen = new Set<string>();
     const candidates = own
-      .flatMap(({ capture }) => (capture as PageCapture | null)?.images ?? [])
+      .flatMap((capture) => capture?.images ?? [])
       .filter((image) => {
         const key = image.url.split("?")[0] ?? image.url;
         if (seen.has(key)) return false;
@@ -441,40 +520,8 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       const body = picture ? await asJpeg(browser, picture) : null;
       if (body) pictures.push({ image, body });
     }
-    return { own, phone, rivals, pictures };
+    return { pictures };
   });
-
-  // File names carry what CMO shows and Cuso picks by (cmoBrandMedia).
-  for (const { page, capture } of media.own) {
-    if (!capture) continue;
-    await saveCusoProjectFile(
-      drive,
-      { folder: CMO_BRAND_MEDIA_FOLDER, filename: `${slug(page.label)}.jpg` },
-      capture.screenshot,
-      "image/jpeg",
-    );
-    if (page.label === "Home" && media.phone) {
-      await saveCusoProjectFile(
-        drive,
-        { folder: CMO_BRAND_MEDIA_FOLDER, filename: "home-mobile.jpg" },
-        media.phone.screenshot,
-        "image/jpeg",
-      );
-    }
-  }
-
-  for (const { page, capture } of media.rivals) {
-    if (!capture) continue;
-    await saveCusoProjectFile(
-      drive,
-      {
-        folder: `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
-        filename: `${slug(page.name)}.jpg`,
-      },
-      capture.screenshot,
-      "image/jpeg",
-    );
-  }
 
   for (const [index, { image, body }] of media.pictures.entries()) {
     const slot = String(index + 1).padStart(2, "0");
