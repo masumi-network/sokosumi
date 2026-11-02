@@ -13,6 +13,7 @@ import {
   brandBrainSectionsSaved,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
+import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
   CMO_OUT_OF_CREDITS,
@@ -467,6 +468,16 @@ export async function startCmoOnboarding(input: {
   waitUntil(
     learnCmoBrandVisual(created).catch((error) => {
       console.warn("CMO brand visual failed", {
+        sokoBotId: created.sokoBotId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }),
+  );
+  // The homepage screenshots need no research either, so the Brand Brain
+  // opens with them instead of waiting for the full capture.
+  waitUntil(
+    captureCmoHomepage(created).catch((error) => {
+      console.warn("CMO homepage capture failed", {
         sokoBotId: created.sokoBotId,
         error: error instanceof Error ? error.message : "unknown",
       });
