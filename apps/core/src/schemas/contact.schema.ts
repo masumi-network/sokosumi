@@ -303,14 +303,14 @@ export const contactPeopleSearchInputSchema = z
   .object({
     brief: z.string().trim().min(3).max(1000).optional().openapi({
       description:
-        "Who belongs in the list, in plain words. Saved as the list's description; without it the description is used.",
+        "Who belongs in the list, in plain words. Saved as the list's description; without it the description is used. With size 1, the one person to find (a name, and where they work); the description stays.",
     }),
     size: z
-      .union([z.literal(10), z.literal(25)])
+      .union([z.literal(1), z.literal(10), z.literal(25)])
       .default(10)
       .openapi({
         description:
-          "How many people to find: 10 costs 5 credits, 25 costs 10.",
+          "How many people to find; 1 looks for one particular person. Costs 0.5 credits per person found.",
       }),
   })
   .openapi("ContactPeopleSearchInput");
@@ -324,6 +324,22 @@ export const contactPeopleSearchResultSchema = z
     suggestions: z.array(contactSuggestionSchema),
   })
   .openapi("ContactPeopleSearchResult");
+
+export const contactWebEnrichmentSchema = z
+  .object({
+    filled: z.array(z.string()).openapi({
+      description:
+        "Fields it filled: role, organization, location, summary, linkedin. Empty when the web did not say more.",
+    }),
+    sourceUrl: z
+      .string()
+      .nullable()
+      .openapi({ description: "The page it read them from." }),
+    credits: z
+      .number()
+      .openapi({ description: "Credits taken; 0 when nothing was filled." }),
+  })
+  .openapi("ContactWebEnrichment");
 
 export const contactSuggestionIdsSchema = z
   .object({ ids: z.array(z.uuid()).min(1).max(100) })

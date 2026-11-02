@@ -240,6 +240,7 @@ function PanelBody({
   const creator =
     teammates.find((person) => person.id === contact.createdByUserId) ?? null;
   const manualLists = lists.filter((list) => list.kind === "manual");
+  const [enriching, setEnriching] = useState(false);
 
   async function toggleList(list: ContactList, on: boolean) {
     try {
@@ -250,6 +251,37 @@ function PanelBody({
       await refreshContacts(cache, contact.id);
     } catch (error) {
       toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
+    }
+  }
+
+  async function enrich() {
+    setEnriching(true);
+    try {
+      const result = await contactsService.enrich(contact.id);
+      await refreshContacts(cache, contact.id);
+      await cache.invalidateQueries({
+        queryKey: ["contact-timeline", contact.id],
+      });
+      const source = result.sourceUrl;
+      if (result.filled.length && source)
+        toast.success(
+          t("panel.enriched", {
+            fields: result.filled
+              .map((field) => t(`panel.fields.${field}`))
+              .join(", "),
+          }),
+          {
+            action: {
+              label: t("panel.openSource"),
+              onClick: () => window.open(source, "_blank", "noopener"),
+            },
+          },
+        );
+      else toast(t("panel.enrichedNone"));
+    } catch (error) {
+      toast.error(coreErrorOf(error).message ?? t("panel.enrichFailed"));
+    } finally {
+      setEnriching(false);
     }
   }
 
@@ -367,6 +399,20 @@ function PanelBody({
                 })}
           </p>
         </div>
+        {contact.kind === "PERSON" ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            title={t("panel.enrichHint")}
+            aria-label={t("panel.enrichHint")}
+            loading={enriching}
+            onClick={() => void enrich()}
+          >
+            <Sparkles aria-hidden className="size-4" />
+            <span className="sr-only sm:not-sr-only">{t("panel.enrich")}</span>
+          </Button>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -1057,15 +1103,36 @@ function TimelineSection({ contact }: { contact: ContactDetail }) {
   );
 }
 
+/** Where an UPDATED entry's values came from, as recorded with them. */
+function changeSources(entry: ContactActivity): string[] {
+  return Object.values(entry.changes).flatMap((change) =>
+    typeof change === "object" && change !== null && "source" in change
+      ? [String(change.source)]
+      : [],
+  );
+}
+
 /** A change the background classifier made, recorded with its model source. */
 function isAutomatic(entry: ContactActivity): boolean {
-  return Object.values(entry.changes).some(
-    (change) =>
+  return changeSources(entry).some((source) =>
+    source.startsWith("enrichment:"),
+  );
+}
+
+/** The page an Enrich read a change from. */
+function webSourceUrl(entry: ContactActivity): string | null {
+  if (!changeSources(entry).some((source) => source.startsWith("web:")))
+    return null;
+  for (const change of Object.values(entry.changes))
+    if (
       typeof change === "object" &&
       change !== null &&
-      "source" in change &&
-      String(change.source).startsWith("enrichment:"),
-  );
+      "sourceUrls" in change &&
+      Array.isArray(change.sourceUrls) &&
+      typeof change.sourceUrls[0] === "string"
+    )
+      return change.sourceUrls[0];
+  return null;
 }
 
 function activityText(
@@ -1081,7 +1148,9 @@ function activityText(
         t.has(`panel.fields.${field}`) ? t(`panel.fields.${field}`) : field,
       )
       .join(", ");
-    return t("panel.activity.UPDATED", { who, fields });
+    return webSourceUrl(entry)
+      ? t("panel.activity.WEB", { who, fields })
+      : t("panel.activity.UPDATED", { who, fields });
   }
   if (entry.kind === "MERGED") {
     const names = Array.isArray(entry.changes.mergedNames)
@@ -1130,6 +1199,7 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
                 <time dateTime={new Date(entry.createdAt).toISOString()}>
                   {format.relativeTime(new Date(entry.createdAt), now)}
                 </time>
+                <WebSource url={webSourceUrl(entry)} />
               </span>
             </li>
           ))}
@@ -1147,5 +1217,24 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
         </Button>
       ) : null}
     </Section>
+  );
+}
+
+function WebSource({ url }: { url: string | null }) {
+  const t = useTranslations("App.Contacts.panel");
+  if (!url) return null;
+  return (
+    <>
+      {" · "}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-4"
+      >
+        {t("source")}
+        <ExternalLink aria-hidden className="size-3" />
+      </a>
+    </>
   );
 }

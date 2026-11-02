@@ -37,6 +37,7 @@ function sokoBotRow(
     contactListId: null,
     contactListName: null,
     contactFound: null,
+    contactName: null,
     bucketSource: null,
     topUpSource: null,
     topUpNote: null,
@@ -154,6 +155,20 @@ describe("mapTransactionHistoryRow Find people rows", () => {
     expect(
       map({ ...row, contactListId: null, contactListName: null }).title,
     ).toBe("Find people · Deleted list");
+  });
+
+  it("names the contact an Enrich looked up", () => {
+    const row = sokoBotRow({
+      kind: "contacts",
+      sokoBotId: null,
+      sokoBotName: null,
+      contactFound: 1,
+      contactName: "Anna Weber",
+    });
+    expect(map(row)).toMatchObject({
+      title: "Enrich · Anna Weber",
+      description: null,
+    });
   });
 });
 

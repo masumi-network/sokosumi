@@ -2,6 +2,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountActivity from "./[id]/activity.js";
 import mountArchive from "./[id]/archive.js";
 import mountChannels from "./[id]/channels.js";
+import mountEnrich from "./[id]/enrich.js";
 import mountGetContact from "./[id]/get.js";
 import mountImportance from "./[id]/importance.js";
 import mountInteractions from "./[id]/interactions.js";
@@ -31,6 +32,7 @@ mountArchive(app);
 mountChannels(app);
 mountInteractions(app);
 mountImportance(app);
+mountEnrich(app);
 mountActivity(app);
 
 export default app;
