@@ -43,6 +43,13 @@ vi.mock("./calendar", () => ({
   },
 }));
 
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  RequireProjectScope: () => null,
+  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+}));
+
 import NewsletterCalendarPage from "./page";
 
 const page = (data: unknown[], nextCursor: string | null = null) => ({

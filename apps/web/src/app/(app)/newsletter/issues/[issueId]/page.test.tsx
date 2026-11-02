@@ -63,6 +63,13 @@ vi.mock("../issue-editor", () => ({
   },
 }));
 
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  RequireProjectScope: () => null,
+  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+}));
+
 import NewsletterIssuePage from "./page";
 
 const PROPS = {

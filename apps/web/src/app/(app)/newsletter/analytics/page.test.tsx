@@ -44,6 +44,13 @@ vi.mock("./newsletter-analytics-view", () => ({
   }) => <p>{analytics ? analytics.from : "Invalid range"}</p>,
 }));
 
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  RequireProjectScope: () => null,
+  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+}));
+
 import NewsletterAnalyticsPage from "./page";
 
 const PROPS = {

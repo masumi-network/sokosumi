@@ -4510,13 +4510,7 @@
       "description": "Each project has its own newsletter. Choose a project to manage it.",
       "pickProject": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
-      "projectTitle": "{project} newsletter",
-      "nextPage": "Next projects",
-      "empty": {
-        "title": "No projects yet",
-        "description": "Create a project to start a newsletter.",
-        "action": "Create project"
-      }
+      "projectTitle": "{project} newsletter"
     },
     "Social": {
       "title": "Social posts",

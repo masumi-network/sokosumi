@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getSendingDomain: vi.fn(),
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
+  requireScope: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -41,6 +42,15 @@ vi.mock("@/lib/services/project.service", () => ({
     getProjectById: mocks.getProject,
     listProjects: mocks.listProjects,
   },
+}));
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  RequireProjectScope: (props: object) => {
+    mocks.requireScope(props);
+    return null;
+  },
+  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
 }));
 vi.mock("../newsletter-settings-form", () => ({
   NewsletterSettingsForm: (props: object) => {
@@ -183,15 +193,7 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("without a project", () => {
-    it("lists workspace projects linking to their newsletter", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [
-          { id: "project-1", name: "Launch plan" },
-          { id: "project-2", name: "Weekly update" },
-        ],
-        pagination: null,
-      });
-
+    it("asks for a project in the header's selector", async () => {
       render(await NewsletterSettingsPage(props()));
 
       expect(
@@ -200,47 +202,22 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
       ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.description)).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-        "href",
-        "/newsletter/settings?projectId=project-1",
-      );
+      expect(mocks.requireScope).toHaveBeenCalledWith({
+        reason: PAGE.description,
+      });
       expect(
-        screen.getByRole("link", { name: "Weekly update" }),
-      ).toHaveAttribute("href", "/newsletter/settings?projectId=project-2");
+        screen.getByRole("button", { name: PAGE.pickProject }),
+      ).toBeInTheDocument();
       expect(mocks.getProject).not.toHaveBeenCalled();
+      expect(mocks.listProjects).not.toHaveBeenCalled();
       expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();
     });
 
-    it("shows an empty state with a way to create a project", async () => {
+    it("treats a blank project ID as none", async () => {
       render(await NewsletterSettingsPage(props({ projectId: " " })));
 
-      expect(
-        screen.getByRole("heading", { name: PAGE.empty.title }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.empty.description)).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: PAGE.empty.action }),
-      ).toHaveAttribute("href", "/projects?create=true");
+      expect(mocks.requireScope).toHaveBeenCalled();
       expect(mocks.getProject).not.toHaveBeenCalled();
-    });
-
-    it("keeps later projects reachable through Core's pagination", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [{ id: "project-2", name: "Later project" }],
-        pagination: { nextCursor: "next/page" },
-      });
-
-      render(await NewsletterSettingsPage(props({ cursor: "current-page" })));
-
-      expect(mocks.listProjects).toHaveBeenCalledWith({
-        limit: 20,
-        cursor: "current-page",
-      });
-      expect(screen.getByRole("link", { name: PAGE.nextPage })).toHaveAttribute(
-        "href",
-        "/newsletter/settings?cursor=next%2Fpage",
-      );
     });
   });
 
@@ -250,7 +227,9 @@ describe("NewsletterSettingsPage", () => {
       render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.listProjects).toHaveBeenCalled();
+      expect(mocks.requireScope).toHaveBeenCalledWith({
+        reason: PAGE.pickUnavailable,
+      });
       expect(mocks.getSettings).not.toHaveBeenCalled();
     });
 

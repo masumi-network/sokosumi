@@ -44,6 +44,13 @@ vi.mock("@/lib/services/project.service", () => ({
 }));
 vi.mock("./issues", () => ({ Issues: () => <p>Issue list</p> }));
 
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  RequireProjectScope: () => null,
+  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+}));
+
 import NewsletterIssuesPage from "./page";
 
 const PROPS = {
@@ -110,16 +117,12 @@ describe("newsletter issues page", () => {
     );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
-  it("lists projects to pick from without a project, keeping the tab", async () => {
-    mocks.listProjects.mockResolvedValue({
-      projects: [{ id: "project-1", name: "Launch plan" }],
-      pagination: null,
-    });
+  it("asks for a project in the header's selector without one", async () => {
     render(await NewsletterIssuesPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-      "href",
-      "/newsletter/issues?projectId=project-1",
-    );
+    expect(
+      screen.getByRole("button", { name: "pickProject" }),
+    ).toBeInTheDocument();
+    expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });
   it("forwards valid cursors and ignores malformed ones", async () => {

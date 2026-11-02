@@ -4510,13 +4510,7 @@
       "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
       "pickProject": "Elige un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
-      "projectTitle": "Boletín de {project}",
-      "nextPage": "Siguientes proyectos",
-      "empty": {
-        "title": "Aún no hay proyectos",
-        "description": "Crea un proyecto para empezar un boletín.",
-        "action": "Crear proyecto"
-      }
+      "projectTitle": "Boletín de {project}"
     },
     "Social": {
       "title": "Publicaciones sociales",

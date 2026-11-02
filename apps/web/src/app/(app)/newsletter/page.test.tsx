@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
+  requireScope: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -36,6 +37,16 @@ vi.mock("@/lib/services/project.service", () => ({
     getProjectById: mocks.getProject,
     listProjects: mocks.listProjects,
   },
+}));
+
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  RequireProjectScope: (props: object) => {
+    mocks.requireScope(props);
+    return null;
+  },
+  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
 }));
 
 import NewsletterPage, { generateMetadata } from "./page";
@@ -84,20 +95,16 @@ describe("NewsletterPage", () => {
     ).rejects.toThrow(`REDIRECT:/newsletter/settings?projectId=${PROJECT_ID}`);
   });
 
-  it("lists the projects, linking back to the index, without a project", async () => {
-    mocks.listProjects.mockResolvedValue({
-      projects: [{ id: "project-1", name: "Launch plan" }],
-      pagination: null,
-    });
+  it("asks for a project in the header's selector without one", async () => {
     render(await NewsletterPage(props()));
 
     expect(
       screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-      "href",
-      "/newsletter?projectId=project-1",
-    );
+    expect(mocks.requireScope).toHaveBeenCalledWith({
+      reason: PAGE.description,
+    });
+    expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.getSettings).not.toHaveBeenCalled();
   });
 
