@@ -8,6 +8,7 @@ struct AttachmentFileIcon: View {
   let filename: String
   /// Names the type when the file name has no extension.
   var url: URL?
+  var size: CGFloat = 40
 
   private var fileExtension: String {
     let ext = (filename as NSString).pathExtension
@@ -19,7 +20,7 @@ struct AttachmentFileIcon: View {
       Image(nsImage: NSWorkspace.shared.icon(for: UTType(filenameExtension: fileExtension) ?? .data))
         .resizable()
         .scaledToFit()
-        .frame(width: 40, height: 40)
+        .frame(width: size, height: size)
         .accessibilityHidden(true)
     #else
       VStack(spacing: 2) {
