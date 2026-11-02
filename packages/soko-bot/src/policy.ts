@@ -78,6 +78,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  "read_integration_tool",
   "run_integration_tool",
   "list_project_social_accounts",
   "list_ad_accounts",
@@ -334,6 +335,8 @@ const DIRECT_READ_CAPABILITIES = [
   "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  // Only tools Composio marks read-only; Core refuses the rest.
+  "read_integration_tool",
   "list_project_social_accounts",
   "list_ad_accounts",
   "list_ad_campaigns",

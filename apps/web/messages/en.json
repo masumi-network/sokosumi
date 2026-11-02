@@ -9820,7 +9820,8 @@
         "SLACK": "From Slack",
         "WEB_RESEARCH": "From web research",
         "IMPORT": "Imported",
-        "OTHER": "Other source"
+        "OTHER": "Other source",
+        "X": "From X"
       },
       "presets": {
         "all": "All contacts",
@@ -10107,7 +10108,8 @@
           "SLACK": "Slack",
           "CALL": "Call",
           "MANUAL": "Note",
-          "OTHER": "Other"
+          "OTHER": "Other",
+          "X": "X"
         },
         "source": "Source",
         "showMore": "Show more",
@@ -10148,7 +10150,8 @@
         "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
         "enriched": "Filled {fields} from the web · 1 credit",
         "enrichedNone": "Nothing new found on the web. No credits used.",
-        "enrichFailed": "Could not look them up. Try again."
+        "enrichFailed": "Could not look them up. Try again.",
+        "connectedVia": "Connected via"
       },
       "stageGroups": {
         "general": "General",

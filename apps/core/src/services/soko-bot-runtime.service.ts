@@ -427,6 +427,7 @@ import {
   INBOX_ATTACHMENT_MAX_BYTES,
   listIntegrationTools,
   modifyInboxMessages,
+  readIntegrationTool,
   runIntegrationTool,
   searchSokoBotIntegrationCatalog,
   sendInboxDraft,
@@ -8042,6 +8043,7 @@ export class SokoBotRuntimeService {
           }),
         };
       }
+      case "read_integration_tool":
       case "run_integration_tool": {
         const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
         // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
@@ -8057,11 +8059,11 @@ export class SokoBotRuntimeService {
             `No connected account for provider ${parsed.provider}`,
           );
         }
-        return runIntegrationTool(
-          integration,
-          parsed.tool,
-          parsed.arguments ?? {},
-        );
+        return (
+          input.capability === "read_integration_tool"
+            ? readIntegrationTool
+            : runIntegrationTool
+        )(integration, parsed.tool, parsed.arguments ?? {});
       }
       case "list_calendar_events": {
         const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);
