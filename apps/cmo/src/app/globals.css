@@ -2547,6 +2547,10 @@ textarea {
   margin: 0 auto;
 }
 
+.bb[hidden] {
+  display: none;
+}
+
 .bb-hero {
   display: grid;
   gap: 16px;

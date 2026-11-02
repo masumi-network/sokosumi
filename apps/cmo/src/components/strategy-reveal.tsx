@@ -76,8 +76,10 @@ interface StrategyRevealProps {
   intro?: boolean;
   /** The day-by-day calendar, as the host lays it out. */
   calendar: ReactNode;
-  /** Sends the owner's answer or request to Cuso. */
-  onAsk?: (text: string) => Promise<void>;
+  /** Kept mounted while hidden, so a half-filled form survives a refusal. */
+  hidden?: boolean;
+  /** Sends the owner's answer or request to Cuso; `label` says it in a few words. */
+  onAsk?: (text: string, label?: string) => Promise<void>;
   /** Sets the owner's own monthly ad budget; Cuso re-plans around it. */
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
 }
@@ -91,6 +93,7 @@ export function StrategyReveal({
   overview,
   intro = false,
   calendar,
+  hidden = false,
   onAsk,
   onSetAds,
 }: StrategyRevealProps) {
@@ -115,7 +118,7 @@ export function StrategyReveal({
       : {};
 
   return (
-    <div className="bb" style={brandStyle(overview)}>
+    <div className="bb" style={brandStyle(overview)} hidden={hidden}>
       <motion.header className="bb-hero" {...beat(0)}>
         <p className="bb-eyebrow">
           {strategy.idea
