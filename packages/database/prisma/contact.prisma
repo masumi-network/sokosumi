@@ -195,22 +195,24 @@ model ContactInteraction {
 /// a saved contact filter evaluated on read. `nameKey` is the lowercased name,
 /// so names are unique per workspace regardless of case.
 model ContactList {
-  id                   String              @id @default(uuid(7)) @db.Uuid
-  workspaceId          String              @db.Uuid
-  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                   String                @id @default(uuid(7)) @db.Uuid
+  workspaceId          String                @db.Uuid
+  workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name                 String
   nameKey              String
   color                String
   description          String?
   smartFilter          Json?
   createdByUserId      String?
-  createdBySokoBotId   String?             @db.Uuid
+  createdBySokoBotId   String?               @db.Uuid
   /// Made by the background classifier, not by a person or a bot's turn.
-  createdAutomatically Boolean             @default(false)
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  createdAutomatically Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   members              ContactListMember[]
   newsletters          Newsletter[]
+  peopleSearches       ContactPeopleSearch[]
+  suggestions          ContactSuggestion[]
 
   @@unique([workspaceId, nameKey])
   @@map("contact_list")
@@ -311,4 +313,61 @@ model ContactScore {
   @@unique([contactId, userId])
   @@index([workspaceId, userId])
   @@map("contact_score")
+}
+
+enum ContactSuggestionStatus {
+  SUGGESTED
+  ADDED
+  DISMISSED
+}
+
+/// One "Find people" run for a list: what was asked, what it found, and the
+/// credits it took. `transactionId` labels the charge in credit history, so
+/// the row outlives its list.
+model ContactPeopleSearch {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  workspaceId     String              @db.Uuid
+  listId          String?             @db.Uuid
+  list            ContactList?        @relation(fields: [listId], references: [id], onDelete: SetNull)
+  query           String
+  requested       Int
+  found           Int                 @default(0)
+  chargedCents    BigInt              @default(0)
+  transactionId   String?             @unique
+  costUsdMicros   Int                 @default(0)
+  createdByUserId String?
+  createdAt       DateTime            @default(now())
+  suggestions     ContactSuggestion[]
+
+  @@index([listId, createdAt])
+  @@map("contact_people_search")
+}
+
+/// A person the web search found for a list, not a contact until someone
+/// adds them. `profileKey` (a normalized profile URL) keeps one person from
+/// being suggested to the same list twice, dismissed ones included.
+model ContactSuggestion {
+  id              String                  @id @default(uuid(7)) @db.Uuid
+  workspaceId     String                  @db.Uuid
+  listId          String                  @db.Uuid
+  list            ContactList             @relation(fields: [listId], references: [id], onDelete: Cascade)
+  searchId        String                  @db.Uuid
+  search          ContactPeopleSearch     @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  profileKey      String
+  profileUrl      String
+  name            String
+  role            String?
+  organization    String?
+  location        String?
+  /// One line: why this person fits the list.
+  reason          String
+  status          ContactSuggestionStatus @default(SUGGESTED)
+  contactId       String?                 @db.Uuid
+  decidedByUserId String?
+  decidedAt       DateTime?
+  createdAt       DateTime                @default(now())
+
+  @@unique([listId, profileKey])
+  @@index([listId, status, createdAt])
+  @@map("contact_suggestion")
 }

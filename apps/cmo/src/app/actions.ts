@@ -3,27 +3,13 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import {
-  getAuth,
-  type SokosumiSignInOptions,
-  startSokosumiSignIn,
-} from "../lib/auth";
-
-async function startSignIn(options: SokosumiSignInOptions) {
-  const { url } = await startSokosumiSignIn(
-    getAuth(),
-    await headers(),
-    options,
-  );
-  redirect(url);
-}
+import { getAuth, startSokosumiSignIn } from "../lib/auth";
 
 export async function signIn() {
-  await startSignIn({ createAccount: false });
-}
-
-export async function createAccount() {
-  await startSignIn({ createAccount: true });
+  const { url } = await startSokosumiSignIn(getAuth(), await headers(), {
+    createAccount: false,
+  });
+  redirect(url);
 }
 
 export async function signOut() {

@@ -60,7 +60,7 @@ export function AdminSokoBotDangerZone({
   }
 
   return (
-    <Card className="border-semantic-destructive-tertiary">
+    <Card className="border-border">
       <CardHeader>
         <CardTitle className="text-destructive text-base">
           {t("title")}

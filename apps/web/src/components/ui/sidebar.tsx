@@ -8,11 +8,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
   SIDEBAR_COMPACT_MEDIA_QUERY,
+  SIDEBAR_USER_WIDTH_VAR,
   parseSidebarStateCookieHeader,
   serializeSidebarStateCookie,
 } from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -21,22 +23,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  SIDEBAR_COLLAPSE_TRANSITION,
-  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_HIDE_TRANSITION,
   SIDEBAR_ROW_CLASS,
-  SIDEBAR_ROW_RAIL_PAD_CLASS,
 } from "@/components/ui/sidebar-classes";
 
 const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
-const SIDEBAR_WIDTH_ICON = "3.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 type SidebarContextProps = {
@@ -135,7 +129,7 @@ function SidebarProvider({
     [setOpenProp, open, isCompact],
   );
 
-  // Effect is necessary: the next narrow window starts from the rail again.
+  // Effect is necessary: the next narrow window starts hidden again.
   React.useEffect(() => {
     if (!isCompact) {
       setCompactOpen(false);
@@ -211,8 +205,8 @@ function SidebarProvider({
           data-slot="sidebar-wrapper"
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
-              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+              // The reader's dragged width, set on `<html>` before paint.
+              "--sidebar-width": `var(${SIDEBAR_USER_WIDTH_VAR}, ${SIDEBAR_WIDTH})`,
               ...style,
             } as React.CSSProperties
           }
@@ -239,7 +233,7 @@ function Sidebar({
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
-  collapsible?: "offcanvas" | "icon" | "none";
+  collapsible?: "offcanvas" | "none";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -302,30 +296,37 @@ function Sidebar({
         <div
           data-slot="sidebar-gap"
           className={cn(
-            // The panel's width is the collapse animation. A reader who asks
-            // for less motion gets the end state on the next frame instead —
-            // the geometry is identical either way, only the travel goes.
-            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_COLLAPSE_TRANSITION}`,
+            // The gap's width is the hide animation: it gives the page its
+            // width back as the panel slides out. A reader who asks for less
+            // motion gets the end state on the next frame instead — the
+            // geometry is identical either way, only the travel goes.
+            // Dragging the edge sets `data-resizing`: the width follows the
+            // pointer, so it must not ease behind it.
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
-            variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)",
           )}
         />
         <div
           data-slot="sidebar-container"
           className={cn(
-            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] ${SIDEBAR_COLLAPSE_TRANSITION} md:flex`,
+            // `visibility` takes the hidden panel's rows out of the tab order
+            // and the accessibility tree even before React hydrates, when the
+            // boot script is what hid it. Transitioned, it flips only once
+            // the panel has slid out, and before it slides back in.
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width,visibility] ${SIDEBAR_HIDE_TRANSITION} group-data-[collapsible=offcanvas]:invisible group-data-[resizing=true]/sidebar-wrapper:transition-none md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
             // Adjust the padding for floating and inset variants.
             variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              ? "p-2"
+              : "group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
+          // Off-canvas is only off-screen: a hidden sidebar must not keep its
+          // rows in the tab order.
+          inert={state === "collapsed"}
           {...props}
         >
           <div
@@ -377,19 +378,31 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof ScrollArea>) {
   return (
-    <div
+    // An overlay scrollbar, not the native one: a native scrollbar takes its
+    // width out of the rows, so they widened whenever a filter shortened the
+    // list and the scrollbar went away. Radix floats the thumb over the rows'
+    // right padding and shows it only while the list scrolls; scrolling
+    // itself stays native. The edge fade belongs on the viewport, the element
+    // that scrolls.
+    <ScrollArea
+      type="scroll"
+      shrinkContent
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        // The icon rail scrolls too (channels/DMs sit below the fold); it only
-        // hides the scrollbar so the 3.5rem rail keeps its full width for icons.
-        "app-scrollbar scroll-edge-y flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:[-ms-overflow-style:none] group-data-[collapsible=icon]:[scrollbar-width:none] group-data-[collapsible=icon]:[&::-webkit-scrollbar]:hidden",
+        "min-h-0 flex-1 *:data-[slot=scroll-area-viewport]:scroll-edge-y",
         className,
       )}
       {...props}
-    />
+    >
+      <div className="flex min-w-0 flex-col gap-2">{children}</div>
+    </ScrollArea>
   );
 }
 
@@ -429,42 +442,6 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
   );
 }
 
-/**
- * The collapsed rail's selection mark (Rail selection bar, CONTEXT.md).
- *
- * Collapsed to icons every rail item is the same 32px box, and the neutral
- * fill was carrying rest, hover and selection all at once: `--muted`,
- * `--accent` and `--sidebar-accent` are one value in dark, so a Channel
- * tile's own plate, the hover wash and the active wash all landed on 15% and
- * only the box grew. `sidebarMenuButtonVariants` now hands the fill to hover
- * alone — as a ring, which reads over a filled tile without repainting it —
- * and selection comes here instead. A press deepens that ring rather than
- * flashing the fill, so the one colour this rail stopped reading never
- * appears on it at all.
- *
- * How it looks is this component's; *when* it shows is each list's own call,
- * because only the list knows what "open" means for its rows.
- *
- * A 20px bar on the rail's right edge, pointing at the panel the item opened.
- * The right edge because Chat's attention pill owns the left one, so a room
- * can be unread and open at once without the two marks arguing; every other
- * rail item inherits that split for free.
- *
- * Decorative: `aria-current="page"` on the item already states it, so a second
- * announcement would only repeat the row. `-right-2` lands it flush on the
- * rail's edge, which holds for any item whose `SidebarMenuItem` is inset by
- * its group's `p-2` — the one geometry every rail group uses.
- */
-function SidebarRailSelectionBar() {
-  return (
-    <span
-      data-slot="sidebar-rail-selection"
-      aria-hidden="true"
-      className="bg-primary-solid absolute top-1/2 -right-2 z-10 hidden h-5 w-1 -translate-y-1/2 rounded-l-full group-data-[collapsible=icon]:block"
-    />
-  );
-}
-
 function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
     <li
@@ -480,14 +457,19 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
  * The leading slot of a **Sidebar row** (CONTEXT.md).
  *
  * A 24px box whose left edge is fixed, so whatever it holds starts on the
- * sidebar's leading axis 28px from its left edge, in both states: expanded
- * the button's `px-2` puts it there, and on the rail the 32px square's own
- * `ml-1` lands its centred content on the same line. Every mark a row can
- * carry fits inside it with room to spare — a 16px nav or Channel kind glyph,
- * a 20px avatar or Channel tile — so none of them has to know the axis, and
- * the label after it starts on one column at 48px. The box stays 24px though
- * nothing fills it: it is the column the label is measured from, and marks
- * are free to change size inside it without moving the names.
+ * sidebar's leading axis 28px from its left edge: the button's `px-2` puts it
+ * there. Every mark a row can
+ * carry fits inside it with room to spare — a 14px nav or Channel kind glyph,
+ * a 20px avatar — so none of them has to know the axis, and the label after
+ * it starts on one column at 48px. The box stays 24px though nothing fills
+ * it: it is the column the label is measured from, and marks are free to
+ * change size inside it without moving the names.
+ *
+ * It also sizes a bare icon, 14px with a pointer and 16px on the phone
+ * sheet, so a list hands it an icon without a size and cannot drift from the
+ * row's density. The rule is wrapped in `:where()`, which takes its
+ * specificity to zero: a mark that names its own size — a 20px face —
+ * keeps it.
  *
  * `min-w-6` rather than a hard `size-6`, because one mark says something a
  * single face cannot: a group Direct's stack of up to three faces. It grows
@@ -499,12 +481,26 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
  * box by hand is exactly how a room's mark drifted 2px off the nav icons'
  * line and the account face 4px off both.
  */
-function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
+function SidebarRowSlot({
+  className,
+  tile = false,
+  ...props
+}: React.ComponentProps<"span"> & {
+  /**
+   * The mark is an avatar drawn as a tile at the icon's size, as a project's
+   * is, rather than as a 20px face. These rules outrank the avatar's own size
+   * and rounding, unlike the icon's `:where()`. The ring keeps the tile's edge
+   * on the current row, whose fill is the same grey as an initial's tile.
+   */
+  tile?: boolean;
+}) {
   return (
     <span
       data-slot="sidebar-row-slot"
       className={cn(
-        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center",
+        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center [:where(&>svg)]:size-4 md:[:where(&>svg)]:size-3.5",
+        tile &&
+          "[&>[data-slot=avatar]]:ring-sidebar-border [&>[data-slot=avatar]]:size-4 [&>[data-slot=avatar]]:rounded [&>[data-slot=avatar]]:ring-1 md:[&>[data-slot=avatar]]:size-3.5 [&_[data-slot=avatar-fallback]]:rounded [&_[data-slot=avatar-fallback]]:text-2xs",
         className,
       )}
       {...props}
@@ -513,14 +509,12 @@ function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
 }
 
 /**
- * A pressable **Sidebar row** (CONTEXT.md): the row shape from
- * `sidebar-classes.ts`, plus the rail square and the rest state, hover, focus
- * and selection that go with being pressable. On the rail it drops its `px`
- * and keeps its height, which is already the square's 32px at `md` — and the
- * rail exists only at `md`.
+ * A pressable **Sidebar row** (GLOSSARY.md): the row shape from
+ * `sidebar-classes.ts`, plus the rest state, hover, focus and selection that
+ * go with being pressable.
  */
 const sidebarMenuButtonVariants = cva(
-  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} ${SIDEBAR_ROW_RAIL_PAD_CLASS} press overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} press overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {
@@ -543,47 +537,34 @@ function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
-  tooltip,
+  lines = 1,
   className,
   ...props
 }: React.ComponentProps<"button"> & {
   asChild?: boolean;
   isActive?: boolean;
-  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+  /**
+   * A row allowed a second line (GLOSSARY.md, "Sidebar row") releases the
+   * one-line height down to the floor `SIDEBAR_ROW_CLASS` keeps, so no list
+   * names a row height of its own; its hover covers both lines.
+   */
+  lines?: 1 | 2;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? SlotPrimitive.Slot : "button";
-  const { isMobile, state } = useSidebar();
 
-  const button = (
+  return (
     <Comp
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant }), className)}
+      data-row-lines={lines === 2 ? "2" : undefined}
+      className={cn(
+        sidebarMenuButtonVariants({ variant }),
+        lines === 2 && "h-auto py-1 md:h-auto",
+        className,
+      )}
       {...props}
     />
-  );
-
-  if (!tooltip) {
-    return button;
-  }
-
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    };
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
-      />
-    </Tooltip>
   );
 }
 
@@ -594,7 +575,6 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
       data-sidebar="menu-sub"
       className={cn(
         "border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
-        "group-data-[collapsible=icon]:hidden",
         className,
       )}
       {...props}
@@ -640,7 +620,6 @@ function SidebarMenuSubButton({
         "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
-        "group-data-[collapsible=icon]:hidden",
         className,
       )}
       {...props}
@@ -661,7 +640,6 @@ export {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,
-  SidebarRailSelectionBar,
   SidebarRowSlot,
   SidebarProvider,
   SidebarSeparator,

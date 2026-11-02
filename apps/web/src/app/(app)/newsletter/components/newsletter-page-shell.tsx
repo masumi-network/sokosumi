@@ -9,6 +9,9 @@ import {
  *
  * The heading names the project whose newsletter this is: the project comes
  * from `?projectId=`, and nothing else on the page would say which one it is.
+ *
+ * A single tab is not navigation (setup has only Settings), so the bar shows
+ * once there is somewhere else to go.
  */
 export function NewsletterPageShell({
   children,
@@ -33,7 +36,7 @@ export function NewsletterPageShell({
           <h2 className="text-lg font-semibold">{heading}</h2>
           <p className="text-muted-foreground text-sm">{description}</p>
         </header>
-        {tabs && navigationLabel ? (
+        {tabs && tabs.length > 1 && navigationLabel ? (
           <ProjectTabs ariaLabel={navigationLabel} tabs={tabs} />
         ) : null}
         {children}

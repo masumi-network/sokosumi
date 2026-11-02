@@ -2200,6 +2200,40 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a Soko Bot's post with Markdown before writing", async () => {
+    const { createSocialPost } = await loadService();
+
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        text: "We are **live** #a #b #c",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message:
+        "Rewrite the post: it uses Markdown (**bold**), which x shows as raw symbols; write plain text; it has 3 hashtags; use at most 2 on x.",
+    });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a person's own formatting alone", async () => {
+    const { createSocialPost } = await loadService();
+
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      text: "We are **live** #a #b #c",
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalled();
+  });
+
   it("stores a first comment on create", async () => {
     socialPostCreateMock.mockResolvedValue({
       ...draftPost,
@@ -2758,6 +2792,25 @@ describe("social posts service", () => {
       },
     });
     expect(post).toMatchObject({ text: "Edited", revision: 1 });
+  });
+
+  it("refuses a Soko Bot's edit that adds Markdown", async () => {
+    socialPostFindFirstMock.mockResolvedValueOnce(draftPost);
+    const { updateSocialPost } = await loadService();
+
+    await expect(
+      updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        postId: POST_ID,
+        text: "## Launch day",
+        revision: 0,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("updates a draft first comment", async () => {

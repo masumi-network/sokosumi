@@ -102,10 +102,10 @@ export function TableList({
               <div
                 className={cn(
                   driveItemIconWellClass("list"),
-                  "bg-primary-quinary rounded-lg",
+                  "bg-muted rounded-lg",
                 )}
               >
-                <Users aria-hidden className="text-primary size-5" />
+                <Users aria-hidden className="text-foreground size-5" />
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex min-w-0 items-center gap-2">

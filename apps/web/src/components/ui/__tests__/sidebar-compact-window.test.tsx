@@ -73,7 +73,7 @@ describe("SidebarProvider on a compact window", () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  it("shows the rail below the compact breakpoint even when the cookie says expanded", async () => {
+  it("hides the sidebar below the compact breakpoint even when the cookie says shown", async () => {
     document.cookie = "sidebar_state=true; path=/";
     mockCompactWindow(true);
 
@@ -132,7 +132,7 @@ describe("SidebarProvider on a compact window", () => {
     expect(readCookiePreference()).toBe("false");
   });
 
-  it("returns to the rail the next time the window is narrow", async () => {
+  it("hides again the next time the window is narrow", async () => {
     const { setCompact } = mockCompactWindow(true);
 
     const { getByTestId } = render(

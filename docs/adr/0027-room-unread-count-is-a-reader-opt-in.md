@@ -5,6 +5,9 @@
   it off, stored as `hideRoomUnreadCount`. Everything else stands, in
   particular that the count is a field of its own beside the mention badge and
   never the badge's meaning.
+- Its mentions of the collapsed rail are superseded by
+  [ADR-0058](./0058-the-sidebar-hides-instead-of-collapsing-to-a-rail.md):
+  the sidebar hides instead, so there is no rail pill to match or mark.
 - Date: 2026-09-07
 
 A chat sidebar row shows its numeric **Room unread** unless the reader

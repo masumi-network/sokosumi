@@ -61,6 +61,7 @@ const performActionSchema = z
 const listSchema = z.object({
   query: z.string().trim().max(200).optional(),
   limit: z.number().int().min(1).max(200).optional(),
+  kind: z.enum(["all", "assistant", "cmo"]).optional(),
 });
 
 const versionSlugSchema = z
@@ -108,15 +109,16 @@ function mapError(error: unknown): ActionError {
 interface ListParams extends AuthenticatedRequest {
   query?: unknown;
   limit?: unknown;
+  kind?: unknown;
 }
 
 export const listAdminSokoBotsAction = withSession<
   ListParams,
   ActionResultDto<AdminSokoBotList, ActionError>
->(async ({ session, query, limit }) => {
+>(async ({ session, query, limit, kind }) => {
   try {
     assertAdminSession(session);
-    const parsed = listSchema.safeParse({ query, limit });
+    const parsed = listSchema.safeParse({ query, limit, kind });
     if (!parsed.success) {
       return toActionResult(
         err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),

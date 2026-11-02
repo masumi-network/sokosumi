@@ -10,7 +10,7 @@
       @Test(arguments: [false, true])
       func recipientListLoadsInNativeWindow(dark: Bool) async throws {
         var loads = 0
-        let content = StartDirectView(hasOrganization: true, currentUserId: "me", load: {
+        let content = StartDirectView(currentUserId: "me", load: {
           loads += 1
           return .init(targets: [
             .init(id: .human("one"), name: "Alexandra Long Recipient Name", detail: "alexandra@example.com"),
@@ -45,7 +45,7 @@
       @Test(arguments: [false, true])
       func messageYourselfIsListedAndChosenAlone(dark: Bool) async throws {
         var loads = 0
-        let content = StartDirectView(hasOrganization: true, currentUserId: "me", load: {
+        let content = StartDirectView(currentUserId: "me", load: {
           loads += 1
           return .init(targets: [
             .messageYourself(userId: "me", name: "Ada Lovelace", imageURL: nil),

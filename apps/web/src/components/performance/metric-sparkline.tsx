@@ -70,7 +70,7 @@ export function MetricSparkline({
         <path
           key={`area-${run[0]?.x}`}
           d={areaPath(run)}
-          className="fill-primary-quinary dark:fill-primary-quaternary"
+          className="fill-muted dark:fill-quinary"
         />
       ))}
       {runs.map((run) => (
@@ -78,7 +78,7 @@ export function MetricSparkline({
           key={`line-${run[0]?.x}`}
           d={linePath(run)}
           fill="none"
-          className="stroke-primary"
+          className="stroke-foreground"
           strokeWidth="2"
           vectorEffect="non-scaling-stroke"
         />

@@ -24,7 +24,7 @@ export function isChangeableRun(
   item: WorkspaceCalendarEntry,
 ): item is ChangeableRun {
   return (
-    (item.kind === "RUN" || item.kind === "RUN_AT") &&
+    item.kind !== "socialPost" &&
     item.canChangeRun &&
     item.scheduleId !== null &&
     item.scheduleRevision !== null

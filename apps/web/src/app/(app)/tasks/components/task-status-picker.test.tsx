@@ -84,8 +84,7 @@ describe("TaskStatusPicker", () => {
    * solid red fill and labels itself near-white, so a glyph taking the badge's
    * own mark colour would be near-white on a near-white popover.
    *
-   * `labelOnSurface` rather than `onSurface` because cmdk paints the selected
-   * row --accent, and the solid red measures 2.53:1 there in dark.
+   * `onSurface` is the X itself, which reads on the row in both themes.
    */
   it("draws the Failed menu glyph in the readable label colour", async () => {
     const user = userEvent.setup();
@@ -95,9 +94,8 @@ describe("TaskStatusPicker", () => {
 
     const row = screen.getByRole("option", { name: /Failed/ });
     const style = getToneStyle(getTaskStatusMarker(TaskStatus.FAILED).tone);
-    expect(row.querySelector("svg")).toHaveClass(style.labelOnSurface);
-    expect(style.labelOnSurface).not.toBe(style.mark);
-    expect(style.labelOnSurface).not.toBe(style.onSurface);
+    expect(row.querySelector("svg")).toHaveClass(style.onSurface);
+    expect(style.onSurface).not.toBe(style.mark);
   });
 
   /**
@@ -275,13 +273,15 @@ describe("TaskStatusPicker pending spinner", () => {
 
     const spinner = glyphOfTrigger();
 
-    expect(spinner).toHaveClass(
+    // COMPLETED is a disc hue: the disc holds the 14px box, the glyph rides
+    // inside it in the disc's own colour.
+    expect(spinner.parentElement).toHaveClass(
       "size-3.5",
       "shrink-0",
-      "animate-spin",
-      ROLE.mark,
+      "bg-semantic-success",
     );
-    expect(spinner).toHaveAttribute("stroke-width", "2.25");
+    expect(spinner).toHaveClass("animate-spin", ROLE.mark);
+    expect(spinner).toHaveAttribute("stroke-width", "2.75");
   });
 
   /** The spin is decoration; it stops when the reader asks for less motion. */

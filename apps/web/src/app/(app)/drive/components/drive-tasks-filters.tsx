@@ -6,7 +6,7 @@ import {
   getProjectsById,
   getTasksById,
 } from "@sokosumi/core-client";
-import { Folder, ListCheck, Sparkles } from "lucide-react";
+import { FolderKanban, ListCheck, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -459,7 +459,7 @@ export function DriveTasksFilters({
     nextSections.push({
       id: "project",
       label: labels.projectLabel,
-      icon: Folder,
+      icon: FolderKanban,
       value: projectId,
       allLabel: labels.all,
       onChange: (value) => handleFilterChange("projectId", value),

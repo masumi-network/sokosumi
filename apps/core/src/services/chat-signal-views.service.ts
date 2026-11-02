@@ -221,7 +221,7 @@ export async function listChatRoomMessagesWithTag(
 async function readerRooms(userId: string, organizationId: string | null) {
   return prisma.chatRoom.findMany({
     where: {
-      ...membershipVisibleActiveRoomWhere(userId, organizationId),
+      ...membershipVisibleActiveRoomWhere(organizationId),
       userMembers: { some: { userId, mutedAt: null } },
     },
     select: { id: true, name: true, groupName: true, kind: true },

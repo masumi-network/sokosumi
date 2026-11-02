@@ -181,9 +181,12 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: vi.fn(),
   requireTaskOwnership: requireTaskWriteAccessMock,
   requireMutableTaskWriteAccess: requireTaskWriteAccessMock,
+}));
+
+vi.mock("@/helpers/soko-bot-task-assign", () => ({
+  requireTaskAssignableSokoBot: vi.fn(),
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({

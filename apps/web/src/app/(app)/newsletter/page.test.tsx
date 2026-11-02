@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
+  requireScope: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -36,6 +37,13 @@ vi.mock("@/lib/services/project.service", () => ({
     getProjectById: mocks.getProject,
     listProjects: mocks.listProjects,
   },
+}));
+
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: (request: object) => mocks.requireScope(request),
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
 }));
 
 import NewsletterPage, { generateMetadata } from "./page";
@@ -84,20 +92,24 @@ describe("NewsletterPage", () => {
     ).rejects.toThrow(`REDIRECT:/newsletter/settings?projectId=${PROJECT_ID}`);
   });
 
-  it("lists the projects, linking back to the index, without a project", async () => {
-    mocks.listProjects.mockResolvedValue({
-      projects: [{ id: "project-1", name: "Launch plan" }],
-      pagination: null,
-    });
+  it("asks for a project in the header's selector without one", async () => {
     render(await NewsletterPage(props()));
 
     expect(
       screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-      "href",
-      "/newsletter?projectId=project-1",
+    // Sample issues behind the selector, and no button of its own.
+    const backdrop = screen.getByTestId("newsletter-backdrop");
+    expect(backdrop).toHaveAttribute("aria-hidden", "true");
+    expect(backdrop).toHaveTextContent(PAGE.backdrop.launch.subject);
+    expect(screen.getByTestId("newsletter-no-project")).toContainElement(
+      backdrop,
     );
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(mocks.requireScope).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: PAGE.description, required: true }),
+    );
+    expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.getSettings).not.toHaveBeenCalled();
   });
 

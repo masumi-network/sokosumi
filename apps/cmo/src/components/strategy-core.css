@@ -1,0 +1,482 @@
+/* The strategy sentence: a full thought, so smaller than a one-line title */
+.bb-line.sc-sentence {
+  max-width: 34ch;
+  font-size: clamp(1.625rem, 2.8vw, 2.25rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+}
+
+/* The strategy's four parts under its sentence */
+.sc-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px 24px;
+  margin: 12px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.sc-parts dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.sc-parts dd {
+  margin: 2px 0 0;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+/* The offer ladder: first step, main offer, then */
+.sc-ladder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ladder;
+}
+
+.sc-ladder li {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sc-ladder li:nth-child(2) {
+  border-color: var(--foreground);
+}
+
+/* The funnel: stages narrow toward the sale */
+.sc-funnel {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-stage {
+  display: grid;
+  gap: 10px;
+  margin-inline: calc(var(--sc-step, 0) * 20px);
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(
+    in srgb,
+    var(--brand, var(--accent)) calc(10% - var(--sc-step, 0) * 2%),
+    var(--background)
+  );
+}
+
+.sc-stage.you {
+  border-style: dashed;
+  background: var(--background);
+}
+
+@media (max-width: 640px) {
+  .sc-stage {
+    margin-inline: 0;
+    padding: 16px;
+  }
+}
+
+.sc-stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.sc-stage-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.sc-owner {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.sc-owner.you,
+.sc-owner.shared {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.sc-goal {
+  margin: 0;
+  color: var(--muted);
+}
+
+.sc-plays {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-plays li {
+  display: grid;
+  grid-template-columns: 16px max-content minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sc-plays svg {
+  align-self: center;
+}
+
+.sc-play-channel {
+  font-weight: 500;
+}
+
+.sc-cadence {
+  color: var(--muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .sc-plays li {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .sc-plays li > span:not(.sc-play-channel) {
+    grid-column: 2;
+  }
+}
+
+.sc-fixes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  list-style: none;
+}
+
+.sc-fixes li {
+  display: grid;
+}
+
+.sc-measure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.9375rem;
+}
+
+.sc-basis {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.sc-basis.measured {
+  color: var(--ok);
+}
+
+/* Before and after, one row a channel */
+.sc-ba {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-ba li {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) 16px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sc-ba li.sc-ba-head {
+  padding-top: 0;
+}
+
+.sc-ba-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.sc-ba-before {
+  color: var(--muted);
+}
+
+.sc-ba-arrow {
+  align-self: center;
+  color: var(--muted);
+}
+
+.sc-ba-after {
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .sc-ba li {
+    grid-template-columns: 1fr;
+  }
+
+  .sc-ba-head,
+  .sc-ba-arrow {
+    display: none;
+  }
+}
+
+/* Pace: three choices, Cuso's pick marked */
+.sc-pace {
+  display: grid;
+  gap: 10px;
+}
+
+.sc-pace-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sc-pace-option {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms;
+}
+
+.sc-pace-option span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.sc-pace-option:hover:not(:disabled) {
+  border-color: var(--foreground);
+}
+
+.sc-pace-option.current {
+  border-color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--foreground);
+  cursor: default;
+}
+
+.sc-pace-option:disabled:not(.current) {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.sc-pace-option:focus-visible,
+.sc-link:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .sc-pace-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ad budget */
+.sc-ads {
+  display: grid;
+  gap: 8px;
+}
+
+.sc-ads p {
+  margin: 0;
+}
+
+.sc-ads-amount b {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sc-ads-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sc-ads-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sc-ads-input input {
+  width: 96px;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.sc-ads-input:focus-within {
+  border-color: var(--foreground);
+}
+
+.sc-link {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.sc-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Alternatives and improvements */
+.sc-alts,
+.sc-improve {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-alts li,
+.sc-improve li {
+  display: grid;
+  gap: 4px;
+}
+
+.sc-alts p {
+  margin: 0;
+}
+
+/* Measurement sources */
+.sc-sources ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-sources li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sc-sources li:last-child {
+  border-bottom: 0;
+}
+
+.sc-source-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.sc-source-text {
+  display: grid;
+  gap: 2px;
+}
+
+.sc-source-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ok);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.sc-source-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--foreground);
+  border-radius: var(--radius);
+  background: var(--foreground);
+  color: var(--background);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+
+.sc-source-button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.sc-source-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sc-source-button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.sc-source-error {
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: 0.875rem;
+}
+
+.sc-spin {
+  animation: sc-spin 800ms linear infinite;
+}
+
+@keyframes sc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

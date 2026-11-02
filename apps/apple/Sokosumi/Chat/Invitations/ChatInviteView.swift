@@ -46,7 +46,7 @@ struct ChatInviteView: View {
       HStack {
         Spacer()
         Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
-        Button("Retry") { retry += 1 }.keyboardShortcut(.defaultAction)
+        Button("Retry") { retry += 1 }.buttonStyle(.brandPrimary).keyboardShortcut(.defaultAction)
       }
     } else {
       switch model.presentation {
@@ -115,7 +115,7 @@ struct ChatInviteView: View {
         Spacer()
         respondButton("Decline", action: .decline)
         respondButton("Accept", action: .accept)
-          .buttonStyle(.borderedProminent)
+          .buttonStyle(.brandPrimary)
           .keyboardShortcut(.defaultAction)
       }
     }
@@ -161,6 +161,7 @@ struct InviteOutcomeCard: View {
       Text(message).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
       Button(button, action: action)
         .frame(maxWidth: .infinity)
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
     }
   }

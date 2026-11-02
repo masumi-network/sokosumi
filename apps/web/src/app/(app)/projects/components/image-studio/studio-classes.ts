@@ -17,7 +17,7 @@
  * that boundary resolves to a client reference instead of to the string.
  */
 export const STUDIO_PILL_CLASS =
-  "focus-visible:ring-ring-halo inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2";
 
 export const STUDIO_COLUMN_MOBILE_SHELL_CLASS =
   "max-md:-m-4 max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-md:overflow-hidden" as const;

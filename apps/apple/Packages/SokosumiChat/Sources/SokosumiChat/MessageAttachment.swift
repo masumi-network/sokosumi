@@ -97,34 +97,14 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
 }
 
 extension MessageMarkdown {
-  /// The media embedded in the text, in document order, grouped where only whitespace separates them. File links
-  /// in the text are links, not attachments (row 15c).
-  static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
-    var rows: [[MessageAttachment]] = []
-    var open = false
-    func walk(_ block: MessageMarkdownBlock) {
-      guard block.children.isEmpty else {
-        block.children.forEach(walk)
-        return
-      }
+  /// The media embedded in the text, in document order. File links in the text are links, not attachments (row 15c).
+  static func embeddedAttachments(in blocks: [MessageMarkdownBlock]) -> [MessageAttachment] {
+    blocks.flatMap { block -> [MessageAttachment] in
+      guard block.children.isEmpty else { return embeddedAttachments(in: block.children) }
       if case .codeBlock = block.kind {
-        open = false
-        return
+        return []
       }
-      for segment in MessageAttachmentSegment.split(block.text) {
-        if let attachment = segment.attachment {
-          if open {
-            rows[rows.count - 1].append(attachment)
-          } else {
-            rows.append([attachment])
-            open = true
-          }
-        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-          open = false
-        }
-      }
+      return MessageAttachmentSegment.split(block.text).compactMap(\.attachment)
     }
-    blocks.forEach(walk)
-    return rows
   }
 }

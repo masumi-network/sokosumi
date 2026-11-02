@@ -84,7 +84,7 @@ export function InlineField({
       aria-label={value ? `${label}: ${value}` : label}
       onClick={open}
       className={cn(
-        "hover:bg-quinary focus-visible:ring-ring -mx-2 min-h-9 w-[calc(100%+1rem)] rounded-md px-2 py-1.5 text-start text-sm transition-colors outline-none focus-visible:ring-2",
+        "hover:bg-accent focus-visible:ring-ring -mx-2 min-h-9 w-[calc(100%+1rem)] rounded-md px-2 py-1.5 text-start text-sm transition-colors outline-none focus-visible:ring-2",
         multiline ? "whitespace-pre-line" : "truncate",
         !value && "text-muted-foreground",
         className,

@@ -141,6 +141,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
       pathname === "/schedules" ||
       pathname === "/contacts" ||
       pathname === "/social" ||
+      pathname === "/newsletter" ||
+      pathname.startsWith("/newsletter/") ||
       pathname === "/studio" ||
       pathname === "/notifications" ||
       pathname === "/history",

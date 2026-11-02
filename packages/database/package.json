@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "type": "module",
   "main": "./src/index.ts",
@@ -53,7 +53,6 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "data-migration:better-auth-1-7-harvest": "tsx --env-file=../../apps/core/.env scripts/better-auth-1-7-harvest.ts",
     "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
     "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
@@ -69,7 +68,7 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
     "@typescript/typescript6": "6.0.2",
     "dotenv": "18.0.9",

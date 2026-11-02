@@ -8,7 +8,9 @@ import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
@@ -55,14 +57,8 @@ function getDirectParticipants(
  * That is the one mark allowed to: the slot's left edge does not move, so the
  * first face still sits on the sidebar's 28px leading axis and it is only
  * that row's name that starts later than the 48px column. The stack must grow
- * rightward off a fixed edge, never outward from a centre, or the toggle
- * slides the mark — which is the whole of SOK-1107.
- *
- * Collapsed to icons only the first face shows: a 32px rail square cannot
- * hold three of them, and the button's tooltip already names everyone. So the
- * row's mark is one face on the rail and its stack expanded, off the same
- * edge, at the same 20px in both states — a mark that resizes on the toggle
- * is a mark that moves.
+ * rightward off a fixed edge, never outward from a centre, or the first face
+ * leaves the axis every other mark sits on.
  *
  * 20px per face, not the 24px the slot itself is. A face is a filled circle
  * and the Channel row beside it carries a 16px hairline glyph, so a face that
@@ -80,9 +76,7 @@ function getDirectParticipants(
  * slot centres a mark narrower than itself, which puts a lone 20px face 2px
  * in; a stack is wider than the slot and so starts flush at its edge. Without
  * the padding a group row's first face would sit 2px left of every 1:1 face
- * under it, and those faces are the same shape in the same column. On the
- * rail the extra faces are `display: none`, so the stack is one 20px face
- * again and the pad would shove it 1px off that column — drop it there.
+ * under it, and those faces are the same shape in the same column.
  *
  * A 1:1 row states availability as hidden text, because it is the only surface
  * that can: `shouldShowRoomRosterControl` gives a two-person direct no roster
@@ -115,7 +109,7 @@ export function DirectRoomAvatarStack({
     <span
       className={cn(
         "inline-flex shrink-0 items-center",
-        participants.length > 1 && "pl-0.5 group-data-[collapsible=icon]:pl-0",
+        participants.length > 1 && "pl-0.5",
       )}
     >
       {participants.map((participant, index) => {
@@ -128,26 +122,36 @@ export function DirectRoomAvatarStack({
         return (
           <span
             key={`${participant.kind}-${participant.id}`}
-            className={cn(
-              "relative inline-flex",
-              index > 0 && "-ml-1.5 group-data-[collapsible=icon]:hidden",
-            )}
+            className={cn("relative inline-flex", index > 0 && "-ml-1.5")}
             // The first face on top, so its presence dot is not buried under
             // the one beside it.
             style={{ zIndex: participants.length - index }}
             data-testid={`dm-sidebar-avatar-${participant.id}`}
           >
-            <Avatar
-              className={cn(
-                "border-sidebar size-5 border",
-                room.isReadOnly && "opacity-50 grayscale",
-              )}
-            >
-              <AvatarImage alt="" src={participant.image ?? undefined} />
-              <AvatarFallback className="text-2xs font-medium">
-                {getInitials(participant.name)}
-              </AvatarFallback>
-            </Avatar>
+            {participant.kind === "sokoBot" &&
+            participant.image &&
+            isCraftedStyle(participant.avatarStyleId) ? (
+              <AvatarFace
+                src={participant.image}
+                crafted
+                className={cn(
+                  "border-sidebar size-5 border",
+                  room.isReadOnly && "opacity-50 grayscale",
+                )}
+              />
+            ) : (
+              <Avatar
+                className={cn(
+                  "border-sidebar size-5 border",
+                  room.isReadOnly && "opacity-50 grayscale",
+                )}
+              >
+                <AvatarImage alt="" src={participant.image ?? undefined} />
+                <AvatarFallback className="text-2xs font-medium">
+                  {getInitials(participant.name)}
+                </AvatarFallback>
+              </Avatar>
+            )}
             {showsPresence ? (
               <LiveMemberPresenceDot
                 className="-right-0.5 -bottom-0.5 absolute size-2 border"

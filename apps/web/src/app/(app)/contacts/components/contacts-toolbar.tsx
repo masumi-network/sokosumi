@@ -211,7 +211,7 @@ export function ContactsFilterBar({
         return (
           <span
             key={menu.key}
-            className="border-primary-tertiary bg-primary-quinary inline-flex h-10 items-center gap-1 rounded-full border ps-3 text-sm md:h-8"
+            className="border-border bg-muted inline-flex h-10 items-center gap-1 rounded-full border ps-3 text-sm md:h-8"
           >
             <span className="text-muted-foreground">{menu.label}</span>
             <span className="max-w-32 truncate font-medium">

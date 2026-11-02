@@ -1,20 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-
-import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
-import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import {
-  generateProjectFilesToken,
-  uploadProjectBriefingFile,
-} from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -22,6 +12,7 @@ import {
   mapProjectForApi,
   projectSchema,
 } from "@/schemas/project.schema";
+import { createProject } from "@/services/projects.service";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -53,42 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
-    const briefing = body.briefing?.trim() || null;
-    const filesToken = briefing ? generateProjectFilesToken() : null;
-
-    let project = await prisma.project
-      .create({
-        data: {
-          workspaceId: workspaceContext.workspaceId,
-          name: body.name,
-          identifier: body.identifier,
-          filesToken,
-          briefing,
-          websiteUrl: body.websiteUrl ?? null,
-        },
-      })
-      .catch((error: unknown) => {
-        throw isProjectIdentifierUniqueConstraintError(error)
-          ? conflict("Project identifier already in use in this workspace", {
-              kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
-            })
-          : error;
-      });
-    await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
-
-    if (briefing && filesToken) {
-      const briefingUrl = await uploadProjectBriefingFile(
-        project.id,
-        filesToken,
-        briefing,
-      );
-      if (briefingUrl) {
-        project = await prisma.project.update({
-          where: { id: project.id },
-          data: { briefingUrl },
-        });
-      }
-    }
+    const project = await createProject(workspaceContext.workspaceId, body);
     return created(c, mapProjectForApi(project));
   });
 }

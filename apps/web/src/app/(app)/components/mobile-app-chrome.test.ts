@@ -1,33 +1,44 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isMainAppMobileChromePathname,
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
   shouldShowMobileBrandLeading,
 } from "./mobile-app-chrome";
 
 describe("mobile-app-chrome", () => {
-  describe("isMainAppMobileChromePathname", () => {
-    it("matches exact main list routes only", () => {
-      expect(isMainAppMobileChromePathname("/tasks")).toBe(true);
-      expect(isMainAppMobileChromePathname("/projects")).toBe(true);
-      expect(isMainAppMobileChromePathname("/agents")).toBe(true);
-      expect(isMainAppMobileChromePathname("/history")).toBe(true);
-      expect(isMainAppMobileChromePathname("/calendar")).toBe(true);
-      expect(isMainAppMobileChromePathname("/schedules")).toBe(true);
-      expect(isMainAppMobileChromePathname("/studio")).toBe(true);
-      expect(isMainAppMobileChromePathname("/social")).toBe(true);
-      expect(isMainAppMobileChromePathname("/studio/x")).toBe(false);
-      expect(isMainAppMobileChromePathname("/personal-assistant")).toBe(true);
-      expect(isMainAppMobileChromePathname("/admin")).toBe(true);
-      expect(isMainAppMobileChromePathname("/notifications")).toBe(true);
-      expect(isMainAppMobileChromePathname("/tasks/abc")).toBe(false);
-      expect(isMainAppMobileChromePathname("/agents/abc")).toBe(false);
-      expect(isMainAppMobileChromePathname("/admin/users")).toBe(false);
-      expect(isMainAppMobileChromePathname("/notifications/n1")).toBe(false);
-      expect(isMainAppMobileChromePathname("/chat")).toBe(false);
-      expect(isMainAppMobileChromePathname(null)).toBe(false);
+  it.each([
+    "/newsletter",
+    "/newsletter/issues",
+    "/newsletter/subscribers",
+    "/newsletter/calendar",
+    "/newsletter/analytics",
+    "/newsletter/settings",
+  ])("uses Social-style list chrome on %s", (pathname) => {
+    expect(shouldShowMobileBottomNav(pathname)).toBe(true);
+    expect(shouldShowMobileBrandLeading(pathname)).toBe(false);
+    expect(resolveMobileAppBackTarget(pathname)).toEqual({
+      href: "/",
+      labelKey: "back",
+    });
+  });
+
+  it("returns from a newsletter issue to its project-scoped list", () => {
+    const pathname = "/newsletter/issues/issue-1";
+    expect(shouldShowMobileBottomNav(pathname)).toBe(false);
+    expect(shouldShowMobileBrandLeading(pathname)).toBe(false);
+    expect(
+      resolveMobileAppBackTarget(
+        pathname,
+        new URLSearchParams("projectId=project%2Fone&cursor=old"),
+      ),
+    ).toEqual({
+      href: "/newsletter/issues?projectId=project%2Fone",
+      labelKey: "back",
+    });
+    expect(resolveMobileAppBackTarget(pathname)).toEqual({
+      href: "/newsletter/issues",
+      labelKey: "back",
     });
   });
 
