@@ -67,18 +67,6 @@
       "skillPath": "skills/interface-review/SKILL.md",
       "computedHash": "3b04fd6eb5fef3b49c76b6af2b0bb542bbadcdbd88beed7ca11ab54d5a207750"
     },
-    "next-best-practices": {
-      "source": "vercel-labs/openreview",
-      "sourceType": "github",
-      "skillPath": ".agents/skills/next-best-practices/SKILL.md",
-      "computedHash": "db85045827ebeb83ac8dbc992b69188755eeb74dcf01cbf5e694d58aa494a106"
-    },
-    "next-cache-components": {
-      "source": "vercel-labs/openreview",
-      "sourceType": "github",
-      "skillPath": ".agents/skills/next-cache-components/SKILL.md",
-      "computedHash": "f835d8226c28abf012cc013928e2627c8a7a046de61127ef229be1711bd1f255"
-    },
     "next-cache-components-adoption": {
       "source": "vercel/next.js",
       "sourceType": "github",
@@ -103,12 +91,6 @@
       "skillPath": "skills/next-partial-prefetching-adoption/SKILL.md",
       "computedHash": "6aa8c96d816dcbf061be6dcf58b7f49686c74be09be436ed4b06251bd74fabf3"
     },
-    "next-upgrade": {
-      "source": "vercel-labs/openreview",
-      "sourceType": "github",
-      "skillPath": ".agents/skills/next-upgrade/SKILL.md",
-      "computedHash": "e3aeb1f9e8a68d24df0c1c2e3c8ab97ede09a7251a2c76988318d02254346979"
-    },
     "variant": {
       "source": "jakubkrehel/skills",
       "sourceType": "github",
@@ -131,7 +113,7 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-view-transitions/SKILL.md",
-      "computedHash": "2033ef20681c90d4f93deee719e55e019c254e496d9bf80381c27cc539292001"
+      "computedHash": "fb654c297f52c2771ce64b22a4a18509d0412ef07e020bc09625441df18a750d"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

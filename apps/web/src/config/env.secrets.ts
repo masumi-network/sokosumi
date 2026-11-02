@@ -10,10 +10,6 @@ import * as z from "zod";
 export const DEFAULT_CHROMIUM_EXECUTABLE_URL =
   "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
 
-/**
- * Specify your environment variables schema here.
- * This way you can ensure the app isn't built with invalid env vars.
- */
 const envSecretsSchema = z.object({
   // Environment
   NODE_ENV: z

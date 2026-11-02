@@ -145,12 +145,11 @@ export function PreferencesSection({
             type="single"
             value={selectedTheme}
             onValueChange={handleThemeChange}
-            className="bg-background grid grid-cols-3 rounded-md border"
+            className="grid grid-cols-3"
           >
             <ToggleGroupItem
               value="light"
               aria-label={themeTranslations("light")}
-              className="gap-2"
             >
               <Sun className="size-4" />
               {themeTranslations("light")}
@@ -158,7 +157,6 @@ export function PreferencesSection({
             <ToggleGroupItem
               value="dark"
               aria-label={themeTranslations("dark")}
-              className="gap-2"
             >
               <Moon className="size-4" />
               {themeTranslations("dark")}
@@ -166,7 +164,6 @@ export function PreferencesSection({
             <ToggleGroupItem
               value="system"
               aria-label={themeTranslations("system")}
-              className="gap-2"
             >
               <Monitor className="size-4" />
               {themeTranslations("system")}

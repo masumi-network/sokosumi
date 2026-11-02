@@ -1,14 +1,16 @@
-import type {
-  SokoBot,
-  SokoBotDelegation,
-  SokoBotEvent,
-  SokoBotPendingDecision,
-  SokoBotSchedule,
+import {
+  type SokoBot,
+  SokoBotAvatarState,
+  type SokoBotAvatarView,
+  type SokoBotDelegation,
+  type SokoBotEvent,
+  type SokoBotPendingDecision,
+  type SokoBotSchedule,
   SokoBotStatus,
-  SokoBotToolCall,
-  SokoBotTurn,
-  SokoBotTurnRoute,
-  SokoBotTurnStatus,
+  type SokoBotToolCall,
+  type SokoBotTurn,
+  type SokoBotTurnRoute,
+  type SokoBotTurnStatus,
 } from "@sokosumi/core-client";
 
 /**
@@ -149,6 +151,10 @@ export interface ChatBot {
   avatarSeed: string | null;
   /** Picked mascot image; null → generative orb. */
   avatarImageUrl: string | null;
+  /** What the face is doing, derived in Core. */
+  avatarState: SokoBotAvatarState;
+  /** Stills and loops of a crafted avatar; null without an image. */
+  avatar: SokoBotAvatarView | null;
   versionId: string | null;
   followWholeBoard: boolean;
   mailAutoRead: boolean;
@@ -173,18 +179,23 @@ function iso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
 }
 
-function toEvent(event: SokoBotEvent): ChatTurnEvent {
+/**
+ * Lists read only an event's type and tool; its text (reasoning, model
+ * output) and raw payload are for Explain, which loads the turn in full.
+ */
+function toEvent(event: SokoBotEvent, withDetail = false): ChatTurnEvent {
   return {
     id: event.id,
     sequence: event.sequence,
     type: event.type,
-    summary: event.summary,
+    summary: withDetail ? event.summary : null,
     toolName: event.toolName,
     toolStatus: event.toolStatus,
     durationMs: event.durationMs,
     createdAt: event.createdAt.toISOString(),
-    payload:
-      (event.payload as Record<string, unknown> | null | undefined) ?? null,
+    payload: withDetail
+      ? ((event.payload as Record<string, unknown> | null | undefined) ?? null)
+      : null,
   };
 }
 
@@ -244,7 +255,7 @@ function toChatTurn(turn: SokoBotTurn): ChatTurn {
     durationMs: turn.durationMs,
     createdAt: turn.createdAt.toISOString(),
     events: (turn.events ?? [])
-      .map(toEvent)
+      .map((event) => toEvent(event))
       .sort((a, b) => a.sequence - b.sequence),
     delegations: (turn.delegations ?? []).map(toDelegation),
     decisions: (turn.pendingDecisions ?? []).map(toDecision),
@@ -257,6 +268,9 @@ function toChatTurn(turn: SokoBotTurn): ChatTurn {
 export function toChatTurnDetail(turn: SokoBotTurn): ChatTurnDetail {
   return {
     ...toChatTurn(turn),
+    events: (turn.events ?? [])
+      .map((event) => toEvent(event, true))
+      .sort((a, b) => a.sequence - b.sequence),
     classification: turn.classification,
     classifierModel: turn.classifierModel,
     classifierLatencyMs: turn.classifierLatencyMs,
@@ -301,6 +315,8 @@ function toChatBot(bot: SokoBot): ChatBot {
     name: bot.name,
     avatarSeed: bot.avatarSeed,
     avatarImageUrl: bot.avatarImageUrl ?? null,
+    avatarState: bot.avatarState ?? SokoBotAvatarState.IDLE,
+    avatar: bot.avatar ?? null,
     versionId: bot.versionId ?? null,
     followWholeBoard: bot.followWholeBoard ?? false,
     mailAutoRead: bot.mailAutoRead ?? false,

@@ -26,6 +26,8 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/newsletter": {},
     "/newsletter/issues": {},
     "/newsletter/subscribers": {},
+    "/newsletter/calendar": {},
+    "/newsletter/analytics": {},
     "/newsletter/settings": {},
     "/drive": { view: "tasks" },
     "/history": {},

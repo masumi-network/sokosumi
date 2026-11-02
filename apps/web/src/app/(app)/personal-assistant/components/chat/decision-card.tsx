@@ -62,12 +62,7 @@ export function DecisionCard({
   }
 
   return (
-    <div
-      className={cn(
-        "bg-card w-full max-w-xl rounded-lg border",
-        pending ? "border-primary-tertiary" : "border-border",
-      )}
-    >
+    <div className="bg-card border-border w-full max-w-xl rounded-lg border">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
         <p className="text-sm font-medium">
           {pending ? t("heading") : t("headingResolved")}
@@ -105,7 +100,7 @@ export function DecisionCard({
           </p>
         ) : null}
         {!summary.acceptable ? (
-          <p role="status" className="text-semantic-warning text-xs">
+          <p role="status" className="text-foreground text-xs">
             {tProposal("incomplete")}
           </p>
         ) : null}
@@ -145,8 +140,9 @@ export function DecisionCard({
           <p
             className={cn(
               "text-xs",
-              decision.status === "ACCEPTED" && "text-semantic-success",
-              decision.status === "PROCESSING" && "text-semantic-warning",
+              (decision.status === "ACCEPTED" ||
+                decision.status === "PROCESSING") &&
+                "text-foreground",
               (decision.status === "REJECTED" ||
                 decision.status === "EXPIRED") &&
                 "text-muted-foreground",

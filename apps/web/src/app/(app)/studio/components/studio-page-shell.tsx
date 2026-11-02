@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
  * Calendar are.
  *
  * It no longer has an identity row either. A mark, the product name and the
- * project name repeated what the sidebar row, the breadcrumb and the project
- * switcher already say, and they said it in the one band of the page the
+ * project name repeated what the sidebar row and the project selector
+ * already say, and they said it in the one band of the page the
  * composer wanted: the studio is a thing you type into, so it opens on the box
  * you type into.
  */

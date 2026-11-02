@@ -46,7 +46,7 @@ export function ResendCodeButton({
   return (
     <button
       type="button"
-      className="text-muted-foreground hover:text-foreground disabled:hover:text-muted-foreground focus-visible:ring-ring-halo rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:no-underline"
+      className="text-muted-foreground hover:text-foreground disabled:hover:text-muted-foreground focus-visible:ring-ring rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:no-underline"
       disabled={left > 0 || isSending}
       onClick={onResend}
     >

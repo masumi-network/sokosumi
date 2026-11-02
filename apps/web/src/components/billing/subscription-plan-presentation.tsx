@@ -59,7 +59,7 @@ export function SubscriptionPlanFeatureList({
       <ul className="space-y-2 text-sm">
         {items.map((item) => (
           <li key={item} className="flex gap-2">
-            <Check className="text-primary mt-0.5 size-4" />
+            <Check className="text-foreground mt-0.5 size-4" />
             <span>{item}</span>
           </li>
         ))}

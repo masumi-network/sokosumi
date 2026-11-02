@@ -3,7 +3,7 @@
 import { Bot, ChevronDown, PenLine, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
@@ -12,17 +12,13 @@ import {
   getComposeDraft,
   setComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
-import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
+import { RequireProjectScope } from "@/app/components/project-scope/project-scope-required";
+import {
+  openProjectScope,
+  type ProjectScopeRequest,
+} from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,9 +40,9 @@ interface SocialNewPostMenuProps {
  * is named rather than offered as a generic "agent".
  *
  * Writing needs a project, because a post goes out from the accounts one
- * project connected; with none in scope the menu asks for one first and
- * reopens Social there with the composer up. Soko Bot does not need one: it
- * can ask in the conversation.
+ * project connected; with none in scope the header's project selector asks for
+ * one first and reopens Social there with the composer up. Soko Bot does not
+ * need one: it can ask in the conversation.
  */
 export function SocialNewPostMenu({
   project,
@@ -55,24 +51,25 @@ export function SocialNewPostMenu({
   const t = useTranslations("App.Social.newPost");
   const router = useRouter();
   const compose = useSocialCompose();
-  const [choosingProjectHere, setChoosingProjectHere] = useState(false);
-  // The calendar's day "+" asks for the composer through the same context;
-  // with no project in scope that request becomes this project pick.
-  const choosingProject =
-    choosingProjectHere || (!project && Boolean(compose?.open));
-
-  function setChoosingProject(open: boolean) {
-    setChoosingProjectHere(open);
-    if (!open && !project) compose?.setOpen(false);
-  }
   const [isOpeningChat, startOpeningChat] = useTransition();
+  const projectRequest: ProjectScopeRequest = {
+    reason: t("chooseProjectBody"),
+    onSelect: (projectId) => {
+      const query = new URLSearchParams({ projectId, compose: "new" });
+      if (compose?.scheduledAt) query.set("composeAt", compose.scheduledAt);
+      router.push(`/social?${query}`);
+    },
+    // Closing without a project drops the composer that asked for one.
+    onDismiss: () => compose?.setOpen(false),
+  };
 
   function writeManually() {
-    if (project && compose) {
+    // With no project in scope, the open composer asks for one below.
+    if (compose) {
       compose.setOpen(true);
       return;
     }
-    setChoosingProject(true);
+    if (!project) openProjectScope({ ...projectRequest, required: true });
   }
 
   function postWithSokoBot() {
@@ -147,31 +144,11 @@ export function SocialNewPostMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={choosingProject} onOpenChange={setChoosingProject}>
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-sm">
-          <DialogHeader className="p-4 pb-2">
-            <DialogTitle>{t("chooseProjectTitle")}</DialogTitle>
-            <DialogDescription>{t("chooseProjectBody")}</DialogDescription>
-          </DialogHeader>
-          <ProjectScopeMenu
-            className="max-h-96"
-            selectedProjectId={project?.id ?? null}
-            onSelect={(projectId) => {
-              if (!projectId) return;
-              const query = new URLSearchParams({
-                projectId,
-                compose: "new",
-              });
-              if (compose?.scheduledAt) {
-                query.set("composeAt", compose.scheduledAt);
-              }
-              router.push(`/social?${query}`);
-            }}
-            onCreate={openScopeCreate}
-            onDone={() => setChoosingProject(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* The calendar's day "+" asks for the composer through the same
+          context; with no project in scope that becomes this project pick. */}
+      {!project && compose?.open ? (
+        <RequireProjectScope {...projectRequest} />
+      ) : null}
     </>
   );
 }

@@ -414,7 +414,8 @@ describe("PendingInvitesQueue", () => {
     renderQueue();
 
     expect(screen.getByTestId("workspace-gate-accept-all")).toHaveClass(
-      "bg-secondary",
+      "border-border",
+      "bg-background",
     );
     expect(screen.getByTestId("workspace-gate-accept-selected")).toHaveClass(
       "bg-quinary",

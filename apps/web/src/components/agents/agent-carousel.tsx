@@ -207,7 +207,7 @@ function AgentCarousel({
                 onClick={() => api?.scrollTo(index)}
                 className={cn(
                   "size-2 rounded-full transition-colors",
-                  current === index ? "bg-primary" : "bg-quaternary",
+                  current === index ? "bg-foreground" : "bg-quaternary",
                 )}
               />
             );

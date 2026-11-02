@@ -50,13 +50,10 @@ function renderBar(view = "all", organization: string | null = null) {
 }
 
 describe("ContactsPresetTabs and ContactsViewMenus", () => {
-  it("switches presets from the tabs", async () => {
+  it("switches presets from the segmented control", async () => {
     const props = renderBar();
-    expect(screen.getByRole("tab", { name: "presets.all" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    await userEvent.click(screen.getByRole("tab", { name: "presets.mine" }));
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "presets.mine" }));
     expect(props.onViewChange).toHaveBeenCalledWith("mine");
   });
 

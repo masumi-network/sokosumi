@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/utils`
 **Purpose**: Framework-agnostic shared helpers and client-safe types (URLs, files, markdown, credits, locale, auth cookies/session shapes, Ably channel names, task-status logic)
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/utils/` within the pnpm workspace
 
 ## Layout

@@ -28,7 +28,7 @@ function stubBrowserHourCycle(
 }
 
 function clearTimeFormatCookie() {
-  document.cookie = `${TIME_FORMAT_COOKIE_NAME}=; path=/; max-age=0`;
+  document.cookie = `${TIME_FORMAT_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 function chooseTimeFormat(optionName: string) {
@@ -79,6 +79,8 @@ describe("PreferencesSection time format", () => {
     render(<PreferencesSection initialTimeFormat="24h" />);
 
     chooseTimeFormat(AUTO_24H);
+    // Browsers drop a `max-age=0` cookie at once; happy-dom keeps it until the clock passes it.
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 1);
 
     expect(document.cookie).not.toContain(`${TIME_FORMAT_COOKIE_NAME}=`);
     expect(reload).toHaveBeenCalledTimes(1);

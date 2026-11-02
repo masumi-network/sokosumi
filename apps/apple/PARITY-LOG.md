@@ -5216,3 +5216,64 @@ Fixes from the second code review of the integration branch, built from spec SOK
 Tests: `UnreadDividerTests.thePlacementWaitsForTheDividerRowAndEndsWhenThereIsNone`, `aRoomShowingRoomUnreadAsksForBothPagesAtOnce` (its transport holds the answer until the newest page is asked for, and fails it after five seconds otherwise), `aRoomShowingNoRoomUnreadAsksOnce`; `TranscriptScrollTests.aPlacementTheReaderInterruptsSettlesAtTheNextRest`. `UnreadDividerPlacementTests.aShortUnreadRunOpensAtTheEnd` stays a smoke test of the wiring, as its comment says: without the settle it fails only about one run in six, and the package tests are the guard.
 
 Verification: from `apps/apple`, `swift test --package-path Packages/SokosumiChat` (1358 tests) and `Packages/SokosumiWorkspace` (207 tests) passed; `xcodebuild test … -only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests -test-iterations 3` passed; SwiftFormat and strict SwiftLint clean. Unverified: the running app against a real Core, and the placement after a mount that precedes the first page, which no window test reproduces.
+
+## A large image no longer exempts the body from the clamp (10c follow-up), 2026-10-27
+
+Mirrors web [#6636](https://github.com/masumi-network/sokosumi/pull/6636) (open at the time, branch `claude/bot-show-more-less-buttons-a289a0`; merged 2026-10-27 as `19f420db`, clamp files unchanged since `ecd57eefdd`), which replaced `line-clamp-[16]` with a 384 px cap and a fade and deleted `hasLargeSoloImageAttachment`, so a long Soko Bot or coworker report ending in a chart offers Show more. Draft [#6638](https://github.com/masumi-network/sokosumi/pull/6638), branch `claude/apple-clamp-long-body-with-image`, started on `origin/main` `9f8c3f265`; not a `/apple-parity-next` row, the user asked for it as its own task.
+
+### Behaviour
+
+- Every body but jumbo emoji clamps. `MessageMarkdown.clampsLongBody` was the exemption alone (web's `ChannelMessageBody` now clamps every non-jumbo body, and Apple's jumbo branch never reached the clamp), so it and `ExpandableMessageBody.clampHeight` are deleted.
+- The fence-skip scan stays: `MarkdownBareDomains.attachmentRuns()` also builds the segments, the gallery and `endsWithAttachmentRun` (row 31b3). What only the exemption needed was the grouping of embedded media into rows; `attachmentRows(in:)` became `embeddedAttachments(in:)`, a flat list for the gallery.
+- Apple's sixteen `.body` lines measure about 256 pt and its large image is capped at 320 pt (`MessageAttachmentView`), unlike web's 320 px image under a 384 px cap. Measured with no allowance: a two-line caption over the fixture's 2400 × 1600 image collapsed to 81 pt with Show more and the image cut away whole (the cut snaps to the last complete text line).
+- Re-checked against web's final rules at `ecd57eefdd` (sent by the session that owns #6636): web cuts a fixed 384 px with a fade, a full-cap photo fits alone and under one caption line, and a second caption paragraph collapses it with the photo's bottom cut. A first cut of this PR counted the image as none of the lines, so a caption of any length fitted; it now counts as web counts it. `MessageClampAllowance` carries the block's height, and a large image (`messageClampLargeImage()`, a lone card or an image embedded in text) leaves uncounted `height − (height + 16) × sixteenLines / 384`, from web's `my-2` and cap. A cut that lands inside such a block (or row 10d's figure) stays there instead of snapping up past it, and a collapsed, overflowing body fades from 60 % to transparent (`fadesCut`; the quote's four-line clamp passes false, as web's quote has no fade).
+- Matches web: every non-jumbo body clamps; tables and code blocks count (they already did: their text reports line boxes and overflow is the body's measured height); a photo alone and under one caption line fits; a second paragraph collapses it with the bottom cut; long text before an image collapses; the fade; Show more / Show less and their per-message state are unchanged.
+- Deliberate differences: plain text still cuts on a whole line (web's cap of sixteen 24 px lines lands on one for plain paragraphs too). Apple has no Soko Bot brief card (web #6568 draws `inbox`, `standup`, `weeklyWrap` and `scheduled` check-ins as one, and #6636 clamps its middle), so there is nothing to clamp, and no PARITY row tracks the card yet. Web's large image focus outline moved inside the button so the clamp cannot clip it; Apple's image is a plain `Button` with the system focus ring, not checked. Quotes and web's pinned panel (`line-clamp-6`) are unchanged on web and here. Web #6636 also puts the Mermaid figure under the same height cap, which row 10d's line allowance no longer mirrors; left for row 10d.
+
+### Tests
+
+- Red first: `MessageBodyClampTests.longTextWithOneImageClamps` (flipped) and `MessageBodyPresentationTests.aLongMessageWithASoloImageOffersShowMore` (was `…IsNotClamped`) failed on the old rule; a caption-over-image test failed once the exemption was gone.
+- Mirroring web's `room-message-body-clamp.webkit.test.ts`: `aPhotoAloneOrUnderAOneLineCaptionFits` (two cases) and `aSecondCaptionParagraphCollapsesThePhoto` use a 1600 × 2400 portrait that `ScrollMediaProtocol` now serves for `shape=portrait` without `format=svg`, so the photo is the cap's full 320 pt. The second-paragraph case failed under the whole-image allowance (OCR found no Show more) and passes now; it clicks Show more, so where OCR is unavailable (CI) a missing control still fails it. `aLongTableOrCodeBlockCollapses` (two cases) passed before the change.
+- `MessageBodyClampTests` is deleted with the property it tested; its fence cases are now file-run assertions in `MessageAttachmentRunTests` (`aLinkInsideAFenceIsNoAttachment`, `anIndentedCloserEndsTheFence`, `aLinkInIndentedCodeIsAnAttachment`). `MermaidDiagramTests.aBodyThatDrawsADiagramStillClamps` and the `clampsLongBody` expectations in `MessageAttachmentRunTests` and `MessageInlineFileLinkTests` went with it.
+
+### Verification
+
+From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1338 tests) passed. After the re-check the workspace scheme ran 2138 tests (3046 runs): 2137 passed, and `RoomOlderPageTests.anOlderPageWaitsForTheScrollToRest` failed in the full run only (text-only rows that never overflow; the first cut's full run failed it and `anOlderPageKeepsTheReadingPosition` the same way) and passed 3 of 3 alone (`-test-iterations 3`). SwiftFormat and strict SwiftLint clean. Recorded screenshots: `message-body-photo-alone.png` and `message-body-photo-caption.png` show the whole photo and no control; `message-body-photo-two-paragraphs.png` shows both paragraphs, the photo fading out above its bottom and Show more; `message-body-table-collapsed.png` and `message-body-code-collapsed.png` show the first rows fading into Show more; `message-body-image-collapsed.png` shows sixteen lines and Show more. Unverified: the running app against a real Core, and the image's focus ring under the clamp.
+
+## "New" moves to the end of the Unread divider (04b follow-up), 2026-10-30
+
+`——— Today New ———` read as one phrase. User decision: "New" sits at the line's trailing end and a day pill stays centered on the line, on web and here in the same PR; not a `/apple-parity-next` row. Draft [#6734](https://github.com/masumi-network/sokosumi/pull/6734), branch `claude/yesterday-new-looks-8e2459`, started on `origin/main` `5670e429b`.
+
+### Behaviour
+
+- `UnreadDividerRow` draws `——— Today ——— New`, and `———————— New` when no day changes at the message. The hairline and "New" share a stack as wide as the leading hairline, so "New" does not push the pill off center. The VoiceOver separator is unchanged.
+
+### Verification
+
+From `apps/apple`: `-only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests` passed; SwiftFormat and strict SwiftLint clean on the changed file. A throwaway window test rendered the three states at 669 pt and 320 pt, and light and dark at 669 pt: the gap around the pill centers at 668.5 of 1338 and 319.5 of 640 backing pixels, and the room capture (`unread-divider.png`) shows the row in the transcript. The full workspace scheme did not run. Web's `unread-divider.test.tsx` pins the order and failed on the old layout; no Mac test pins it, as `apps/apple/AGENTS.md` keeps SwiftUI layout out of the required suite. Unverified: the running app against a real Core.
+## Masumi Family colours (SOKD-121 follow-up), 2026-10-30
+
+Moves the app's interior off the old blue, to match web's Masumi Family stack ([#6681](https://github.com/masumi-network/sokosumi/pull/6681), `apps/web/DESIGN.md`) and the Iris app icon. Audited web on `sokd-121-4-no-blur` at `3df4b6d0f`.
+
+- `BrandSolid` is web's `--primary`: Iris Flower `#FF51FF` light, Dark Iris `#D141D1` dark.
+- `BrandPrimaryButtonStyle` (new, `Shared/`) is every primary and default-action button: native `.borderedProminent` chrome, Neutral 950 label, lifting to full Iris under the pointer. It wraps the native button because AppKit paints the label white unless the style is set inside the label. `SignInView` no longer tints its own button.
+- Text, icons, edges and washes that used the accent are now neutral, as on web, where the primary is a fill and never text or a tint: thread rows, marks and pills, the reply bar, the unread divider, the jump mark (web's 8 / 6 / 5 % and 12 / 9 / 8 %), reactions, the composer toolbar and reference chip, card borders, the unfurl rule, Jump to latest, the paging row, avatars without a photo. Save in the edit composer stays Iris, as a fill under a dark check.
+- Links are the text colour, underlined, in messages, the composer and `Link`; they were the system blue. A mention is bold at full strength. Social post previews keep each platform's link colours.
+
+**Deviation: `AccentColor` is `#525252`, not Iris.** AppKit owns the colour on top of the accent and it is always white: the focused sidebar selection, alert default buttons, checkboxes. White on Iris is 2.7:1, and a selected room's name was hard to read in light. `.tint` on the `List` does not change it; forcing dark ink through `backgroundProminence` left the text dim and the badge white. A neutral accent fixes all of them at once and matches web's neutral selected row (`bg-accent`). A reader who picked their own accent in System Settings still gets it on those surfaces, while Iris fills use `BrandSolid` and do not change.
+
+Verified:
+
+- Whole app target type-checked with Xcode 26 against copied packages (tools version lowered in the copy). The only errors are the two known type-checker limits, `MessageRowView.swift:243` and `RoomToolsModifier.swift:53`, neither on a changed line.
+- Render: [light](docs/images/brand-iris-light.png) and [dark](docs/images/brand-iris-dark.png) are the real `ThreadListRow`, `ThreadGroupHeading`, `JumpToLatestButton`, `MessageEditControls` and `BrandPrimaryButtonStyle` in a SwiftPM harness, beside a sidebar `List` with its selected row told to draw emphasized.
+
+Tests changed, not yet run (they need Xcode 27, so CI is the gate):
+
+- `BrandColorsTests` (new): asset values, contrast, the primary label dark with no white.
+- `RoomThreadOverviewGroupsViewTests`, `CrossRoomThreadsViewTests`: unread is now found by its neutral wash, and nothing in the list draws a colour. The pixel check for the Unread count pill is gone: a neutral pill cannot be told from the heading's text by colour.
+
+Unverified: the app was not launched. Not seen: the sidebar through a real focused window (harness only, screen capture is not permitted here), alerts, hover on a primary button, a non-default system accent.
+
+How to test: open the app in light, click a room, then click the sidebar again so it has keyboard focus: the selected row is dark grey with white text. Send, Accept and any sheet's main button are Iris with dark text.
+
+Last updated: 2026-10-30

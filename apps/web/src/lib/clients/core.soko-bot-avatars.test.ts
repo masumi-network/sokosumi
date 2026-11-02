@@ -6,6 +6,10 @@ const sdk = vi.hoisted(() => ({
   listSokoBotAvatars: vi.fn(),
   topUpSokoBotAvatars: vi.fn(),
   claimMySokoBotAvatar: vi.fn(),
+  discardMySokoBotAvatarDrafts: vi.fn(),
+  discardSokoBotAvatarDrafts: vi.fn(),
+  regenerateMySokoBotAvatarState: vi.fn(),
+  regenerateSokoBotAvatarState: vi.fn(),
 }));
 
 vi.mock("@sokosumi/core-client", async (importOriginal) => ({
@@ -45,6 +49,33 @@ describe("Soko Bot avatar methods on the Core client", () => {
       client,
       query,
       cache: "no-store",
+    });
+  });
+
+  it("discards the caller's own drafts, or a shared bot's by id", async () => {
+    await core.discardSokoBotAvatarDrafts();
+    expect(sdk.discardMySokoBotAvatarDrafts).toHaveBeenCalledWith({ client });
+    expect(sdk.discardSokoBotAvatarDrafts).not.toHaveBeenCalled();
+
+    await core.discardSokoBotAvatarDrafts("bot-7");
+    expect(sdk.discardSokoBotAvatarDrafts).toHaveBeenCalledWith({
+      client,
+      path: { sokoBotId: "bot-7" },
+    });
+  });
+
+  it("redoes one state of the caller's own bot, or of a shared bot by id", async () => {
+    await core.regenerateSokoBotAvatarState("working");
+    expect(sdk.regenerateMySokoBotAvatarState).toHaveBeenCalledWith({
+      client,
+      path: { state: "working" },
+    });
+    expect(sdk.regenerateSokoBotAvatarState).not.toHaveBeenCalled();
+
+    await core.regenerateSokoBotAvatarState("done", "bot-7");
+    expect(sdk.regenerateSokoBotAvatarState).toHaveBeenCalledWith({
+      client,
+      path: { sokoBotId: "bot-7", state: "done" },
     });
   });
 

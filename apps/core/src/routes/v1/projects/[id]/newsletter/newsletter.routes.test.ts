@@ -77,6 +77,7 @@ vi.mock("@/lib/db/prisma", () => {
       findUniqueOrThrow: m.newsletterFindUnique,
       update: m.newsletterUpdate,
     },
+    newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
     $executeRaw: m.executeRaw,
     contact: { findMany: m.contactFindMany, createMany: m.contactCreateMany },

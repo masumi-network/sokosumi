@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/ai-provider`
 **Purpose**: Vercel AI SDK `LanguageModelV4` provider for Sokosumi chat (`createSokosumi`). Talks to OpenRouter Responses API or a coworker agent HTTP surface.
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/ai-provider/` within the pnpm workspace
 
 ## Layout

@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/database`
 **Purpose**: Shared database layer providing Prisma client factory, repositories, helpers, and types
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/database/` within the pnpm workspace
 
 ## Layout

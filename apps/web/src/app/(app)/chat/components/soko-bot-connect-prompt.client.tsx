@@ -107,7 +107,7 @@ export function SokoBotConnectCard({
     <section
       data-testid="soko-bot-connect-prompt"
       aria-label={t("connectTitle", { bot: botName })}
-      className="border-border bg-background-muted mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
+      className="border-border bg-card-background mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
     >
       <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
       {/* Wraps (up to three lines) rather than truncating: on a 320px phone one line
@@ -146,10 +146,12 @@ export function SokoBotConnectCard({
                 >
                   {Logo ? <Logo className="size-4 shrink-0" /> : null}
                   {offer.connected ? (
-                    <Check
+                    <span
                       aria-hidden
-                      className="bg-background text-semantic-success absolute -end-0.5 -bottom-0.5 size-3 rounded-full"
-                    />
+                      className="bg-semantic-success text-semantic-success-foreground absolute -end-0.5 -bottom-0.5 flex size-3 items-center justify-center rounded-full"
+                    >
+                      <Check className="size-2" strokeWidth={3} />
+                    </span>
                   ) : null}
                 </Button>
               </TooltipTrigger>

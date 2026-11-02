@@ -47,6 +47,13 @@ export const ROOM_QUOTE_MARKDOWN_CLASSNAME =
  */
 export const ROOM_QUOTE_CLAMP_CLASSNAME = "line-clamp-4 max-h-[6.5rem]";
 
+/**
+ * Collapsed preview height for primary message bodies (taller than quotes).
+ * A height, not line-clamp: Chromium's line-clamp skips lines inside tables
+ * and code blocks, so bodies made of them never collapsed. 16 lines at 24px.
+ */
+export const MESSAGE_BODY_CLAMP_CLASS = "max-h-96 overflow-hidden";
+
 export interface DirectParticipantPreview {
   id: string;
   name: string;
@@ -82,6 +89,12 @@ export type ChatParticipantHoverProfile =
       caption: string | null;
       image: string | null;
       avatarSeed: string | null;
+      /** The style of the bot's claimed avatar; a crafted one is cropped to the face. */
+      avatarStyleId?: string | null;
+      /** The Idle loop, played on the face while its hover card is open. */
+      idleLoopUrl?: string | null;
+      /** The Working loop, played on the face while a reply is in progress. */
+      workingLoopUrl?: string | null;
       presence: ChatRoomPresence;
     };
 
@@ -168,6 +181,8 @@ export interface RoomMentionParticipant {
   name: string;
   slug: string;
   image: string | null;
+  /** A Soko Bot's avatar style; a crafted one is cropped to the face. */
+  avatarStyleId?: string | null;
 }
 
 /**
@@ -377,7 +392,7 @@ export interface PendingRoomQuote {
   messageId: string;
   authorName: string;
   snippet: string;
-  attachment: ChatRoomQuoteAttachment | null;
+  attachments: ChatRoomQuoteAttachment[];
   /** Source room when the quoted message is not in the room being composed in. */
   roomId?: string;
 }
@@ -385,12 +400,12 @@ export interface PendingRoomQuote {
 export function pendingQuoteFromMessage(
   message: ChatRoomMessage,
 ): PendingRoomQuote {
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(message.content);
+  const { snippet, attachments } = buildRoomQuoteSnippetParts(message.content);
   return {
     messageId: message.id,
     authorName: messageSender(message).name,
     snippet,
-    attachment,
+    attachments,
   };
 }
 
@@ -434,6 +449,9 @@ export function senderProfile(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarStyleId: sokoBot.avatarStyleId,
+      idleLoopUrl: sokoBot.idleLoopUrl,
+      workingLoopUrl: sokoBot.workingLoopUrl,
       presence: sokoBot.presence,
     };
   }
@@ -677,13 +695,15 @@ export function getFormerMemberNames(room: ChatRoom): string[] {
   return room.formerUserMembers.map((member) => member.name || member.email);
 }
 
+/** `selfLabel` names the Self Direct from the reader's own name. */
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
-  selfLabel: string,
+  selfLabel: (name: string) => string,
 ): string {
   if (room.isSelfDirect) {
-    return selfLabel;
+    const self = room.userMembers.find((member) => member.id === currentUserId);
+    return selfLabel(self?.name || self?.email || room.name);
   }
   if (room.kind !== "direct") {
     return room.name;
@@ -739,6 +759,8 @@ export function getRoomParticipantPreviews(
         caption: sokoBot.caption,
         image: sokoBot.image,
         avatarSeed: sokoBot.avatarSeed,
+        avatarStyleId: sokoBot.avatarStyleId,
+        idleLoopUrl: sokoBot.idleLoopUrl,
         presence: sokoBot.presence,
       }),
     )
@@ -773,7 +795,7 @@ export interface MentionDirectTarget {
   id: string;
 }
 
-const MENTION_CHIP_CLASSNAME = "text-primary font-medium whitespace-nowrap";
+const MENTION_CHIP_CLASSNAME = "text-foreground font-medium whitespace-nowrap";
 
 export type MentionHoverUserLookup = Pick<
   ChatRoomUserParticipant,
@@ -857,6 +879,8 @@ export function chatParticipantProfileForDirectTarget(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarStyleId: sokoBot.avatarStyleId,
+      idleLoopUrl: sokoBot.idleLoopUrl,
       presence: sokoBot.presence,
     };
   }

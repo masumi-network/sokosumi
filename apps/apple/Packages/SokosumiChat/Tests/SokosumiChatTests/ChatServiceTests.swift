@@ -331,7 +331,7 @@ struct ChatServiceTests {
   @Test func participantDirectPreservesOrganization() async throws {
     let room = roomJSON(id: "direct", name: "Peer", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
     let transport = ScriptedTransport([(201, "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}")])
-    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
+    var selection = DirectConversationSelection(currentUserId: "me")
     selection.add(.human("peer"))
     _ = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
     #expect(try orgSlugHeader(#require(transport.requests.first).request) == "team")
@@ -343,7 +343,7 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(201, response), (200, response), (201, response)])
     let client = try makeClient(transport)
     for recipient in [DirectRecipient.human("human"), .coworker("coworker"), .sokoBot("01960001-0001-7001-8001-000000000099")] {
-      var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "me")
+      var selection = DirectConversationSelection(currentUserId: "me")
       selection.add(recipient)
       let result = try await ChatService().openDirect(client: client, selection: selection, organizationSlug: nil)
       #expect(result.id == "direct")
@@ -362,7 +362,7 @@ struct ChatServiceTests {
     let room = roomJSON(id: "group", name: "Team", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
     let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
     let transport = ScriptedTransport([(200, response)])
-    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
+    var selection = DirectConversationSelection(currentUserId: "me")
     selection.add(.human("alice"))
     selection.add(.human("bob"))
     let result = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
@@ -370,11 +370,20 @@ struct ChatServiceTests {
     let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
     #expect(body["memberUserIds"] as? [String] == ["alice", "bob"])
     #expect(try orgSlugHeader(#require(transport.requests.first).request) == "team")
-    do {
-      _ = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: nil)
-      Issue.record("Expected personal group rejection")
-    } catch ChatServiceError.unexpectedResponse {}
-    #expect(transport.requests.count == 1)
+  }
+
+  /// Personal workspace: a group Direct goes to Core with no Organization header (SOK-1495).
+  @Test func groupDirectStartsWithoutAnOrganization() async throws {
+    let room = roomJSON(id: "group", name: "Team", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
+    let transport = ScriptedTransport([(201, "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}")])
+    var selection = DirectConversationSelection(currentUserId: "me")
+    selection.add(.human("alice"))
+    selection.add(.human("bob"))
+    let result = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: nil)
+    #expect(result.id == "group")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["alice", "bob"])
+    #expect(try orgSlugHeader(#require(transport.requests.first).request) == nil)
   }
 
   @Test func personalRoomsOmitOrgHeader() async throws {

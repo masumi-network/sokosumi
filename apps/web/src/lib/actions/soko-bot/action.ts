@@ -5,6 +5,9 @@ import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
   SokoBotAvatar,
+  type SokoBotAvatarDraftResult,
+  SokoBotAvatarState,
+  type SokoBotAvatarStudio,
   type SokoBotDeletionResult,
   type SokoBotLabRun,
   type SokoBotLabTaskEvent,
@@ -33,6 +36,9 @@ import {
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+  SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
+  SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE,
+  SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOTS_ROUTE,
   sokoBotConsoleRoute,
@@ -50,6 +56,28 @@ const createSokoBotSchema = z.object({
 const avatarListSchema = z.object({
   take: z.number().int().min(1).max(6).default(6),
   excludeIds: z.array(z.string().uuid()).max(60).default([]),
+});
+
+const avatarChangeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("creature"),
+    creature: z.string().min(1).max(40),
+  }),
+  z.object({
+    kind: z.literal("accessory"),
+    accessory: z.string().min(1).max(40),
+    enabled: z.boolean(),
+  }),
+  z.object({ kind: z.literal("shuffle") }),
+  z.object({
+    kind: z.literal("typed"),
+    text: z.string().trim().min(1).max(300),
+  }),
+]);
+
+const avatarDraftSchema = z.object({
+  change: avatarChangeSchema,
+  draftId: z.string().uuid().optional(),
 });
 
 const startTurnSchema = z.object({
@@ -95,11 +123,40 @@ function invalidInput(): ActionError {
 }
 
 // A spent hourly allowance is a wait, not a breakage. Give the picker its own
-// code so it can say so instead of showing the generic load failure.
-function mapAvatarTopUpError(error: unknown): ActionError {
+// code so the picker and the studio can say so instead of the generic failure.
+function mapAvatarError(error: unknown): ActionError {
+  // The redo has its own allowance and its own 409: say which one it was.
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === "avatar_regenerate_rate_limited"
+  ) {
+    return {
+      code: SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE,
+      message: error.message,
+    };
+  }
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === "avatar_state_rendering"
+  ) {
+    return {
+      code: SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE,
+      message: error.message,
+    };
+  }
   if (error instanceof CoreApiRequestError && error.status === 429) {
     return {
       code: SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
+      message: error.message,
+    };
+  }
+  // Drawing switched off is not a hiccup; "try again" would send people round in circles.
+  if (
+    error instanceof CoreApiRequestError &&
+    error.kind === "avatar_drawing_unavailable"
+  ) {
+    return {
+      code: SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE,
       message: error.message,
     };
   }
@@ -358,7 +415,96 @@ export const topUpSokoBotAvatarsAction = withSession<
     );
     return toActionResult(ok(avatars));
   } catch (error) {
-    return toActionResult(err(mapAvatarTopUpError(error)));
+    return toActionResult(err(mapAvatarError(error)));
+  }
+});
+
+interface AvatarDraftParams extends BotScopedParams {
+  input: unknown;
+}
+
+/** One change to the look of the caller's bot (or shared bot `botId`), as a draft. */
+export const createSokoBotAvatarDraftAction = withSession<
+  AvatarDraftParams,
+  ActionResultDto<SokoBotAvatarDraftResult, ActionError>
+>(async ({ input, botId }) => {
+  const parsed = avatarDraftSchema.safeParse(input);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const result = await sokoBotService.createAvatarDraft(
+      parsed.data.change,
+      parsed.data.draftId,
+      parsedBot.data,
+    );
+    return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapAvatarError(error)));
+  }
+});
+
+interface KeepAvatarDraftParams extends BotScopedParams {
+  draftId: unknown;
+}
+
+export const keepSokoBotAvatarDraftAction = withSession<
+  KeepAvatarDraftParams,
+  ActionResultDto<SokoBotAvatarStudio, ActionError>
+>(async ({ draftId, botId }) => {
+  const parsed = z.string().uuid().safeParse(draftId);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const studio = await sokoBotService.keepAvatarDraft(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
+    return toActionResult(ok(studio));
+  } catch (error) {
+    return toActionResult(err(mapAvatarError(error)));
+  }
+});
+
+/** Throws every open draft away; the answer is the studio with the kept look. */
+export const discardSokoBotAvatarDraftsAction = withSession<
+  BotScopedParams,
+  ActionResultDto<SokoBotAvatarStudio, ActionError>
+>(async ({ botId }) => {
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedBot.success) return toActionResult(err(invalidInput()));
+  try {
+    const studio = await sokoBotService.discardAvatarDrafts(parsedBot.data);
+    return toActionResult(ok(studio));
+  } catch (error) {
+    return toActionResult(err(mapAvatarError(error)));
+  }
+});
+
+interface RegenerateAvatarStateParams extends BotScopedParams {
+  state: unknown;
+}
+
+/** Redoes one state's animation of the kept look. */
+export const regenerateSokoBotAvatarStateAction = withSession<
+  RegenerateAvatarStateParams,
+  ActionResultDto<SokoBotAvatarStudio, ActionError>
+>(async ({ state, botId }) => {
+  const parsedState = z.enum(SokoBotAvatarState).safeParse(state);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsedState.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const studio = await sokoBotService.regenerateAvatarState(
+      parsedState.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
+    return toActionResult(ok(studio));
+  } catch (error) {
+    return toActionResult(err(mapAvatarError(error)));
   }
 });
 

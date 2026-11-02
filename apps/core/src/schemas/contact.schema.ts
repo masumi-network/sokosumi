@@ -280,3 +280,51 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
 });
 
 export type ContactListQuery = z.infer<typeof contactListQuerySchema>;
+
+export const contactSuggestionSchema = z
+  .object({
+    id: z.uuid(),
+    listId: z.uuid(),
+    profileUrl: z.string(),
+    name: z.string(),
+    role: z.string().nullable(),
+    organization: z.string().nullable(),
+    location: z.string().nullable(),
+    reason: z
+      .string()
+      .openapi({ description: "Why this person fits the list." }),
+    status: z.enum(["SUGGESTED", "ADDED", "DISMISSED"]),
+    contactId: z.uuid().nullable(),
+    createdAt: dateTimeSchema,
+  })
+  .openapi("ContactSuggestion");
+
+export const contactPeopleSearchInputSchema = z
+  .object({
+    brief: z.string().trim().min(3).max(1000).optional().openapi({
+      description:
+        "Who belongs in the list, in plain words. Saved as the list's description; without it the description is used.",
+    }),
+    size: z
+      .union([z.literal(10), z.literal(25)])
+      .default(10)
+      .openapi({
+        description:
+          "How many people to find: 10 costs 5 credits, 25 costs 10.",
+      }),
+  })
+  .openapi("ContactPeopleSearchInput");
+
+export const contactPeopleSearchResultSchema = z
+  .object({
+    found: z.int(),
+    credits: z
+      .number()
+      .openapi({ description: "Credits taken; 0 when nobody was found." }),
+    suggestions: z.array(contactSuggestionSchema),
+  })
+  .openapi("ContactPeopleSearchResult");
+
+export const contactSuggestionIdsSchema = z
+  .object({ ids: z.array(z.uuid()).min(1).max(100) })
+  .openapi("ContactSuggestionIds");

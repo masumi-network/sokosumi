@@ -75,7 +75,7 @@ function DefaultErrorBoundaryError({ onRetry }: { onRetry: () => void }) {
   const t = useTranslations("Components.DefaultErrorBoundary");
 
   return (
-    <div className="flex min-h-[120px] w-full flex-col items-center justify-center gap-3 rounded-md border border-semantic-destructive-tertiary bg-semantic-destructive-quinary p-4 text-center">
+    <div className="flex min-h-[120px] w-full flex-col items-center justify-center gap-3 rounded-md border border-border bg-muted p-4 text-center">
       <span className="text-lg text-semantic-destructive text-pretty">
         {t("error")}
       </span>

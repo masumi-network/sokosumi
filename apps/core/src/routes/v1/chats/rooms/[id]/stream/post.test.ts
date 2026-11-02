@@ -220,19 +220,22 @@ const quoteSnapshot = {
   authorName: "Alice",
   snippet: "Earlier point about launch risk",
   attachment: null,
+  attachments: [],
 };
 
+const launchAttachment = {
+  fileName: "launch.png",
+  url: "https://blob.example/launch.png",
+  mediaKind: "image" as const,
+};
 const imageQuoteContent =
   "see this [launch.png](https://blob.example/launch.png)";
 const imageQuoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
   authorName: "Alice",
   snippet: "see this",
-  attachment: {
-    fileName: "launch.png",
-    url: "https://blob.example/launch.png",
-    mediaKind: "image" as const,
-  },
+  attachment: launchAttachment,
+  attachments: [launchAttachment],
 };
 
 function quotedSourceMessage(overrides: Partial<{ content: string }> = {}) {

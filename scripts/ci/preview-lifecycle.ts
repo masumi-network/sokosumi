@@ -15,9 +15,13 @@ import {
   vercelRequest,
 } from "./preview-resources.ts";
 import {
+  deleteForkPreviewBranch,
   deployTargets,
+  FORK_PREVIEW_BRANCH_PREFIX,
   githubJson,
   isMainModule,
+  isSameRepoPullRequest,
+  previewRef,
   readActionsContext,
 } from "./vercel-deploy.mjs";
 
@@ -128,15 +132,18 @@ export async function cleanupClosedPreview(options: LifecycleOptions) {
     `https://api.github.com/repos/${options.repoOwner}/${options.repoName}/pulls/${options.pullNumber}`,
   );
   if (!pull) throw new Error("Cannot verify PR ownership for preview cleanup");
-  if (
-    pull.state !== "closed" ||
-    pull.base.repo.id !== options.repoId ||
-    pull.head.repo?.id !== options.repoId
-  ) {
+  // Fork PRs count too: an approved `/deploy <network> <sha>` gives them a
+  // preview, and only the daily reconcile reaches them (see preview-deploy.yml).
+  if (pull.state !== "closed" || pull.base.repo.id !== options.repoId) {
     return { kind: "skip" };
   }
+  const ref = previewRef(pull);
+  // First: the Vercel env marker that rediscovers this PR outlives a failure here.
+  if (!isSameRepoPullRequest(pull)) {
+    await deleteForkPreviewBranch({ ...options, branch: ref });
+  }
   return cleanupPreviewResources(
-    { ...options, ref: pull.head.ref },
+    { ...options, ref },
     deployTargets(["mainnet", "preprod"]),
   );
 }
@@ -199,6 +206,21 @@ export async function previewCleanupInventory(
       if (match) numbers.add(Number(match[1]));
     }
   }
+  // A fork's preview branch outlives a `/deploy` that failed before its env
+  // vars, and the Neon branch expires: list it so reconcile still deletes it.
+  const forkRefs = await githubJson(
+    options.fetchImpl ?? fetch,
+    options.githubToken,
+    `https://api.github.com/repos/${options.repoOwner}/${options.repoName}/git/matching-refs/heads/${FORK_PREVIEW_BRANCH_PREFIX}`,
+  );
+  if (!Array.isArray(forkRefs))
+    throw new Error("GitHub fork preview branch list is missing");
+  for (const ref of forkRefs) {
+    const match = String(ref?.ref ?? "").match(
+      new RegExp(`^refs/heads/${FORK_PREVIEW_BRANCH_PREFIX}([1-9][0-9]*)$`),
+    );
+    if (match) numbers.add(Number(match[1]));
+  }
   // Native Neon expiry can remove a branch before the close event reaches us.
   // Its Vercel env marker keeps that PR discoverable for daily reconciliation.
   for (const target of deployTargets(["mainnet", "preprod"], ["core"])) {
@@ -224,11 +246,8 @@ export async function previewCleanupInventory(
     );
     // A missing PR cannot authorize deletion, but must not block other PRs.
     if (!pull) continue;
-    if (
-      pull.state === "closed" &&
-      pull.base.repo.id === options.repoId &&
-      pull.head.repo?.id === options.repoId
-    )
+    // Fork PRs included: the close signal skips them, so this sweep cleans them.
+    if (pull.state === "closed" && pull.base.repo.id === options.repoId)
       closed.push(pullNumber);
     // GitHub limits a matrix to 256 jobs. Successfully deleted resources drop
     // out of tomorrow's inventory, so larger backlogs drain in daily batches.

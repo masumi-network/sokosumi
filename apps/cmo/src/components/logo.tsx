@@ -13,7 +13,7 @@ export function Logo() {
         src="/logo.svg"
         width={334}
       />
-      CMO.XYZ
+      CMO.xyz
     </span>
   );
 }
