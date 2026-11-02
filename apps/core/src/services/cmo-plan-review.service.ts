@@ -187,7 +187,7 @@ function repeatedPhrases(drafted: MarketingStrategyPlan["calendar"]): string[] {
 }
 
 /**
- * The month is made in one go after payment, so the calendar itself must
+ * The month is made in one go after approval, so the calendar itself must
  * hold the mix: every piece names its approach, and each approach's share
  * of the pieces is close to the plan's.
  */
