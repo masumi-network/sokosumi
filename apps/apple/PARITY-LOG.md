@@ -5292,9 +5292,11 @@ How to test: open the app in light, click a room, then click the sidebar again s
 - Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)) follow web, with these differences:
   - Web's whole quote is one jump button. Here the author name and each tile are separate buttons, and the snippet stays selectable and does not jump.
   - Web's jump button and composer tile tint on hover. A tile here does not, like the other attachment tiles on the Mac.
-  - A composer tile that is not a web address does nothing here, as a draft's tile without one does. Web renders it as a link.
-  - A composer tile whose `mediaKind` is `image` opens the image viewer here even with no image extension. Web classifies by the extension alone and renders a link.
+  - A composer tile that is not a web address does nothing here. Web classifies it by extension, so it opens a viewer or a link. Core stores only http(s) file links, so this barely occurs.
+  - A composer tile whose `mediaKind` is `image` opens the image viewer here even with no image extension. Web reads only the URL and the name: a document extension opens its document viewer, and anything else is a link.
+  - `.heic` and `.heif` open the image viewer here. Web's image list has neither, so its tile is a link.
   - A URL with a non-image extension and a file name with an image one is a file here and an image on web.
+  - A URL with a document extension and a file name with a video or sound one opens the document viewer here and a link on web.
 - A draft's tile and a quote's tile on the Mac differ for a file with no viewer: a draft's opens the document sheet with Open and Save, a quote's opens its link, as web's does for both. Draft tiles are out of scope here.
 - The composer's local preview reads parsed Markdown and web reads the raw text, so they differ on less ordinary input until Core's snapshot replaces the preview after sending:
   - A bare file URL in a sentence is lifted here, named by its URL. Web keeps it in the text.
@@ -5324,10 +5326,13 @@ Not run: the app against a live Core. No message was sent; the renders are the r
 
 Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)):
 
-- `MessageQuoteAttachmentTests` sends real mouse events to tiles in the hosted `MessageRowView` and `ChatComposerView`: the source's id reaches `.jumpToQuote`, a quote from another room opens its message link, an image and a PDF attach their viewer sheets, and a zip, a video and a sound open their links. A non-web address stays inert. VoiceOver finds a tile by its file name, reads its hint and presses it. On the old `MessageQuoteView`, 6 of the 11 test functions fail: every action test, and the suite's rendering tests pass.
-- Workspace scheme on this Mac: 2165 tests, 2161 passed, 4 failed. `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` and `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` also fail on an unmodified `efe693407`. `SokoBotFeedbackToolbarTests/theThumbsLeadTheHoverToolbarAndRate(useful:)` and `MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` passed when their suites were rerun on the same code. SwiftFormat and strict SwiftLint on the changed files: clean.
-- The recorded renders were inspected: tiles look as before in light and dark, and both viewer sheets open.
+- `MessageAttachment.opening` and `ChatRoomMessageQuoteAttachment.preview` in `SokosumiChat` decide what a tile opens, with UI-free tests in `MessageQuoteTests`.
+- `MessageQuoteAttachmentTests` sends real mouse events to tiles in the hosted `MessageRowView` and `ChatComposerView`: the source's id reaches `.jumpToQuote`, a quote from another room opens its message link, an image attaches its viewer, a Markdown file attaches its viewer and loads over a fixture server, and a zip, a video and a sound open their links. A click on a non-web address does nothing, proved by a following click on a second tile. VoiceOver finds image, document and link tiles by their file names, reads each hint and presses them.
+- The first version of the suite failed against the old `MessageQuoteView` on every action test. The final version was not rerun against it.
+- Workspace scheme on this Mac: 2170 tests, 2167 passed, 3 failed. `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` and `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` also fail on an unmodified `efe693407`. `MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` is flaky: its suite and `SokoBotFeedbackToolbarTests` failed 5 of 10 tests twice on this commit and then passed all 10 with no change. Both suites passed all 10 on an unmodified `efe693407` in one run.
+- The iOS 17 Workspace build succeeded. SwiftFormat and strict SwiftLint are clean on the whole tree.
+- The recorded renders were inspected: tiles look as before in light and dark, the image viewer shows the image and the document viewer shows the loaded file.
 
-Not checked: the signed app against a live Core, the tooltip on hover, and a loaded document in the viewer. The fixture's `notes.pdf` is not a PDF, and the render shows the sheet at "Loading preview…".
+Not checked: the signed app against a live Core, a loaded PDF or Office file in the viewer, and the tooltip on hover, which needs a real pointer.
 
 Last updated: 2026-11-02
