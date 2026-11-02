@@ -1,27 +1,14 @@
 "use client";
 
-import { Leaf, Sunrise } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { displayAdPreview, searchAdPreview } from "@/lib/ads/ad-preview";
 import { EMPTY_SITELINK } from "@/lib/ads/google-search";
-import { cn } from "@/lib/utils";
 
 import {
   DisplayLandscapeCard,
   DisplaySquareCard,
   SearchAdCard,
 } from "./ads-ad-preview";
-
-/** Full-bleed art for a sample with no image: a brand fill and one mark. */
-function Art({ className, Icon }: { className: string; Icon: typeof Leaf }) {
-  return (
-    <span
-      className={cn("flex size-full items-center justify-center", className)}
-    >
-      <Icon className="size-10" />
-    </span>
-  );
-}
 
 /**
  * What Ads looks like with campaigns in it, behind the project selector: a
@@ -72,7 +59,20 @@ export function AdsNoProjectBackdrop() {
         displayHeadlines: [t(`${key}.headline`)],
         longHeadline: t(`${key}.longHeadline`),
         displayDescriptions: [t(`${key}.description`)],
-        images: [],
+        images:
+          key === "linen"
+            ? [
+                {
+                  role: "SQUARE",
+                  url: "/images/ads/backdrop/linen-square.webp",
+                },
+              ]
+            : [
+                {
+                  role: "LANDSCAPE",
+                  url: "/images/ads/backdrop/yoga-landscape.webp",
+                },
+              ],
       },
       0,
     );
@@ -88,7 +88,6 @@ export function AdsNoProjectBackdrop() {
     >
       <DisplaySquareCard
         ad={linen}
-        art={<Art className="bg-primary text-primary-foreground" Icon={Leaf} />}
         className="hidden w-52 shrink-0 -rotate-2 lg:block"
       />
       <SearchAdCard
@@ -97,7 +96,6 @@ export function AdsNoProjectBackdrop() {
       />
       <DisplayLandscapeCard
         ad={yoga}
-        art={<Art className="bg-muted text-muted-foreground" Icon={Sunrise} />}
         className="hidden w-80 shrink-0 -rotate-1 sm:block"
       />
       <SearchAdCard

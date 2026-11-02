@@ -33,7 +33,15 @@ describe("AdsNoProjectBackdrop", () => {
     // Display: square and landscape.
     expect(backdrop).toHaveTextContent(SAMPLES.linen.headline);
     expect(backdrop).toHaveTextContent(SAMPLES.yoga.longHeadline);
-    // Brand art stands in for the images the samples do not have.
+    // Display creatives come from the static backdrop assets.
+    expect(
+      Array.from(backdrop.querySelectorAll("img"), (image) =>
+        image.getAttribute("src"),
+      ),
+    ).toEqual([
+      "/images/ads/backdrop/linen-square.webp",
+      "/images/ads/backdrop/yoga-landscape.webp",
+    ]);
     expect(backdrop).not.toHaveTextContent(
       messages.App.Ads.newCampaign.preview.noImage,
     );
