@@ -3,7 +3,7 @@
 import { ChevronsUpDown, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useId, useRef } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
@@ -21,6 +21,7 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
+import { ProjectScopeReason } from "./project-scope-required";
 import {
   ScopeClosedBadge,
   useClearScope,
@@ -30,15 +31,20 @@ import {
   getScopeCreateOpener,
   openScopeCreate,
   resetScopeDialogs,
+  selectCreatedProject,
+  selectProjectScope,
   setScopeCreateOpen,
   setScopeSheetOpen,
   useScopeCreateOpen,
+  useScopeRequest,
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
 
 /**
  * Below md: a compact scope chip in the header that opens a bottom sheet.
  * While a project is picked, an × beside it returns to All projects.
+ * A page that needs a project opens the same sheet (`openProjectScope`); a
+ * required ask keeps it open on a tap outside.
  */
 export function SidebarScopeMobileChip() {
   const prefetch = usePrefetchScopeProjects();
@@ -46,6 +52,9 @@ export function SidebarScopeMobileChip() {
   const pathname = usePathname();
   const open = useScopeSheetOpen();
   const createOpen = useScopeCreateOpen();
+  const request = useScopeRequest();
+  const required = open && request?.required === true;
+  const reasonId = useId();
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const chipRef = useRef<HTMLButtonElement>(null);
   const clearScope = useClearScope(chipRef);
@@ -91,7 +100,12 @@ export function SidebarScopeMobileChip() {
           <SheetContent
             side="bottom"
             showCloseButton={false}
-            aria-describedby={undefined}
+            aria-describedby={request?.reason ? reasonId : undefined}
+            data-required={required || undefined}
+            // A required ask closes on Esc or ×, not on a stray tap outside.
+            onInteractOutside={(event) => {
+              if (required) event.preventDefault();
+            }}
             // A chat room hides the chip, so the sidebar row opens this sheet.
             onCloseAutoFocus={(event) => returnFocusTo(chipRef.current)(event)}
             className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl pb-[env(safe-area-inset-bottom)] motion-reduce:animate-none motion-reduce:transition-none"
@@ -110,12 +124,19 @@ export function SidebarScopeMobileChip() {
                 <span className="sr-only">{t("close")}</span>
               </Button>
             </SheetClose>
+            {request?.reason ? (
+              <ProjectScopeReason id={reasonId} reason={request.reason} />
+            ) : null}
             <ProjectScopeMenu
               selectedProjectId={projectId}
-              onSelect={select}
+              onSelect={(id) => selectProjectScope(id, select)}
               onCreate={openScopeCreate}
               onDone={() => setScopeSheetOpen(false)}
-              className="min-h-0 flex-1 rounded-none border-t"
+              // The reason's own rule already sits above the list.
+              className={cn(
+                "min-h-0 flex-1 rounded-none",
+                !request?.reason && "border-t",
+              )}
             />
           </SheetContent>
         </Sheet>
@@ -137,7 +158,9 @@ export function SidebarScopeMobileChip() {
       <InlineCreateProjectModal
         open={createOpen}
         onOpenChange={setScopeCreateOpen}
-        onCreated={({ projectId: createdId }) => select(createdId)}
+        onCreated={({ projectId: createdId }) =>
+          selectCreatedProject(createdId, select)
+        }
         onCloseAutoFocus={(event) =>
           returnFocusTo(getScopeCreateOpener())(event)
         }
