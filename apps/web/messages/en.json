@@ -10090,7 +10090,7 @@
         "channelSource": "{type}, {source}",
         "verified": "verified",
         "primary": "Primary",
-        "openSource": "Open where this was found",
+        "openSource": "Open source",
         "copyChannel": "Copy {value}",
         "removeChannel": "Remove {value}",
         "noChannels": "No way to reach them yet.",
@@ -10119,7 +10119,8 @@
           "CHANNEL_REMOVED": "{who} removed a channel",
           "MERGED": "{who} merged {names} into this contact",
           "ARCHIVED": "{who} archived this contact",
-          "UNARCHIVED": "{who} restored this contact"
+          "UNARCHIVED": "{who} restored this contact",
+          "WEB": "{who} filled {fields} from the web"
         },
         "fields": {
           "name": "name",
@@ -10134,14 +10135,20 @@
           "followUpAt": "follow-up",
           "avatarUrl": "photo",
           "customFields": "custom fields",
-          "kind": "type"
+          "kind": "type",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Mark as organization",
         "markPerson": "Mark as person",
         "waitingSince": "Since {date}, no answer yet",
         "heardFrom": "Last heard from them {when}",
         "automatic": "Automatic",
-        "classifier": "Automatic classification"
+        "classifier": "Automatic classification",
+        "enrich": "Enrich",
+        "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
+        "enriched": "Filled {fields} from the web · 1 credit",
+        "enrichedNone": "Nothing new found on the web. No credits used.",
+        "enrichFailed": "Could not look them up. Try again."
       },
       "stageGroups": {
         "general": "General",
@@ -10201,13 +10208,16 @@
         "briefPlaceholder": "e.g. Partners at seed funds investing in AI agents, Europe or US",
         "briefRequired": "Describe who you are looking for.",
         "sizeLabel": "How many",
-        "sizeOption": "{count} people",
-        "submit": "Find {count} people · {credits} credits",
+        "sizeOption": "{count, plural, one {# person} other {# people}}",
+        "submit": "Find {count, plural, one {# person} other {# people}} · up to {credits, number} credits",
         "searching": "Searching the web…",
         "found": "Found {count, plural, one {# person} other {# people}}",
-        "foundNone": "No new people found. Try describing them differently.",
+        "foundNone": "Nobody new found. Try describing them differently. No credits used.",
         "findFailed": "The search did not work. Try again.",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "pricing": "{credits, number} credits per person found. Finding nobody is free.",
+        "personLabel": "Who are you looking for?",
+        "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
       }
     }
   },
