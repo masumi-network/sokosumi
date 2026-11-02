@@ -1,8 +1,43 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRoomQuoteSnippetParts,
+  chatRoomQuotePromptLine,
   cleanChatMessageText,
 } from "./chat-room-quote-snippet";
+
+describe("chatRoomQuotePromptLine", () => {
+  const a = { fileName: "a.png" };
+  const b = { fileName: "b.pdf" };
+
+  it("flattens the snippet onto one line", () => {
+    expect(
+      chatRoomQuotePromptLine({
+        authorName: "Alice",
+        snippet: "Launch risk is\nthe vendor.",
+      }),
+    ).toBe("> Alice: Launch risk is the vendor.");
+  });
+
+  it("names every attachment after the snippet", () => {
+    expect(
+      chatRoomQuotePromptLine({
+        authorName: "Alice",
+        snippet: "look at this",
+        attachments: [a, b],
+      }),
+    ).toBe("> Alice: look at this (attached: a.png, b.pdf)");
+  });
+
+  it("names the attachments of a quote that is only files", () => {
+    expect(
+      chatRoomQuotePromptLine({
+        authorName: "Alice",
+        snippet: "",
+        attachments: [a],
+      }),
+    ).toBe("> Alice: (attached: a.png)");
+  });
+});
 
 describe("buildRoomQuoteSnippetParts snippet", () => {
   it("strips light markdown and collapses horizontal whitespace", () => {

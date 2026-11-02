@@ -131,6 +131,7 @@ export {
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
+  chatRoomQuotePromptLine,
 } from "./chat-room-quote-snippet.js";
 export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
 export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";

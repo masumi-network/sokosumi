@@ -61,6 +61,23 @@ export function buildRoomQuoteSnippetParts(
 }
 
 /**
+ * A quote as one line of text for an AI reader. The snippet no longer holds
+ * file names, so a quote of images alone would otherwise read as empty.
+ */
+export function chatRoomQuotePromptLine(quote: {
+  authorName: string;
+  snippet: string;
+  attachments?: readonly { fileName: string }[];
+}): string {
+  const names = quote.attachments?.map((file) => file.fileName).join(", ");
+  const parts = [
+    quote.snippet.replace(/\s+/g, " ").trim(),
+    names ? `(attached: ${names})` : "",
+  ];
+  return `> ${quote.authorName}: ${parts.filter(Boolean).join(" ")}`;
+}
+
+/**
  * A chat message body as plain text: markdown markers gone, a link reduced to
  * its label, horizontal whitespace collapsed, newlines kept.
  *
