@@ -25,7 +25,6 @@ import {
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
-import type { AuthenticationContext } from "@/middleware/auth";
 import type {
   AddNewsletterSubscriberRequest,
   AddNewsletterSubscribersFromContactsRequest,
@@ -39,7 +38,6 @@ import {
   type ContactActor,
   contactListWhere,
   inContactTransaction,
-  resolveContactActor,
   resolveContactSummaries,
 } from "@/services/contacts.service";
 import { linkNewsletterContacts } from "@/services/newsletter-contacts.service";
@@ -49,6 +47,29 @@ import { requireScopedProject } from "@/services/project-social-connections.serv
 export interface NewsletterScope {
   projectId: string;
   workspaceId: string;
+}
+
+/** Who adds subscribers, and whose confirmation-email budget it spends. */
+export interface NewsletterSubscriberAdder {
+  actor: ContactActor;
+  /** The request's client IP, or the Soko Bot adding on its owner's word. */
+  requester: Request | { sokoBotId: string };
+}
+
+/**
+ * A Soko Bot's addition. People are counted once the CSV is parsed and lists
+ * are expanded, before any write or email; the bot's authority check and its
+ * action receipt run in the insert's transaction, so the receipt exists
+ * exactly when the subscribers do.
+ */
+export interface NewsletterSubscriberWrite {
+  maxPeople: number;
+  authorize(tx: Prisma.TransactionClient): Promise<unknown>;
+  commit(
+    tx: Prisma.TransactionClient,
+    targetId: string,
+    result: unknown,
+  ): Promise<unknown>;
 }
 
 export async function getNewsletter(
@@ -166,19 +187,36 @@ export async function listNewsletterSubscribers(
 export async function addNewsletterSubscriber(
   scope: NewsletterScope,
   input: AddNewsletterSubscriberRequest,
-  auth: AuthenticationContext,
-  request: Request,
+  adder: NewsletterSubscriberAdder,
+  write?: NewsletterSubscriberWrite,
 ) {
   const newsletter = await getNewsletter(scope);
-  const actor = await resolveContactActor(auth, scope.workspaceId);
-  await requireConfirmationBudget(newsletter.id, input.consent, 1, request);
-  const result = await createSubscriberChunk(
-    newsletter,
-    [input],
+  await requireConfirmationBudget(
+    newsletter.id,
     input.consent,
-    "MANUAL",
-    actor,
+    1,
+    adder.requester,
   );
+  return addedSubscriber(
+    await createSubscriberChunk(
+      newsletter,
+      [input],
+      input.consent,
+      "MANUAL",
+      adder.actor,
+      write && {
+        authorize: write.authorize,
+        // Nobody added rolls the bot's write back, receipt and all.
+        commit: (tx, chunk) => {
+          const added = addedSubscriber(chunk);
+          return write.commit(tx, added.id, added);
+        },
+      },
+    ),
+  );
+}
+
+function addedSubscriber(result: SubscriberChunk) {
   const subscriber = result.created[0];
   if (!subscriber) {
     if (result.skippedUnsubscribed)
@@ -201,10 +239,11 @@ export async function patchNewsletterSubscriber(
   scope: NewsletterScope,
   subscriberId: string,
   input: PatchNewsletterSubscriberRequest,
+  client: Prisma.TransactionClient = prisma,
 ) {
-  const newsletter = await getNewsletter(scope);
+  const newsletter = await getNewsletter(scope, client);
   const where = { id: subscriberId, newsletterId: newsletter.id };
-  const subscriber = await prisma.newsletterSubscriber.findUnique({ where });
+  const subscriber = await client.newsletterSubscriber.findUnique({ where });
   if (!subscriber) throw notFound("Subscriber not found");
   if (
     input.status &&
@@ -221,7 +260,7 @@ export async function patchNewsletterSubscriber(
   const now = new Date();
   let updated: NewsletterSubscriber;
   try {
-    updated = await prisma.newsletterSubscriber.update({
+    updated = await client.newsletterSubscriber.update({
       where: {
         ...where,
         ...(input.status ? { status: subscriber.status } : {}),
@@ -252,7 +291,7 @@ export async function patchNewsletterSubscriber(
     throw error;
   }
   const contacts = await resolveContactSummaries(
-    prisma,
+    client,
     scope.workspaceId,
     updated.contactId ? [updated.contactId] : [],
   );
@@ -267,14 +306,15 @@ export async function patchNewsletterSubscriber(
 export async function deleteNewsletterSubscriber(
   scope: NewsletterScope,
   subscriberId: string,
+  client: Prisma.TransactionClient = prisma,
 ) {
-  const newsletter = await getNewsletter(scope);
+  const newsletter = await getNewsletter(scope, client);
   const where = { id: subscriberId, newsletterId: newsletter.id };
-  const { count } = await prisma.newsletterSubscriber.deleteMany({
+  const { count } = await client.newsletterSubscriber.deleteMany({
     where: { ...where, status: { in: ["ACTIVE", "PENDING"] } },
   });
   if (!count) {
-    const subscriber = await prisma.newsletterSubscriber.findUnique({ where });
+    const subscriber = await client.newsletterSubscriber.findUnique({ where });
     if (subscriber)
       throw conflict("Unsubscribed and bounced subscribers must be retained");
     throw notFound("Subscriber not found");
@@ -284,43 +324,55 @@ export async function deleteNewsletterSubscriber(
 export async function importNewsletterSubscribers(
   scope: NewsletterScope,
   input: ImportNewsletterSubscribersRequest,
-  auth: AuthenticationContext,
-  request: Request,
+  adder: NewsletterSubscriberAdder,
+  write?: NewsletterSubscriberWrite,
 ) {
   const newsletter = await getNewsletter(scope);
-  const actor = await resolveContactActor(auth, scope.workspaceId);
   const { subscribers, validRows, invalid } = parseNewsletterCsv(input.csv);
+  requireBotBatch(
+    write,
+    subscribers.length,
+    subscribers.length,
+    "The CSV has no valid email addresses",
+  );
   await requireConfirmationBudget(
     newsletter.id,
     input.consent,
     subscribers.length,
-    request,
+    adder.requester,
   );
-  const result = await createSubscriberChunks(
-    newsletter,
-    subscribers,
-    input.consent,
-    "CSV_IMPORT",
-    actor,
-  );
-  return {
+  const summary = (result: SubscriberTotals) => ({
     imported: result.added,
     skippedExisting: validRows - result.added,
     skippedUnsubscribed: result.skippedUnsubscribed,
     skippedBounced: result.skippedBounced,
     pendingConfirmation: result.pendingConfirmation,
     invalid,
-  };
+  });
+  return summary(
+    await createSubscriberChunks(
+      newsletter,
+      subscribers,
+      input.consent,
+      "CSV_IMPORT",
+      adder.actor,
+      write && {
+        authorize: write.authorize,
+        commit: (tx, result) =>
+          write.commit(tx, newsletter.id, summary(result)),
+      },
+    ),
+  );
 }
 
 export async function addNewsletterSubscribersFromContacts(
   scope: NewsletterScope,
   input: AddNewsletterSubscribersFromContactsRequest,
-  auth: AuthenticationContext,
-  request: Request,
+  adder: NewsletterSubscriberAdder,
+  write?: NewsletterSubscriberWrite,
 ) {
+  const { actor } = adder;
   const newsletter = await getNewsletter(scope);
-  const actor = await resolveContactActor(auth, scope.workspaceId);
   const resolved = await resolveContactSummaries(prisma, scope.workspaceId, [
     ...new Set(input.contactIds ?? []),
   ]);
@@ -361,20 +413,36 @@ export async function addNewsletterSubscribersFromContacts(
       ? [{ email: contact.channels[0].value, name: contact.name }]
       : [],
   );
+  requireBotBatch(
+    write,
+    contacts.length,
+    subscribers.length,
+    "None of these contacts has an email address",
+  );
   await requireConfirmationBudget(
     newsletter.id,
     input.consent,
     subscribers.length,
-    request,
+    adder.requester,
   );
-  const result = await createSubscriberChunks(
-    newsletter,
-    subscribers,
-    input.consent,
-    "CONTACTS",
-    actor,
+  const summary = (result: SubscriberTotals) => ({
+    ...result,
+    skippedNoEmail: contacts.length - subscribers.length,
+  });
+  return summary(
+    await createSubscriberChunks(
+      newsletter,
+      subscribers,
+      input.consent,
+      "CONTACTS",
+      adder.actor,
+      write && {
+        authorize: write.authorize,
+        commit: (tx, result) =>
+          write.commit(tx, newsletter.id, summary(result)),
+      },
+    ),
   );
-  return { ...result, skippedNoEmail: contacts.length - subscribers.length };
 }
 
 /** One rate-limit token covers one request, so the request itself is bounded. */
@@ -384,7 +452,7 @@ async function requireConfirmationBudget(
   newsletterId: string,
   consent: NewsletterConsent,
   people: number,
-  request: Request,
+  requester: NewsletterSubscriberAdder["requester"],
 ) {
   if (consent === "ASK" && people > NEWSLETTER_ASK_MAX_PEOPLE)
     throw unprocessableEntity(
@@ -392,12 +460,58 @@ async function requireConfirmationBudget(
     );
   if (
     consent === "ASK" &&
-    !(await allowNewsletterSignup(newsletterId, request))
+    !(await allowNewsletterSignup(newsletterId, requester))
   ) {
     throw tooManyRequests("Too many confirmation requests; try again later", {
       retryAfterSeconds: 600,
     });
   }
+}
+
+/** Keeps each insert below PostgreSQL's parameter limit for a 50k-row import. */
+const SUBSCRIBER_CHUNK_SIZE = 1000;
+
+/**
+ * Refuses a Soko Bot's batch outside its bounds before anything is written or
+ * emailed. A batch within them is one chunk, so one receipt covers it.
+ */
+function requireBotBatch(
+  write: NewsletterSubscriberWrite | undefined,
+  people: number,
+  adding: number,
+  nobody: string,
+) {
+  if (!write) return;
+  const max = Math.min(write.maxPeople, SUBSCRIBER_CHUNK_SIZE);
+  if (people > max)
+    throw unprocessableEntity(
+      `This adds ${people} people; at most ${max} can be added at a time here. Add more from the Newsletter's Subscribers page.`,
+    );
+  if (!adding) throw unprocessableEntity(nobody);
+}
+
+interface SubscriberTotals {
+  added: number;
+  alreadySubscribed: number;
+  skippedUnsubscribed: number;
+  skippedBounced: number;
+  pendingConfirmation: number;
+}
+
+function subscriberTotals(chunk: SubscriberChunk): SubscriberTotals {
+  return {
+    added: chunk.created.length,
+    alreadySubscribed: chunk.alreadySubscribed,
+    skippedUnsubscribed: chunk.skippedUnsubscribed,
+    skippedBounced: chunk.skippedBounced,
+    pendingConfirmation: chunk.pendingConfirmation,
+  };
+}
+
+/** Runs first and last in a chunk's transaction. */
+interface ChunkWrite<T> {
+  authorize(tx: Prisma.TransactionClient): Promise<unknown>;
+  commit(tx: Prisma.TransactionClient, result: T): Promise<unknown>;
 }
 
 async function createSubscriberChunks(
@@ -406,30 +520,57 @@ async function createSubscriberChunks(
   consent: NewsletterConsent,
   source: NewsletterSubscriberSource,
   actor: ContactActor,
+  write?: ChunkWrite<SubscriberTotals>,
 ) {
-  const result = {
+  // requireBotBatch kept a bot's batch to one chunk.
+  if (write)
+    return subscriberTotals(
+      await createSubscriberChunk(
+        newsletter,
+        subscribers,
+        consent,
+        source,
+        actor,
+        {
+          authorize: write.authorize,
+          commit: (tx, chunk) => write.commit(tx, subscriberTotals(chunk)),
+        },
+      ),
+    );
+  const result: SubscriberTotals = {
     added: 0,
     alreadySubscribed: 0,
     skippedUnsubscribed: 0,
     skippedBounced: 0,
     pendingConfirmation: 0,
   };
-  // Keep each insert below PostgreSQL's parameter limit for a 50k-row import.
-  for (let offset = 0; offset < subscribers.length; offset += 1000) {
-    const chunk = await createSubscriberChunk(
-      newsletter,
-      subscribers.slice(offset, offset + 1000),
-      consent,
-      source,
-      actor,
+  for (
+    let offset = 0;
+    offset < subscribers.length;
+    offset += SUBSCRIBER_CHUNK_SIZE
+  ) {
+    const chunk = subscriberTotals(
+      await createSubscriberChunk(
+        newsletter,
+        subscribers.slice(offset, offset + SUBSCRIBER_CHUNK_SIZE),
+        consent,
+        source,
+        actor,
+      ),
     );
-    result.added += chunk.created.length;
-    result.alreadySubscribed += chunk.alreadySubscribed;
-    result.skippedUnsubscribed += chunk.skippedUnsubscribed;
-    result.skippedBounced += chunk.skippedBounced;
-    result.pendingConfirmation += chunk.pendingConfirmation;
+    for (const key of Object.keys(result) as (keyof SubscriberTotals)[])
+      result[key] += chunk[key];
   }
   return result;
+}
+
+interface SubscriberChunk {
+  contacts: Awaited<ReturnType<typeof linkNewsletterContacts>>;
+  created: NewsletterSubscriber[];
+  alreadySubscribed: number;
+  skippedUnsubscribed: number;
+  skippedBounced: number;
+  pendingConfirmation: number;
 }
 
 async function createSubscriberChunk(
@@ -438,9 +579,12 @@ async function createSubscriberChunk(
   consent: NewsletterConsent,
   source: NewsletterSubscriberSource,
   actor: ContactActor,
-) {
+  write?: ChunkWrite<SubscriberChunk>,
+): Promise<SubscriberChunk> {
   const consentAt = new Date();
+  // Confirmation emails go out only after this commits.
   const result = await inContactTransaction(async (tx) => {
+    await write?.authorize(tx);
     const contacts = await linkNewsletterContacts(
       tx,
       newsletter.id,
@@ -532,7 +676,7 @@ async function createSubscriberChunk(
       ...existing.map((subscriber) => subscriber.status),
       ...suppressed,
     ];
-    return {
+    const chunk: SubscriberChunk = {
       contacts,
       created,
       alreadySubscribed: existing.filter(
@@ -544,6 +688,8 @@ async function createSubscriberChunk(
       skippedBounced: skipped.filter((status) => status === "BOUNCED").length,
       pendingConfirmation: consent === "ASK" ? created.length : 0,
     };
+    await write?.commit(tx, chunk);
+    return chunk;
   });
   if (consent === "ASK")
     await sendNewsletterConfirmations(

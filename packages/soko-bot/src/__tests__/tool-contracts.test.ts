@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   isSokoBotDecisionTarget,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
@@ -360,6 +361,135 @@ describe("newsletter settings tool", () => {
     expect(description).toMatch(/senderName, replyTo and the welcome email/);
     expect(description).toMatch(/untrusted/i);
     expect(description).toMatch(/never approves, schedules or sends/);
+  });
+});
+
+describe("newsletter subscriber tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const subscriberId = "44444444-4444-4444-8444-444444444444";
+  const contactId = "55555555-5555-4555-8555-555555555555";
+  const add = SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscriber;
+  const csv = SOKO_BOT_TOOL_INPUT_SCHEMAS.import_newsletter_subscribers;
+  const contacts =
+    SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscribers_from_contacts;
+  const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_subscriber;
+  const remove = SOKO_BOT_TOOL_INPUT_SCHEMAS.remove_newsletter_subscriber;
+  const writes = [
+    "add_newsletter_subscriber",
+    "import_newsletter_subscribers",
+    "add_newsletter_subscribers_from_contacts",
+    "update_newsletter_subscriber",
+    "remove_newsletter_subscriber",
+  ] as const;
+
+  it("needs a consent choice for every addition", () => {
+    const person = { projectId, email: "ada@example.com" };
+    expect(add.safeParse(person).success).toBe(false);
+    expect(add.safeParse({ ...person, consent: "ASK" }).success).toBe(true);
+    expect(add.safeParse({ ...person, consent: "CONFIRMED" }).success).toBe(
+      true,
+    );
+    expect(add.safeParse({ ...person, consent: "YES" }).success).toBe(false);
+    expect(csv.safeParse({ projectId, fileId: "file-1" }).success).toBe(false);
+    expect(
+      csv.safeParse({ projectId, fileId: "file-1", consent: "ASK" }).success,
+    ).toBe(true);
+    expect(
+      contacts.safeParse({ projectId, contactIds: [contactId] }).success,
+    ).toBe(false);
+  });
+
+  it("adds from contacts or lists, at most the batch cap of ids", () => {
+    expect(SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX).toBe(100);
+    expect(
+      contacts.safeParse({
+        projectId,
+        contactListIds: [contactId],
+        consent: "ASK",
+      }).success,
+    ).toBe(true);
+    expect(contacts.safeParse({ projectId, consent: "ASK" }).success).toBe(
+      false,
+    );
+    expect(
+      contacts.safeParse({
+        projectId,
+        contactIds: Array.from({ length: 101 }, () => contactId),
+        consent: "ASK",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("renames or changes status as the Subscribers page allows", () => {
+    const ref = { projectId, subscriberId };
+    expect(update.safeParse({ ...ref, name: "Ada" }).success).toBe(true);
+    expect(update.safeParse({ ...ref, status: "UNSUBSCRIBED" }).success).toBe(
+      true,
+    );
+    expect(update.safeParse({ ...ref, status: "BOUNCED" }).success).toBe(false);
+    expect(update.safeParse(ref).success).toBe(false);
+    expect(remove.safeParse(ref).success).toBe(true);
+  });
+
+  it.each(writes)("%s takes no approval, send or skip flag", (capability) => {
+    const valid = {
+      add_newsletter_subscriber: {
+        projectId,
+        email: "ada@example.com",
+        consent: "ASK",
+      },
+      import_newsletter_subscribers: {
+        projectId,
+        fileId: "file-1",
+        consent: "ASK",
+      },
+      add_newsletter_subscribers_from_contacts: {
+        projectId,
+        contactIds: [contactId],
+        consent: "ASK",
+      },
+      update_newsletter_subscriber: { projectId, subscriberId, name: "Ada" },
+      remove_newsletter_subscriber: { projectId, subscriberId },
+    }[capability];
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+    expect(schema.safeParse(valid).success).toBe(true);
+    for (const field of [
+      "approve",
+      "autoApprove",
+      "skipApproval",
+      "skipConfirmation",
+      "sendNow",
+    ])
+      expect(schema.safeParse({ ...valid, [field]: true }).success).toBe(false);
+  });
+
+  it.each(writes)(
+    "%s says it needs the owner and treats data as untrusted",
+    (capability) => {
+      const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+      expect(description).toMatch(/owner (explicitly )?asks in their chat/);
+      expect(description).toMatch(/untrusted/i);
+    },
+  );
+
+  it("says only the owner can vouch for consent, and where bigger batches go", () => {
+    for (const capability of [
+      "add_newsletter_subscriber",
+      "import_newsletter_subscribers",
+      "add_newsletter_subscribers_from_contacts",
+    ] as const) {
+      const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+      expect(description).toMatch(/ASK emails/);
+      expect(description).toMatch(/own chat message this turn/);
+      expect(description).toMatch(/never approves, schedules or sends/i);
+    }
+    for (const capability of [
+      "import_newsletter_subscribers",
+      "add_newsletter_subscribers_from_contacts",
+    ] as const)
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(
+        /At most 100 people per call.*Subscribers page/,
+      );
   });
 });
 

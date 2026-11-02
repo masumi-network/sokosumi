@@ -6,7 +6,11 @@ import type { EnvVariables } from "@/lib/hono";
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { isSharedSokoBotAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import type { NewsletterScope } from "@/services/newsletter.service";
+import { resolveContactActor } from "@/services/contacts.service";
+import type {
+  NewsletterScope,
+  NewsletterSubscriberAdder,
+} from "@/services/newsletter.service";
 import { sokoBotNewsletterTaskContext } from "@/services/newsletter-issues.service";
 import type { TaskDomainActor } from "@/services/task-domain.service";
 
@@ -20,6 +24,17 @@ export async function newsletterScope(
     throw notFound("Newsletter is not enabled");
   }
   return { projectId, workspaceId };
+}
+
+/** The member adding subscribers; confirmation emails count per client IP. */
+export async function newsletterSubscriberAdder(
+  c: Context<EnvVariables>,
+  scope: NewsletterScope,
+): Promise<NewsletterSubscriberAdder> {
+  return {
+    actor: await resolveContactActor(c.var.authContext, scope.workspaceId),
+    requester: c.req.raw,
+  };
 }
 
 /** Shared Soko Bots may draft and submit issues within their own scope. */

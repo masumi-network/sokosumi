@@ -107,6 +107,11 @@ export const SOKO_BOT_CAPABILITIES = [
   "preview_newsletter_issue",
   "submit_newsletter_issue",
   "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -174,6 +179,11 @@ export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
   "preview_newsletter_issue",
   "submit_newsletter_issue",
   "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotNewsletterCapability(
@@ -234,6 +244,12 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "delete_newsletter_issue",
   "submit_newsletter_issue",
   "update_newsletter_settings",
+  // Subscribing emails people a confirmation; a page must not pick who.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "generate_video",
   "post_chat",
   "open_direct_chat",
@@ -274,6 +290,12 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  // Other people's newsletter subscriptions, and the emails that confirm them.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
@@ -400,6 +422,12 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "submit_newsletter_issue",
   // Sender, reply-to and welcome email changes also need the owner's word.
   "update_newsletter_settings",
+  // Core runs these only on the owner's word in their own chat.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.
