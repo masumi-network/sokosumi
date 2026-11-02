@@ -450,6 +450,18 @@ body:has(.app) .site-header {
   background: var(--hover);
 }
 
+.start-over {
+  display: grid;
+  gap: 8px;
+  max-width: 280px;
+}
+
+.start-over-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .button-ghost {
   border-color: transparent;
   background: transparent;

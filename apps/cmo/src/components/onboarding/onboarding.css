@@ -164,6 +164,10 @@ button.ob-step {
   cursor: pointer;
 }
 
+.ob-who-menu .start-over {
+  padding: 8px 10px;
+}
+
 .ob-who-item:hover {
   background: var(--surface);
 }
