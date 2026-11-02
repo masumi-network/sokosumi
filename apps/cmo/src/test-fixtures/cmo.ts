@@ -59,9 +59,6 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrainConfirmedAt: null,
     projectLogo: null,
     onboardingStep: "done",
-    mockBilling: false,
-    mockPlan: null,
-    mockPlanActivatedAt: null,
     routines: [
       {
         key: "cmo-daily-run",

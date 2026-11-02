@@ -34,7 +34,6 @@ import {
   ConnectCard,
   LearningCard,
   StrategyCard,
-  SubscribeCard,
   UpdateCard,
 } from "./cards";
 import {
@@ -103,9 +102,6 @@ export interface CmoAppActions {
     provider: CmoOverview["measurement"][number]["provider"],
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
-  chooseMockPlan: (
-    plan: string,
-  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -535,11 +531,6 @@ export function CmoApp({
                   name={name}
                   email={email}
                   signOut={actions.signOut}
-                  chooseMockPlan={async (plan) => {
-                    const result = await actions.chooseMockPlan(plan);
-                    if (result.overview) setOverview(result.overview);
-                    return result.error;
-                  }}
                 />
               )}
             </div>
@@ -626,8 +617,6 @@ function ThreadEntry({
         ) : null;
       case "strategy":
         return <StrategyCard overview={overview} actions={actions} />;
-      case "subscribe":
-        return <SubscribeCard overview={overview} actions={actions} />;
       case "connect":
         return <ConnectCard actions={actions} />;
       case "update":

@@ -10,14 +10,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { revertMock, overviewMock, mockPlanMock, strategyMock } = vi.hoisted(
-  () => ({
-    revertMock: vi.fn(),
-    overviewMock: vi.fn(),
-    mockPlanMock: vi.fn(),
-    strategyMock: vi.fn(),
-  }),
-);
+const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
+  revertMock: vi.fn(),
+  overviewMock: vi.fn(),
+  strategyMock: vi.fn(),
+}));
 
 vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   const actual =
@@ -37,16 +34,8 @@ vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
     await importOriginal<typeof import("@/services/cmo-overview.service")>();
   return { ...actual, getCmoOverview: overviewMock };
 });
-vi.mock("@/services/cmo-billing.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/services/cmo-billing.service")>();
-  return { ...actual, chooseCmoMockPlan: mockPlanMock };
-});
 
-import {
-  CmoConflictError,
-  CmoNotFoundError,
-} from "@/services/cmo-cuso.service";
+import { CmoNotFoundError } from "@/services/cmo-cuso.service";
 import { SokoBotTurnInProgressError } from "@/services/soko-bot-control-plane.service";
 
 import cmoRouter from "./index";
@@ -73,9 +62,6 @@ function overview() {
     roomId: "room-1",
     subscriptionActive: false,
     viewerCanApprove: true,
-    mockBilling: false,
-    mockPlan: null,
-    mockPlanActivatedAt: null,
     brandBrain: null,
     strategy: null,
     strategyVersions: [
@@ -182,29 +168,6 @@ describe("CMO routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
-    });
-    expect(response.status).toBe(409);
-  });
-
-  it("activates a mock plan for the caller", async () => {
-    mockPlanMock.mockResolvedValue(undefined);
-    const response = await createApp().request("/mock-plan", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ plan: "growth" }),
-    });
-    expect(response.status).toBe(200);
-    expect(mockPlanMock).toHaveBeenCalledWith("user-1", "growth");
-  });
-
-  it("answers 409 for a mock plan when mock billing is off", async () => {
-    mockPlanMock.mockRejectedValue(
-      new CmoConflictError("Mock billing is off on this server"),
-    );
-    const response = await createApp().request("/mock-plan", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ plan: "growth" }),
     });
     expect(response.status).toBe(409);
   });
