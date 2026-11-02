@@ -5278,7 +5278,7 @@ How to test: open the app in light, click a room, then click the sidebar again s
 
 ## Every attachment of a quoted message (17b), 2026-11-02
 
-Draft [#6799](https://github.com/masumi-network/sokosumi/pull/6799). Follows web and Core [#6788](https://github.com/masumi-network/sokosumi/pull/6788) (`43413e45f`).
+[#6799](https://github.com/masumi-network/sokosumi/pull/6799). Follows web and Core [#6788](https://github.com/masumi-network/sokosumi/pull/6788) (`43413e45f`).
 
 ### Behaviour
 
@@ -5287,16 +5287,31 @@ Draft [#6799](https://github.com/masumi-network/sokosumi/pull/6799). Follows web
 - The Mac app builds no quote text for an AI reader, so `chatRoomQuotePromptLine` has no counterpart here.
 - A pin whose body is only a quote prints the author and snippet and no tiles, as web's pinned panel does. A quote of images alone therefore prints only the author there.
 
+### Where it differs from web
+
+- A tile does nothing when clicked. Web's transcript tiles sit inside the quote's jump button, so a click there jumps to the source; on the Mac only the author name jumps. Web's composer tiles are `FileChipMiniPreview`, not `MessageQuoteAttachmentThumb`, and open the image or document viewer.
+- The composer's local preview reads parsed Markdown and web reads the raw text, so they differ on less ordinary input until Core's snapshot replaces the preview after sending:
+  - A bare file URL in a sentence is lifted here, named by its URL. Web keeps it in the text.
+  - A file link inside a code fence or inline code stays in place here. Web lifts it.
+  - A `.markdown` link and a `![alt](url)` image with no file extension are lifted here. Web leaves them.
+  - A link labelled `chart.png` to a URL with no extension is an image here and a file on web.
+  - The same link twice in a row is one tile named `a.pnga.png` here. Web names it `a.png`.
+  - A blank line, a list marker and table text survive differently in the snippet. This predates the row.
+
 ### API snapshot
 
-`python3 scripts/update-core-api.py` also brought in everything Core added since the last refresh. Two of the additions needed code: result kind `cmo_report` (web's `ClipboardList` as `list.clipboard`, web's "Report") and seven Task tags (web's labels, with web's de and es strings in the catalogs). The rest is decoded and unused.
+`python3 scripts/update-core-api.py` against the Core OpenAPI document written by `write-openapi-snapshot` at `43413e45f`. Structural diff: paths 66 → 66, operations 81 → 81, none added or removed. Schemas 104 → 110, none removed: added `ChatMessageSignal`, `ChatSignalTag`, `ProjectSocialProvider`, `SokoBotAvatarState`, `SokoBotAvatarStateAssets`, `SokoBotAvatarView`; changed `ChatResultAvailable`, `ChatRoom`, `ChatRoomMessage`, `ChatRoomMessageQuote`, `ChatRoomMessageQuoteAttachment`, `ChatRoomPinnedMessageListItem`, `ChatRoomSokoBotParticipant`, `SharedSokoBotSummary`, `SokoBotState`, `TaskTagId`, `UserWorkspace`. Operations changed: `get /projects/{id}/image-studio/assets/{assetId}/content`, `get` and `patch /users/{id}/preferences`, `get /users/{id}/workspaces`, `put /users/{id}/workspaces/preferred`, `post /chats/rooms/{id}/members`, `put /chats/rooms/starred`.
+
+The refresh brought in everything Core added since the last one. Two of the additions needed code: result kind `cmo_report` (web's `ClipboardList` as `list.clipboard`, web's "Report") and seven Task tags (web's labels, with web's de and es strings in the catalogs). The rest is decoded and unused.
 
 Four fields are newly required: `UserWorkspace.role`, `memberCount` and `enabledSocialProviders`, and `ChatRoomSokoBotParticipant.sharedRoomId`. `helpers/user-workspaces.ts` and `soko-bot-participant.ts` in Core send them, so only the test fixtures needed the `UserWorkspace` fields. A fixture without them fails to decode, and `lateLoadCannotRestoreSignedOutAccount` then waits forever for a rooms request that never comes, which hangs the run rather than failing it.
 
 ### Verification
 
-- Workspace scheme on this Mac: 2157 tests, 2155 passed, 2 failed. `swift test`: `SokosumiChat` 1347 passed, `SokosumiWorkspace` 210 passed. SwiftFormat and strict SwiftLint clean.
-- The two failures are not this change: `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` and `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` fail the same way on an unmodified `43413e45f`, where Vision OCR reads "You" as "YoU" and the chosen chip as "MY Message yourself •". They failed on every run here, so they are not added to the known-flaky list.
+- Workspace scheme on this Mac: 2158 tests, 2155 passed, 3 failed. `swift test`: `SokosumiChat` 1348 passed, `SokosumiWorkspace` 210 passed. The iOS 17 Workspace build succeeded. SwiftFormat and strict SwiftLint clean.
+- Two failures are not this change: `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` and `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` fail the same way on an unmodified `43413e45f`, where Vision OCR reads "You" as "YoU" and the chosen chip as "MY Message yourself •". They failed on every run here, so they are not added to the known-flaky list.
+- The third, `MessageImageViewerActionsTests/printAndCopyAreForImagesOnly`, counted 0 of 1 print jobs. This change does not touch it, and reruns of its suite on the same code failed once and passed once, so it joins the known-flaky list.
+- `messageQuote` and web's built `buildRoomQuoteSnippetParts` ran side by side on 27 inputs. 11 match; the rest are the differences listed above, or web keeping Markdown syntax it does not parse.
 - `MessageQuoteAttachmentTests` hosts the real `MessageRowView` and `ChatComposerView` with a quote of four images and counts four drawn tiles, light and dark; a narrow quote wraps to a second row; file tiles show their type and keep their names. The recorded renders were inspected.
 
 Not run: the app against a live Core. No message was sent; the renders are the real `MessageRowView` and `ChatComposerView` hosted over a fixture server.
