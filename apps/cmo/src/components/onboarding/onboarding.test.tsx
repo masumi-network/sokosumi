@@ -570,6 +570,25 @@ describe("pricing", () => {
     expect(html).not.toContain("Choose Growth");
   });
 
+  it("keeps which organization pays on the checkout link", () => {
+    const html = renderToStaticMarkup(
+      <PricingStep
+        overview={{
+          ...overview(),
+          subscribeUrl: "http://web/billing?organizationId=org-cuso",
+        }}
+        plans={plans}
+        onStart={async () => {}}
+        onSubscribeLater={async () => {}}
+        onRefresh={async () => {}}
+        onChooseMockPlan={async () => null}
+      />,
+    );
+    expect(html).toContain(
+      'href="http://web/billing?organizationId=org-cuso&amp;tab=subscription"',
+    );
+  });
+
   it("offers CMO's own mock tiers instead of checkout while mock billing is on", () => {
     const html = renderToStaticMarkup(
       <PricingStep
