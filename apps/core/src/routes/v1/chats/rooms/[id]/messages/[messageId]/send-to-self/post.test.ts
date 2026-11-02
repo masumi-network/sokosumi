@@ -212,6 +212,7 @@ describe("POST /chats/rooms/{id}/messages/{messageId}/send-to-self", () => {
               authorName: "Alice",
               snippet: "Ship the launch notes",
               attachment: null,
+              attachments: [],
             },
           },
         }),

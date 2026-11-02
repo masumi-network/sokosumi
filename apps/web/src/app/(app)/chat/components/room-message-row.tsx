@@ -177,7 +177,6 @@ import {
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
-type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /**
  * Keeps the last line of a body clear of the Seen by faces in the row's
@@ -317,10 +316,10 @@ function messageImageGallery(
 function MessageQuoteAttachmentThumb({
   attachment,
 }: {
-  attachment: RoomQuoteAttachment;
+  attachment: ChatRoomMessageQuoteAttachment;
 }) {
   const thumbClassName =
-    "bg-card-background mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
+    "bg-card-background size-10 shrink-0 overflow-hidden rounded-xl border";
 
   switch (attachment.mediaKind) {
     case "image":
@@ -414,7 +413,7 @@ function MessageQuoteBlock({
       resetKey: `${quote.messageId}\0${quote.snippet}`,
     });
 
-  const attachment = quote.attachment ?? null;
+  const attachments = quote.attachments ?? [];
 
   return (
     <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-border px-2.5 py-1.5">
@@ -461,8 +460,15 @@ function MessageQuoteBlock({
             />
           </div>
         ) : null}
-        {attachment ? (
-          <MessageQuoteAttachmentThumb attachment={attachment} />
+        {attachments.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {attachments.map((attachment) => (
+              <MessageQuoteAttachmentThumb
+                key={attachment.url}
+                attachment={attachment}
+              />
+            ))}
+          </div>
         ) : null}
       </button>
       {expanded || overflows ? (

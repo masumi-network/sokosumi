@@ -1,10 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # CMO keeps no data of its own
 
-CMO is a Sokosumi wrapper, yet `cmo_hire` held what Cuso learns and plans for a business (Brand Brain, strategy, calendar, reports, production) in JSON only CMO could read, so Sokosumi and the Project's other bots never saw it. Every piece becomes a Project concept or is read from data Sokosumi already has, and `cmo_hire` goes away before #5543 merges: CMO keeps only screens.
+CMO is a Sokosumi wrapper, yet `cmo_hire` held what Cuso learns and plans for a business (Brand Brain, strategy, calendar, reports, production) in JSON only CMO could read, so Sokosumi and the Project's other bots never saw it. Every piece becomes a Project concept or is read from data Sokosumi already has, and #5543 is merged and `cmo_hire` is gone: CMO keeps only screens.
 
 ## Decisions
 
@@ -27,6 +27,6 @@ CMO is a Sokosumi wrapper, yet `cmo_hire` held what Cuso learns and plans for a 
 
 ## Consequences
 
-- #5543 waits for one stacked PR per concept into its branch; Sokosumi's screens for the Brand Brain and Marketing strategy come after it merges, while bots and CMO use `/v1` from the start.
+- #5543 is merged and `cmo_hire` is gone; Sokosumi's screens for the Brand Brain and Marketing strategy come later, while bots and CMO use `/v1` from the start.
 - Any Project may have a Brand Brain and a Marketing strategy; only the tools that write them stay CMO-only for now.
 - One Cuso per Project rests on the hire check, not a database index; two racing hire submits stay a known `shortcut:`.
