@@ -7,8 +7,8 @@ const SLIDE_MS = 200;
 const SLIDE_EASING_TOKEN = "--ease-out-strong";
 
 /**
- * Slides the room's content column (header row, transcript, composer) when a
- * side panel docks or closes, instead of letting it jump.
+ * Slides the room's content column (transcript, composer) when a side panel
+ * docks or closes, instead of letting it jump.
  * `ROOM_CONTENT_COLUMN_CLASSNAME` already moves the column as little as it can;
  * this animates what is left with a transform (FLIP), so layout never animates.
  * A panel toggle is the one resize where the section changes width and the room
@@ -19,7 +19,6 @@ const SLIDE_EASING_TOKEN = "--ease-out-strong";
 export function useRoomColumnSlide() {
   const mainRef = useRef<HTMLElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
 
@@ -29,11 +28,7 @@ export function useRoomColumnSlide() {
     if (!main || !section) return;
     // Read on every resize: `wrapColumn` (the file drop zone) can remount the
     // column body, so the nodes from mount may be gone.
-    const columns = () => [
-      headerRef.current,
-      listRef.current,
-      composerRef.current,
-    ];
+    const columns = () => [listRef.current, composerRef.current];
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const easing =
       getComputedStyle(document.documentElement)
@@ -41,11 +36,8 @@ export function useRoomColumnSlide() {
         .trim() || "ease-out";
     const slides = new WeakMap<HTMLElement, Animation>();
     let mainWidth = main.clientWidth;
-    // The header row, transcript and composer share
-    // `ROOM_CONTENT_COLUMN_CLASSNAME`, so one left stands for all of them. A
-    // per-node left would miss the header row when it mounts after this effect
-    // (the mobile header moves back in on a resize to desktop), and the header
-    // would jump while the rest slides.
+    // The transcript and composer share `ROOM_CONTENT_COLUMN_CLASSNAME`, so one
+    // left stands for both.
     // offsetLeft is the layout position: it ignores the slide's own transform.
     const columnLeft = () => columns().find((column) => column)?.offsetLeft;
     let layoutLeft = columnLeft();
@@ -91,5 +83,5 @@ export function useRoomColumnSlide() {
     return () => observer.disconnect();
   });
 
-  return { mainRef, sectionRef, headerRef, listRef, composerRef };
+  return { mainRef, sectionRef, listRef, composerRef };
 }
