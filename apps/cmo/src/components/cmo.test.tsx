@@ -154,7 +154,50 @@ describe("thread", () => {
       overview(cmoStrategyVersion(new Date("2026-10-01T09:05:00Z"))),
       [],
     ).map((item) => item.kind);
-    expect(after.slice(-2)).toEqual(["strategy", "connect"]);
+    expect(after.slice(-2)).toEqual(["welcome", "connect"]);
+  });
+
+  it("leaves out a background run's empty follow-up", () => {
+    const messages = toCusoMessages([
+      cmoChatMessage({ id: "empty", content: "Nothing to add." }),
+    ]);
+    expect(messages).toEqual([]);
+  });
+
+  it("opens on one welcome once hired, not the hiring messages", () => {
+    const approvedAt = new Date("2026-10-01T09:05:00Z");
+    const messages = toCusoMessages([
+      cmoChatMessage({
+        id: "research",
+        createdAt: new Date("2026-10-01T09:01:00Z"),
+      }),
+      cmoChatMessage({
+        id: "later",
+        createdAt: new Date("2026-10-02T08:00:00Z"),
+      }),
+    ]);
+    const thread = buildThread(
+      overview(cmoStrategyVersion(approvedAt)),
+      messages,
+    );
+    expect(thread.map((item) => item.kind)).toEqual([
+      "welcome",
+      "connect",
+      "message",
+    ]);
+    expect(thread[2]).toMatchObject({ message: { id: "later" } });
+  });
+
+  it("shows a changed plan that waits for approval after hiring", () => {
+    // Approving a version clears the earlier approval; hiredAt stays.
+    const thread = buildThread(
+      overview({
+        ...cmoStrategyVersion(null, new Date("2026-10-03T10:00:00Z")),
+        hiredAt: new Date("2026-10-01T09:05:00Z"),
+      }),
+      [],
+    );
+    expect(thread.map((item) => item.kind)).toEqual(["welcome", "strategy"]);
   });
 
   it("says what Cuso is waiting for", () => {

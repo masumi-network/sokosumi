@@ -127,6 +127,8 @@ export interface CmoOverview {
   strategy: MarketingStrategyPlan | null;
   /** Every version, newest first; the first is the one `strategy` shows. */
   strategyVersions: MarketingStrategyVersion[];
+  /** When a plan was first approved; a later approval does not move it. */
+  hiredAt: Date | null;
   botStatus: string;
   updates: CmoUpdateRecord[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
@@ -294,8 +296,12 @@ export async function getCmoOverview(
     })),
     ...cmoSocialPostMedia(posts),
   ];
-  const { readCmoProduction } = await import(
+  const { cmoHiredAt, readCmoProduction } = await import(
     "@/services/cmo-production.service"
+  );
+  const hiredAt = await cmoHiredAt(
+    cuso.sokoBotId,
+    approved?.approvedAt ?? null,
   );
   const production = await readCmoProduction(cuso, {
     connected: new Set(
@@ -367,6 +373,7 @@ export async function getCmoOverview(
     brandBrain,
     strategy,
     strategyVersions,
+    hiredAt,
     botStatus: bot.status,
     updates: await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN),
     channels,

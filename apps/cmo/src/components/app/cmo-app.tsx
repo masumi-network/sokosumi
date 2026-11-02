@@ -604,6 +604,17 @@ function ThreadEntry({
       </CusoSays>
     );
   }
+  if (item.kind === "welcome") {
+    return (
+      <CusoSays at={item.at}>
+        <p className="txt">
+          Your plan is ready. I'm making this month's posts now and publish each
+          one on its day; Up next shows what goes out first. Ask me anything
+          here, or tell me what to change.
+        </p>
+      </CusoSays>
+    );
+  }
   const card = (() => {
     switch (item.kind) {
       case "learning":

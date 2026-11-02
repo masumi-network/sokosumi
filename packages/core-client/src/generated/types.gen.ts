@@ -10706,6 +10706,10 @@ export type CmoOverview = {
      * Every version, newest first. At most one is approved; approving an older one reverts to it.
      */
     strategyVersions: Array<MarketingStrategyVersion>;
+    /**
+     * When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.
+     */
+    hiredAt: Date | null;
     updates: Array<CmoUpdate>;
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;

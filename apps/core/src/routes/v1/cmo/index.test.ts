@@ -77,6 +77,7 @@ function overview() {
         approvedByUserId: "user-1",
       },
     ],
+    hiredAt: NOW,
     media: [],
     botStatus: "IDLE",
     learning: "done",

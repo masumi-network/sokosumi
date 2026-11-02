@@ -40872,6 +40872,19 @@ export const CmoOverviewSchema = {
             },
             description: 'Every version, newest first. At most one is approved; approving an older one reverts to it.'
         },
+        hiredAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When a plan was first approved, so hiring ended. Unlike the approved version\'s approvedAt, a later approval does not move it.'
+        },
         updates: {
             type: 'array',
             items: {
@@ -41006,6 +41019,7 @@ export const CmoOverviewSchema = {
         'media',
         'strategyVersion',
         'strategyVersions',
+        'hiredAt',
         'updates',
         'channels',
         'upNext',

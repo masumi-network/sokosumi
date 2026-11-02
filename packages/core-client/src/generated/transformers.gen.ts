@@ -4250,6 +4250,9 @@ const cmoOverviewSchemaResponseTransformer = (data: any) => {
         data.strategyVersion = marketingStrategyVersionSchemaResponseTransformer(data.strategyVersion);
     }
     data.strategyVersions = data.strategyVersions.map((item: any) => marketingStrategyVersionSchemaResponseTransformer(item));
+    if (data.hiredAt) {
+        data.hiredAt = new Date(data.hiredAt);
+    }
     data.updates = data.updates.map((item: any) => cmoUpdateSchemaResponseTransformer(item));
     data.createdAt = new Date(data.createdAt);
     return data;

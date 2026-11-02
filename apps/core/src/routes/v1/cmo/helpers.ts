@@ -46,6 +46,7 @@ function mapOverview(overview: CmoOverview) {
     media: overview.media,
     strategyVersion: overview.strategyVersions[0] ?? null,
     strategyVersions: overview.strategyVersions,
+    hiredAt: overview.hiredAt,
     updates: overview.updates.map(
       ({ previousVersionId, versionId, revertedAt, ...update }) => ({
         ...update,

@@ -13,6 +13,7 @@ type Update = CmoOverview["updates"][number];
  */
 export type ThreadItem =
   | { kind: "message"; at: string; message: CusoMessage }
+  | { kind: "welcome"; at: string }
   | { kind: "learning"; at: string; done: boolean }
   | { kind: "brandBrain"; at: string }
   | { kind: "strategy"; at: string }
@@ -26,7 +27,9 @@ function iso(value: Date | string | null | undefined): string | null {
 
 /**
  * The thread in time order. A card that waits for the owner (connect) sits
- * right after the step that made it relevant.
+ * right after the step that made it relevant. Hiring already showed the
+ * research, Brand Brain and plan, so once a plan is approved the thread
+ * starts with one welcome instead of replaying them.
  */
 export function buildThread(
   overview: CmoOverview,
@@ -34,25 +37,38 @@ export function buildThread(
 ): ThreadItem[] {
   // A report is a message in the room; it shows as its card below.
   const reports = new Set(overview.updates.map((update) => update.id));
+  const hired = iso(overview.hiredAt);
   const items: ThreadItem[] = messages
-    .filter((message) => !reports.has(message.id))
+    .filter(
+      (message) =>
+        !reports.has(message.id) && (!hired || message.createdAt > hired),
+    )
     .map((message) => ({
       kind: "message",
       at: message.createdAt,
       message,
     }));
   const created = iso(overview.createdAt) ?? new Date(0).toISOString();
-  items.push({
-    kind: "learning",
-    at: created,
-    done: overview.brandBrain !== null,
-  });
-  const brainAt = iso(overview.brandBrainUpdatedAt);
-  if (overview.brandBrain && brainAt) {
-    items.push({ kind: "brandBrain", at: brainAt });
+  if (hired) {
+    items.push({ kind: "welcome", at: hired });
+  } else {
+    items.push({
+      kind: "learning",
+      at: created,
+      done: overview.brandBrain !== null,
+    });
+    const brainAt = iso(overview.brandBrainUpdatedAt);
+    if (overview.brandBrain && brainAt) {
+      items.push({ kind: "brandBrain", at: brainAt });
+    }
   }
+  // After hiring, the plan shows here only while a change waits for approval.
   const strategyAt = iso(overview.strategyVersion?.updatedAt);
-  if (overview.strategy && strategyAt) {
+  if (
+    overview.strategy &&
+    strategyAt &&
+    (!hired || !strategyApproved(overview))
+  ) {
     items.push({ kind: "strategy", at: strategyAt });
   }
   const approvedAt = iso(overview.strategyVersion?.approvedAt);

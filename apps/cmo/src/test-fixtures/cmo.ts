@@ -4,7 +4,7 @@ import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
 export function cmoStrategyVersion(
   approvedAt: Date | null,
   updatedAt: Date = new Date("2026-10-01T09:02:00Z"),
-): Pick<CmoOverview, "strategyVersion" | "strategyVersions"> {
+): Pick<CmoOverview, "strategyVersion" | "strategyVersions" | "hiredAt"> {
   const version = {
     id: "strategy-1",
     projectId: "project-1",
@@ -15,7 +15,11 @@ export function cmoStrategyVersion(
     approvedAt,
     approvedByUserId: approvedAt ? "user-1" : null,
   };
-  return { strategyVersion: version, strategyVersions: [version] };
+  return {
+    strategyVersion: version,
+    strategyVersions: [version],
+    hiredAt: approvedAt,
+  };
 }
 
 /** Whole, typed CMO API values for tests; pass a patch for what a test is about. */

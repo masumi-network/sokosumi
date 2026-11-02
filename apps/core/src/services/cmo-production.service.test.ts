@@ -67,6 +67,7 @@ vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 import {
   advanceCmoProduction,
   type CmoPiece,
+  cmoHiredAt,
   cmoMixLedger,
   cmoPieceReady,
   cmoProductionMessage,
@@ -177,6 +178,23 @@ function cuso(
 
 const hoursAgo = (hours: number) =>
   new Date(NOW.getTime() - hours * 60 * 60 * 1_000);
+
+describe("cmoHiredAt", () => {
+  it("keeps the first approval after a later one replaced it", async () => {
+    turnFindFirst.mockResolvedValueOnce({ clientTurnId: `${RUN}:1:0` });
+    const later = new Date("2026-11-08T09:00:00Z");
+    expect(await cmoHiredAt("bot-1", later)).toEqual(new Date(APPROVED));
+  });
+
+  it("falls back to the approval before production started", async () => {
+    turnFindFirst.mockResolvedValueOnce(null);
+    expect(await cmoHiredAt("bot-1", new Date(APPROVED))).toEqual(
+      new Date(APPROVED),
+    );
+    turnFindFirst.mockResolvedValueOnce(null);
+    expect(await cmoHiredAt("bot-1", null)).toBeNull();
+  });
+});
 
 describe("cmoPieceReady", () => {
   const connected = new Set(["instagram"]);
