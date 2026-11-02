@@ -1,4 +1,4 @@
-import type { NewsletterIssue } from "@sokosumi/database";
+import type { NewsletterIssue, Prisma } from "@sokosumi/database";
 import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
@@ -7,9 +7,11 @@ import { newsletterSignupLinks } from "@sokosumi/utils";
 
 import { getWebAppBaseUrl } from "@/config/env";
 import {
+  createNewsletterIssueRequestSchema,
   newsletterIssueSchema,
   newsletterSchema,
   newsletterSubscriberSchema,
+  patchNewsletterIssueRequestSchema,
 } from "@/schemas/newsletter.schema";
 import {
   newsletterAnalyticsQuerySchema,
@@ -27,8 +29,11 @@ import {
   getNewsletterIssueAnalytics,
 } from "@/services/newsletter-analytics.service";
 import {
+  createNewsletterIssue,
+  deleteNewsletterIssue,
   getNewsletterIssue,
   listNewsletterIssues,
+  patchNewsletterIssue,
 } from "@/services/newsletter-issues.service";
 
 type NewsletterReadCapability = Extract<
@@ -38,6 +43,13 @@ type NewsletterReadCapability = Extract<
   | "get_newsletter_issue"
   | "get_newsletter_analytics"
   | "list_newsletter_subscribers"
+>;
+
+type NewsletterWriteCapability = Extract<
+  SokoBotCapability,
+  | "create_newsletter_issue"
+  | "update_newsletter_issue"
+  | "delete_newsletter_issue"
 >;
 
 const settingsSchema = newsletterSchema.pick({
@@ -122,6 +134,83 @@ export function newsletterIssueActions(
   }
 }
 
+function issueUrl(issue: Pick<NewsletterIssue, "id" | "projectId">) {
+  return `/newsletter/issues/${encodeURIComponent(issue.id)}?projectId=${encodeURIComponent(issue.projectId)}`;
+}
+
+/** What a write hands back: enough to link the issue and edit it again. */
+function writtenIssue(issue: NewsletterIssue) {
+  return {
+    ...newsletterIssueSchema
+      .pick({
+        id: true,
+        projectId: true,
+        subject: true,
+        status: true,
+        revision: true,
+      })
+      .parse(issue),
+    url: issueUrl(issue),
+  };
+}
+
+/**
+ * Runs a newsletter write in the caller's transaction, in a scope it has
+ * already authorized. Input passes the Newsletter UI's own request schemas,
+ * and the issue service keeps its lifecycle rules: edits only before
+ * scheduling, each one back to DRAFT without approval, deletes only of
+ * drafts and canceled issues.
+ */
+export async function runNewsletterWriteTool(
+  capability: NewsletterWriteCapability,
+  rawInput: unknown,
+  scope: NewsletterScope,
+  {
+    client,
+    creatorSokoBotId,
+  }: { client: Prisma.TransactionClient; creatorSokoBotId: string },
+) {
+  switch (capability) {
+    case "create_newsletter_issue": {
+      const { projectId: _projectId, ...input } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.create_newsletter_issue.parse(rawInput);
+      return writtenIssue(
+        await createNewsletterIssue(
+          scope,
+          createNewsletterIssueRequestSchema.parse(input),
+          { client, creatorSokoBotId },
+        ),
+      );
+    }
+    case "update_newsletter_issue": {
+      const {
+        projectId: _projectId,
+        issueId,
+        ...input
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_issue.parse(rawInput);
+      return writtenIssue(
+        await patchNewsletterIssue(
+          scope,
+          issueId,
+          patchNewsletterIssueRequestSchema.parse(input),
+          client,
+        ),
+      );
+    }
+    case "delete_newsletter_issue": {
+      const { issueId, revision } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_newsletter_issue.parse(rawInput);
+      await deleteNewsletterIssue(scope, issueId, { revision, client });
+      return {
+        id: issueId,
+        projectId: scope.projectId,
+        revision,
+        deleted: true,
+      };
+    }
+  }
+}
+
 /** Runs a newsletter read in a scope the caller has already authorized. */
 export async function runNewsletterReadTool(
   capability: NewsletterReadCapability,
@@ -162,7 +251,7 @@ export async function runNewsletterReadTool(
         ...issueDetailSchema.parse(issue),
         createdBy: createdBy(issue),
         ...newsletterIssueActions(issue),
-        url: `/newsletter/issues/${encodeURIComponent(issue.id)}?projectId=${encodeURIComponent(issue.projectId)}`,
+        url: issueUrl(issue),
       };
     }
     case "get_newsletter_analytics": {

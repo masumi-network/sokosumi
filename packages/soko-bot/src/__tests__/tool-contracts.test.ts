@@ -189,6 +189,74 @@ describe("newsletter read tools", () => {
   });
 });
 
+describe("newsletter issue write tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const content = [
+    { type: "heading", level: 2, text: "News" },
+    { type: "image", url: "https://example.com/a.png", alt: "A" },
+    { type: "divider" },
+  ];
+  const create = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_newsletter_issue;
+  const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_issue;
+  const remove = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_newsletter_issue;
+  const created = { projectId, subject: "Hi", template: "IMAGES", content };
+
+  it("creates from exact blocks and never from raw HTML or http links", () => {
+    expect(create.safeParse(created).success).toBe(true);
+    expect(create.safeParse({ ...created, content: [] }).success).toBe(false);
+    expect(
+      create.safeParse({
+        ...created,
+        content: [{ type: "html", html: "<b>hi</b>" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      create.safeParse({
+        ...created,
+        content: [{ type: "button", label: "Go", url: "http://example.com" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("edits need the read revision, a change, and content with a new template", () => {
+    const ref = { projectId, issueId, revision: 2 };
+    expect(update.safeParse({ ...ref, subject: "New" }).success).toBe(true);
+    expect(update.safeParse({ ...ref, previewText: null }).success).toBe(true);
+    expect(update.safeParse(ref).success).toBe(false);
+    expect(
+      update.safeParse({ projectId, issueId, subject: "New" }).success,
+    ).toBe(false);
+    expect(update.safeParse({ ...ref, template: "TEXT" }).success).toBe(false);
+    expect(
+      update.safeParse({ ...ref, template: "TEXT", content }).success,
+    ).toBe(true);
+    expect(remove.safeParse(ref).success).toBe(true);
+    expect(remove.safeParse({ projectId, issueId }).success).toBe(false);
+  });
+
+  it.each([
+    "create_newsletter_issue",
+    "update_newsletter_issue",
+    "delete_newsletter_issue",
+  ] as const)("%s leaves approving and sending to a person", (capability) => {
+    const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+    expect(description).toMatch(/untrusted/i);
+    expect(description).toMatch(
+      /never approves, schedules or sends|Newsletter UI/i,
+    );
+  });
+
+  it("says an edit sends the issue back for approval and deletes need the owner", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.update_newsletter_issue).toMatch(
+      /returns the issue to DRAFT.*approve it again/,
+    );
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_newsletter_issue).toMatch(
+      /owner explicitly asks/,
+    );
+  });
+});
+
 describe("evaluate_with_jev input", () => {
   const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.evaluate_with_jev;
   const triage = {

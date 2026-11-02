@@ -17,6 +17,9 @@ export const HELD_BACK_REPLY =
 
 export const ACTION_LABELS: Record<string, string> = {
   newsletter_draft_issue: "Drafted newsletter issue for review",
+  create_newsletter_issue: "Created newsletter draft",
+  update_newsletter_issue: "Updated newsletter issue",
+  delete_newsletter_issue: "Deleted newsletter issue",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -85,6 +88,12 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     return "Updated file";
   return ACTION_LABELS[call.capability] ?? call.capability;
 }
+
+const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+]);
 
 const TABLE_CAPABILITIES = new Set([
   "create_table",
@@ -190,6 +199,15 @@ function actionTarget(
     return issue.success
       ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
       : "";
+  }
+  if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
+    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    if (!issue.success) return "";
+    const query = `?projectId=${encodeURIComponent(issue.data.projectId)}`;
+    // A deleted issue has no editor left to open.
+    return call.capability === "delete_newsletter_issue"
+      ? `([Open issues](/newsletter/issues${query}))`
+      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
   }
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
