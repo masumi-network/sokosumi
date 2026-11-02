@@ -2,7 +2,7 @@
 
 import { ChevronsUpDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useId, useRef } from "react";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { WORKSPACE_SWITCHER_ROW_CLASS } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import {
@@ -12,13 +12,22 @@ import {
 } from "@/components/ui/popover";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
-
+import {
+  ProjectScopeBackdrop,
+  ProjectScopeReason,
+} from "./project-scope-required";
 import {
   ScopeClosedBadge,
   useClearScope,
   useCurrentScope,
 } from "./project-scope-trigger";
-import { openScopeCreate } from "./sidebar-project-scope-state";
+import {
+  openScopeCreate,
+  selectProjectScope,
+  setScopeMenuOpen,
+  useScopeMenuOpen,
+  useScopeRequest,
+} from "./sidebar-project-scope-state";
 import { usePrefetchScopeProjects } from "./use-scope-projects";
 
 /**
@@ -28,10 +37,16 @@ import { usePrefetchScopeProjects } from "./use-scope-projects";
  * "Project: …". A Closed project, which the menu never lists, gets a small
  * Closed badge. While a project is picked, an × beside it returns to All
  * projects. Below md the header's chip and bottom sheet take over.
+ *
+ * Its menu is the one every page opens when it needs a project
+ * (`openProjectScope`). A required ask makes it modal over a dimmed page.
  */
 export function HeaderProjectScope() {
   const t = useTranslations("App.ProjectScope");
-  const [open, setOpen] = useState(false);
+  const open = useScopeMenuOpen();
+  const request = useScopeRequest();
+  const required = open && request?.required === true;
+  const reasonId = useId();
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -39,7 +54,8 @@ export function HeaderProjectScope() {
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      {required ? <ProjectScopeBackdrop /> : null}
+      <Popover open={open} onOpenChange={setScopeMenuOpen} modal={required}>
         <PopoverTrigger asChild>
           <button
             ref={triggerRef}
@@ -74,13 +90,22 @@ export function HeaderProjectScope() {
           align="start"
           sideOffset={4}
           aria-label={t("switchLabel")}
+          aria-describedby={request?.reason ? reasonId : undefined}
+          data-required={required || undefined}
+          // A required ask closes on Esc, not on a stray click on the page.
+          onInteractOutside={(event) => {
+            if (required) event.preventDefault();
+          }}
           className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
         >
+          {request?.reason ? (
+            <ProjectScopeReason id={reasonId} reason={request.reason} />
+          ) : null}
           <ProjectScopeMenu
             selectedProjectId={projectId}
-            onSelect={select}
+            onSelect={(id) => selectProjectScope(id, select)}
             onCreate={openScopeCreate}
-            onDone={() => setOpen(false)}
+            onDone={() => setScopeMenuOpen(false)}
           />
         </PopoverContent>
       </Popover>

@@ -203,8 +203,10 @@ export function ProjectScopeMenu({
             data-testid="project-scope-create"
             onSelect={() => {
               const opener = openerOf(menuRef.current);
-              onDone?.();
+              // Create first: it takes over a page's request for a project,
+              // which closing the selector would otherwise dismiss.
               onCreate(opener);
+              onDone?.();
             }}
           >
             <span

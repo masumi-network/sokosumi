@@ -37,11 +37,7 @@ export default async function NewsletterCalendarPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({
-      path: "/newsletter/calendar",
-      searchParams,
-      unavailable: scope.unavailable,
-    });
+    return newsletterWorkspacePage({ unavailable: scope.unavailable });
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);
