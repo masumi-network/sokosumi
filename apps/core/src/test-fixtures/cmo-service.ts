@@ -251,8 +251,6 @@ const client = {
   sokoBotIntegration: { findMany: integrationFindMany },
 };
 
-export const mockBilling = { on: false, production: false };
-
 export const funding = {
   spendable: 100,
   requireFunding: vi.fn(),
@@ -262,14 +260,7 @@ export const funding = {
 /** The module mocks, keyed by what they stand for. */
 export const cmoServiceMocks = {
   prisma: { default: client },
-  env: (actual: typeof import("@/config/env")) => ({
-    ...actual,
-    getEnv: () => ({
-      ...actual.getEnv(),
-      CMO_MOCK_BILLING: mockBilling.on,
-      ...(mockBilling.production ? { VERCEL_ENV: "production" as const } : {}),
-    }),
-  }),
+  env: (actual: typeof import("@/config/env")) => actual,
   socialPosts: { cancelSocialPost },
   sharedCreate: { createSharedSokoBot: createBot },
   controlPlane: { sokoBotControlPlane: { expireTurn, startTurn } },
@@ -332,8 +323,6 @@ export const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 export function resetCmoServiceMocks(): void {
   vi.clearAllMocks();
   strategyRows.length = 0;
-  mockBilling.on = false;
-  mockBilling.production = false;
   expireTurn.mockResolvedValue(true);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({

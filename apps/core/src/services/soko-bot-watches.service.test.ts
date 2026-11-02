@@ -7,6 +7,7 @@ const { db, startTurnMock } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
     chatRoomMessage: { findMany: vi.fn() },
     chatRoomSokoBotMember: { findUnique: vi.fn() },
@@ -40,6 +41,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import {
+  followUpConnectedApp,
   followUpMessage,
   registerWatch,
   syncSokoBotWatches,
@@ -442,6 +444,59 @@ describe("syncSokoBotWatches", () => {
           then: "x",
         }),
       ).rejects.toThrow("provider from find_integrations");
+    });
+  });
+
+  describe("followUpConnectedApp", () => {
+    beforeEach(() => {
+      db.sokoBotWatch.findMany.mockResolvedValue([]);
+    });
+
+    it("follows up the answer that gave the app's link", async () => {
+      db.sokoBotTurn.findMany.mockResolvedValue([
+        {
+          id: "turn-other",
+          userMessage: "x",
+          finalAnswer: "[Connect](/personal-assistant?connect=hubspot_crm)",
+        },
+        {
+          id: "turn-1",
+          userMessage: "How many open deals do I have?",
+          finalAnswer: "[Connect HubSpot](/personal-assistant?connect=hubspot)",
+        },
+      ]);
+      db.sokoBotWatch.findFirst.mockResolvedValue(null);
+      await followUpConnectedApp("bot-1", "hubspot");
+      expect(db.sokoBotWatch.create.mock.calls[0][0].data).toMatchObject({
+        sokoBotId: "bot-1",
+        turnId: "turn-1",
+        kind: "app_connected",
+        targetId: "hubspot",
+        then: 'Finish what was asked, which needed hubspot: "How many open deals do I have?"',
+      });
+      expect(db.sokoBotWatch.findMany.mock.calls[0][0].where).toEqual({
+        status: "WAITING",
+        sokoBotId: "bot-1",
+      });
+    });
+
+    it("uses the wait the bot set itself", async () => {
+      db.sokoBotTurn.findMany.mockResolvedValue([
+        {
+          id: "turn-1",
+          userMessage: "deals?",
+          finalAnswer: "/personal-assistant?connect=hubspot",
+        },
+      ]);
+      db.sokoBotWatch.findFirst.mockResolvedValue({ id: "watch-0" });
+      await followUpConnectedApp("bot-1", "hubspot");
+      expect(db.sokoBotWatch.create).not.toHaveBeenCalled();
+    });
+
+    it("does nothing new when no answer gave the link", async () => {
+      db.sokoBotTurn.findMany.mockResolvedValue([]);
+      await followUpConnectedApp("bot-1", "hubspot");
+      expect(db.sokoBotWatch.create).not.toHaveBeenCalled();
     });
   });
 });

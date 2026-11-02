@@ -387,14 +387,6 @@ button.ob-step {
   }
 }
 
-.ob-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 32px;
-}
-
 /* Step 1: website and goal */
 .ob-start {
   display: grid;
@@ -931,102 +923,6 @@ button.ob-step {
   gap: 6px;
 }
 
-.ob-pricing {
-  max-width: 960px;
-  margin: 0 auto;
-  padding-top: 8px;
-}
-
-.ob-plans {
-  display: grid;
-  gap: 12px;
-  margin-top: 32px;
-}
-
-@media (min-width: 760px) {
-  .ob-plans {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 759px) {
-  .ob-plan.featured {
-    order: -1;
-  }
-}
-
-.ob-plan {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid var(--ob-line);
-  border-radius: 16px;
-  background: var(--background);
-}
-
-.ob-plan.featured {
-  border-color: var(--foreground);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.08);
-}
-
-.ob-plan.active {
-  border-color: var(--ok);
-}
-
-.ob-plan-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ob-plan h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.ob-price {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.ob-price span {
-  margin-left: 2px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.ob-checks {
-  flex: 1;
-  padding: 0;
-  list-style: none;
-  gap: 8px;
-}
-
-.ob-checks li {
-  display: flex;
-  gap: 8px;
-}
-
-.ob-checks svg {
-  flex: none;
-  margin-top: 3px;
-  color: var(--ok);
-}
-
-.ob-waiting {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 16px;
-}
-
 @media (max-width: 760px) {
   .ob-top {
     grid-template-columns: auto 1fr;
@@ -1062,10 +958,6 @@ button.ob-step {
   .ob-live.on {
     animation: none;
   }
-}
-
-.ob-plans-mock {
-  margin-top: 32px;
 }
 
 /* A day reads "9" in the week grid, "Mon 9 Nov" in the phone list */
@@ -1127,39 +1019,6 @@ button.ob-step {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.ob-month {
-  display: grid;
-  gap: 12px;
-  margin: 8px 0 28px;
-  padding: 24px;
-  border-radius: 16px;
-  background: var(--surface);
-}
-
-.ob-month-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
-  gap: 16px 24px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ob-month-tiles li {
-  display: grid;
-  gap: 2px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.ob-month-n {
-  color: var(--foreground);
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.03em;
 }
 
 .ob-connect-group .ob-connect-list {
