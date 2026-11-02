@@ -301,6 +301,39 @@ export const CMO_BUYING_BARRIERS = [
   "trust",
 ] as const;
 
+const uniqueIgnoringCase = (texts: readonly string[]) =>
+  new Set(texts.map((text) => text.toLowerCase())).size === texts.length;
+
+/**
+ * A Google search ad as Cuso writes it, within Google's limits. Core builds
+ * the paused campaign from it when the owner launches the piece.
+ */
+export const cmoSearchAdSchema = z.object({
+  keywords: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
+  headlines: z
+    .array(z.string().trim().min(1).max(30))
+    .min(3)
+    .max(15)
+    .refine(uniqueIgnoringCase, "Headlines must differ"),
+  descriptions: z.array(z.string().trim().min(1).max(90)).min(2).max(4),
+  finalUrl: z.url({ protocol: /^https?$/ }).max(2048),
+  /** Where it runs: a country or city as Google names it; none is everywhere. */
+  location: z.string().trim().min(1).max(80).optional(),
+  /** The audience's language, ISO 639-1 ("de"). */
+  language: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z]{2}$/)
+    .optional(),
+  callouts: z
+    .array(z.string().trim().min(1).max(25))
+    .max(10)
+    .refine(uniqueIgnoringCase, "Callouts must differ")
+    .optional(),
+});
+export type CmoSearchAd = z.infer<typeof cmoSearchAdSchema>;
+
 export const cmoCalendarEntrySchema = z.object({
   /** Stable id Cuso chooses so later saves update the same entry. */
   id: z.string().trim().min(1).max(64),
@@ -333,6 +366,15 @@ export const cmoCalendarEntrySchema = z.object({
    * is saved; Cuso never sends it.
    */
   fileId: z.string().max(100).optional(),
+  /** A google_ads search piece's parts, so the owner can launch it. */
+  searchAd: cmoSearchAdSchema.optional(),
+  /**
+   * The Google Ads campaign the owner launched from searchAd. Set by Core;
+   * Cuso never sends it.
+   */
+  adCampaign: z
+    .object({ accountId: z.string().uuid(), campaignId: z.string().max(64) })
+    .optional(),
   taskId: z.string().max(100).optional(),
   /** The campaign this piece belongs to, by campaign id. */
   campaignId: z.string().trim().min(1).max(64).optional(),

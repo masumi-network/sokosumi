@@ -260,6 +260,11 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
+    adsAvailable: z
+      .boolean()
+      .describe(
+        "This person is in Sokosumi's Ads beta: CMO offers to connect Google Ads and Meta Ads and to launch Cuso's search ads.",
+      ),
     subscribeUrl: z.string(),
     billing: z.object({
       plan: z.union([z.string(), z.null()]),
