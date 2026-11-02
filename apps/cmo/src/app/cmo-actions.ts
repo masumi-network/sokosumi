@@ -25,11 +25,13 @@ import {
   revertCmoUpdate,
   setCmoAdBudget,
   startCmoOnboarding,
+  startCmoOver,
   updateProjectBrandBrain,
 } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
@@ -389,6 +391,22 @@ export async function finishAccounts(): Promise<CmoOverview> {
   const overview = await skipStep("accounts");
   revalidatePath("/");
   return overview;
+}
+
+/**
+ * Archives the Cuso this person works with and opens the hiring form, to hire
+ * him for another website. A refusal (not an owner or admin) comes back as text.
+ */
+export async function startOver(): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = await startCmoOver(core);
+  if (error) {
+    return error && typeof error === "object" && "message" in error
+      ? String((error as { message: unknown }).message)
+      : "Could not start over";
+  }
+  revalidatePath("/");
+  redirect("/");
 }
 
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */

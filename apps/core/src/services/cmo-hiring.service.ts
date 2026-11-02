@@ -308,6 +308,48 @@ export async function retryCmoOnboarding(
   return startCmoResearch(cuso, userId);
 }
 
+/** Social posts Cuso planned that have not gone out. */
+const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
+
+/**
+ * Lets this person hire Cuso again for another website: the Cuso they work
+ * with is archived (his running work stops) and his posts that have not gone
+ * out are canceled. His organization, Project and Files stay in Sokosumi.
+ * Only an organization owner or admin may (the archive checks).
+ */
+export async function startCmoOver(userId: string): Promise<void> {
+  const cuso = await requireCuso({ userId });
+  const { sokoBotControlPlane } = await import(
+    "@/services/soko-bot-control-plane.service"
+  );
+  await sokoBotControlPlane.archive(userId, cuso.workspaceId, {
+    kind: "id",
+    sokoBotId: cuso.sokoBotId,
+  });
+  const posts = await prisma.socialPost.findMany({
+    where: {
+      projectId: cuso.projectId,
+      status: { in: [...UNSENT_POST_STATUSES] },
+    },
+    select: { id: true, revision: true },
+  });
+  const { cancelSocialPost } = await import("@/services/social-posts.service");
+  for (const post of posts) {
+    await cancelSocialPost({
+      projectId: cuso.projectId,
+      workspaceId: cuso.workspaceId,
+      userId,
+      postId: post.id,
+      revision: post.revision,
+    }).catch((error) => {
+      console.warn("Starting over left a Social post", {
+        postId: post.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
+  }
+}
+
 /**
  * Starts Cuso's research turn for a hire, as the member `userId`; the CMO lab
  * reruns it per brand.
