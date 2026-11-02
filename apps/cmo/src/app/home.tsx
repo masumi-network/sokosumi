@@ -20,15 +20,12 @@ import {
   applyPlanAnswers,
   approveBrandBrain,
   approveStrategy,
-  chooseMockPlan,
-  completeOnboarding,
   connectChannel,
   connectMeasurement,
   finishAccounts,
   loadMessages,
   loadOverview,
   loadPieceText,
-  loadPlans,
   loadState,
   onboard,
   pauseEntry,
@@ -38,7 +35,6 @@ import {
   saveBrandBrain,
   sendMessage,
   setAdBudget,
-  subscribeLater,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -153,7 +149,6 @@ export async function Home({ searchParams, view }: HomeProps) {
       <OnboardingFlow
         overview={overview}
         messages={await loadMessages().catch(() => [])}
-        plans={await loadPlans().catch(() => null)}
         name={session.user.name}
         initialStep={step}
         actions={{
@@ -170,11 +165,8 @@ export async function Home({ searchParams, view }: HomeProps) {
           applyPlanAnswers,
           finishAccounts,
           addMailingList,
-          chooseMockPlan,
           connectChannel,
           connectMeasurement,
-          completeOnboarding,
-          subscribeLater,
           signOut,
         }}
       />
@@ -200,7 +192,6 @@ export async function Home({ searchParams, view }: HomeProps) {
         pauseEntry,
         connectChannel,
         connectMeasurement,
-        chooseMockPlan,
         signOut,
       }}
     />

@@ -4,14 +4,11 @@ import type { CmoOverview } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-import { STARTED_BY_OWNERS } from "../../lib/approvers";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
-import { mockPlanById } from "../../lib/mock-plans";
 import { strategyApproved } from "../../lib/strategy";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
-import { MockPlanTable } from "../mock-plans";
 import type { ConnectMeasurement } from "../onboarding/results-step";
 import { MeasureFunnel } from "../strategy-core";
 
@@ -259,82 +256,13 @@ export function SettingsPage({
   name,
   email,
   signOut,
-  chooseMockPlan,
 }: PageProps & {
   name: string;
   email: string;
   signOut: () => Promise<void>;
-  /** Mock checkout: activates a CMO tier; the refusal, if any. */
-  chooseMockPlan: (planId: string) => Promise<string | null>;
 }) {
-  const [changingPlan, setChangingPlan] = useState(false);
-  const mockPlan = mockPlanById(overview.mockPlan);
   return (
     <div className="page-body">
-      {overview.mockBilling ? (
-        <section className="panel">
-          <h3>Plan</h3>
-          <div className="li">
-            <span className={mockPlan ? "tag ok" : "tag"}>
-              {mockPlan?.name ?? "No plan"}
-            </span>
-            <span className="grow note">
-              {mockPlan
-                ? `Active since ${formatDay(overview.mockPlanActivatedAt)}. Test plan, nothing is billed.`
-                : overview.viewerCanApprove
-                  ? "Cuso drafts until you pick a plan."
-                  : STARTED_BY_OWNERS}
-            </span>
-            {overview.viewerCanApprove ? (
-              <button
-                type="button"
-                className="button button-secondary button-small"
-                aria-expanded={changingPlan}
-                onClick={() => setChangingPlan((open) => !open)}
-              >
-                {changingPlan
-                  ? "Close"
-                  : mockPlan
-                    ? "Change plan"
-                    : "Pick a plan"}
-              </button>
-            ) : null}
-          </div>
-          {changingPlan ? (
-            <MockPlanTable
-              current={overview.mockPlan}
-              choose={async (planId) => {
-                const refusal = await chooseMockPlan(planId);
-                if (!refusal) setChangingPlan(false);
-                return refusal;
-              }}
-            />
-          ) : null}
-        </section>
-      ) : null}
-      {overview.mockBilling ? null : (
-        <section className="panel">
-          <h3>Plan and billing</h3>
-          <div className="li">
-            <span className={overview.subscriptionActive ? "tag ok" : "tag"}>
-              {planLabel(overview.billing.plan)}
-            </span>
-            <span className="grow note">
-              {overview.subscriptionActive
-                ? "Cuso is executing your strategy."
-                : "Cuso drafts until the business has an active plan."}
-            </span>
-            <a
-              className="button button-secondary button-small"
-              href={overview.subscribeUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Manage
-            </a>
-          </div>
-        </section>
-      )}
       <section className="panel">
         <h3>Credits</h3>
         <div className="li">
@@ -415,14 +343,6 @@ export function SettingsPage({
   );
 }
 
-function formatDay(at: Date | string | null): string {
-  if (!at) return "today";
-  return new Date(at).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-  });
-}
-
 function formatRoutineRun(at: Date | string, timeZone: string | null): string {
   return new Date(at).toLocaleString("en-GB", {
     weekday: "short",
@@ -432,9 +352,4 @@ function formatRoutineRun(at: Date | string, timeZone: string | null): string {
     minute: "2-digit",
     ...(timeZone ? { timeZone } : {}),
   });
-}
-
-function planLabel(plan: string | null): string {
-  if (!plan) return "No plan";
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
 }

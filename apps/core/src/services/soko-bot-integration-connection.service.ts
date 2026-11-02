@@ -306,12 +306,12 @@ export async function finalizeSokoBotIntegration(input: {
         error: error instanceof Error ? error.message : "unknown",
       });
     });
-  // A bot waiting for this app carries on now, not on the next minute's sync.
+  // The request that needed this app is finished now, without asking again.
   if (status === "ACTIVE")
     waitUntil(
       import("@/services/soko-bot-watches.service")
-        .then(({ syncSokoBotWatches }) =>
-          syncSokoBotWatches({ shouldContinue: () => true, sokoBotId: bot.id }),
+        .then(({ followUpConnectedApp }) =>
+          followUpConnectedApp(bot.id, provider.id),
         )
         .catch((error: unknown) => {
           console.error("Soko Bot app-connected follow-up failed", {

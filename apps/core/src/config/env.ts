@@ -225,26 +225,6 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((value) => value.trim().toLowerCase() === "true"),
 
-  // CMO.xyz: subscription plans (Better Auth plan names, comma separated)
-  // that let Cuso schedule and publish for a CMO organization. solo, growth
-  // and scale are CMO's own tiers, which mock billing stores as Subscriptions.
-  CMO_SUBSCRIPTION_PLANS: z
-    .string()
-    .default("cmo,starter,standard,pro,solo,growth,scale")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((plan) => plan.trim().toLowerCase())
-        .filter(Boolean),
-    ),
-
-  // CMO.xyz mock billing for local and preview runs: a CMO tier picked in
-  // CMO counts as subscribed without real checkout. Never set in production.
-  CMO_MOCK_BILLING: z
-    .string()
-    .default("false")
-    .transform((value) => value.trim().toLowerCase() === "true"),
-
   /** Platform-wide kill switch for everything Soko Bots start on their own. */
   SOKO_BOT_PROACTIVE_PAUSED: z
     .string()
