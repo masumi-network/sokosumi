@@ -179,18 +179,23 @@ function iso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
 }
 
-function toEvent(event: SokoBotEvent): ChatTurnEvent {
+/**
+ * Lists read only an event's type and tool; its text (reasoning, model
+ * output) and raw payload are for Explain, which loads the turn in full.
+ */
+function toEvent(event: SokoBotEvent, withDetail = false): ChatTurnEvent {
   return {
     id: event.id,
     sequence: event.sequence,
     type: event.type,
-    summary: event.summary,
+    summary: withDetail ? event.summary : null,
     toolName: event.toolName,
     toolStatus: event.toolStatus,
     durationMs: event.durationMs,
     createdAt: event.createdAt.toISOString(),
-    payload:
-      (event.payload as Record<string, unknown> | null | undefined) ?? null,
+    payload: withDetail
+      ? ((event.payload as Record<string, unknown> | null | undefined) ?? null)
+      : null,
   };
 }
 
@@ -250,7 +255,7 @@ function toChatTurn(turn: SokoBotTurn): ChatTurn {
     durationMs: turn.durationMs,
     createdAt: turn.createdAt.toISOString(),
     events: (turn.events ?? [])
-      .map(toEvent)
+      .map((event) => toEvent(event))
       .sort((a, b) => a.sequence - b.sequence),
     delegations: (turn.delegations ?? []).map(toDelegation),
     decisions: (turn.pendingDecisions ?? []).map(toDecision),
@@ -263,6 +268,9 @@ function toChatTurn(turn: SokoBotTurn): ChatTurn {
 export function toChatTurnDetail(turn: SokoBotTurn): ChatTurnDetail {
   return {
     ...toChatTurn(turn),
+    events: (turn.events ?? [])
+      .map((event) => toEvent(event, true))
+      .sort((a, b) => a.sequence - b.sequence),
     classification: turn.classification,
     classifierModel: turn.classifierModel,
     classifierLatencyMs: turn.classifierLatencyMs,

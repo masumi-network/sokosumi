@@ -1451,7 +1451,8 @@
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
           "topUp": "Top up",
-          "unattributed": "Other"
+          "unattributed": "Other",
+          "contacts": "Find people"
         },
         "sokoBotTurns": "{count, plural, one {# interaction} other {# interactions}}",
         "sokoBotTurnsList": "{name}'s interactions"
@@ -8945,23 +8946,16 @@
         "failed": "Connection failed. Reconnect to try again.",
         "connectedNotChecked": "Connected · first check runs within 15 minutes",
         "lastChecked": "Connected · checked {when}",
-        "search": "Search",
-        "searchPlaceholder": "Add another app (Slack, Notion, Linear, …)",
-        "searchError": "Search failed.",
+        "searchPlaceholder": "Search all apps, like Notion or HubSpot",
         "noResults": "Nothing found.",
         "kindsGeneric": "Usable through its tools",
-        "popularTitle": "Popular apps — click to connect",
-        "resultsTitle": "Search results",
-        "showMore": "Show {count} more",
-        "showFewer": "Show fewer",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
         "kindsMailCalendar": "Reads your inbox and calendar",
         "connectedNotRead": "Connected · read when a briefing or meeting needs it",
         "lastRead": "Connected · read {when}",
         "connectedTools": "Connected",
-        "manage": "Manage",
-        "browseAll": "Browse all apps"
+        "manage": "Manage"
       },
       "Schedules": {
         "builtIn": "Built-in",
@@ -10140,6 +10134,33 @@
           "close": "close relationship",
           "noise": "looks automated or not personal"
         }
+      },
+      "suggestions": {
+        "title": "Suggested people",
+        "titleCount": "Suggested people · {count}",
+        "hint": "Find people on the web who fit this list.",
+        "find": "Find people",
+        "addAll": "Add all",
+        "addShort": "Add",
+        "add": "Add {name}",
+        "dismiss": "Dismiss {name}",
+        "showAll": "Show all {count}",
+        "showFewer": "Show fewer",
+        "added": "{count, plural, one {# person} other {# people}} added to {list}",
+        "decideFailed": "Could not update the suggestions.",
+        "dialogTitle": "Find people for {list}",
+        "dialogDescription": "Searches the web for people who fit, and suggests them here. Nothing is added until you add it.",
+        "briefLabel": "Who belongs in this list?",
+        "briefPlaceholder": "e.g. Partners at seed funds investing in AI agents, Europe or US",
+        "briefRequired": "Describe who you are looking for.",
+        "sizeLabel": "How many",
+        "sizeOption": "{count} people",
+        "submit": "Find {count} people · {credits} credits",
+        "searching": "Searching the web…",
+        "found": "Found {count, plural, one {# person} other {# people}}",
+        "foundNone": "No new people found. Try describing them differently.",
+        "findFailed": "The search did not work. Try again.",
+        "cancel": "Cancel"
       }
     }
   },

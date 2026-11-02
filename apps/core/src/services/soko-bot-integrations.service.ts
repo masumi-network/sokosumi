@@ -21,6 +21,7 @@ import {
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
+import { socialProviderForToolkit } from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
 
 export class SokoBotIntegrationError extends Error {
@@ -121,36 +122,61 @@ let catalogCache: {
   entries: SokoBotIntegrationCatalogEntry[];
 } | null = null;
 
-/** Composio's toolkit catalog by usage, cached for an hour and filtered locally. */
+/** Asked of Composio in one page; it is refused above its cap, so 500 is the fallback. */
+const CATALOG_SIZES = [1_000, 500] as const;
+
+/** One click connects it: Composio signs the owner in, or a social auth config does. */
+function connectable(toolkit: {
+  slug: string;
+  composioManagedAuthSchemes?: string[];
+}): boolean {
+  return (
+    Boolean(toolkit.composioManagedAuthSchemes?.length) ||
+    Boolean(getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())) ||
+    Boolean(socialProviderForToolkit(toolkit.slug.toLowerCase()))
+  );
+}
+
+async function loadCatalog(): Promise<SokoBotIntegrationCatalogEntry[] | null> {
+  const composio = getComposio();
+  if (!composio) return null;
+  for (const limit of CATALOG_SIZES) {
+    const toolkits = await composio.toolkits
+      .get({ sortBy: "usage", limit })
+      .catch(() => null);
+    if (!toolkits) continue;
+    return toolkits
+      .filter(
+        (toolkit) =>
+          toolkit.slug.toLowerCase() !== "composio" &&
+          !adProviderForToolkit(toolkit.slug) &&
+          connectable(toolkit),
+      )
+      .map((toolkit) => ({
+        provider: toolkit.slug.toLowerCase(),
+        name: toolkit.name,
+        description: toolkit.meta?.description ?? null,
+        logoUrl: toolkit.meta?.logo ?? null,
+        kinds:
+          getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
+          [],
+      }));
+  }
+  return null;
+}
+
+/**
+ * Every Composio toolkit a bot can connect in one click, most used first,
+ * cached for an hour and filtered locally.
+ */
 export async function searchSokoBotIntegrationCatalog(
   query: string,
   limit = 20,
 ): Promise<SokoBotIntegrationCatalogEntry[]> {
-  const composio = getComposio();
-  if (!composio) return curatedCatalog(query, limit);
   if (!catalogCache || Date.now() - catalogCache.at > CATALOG_TTL_MS) {
-    const toolkits = await composio.toolkits
-      .get({ sortBy: "usage", limit: 500 })
-      .catch(() => null);
-    if (!toolkits) return curatedCatalog(query, limit);
-    catalogCache = {
-      at: Date.now(),
-      entries: toolkits
-        .filter(
-          (toolkit) =>
-            toolkit.slug.toLowerCase() !== "composio" &&
-            !adProviderForToolkit(toolkit.slug),
-        )
-        .map((toolkit) => ({
-          provider: toolkit.slug.toLowerCase(),
-          name: toolkit.name,
-          description: toolkit.meta?.description ?? null,
-          logoUrl: toolkit.meta?.logo ?? null,
-          kinds:
-            getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
-            [],
-        })),
-    };
+    const entries = await loadCatalog();
+    if (!entries) return curatedCatalog(query, limit);
+    catalogCache = { at: Date.now(), entries };
   }
   const needle = query.trim().toLowerCase();
   const entries = needle
@@ -162,18 +188,6 @@ export async function searchSokoBotIntegrationCatalog(
       )
     : catalogCache.entries;
   return entries.slice(0, limit);
-}
-
-/** Toolkit logos by slug from the cached catalog; empty when unreachable. */
-export async function catalogLogos(): Promise<Map<string, string>> {
-  const entries = await searchSokoBotIntegrationCatalog("", 500).catch(
-    () => [] as SokoBotIntegrationCatalogEntry[],
-  );
-  return new Map(
-    entries.flatMap((entry) =>
-      entry.logoUrl ? [[entry.provider, entry.logoUrl] as const] : [],
-    ),
-  );
 }
 
 function curatedCatalog(

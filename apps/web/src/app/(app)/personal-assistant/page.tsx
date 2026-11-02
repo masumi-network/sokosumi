@@ -66,6 +66,8 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   const focusTurnId = typeof params.turn === "string" ? params.turn : null;
   const integrationOutcome =
     typeof params.integration === "string" ? params.integration : null;
+  const connectProvider =
+    typeof params.connect === "string" ? params.connect : null;
 
   if (load.kind === "disabled") {
     return (
@@ -96,25 +98,17 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   }
 
   // Skills and the version chip are only rendered behind Advanced, which is
-  // off by default; the connectors need integrations and the catalog in both.
+  // off by default; the connectors need integrations in both.
   const wantsAdvanced = params.view === "advanced" || focusTurnId !== null;
-  const [
-    versions,
-    installedSkills,
-    stats,
-    usage,
-    integrations,
-    catalog,
-    adAccounts,
-  ] = await Promise.all([
-    wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
-    wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
-    sokoBotService.getStats().catch(() => null),
-    sokoBotService.getMyUsage().catch(() => null),
-    sokoBotService.listIntegrations().catch(() => null),
-    sokoBotService.searchIntegrationCatalog("").catch(() => []),
-    loadBotAdAccounts({ projectId: null }).catch(() => null),
-  ]);
+  const [versions, installedSkills, stats, usage, integrations, adAccounts] =
+    await Promise.all([
+      wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
+      wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
+      sokoBotService.getStats().catch(() => null),
+      sokoBotService.getMyUsage().catch(() => null),
+      sokoBotService.listIntegrations().catch(() => null),
+      loadBotAdAccounts({ projectId: null }).catch(() => null),
+    ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;
   const isAdmin = hasAdminRole(
@@ -129,8 +123,8 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       stats={stats}
       usage={usage}
       integrations={integrations}
-      catalog={catalog}
       integrationOutcome={integrationOutcome}
+      connectProvider={connectProvider}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}

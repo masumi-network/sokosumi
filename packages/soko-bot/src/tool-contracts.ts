@@ -495,6 +495,39 @@ export const sokoBotUpdateContactInputSchema = contactFieldsSchema
   })
   .strict();
 
+const projectBriefingSchema = z.string().trim().max(20_000);
+const projectWebsiteSchema = z
+  .url({ protocol: /^https?$/ })
+  .max(2048)
+  .describe("The project's website, http or https");
+
+export const sokoBotFindIntegrationsInputSchema = z
+  .object({ query: z.string().trim().min(1).max(100) })
+  .strict();
+
+export const sokoBotCreateProjectInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    briefing: projectBriefingSchema.optional(),
+    websiteUrl: projectWebsiteSchema.optional(),
+  })
+  .strict();
+
+export const sokoBotUpdateProjectInputSchema = z
+  .object({
+    projectId: z.uuid(),
+    name: z.string().trim().min(1).max(200).optional(),
+    /** Replaces the whole briefing; null clears it. */
+    briefing: projectBriefingSchema.nullable().optional(),
+    websiteUrl: projectWebsiteSchema.nullable().optional(),
+  })
+  .strict()
+  .refine(
+    ({ name, briefing, websiteUrl }) =>
+      name !== undefined || briefing !== undefined || websiteUrl !== undefined,
+    { message: "Give name, briefing or websiteUrl to change" },
+  );
+
 export const sokoBotManageContactListsInputSchema = z
   .object({
     action: z.enum(["create", "update", "delete", "add", "remove"]),
@@ -1140,6 +1173,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
     .strict(),
   merge_contacts: mergeContactsSchema,
   manage_contact_lists: sokoBotManageContactListsInputSchema,
+  create_project: sokoBotCreateProjectInputSchema,
+  update_project: sokoBotUpdateProjectInputSchema,
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_chats: emptyInputSchema,
@@ -1164,6 +1199,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   install_skill: sokoBotInstallSkillInputSchema,
   remove_skill: sokoBotRemoveSkillInputSchema,
   list_integrations: emptyInputSchema,
+  find_integrations: sokoBotFindIntegrationsInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
   read_email: sokoBotReadEmailInputSchema,
   evaluate_with_jev: sokoBotEvaluateWithJevInputSchema,
@@ -1328,6 +1364,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Fold duplicates into one contact: channels, interactions, lists and history move to winnerId, its empty fields are filled from the others in order, and the others stay as tombstones. Only merge when you are sure it is one person.",
   manage_contact_lists:
     "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
+  create_project:
+    "Create a Project in the workspace when someone asks for one: a name, and the briefing (what it is for, its goals and audience) and website when you know them. First check your context for a Project with that name and use it instead of making a second one.",
+  update_project:
+    "Rename a Project or change its briefing or website. briefing replaces the whole text, so read it from your context first and keep what still holds; null clears it. Closing or deleting a Project stays with a person on the Project page.",
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Content Studio images are there once get_image has reported them ready. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
   generate_image:
@@ -1358,6 +1398,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Uninstall one of your skills by its id or name from list_skills, when the owner asked for it in this chat.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
+  find_integrations:
+    'Search every app you can be connected to (Composio: Notion, HubSpot, Airtable, Stripe, Jira, Figma, …) by name or what it does. Each result says whether it is connected; for one that is not, give the person asking its connectLink as a markdown link ("[Connect HubSpot](connectLink)"): one click signs them in, and then list_integration_tools and run_integration_tool work on it. Use it when a request needs an app you are not connected to, instead of saying you cannot.',
   search_inbox:
     "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Reading changes nothing; update_emails marks mail read or archives it, draft_email writes drafts.",
   read_email:

@@ -1451,7 +1451,8 @@
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
           "topUp": "Recarga",
-          "unattributed": "Otros"
+          "unattributed": "Otros",
+          "contacts": "Buscar personas"
         },
         "sokoBotTurns": "{count, plural, one {# interacción} other {# interacciones}}",
         "sokoBotTurnsList": "Interacciones de {name}"
@@ -8945,23 +8946,16 @@
         "failed": "La conexión falló. Reconecta para intentarlo de nuevo.",
         "connectedNotChecked": "Conectado · primera comprobación en menos de 15 minutos",
         "lastChecked": "Conectado · comprobado {when}",
-        "search": "Buscar",
-        "searchPlaceholder": "Añadir otra app (Slack, Notion, Linear, …)",
-        "searchError": "La búsqueda falló.",
+        "searchPlaceholder": "Buscar todas las apps, como Notion o HubSpot",
         "noResults": "No se encontró nada.",
         "kindsGeneric": "Utilizable a través de sus herramientas",
-        "popularTitle": "Apps populares — haz clic para conectar",
-        "resultsTitle": "Resultados",
-        "showMore": "Mostrar {count} más",
-        "showFewer": "Mostrar menos",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
         "kindsMailCalendar": "Lee tu bandeja de entrada y calendario",
         "connectedNotRead": "Conectado · se lee cuando un resumen o una reunión lo necesita",
         "lastRead": "Conectado · leído {when}",
         "connectedTools": "Conectado",
-        "manage": "Gestionar",
-        "browseAll": "Ver todas las apps"
+        "manage": "Gestionar"
       },
       "Schedules": {
         "builtIn": "Integrado",
@@ -10140,6 +10134,33 @@
           "close": "relación cercana",
           "noise": "parece automático o impersonal"
         }
+      },
+      "suggestions": {
+        "title": "Personas sugeridas",
+        "titleCount": "Personas sugeridas · {count}",
+        "hint": "Encuentra en la web personas que encajen en esta lista.",
+        "find": "Buscar personas",
+        "addAll": "Añadir todas",
+        "addShort": "Añadir",
+        "add": "Añadir a {name}",
+        "dismiss": "Descartar a {name}",
+        "showAll": "Mostrar las {count}",
+        "showFewer": "Mostrar menos",
+        "added": "{count, plural, one {# persona añadida} other {# personas añadidas}} a {list}",
+        "decideFailed": "No se pudieron actualizar las sugerencias.",
+        "dialogTitle": "Buscar personas para {list}",
+        "dialogDescription": "Busca en la web personas que encajen y las sugiere aquí. No se añade nada hasta que tú lo añadas.",
+        "briefLabel": "¿Quién pertenece a esta lista?",
+        "briefPlaceholder": "p. ej. socios de fondos seed que invierten en agentes de IA, Europa o EE. UU.",
+        "briefRequired": "Describe a quién buscas.",
+        "sizeLabel": "Cuántas",
+        "sizeOption": "{count} personas",
+        "submit": "Buscar {count} personas · {credits} créditos",
+        "searching": "Buscando en la web…",
+        "found": "{count, plural, one {# persona encontrada} other {# personas encontradas}}",
+        "foundNone": "No se encontraron personas nuevas. Prueba a describirlas de otra forma.",
+        "findFailed": "La búsqueda no funcionó. Inténtalo de nuevo.",
+        "cancel": "Cancelar"
       }
     }
   },

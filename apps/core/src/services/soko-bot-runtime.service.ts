@@ -6,6 +6,7 @@ import {
   FileSourceScope,
   jobInclude,
   type Prisma,
+  type Project,
   TaskStatus,
 } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
@@ -373,6 +374,7 @@ import {
   listProjectSocialConnections,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
+import { createProject, updateProject } from "@/services/projects.service";
 import {
   listSocialAccountStatistics,
   refreshSocialAccountStatistics,
@@ -412,6 +414,7 @@ import {
   listIntegrationTools,
   modifyInboxMessages,
   runIntegrationTool,
+  searchSokoBotIntegrationCatalog,
   sendInboxDraft,
 } from "@/services/soko-bot-integrations.service";
 import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
@@ -6047,6 +6050,87 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /**
+   * Projects belong to the workspace: a bot creates and edits them for the
+   * member who asked, the same way that member would on the Projects page.
+   */
+  private async executeProjectTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { workspaceId } = authorized.turn;
+    await requireSokoBotWorkspaceAccess(
+      prisma,
+      actingMemberOf(authorized),
+      workspaceId,
+    );
+    let project: Project;
+    try {
+      if (input.capability === "create_project") {
+        project = await createProject(
+          workspaceId,
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_project.parse(input.input),
+        );
+      } else {
+        const { projectId, ...fields } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_project.parse(input.input);
+        project = await updateProject(workspaceId, projectId, fields);
+      }
+    } catch (error) {
+      if (error instanceof HTTPException && error.status < 500)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+    return this.commitReceipt(authorized, input.toolCallId, project.id, {
+      projectId: project.id,
+      name: project.name,
+      identifier: project.identifier,
+      websiteUrl: project.websiteUrl,
+      hasBriefing: Boolean(project.briefing),
+      link: `/projects/${project.id}`,
+    });
+  }
+
+  /**
+   * Apps the bot could be connected to, with a link to its own page that
+   * offers the one-click connect; connecting stays the person's click.
+   */
+  private async findIntegrations(
+    authorized: AuthorizedSokoBotRuntime,
+    query: string,
+  ) {
+    const { sokoBotId } = authorized.turn;
+    const [catalog, { integrations }, bot] = await Promise.all([
+      searchSokoBotIntegrationCatalog(query, 10),
+      listSokoBotIntegrationsForBot(sokoBotId),
+      prisma.sokoBot.findUnique({
+        where: { id: sokoBotId },
+        select: { userId: true },
+      }),
+    ]);
+    const page = bot?.userId
+      ? "/personal-assistant"
+      : `/soko-bots/${sokoBotId}`;
+    return {
+      apps: catalog.map((entry) => {
+        const status =
+          integrations.find(
+            (integration) => integration.provider === entry.provider,
+          )?.status ?? "DISCONNECTED";
+        return {
+          provider: entry.provider,
+          name: entry.name,
+          description: entry.description,
+          status,
+          connectLink:
+            status === "ACTIVE"
+              ? null
+              : `${page}?connect=${encodeURIComponent(entry.provider)}`,
+        };
+      }),
+    };
+  }
+
   /** Social tools use the turn's owner/workspace, never actor fields from model input. */
   private async requireSocialAccess(
     authorized: AuthorizedSokoBotRuntime,
@@ -6860,6 +6944,9 @@ export class SokoBotRuntimeService {
       case "merge_contacts":
       case "manage_contact_lists":
         return this.executeContactTool(input, authorized);
+      case "create_project":
+      case "update_project":
+        return this.executeProjectTool(input, authorized);
       case "list_tables":
       case "read_table":
       case "create_table":
@@ -7450,6 +7537,12 @@ export class SokoBotRuntimeService {
               (i) =>
                 i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
             ),
+        );
+      case "find_integrations":
+        return this.findIntegrations(
+          authorized,
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.find_integrations.parse(input.input)
+            .query,
         );
       case "search_inbox": {
         const parsed = sokoBotSearchInboxInputSchema.parse(input.input);

@@ -1451,7 +1451,8 @@
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
           "topUp": "Aufladung",
-          "unattributed": "Sonstige"
+          "unattributed": "Sonstige",
+          "contacts": "Personen finden"
         },
         "sokoBotTurns": "{count, plural, one {# Interaktion} other {# Interaktionen}}",
         "sokoBotTurnsList": "Interaktionen von {name}"
@@ -8945,23 +8946,16 @@
         "failed": "Verbindung fehlgeschlagen. Neu verbinden, um es erneut zu versuchen.",
         "connectedNotChecked": "Verbunden · erste Prüfung in maximal 15 Minuten",
         "lastChecked": "Verbunden · geprüft {when}",
-        "search": "Suchen",
-        "searchPlaceholder": "Weitere App hinzufügen (Slack, Notion, Linear, …)",
-        "searchError": "Suche fehlgeschlagen.",
+        "searchPlaceholder": "Alle Apps durchsuchen, etwa Notion oder HubSpot",
         "noResults": "Nichts gefunden.",
         "kindsGeneric": "Nutzbar über seine Tools",
-        "popularTitle": "Beliebte Apps — klicken zum Verbinden",
-        "resultsTitle": "Suchergebnisse",
-        "showMore": "{count} weitere anzeigen",
-        "showFewer": "Weniger anzeigen",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
         "kindsMailCalendar": "Liest Posteingang und Kalender",
         "connectedNotRead": "Verbunden · wird gelesen, wenn ein Briefing oder Termin es braucht",
         "lastRead": "Verbunden · gelesen {when}",
         "connectedTools": "Verbunden",
-        "manage": "Verwalten",
-        "browseAll": "Alle Apps ansehen"
+        "manage": "Verwalten"
       },
       "Schedules": {
         "builtIn": "Eingebaut",
@@ -10140,6 +10134,33 @@
           "close": "enge Beziehung",
           "noise": "wirkt automatisiert oder unpersönlich"
         }
+      },
+      "suggestions": {
+        "title": "Vorgeschlagene Personen",
+        "titleCount": "Vorgeschlagene Personen · {count}",
+        "hint": "Finde Personen im Web, die zu dieser Liste passen.",
+        "find": "Personen finden",
+        "addAll": "Alle hinzufügen",
+        "addShort": "Hinzufügen",
+        "add": "{name} hinzufügen",
+        "dismiss": "{name} verwerfen",
+        "showAll": "Alle {count} anzeigen",
+        "showFewer": "Weniger anzeigen",
+        "added": "{count, plural, one {# Person} other {# Personen}} zu {list} hinzugefügt",
+        "decideFailed": "Die Vorschläge konnten nicht aktualisiert werden.",
+        "dialogTitle": "Personen für {list} finden",
+        "dialogDescription": "Sucht im Web nach passenden Personen und schlägt sie hier vor. Hinzugefügt wird erst, wenn du es tust.",
+        "briefLabel": "Wer gehört in diese Liste?",
+        "briefPlaceholder": "z. B. Partner bei Seed-Fonds, die in KI-Agenten investieren, Europa oder USA",
+        "briefRequired": "Beschreibe, wen du suchst.",
+        "sizeLabel": "Wie viele",
+        "sizeOption": "{count} Personen",
+        "submit": "{count} Personen finden · {credits} Credits",
+        "searching": "Suche im Web…",
+        "found": "{count, plural, one {# Person} other {# Personen}} gefunden",
+        "foundNone": "Keine neuen Personen gefunden. Beschreibe sie anders.",
+        "findFailed": "Die Suche hat nicht geklappt. Versuch es noch einmal.",
+        "cancel": "Abbrechen"
       }
     }
   },

@@ -994,10 +994,13 @@ describe("ad toolkits stay off the Soko Bot", () => {
     /Google Ads is used through the Project's ad account: start with list_ad_accounts/;
 
   it("leaves ad toolkits out of the catalog", async () => {
+    const managed = { composioManagedAuthSchemes: ["OAUTH2"] };
     mocks.toolkitGet.mockResolvedValue([
-      { slug: "GOOGLEADS", name: "Google Ads" },
-      { slug: "metaads", name: "Meta Ads" },
-      { slug: "github", name: "GitHub" },
+      { slug: "GOOGLEADS", name: "Google Ads", ...managed },
+      { slug: "metaads", name: "Meta Ads", ...managed },
+      { slug: "github", name: "GitHub", ...managed },
+      // Needs the owner's own OAuth app or API key: no one-click connect.
+      { slug: "selfhosted", name: "Self-hosted", authSchemes: ["API_KEY"] },
     ]);
     const entries = await searchSokoBotIntegrationCatalog("");
     expect(entries.map((entry) => entry.provider)).toEqual(["github"]);

@@ -68,7 +68,10 @@ export const SOKO_BOT_CAPABILITIES = [
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "create_project",
+  "update_project",
   "list_integrations",
+  "find_integrations",
   "search_inbox",
   "read_email",
   "evaluate_with_jev",
@@ -282,6 +285,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_contact_lists",
   "find_contact_duplicates",
   "list_integrations",
+  "find_integrations",
   "search_inbox",
   "read_email",
   // Asks Jev typed questions about text the bot passes in; changes nothing.
@@ -390,6 +394,9 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "write_table_rows",
   "update_table_columns",
   ...CONTACT_WRITE_CAPABILITIES,
+  // The workspace's Projects: everyone sees them, nothing leaves Sokosumi.
+  "create_project",
+  "update_project",
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",

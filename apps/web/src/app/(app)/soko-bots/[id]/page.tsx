@@ -75,11 +75,10 @@ export default async function SharedSokoBotPage({
   const focusTurnId = typeof query.turn === "string" ? query.turn : null;
   const integrationOutcome =
     typeof query.integration === "string" ? query.integration : null;
-  const [stats, usage, integrations, catalog, adAccounts] = await Promise.all([
+  const [stats, usage, integrations, adAccounts] = await Promise.all([
     sokoBotService.getStats(id).catch(() => null),
     sokoBotService.getMyUsage(id).catch(() => null),
     sokoBotService.listIntegrations(id).catch(() => null),
-    sokoBotService.searchIntegrationCatalog("").catch(() => []),
     // A workspace bot has no Project, so it reads like the personal bot.
     loadBotAdAccounts({ projectId: summary.projectId ?? null }).catch(
       () => null,
@@ -94,8 +93,8 @@ export default async function SharedSokoBotPage({
       stats={stats}
       usage={usage}
       integrations={integrations}
-      catalog={catalog}
       integrationOutcome={integrationOutcome}
+      connectProvider={typeof query.connect === "string" ? query.connect : null}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}
