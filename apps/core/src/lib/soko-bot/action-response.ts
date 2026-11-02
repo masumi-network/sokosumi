@@ -57,6 +57,7 @@ export const ACTION_LABELS: Record<string, string> = {
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
   move_file: "Moved file",
+  delete_file: "Deleted file",
   update_emails: "Updated mail",
   draft_email: "Drafted email",
   send_email_draft: "Sent email",

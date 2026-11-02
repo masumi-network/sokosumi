@@ -155,6 +155,9 @@ const {
   files: {
     taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
+    resourceFindFirst: vi.fn(),
+    del: vi.fn(),
+    tombstone: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -324,6 +327,7 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@vercel/blob", () => ({
+  del: files.del,
   head: files.head,
   list: files.list,
   put: files.put,
@@ -372,6 +376,7 @@ vi.mock("@/services/file-backfill.service", () => ({
 vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: files.reserve,
   activateDriveUploadResource: files.activate,
+  tombstoneDriveUploadResource: files.tombstone,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
@@ -387,7 +392,10 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
-    fileResource: { findUnique: files.resourceFindUnique },
+    fileResource: {
+      findUnique: files.resourceFindUnique,
+      findFirst: files.resourceFindFirst,
+    },
     taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
@@ -8808,6 +8816,67 @@ describe("Drive file tools", () => {
     expect(files.loadLive).toHaveBeenCalledWith(
       expect.objectContaining({ actor }),
     );
+  });
+
+  describe("delete_file", () => {
+    const asked = {
+      ...authorized,
+      turn: { ...authorized.turn, source: "CHAT", chainDepth: 0 },
+      askedByKind: "USER",
+    };
+    beforeEach(() => {
+      getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+      files.resourceFindFirst.mockResolvedValue({
+        id: "file-1",
+        sourceId: "drive/u/meta.pdf",
+        displayName: "meta.pdf",
+      });
+    });
+
+    it("deletes the file for good when the owner asks in their chat", async () => {
+      const commit = vi
+        .spyOn(
+          service as unknown as {
+            commitReceipt: (...args: unknown[]) => unknown;
+          },
+          "commitReceipt",
+        )
+        .mockImplementation((...args) => args[3]);
+      await expect(
+        service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
+      ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
+      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+        token: "token",
+      });
+      expect(files.tombstone).toHaveBeenCalledWith({
+        workspaceId: "personal-workspace",
+        scope: "user",
+        pathname: "drive/u/meta.pdf",
+      });
+      commit.mockRestore();
+    });
+
+    it.each([
+      [
+        "a mail or scheduled turn",
+        { turn: { ...asked.turn, source: "EVENT" } },
+      ],
+      ["a chained turn", { turn: { ...asked.turn, chainDepth: 1 } }],
+      ["another assistant asking", { askedByKind: "ASSISTANT" }],
+      [
+        "a shared bot",
+        { reader: { ...asked.reader, sharedScope: { projectId: "p" } } },
+      ],
+    ])("refuses from %s", async (_, override) => {
+      await expect(
+        service["deleteFile"](
+          { ...asked, ...override } as never,
+          { fileId: "file-1" },
+          "call-1",
+        ),
+      ).rejects.toThrow("only when your owner asks");
+      expect(files.del).not.toHaveBeenCalled();
+    });
   });
 
   it("reads a file's extracted text, and explains when there is none", async () => {
