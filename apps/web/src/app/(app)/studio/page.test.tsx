@@ -50,10 +50,14 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
 
 // The picker reaches for the sidebar switcher's list, which reads the session
 // through react-query. This file is about which state the page chooses.
-vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
-  ProjectScopePicker: ({ body, testId }: { body: string; testId: string }) => (
-    <div data-testid={testId}>{body}</div>
-  ),
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  ProjectScopeRequired: ({
+    body,
+    testId,
+  }: {
+    body: string;
+    testId: string;
+  }) => <div data-testid={testId}>{body}</div>,
 }));
 
 const PROJECT = {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
-import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
+import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { imageStudioService } from "@/lib/services/image-studio.service";
@@ -55,7 +55,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   if (projectId && !project) {
     return (
       <StudioPageShell title={t("title")}>
-        <ProjectScopePicker
+        <ProjectScopeRequired
           action={t("pickAction")}
           body={t("pickUnavailable")}
           testId="studio-no-project"

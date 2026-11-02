@@ -4532,7 +4532,6 @@
         "sokoBotFailed": "No se pudo abrir el chat de Soko Bot. Inténtalo de nuevo.",
         "sokoBotPrompt": "Ayúdame a crear una publicación para {project}.",
         "sokoBotPromptAnyProject": "Ayúdame a crear una publicación.",
-        "chooseProjectTitle": "Elige un proyecto para esta publicación",
         "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {

@@ -3,22 +3,17 @@
 import { ChevronDown, FolderKanban } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
-import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
+import {
+  ProjectScopeButton,
+  RequireProjectScope,
+} from "@/app/components/project-scope/project-scope-required";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import {
   type SOCIAL_PROVIDERS,
   socialProvidersEnabledFirst,
 } from "@/components/social-providers";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 
 const NEED_PROJECT_COPY = {
@@ -30,23 +25,33 @@ const NEED_PROJECT_COPY = {
 interface SocialAccountsProjectPromptProps {
   kind?: keyof typeof NEED_PROJECT_COPY;
   notice?: string;
+  /**
+   * Open the header's project selector on arrival. Off where the prompt sits
+   * above a view that works without a project, as the calendar does.
+   */
+  autoOpen?: boolean;
 }
 
-/** Project-owned accounts and drafts start with the same menu as Content Studio. */
+/**
+ * Project-owned accounts and drafts ask for a project through the header's
+ * own selector, as Content Studio does.
+ */
 export function SocialAccountsProjectPrompt({
   kind = "accounts",
   notice,
+  autoOpen = true,
 }: SocialAccountsProjectPromptProps) {
   const copy = NEED_PROJECT_COPY[kind];
   const t = useTranslations("App.Social");
   const router = useRouter();
-  const { projectId, switchHref } = useProjectScope();
-  const [open, setOpen] = useState(false);
-
-  function handleSelect(nextProjectId: string) {
-    // Scope switching resets page filters. Keep the tab that asked for a project.
-    router.push(`${switchHref(nextProjectId)}&tab=${kind}`);
-  }
+  const { switchHref } = useProjectScope();
+  const request = {
+    reason: notice ?? t(`${copy}.body`),
+    onSelect: (nextProjectId: string) => {
+      // Scope switching resets page filters. Keep the tab that asked for a project.
+      router.push(`${switchHref(nextProjectId)}&tab=${kind}`);
+    },
+  };
 
   return (
     <section
@@ -73,27 +78,15 @@ export function SocialAccountsProjectPrompt({
       <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
         {notice ?? t(`${copy}.body`)}
       </p>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button className="mt-6 min-h-11 md:min-h-10" type="button">
-            <FolderKanban className="size-4" aria-hidden />
-            {t("pickProject")}
-            <ChevronDown className="size-4" aria-hidden />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="center"
-          side="bottom"
-          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
-        >
-          <ProjectScopeMenu
-            selectedProjectId={projectId}
-            onSelect={handleSelect}
-            onCreate={openScopeCreate}
-            onDone={() => setOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
+      {autoOpen ? <RequireProjectScope {...request} /> : null}
+      <ProjectScopeButton
+        className="mt-6 min-h-11 md:min-h-10"
+        request={request}
+      >
+        <FolderKanban className="size-4" aria-hidden />
+        {t("pickProject")}
+        <ChevronDown className="size-4" aria-hidden />
+      </ProjectScopeButton>
     </section>
   );
 }

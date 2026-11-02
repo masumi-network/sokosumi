@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 import { Suspense } from "react";
 
-import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
+import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
@@ -55,7 +55,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
   if (!project) {
     return (
       <WorkspacePageShell title={t("title")}>
-        <ProjectScopePicker
+        <ProjectScopeRequired
           action={t("pickAction")}
           // Not `notFound()` for a lost id: it came from a switchable scope,
           // so the repair is to pick another project.

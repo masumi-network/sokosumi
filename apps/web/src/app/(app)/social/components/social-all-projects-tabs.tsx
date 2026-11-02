@@ -104,7 +104,9 @@ export function SocialAllProjectsTabs({
             project is asked for where it is needed, on the other tabs.
             Not `notFound()` for a lost id: it came from a switchable scope,
             not from the path, so the repair is to pick another project. */}
-        {notice ? <SocialAccountsProjectPrompt notice={notice} /> : null}
+        {notice ? (
+          <SocialAccountsProjectPrompt notice={notice} autoOpen={false} />
+        ) : null}
         {calendar}
       </TabsContent>
       <TabsContent value="drafts">

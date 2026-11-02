@@ -17,6 +17,7 @@ import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-a
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -29,19 +30,22 @@ vi.mock("@/app/components/project-scope/use-project-scope", () => ({
   }),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useScopeProjects: () => ({
-    rows: [{ id: "marketing", name: "Marketing", logo: null }],
-    pinnedIds: new Set(),
-    isSearching: false,
-    isPending: false,
-    isSearchPending: false,
-    isError: false,
-    hasMore: false,
-  }),
+  usePrefetchScopeProjects: () => () => undefined,
 }));
-vi.mock("@/app/projects/components/project-avatar", () => ({
-  ProjectAvatar: () => <span aria-hidden />,
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: mocks.openProjectScope,
 }));
+
+/** What the prompt asked the header's selector for, most recently. */
+function lastRequest(): {
+  required?: boolean;
+  reason?: string;
+  onSelect?: (projectId: string) => void;
+} {
+  const request = mocks.openProjectScope.mock.lastCall?.[0];
+  if (!request) throw new Error("The project selector was not opened");
+  return request;
+}
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
 
@@ -94,17 +98,32 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(screen.getByText("Then connect accounts.")).toBeVisible();
   });
 
-  it("chooses a real project and opens its Accounts tab", async () => {
-    const user = userEvent.setup();
+  it("opens the header's selector, required, on arrival", () => {
     setup();
+    expect(mocks.openProjectScope).toHaveBeenCalledOnce();
+    expect(lastRequest()).toMatchObject({
+      required: true,
+      reason: "Then connect accounts.",
+    });
+  });
+
+  it("does not open the selector on arrival when told not to", () => {
+    setup({ autoOpen: false });
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
+  });
+
+  it("chooses a real project in the header's selector and opens its Accounts tab", async () => {
+    const user = userEvent.setup();
+    setup({ autoOpen: false });
 
     await user.click(screen.getByRole("button", { name: "Choose a project" }));
-    expect(screen.getByRole("combobox")).toHaveFocus();
-    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    expect(lastRequest().required).toBe(true);
+    lastRequest().onSelect?.("marketing");
 
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=accounts",
     );
+    // No list of its own: the header's selector is the only one.
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
@@ -207,7 +226,7 @@ describe("SocialAccountsProjectPrompt", () => {
       screen.queryByRole("region", { name: "Social platforms" }),
     ).toBeNull();
     await user.click(screen.getByRole("button", { name: "Choose a project" }));
-    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    lastRequest().onSelect?.("marketing");
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=drafts",
     );
@@ -228,7 +247,7 @@ describe("SocialAccountsProjectPrompt", () => {
       screen.queryByRole("region", { name: "Social platforms" }),
     ).toBeNull();
     await user.click(screen.getByRole("button", { name: "Choose a project" }));
-    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    lastRequest().onSelect?.("marketing");
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=attention",
     );
@@ -244,5 +263,8 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(
       screen.getByRole("button", { name: "Choose a project" }),
     ).toBeVisible();
+    expect(lastRequest().reason).toBe(
+      "That project is no longer available. Choose another project.",
+    );
   });
 });

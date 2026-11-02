@@ -38,10 +38,14 @@ vi.mock("@/lib/social-beta-access.server", () => ({
 
 // The picker reaches for the sidebar switcher's list, and the tabs read the
 // URL through nuqs. This file is about which state the page chooses.
-vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
-  ProjectScopePicker: ({ body, testId }: { body: string; testId: string }) => (
-    <div data-testid={testId}>{body}</div>
-  ),
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  ProjectScopeRequired: ({
+    body,
+    testId,
+  }: {
+    body: string;
+    testId: string;
+  }) => <div data-testid={testId}>{body}</div>,
 }));
 
 vi.mock("./components/ads-tabs", () => ({
