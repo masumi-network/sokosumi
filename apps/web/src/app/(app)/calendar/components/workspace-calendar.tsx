@@ -110,6 +110,7 @@ import {
   type ChangeableRun,
   changeRun,
   isChangeableRun,
+  isTaskEntry,
   useReportRunChangeFailure,
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
@@ -644,7 +645,8 @@ function CalendarView({
     return current.kind === "socialPost"
       ? move.item.kind === "socialPost" &&
           current.revision === move.item.revision
-      : move.item.kind !== "socialPost" &&
+      : isTaskEntry(current) &&
+          isTaskEntry(move.item) &&
           current.scheduleRevision === move.item.scheduleRevision;
   });
   if (retainedMoves.length !== Object.keys(pendingMoves).length) {
@@ -816,7 +818,7 @@ function CalendarView({
                       timeZone={timeZone}
                       variant={socialPostVariant}
                     />
-                  ) : (
+                  ) : isTaskEntry(item) ? (
                     <CalendarEvent
                       item={item}
                       people={findCalendarPeople(item, coworkers)}
@@ -828,7 +830,7 @@ function CalendarView({
                         timeZone,
                       })}
                     />
-                  )}
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -862,7 +864,12 @@ function CalendarView({
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title: item.kind === "socialPost" ? item.text : item.taskName,
+            title:
+              item.kind === "socialPost"
+                ? item.text
+                : isTaskEntry(item)
+                  ? item.taskName
+                  : "",
             start: (
               pendingMoves[item.id]?.scheduledAt ?? item.scheduledAt
             ).toISOString(),
@@ -965,6 +972,9 @@ function CalendarView({
                   />
                 </div>
               );
+            }
+            if (!isTaskEntry(item)) {
+              return eventInfo.event.title;
             }
             return (
               <CalendarEvent
@@ -1173,6 +1183,7 @@ export function WorkspaceCalendar({
         (state.provider === null || item.provider === state.provider) &&
         (selectedSourceId === null || item.sourceId === selectedSourceId)
       );
+    if (!isTaskEntry(item)) return false;
     return (
       (view !== "agenda" ||
         (item.state === "PLANNED" &&

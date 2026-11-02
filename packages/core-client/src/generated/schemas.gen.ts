@@ -29317,6 +29317,15 @@ export const WorkspaceCalendarEntrySchema = {
                 },
                 {
                     $ref: '#/components/schemas/SocialPostCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/NewsletterIssueCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/ContactFollowUpCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/MarketingPieceCalendarItem'
                 }
             ]
         }
@@ -29700,6 +29709,255 @@ export const SocialPostCalendarItemSchema = {
         'previewMedia',
         'scheduledAt',
         'lastAttempt',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const NewsletterIssueCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'newsletterIssue'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        issueId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        subject: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'NEEDS_APPROVAL',
+                'SCHEDULED',
+                'SENDING',
+                'SENT',
+                'FAILED',
+                'CANCELED'
+            ]
+        },
+        projectName: {
+            type: 'string'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'scheduledAt',
+        'issueId',
+        'subject',
+        'status',
+        'projectName',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const ContactFollowUpCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'contactFollowUp'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        contactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        organization: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        nextStep: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        date: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        allDay: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'null'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'scheduledAt',
+        'contactId',
+        'name',
+        'organization',
+        'avatarUrl',
+        'nextStep',
+        'date',
+        'allDay',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
+    ]
+} as const;
+
+export const MarketingPieceCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'marketingPiece'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        strategyId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        entryId: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        channel: {
+            type: 'string'
+        },
+        format: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'idea',
+                'draft',
+                'scheduled',
+                'published',
+                'skipped'
+            ]
+        },
+        fileId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Project file the piece was written to, once it exists'
+        },
+        projectName: {
+            type: 'string'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'scheduledAt',
+        'strategyId',
+        'entryId',
+        'title',
+        'channel',
+        'format',
+        'status',
+        'fileId',
+        'projectName',
         'sourceId',
         'sourceProjectId',
         'sourceWorkspaceId',

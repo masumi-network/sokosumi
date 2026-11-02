@@ -138,6 +138,7 @@ model Contact {
   @@index([mergedIntoId])
   @@index([workspaceId, enrichedAt])
   @@index([workspaceId, awaitingReplySince])
+  @@index([workspaceId, followUpAt])
   @@map("contact")
 }
 

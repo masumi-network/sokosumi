@@ -407,19 +407,39 @@ function placeholderText(
   return clipText(entry.brief ?? entry.title, provider);
 }
 
+/** `planTimeZone` for many Projects at once; a Project without bot rhythms is left out (UTC). */
+export async function planTimeZones(
+  projectIds: string[],
+  db: Prisma.TransactionClient = prisma,
+): Promise<Map<string, string>> {
+  const schedules = await db.sokoBotSchedule.findMany({
+    where: {
+      sokoBot: { projectId: { in: projectIds } },
+      systemKey: { not: null },
+    },
+    select: { timezone: true, sokoBot: { select: { projectId: true } } },
+  });
+  const zones = new Map<string, string>();
+  for (const { timezone, sokoBot } of schedules) {
+    if (sokoBot.projectId && !zones.has(sokoBot.projectId)) {
+      zones.set(sokoBot.projectId, timezone);
+    }
+  }
+  return zones;
+}
+
 /** The zone calendar times are in: the Project's bot rhythms', else UTC. */
 async function planTimeZone(
   projectId: string,
   db: Prisma.TransactionClient,
 ): Promise<string> {
-  const schedule = await db.sokoBotSchedule.findFirst({
-    where: { sokoBot: { projectId }, systemKey: { not: null } },
-    select: { timezone: true },
-  });
-  return schedule?.timezone ?? "UTC";
+  return (await planTimeZones([projectId], db)).get(projectId) ?? "UTC";
 }
 
-function plannedAt(entry: CmoCalendarEntry, timeZone: string): Date | null {
+export function plannedAt(
+  entry: CmoCalendarEntry,
+  timeZone: string,
+): Date | null {
   return zonedDateTimeLocalToUtc(
     `${entry.date}T${entry.time ?? "09:00"}`,
     timeZone,
