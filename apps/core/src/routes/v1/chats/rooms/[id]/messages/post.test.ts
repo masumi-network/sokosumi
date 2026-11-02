@@ -186,19 +186,29 @@ const quoteSnapshot = {
   authorName: "Alice",
   snippet: "Earlier point about launch risk",
   attachment: null,
+  attachments: [],
 };
 
+const launchAttachment = {
+  fileName: "launch.png",
+  url: "https://blob.example/launch.png",
+  mediaKind: "image" as const,
+};
 const imageQuoteContent =
-  "see this [launch.png](https://blob.example/launch.png)";
+  "see this [launch.png](https://blob.example/launch.png) [risk.png](https://blob.example/risk.png)";
 const imageQuoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
   authorName: "Alice",
   snippet: "see this",
-  attachment: {
-    fileName: "launch.png",
-    url: "https://blob.example/launch.png",
-    mediaKind: "image" as const,
-  },
+  attachment: launchAttachment,
+  attachments: [
+    launchAttachment,
+    {
+      fileName: "risk.png",
+      url: "https://blob.example/risk.png",
+      mediaKind: "image" as const,
+    },
+  ],
 };
 
 const tx = {
@@ -2505,7 +2515,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
     });
 
-    it("persists image attachment cue when quoting a message with an image link", async () => {
+    it("persists every attachment when quoting a message with image links", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
       messageFindFirstMock.mockResolvedValue(
         quotedSourceMessage({ content: imageQuoteContent }),

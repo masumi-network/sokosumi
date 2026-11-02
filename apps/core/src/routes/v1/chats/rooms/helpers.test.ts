@@ -620,8 +620,61 @@ describe("mapChatRoomMessage quote", () => {
       threadReplyCount: 0,
     });
 
-    expect(mapped.quote).toEqual(quote);
+    // Stored before `attachments`: the one attachment it holds is its list.
+    expect(mapped.quote).toEqual({ ...quote, attachments: [quote.attachment] });
     expect(mapped.metadata).toEqual({ quote, client_message_id: "c1" });
+  });
+
+  it("returns every stored attachment and skips a malformed one", () => {
+    const shot = {
+      fileName: "shot.png",
+      url: "https://blob.example/shot.png",
+      mediaKind: "image" as const,
+    };
+    const brief = {
+      fileName: "brief.pdf",
+      url: "https://blob.example/brief.pdf",
+      mediaKind: "file" as const,
+    };
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      senderSokoBotId: null,
+      content: "hello",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: {
+        quote: {
+          messageId: "550e8400-e29b-41d4-a716-446655440004",
+          authorName: "Alice",
+          snippet: "Earlier point",
+          attachment: shot,
+          attachments: [shot, { fileName: 1 }, brief],
+        },
+      },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+      },
+      senderCoworker: null,
+      senderSokoBot: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      pins: [],
+      threadReplyCount: 0,
+    });
+
+    expect(mapped.quote?.attachments).toEqual([shot, brief]);
+    expect(mapped.quote?.attachment).toEqual(shot);
   });
 
   it("keeps client_message_id in metadata for Ably create payloads", () => {

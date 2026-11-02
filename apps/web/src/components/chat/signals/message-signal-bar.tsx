@@ -6,7 +6,10 @@ import type {
   ChatSignalRoutingSuggestion,
   ChatSignalTag,
 } from "@sokosumi/core-client";
-import { chatMessageTextWithNames } from "@sokosumi/utils";
+import {
+  chatMessageTextWithNames,
+  chatRoomQuotePromptLine,
+} from "@sokosumi/utils";
 import {
   AlertTriangle,
   Ban,
@@ -131,9 +134,7 @@ export function MessageSignalBar({
     const text = [
       author ? t("taskFrom", { name: author }) : "",
       chatMessageTextWithNames(message.content, names),
-      message.quote
-        ? `> ${message.quote.authorName}: ${message.quote.snippet}`
-        : "",
+      message.quote ? chatRoomQuotePromptLine(message.quote) : "",
     ]
       .filter(Boolean)
       .join("\n\n");
