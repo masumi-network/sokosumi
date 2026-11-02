@@ -72,7 +72,7 @@ export function PricingStep({
     return () => window.removeEventListener("focus", refreshOnReturn);
   }, [checkingOut, subscribed, onRefresh]);
 
-  const subscribeUrl = `${overview.subscribeUrl}?tab=subscription`;
+  const subscribeUrl = withTab(overview.subscribeUrl, "subscription");
   const channels = strategySocialChannels(overview).length;
   const postsPerWeek = socialPostsPerWeek(overview.strategy?.calendar ?? []);
   // Website, newsletter and ad pieces need a tier with article and ad drafts.
@@ -305,6 +305,13 @@ function MonthSummary({ overview }: { overview: CmoOverview }) {
       </p>
     </div>
   );
+}
+
+/** Keeps the billing link's own query (which organization pays). */
+function withTab(url: string, tab: string): string {
+  const link = new URL(url);
+  link.searchParams.set("tab", tab);
+  return link.href;
 }
 
 /** 3.5 reads "3.5", 3 reads "3". */

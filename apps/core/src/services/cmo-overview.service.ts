@@ -405,8 +405,9 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
-    // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
-    subscribeUrl: `${web}/billing`,
+    // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then,
+    // opened on Cuso's organization, which is the one that has to pay.
+    subscribeUrl: `${web}/billing?organizationId=${payer.organizationId}`,
     billing: {
       // The plan that gates Cuso first; otherwise whatever the org is on.
       plan: cmoPlan ?? credits.subscription?.plan ?? null,

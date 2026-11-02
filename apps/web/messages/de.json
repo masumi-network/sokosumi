@@ -1065,6 +1065,9 @@
         "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut.",
         "selectedProject": "Ausgewähltes Projekt"
       }
+    },
+    "ConnectLink": {
+      "error": "Die Verbindung konnte nicht gestartet werden."
     }
   },
   "Join": {
@@ -6417,6 +6420,7 @@
       }
     },
     "Billing": {
+      "switchedWorkspace": "Zu {account}-Account gewechselt",
       "balanceTitle": "Guthaben",
       "balanceDescriptionPersonal": "Deine aktuellen Credits im persönlichen Account.",
       "balanceDescriptionOrganization": "Aktuelle Credits für {organization}. {purchased, plural, =1 {# gekaufter Seat} other {# gekaufte Seats}}, {assigned, plural, =1 {# zugewiesen} other {# zugewiesen}}, {unused, plural, =1 {# ungenutzt} other {# ungenutzt}}, {members, plural, =1 {# Mitglied} other {# Mitglieder}}.",
