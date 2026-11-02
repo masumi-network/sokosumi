@@ -54,7 +54,7 @@ describe("resolveMessageLinkQuote", () => {
       messageId: "msg-1",
       authorName: "Alice",
       snippet: "Earlier point about launch risk",
-      attachment: null,
+      attachments: [],
       roomId: "source",
     });
   });

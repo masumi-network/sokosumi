@@ -704,7 +704,20 @@ export type ChatRoomMessageQuote = {
     messageId: string;
     authorName: string;
     snippet: string;
-    attachment?: ChatRoomMessageQuoteAttachment;
+    /**
+     * One attachment for shipped Mac builds: the first image, else the first file. Use `attachments`.
+     *
+     * @deprecated
+     */
+    attachment?: {
+        fileName: string;
+        url: string;
+        mediaKind: 'image' | 'file';
+    } | null;
+    /**
+     * Every file and image linked in the quoted message, in body order. Absent on an older quote that had none.
+     */
+    attachments?: Array<ChatRoomMessageQuoteAttachment>;
     /**
      * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
      */
@@ -715,7 +728,7 @@ export type ChatRoomMessageQuoteAttachment = {
     fileName: string;
     url: string;
     mediaKind: 'image' | 'file';
-} | null;
+};
 
 export type ChatRoomMessageMembership = {
     action: 'joined' | 'left';
@@ -10131,7 +10144,7 @@ export type CmoOverview = {
     learning: 'running' | 'failed' | 'done';
     subscriptionActive: boolean;
     /**
-     * Whether this member may approve the strategy and start the paid month: the organization's owners and admins only. Every other member works with Cuso but cannot.
+     * Whether this member may approve the strategy: the organization's owners and admins only. Every other member works with Cuso but cannot.
      */
     viewerCanApprove: boolean;
     work: CmoWork | null;
@@ -10813,7 +10826,7 @@ export type CmoMeasurement = {
 };
 
 /**
- * After payment Cuso makes the whole month at once: how many of its pieces are made.
+ * After approval Cuso makes the whole month at once: how many of its pieces are made.
  */
 export type CmoProduction = {
     state: 'waiting' | 'running' | 'ready' | 'stuck';
