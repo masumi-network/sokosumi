@@ -1,9 +1,11 @@
 "use client";
 
 import { FolderKanban } from "lucide-react";
-import { useId } from "react";
+import { useTranslations } from "next-intl";
+import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 import {
@@ -12,8 +14,8 @@ import {
 } from "./sidebar-project-scope-state";
 
 /**
- * Opens the main project selector, as required, when it mounts: a page that
- * cannot show anything without a project asks for one on arrival. Unmounting
+ * Opens the main project selector, as required, when it mounts: an explicit
+ * action that needs a project can mount this to ask for one. Unmounting
  * (a project chosen, or the reader going elsewhere) closes it again.
  *
  * Esc closes it too, back to the page under it. That page is never broken: it
@@ -31,13 +33,13 @@ export function RequireProjectScope(
 /**
  * What a project-only page (Newsletter, Social, Ads, the studio) shows before
  * it knows which project it is working in: its own backdrop (`children`), its
- * copy, and the header's project selector open over it. Choosing there writes
- * the scope back into the URL the way every other scoped page does. There is
- * no button of its own: the selector opens by itself, and the header's trigger
- * reopens it.
+ * copy, and a Select project button. The button opens the header's project
+ * selector in required mode. Choosing there writes the scope back into the
+ * URL the way every other scoped page does. Navigation leaves the selector
+ * closed; explicit actions can opt into opening it on mount.
  */
 export function ProjectScopeRequired({
-  autoOpen = true,
+  autoOpen = false,
   body,
   children,
   onSelect,
@@ -45,8 +47,8 @@ export function ProjectScopeRequired({
   title,
 }: {
   /**
-   * Open the header's project selector on arrival. Off where the placeholder
-   * sits above a view that works without a project, as Social's calendar does.
+   * Opt into opening the header's project selector on mount for an explicit
+   * action that needs a project. Page navigation keeps it closed by default.
    */
   autoOpen?: boolean;
   body: string;
@@ -57,6 +59,21 @@ export function ProjectScopeRequired({
   title?: string;
 }) {
   const headingId = useId();
+  const t = useTranslations("App.ProjectScope");
+  const cancelRequest = useRef<ReturnType<typeof openProjectScope> | null>(
+    null,
+  );
+
+  useMountEffect(() => () => cancelRequest.current?.());
+
+  function handleSelectProject() {
+    cancelRequest.current = openProjectScope({
+      required: true,
+      reason: body,
+      onSelect,
+    });
+  }
+
   return (
     <section
       aria-labelledby={title ? headingId : undefined}
@@ -85,6 +102,15 @@ export function ProjectScopeRequired({
       <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
         {body}
       </p>
+      <Button
+        className="mt-6"
+        data-testid="project-scope-select-button"
+        onClick={handleSelectProject}
+        type="button"
+        variant="primary"
+      >
+        {t("selectProject")}
+      </Button>
     </section>
   );
 }

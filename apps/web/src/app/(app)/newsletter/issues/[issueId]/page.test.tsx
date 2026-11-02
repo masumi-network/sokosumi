@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
+import messages from "@/messages/en.json";
 import {
   NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
@@ -155,7 +157,11 @@ describe("newsletter issue page", () => {
   });
   it("shows the unknown-project notice instead of the editor", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await NewsletterIssuePage(PROPS));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterIssuePage(PROPS)}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(mocks.get).not.toHaveBeenCalled();
   });

@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
+import messages from "@/messages/en.json";
 import { NEWSLETTER_ANALYTICS, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const m = vi.hoisted(() => ({
@@ -87,7 +89,11 @@ describe("newsletter analytics page", () => {
     expect(m.project).not.toHaveBeenCalled();
     m.enabled.mockResolvedValue(true);
     m.project.mockResolvedValue(null);
-    render(await NewsletterAnalyticsPage(PROPS));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterAnalyticsPage(PROPS)}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(m.analytics).not.toHaveBeenCalled();
   });

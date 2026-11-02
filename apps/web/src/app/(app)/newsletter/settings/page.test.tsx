@@ -1,6 +1,7 @@
 import type { Newsletter } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
-import { createTranslator } from "next-intl";
+import userEvent from "@testing-library/user-event";
+import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/messages/en.json";
@@ -190,8 +191,13 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("without a project", () => {
-    it("asks for a project in the header's selector", async () => {
-      render(await NewsletterSettingsPage(props()));
+    it("offers a button to select a project without opening on arrival", async () => {
+      const user = userEvent.setup();
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props())}
+        </NextIntlClientProvider>,
+      );
 
       expect(
         screen.getByRole("heading", { level: 1, name: PAGE.title }),
@@ -199,39 +205,61 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
       ).toBeInTheDocument();
-      expect(mocks.requireScope).toHaveBeenCalledWith(
+      expect(mocks.requireScope).not.toHaveBeenCalled();
+      // The page's button opens the selector over its stack of sample issues.
+      expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Select project" }));
+      expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ reason: PAGE.description, required: true }),
       );
-      // No button of its own: the selector opens by itself, over sample issues.
-      expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
-      expect(screen.queryByRole("button")).toBeNull();
       expect(mocks.getProject).not.toHaveBeenCalled();
       expect(mocks.listProjects).not.toHaveBeenCalled();
       expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();
     });
 
     it("treats a blank project ID as none", async () => {
-      render(await NewsletterSettingsPage(props({ projectId: " " })));
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props({ projectId: " " }))}
+        </NextIntlClientProvider>,
+      );
 
-      expect(mocks.requireScope).toHaveBeenCalled();
+      expect(mocks.requireScope).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("button", { name: "Select project" }),
+      ).toBeInTheDocument();
       expect(mocks.getProject).not.toHaveBeenCalled();
     });
   });
 
   describe("with an unknown project", () => {
-    it("says so above the project list instead of 404-ing", async () => {
+    it("offers a button to replace an unavailable project instead of 404-ing", async () => {
+      const user = userEvent.setup();
       mocks.getProject.mockResolvedValue(null);
-      render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props({ projectId: PROJECT_ID }))}
+        </NextIntlClientProvider>,
+      );
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.requireScope).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: PAGE.pickUnavailable }),
+      expect(mocks.requireScope).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: "Select project" }));
+      expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          reason: PAGE.pickUnavailable,
+          required: true,
+        }),
       );
       expect(mocks.getSettings).not.toHaveBeenCalled();
     });
 
     it("does not ask Core about a malformed project ID", async () => {
-      render(await NewsletterSettingsPage(props({ projectId: "missing" })));
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props({ projectId: "missing" }))}
+        </NextIntlClientProvider>,
+      );
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
       expect(mocks.getProject).not.toHaveBeenCalled();

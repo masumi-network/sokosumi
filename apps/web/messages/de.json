@@ -9769,6 +9769,7 @@
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
+      "selectProject": "Projekt auswählen",
       "pinned": "Angepinnt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",

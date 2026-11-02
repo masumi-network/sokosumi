@@ -1,5 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import messages from "@/messages/en.json";
 
 const {
   adsServiceMock,
@@ -107,7 +111,11 @@ const PROJECT = { id: "project-1", name: "Launch plan" };
 
 async function visit(searchParams: Record<string, string | undefined> = {}) {
   const { default: AdsPage } = await import("./page");
-  render(await AdsPage({ searchParams: Promise.resolve(searchParams) }));
+  render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {await AdsPage({ searchParams: Promise.resolve(searchParams) })}
+    </NextIntlClientProvider>,
+  );
 }
 
 describe("AdsPage", () => {
@@ -129,20 +137,22 @@ describe("AdsPage", () => {
     expect(adsServiceMock.listAccounts).not.toHaveBeenCalled();
   });
 
-  it("asks which project to work in when no scope is set", async () => {
+  it("offers project selection without opening the selector on arrival", async () => {
+    const user = userEvent.setup();
     await visit();
 
     expect(screen.getByTestId("ads-no-project")).toHaveTextContent(
       "App.Ads.pickBody",
     );
-    expect(requireScopeMock).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
-    );
-    // Sample ads behind the selector, and no button of its own.
+    expect(requireScopeMock).not.toHaveBeenCalled();
+    // Sample ads remain visible while the page's button opens the selector.
     expect(screen.getByTestId("ads-no-project")).toContainElement(
       screen.getByTestId("ads-backdrop"),
     );
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Select project" }));
+    expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
+    );
     expect(screen.queryByTestId("ads-tabs")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
@@ -155,6 +165,7 @@ describe("AdsPage", () => {
   });
 
   it("offers another project instead of 404ing on a scope this workspace lost", async () => {
+    const user = userEvent.setup();
     projectServiceMock.getProjectById.mockResolvedValue(null);
 
     await visit({ projectId: "project-gone" });
@@ -162,8 +173,14 @@ describe("AdsPage", () => {
     expect(screen.getByTestId("ads-no-project")).toHaveTextContent(
       "App.Ads.pickUnavailable",
     );
-    expect(requireScopeMock).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: "App.Ads.pickUnavailable" }),
+    expect(requireScopeMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ads-backdrop")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Select project" }));
+    expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        reason: "App.Ads.pickUnavailable",
+        required: true,
+      }),
     );
     expect(notFoundMock).not.toHaveBeenCalled();
   });

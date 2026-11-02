@@ -1,6 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
+import messages from "@/messages/en.json";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   project: vi.fn(),
   listProjects: vi.fn(),
   subscribers: vi.fn(),
+  requireScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -45,7 +49,7 @@ vi.mock("@/lib/services/project.service", () => ({
 vi.mock("./issues", () => ({ Issues: () => <p>Issue list</p> }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
-  openProjectScope: () => undefined,
+  openProjectScope: (request: object) => mocks.requireScope(request),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
@@ -117,13 +121,22 @@ describe("newsletter issues page", () => {
     );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
-  it("asks for a project in the header's selector without one", async () => {
-    render(await NewsletterIssuesPage({ searchParams: Promise.resolve({}) }));
+  it("offers project selection without opening the selector on arrival", async () => {
+    const user = userEvent.setup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterIssuesPage({ searchParams: Promise.resolve({}) })}
+      </NextIntlClientProvider>,
+    );
     expect(
       screen.getByRole("heading", { level: 2, name: "pickProject" }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(mocks.requireScope).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Select project" }));
+    expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: "description", required: true }),
+    );
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });

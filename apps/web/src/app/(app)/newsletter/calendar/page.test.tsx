@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import messages from "@/messages/en.json";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
@@ -83,7 +85,11 @@ describe("newsletter calendar page", () => {
 
   it("shows the unknown-project notice for an inaccessible project", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await NewsletterCalendarPage(props()));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterCalendarPage(props())}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(mocks.list).not.toHaveBeenCalled();
   });

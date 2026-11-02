@@ -1,14 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   hasSocialBetaAccessMock,
   imageStudioServiceMock,
   projectServiceMock,
-  requireScopeMock,
+  openProjectScopeMock,
 } = vi.hoisted(() => ({
   hasSocialBetaAccessMock: vi.fn(),
-  requireScopeMock: vi.fn(),
+  openProjectScopeMock: vi.fn(),
   imageStudioServiceMock: {
     getCatalog: vi.fn(),
     getState: vi.fn(),
@@ -21,6 +21,11 @@ vi.mock("next/server", () => ({ connection: async () => undefined }));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
+    `${namespace}.${key}`,
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
 }));
 
@@ -41,6 +46,7 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
     catalog: { models: unknown[] };
     initialSelectedAssetId: string | null;
     projectId: string | null;
+    projectScopePrompt?: React.ReactNode;
     initialState: { assets: unknown[] };
   }) => (
     <div
@@ -49,24 +55,16 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-assets={props.initialState.assets.length}
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
-    />
+    >
+      {props.projectScopePrompt}
+    </div>
   ),
 }));
 
 // The picker reaches for the sidebar switcher's list, which reads the session
 // through react-query. This file is about which state the page chooses.
-vi.mock("@/app/components/project-scope/project-scope-required", () => ({
-  ProjectScopeRequired: ({
-    body,
-    testId,
-  }: {
-    body: string;
-    testId: string;
-  }) => <div data-testid={testId}>{body}</div>,
-  RequireProjectScope: (props: { reason: string }) => {
-    requireScopeMock(props);
-    return null;
-  },
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: openProjectScopeMock,
 }));
 
 const PROJECT = {
@@ -96,7 +94,7 @@ describe("StudioPage", () => {
     hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
-  it("opens curated styles under the auto-opened selector without a project", async () => {
+  it("shows curated styles and a project selection button without opening the selector", async () => {
     const { default: StudioPage } = await import("./page");
 
     render(await StudioPage({ searchParams: Promise.resolve({}) }));
@@ -109,10 +107,19 @@ describe("StudioPage", () => {
       "data-assets",
       "0",
     );
-    expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+    expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
+      "App.Studio.pickBody",
+    );
     // The selector opens over the curated gallery, asking for a project.
-    expect(requireScopeMock).toHaveBeenCalledWith({
+    // Arrival leaves it closed; the button is the explicit request.
+    expect(openProjectScopeMock).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
+    );
+    expect(openProjectScopeMock).toHaveBeenCalledWith({
+      required: true,
       reason: "App.Studio.pickBody",
+      onSelect: undefined,
     });
     // Nothing is loaded for a project nobody named.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
@@ -131,7 +138,10 @@ describe("StudioPage", () => {
       "data-project",
       "workspace",
     );
-    expect(requireScopeMock).toHaveBeenCalledOnce();
+    expect(
+      screen.getByTestId("project-scope-select-button"),
+    ).toBeInTheDocument();
+    expect(openProjectScopeMock).not.toHaveBeenCalled();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
@@ -151,6 +161,19 @@ describe("StudioPage", () => {
     expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
       "App.Studio.pickUnavailable",
     );
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "workspace",
+    );
+    expect(openProjectScopeMock).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
+    );
+    expect(openProjectScopeMock).toHaveBeenCalledWith({
+      required: true,
+      reason: "App.Studio.pickUnavailable",
+      onSelect: undefined,
+    });
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
   });
 
@@ -173,7 +196,7 @@ describe("StudioPage", () => {
     const studio = screen.getByTestId("image-studio");
     expect(studio).toHaveAttribute("data-project", "project-1");
     expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
-    expect(requireScopeMock).not.toHaveBeenCalled();
+    expect(openProjectScopeMock).not.toHaveBeenCalled();
   });
 
   /**
@@ -240,7 +263,7 @@ describe("StudioPage", () => {
     );
   });
 
-  it("does not read the catalog for a scope this workspace lost", async () => {
+  it("reads the creative catalog for a scope this workspace lost", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(null);
     const { default: StudioPage } = await import("./page");
 
@@ -250,8 +273,11 @@ describe("StudioPage", () => {
       }),
     );
 
+    // For project-specific state:
     // Nothing to show it against, so nothing is downloaded for it.
-    expect(imageStudioServiceMock.getCatalog).not.toHaveBeenCalled();
+    // The curated landing page still has styles to show after access is lost.
+    expect(imageStudioServiceMock.getCatalog).toHaveBeenCalledOnce();
+    expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
     expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 

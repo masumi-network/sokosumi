@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
+
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { STUDIO_TEMPLATES } from "./studio-templates";
@@ -150,6 +152,38 @@ describe("the workspace view", () => {
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toBeInTheDocument();
     expect(mocks.openProjectScope).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("keeps the shared project selection prompt beside curated styles and the composer", () => {
+    render(
+      <ImageStudio
+        catalog={TEST_CATALOG}
+        initialSelectedAssetId={null}
+        initialState={{ assets: [], jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId={null}
+        projectScopePrompt={
+          <ProjectScopeRequired body="Pick a project" title="Create images">
+            <></>
+          </ProjectScopeRequired>
+        }
+      />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: "templates" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "promptPlaceholder" }),
+    ).toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "selectProject" }));
+    expect(mocks.openProjectScope).toHaveBeenCalledWith({
+      required: true,
+      reason: "Pick a project",
+      onSelect: undefined,
+    });
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
