@@ -2,7 +2,6 @@ import type { SokoBotQualityVerdict } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import { MetaGrid } from "@/components/soko-bot/meta-grid";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
-import { cn } from "@/lib/utils";
 
 /** The four dimensions, in the order the rubric lists them. */
 const DIMENSIONS = [
@@ -11,12 +10,6 @@ const DIMENSIONS = [
   "judgment",
   "honesty",
 ] as const;
-
-function toneForScore(score: number): string {
-  if (score >= 4) return "text-semantic-success";
-  if (score >= 3) return "text-semantic-warning";
-  return "text-semantic-destructive";
-}
 
 interface TurnQualityProps {
   score: number | null | undefined;
@@ -48,14 +41,7 @@ export async function TurnQuality({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            "text-lg font-medium tabular-nums",
-            toneForScore(score),
-          )}
-        >
-          {score}/5
-        </span>
+        <span className="text-lg font-medium tabular-nums">{score}/5</span>
         {verdict ? (
           <StatusBadge
             tone={

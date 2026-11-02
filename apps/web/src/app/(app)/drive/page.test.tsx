@@ -120,10 +120,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: (...args: unknown[]) => useSessionMock(...args),
 }));

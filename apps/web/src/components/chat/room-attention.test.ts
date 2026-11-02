@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveChatsAttention,
   resolveRoomAttention,
   resolveSectionAttention,
   resolveUnreadThreadsAttention,
@@ -347,8 +348,7 @@ describe("resolveRoomAttention with the channel half", () => {
 
 // A Direct of two is written to, not named: Core counts every message there
 // toward the badge. So it draws no mention pill, and its number is the same
-// muted count a channel shows. The badge still bolds the row and marks the
-// rail, which is unchanged.
+// muted count a channel shows. The badge still bolds the row.
 describe("resolveRoomAttention in a Direct of two", () => {
   it("draws no mention pill and shows the message count instead", () => {
     expect(
@@ -537,7 +537,7 @@ describe("resolveUnreadThreadsAttention", () => {
         room("a", { threadUnreadCount: 5, unreadThreadCount: 2 }),
         room("b", { threadUnreadCount: 1, unreadThreadCount: 1 }),
       ]),
-    ).toEqual({ threadCount: 3, mentionCount: 0, rail: "unread" });
+    ).toEqual({ threadCount: 3, mentionCount: 0 });
   });
 
   it("leaves out muted rooms, as the sidebar hides their Threads", () => {
@@ -545,7 +545,7 @@ describe("resolveUnreadThreadsAttention", () => {
       resolveUnreadThreadsAttention([
         room("a", { unreadThreadCount: 2, mutedAt: "2026-09-01T00:00:00Z" }),
       ]),
-    ).toEqual({ threadCount: 0, mentionCount: 0, rail: null });
+    ).toEqual({ threadCount: 0, mentionCount: 0 });
   });
 
   it("escalates to a mention when a listed Thread names the reader", () => {
@@ -556,7 +556,53 @@ describe("resolveUnreadThreadsAttention", () => {
           unreadThreads: [unreadThread(2), unreadThread(0), unreadThread(1)],
         }),
       ]),
-    ).toEqual({ threadCount: 4, mentionCount: 3, rail: "mention" });
+    ).toEqual({ threadCount: 4, mentionCount: 3 });
+  });
+});
+
+// The Chats heading folds Catch up with the sections, and Catch up counts
+// unread Threads, which a section's own heading does not.
+describe("resolveChatsAttention", () => {
+  const threadOnly = room("a", { threadUnreadCount: 2, unreadThreadCount: 1 });
+
+  it("holds nothing when every room is read, or there are none", () => {
+    expect(resolveChatsAttention([])).toBeNull();
+    expect(
+      resolveChatsAttention([room("a", { channelUnreadCount: 0 })]),
+    ).toBeNull();
+  });
+
+  it("is unread for a room whose only unread is in a Thread", () => {
+    expect(resolveSectionAttention([threadOnly])).toBeNull();
+    expect(resolveChatsAttention([threadOnly])).toBe("unread");
+  });
+
+  it("is a mention when an unread Thread names the reader", () => {
+    expect(
+      resolveChatsAttention([
+        room("a", {
+          unreadThreadCount: 1,
+          unreadThreads: [unreadThread(1)],
+        }),
+      ]),
+    ).toBe("mention");
+  });
+
+  it("leaves out a muted room's Threads, as Catch up does", () => {
+    expect(
+      resolveChatsAttention([
+        { ...threadOnly, mutedAt: "2026-09-01T00:00:00Z" },
+      ]),
+    ).toBeNull();
+  });
+
+  it("keeps a section's own attention, a pending invitation included", () => {
+    expect(resolveChatsAttention([room("a", { channelUnreadCount: 3 })])).toBe(
+      "unread",
+    );
+    expect(resolveChatsAttention([], { hasPendingInvitation: true })).toBe(
+      "mention",
+    );
   });
 });
 
@@ -572,7 +618,7 @@ describe("resolveUnreadThreadsAttention past the listed Threads", () => {
           unreadThreadMentionCount: 1,
         },
       ]),
-    ).toEqual({ threadCount: 5, mentionCount: 1, rail: "mention" });
+    ).toEqual({ threadCount: 5, mentionCount: 1 });
   });
 });
 

@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/masumi`
 **Purpose**: Masumi protocol utilities including agent, payment, and registry clients, hash functions, schemas, types, and Masumi-hosted tool clients
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/masumi/` within the pnpm workspace
 
 ## Layout

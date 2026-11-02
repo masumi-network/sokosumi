@@ -48,6 +48,9 @@ The live tree is `apps/core/src/`.
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `routes/v1/`                                         | Versioned HTTP handlers (one file per method)                                               |
 | `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery                                                                  |
+| `routes/health/`                                     | Unauthenticated liveness probe (`GET /health`), no database call                            |
+| `routes/image-studio-agent/`                         | Grant-authenticated surface the image-studio agent calls; no browser session                |
+| `routes/webhooks/fal/`                               | fal completion callback for image jobs; ED25519 signature, not a session                    |
 | `schemas/`                                           | Zod / OpenAPI                                                                               |
 | `helpers/`                                           | Domain logic used by routes                                                                 |
 | `lib/`                                               | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry, evlog                                |
@@ -429,4 +432,4 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.11.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.11.1). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.

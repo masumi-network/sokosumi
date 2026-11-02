@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Top-level project-scoped destinations (Social, Ads, …) that open without a
- * visible page headline. The breadcrumb and project switcher already name the
- * page; the `h1` is `sr-only` so the outline still starts at the page.
+ * visible page headline. The sidebar's active row and the project selector already name
+ * the page; the `h1` is `sr-only` so the outline still starts at the page.
  */
 export function WorkspacePageShell({
   children,

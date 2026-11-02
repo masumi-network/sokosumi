@@ -1,5 +1,6 @@
 import type { NewsletterIssue } from "@sokosumi/core-client";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -15,6 +16,7 @@ import es from "@/messages/es.json";
 import {
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
+  NEWSLETTER_SENDING_DOMAIN_STATE,
   PUBLIC_NEWSLETTER_SLUG,
 } from "@/test/newsletter";
 
@@ -49,6 +51,8 @@ function renderEditor(
         projectId={NEWSLETTER_PROJECT_ID}
         issue={issue}
         activeSubscribers={3}
+        senderName="Ada"
+        sendingDomain={NEWSLETTER_SENDING_DOMAIN_STATE}
         newsletterSlug={PUBLIC_NEWSLETTER_SLUG}
         draftedBySokoBot={draftedBySokoBot}
       />
@@ -70,6 +74,103 @@ beforeEach(() => {
 });
 
 describe("newsletter issue editor", () => {
+  it("keeps campaign readiness before the writing surface", () => {
+    renderEditor();
+    const readiness = screen.getByRole("region", { name: "Before sending" });
+    const details = screen.getByRole("region", { name: "Issue details" });
+    expect(within(details).getByLabelText("Subject")).toBeInTheDocument();
+    expect(
+      within(readiness).getByText("3 active subscribers"),
+    ).toBeInTheDocument();
+    expect(
+      readiness.compareDocumentPosition(details) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Submit for approval" }),
+    ).toBeEnabled();
+  });
+
+  it("restores edited blocks in reverse removal order, even after saving", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.type(screen.getByLabelText("Text"), " with new writing");
+    await user.click(screen.getByRole("button", { name: "Remove block 2" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Undo removal" }),
+      ).toHaveFocus(),
+    );
+    await user.click(screen.getByRole("button", { name: "Remove block 2" }));
+    expect(screen.getByText("2 blocks removed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(screen.getByText("All changes saved")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("2 blocks removed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo removal" }));
+    expect(screen.getByText("1 block removed")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo removal" }));
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(within(items[1]).getByLabelText("Text")).toHaveValue(
+      "Our latest update with new writing",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Undo removal" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          revision: 3,
+          values: expect.objectContaining({
+            content: [
+              NEWSLETTER_ISSUE.content[0],
+              { type: "text", text: "Our latest update with new writing" },
+              NEWSLETTER_ISSUE.content[2],
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("keeps Undo and writing disabled while saving", async () => {
+    const deferred = Promise.withResolvers<{
+      ok: true;
+      value: NewsletterIssue;
+    }>();
+    mocks.save.mockReturnValue(deferred.promise);
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole("button", { name: "Remove block 3" }));
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    expect(
+      screen.getByText(en.App.Projects.Newsletter.Issues.saving),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo removal" })).toBeDisabled();
+    expect(screen.getByLabelText("Subject")).toBeDisabled();
+    await act(async () =>
+      deferred.resolve({
+        ok: true,
+        value: {
+          ...NEWSLETTER_ISSUE,
+          content: NEWSLETTER_ISSUE.content.slice(0, 2),
+          revision: 3,
+        },
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Undo removal" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Undo removal" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Move block 3 up" }),
+      ).toHaveFocus(),
+    );
+  });
+
   it("offers AI drafting in an empty editor and shows the review notice", () => {
     renderEditor({ ...NEWSLETTER_ISSUE, content: [] }, "en", true);
     expect(
@@ -232,9 +333,9 @@ describe("newsletter issue editor", () => {
     "CANCELED",
   ] satisfies NewsletterIssue["status"][])("makes %s read-only", (status) => {
     renderEditor({ ...NEWSLETTER_ISSUE, status });
-    expect(screen.getByRole("note")).toHaveTextContent(
-      en.App.Projects.Newsletter.Issues.readOnly,
-    );
+    expect(
+      screen.getByText(en.App.Projects.Newsletter.Issues.readOnly),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Subject")).toBeDisabled();
     expect(
       screen.getByRole("combobox", { name: "Heading level" }),
@@ -263,5 +364,48 @@ describe("newsletter issue editor", () => {
       await screen.findByText(copy.Validation.subject),
     ).toBeInTheDocument();
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it.each(["FAILED", "SENT"] as const)(
+    "explains a %s delivery without exposing a resend action",
+    (status) => {
+      renderEditor({
+        ...NEWSLETTER_ISSUE,
+        status,
+        lastError: "Provider could not confirm delivery",
+      });
+      expect(
+        screen.getByText(/Provider could not confirm delivery/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", {
+          name: en.App.Projects.Newsletter.Issues.Delivery.reviewSettings,
+        }),
+      ).toHaveAttribute(
+        "href",
+        `/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+      expect(
+        screen.queryByRole("button", { name: "Send now" }),
+      ).not.toBeInTheDocument();
+      if (status === "SENT")
+        expect(
+          screen.getByText(en.App.Projects.Newsletter.Issues.Delivery.partial),
+        ).toBeInTheDocument();
+    },
+  );
+  it("removes prerequisite navigation while the issue has unsaved changes", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const readiness = en.App.Projects.Newsletter.Issues.Readiness;
+    expect(
+      screen.getByRole("link", { name: readiness.senderSettings }),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Subject"), " changed");
+    expect(
+      screen.queryByRole("link", { name: readiness.senderSettings }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(en.App.Projects.Newsletter.Issues.Lifecycle.saveFirst),
+    ).toBeInTheDocument();
   });
 });

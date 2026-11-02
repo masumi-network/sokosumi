@@ -3,21 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { conflict } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 
-const { getSession, services, listServices, exportContactsCsv } = vi.hoisted(
-  () => ({
-    getSession: vi.fn(),
-    services: {
-      resolveContactActor: vi.fn(),
-      inContactTransaction: vi.fn(),
-      upsertContact: vi.fn(),
-      updateContact: vi.fn(),
-      listContacts: vi.fn(),
-      mergeContacts: vi.fn(),
-    },
-    listServices: { createContactList: vi.fn() },
-    exportContactsCsv: vi.fn(),
-  }),
-);
+const {
+  getSession,
+  services,
+  listServices,
+  exportContactsCsv,
+  importContactListText,
+} = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  services: {
+    resolveContactActor: vi.fn(),
+    inContactTransaction: vi.fn(),
+    upsertContact: vi.fn(),
+    updateContact: vi.fn(),
+    listContacts: vi.fn(),
+    mergeContacts: vi.fn(),
+  },
+  listServices: { createContactList: vi.fn() },
+  exportContactsCsv: vi.fn(),
+  importContactListText: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession } } }));
 vi.mock("@/middleware/workspace", async (importOriginal) => {
@@ -53,6 +58,10 @@ vi.mock("@/services/contacts-import.service", async (importOriginal) => ({
     typeof import("@/services/contacts-import.service")
   >()),
   exportContactsCsv,
+}));
+
+vi.mock("@/services/contact-list-text-import.service", () => ({
+  importContactListText,
 }));
 
 const { default: contactsRouter } = await import("./index.js");
@@ -163,6 +172,7 @@ describe("contacts routes", () => {
       ["POST", "/contact-lists", { name: "VIP", color: "neon" }],
       ["POST", "/contact-lists", { name: "VIP", smartFilter: { unknown: 1 } }],
       ["POST", `/contact-lists/${CONTACT_ID}/members`, { add: [], remove: [] }],
+      ["POST", `/contact-lists/${CONTACT_ID}/import`, { text: "" }],
     ];
     for (const [method, path, body] of invalid) {
       const response = await request(path, {
@@ -173,6 +183,34 @@ describe("contacts routes", () => {
     }
     expect(services.upsertContact).not.toHaveBeenCalled();
     expect(listServices.createContactList).not.toHaveBeenCalled();
+  });
+
+  it("imports a pasted list into a contact list", async () => {
+    const list = {
+      id: CONTACT_ID,
+      name: "Newsletter",
+      color: "blue",
+      description: null,
+      kind: "manual",
+      smartFilter: null,
+      count: 2,
+      createdByUserId: "user_1",
+      createdBySokoBotId: null,
+      createdAutomatically: false,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    importContactListText.mockResolvedValue(list);
+    const response = await post(`/contact-lists/${CONTACT_ID}/import`, {
+      text: "ada@example.com\nbob@test.io",
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({ count: 2 });
+    expect(importContactListText).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_1" }),
+      CONTACT_ID,
+      "ada@example.com\nbob@test.io",
+    );
   });
 
   it("answers 201 for a new contact and 200 for an upsert onto an existing one", async () => {

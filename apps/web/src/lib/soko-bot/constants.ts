@@ -8,6 +8,10 @@ export function sokoBotConsoleRoute(botId?: string | null): string {
     ? `${SOKO_BOTS_ROUTE}/${encodeURIComponent(botId)}`
     : SOKO_BOT_ROUTE;
 }
+/** The avatar studio of the caller's own bot, or of the shared bot `botId`. */
+export function sokoBotAvatarStudioRoute(botId?: string | null): string {
+  return `${sokoBotConsoleRoute(botId)}/avatar`;
+}
 export const ADMIN_SOKO_BOTS_ROUTE = "/admin/soko-bots";
 export const ADMIN_SOKO_BOT_VERSIONS_ROUTE = `${ADMIN_SOKO_BOTS_ROUTE}/versions`;
 
@@ -44,3 +48,15 @@ export const SOKO_BOT_BUSY_ERROR_CODE = "SOKO_BOT_BUSY";
 /** Action error code when Core answers 429: the caller's hourly avatar generation allowance is spent. */
 export const SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE =
   "SOKO_BOT_AVATAR_RATE_LIMITED";
+
+/** Action error code when Core answers 429: the person's daily animation redos are spent. */
+export const SOKO_BOT_AVATAR_REDO_LIMIT_ERROR_CODE =
+  "SOKO_BOT_AVATAR_REDO_LIMIT";
+
+/** Action error code when Core answers 409: that state's animation is still being made. */
+export const SOKO_BOT_AVATAR_STATE_RENDERING_ERROR_CODE =
+  "SOKO_BOT_AVATAR_STATE_RENDERING";
+
+/** Action error code when Core cannot draw avatars at all (no image provider configured). */
+export const SOKO_BOT_AVATAR_UNAVAILABLE_ERROR_CODE =
+  "SOKO_BOT_AVATAR_UNAVAILABLE";

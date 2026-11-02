@@ -1,3 +1,5 @@
+import type { ChatRoom, StarredChatRoomOrder } from "@sokosumi/core-client";
+
 export interface ChatRoomActivitySortKey {
   id: string;
   updatedAt: string | Date;
@@ -48,6 +50,23 @@ export function compareChatRoomsByRecentActivity(
 export interface PinnedChatRoomSortKey {
   id: string;
   starredAt?: string | Date | null;
+}
+
+/**
+ * A reorder's new sort keys on the rooms they name. A room unpinned meanwhile
+ * stays unpinned.
+ */
+export function withPinnedOrder(
+  rooms: ChatRoom[],
+  order: StarredChatRoomOrder[],
+): ChatRoom[] {
+  const starredAtByRoomId = new Map(
+    order.map((row) => [row.roomId, row.starredAt]),
+  );
+  return rooms.map((room) => {
+    const starredAt = starredAtByRoomId.get(room.id);
+    return starredAt && room.starredAt != null ? { ...room, starredAt } : room;
+  });
 }
 
 /**

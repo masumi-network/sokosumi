@@ -124,7 +124,7 @@ export function DriveFolderNav({
             <li key={row.key}>
               <button
                 type="button"
-                className="bg-card-background hover:bg-card-background-hover focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2"
+                className="bg-card-background hover:bg-accent focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2"
                 title={row.label}
                 onClick={row.onOpen}
               >

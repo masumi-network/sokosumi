@@ -12,19 +12,21 @@
   extension NativeWindowTests {
     /// Row 24d: the real `RoomThreadOverviewView` groups its rows under Unread and Earlier. The test host
     /// builds no accessibility tree, so the text is read back with Vision (nil on the virtualized CI
-    /// runner, where only the pixel checks run) and the tinted thread mark is found by its colour.
+    /// runner, where only the pixel checks run) and an unread row is found by its neutral wash.
     @MainActor struct RoomThreadOverviewGroupsViewTests {
       @Test(arguments: ThreadOverviewGroupsFixture.allCases)
       func rendersTheGroups(fixture: ThreadOverviewGroupsFixture) async throws {
         let bitmap = try await Self.render(fixture)
         let scale = CGFloat(bitmap.pixelsWide) / Self.width
-        // The leading thread mark is the only colour in the icon column: tinted when unread, grey when read.
-        let tinted = Self.coloredPixels(in: bitmap, columns: 0 ..< Int(44 * scale))
+        // Iris is a fill, never a tint: the whole list is neutral, read or unread.
+        #expect(Self.coloredPixels(in: bitmap, columns: 0 ..< bitmap.pixelsWide).isEmpty, "Nothing here draws in a colour.")
+        // A washed row fills the icon column; a read row leaves only its glyph's antialiasing there.
+        let washed = Self.washedPixels(in: bitmap, columns: 0 ..< Int(44 * scale))
+        let washedRow = Int(600 * scale * scale), glyphsOnly = Int(300 * scale * scale)
         if fixture == .allRead {
-          #expect(Self.coloredPixels(in: bitmap, columns: 0 ..< bitmap.pixelsWide).isEmpty,
-                  "Nothing is tinted with nothing unread: no mark, no count on the heading, no time.")
+          #expect(washed.count < glyphsOnly, "Nothing is washed with nothing unread (\(washed.count) pixels).")
         } else {
-          #expect(tinted.count > 20, "An unread row leads with a tinted mark.")
+          #expect(washed.count > washedRow, "An unread row sits on a wash (\(washed.count) pixels).")
         }
 
         guard let lines = try Self.recognizedText(in: bitmap) else { return }
@@ -33,10 +35,6 @@
           lines.first { $0.text.contains(fragment) }.map { (1 - $0.box.maxY) * CGFloat(bitmap.pixelsHigh) }
         }
         let unreadHeading = try #require(top("Unread"), "\(texts)")
-        // The Unread heading carries its count as a tinted pill beside the word.
-        let headingBand = Int(max(0, unreadHeading - 4 * scale)) ..< Int(unreadHeading + 16 * scale)
-        let pill = Self.coloredPixels(in: bitmap, columns: Int(44 * scale) ..< bitmap.pixelsWide).filter { headingBand.contains($0.y) }
-        #expect(fixture == .allRead ? pill.isEmpty : pill.count > 10, "The count pill on the Unread heading: \(pill.count) pixels.")
         switch fixture {
         case .mixed:
           let earlier = try #require(top("Earlier"), "\(texts)")
@@ -46,7 +44,7 @@
           #expect(texts.contains { $0.contains("2 new") && $0.contains("Ada Lovelace") }, "\(texts)")
           #expect(texts.contains { $0.contains("Started by Ada Lovelace") && $0.contains("4 replies") }, "\(texts)")
           #expect(!texts.contains { $0.contains("All caught up") }, "\(texts)")
-          #expect(tinted.allSatisfy { CGFloat($0.y) < earlier }, "Only the rows under Unread are tinted.")
+          #expect(washed.filter { CGFloat($0.y) >= earlier }.count < glyphsOnly, "Only the rows under Unread are washed.")
         case .allRead:
           let caughtUp = try #require(top("All caught up"), "\(texts)")
           let earlier = try #require(top("Earlier"), "\(texts)")
@@ -110,6 +108,21 @@
             guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
             let channels = [color.redComponent, color.greenComponent, color.blueComponent]
             if let high = channels.max(), let low = channels.min(), high - low > 0.12 {
+              result.append((column, row))
+            }
+          }
+        }
+        return result
+      }
+
+      /// Pixels in `columns` a faint step off the background, the neutral wash and its circles (origin top left).
+      static func washedPixels(in bitmap: NSBitmapImageRep, columns: Range<Int>) -> [(x: Int, y: Int)] {
+        guard let background = bitmap.colorAt(x: 2, y: bitmap.pixelsHigh - 2)?.usingColorSpace(.sRGB) else { return [] }
+        var result: [(x: Int, y: Int)] = []
+        for row in 0 ..< bitmap.pixelsHigh {
+          for column in columns.clamped(to: 0 ..< bitmap.pixelsWide) {
+            guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
+            if (0.02 ... 0.25).contains(abs(color.greenComponent - background.greenComponent)) {
               result.append((column, row))
             }
           }

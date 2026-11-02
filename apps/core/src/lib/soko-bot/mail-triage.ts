@@ -27,8 +27,8 @@ export const MAIL_TRIAGE_CRITERIA = {
   URGENT:
     "The owner should hear about it now, before tomorrow morning: a real person asks the owner to reply, approve, sign or decide today or tomorrow; money that needs action (a failed or declined payment or payout, an overdue invoice, a chargeback, a suspended billing account); a security alert about the owner's own accounts (a sign-in from a new device or place, a password or 2FA change they may not have made, a leaked API key or token). Server monitoring, deployment and automation alerts (DigitalOcean, Vercel, Make.com, CI) are never urgent.",
   NOTABLE:
-    "Worth one line, but it can wait until tomorrow morning: personal messages, mail from colleagues and collaborators that asks nothing urgent, meeting requests and changes, partnership, sales and press inquiries, and failure alerts from server monitoring, deployments or automations that need a look but no reply.",
-  BULK: "Nothing for the owner to read or do: newsletters, promotions and marketing, receipts and invoices already paid, automated notifications, GitHub notifications and CI run results, other bot mail, digests, calendar accepts, declines and other RSVPs. Sokosumi's own notifications (noreply@sokosumi.com) and mail from Coworkers or other AI agents about Tasks, plans, input requests and results are bulk too: the assistant already follows those Tasks and answers them.",
+    "Worth one line, but it can wait until tomorrow morning: personal messages from people the owner knows or works with that ask nothing urgent, meeting invitations, requests and changes from people, partnership and press inquiries, and requests that need the owner's own action: an approval or access request, an automation (Zapier, Make.com) paused until the owner approves a step, a person inviting the owner to collaborate or share files even when a service like Box or Google Drive sends it, a wallet or balance that needs topping up, an invoice to pay, a service closing an account that holds the owner's money.",
+  BULK: "Nothing for the owner to read or do: newsletters, promotions and marketing, a company's announcements even when written as a personal note (a new CEO, funding, a launch), receipts and invoices already paid, automated notifications, digests, event reminders, replies to the owner's own invitations (accepts, declines and other RSVPs), GitHub notifications and CI run results, other bot mail. Server monitoring, deployment, error-tracking and automation alerts (DigitalOcean, Vercel, Sentry, Make.com, CI) are bulk: the owner sees them in those tools. Cold pitches from strangers are bulk: unsolicited sales, consulting or agency offers and people asking to be hired. Sokosumi's own notifications (noreply@sokosumi.com) and mail from Coworkers or other AI agents about Tasks, plans, input requests and results are bulk too: the assistant already follows those Tasks and answers them.",
 } as const satisfies Record<MailTriageTag, string>;
 
 const TRIAGE_INSTRUCTIONS = (key: string) =>
@@ -77,69 +77,102 @@ export function mailTriageTag(
     : { tag: "BULK", probability: bulk };
 }
 
+function emailsState(mail: readonly SokoBotInboxMessage[]) {
+  return mail.map((message, index) => ({
+    key: `mail${index}`,
+    from: message.from.slice(0, FIELD_LENGTH),
+    to: message.to.slice(0, 5),
+    labels: message.labels.slice(0, 10),
+    subject: message.subject.slice(0, FIELD_LENGTH),
+    snippet: message.snippet.slice(0, FIELD_LENGTH),
+  }));
+}
+
 /**
- * Tags each mail with one batched Jev call; null when Jev is unavailable.
+ * Which mail a saved rule asks the bot to act on, by index. Its own Jev call:
+ * asked beside the triage choices, Jev scored a plain "New Invoice, please
+ * review the attached document" against "save invoice PDFs" at 0.46, and
+ * alone at 0.87 to 0.98. A failed call matches nothing; the triage stands.
+ */
+async function mailMatchingRules(
+  mail: readonly SokoBotInboxMessage[],
+  rules: readonly string[],
+): Promise<{ matches: Set<number>; costUsd: number }> {
+  if (rules.length === 0) return { matches: new Set(), costUsd: 0 };
+  try {
+    const { answers, costUsd } = await evaluateWithJev({
+      state: { ownerRules: [...rules], emails: emailsState(mail) },
+      questions: Object.fromEntries(
+        mail.map((_, index) => [
+          `rule${index}`,
+          {
+            type: "boolean" as const,
+            instructions: RULE_INSTRUCTIONS(`mail${index}`),
+          },
+        ]),
+      ),
+      timeoutMs: TIMEOUT_MS,
+    });
+    return {
+      matches: new Set(
+        mail.flatMap((_, index) => {
+          const rule = answers.get(`rule${index}`);
+          return rule?.type === "boolean" &&
+            rule.probability >= MIN_RULE_PROBABILITY
+            ? [index]
+            : [];
+        }),
+      ),
+      costUsd,
+    };
+  } catch (error) {
+    console.warn("Soko Bot mail rule check failed", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
+    return { matches: new Set(), costUsd: 0 };
+  }
+}
+
+/**
+ * Tags each mail with one batched Jev call, and asks which mail a saved rule
+ * covers in a second call beside it; null when the triage call fails.
  * No database: the owner's context comes in.
  */
 export async function tagMailWithJev(
   mail: readonly SokoBotInboxMessage[],
   owner: OwnerMailContext,
 ): Promise<{ mail: TriagedMail[]; costUsd: number } | null> {
+  const ruled = mailMatchingRules(mail, owner.rules);
   try {
-    const askRules = owner.rules.length > 0;
     const { answers, costUsd } = await evaluateWithJev({
       state: {
         ownerPreferences: owner.preferences,
-        ...(askRules ? { ownerRules: owner.rules } : {}),
         alreadyFlaggedToday: owner.alreadyFlaggedToday,
-        emails: mail.map((message, index) => ({
-          key: `mail${index}`,
-          from: message.from.slice(0, FIELD_LENGTH),
-          to: message.to.slice(0, 5),
-          labels: message.labels.slice(0, 10),
-          subject: message.subject.slice(0, FIELD_LENGTH),
-          snippet: message.snippet.slice(0, FIELD_LENGTH),
-        })),
+        emails: emailsState(mail),
       },
       questions: Object.fromEntries(
-        mail.flatMap((_, index) => [
-          [
-            `mail${index}`,
-            {
-              type: "choice" as const,
-              instructions: TRIAGE_INSTRUCTIONS(`mail${index}`),
-              criteria: MAIL_TRIAGE_CRITERIA,
-            },
-          ],
-          ...(askRules
-            ? [
-                [
-                  `rule${index}`,
-                  {
-                    type: "boolean" as const,
-                    instructions: RULE_INSTRUCTIONS(`mail${index}`),
-                  },
-                ] as const,
-              ]
-            : []),
+        mail.map((_, index) => [
+          `mail${index}`,
+          {
+            type: "choice" as const,
+            instructions: TRIAGE_INSTRUCTIONS(`mail${index}`),
+            criteria: MAIL_TRIAGE_CRITERIA,
+          },
         ]),
       ),
       timeoutMs: TIMEOUT_MS,
     });
+    const rules = await ruled;
     return {
-      mail: mail.map((message, index) => {
-        const rule = answers.get(`rule${index}`);
-        return {
-          message,
-          ...mailTriageTag(answers.get(`mail${index}`)),
-          matchesRule:
-            rule?.type === "boolean" &&
-            rule.probability >= MIN_RULE_PROBABILITY,
-        };
-      }),
-      costUsd,
+      mail: mail.map((message, index) => ({
+        message,
+        ...mailTriageTag(answers.get(`mail${index}`)),
+        matchesRule: rules.matches.has(index),
+      })),
+      costUsd: costUsd + rules.costUsd,
     };
   } catch (error) {
+    await ruled;
     console.warn("Soko Bot mail triage failed", {
       error: error instanceof Error ? error.name : "unknown",
     });

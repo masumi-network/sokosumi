@@ -78,6 +78,7 @@ describe("background runs", () => {
     expect(input).toMatchObject({
       userId: "owner",
       workspaceId: "workspace",
+      sokoBotId: authorized.turn.sokoBotId,
       source: "CHAT",
       versionId: "v24",
       background: {

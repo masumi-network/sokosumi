@@ -152,3 +152,33 @@ export async function sendEmails(
 
   return ids;
 }
+
+export type EmailDomain = NonNullable<
+  Awaited<ReturnType<Resend["domains"]["get"]>>["data"]
+>;
+
+/** Registers a sending domain. Resend answers with the DNS records to publish. */
+export async function createEmailDomain(name: string) {
+  const { data, error } = await resend().domains.create({ name });
+  if (error) throwResendError(error);
+  if (!data) throw new Error("Resend domain create returned no domain");
+  return data;
+}
+
+export async function getEmailDomain(id: string): Promise<EmailDomain> {
+  const { data, error } = await resend().domains.get(id);
+  if (error) throwResendError(error);
+  if (!data) throw new Error("Resend domain get returned no domain");
+  return data;
+}
+
+/** Asks Resend to look up the domain's DNS records again. */
+export async function verifyEmailDomain(id: string): Promise<void> {
+  const { error } = await resend().domains.verify(id);
+  if (error) throwResendError(error);
+}
+
+export async function removeEmailDomain(id: string): Promise<void> {
+  const { error } = await resend().domains.remove(id);
+  if (error) throwResendError(error);
+}

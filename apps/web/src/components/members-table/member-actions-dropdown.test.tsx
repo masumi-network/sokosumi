@@ -1,7 +1,10 @@
 import { MemberRole } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { type Action, toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
+
+import { assignOrganizationSeat } from "@/lib/actions/organization/seat-action";
 
 import MemberActionsDropdown from "./member-actions-dropdown";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
@@ -12,8 +15,14 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ push: pushMock, refresh: vi.fn() }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
 }));
 
 vi.mock("@/lib/actions/organization/seat-action", () => ({
@@ -61,6 +70,37 @@ describe("MemberActionsDropdown", () => {
     });
 
     expect(await openMenuItems()).toEqual(["assignSeat"]);
+  });
+
+  it("links to billing when the last unused seat was just taken", async () => {
+    vi.mocked(assignOrganizationSeat).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "BAD_INPUT",
+        kind: "seat_capacity_exceeded",
+        message: "No unused seats available.",
+      },
+    });
+    const me = { id: "member-self", role: MemberRole.ADMIN };
+
+    renderDropdown(me, buildMember("member-self", MemberRole.ADMIN), {
+      showSeatManagement: true,
+      unusedSeats: 1,
+    });
+    await openMenuItems();
+    await userEvent.click(screen.getByRole("menuitem", { name: "assignSeat" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "No unused seats available.",
+        expect.objectContaining({
+          action: expect.objectContaining({ label: "Modal.Error.manageSeats" }),
+        }),
+      );
+    });
+    const [, options] = vi.mocked(toast.error).mock.calls[0];
+    (options?.action as Action).onClick({} as never);
+    expect(pushMock).toHaveBeenCalledWith("/billing");
   });
 
   it("lets an owner with a seat remove only their own seat", async () => {

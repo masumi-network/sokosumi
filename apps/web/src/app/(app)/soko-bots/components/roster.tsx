@@ -207,7 +207,7 @@ export async function YourAssistantSection({
   const bot = me?.bot ?? null;
   const shell = cn(
     HOLDER_ITEM_CLASS,
-    "border-primary-tertiary flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5",
+    "border-border flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5",
   );
 
   return (
@@ -216,7 +216,7 @@ export async function YourAssistantSection({
       <div className={HOLDER_CLASS}>
         {!bot || !me ? (
           <div className={shell}>
-            <span className="bg-primary-quinary text-primary inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
+            <span className="bg-muted text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
               <Plus aria-hidden className="size-6" />
             </span>
             <div className="min-w-0 flex-1 space-y-1">

@@ -8,16 +8,11 @@ import {
   SidebarMenuItem,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
-import {
-  SIDEBAR_ROW_FIXED_LABEL_CLASS,
-  SIDEBAR_ROW_LABEL_CLASS,
-} from "@/components/ui/sidebar-classes";
-import { cn } from "@/lib/utils";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 
 /**
  * The last row of a sidebar section the room limit cut short: "Show N more"
- * lists the rest, "Show less" goes back to the limit. A plain sidebar row, so
- * on the rail it is a square with the label as its tooltip.
+ * lists the rest, "Show less" goes back to the limit. A plain sidebar row.
  */
 export function SidebarSectionShowMoreRow({
   hiddenCount,
@@ -36,19 +31,14 @@ export function SidebarSectionShowMoreRow({
     <SidebarMenuItem>
       <SidebarMenuButton
         type="button"
-        tooltip={label}
         aria-expanded={showAll}
         className="text-muted-foreground"
         onClick={() => onShowAllChange(!showAll)}
       >
         <SidebarRowSlot>
-          <Icon className="size-4" aria-hidden />
+          <Icon aria-hidden />
         </SidebarRowSlot>
-        <span
-          className={cn(SIDEBAR_ROW_LABEL_CLASS, SIDEBAR_ROW_FIXED_LABEL_CLASS)}
-        >
-          {label}
-        </span>
+        <span className={SIDEBAR_ROW_LABEL_CLASS}>{label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

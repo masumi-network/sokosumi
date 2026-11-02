@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import { type ReactElement, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { cn } from "@/lib/utils";
 
 import {
   getAccountNavItems,
@@ -21,6 +22,7 @@ import {
   LEGAL_LINKS,
   type LegalLinkItem,
 } from "./account-menu-config";
+import { ACCOUNT_MENU_ROW_CLASS } from "./account-summary-labels";
 import type { AccountPopoverPanel } from "./account-summary-types";
 import { getDeveloperNavItems } from "./developer-menu-config";
 
@@ -52,7 +54,7 @@ function DrillRow({
       variant="ghost"
       size="sm"
       onClick={onClick}
-      className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
+      className={cn(ACCOUNT_MENU_ROW_CLASS, "h-11 md:h-8")}
     >
       {icon}
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>

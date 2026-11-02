@@ -6,11 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface AuthorizeReferenceConfig {
   subscription: {
-    authorizeReference: (params: {
-      referenceId: string;
-      user: { id: string };
-      action?: string;
-    }) => Promise<boolean>;
+    authorizeReference: (
+      params: {
+        referenceId: string;
+        user: { id: string };
+        action?: string;
+      },
+      ctx?: { body?: { seats?: number } },
+    ) => Promise<boolean>;
   };
 }
 
@@ -36,6 +39,7 @@ const {
   emailOTPPluginMock,
   markOutOfCreditsTasksAsToppedUpMock,
   getMemberByUserIdAndOrganizationIdMock,
+  resolveActiveSubscriptionByReferenceIdMock,
   passkeyPluginMock,
   sendEmailMock,
   prismaAdapterMock,
@@ -142,6 +146,7 @@ const {
     emailOTPPluginMock: vi.fn(),
     markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
     getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+    resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
     passkeyPluginMock: vi.fn(),
     sendEmailMock: vi.fn(),
     prismaAdapterMock: vi.fn(),
@@ -294,6 +299,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
+  },
+  subscriptionRepository: {
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
   },
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
@@ -875,6 +884,72 @@ describe("core auth config", () => {
         code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
         message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
       },
+    });
+  });
+
+  describe("seat counts on the upgrade route", () => {
+    async function authorizeUpgrade(seats?: number) {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: MemberRole.OWNER,
+      });
+      hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+
+      await import("./auth");
+      const [[config]] = stripePluginMock.mock.calls as Array<
+        [AuthorizeReferenceConfig]
+      >;
+
+      return config.subscription.authorizeReference(
+        {
+          referenceId: "org_123",
+          user: { id: "user_123" },
+          action: "upgrade-subscription",
+        },
+        { body: { seats } },
+      );
+    }
+
+    const PAID_SUBSCRIPTION = { seats: 5, stripeSubscriptionId: "sub_1" };
+
+    it("refuses fewer seats, which would skip reductions at renewal", async () => {
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(
+        PAID_SUBSCRIPTION,
+      );
+
+      await expect(authorizeUpgrade(2)).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+        body: { code: "ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED" },
+      });
+    });
+
+    it("refuses more seats too, and a missing count on a larger plan", async () => {
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(
+        PAID_SUBSCRIPTION,
+      );
+
+      await expect(authorizeUpgrade(7)).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+      });
+      await expect(authorizeUpgrade()).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+      });
+    });
+
+    it("allows a plan switch that keeps the purchased seats", async () => {
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(
+        PAID_SUBSCRIPTION,
+      );
+
+      await expect(authorizeUpgrade(5)).resolves.toBe(true);
+    });
+
+    it("lets a free organization choose its seats at first checkout", async () => {
+      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+        seats: 1,
+        stripeSubscriptionId: null,
+      });
+
+      await expect(authorizeUpgrade(4)).resolves.toBe(true);
     });
   });
 

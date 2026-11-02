@@ -90,13 +90,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -112,7 +106,6 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { NewsletterIssueCalendarEvent } from "./newsletter-issue-calendar-event";
 import {
   type ChangeableRun,
   changeRun,
@@ -164,6 +157,7 @@ export interface CalendarCoworker {
   slug?: string;
   kind?: "coworker" | "user" | "sokoBot";
   avatarSeed?: string | null;
+  avatarStyleId?: string | null;
 }
 
 interface CalendarPeople {
@@ -418,7 +412,7 @@ function CalendarEvent({
           source: sourceName,
           task: item.taskName,
         })}
-        className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
         onClick={(event) => event.stopPropagation()}
@@ -511,7 +505,7 @@ function CalendarEvent({
         })}
         className={cn(
           cardClassName,
-          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
+          "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
         )}
         data-testid="calendar-event"
         onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
@@ -576,7 +570,6 @@ function CalendarView({
   runHandlers,
   showProject,
   socialOnly,
-  newsletterEnabled,
   socialPostVariant,
   sources,
   timeZone,
@@ -591,7 +584,6 @@ function CalendarView({
   /** Off on one project's calendar, where every chip would repeat its name. */
   showProject: boolean;
   socialOnly: boolean;
-  newsletterEnabled: boolean;
   /** Social's own calendar draws its chips; the workspace Calendar lists posts. */
   socialPostVariant: "compact" | "month" | "week";
   sources: WorkspaceCalendarSource[];
@@ -652,8 +644,7 @@ function CalendarView({
     return current.kind === "socialPost"
       ? move.item.kind === "socialPost" &&
           current.revision === move.item.revision
-      : (current.kind === "RUN" || current.kind === "RUN_AT") &&
-          (move.item.kind === "RUN" || move.item.kind === "RUN_AT") &&
+      : move.item.kind !== "socialPost" &&
           current.scheduleRevision === move.item.scheduleRevision;
   });
   if (retainedMoves.length !== Object.keys(pendingMoves).length) {
@@ -792,13 +783,7 @@ function CalendarView({
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
           <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(
-              socialOnly
-                ? newsletterEnabled
-                  ? "empty.publications"
-                  : "empty.socialOnly"
-                : "empty.title",
-            )}
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
           </p>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
@@ -830,11 +815,6 @@ function CalendarView({
                       item={item}
                       timeZone={timeZone}
                       variant={socialPostVariant}
-                    />
-                  ) : item.kind === "newsletter_issue" ? (
-                    <NewsletterIssueCalendarEvent
-                      item={item}
-                      timeZone={timeZone}
                     />
                   ) : (
                     <CalendarEvent
@@ -882,12 +862,7 @@ function CalendarView({
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title:
-              item.kind === "socialPost"
-                ? item.text
-                : item.kind === "newsletter_issue"
-                  ? item.subject
-                  : item.taskName,
+            title: item.kind === "socialPost" ? item.text : item.taskName,
             start: (
               pendingMoves[item.id]?.scheduledAt ?? item.scheduledAt
             ).toISOString(),
@@ -991,10 +966,6 @@ function CalendarView({
                 </div>
               );
             }
-            if (item.kind === "newsletter_issue")
-              return (
-                <NewsletterIssueCalendarEvent item={item} timeZone={timeZone} />
-              );
             return (
               <CalendarEvent
                 item={item}
@@ -1160,10 +1131,6 @@ export function WorkspaceCalendar({
   // reader turns it on, and only where Social posts are on the calendar at all.
   const socialOnly =
     socialPostsOnly || (includeSocialPosts && state.socialOnly);
-  const newsletterEnabled =
-    sources.some(
-      (source) => source.latestScheduledNewsletterIssueAt !== undefined,
-    ) || loadedItems.some((item) => item.kind === "newsletter_issue");
   const canCreate =
     !socialPostsOnly &&
     sources.some(
@@ -1187,27 +1154,10 @@ export function WorkspaceCalendar({
   }, [isMobile, state.view, setState, socialPostsOnly]);
 
   function isVisible(item: WorkspaceCalendarEntry, anyPostStatus = false) {
-    // Publications survive the toggle. Grid views drain every page in range
-    // before filtering, so scheduled newsletters remain beside Social posts.
-    if (
-      socialOnly &&
-      item.kind !== "socialPost" &&
-      item.kind !== "newsletter_issue"
-    )
-      return false;
-    if (item.kind === "newsletter_issue")
-      return (
-        (view !== "agenda" ||
-          (["SCHEDULED", "SENDING"].includes(item.status) &&
-            getCalendarItemDateKey(item.scheduledAt, timeZone) >=
-              Temporal.Now.plainDateISO(timeZone).toString())) &&
-        state.assigneeId === null &&
-        state.assigneeUserId === null &&
-        state.status === null &&
-        state.postStatus === null &&
-        state.provider === null &&
-        (selectedSourceId === null || item.sourceId === selectedSourceId)
-      );
+    // Only Social posts survive the toggle. The grid views drain every page
+    // in range before they paint, so filtering the loaded entries here shows
+    // the same posts a Social-only request would have returned.
+    if (socialOnly && item.kind !== "socialPost") return false;
     if (item.kind === "socialPost")
       return (
         (view !== "agenda" ||
@@ -1678,8 +1628,9 @@ export function WorkspaceCalendar({
               "max-md:order-1 max-md:w-full max-md:justify-between",
           )}
         >
-          <Tabs
-            className="min-w-0 max-w-full"
+          <ToggleGroup
+            type="single"
+            aria-label={t("view.label")}
             value={view}
             onValueChange={(value) => {
               const nextView = views.find((candidate) => candidate === value);
@@ -1687,30 +1638,25 @@ export function WorkspaceCalendar({
                 handleViewChange(nextView);
               }
             }}
+            className={cn(
+              "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+              socialPostsOnly && "min-h-11 md:min-h-8",
+            )}
+            data-testid="calendar-views"
           >
-            <TabsList
-              className={cn(
-                SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
-                socialPostsOnly && "min-h-11 md:min-h-8",
-              )}
-              data-testid="calendar-views"
-            >
-              {views.map((calendarView) => (
-                <TabsTrigger
-                  className={cn(
-                    SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                    "max-sm:px-1.5 max-sm:text-xs",
-                    socialPostsOnly && "min-h-11 shrink-0 md:min-h-8",
-                  )}
-                  key={calendarView}
-                  value={calendarView}
-                >
-                  {t(`view.${calendarView}`)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+            {views.map((calendarView) => (
+              <ToggleGroupItem
+                className={cn(
+                  "max-sm:px-1.5 max-sm:text-xs",
+                  socialPostsOnly && "min-h-11 shrink-0 md:min-h-8",
+                )}
+                key={calendarView}
+                value={calendarView}
+              >
+                {t(`view.${calendarView}`)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           {includeSocialPosts && !socialPostsOnly ? (
             <Button
               aria-pressed={socialOnly}
@@ -1735,11 +1681,7 @@ export function WorkspaceCalendar({
               variant={socialOnly ? "secondary" : "outline"}
             >
               <Share2 aria-hidden className="size-4" />
-              {t(
-                newsletterEnabled
-                  ? "socialOnly.newslettersLabel"
-                  : "socialOnly.label",
-              )}
+              {t("socialOnly.label")}
             </Button>
           ) : null}
           {lockedProjectId && !socialPostsOnly ? (
@@ -1798,13 +1740,7 @@ export function WorkspaceCalendar({
         ) : null}
         {visibleItems.length === 0 && view !== "agenda" ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(
-              socialOnly
-                ? newsletterEnabled
-                  ? "empty.publications"
-                  : "empty.socialOnly"
-                : "empty.title",
-            )}
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
           </div>
         ) : null}
         <CalendarView
@@ -1817,7 +1753,6 @@ export function WorkspaceCalendar({
           runHandlers={runHandlers}
           showProject={!lockedProjectId}
           socialOnly={socialOnly}
-          newsletterEnabled={newsletterEnabled}
           socialPostVariant={
             socialPostsOnly ? (view === "week" ? "week" : "month") : "compact"
           }

@@ -56,7 +56,19 @@ describe("GET /api/project-scope", () => {
       cursor: null,
       limit: 20,
       query: undefined,
+      state: "open",
     });
+  });
+
+  it("asks Core for open projects only, so Hidden ones never list", async () => {
+    mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
+
+    await GET(new Request("https://web.test/api/project-scope?q=far"));
+
+    // Open drops Closed projects and the reader's Hidden ones (ADR 0036).
+    expect(mocks.listProjects).toHaveBeenCalledWith(
+      expect.objectContaining({ state: "open" }),
+    );
   });
 
   it("passes the search on to Core", async () => {

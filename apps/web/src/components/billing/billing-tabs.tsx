@@ -4,6 +4,11 @@ import { useQueryState } from "nuqs";
 import { type ReactNode, useEffect, useMemo } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+} from "@/components/ui/tabs-classes";
+import { cn } from "@/lib/utils";
 
 type BillingTabValue = "subscription" | "credits" | "coupon";
 
@@ -56,24 +61,24 @@ export function BillingTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className="bg-card-background flex w-full items-center gap-1 self-start rounded-lg p-1">
+      <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
         <TabsTrigger
           value="subscription"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
         >
           {tabLabels.subscription}
         </TabsTrigger>
         {showCreditsTab ? (
           <TabsTrigger
             value="credits"
-            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+            className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
           >
             {tabLabels.credits}
           </TabsTrigger>
         ) : null}
         <TabsTrigger
           value="coupon"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+          className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
         >
           {tabLabels.coupon}
         </TabsTrigger>
