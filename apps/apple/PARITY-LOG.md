@@ -5289,7 +5289,13 @@ How to test: open the app in light, click a room, then click the sidebar again s
 
 ### Where it differs from web
 
-- A tile does nothing when clicked. Web's transcript tiles sit inside the quote's jump button, so a click there jumps to the source; on the Mac only the author name jumps. Web's composer tiles are `FileChipMiniPreview`, not `MessageQuoteAttachmentThumb`, and open the image or document viewer.
+- Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)) follow web, with these differences:
+  - Web's whole quote is one jump button. Here the author name and each tile are separate buttons, and the snippet stays selectable and does not jump.
+  - Web's jump button and composer tile tint on hover. A tile here does not, like the other attachment tiles on the Mac.
+  - A composer tile that is not a web address does nothing here, as a draft's tile without one does. Web renders it as a link.
+  - A composer tile whose `mediaKind` is `image` opens the image viewer here even with no image extension. Web classifies by the extension alone and renders a link.
+  - A URL with a non-image extension and a file name with an image one is a file here and an image on web.
+- A draft's tile and a quote's tile on the Mac differ for a file with no viewer: a draft's opens the document sheet with Open and Save, a quote's opens its link, as web's does for both. Draft tiles are out of scope here.
 - The composer's local preview reads parsed Markdown and web reads the raw text, so they differ on less ordinary input until Core's snapshot replaces the preview after sending:
   - A bare file URL in a sentence is lifted here, named by its URL. Web keeps it in the text.
   - A file link inside a code fence or inline code stays in place here. Web lifts it.
@@ -5315,5 +5321,13 @@ Four fields are newly required: `UserWorkspace.role`, `memberCount` and `enabled
 - `MessageQuoteAttachmentTests` hosts the real `MessageRowView` and `ChatComposerView` with a quote of four images and counts four drawn tiles, light and dark; a narrow quote wraps to a second row; file tiles show their type and keep their names. The recorded renders were inspected.
 
 Not run: the app against a live Core. No message was sent; the renders are the real `MessageRowView` and `ChatComposerView` hosted over a fixture server.
+
+Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)):
+
+- `MessageQuoteAttachmentTests` sends real mouse events to tiles in the hosted `MessageRowView` and `ChatComposerView`: the source's id reaches `.jumpToQuote`, a quote from another room opens its message link, an image and a PDF attach their viewer sheets, and a zip, a video and a sound open their links. A non-web address stays inert. VoiceOver finds a tile by its file name, reads its hint and presses it. On the old `MessageQuoteView`, 6 of the 11 test functions fail: every action test, and the suite's rendering tests pass.
+- Workspace scheme on this Mac: 2165 tests, 2161 passed, 4 failed. `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` and `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` also fail on an unmodified `efe693407`. `SokoBotFeedbackToolbarTests/theThumbsLeadTheHoverToolbarAndRate(useful:)` and `MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` passed when their suites were rerun on the same code. SwiftFormat and strict SwiftLint on the changed files: clean.
+- The recorded renders were inspected: tiles look as before in light and dark, and both viewer sheets open.
+
+Not checked: the signed app against a live Core, the tooltip on hover, and a loaded document in the viewer. The fixture's `notes.pdf` is not a PDF, and the render shows the sheet at "Loading preview…".
 
 Last updated: 2026-11-02
