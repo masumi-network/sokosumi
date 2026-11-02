@@ -357,7 +357,10 @@ import {
   generateNewsletterDraft,
   isNewsletterDraftAvailable,
 } from "@/services/newsletter-draft.service";
-import { createNewsletterIssue } from "@/services/newsletter-issues.service";
+import {
+  createNewsletterIssue,
+  sokoBotNewsletterTaskContext,
+} from "@/services/newsletter-issues.service";
 import {
   createProjectAdCampaign,
   deleteProjectAdCampaign,
@@ -6874,7 +6877,8 @@ export class SokoBotRuntimeService {
       case "list_newsletter_issues":
       case "get_newsletter_issue":
       case "get_newsletter_analytics":
-      case "list_newsletter_subscribers": {
+      case "list_newsletter_subscribers":
+      case "preview_newsletter_issue": {
         const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[
           input.capability
         ].parse(input.input);
@@ -6890,7 +6894,8 @@ export class SokoBotRuntimeService {
       }
       case "create_newsletter_issue":
       case "update_newsletter_issue":
-      case "delete_newsletter_issue": {
+      case "delete_newsletter_issue":
+      case "submit_newsletter_issue": {
         const { capability } = input;
         const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
           input.input,
@@ -6922,7 +6927,22 @@ export class SokoBotRuntimeService {
               capability,
               input.input,
               { projectId, workspaceId: scope.workspaceId },
-              { client: tx, creatorSokoBotId: authorized.turn.sokoBotId },
+              {
+                client: tx,
+                creatorSokoBotId: authorized.turn.sokoBotId,
+                // As when the bot submits over REST with its own key.
+                taskContext: async () => {
+                  const auth = await loadSokoBotTurnAuthContext(
+                    authorized.turn,
+                    tx,
+                  );
+                  if (!auth)
+                    throw new SokoBotRuntimeAuthorizationError(
+                      "Soko Bot is unavailable",
+                    );
+                  return sokoBotNewsletterTaskContext(auth);
+                },
+              },
             );
             await commitActionReceipt(tx, {
               turnId: authorized.turn.id,

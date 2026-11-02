@@ -257,6 +257,64 @@ describe("newsletter issue write tools", () => {
   });
 });
 
+describe("newsletter preview and submit tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const preview = SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue;
+  const submit = SOKO_BOT_TOOL_INPUT_SCHEMAS.submit_newsletter_issue;
+  const unsaved = {
+    projectId,
+    subject: "Hi",
+    template: "TEXT",
+    content: [{ type: "text", text: "News" }],
+  };
+
+  it("previews a saved issue or unsaved content, never both", () => {
+    expect(preview.safeParse({ projectId, issueId }).success).toBe(true);
+    expect(preview.safeParse(unsaved).success).toBe(true);
+    expect(preview.safeParse({ projectId }).success).toBe(false);
+    expect(preview.safeParse({ ...unsaved, issueId }).success).toBe(false);
+    expect(
+      preview.safeParse({ projectId, subject: "Hi", template: "TEXT" }).success,
+    ).toBe(false);
+    expect(
+      preview.safeParse({
+        ...unsaved,
+        content: [{ type: "html", html: "<b>hi</b>" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("submits with the read revision and takes no approval or send flag", () => {
+    const ref = { projectId, issueId, revision: 0 };
+    expect(submit.safeParse(ref).success).toBe(true);
+    expect(submit.safeParse({ projectId, issueId }).success).toBe(false);
+    for (const field of [
+      "approve",
+      "autoApprove",
+      "skipApproval",
+      "scheduledAt",
+      "sendNow",
+    ]) {
+      expect(submit.safeParse({ ...ref, [field]: true }).success).toBe(false);
+      expect(
+        preview.safeParse({ projectId, issueId, [field]: true }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("says preview sends nothing and submit only asks a person to approve", () => {
+    const previewText = SOKO_BOT_TOOL_DESCRIPTIONS.preview_newsletter_issue;
+    expect(previewText).toMatch(/never saves, submits or sends/);
+    expect(previewText).toMatch(/untrusted/i);
+    const submitText = SOKO_BOT_TOOL_DESCRIPTIONS.submit_newsletter_issue;
+    expect(submitText).toMatch(/only asks a human to approve/);
+    expect(submitText).toMatch(/NEVER approves, schedules or sends/);
+    expect(submitText).toMatch(/Newsletter UI/);
+    expect(submitText).toMatch(/untrusted/i);
+  });
+});
+
 describe("evaluate_with_jev input", () => {
   const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.evaluate_with_jev;
   const triage = {

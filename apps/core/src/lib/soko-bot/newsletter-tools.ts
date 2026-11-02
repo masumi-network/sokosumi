@@ -3,9 +3,10 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
-import { newsletterSignupLinks } from "@sokosumi/utils";
+import { type NewsletterBlock, newsletterSignupLinks } from "@sokosumi/utils";
 
 import { getWebAppBaseUrl } from "@/config/env";
+import { conflict } from "@/helpers/error";
 import {
   createNewsletterIssueRequestSchema,
   newsletterIssueSchema,
@@ -33,7 +34,10 @@ import {
   deleteNewsletterIssue,
   getNewsletterIssue,
   listNewsletterIssues,
+  type NewsletterTaskContext,
   patchNewsletterIssue,
+  renderNewsletterIssuePreview,
+  submitNewsletterIssue,
 } from "@/services/newsletter-issues.service";
 
 type NewsletterReadCapability = Extract<
@@ -43,6 +47,7 @@ type NewsletterReadCapability = Extract<
   | "get_newsletter_issue"
   | "get_newsletter_analytics"
   | "list_newsletter_subscribers"
+  | "preview_newsletter_issue"
 >;
 
 type NewsletterWriteCapability = Extract<
@@ -50,6 +55,7 @@ type NewsletterWriteCapability = Extract<
   | "create_newsletter_issue"
   | "update_newsletter_issue"
   | "delete_newsletter_issue"
+  | "submit_newsletter_issue"
 >;
 
 const settingsSchema = newsletterSchema.pick({
@@ -138,6 +144,40 @@ function issueUrl(issue: Pick<NewsletterIssue, "id" | "projectId">) {
   return `/newsletter/issues/${encodeURIComponent(issue.id)}?projectId=${encodeURIComponent(issue.projectId)}`;
 }
 
+/** Enough plain text for a model to proofread without the full HTML. */
+const PREVIEW_TEXT_MAX_CHARS = 8_000;
+/** Gmail hides the rest of a message behind "View entire message" past this. */
+const GMAIL_CLIP_BYTES = 102 * 1024;
+
+/** Cheap checks on what the renderer would quietly drop or degrade. */
+function previewWarnings(
+  issue: { previewText?: string | null; content: NewsletterBlock[] },
+  htmlBytes: number,
+) {
+  const warnings: string[] = [];
+  if (!issue.content.length) warnings.push("The issue has no content blocks");
+  if (!issue.previewText)
+    warnings.push("No preview text: inboxes show the subject as the snippet");
+  issue.content.forEach((block, index) => {
+    const at = `Block ${index + 1} (${block.type})`;
+    if (
+      (block.type === "heading" || block.type === "text") &&
+      !block.text.trim()
+    )
+      warnings.push(`${at} is empty`);
+    if (block.type === "image" && !block.alt.trim())
+      warnings.push(`${at} has no alt text`);
+    // Inline links render only for https; anything else stays literal text.
+    if (block.type === "text" && /\]\((?!https:\/\/)[^)\s]*\)/.test(block.text))
+      warnings.push(`${at} has a link that is not https and will show as text`);
+  });
+  if (htmlBytes > GMAIL_CLIP_BYTES)
+    warnings.push(
+      `The email is ${Math.round(htmlBytes / 1024)} KB; Gmail clips messages over 102 KB`,
+    );
+  return warnings;
+}
+
 /** What a write hands back: enough to link the issue and edit it again. */
 function writtenIssue(issue: NewsletterIssue) {
   return {
@@ -168,7 +208,13 @@ export async function runNewsletterWriteTool(
   {
     client,
     creatorSokoBotId,
-  }: { client: Prisma.TransactionClient; creatorSokoBotId: string },
+    taskContext,
+  }: {
+    client: Prisma.TransactionClient;
+    creatorSokoBotId: string;
+    /** Who submits for approval; loaded only when an issue is submitted. */
+    taskContext: () => Promise<NewsletterTaskContext>;
+  },
 ) {
   switch (capability) {
     case "create_newsletter_issue": {
@@ -207,6 +253,25 @@ export async function runNewsletterWriteTool(
         revision,
         deleted: true,
       };
+    }
+    case "submit_newsletter_issue": {
+      const { issueId, revision } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.submit_newsletter_issue.parse(rawInput);
+      const { status } = await getNewsletterIssue(scope, issueId, client);
+      if (status !== "DRAFT")
+        throw conflict(
+          `Only draft issues can be submitted for approval; this one is ${status}`,
+        );
+      // The same submit as the UI's: NEEDS_APPROVAL and a human approval Task.
+      return writtenIssue(
+        await submitNewsletterIssue(
+          scope,
+          issueId,
+          revision,
+          await taskContext(),
+          client,
+        ),
+      );
     }
   }
 }
@@ -281,6 +346,45 @@ export async function runNewsletterReadTool(
         ),
         counts: result.counts,
         pagination: result.pagination,
+      };
+    }
+    case "preview_newsletter_issue": {
+      const {
+        projectId: _projectId,
+        issueId,
+        ...unsaved
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue.parse(rawInput);
+      const saved = issueId ? await getNewsletterIssue(scope, issueId) : null;
+      const issue = createNewsletterIssueRequestSchema.parse(
+        saved
+          ? {
+              subject: saved.subject,
+              previewText: saved.previewText,
+              template: saved.template,
+              content: saved.content,
+            }
+          : unsaved,
+      );
+      const { html, text } = await renderNewsletterIssuePreview(scope, issue);
+      const htmlBytes = Buffer.byteLength(html);
+      return {
+        ...(saved
+          ? {
+              issueId: saved.id,
+              status: saved.status,
+              revision: saved.revision,
+            }
+          : {}),
+        subject: issue.subject,
+        previewText: issue.previewText ?? null,
+        text: text.slice(0, PREVIEW_TEXT_MAX_CHARS),
+        textTruncated: text.length > PREVIEW_TEXT_MAX_CHARS,
+        htmlBytes,
+        warnings: previewWarnings(issue, htmlBytes),
+        // Unsaved content has no editor page yet; the issue list is where it would land.
+        url: saved
+          ? issueUrl(saved)
+          : `/newsletter/issues?projectId=${encodeURIComponent(scope.projectId)}`,
       };
     }
   }

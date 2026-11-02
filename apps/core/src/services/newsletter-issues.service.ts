@@ -5,6 +5,7 @@ import {
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
+import { renderNewsletterEmail } from "@sokosumi/email";
 import { CORE_API_ERROR_KINDS, canArchiveTaskStatus } from "@sokosumi/utils";
 import slugify from "slugify";
 
@@ -16,10 +17,12 @@ import {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import prisma from "@/lib/db/prisma";
-import type {
-  CreateNewsletterIssueRequest,
-  ListNewsletterIssuesQuery,
-  PatchNewsletterIssueRequest,
+import type { SokoBotAuthenticationContext } from "@/middleware/auth";
+import {
+  type CreateNewsletterIssueRequest,
+  type ListNewsletterIssuesQuery,
+  newsletterBrandSchema,
+  type PatchNewsletterIssueRequest,
 } from "@/schemas/newsletter.schema";
 import {
   getNewsletter,
@@ -146,6 +149,25 @@ export async function getNewsletterIssue(
   return (await withApproverNames([issue], client))[0]!;
 }
 
+/**
+ * Renders issue content with the sending renderer and the newsletter's brand.
+ * Never saves or sends anything; the unsubscribe link is a placeholder.
+ */
+export async function renderNewsletterIssuePreview(
+  scope: NewsletterScope,
+  issue: CreateNewsletterIssueRequest,
+) {
+  const newsletter = await getNewsletter(scope);
+  return renderNewsletterEmail({
+    newsletter: {
+      name: newsletter.name,
+      brand: newsletterBrandSchema.parse(newsletter.brand),
+    },
+    issue,
+    unsubscribeUrl: "#",
+  });
+}
+
 /** Runs in the caller's transaction when given one, else in its own. */
 function inTransaction<T>(
   client: Prisma.TransactionClient | undefined,
@@ -233,12 +255,13 @@ async function transitionNewsletterIssue(
     issue: NewsletterIssue,
     tx: Prisma.TransactionClient,
   ) => Promise<void>,
+  client?: Prisma.TransactionClient,
 ) {
-  const issue = await getNewsletterIssue(scope, issueId);
+  const issue = await getNewsletterIssue(scope, issueId, client);
   if (issue.status !== status || issue.revision !== revision) {
     throw conflict("Newsletter issue changed; refresh and try again");
   }
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.updateMany({
       where: {
         ...scope,
@@ -254,7 +277,7 @@ async function transitionNewsletterIssue(
     await effect?.(issue, tx);
     return tx.newsletterIssue.findUniqueOrThrow({ where: { id: issueId } });
   });
-  return (await withApproverNames([updated]))[0]!;
+  return (await withApproverNames([updated], client))[0]!;
 }
 
 export interface NewsletterTaskContext {
@@ -264,11 +287,28 @@ export interface NewsletterTaskContext {
   humanUserId: string | null;
 }
 
+/**
+ * A Soko Bot's approval Task keeps the bot as its submitter, under its owner
+ * (none for a shared bot), and is left for a person to pick up.
+ */
+export function sokoBotNewsletterTaskContext(
+  auth: SokoBotAuthenticationContext,
+): NewsletterTaskContext {
+  return {
+    actor: { kind: "soko_bot", sokoBotId: auth.sokoBotId },
+    ownerId: auth.userId,
+    organizationId: auth.organizationId,
+    humanUserId: null,
+  };
+}
+
+/** Runs in the caller's transaction when given one, else in its own. */
 export function submitNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
   revision: number,
   context: NewsletterTaskContext,
+  client?: Prisma.TransactionClient,
 ) {
   return transitionNewsletterIssue(
     scope,
@@ -318,6 +358,7 @@ export function submitNewsletterIssue(
         data: { taskId: task.id },
       });
     },
+    client,
   );
 }
 
