@@ -28,6 +28,7 @@ import {
   postContacts,
   postContactsByIdArchive,
   postContactsByIdChannels,
+  postContactsByIdEnrich,
   postContactsImport,
   postContactsMerge,
   putContactsByIdImportance,
@@ -169,7 +170,10 @@ export const contactsService = {
       })
     ).data.data;
   },
-  async findPeople(listId: string, body: { brief?: string; size: 10 | 25 }) {
+  async findPeople(
+    listId: string,
+    body: { brief?: string; size: 1 | 10 | 25 },
+  ) {
     return (
       await postContactListsByIdFind({
         ...options(),
@@ -177,6 +181,10 @@ export const contactsService = {
         body,
       })
     ).data.data;
+  },
+  async enrich(id: string) {
+    return (await postContactsByIdEnrich({ ...options(), path: { id } })).data
+      .data;
   },
   async addSuggestions(listId: string, ids: string[]) {
     return (

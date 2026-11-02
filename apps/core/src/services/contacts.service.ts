@@ -1736,6 +1736,7 @@ export async function captureContactInteraction(
 export interface ContactEnrichment {
   organization?: string;
   role?: string;
+  location?: string;
   summary?: string;
 }
 
