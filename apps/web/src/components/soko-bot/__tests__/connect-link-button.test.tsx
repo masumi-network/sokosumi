@@ -45,6 +45,7 @@ describe("a connect link in a message", () => {
     expect(screen.queryByRole("link")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Connect HubSpot" }));
 
+    await vi.waitFor(() => expect(start).toHaveBeenCalled());
     expect(start).toHaveBeenCalledWith("hubspot", {
       botId: null,
       returnTo: "/",

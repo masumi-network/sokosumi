@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
-import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 
 export interface ConnectLinkTarget {
   provider: string;
@@ -48,6 +47,11 @@ export function ConnectLinkButton({
 
   async function connect() {
     setPending(true);
+    // Loaded on click: every message renders through Markdown, and only this
+    // button needs the connect action.
+    const { startSokoBotConnect } = await import(
+      "@/lib/soko-bot/start-integration-connect"
+    );
     const error = await startSokoBotConnect(target.provider, {
       botId: target.botId,
       returnTo: `${window.location.pathname}${window.location.search}`,
@@ -73,7 +77,7 @@ export function ConnectLinkButton({
         <img
           src={`https://logos.composio.dev/api/${target.provider}`}
           alt=""
-          className="size-4 shrink-0 rounded-sm object-contain dark:bg-white"
+          className="size-4 shrink-0 rounded-sm object-contain dark:bg-foreground"
         />
       )}
       {children}
