@@ -11,7 +11,29 @@
   /// The window fixture and sheet readers of the 15b viewer tests.
   private typealias Gallery = NativeWindowTests.MessageImageGalleryViewerTests
   /// The accessibility-node reader of the result card tests.
-  private typealias Results = NativeWindowTests.SokoBotResultPreviewsTests
+  private typealias Helpers = NativeWindowTests.SokoBotResultPreviewsTests
+
+  /// Serves the document viewer's Markdown file. Registered after `ScrollMediaProtocol`, it is consulted first.
+  private final nonisolated class QuoteDocumentProtocol: URLProtocol, @unchecked Sendable {
+    static let text = "Quarterly notes"
+
+    override static func canInit(with request: URLRequest) -> Bool {
+      request.url?.host == "scroll-fixture.invalid" && request.url?.pathExtension == "md"
+    }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+      request
+    }
+
+    override func startLoading() {
+      guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) else { return }
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: Data(Self.text.utf8))
+      client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+  }
 
   extension NativeWindowTests {
     /// Web's quote draws every attachment as a wrapping row of 40 pt tiles, in the transcript and the composer preview.
@@ -57,29 +79,23 @@
 
       /// Web's transcript tile sits inside the quote's jump button.
       @Test func aClickOnATranscriptTileJumpsToTheSource() async throws {
-        URLProtocol.registerClass(ScrollMediaProtocol.self)
-        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
         var jumps: [String] = []
-        let fixture = window(quotingRow(Self.oneImage) { action in
+        let fixture = window(quotingRow(Self.tile("one.png")) { action in
           if case let .jumpToQuote(id) = action {
             jumps.append(id)
           }
           return nil
         })
-        defer { Gallery.close(fixture) }
+        defer { close(fixture) }
         try await clickEdge(of: "one.png", in: fixture)
-        for _ in 0 ..< 100 where jumps.isEmpty {
-          try await Task.sleep(for: .milliseconds(20))
-        }
+        try await waitUntil("the jump", in: fixture) { !jumps.isEmpty }
         #expect(jumps == ["source"])
         #expect(fixture.window.attachedSheet == nil, "The transcript's tile jumps; it does not open the viewer.")
       }
 
       /// A quote sent to yourself from another room follows its message link, as web's jump button does.
       @Test func aClickOnATileOfAQuoteFromAnotherRoomFollowsItsLink() async throws {
-        URLProtocol.registerClass(ScrollMediaProtocol.self)
-        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        var quote = Self.oneImage
+        var quote = Self.tile("one.png")
         quote.roomId = "room_2"
         var opened: [URL] = []
         var jumps = 0
@@ -91,21 +107,17 @@
           return .handled
         })
         let fixture = window(row)
-        defer { Gallery.close(fixture) }
+        defer { close(fixture) }
         try await clickEdge(of: "one.png", in: fixture)
-        for _ in 0 ..< 100 where opened.isEmpty {
-          try await Task.sleep(for: .milliseconds(20))
-        }
+        try await waitUntil("the message link", in: fixture) { !opened.isEmpty }
         #expect(opened == [quoteSourceURL(quote, inRoom: "room_1", webBaseURL: CoreSettings.webBaseURL)].compactMap(\.self))
         #expect(jumps == 0)
       }
 
       /// Web's composer tile is `FileChipMiniPreview`: an image opens its viewer.
       @Test func aClickOnAComposerImageTileOpensTheViewer() async throws {
-        URLProtocol.registerClass(ScrollMediaProtocol.self)
-        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        let fixture = window(composer(quoting: Self.oneImage))
-        defer { Gallery.close(fixture) }
+        let fixture = window(composer(quoting: Self.tile("one.png")))
+        defer { close(fixture) }
         try await clickEdge(of: "one.png", in: fixture)
         let sheet = try await Gallery.sheet(of: fixture)
         var drawn = try Gallery.sheetBitmap(sheet)
@@ -120,21 +132,22 @@
         try Attachment.record(#require(drawn.representation(using: .png, properties: [:])), named: "quote-composer-image-viewer.png")
       }
 
-      /// A document opens the document viewer. The click lands on the tile's edge, outside the type icon, because a
-      /// plain button takes only what it draws unless it names its shape.
+      /// A document opens the document viewer, which loads it. The click lands on the tile's edge, outside the type
+      /// icon, because a plain button takes only what it draws unless it names its shape.
       @Test func aClickOnAComposerDocumentTileOpensTheDocumentViewer() async throws {
         var opened: [URL] = []
-        let fixture = window(composer(quoting: Self.file("notes.pdf"), opened: { opened.append($0) }))
-        defer { Gallery.close(fixture) }
-        try await clickEdge(of: "notes.pdf", in: fixture)
+        let fixture = window(composer(quoting: Self.tile("notes.md"), opened: { opened.append($0) }))
+        defer { close(fixture) }
+        try await clickEdge(of: "notes.md", in: fixture)
         let sheet = try await Gallery.sheet(of: fixture)
         let content = try #require(sheet.contentView)
         var texts = await hostedTexts(in: content)
-        for _ in 0 ..< 100 where !texts.contains("Close") {
+        for _ in 0 ..< 250 where !texts.contains(where: { $0.contains(QuoteDocumentProtocol.text) }) {
           try await Task.sleep(for: .milliseconds(20))
           texts = await hostedTexts(in: content)
         }
-        #expect(texts.contains("notes.pdf"), "\(texts)")
+        #expect(texts.contains { $0.contains(QuoteDocumentProtocol.text) }, "\(texts)")
+        #expect(texts.contains("notes.md"), "\(texts)")
         #expect(texts.contains("Close"), "\(texts)")
         #expect(opened.isEmpty)
         try Attachment.record(#require(Gallery.sheetBitmap(sheet).representation(using: .png, properties: [:])), named: "quote-composer-document-viewer.png")
@@ -144,69 +157,76 @@
       @Test(arguments: ["bundle.zip", "clip.mp4", "memo.mp3"])
       func aClickOnAComposerFileWithNoViewerOpensItsLink(name: String) async throws {
         var opened: [URL] = []
-        let fixture = window(composer(quoting: Self.file(name), opened: { opened.append($0) }))
-        defer { Gallery.close(fixture) }
+        let fixture = window(composer(quoting: Self.tile(name), opened: { opened.append($0) }))
+        defer { close(fixture) }
         try await clickEdge(of: name, in: fixture)
-        for _ in 0 ..< 100 where opened.isEmpty {
-          try await Task.sleep(for: .milliseconds(20))
-        }
+        try await waitUntil("the link", in: fixture) { !opened.isEmpty }
         #expect(opened == [URL(string: "https://scroll-fixture.invalid/quote/\(name)")].compactMap(\.self))
         #expect(fixture.window.attachedSheet == nil)
       }
 
       /// VoiceOver finds the tile by its file name, hears what it does and presses it as a click would.
-      @Test func voiceOverPressesATile() async throws {
+      @Test(arguments: ["one.png", "notes.pdf"])
+      func voiceOverPressesATranscriptTile(name: String) async throws {
         var jumps: [String] = []
-        let transcript = window(quotingRow(Self.file("notes.pdf")) { action in
+        let fixture = window(quotingRow(Self.tile(name)) { action in
           if case let .jumpToQuote(id) = action {
             jumps.append(id)
           }
           return nil
         })
-        defer { Gallery.close(transcript) }
-        let tile = try #require(await Results.nodes(labelled: "notes.pdf", in: transcript.host).first)
+        defer { close(fixture) }
+        let tile = try #require(await Helpers.nodes(labelled: name, in: fixture.host).first)
         #expect(tile.object.value(forKey: "accessibilityHelp") as? String == "Go to quoted message")
         #expect(tile.press())
+        try await waitUntil("the jump", in: fixture) { !jumps.isEmpty }
         #expect(jumps == ["source"])
-
-        let composing = window(composer(quoting: Self.file("notes.pdf")))
-        defer { Gallery.close(composing) }
-        let document = try #require(await Results.nodes(labelled: "notes.pdf", in: composing.host).first)
-        #expect(document.object.value(forKey: "accessibilityHelp") as? String == "Preview")
-        #expect(document.press())
-        _ = try await Gallery.sheet(of: composing)
-
-        var opened: [URL] = []
-        let linking = window(composer(quoting: Self.file("bundle.zip"), opened: { opened.append($0) }))
-        defer { Gallery.close(linking) }
-        let link = try #require(await Results.nodes(labelled: "bundle.zip", in: linking.host).first)
-        #expect(link.object.value(forKey: "accessibilityHelp") as? String == "Open in Browser")
       }
 
-      /// A link that is not a web address has nothing to preview, as a draft's tile without one does, and the app
-      /// must not hand another message's scheme to the system.
+      @Test(arguments: ["one.png", "notes.pdf"])
+      func voiceOverPressesAComposerTileWithAViewer(name: String) async throws {
+        let fixture = window(composer(quoting: Self.tile(name)))
+        defer { close(fixture) }
+        let tile = try #require(await Helpers.nodes(labelled: name, in: fixture.host).first)
+        #expect(tile.object.value(forKey: "accessibilityHelp") as? String == "Preview")
+        #expect(tile.press())
+        _ = try await Gallery.sheet(of: fixture)
+      }
+
+      @Test func voiceOverPressesAComposerTileWithALink() async throws {
+        var opened: [URL] = []
+        let fixture = window(composer(quoting: Self.tile("bundle.zip"), opened: { opened.append($0) }))
+        defer { close(fixture) }
+        let tile = try #require(await Helpers.nodes(labelled: "bundle.zip", in: fixture.host).first)
+        #expect(tile.object.value(forKey: "accessibilityHelp") as? String == "Open in Browser")
+        #expect(tile.press())
+        try await waitUntil("the link", in: fixture) { !opened.isEmpty }
+        #expect(opened == [URL(string: "https://scroll-fixture.invalid/quote/bundle.zip")].compactMap(\.self))
+      }
+
+      /// A link that is not a web address has nothing to preview, as a draft's tile without one does, and the app must
+      /// not hand another message's scheme to the system. The second tile's click comes after the first, so its link
+      /// says the first click has been handled.
       @Test func aComposerTileWithNoWebAddressStaysInert() async throws {
         var opened: [URL] = []
         let quote = Components.Schemas.ChatRoomMessageQuote(
           messageId: "source", authorName: "Ben", snippet: "",
-          attachments: [.init(fileName: "notes.pdf", url: "file:///etc/notes.pdf", mediaKind: .file)]
+          attachments: [.init(fileName: "notes.pdf", url: "file:///etc/notes.pdf", mediaKind: .file),
+                        .init(fileName: "bundle.zip", url: "https://scroll-fixture.invalid/quote/bundle.zip", mediaKind: .file)]
         )
         let fixture = window(composer(quoting: quote, opened: { opened.append($0) }))
-        defer { Gallery.close(fixture) }
+        defer { close(fixture) }
         try await clickEdge(of: "notes.pdf", in: fixture)
-        try await Task.sleep(for: .milliseconds(300))
-        #expect(opened.isEmpty)
+        try await clickEdge(of: "bundle.zip", in: fixture)
+        try await waitUntil("the second tile's link", in: fixture) { !opened.isEmpty }
+        #expect(opened == [URL(string: "https://scroll-fixture.invalid/quote/bundle.zip")].compactMap(\.self))
         #expect(fixture.window.attachedSheet == nil)
       }
 
-      private static let oneImage = Components.Schemas.ChatRoomMessageQuote(
-        messageId: "source", authorName: "Ben", snippet: "",
-        attachments: [.init(fileName: "one.png", url: "https://scroll-fixture.invalid/quote/one.png", mediaKind: .image)]
-      )
-
-      private static func file(_ name: String) -> Components.Schemas.ChatRoomMessageQuote {
+      /// A one-tile quote; the name's extension says whether it is an image.
+      private static func tile(_ name: String) -> Components.Schemas.ChatRoomMessageQuote {
         .init(messageId: "source", authorName: "Ben", snippet: "",
-              attachments: [.init(fileName: name, url: "https://scroll-fixture.invalid/quote/\(name)", mediaKind: .file)])
+              attachments: [.init(fileName: name, url: "https://scroll-fixture.invalid/quote/\(name)", mediaKind: name.hasSuffix(".png") ? .image : .file)])
       }
 
       /// The real transcript row of a message that quotes `quote`.
@@ -238,8 +258,10 @@
           })
       }
 
-      /// A window that takes clicks and attaches sheets.
+      /// A window that takes clicks and attaches sheets, over the fixture server. `close` ends both.
       private func window(_ content: some View) -> GalleryFixture {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        URLProtocol.registerClass(QuoteDocumentProtocol.self)
         let size = NSSize(width: 560, height: 320)
         let host = NSHostingView(rootView: AnyView(content.frame(width: size.width, height: size.height).background(.background)))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false)
@@ -248,9 +270,19 @@
         return GalleryFixture(host: host, window: window)
       }
 
+      private func close(_ fixture: GalleryFixture) {
+        Gallery.close(fixture)
+        URLProtocol.unregisterClass(QuoteDocumentProtocol.self)
+        URLProtocol.unregisterClass(ScrollMediaProtocol.self)
+      }
+
+      private func waitUntil(_ what: @autoclosure () -> String, in fixture: GalleryFixture, _ condition: () -> Bool) async throws {
+        _ = try await waitForView(in: fixture.host, timeoutMessage: what()) { condition() ? fixture.host : nil }
+      }
+
       /// Clicks the tile named `name` at the middle of its bottom edge.
       private func clickEdge(of name: String, in fixture: GalleryFixture) async throws {
-        let tile = try #require(await Results.nodes(labelled: name, in: fixture.host).first)
+        let tile = try #require(await Helpers.nodes(labelled: name, in: fixture.host).first)
         let frame = try #require(tile.object.value(forKey: "accessibilityFrame") as? NSRect)
         let location = fixture.window.convertPoint(fromScreen: CGPoint(x: frame.midX, y: frame.minY + 2))
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
