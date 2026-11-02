@@ -22,15 +22,6 @@ export const cmoOnboardingRequestSchema = z
   })
   .openapi("CmoOnboardingRequest");
 
-export const cmoMockPlanRequestSchema = z
-  .object({
-    plan: z
-      .string()
-      .regex(/^[a-z][a-z0-9-]{0,31}$/)
-      .describe("A CMO tier id from CMO's own plan config."),
-  })
-  .openapi("CmoMockPlanRequest");
-
 export const cmoMeasurementSchema = z
   .object({
     provider: z.enum(["google_analytics", "google_search_console", "shopify"]),
@@ -215,7 +206,7 @@ export const cmoOverviewSchema = z
     viewerCanApprove: z
       .boolean()
       .describe(
-        "Whether this member may approve the strategy and start the paid month: the organization's owners and admins only. Every other member works with Cuso but cannot.",
+        "Whether this member may approve the strategy: the organization's owners and admins only. Every other member works with Cuso but cannot.",
       ),
     work: z.union([cmoWorkSchema, z.null()]),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
@@ -223,13 +214,8 @@ export const cmoOverviewSchema = z
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(
-        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the plan until the organization has an active CMO plan or this person chose to subscribe later. CMO opens on the chat once done; Cuso makes and spends nothing until a plan is active.",
+        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them. CMO opens on the chat once done.",
       ),
-    mockBilling: z
-      .boolean()
-      .describe("CMO offers its own mock tiers instead of Sokosumi checkout."),
-    mockPlan: z.union([z.string(), z.null()]),
-    mockPlanActivatedAt: z.union([dateTimeSchema, z.null()]),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([brandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
@@ -271,7 +257,7 @@ export const cmoOverviewSchema = z
         "Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.",
       ),
     production: cmoProductionSchema.describe(
-      "After payment Cuso makes the whole month at once: how many of its pieces are made.",
+      "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
     subscribeUrl: z.string(),
