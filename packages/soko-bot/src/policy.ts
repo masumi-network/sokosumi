@@ -71,6 +71,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "create_project",
   "update_project",
   "list_integrations",
+  "find_integrations",
   "search_inbox",
   "read_email",
   "evaluate_with_jev",
@@ -284,6 +285,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_contact_lists",
   "find_contact_duplicates",
   "list_integrations",
+  "find_integrations",
   "search_inbox",
   "read_email",
   // Asks Jev typed questions about text the bot passes in; changes nothing.

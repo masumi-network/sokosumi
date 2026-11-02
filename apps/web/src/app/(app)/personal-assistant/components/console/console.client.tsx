@@ -4,7 +4,6 @@ import {
   type SokoBotAvatar,
   type SokoBotDailyStats,
   type SokoBotInstalledSkill,
-  type SokoBotIntegrationCatalogEntry,
   type SokoBotIntegrations,
   SokoBotStatus,
   type SokoBotUsage,
@@ -62,7 +61,6 @@ import { useSokoBotState } from "../chat/use-soko-bot-state";
 import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
-import { IntegrationsSection } from "../integrations-section.client";
 import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
 import { ProactiveSettings } from "../proactive-settings.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
@@ -184,7 +182,8 @@ export interface SokoBotConsoleProps {
   usage: SokoBotUsage | null;
   integrations: SokoBotIntegrations | null;
   adminHref: string | null;
-  catalog: SokoBotIntegrationCatalogEntry[];
+  /** An app a bot's connect link asked for, searched and marked in Tools. */
+  connectProvider: string | null;
   /** Outcome of an OAuth round-trip we just returned from, if any. */
   integrationOutcome: string | null;
   /** The bot lives in an organization workspace, so the organization pays. */
@@ -218,7 +217,7 @@ export function SokoBotConsole({
   usage,
   integrations,
   adminHref,
-  catalog,
+  connectProvider,
   integrationOutcome,
   paidByOrganization,
   botId,
@@ -235,9 +234,8 @@ export function SokoBotConsole({
   // Status is the default view; everything an owner rarely touches sits behind
   // Advanced so the page opens on what the assistant is actually doing.
   // shallow: false so flipping Advanced re-runs the server component, which is
-  // what fetches the skills, integrations and catalog that view needs.
+  // what fetches the skills and integrations that view needs.
   const [view, setView] = useQueryState("view", { shallow: false });
-  const [showAllTools, setShowAllTools] = useState(false);
   const isAdvanced = view === "advanced" || focusTurnId !== null;
   const format = useFormatter();
   const router = useRouter();
@@ -569,20 +567,10 @@ export function SokoBotConsole({
                     title={t("Console.Connectors.title")}
                     description={t("Console.Connectors.description")}
                   >
-                    {showAllTools ? (
-                      <HolderPanel>
-                        <IntegrationsSection
-                          initial={integrations}
-                          catalog={catalog}
-                        />
-                      </HolderPanel>
-                    ) : (
-                      <ToolConnectors
-                        integrations={integrations}
-                        catalog={catalog}
-                        onBrowseAll={() => setShowAllTools(true)}
-                      />
-                    )}
+                    <ToolConnectors
+                      integrations={integrations}
+                      focusProvider={connectProvider}
+                    />
                   </HolderSection>
                 ) : null}
                 <HolderSection

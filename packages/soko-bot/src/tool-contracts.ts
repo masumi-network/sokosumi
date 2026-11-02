@@ -501,6 +501,10 @@ const projectWebsiteSchema = z
   .max(2048)
   .describe("The project's website, http or https");
 
+export const sokoBotFindIntegrationsInputSchema = z
+  .object({ query: z.string().trim().min(1).max(100) })
+  .strict();
+
 export const sokoBotCreateProjectInputSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
@@ -1195,6 +1199,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   install_skill: sokoBotInstallSkillInputSchema,
   remove_skill: sokoBotRemoveSkillInputSchema,
   list_integrations: emptyInputSchema,
+  find_integrations: sokoBotFindIntegrationsInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
   read_email: sokoBotReadEmailInputSchema,
   evaluate_with_jev: sokoBotEvaluateWithJevInputSchema,
@@ -1393,6 +1398,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Uninstall one of your skills by its id or name from list_skills, when the owner asked for it in this chat.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
+  find_integrations:
+    'Search every app you can be connected to (Composio: Notion, HubSpot, Airtable, Stripe, Jira, Figma, …) by name or what it does. Each result says whether it is connected; for one that is not, give the person asking its connectLink as a markdown link ("[Connect HubSpot](connectLink)"): one click signs them in, and then list_integration_tools and run_integration_tool work on it. Use it when a request needs an app you are not connected to, instead of saying you cannot.',
   search_inbox:
     "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Reading changes nothing; update_emails marks mail read or archives it, draft_email writes drafts.",
   read_email:

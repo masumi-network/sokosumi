@@ -414,6 +414,7 @@ import {
   listIntegrationTools,
   modifyInboxMessages,
   runIntegrationTool,
+  searchSokoBotIntegrationCatalog,
   sendInboxDraft,
 } from "@/services/soko-bot-integrations.service";
 import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
@@ -6090,6 +6091,46 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /**
+   * Apps the bot could be connected to, with a link to its own page that
+   * offers the one-click connect; connecting stays the person's click.
+   */
+  private async findIntegrations(
+    authorized: AuthorizedSokoBotRuntime,
+    query: string,
+  ) {
+    const { sokoBotId } = authorized.turn;
+    const [catalog, { integrations }, bot] = await Promise.all([
+      searchSokoBotIntegrationCatalog(query, 10),
+      listSokoBotIntegrationsForBot(sokoBotId),
+      prisma.sokoBot.findUnique({
+        where: { id: sokoBotId },
+        select: { userId: true },
+      }),
+    ]);
+    const page = bot?.userId
+      ? "/personal-assistant"
+      : `/soko-bots/${sokoBotId}`;
+    return {
+      apps: catalog.map((entry) => {
+        const status =
+          integrations.find(
+            (integration) => integration.provider === entry.provider,
+          )?.status ?? "DISCONNECTED";
+        return {
+          provider: entry.provider,
+          name: entry.name,
+          description: entry.description,
+          status,
+          connectLink:
+            status === "ACTIVE"
+              ? null
+              : `${page}?connect=${encodeURIComponent(entry.provider)}`,
+        };
+      }),
+    };
+  }
+
   /** Social tools use the turn's owner/workspace, never actor fields from model input. */
   private async requireSocialAccess(
     authorized: AuthorizedSokoBotRuntime,
@@ -7496,6 +7537,12 @@ export class SokoBotRuntimeService {
               (i) =>
                 i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
             ),
+        );
+      case "find_integrations":
+        return this.findIntegrations(
+          authorized,
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.find_integrations.parse(input.input)
+            .query,
         );
       case "search_inbox": {
         const parsed = sokoBotSearchInboxInputSchema.parse(input.input);
