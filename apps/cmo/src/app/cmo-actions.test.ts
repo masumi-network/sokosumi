@@ -49,7 +49,6 @@ const {
   finishAccounts,
   loadOverview,
   onboard,
-  subscribeLater,
 } = await import("./cmo-actions");
 
 const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
@@ -239,27 +238,20 @@ describe("skipped hiring steps", () => {
 
   it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    expect((await loadOverview())?.onboardingStep).toBe("plan");
+    expect((await loadOverview())?.onboardingStep).toBe("done");
     // Another Cuso's choices do not count.
     cookieJar.clear();
-    cookieJar.set("cmo-skipped-project-2", "accounts,plan");
+    cookieJar.set("cmo-skipped-project-2", "accounts");
     expect((await loadOverview())?.onboardingStep).toBe("accounts");
   });
 
-  it("remembers Continue on the accounts step in an httpOnly cookie", async () => {
-    expect((await finishAccounts()).onboardingStep).toBe("plan");
+  it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
+    expect((await finishAccounts()).onboardingStep).toBe("done");
     expect(setCookie).toHaveBeenCalledWith(
       "cmo-skipped-project-1",
       "accounts",
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
     );
-  });
-
-  it("remembers Subscribe later beside the skipped accounts", async () => {
-    cookieJar.set("cmo-skipped-project-1", "accounts");
-    await subscribeLater();
-    expect(cookieJar.get("cmo-skipped-project-1")).toBe("accounts,plan");
-    expect((await loadOverview())?.onboardingStep).toBe("done");
     expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 });

@@ -155,7 +155,7 @@ export function ConnectStep({
             }
           >
             <Check size={16} aria-hidden="true" />
-            Continue to pricing
+            Continue
           </button>
         }
       />

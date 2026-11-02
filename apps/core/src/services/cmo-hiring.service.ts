@@ -24,13 +24,9 @@ import {
   findCusoForUser,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
-  startCmoProduction,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
-import {
-  approvedMarketingStrategy,
-  STRATEGY_TURN_PREFIX,
-} from "@/services/marketing-strategy.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -287,19 +283,6 @@ export async function cmoWork(
     sectionsSaved: brandBrainSectionsSaved(cuso.brandBrain).length,
     sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
   };
-}
-
-/**
- * The founder starts Cuso from the plan step: the month is made now. CMO
- * opens on the chat once the strategy is approved and a CMO plan is active,
- * read from the data, so nothing is stored here.
- */
-export async function completeCmoOnboarding(userId: string): Promise<void> {
-  const cuso = await requireCuso({ userId });
-  if (!(await approvedMarketingStrategy(cuso.projectId))) {
-    throw new CmoConflictError("Approve the strategy first");
-  }
-  await startCmoProduction(cuso.sokoBotId);
 }
 
 /** Starts learning again after a failed or stuck first look. */

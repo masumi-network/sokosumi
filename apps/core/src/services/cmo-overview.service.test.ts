@@ -98,7 +98,6 @@ describe("cmoOnboardingStep", () => {
     brandBrainConfirmed: false,
     strategyApproved: false,
     connected: false,
-    subscribed: false,
   };
 
   it("resumes on the Brand Brain until a member confirms it", () => {
@@ -109,34 +108,15 @@ describe("cmoOnboardingStep", () => {
     expect(cmoOnboardingStep({ ...start, brandBrainConfirmed: true })).toBe(
       "strategy",
     );
-    // A plan paid for early still waits for an approved version.
-    expect(
-      cmoOnboardingStep({
-        ...start,
-        brandBrainConfirmed: true,
-        subscribed: true,
-      }),
-    ).toBe("strategy");
   });
 
-  it("resumes on the accounts until one is connected", () => {
+  it("resumes on the accounts until one is connected, then is done", () => {
     const approved = {
       ...start,
       brandBrainConfirmed: true,
       strategyApproved: true,
     };
     expect(cmoOnboardingStep(approved)).toBe("accounts");
-    expect(cmoOnboardingStep({ ...approved, connected: true })).toBe("plan");
-  });
-
-  it("is done once a version is approved and a CMO plan is active", () => {
-    expect(
-      cmoOnboardingStep({
-        ...start,
-        brandBrainConfirmed: true,
-        strategyApproved: true,
-        subscribed: true,
-      }),
-    ).toBe("done");
+    expect(cmoOnboardingStep({ ...approved, connected: true })).toBe("done");
   });
 });
