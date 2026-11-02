@@ -75,15 +75,21 @@ function rowsOf(list: ChatRoomMessage[]): RoomTranscriptRenderRow[] {
   }));
 }
 
-const OPENING = Array.from({ length: 40 }, (_, index) =>
-  message(index, `Message ${index}: ${"words ".repeat(12 + (index % 5) * 9)}`),
-);
+function openingMessages(count: number) {
+  return Array.from({ length: count }, (_, index) =>
+    message(
+      index,
+      `Message ${index}: ${"words ".repeat(12 + (index % 5) * 9)}`,
+    ),
+  );
+}
 
-function FollowRoom() {
+function FollowRoom({ messageCount }: { messageCount: number }) {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
-  const [list, setList] = useState(OPENING);
+  const [list, setList] = useState(() => openingMessages(messageCount));
   // A draft's lines: the composer grows a line at a time, like the editor.
   const [draftLines, setDraftLines] = useState(1);
+  const [panelOpen, setPanelOpen] = useState(false);
   const viewport = useRef<TranscriptViewportHandle>(null);
   const rows = rowsOf(list);
   const newestId = list.at(-1)?.id;
@@ -168,9 +174,29 @@ function FollowRoom() {
       >
         Clear, then send
       </button>
+      <button
+        type="button"
+        // Anything that hands the viewport new rows with the same messages: a
+        // read receipt, a typing tick. rooms-client re-derives rows on these.
+        data-testid="refresh-rows"
+        onClick={() => setList((current) => [...current])}
+      >
+        Refresh rows
+      </button>
+      <button
+        type="button"
+        // A docked side panel: the section narrows, the pane does not.
+        data-testid="toggle-panel"
+        onClick={() => setPanelOpen((open) => !open)}
+      >
+        Toggle panel
+      </button>
       <RoomShellLayout
         rootClassName="flex h-[calc(100dvh-40px)] min-h-0 min-w-0 flex-col overflow-hidden"
         reserveDesktopHeader={false}
+        mainEnd={
+          panelOpen ? <aside className="w-[420px] shrink-0 border-l" /> : null
+        }
         listScrollerRef={setScroller}
         listContent={
           <TranscriptViewport
@@ -218,7 +244,7 @@ function FollowRoom() {
   );
 }
 
-export function renderFollowPage() {
+export function renderFollowPage({ messageCount = 40 } = {}) {
   const host = document.getElementById("fixture");
   if (!host) throw new Error("Missing follow fixture host");
   createRoot(host).render(
@@ -229,7 +255,7 @@ export function renderFollowPage() {
       formats={createFormats("h23")}
     >
       <TooltipProvider>
-        <FollowRoom />
+        <FollowRoom messageCount={messageCount} />
       </TooltipProvider>
     </NextIntlClientProvider>,
   );
