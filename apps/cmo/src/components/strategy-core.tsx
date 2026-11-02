@@ -54,10 +54,11 @@ export function Alternatives({
   onAsk,
 }: {
   alternatives: NonNullable<Strategy["alternatives"]>;
-  onAsk?: (text: string) => Promise<void>;
+  onAsk?: (text: string, label?: string) => Promise<void>;
 }) {
-  const [switching, startSwitching] = useTransition();
+  // Plain state, not a transition, for the same reason as PacePicker.
   const [picked, setPicked] = useState<string | null>(null);
+  const switching = picked !== null;
   return (
     <ul className="sc-alts">
       {alternatives.map((alternative) => (
@@ -69,16 +70,21 @@ export function Alternatives({
               type="button"
               className="sc-link"
               disabled={switching}
-              onClick={() =>
-                startSwitching(async () => {
-                  setPicked(alternative.sentence);
+              onClick={async () => {
+                setPicked(alternative.sentence);
+                try {
                   await onAsk(
                     `Switch to this strategy instead and re-plan the month around it: "${alternative.sentence}"`,
+                    "Another strategy",
                   );
-                })
-              }
+                } catch {
+                  // The host shows the refusal.
+                } finally {
+                  setPicked(null);
+                }
+              }}
             >
-              {switching && picked === alternative.sentence ? (
+              {picked === alternative.sentence ? (
                 <Loader2 size={14} className="ob-spin" aria-hidden="true" />
               ) : null}
               Use this one instead
@@ -338,7 +344,7 @@ export function AdBudget({
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(ads.monthly));
-  const [saving, startSaving] = useTransition();
+  const [saving, setSaving] = useState(false);
   const value = Number(amount.replace(/[^\d.]/g, ""));
   return (
     <div className="sc-ads">
@@ -360,13 +366,18 @@ export function AdBudget({
         editing ? (
           <form
             className="sc-ads-form"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
               if (!Number.isFinite(value) || value < 0) return;
-              startSaving(async () => {
+              setSaving(true);
+              try {
                 await onSetAds(value, ads.currency);
                 setEditing(false);
-              });
+              } catch {
+                // The host shows the refusal; the amount stays to try again.
+              } finally {
+                setSaving(false);
+              }
             }}
           >
             <label className="sc-ads-input">

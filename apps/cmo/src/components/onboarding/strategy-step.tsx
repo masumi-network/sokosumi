@@ -62,9 +62,9 @@ export function StrategyStep({
   const [open, setOpen] = useState<Entry | null>(null);
   const [note, setNote] = useState("");
   const [asked, setAsked] = useState<string | null>(null);
-  // A change asked from inside the plan (the pace, an alternative), in a few words.
+  // The change on its way to Cuso, in a few words.
   const [sending, setSending] = useState<string | null>(null);
-  const [changing, startChanging] = useTransition();
+  const changing = sending !== null;
   const [approving, startApproving] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -86,23 +86,29 @@ export function StrategyStep({
     (question) => question.answer === "no",
   );
 
+  // Plain async, not a transition: React holds a transition's state updates
+  // until it ends, and the re-planning screen must show on the tap. A refusal
+  // throws so the control that asked can stay open.
+  async function send(label: string, run: () => Promise<string | null>) {
+    setSending(label);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const refused = await run();
+      setRefusal(refused);
+      if (refused) throw new Error(refused);
+      setAsked(label);
+    } finally {
+      setSending(null);
+    }
+  }
+
   function requestChange(text: string) {
     const request = text.trim();
     if (!request) return;
-    startChanging(async () => {
-      setSending(request);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      try {
-        const refused = await onChange(request);
-        setRefusal(refused);
-        if (!refused) {
-          setAsked(request);
-          setNote("");
-        }
-      } finally {
-        setSending(null);
-      }
-    });
+    send(request, () => onChange(request)).then(
+      () => setNote(""),
+      () => {},
+    );
   }
 
   return (
@@ -222,107 +228,84 @@ export function StrategyStep({
         </motion.div>
       ) : null}
 
-      {replanning ? null : (
-        <StrategyReveal
-          overview={overview}
-          intro={!ahead}
-          onAsk={async (text, label) => {
-            setSending(label ?? text);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-            try {
-              const refused = await onChange(text);
-              setRefusal(refused);
-              if (refused) throw new Error(refused);
-              setAsked(label ?? text);
-            } finally {
-              setSending(null);
-            }
-          }}
-          onSetAds={async (monthly, currency) => {
-            const label = `Ad budget: ${currency} ${monthly} a month`;
-            setSending(label);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-            try {
-              const refused = await onSetAds(monthly, currency);
-              setRefusal(refused);
-              if (refused) throw new Error(refused);
-              setAsked(label);
-            } finally {
-              setSending(null);
-            }
-          }}
-          calendar={
-            <div className="ob-weeks">
-              <div className="ob-weekdays" aria-hidden="true">
-                {WEEKDAYS.map((day) => (
-                  <span key={day}>{day}</span>
-                ))}
-              </div>
-              {weeks.map((week, weekIndex) => (
-                <div key={week.start} className="ob-week">
-                  <span className="ob-week-label">Week {weekIndex + 1}</span>
-                  <div className="ob-days">
-                    {week.days.map((day) => {
-                      const entries = byDay.get(day) ?? [];
-                      const dayNumber = formatDay(day, { day: "numeric" });
-                      return (
-                        <div
-                          key={day}
-                          className={
-                            entries.length ? "ob-day" : "ob-day ob-day-blank"
-                          }
-                        >
-                          <span className="ob-day-n">
-                            <span className="ob-day-short">
-                              {dayNumber}
-                              {dayNumber === "1"
-                                ? ` ${formatDay(day, { month: "short" })}`
-                                : ""}
-                            </span>
-                            <span className="ob-day-long">
-                              {formatDay(day, {
-                                weekday: "short",
-                                day: "numeric",
-                                month: "short",
-                              })}
-                            </span>
-                          </span>
-                          {entries.map((entry) => (
-                            <button
-                              key={entry.id}
-                              type="button"
-                              className="ob-entry"
-                              onClick={() => setOpen(entry)}
-                            >
-                              <span className="ob-entry-meta">
-                                <ChannelIcon
-                                  channel={entry.channel}
-                                  size={12}
-                                />
-                                {entry.time ?? ""}
-                                {entry.draft ? (
-                                  <Check
-                                    size={11}
-                                    className="ob-entry-written"
-                                    aria-label="Written"
-                                  />
-                                ) : null}
-                              </span>
-                              <span className="ob-entry-title">
-                                {withoutLabel(entry.hook ?? entry.title)}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+      <StrategyReveal
+        overview={overview}
+        intro={!ahead}
+        hidden={replanning !== null}
+        onAsk={(text, label) => send(label ?? text, () => onChange(text))}
+        onSetAds={(monthly, currency) =>
+          send(`Ad budget: ${currency} ${monthly} a month`, () =>
+            onSetAds(monthly, currency),
+          )
+        }
+        calendar={
+          <div className="ob-weeks">
+            <div className="ob-weekdays" aria-hidden="true">
+              {WEEKDAYS.map((day) => (
+                <span key={day}>{day}</span>
               ))}
             </div>
-          }
-        />
-      )}
+            {weeks.map((week, weekIndex) => (
+              <div key={week.start} className="ob-week">
+                <span className="ob-week-label">Week {weekIndex + 1}</span>
+                <div className="ob-days">
+                  {week.days.map((day) => {
+                    const entries = byDay.get(day) ?? [];
+                    const dayNumber = formatDay(day, { day: "numeric" });
+                    return (
+                      <div
+                        key={day}
+                        className={
+                          entries.length ? "ob-day" : "ob-day ob-day-blank"
+                        }
+                      >
+                        <span className="ob-day-n">
+                          <span className="ob-day-short">
+                            {dayNumber}
+                            {dayNumber === "1"
+                              ? ` ${formatDay(day, { month: "short" })}`
+                              : ""}
+                          </span>
+                          <span className="ob-day-long">
+                            {formatDay(day, {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        </span>
+                        {entries.map((entry) => (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            className="ob-entry"
+                            onClick={() => setOpen(entry)}
+                          >
+                            <span className="ob-entry-meta">
+                              <ChannelIcon channel={entry.channel} size={12} />
+                              {entry.time ?? ""}
+                              {entry.draft ? (
+                                <Check
+                                  size={11}
+                                  className="ob-entry-written"
+                                  aria-label="Written"
+                                />
+                              ) : null}
+                            </span>
+                            <span className="ob-entry-title">
+                              {withoutLabel(entry.hook ?? entry.title)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        }
+      />
 
       <form
         className="ob-change ob-change-dock"
