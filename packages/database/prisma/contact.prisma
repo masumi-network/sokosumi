@@ -131,6 +131,7 @@ model Contact {
   listMemberships       ContactListMember[]
   activities            ContactActivity[]
   newsletterSubscribers NewsletterSubscriber[]
+  webLookups            ContactPeopleSearch[]
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
@@ -329,6 +330,9 @@ model ContactPeopleSearch {
   workspaceId     String              @db.Uuid
   listId          String?             @db.Uuid
   list            ContactList?        @relation(fields: [listId], references: [id], onDelete: SetNull)
+  /// The contact a one-person web lookup ("Enrich") was for; null for a list run.
+  contactId       String?             @db.Uuid
+  contact         Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
   query           String
   requested       Int
   found           Int                 @default(0)
@@ -340,6 +344,7 @@ model ContactPeopleSearch {
   suggestions     ContactSuggestion[]
 
   @@index([listId, createdAt])
+  @@index([contactId])
   @@map("contact_people_search")
 }
 
