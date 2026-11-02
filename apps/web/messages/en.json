@@ -8945,7 +8945,7 @@
         "failed": "Connection failed. Reconnect to try again.",
         "connectedNotChecked": "Connected · first check runs within 15 minutes",
         "lastChecked": "Connected · checked {when}",
-        "searchPlaceholder": "Search all apps (Notion, HubSpot, Airtable, …)",
+        "searchPlaceholder": "Search all apps, like Notion or HubSpot",
         "noResults": "Nothing found.",
         "kindsGeneric": "Usable through its tools",
         "kindsMail": "Reads your inbox",

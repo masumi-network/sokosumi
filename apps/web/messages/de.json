@@ -8945,7 +8945,7 @@
         "failed": "Verbindung fehlgeschlagen. Neu verbinden, um es erneut zu versuchen.",
         "connectedNotChecked": "Verbunden · erste Prüfung in maximal 15 Minuten",
         "lastChecked": "Verbunden · geprüft {when}",
-        "searchPlaceholder": "Alle Apps durchsuchen (Notion, HubSpot, Airtable, …)",
+        "searchPlaceholder": "Alle Apps durchsuchen, etwa Notion oder HubSpot",
         "noResults": "Nichts gefunden.",
         "kindsGeneric": "Nutzbar über seine Tools",
         "kindsMail": "Liest deinen Posteingang",
