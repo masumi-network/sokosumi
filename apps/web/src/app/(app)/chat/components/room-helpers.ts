@@ -392,7 +392,7 @@ export interface PendingRoomQuote {
   messageId: string;
   authorName: string;
   snippet: string;
-  attachment: ChatRoomQuoteAttachment | null;
+  attachments: ChatRoomQuoteAttachment[];
   /** Source room when the quoted message is not in the room being composed in. */
   roomId?: string;
 }
@@ -400,12 +400,12 @@ export interface PendingRoomQuote {
 export function pendingQuoteFromMessage(
   message: ChatRoomMessage,
 ): PendingRoomQuote {
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(message.content);
+  const { snippet, attachments } = buildRoomQuoteSnippetParts(message.content);
   return {
     messageId: message.id,
     authorName: messageSender(message).name,
     snippet,
-    attachment,
+    attachments,
   };
 }
 

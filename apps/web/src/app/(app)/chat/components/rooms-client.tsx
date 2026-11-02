@@ -3051,9 +3051,7 @@ function RoomView({
               messageId: pendingQuoteForShell.messageId,
               authorName: pendingQuoteForShell.authorName,
               snippet: pendingQuoteForShell.snippet,
-              ...(pendingQuoteForShell.attachment
-                ? { attachment: pendingQuoteForShell.attachment }
-                : {}),
+              attachments: pendingQuoteForShell.attachments,
               ...(pendingQuoteForShell.roomId
                 ? { roomId: pendingQuoteForShell.roomId }
                 : {}),
@@ -3152,9 +3150,7 @@ function RoomView({
               messageId: pendingQuoteForShell.messageId,
               authorName: pendingQuoteForShell.authorName,
               snippet: pendingQuoteForShell.snippet,
-              ...(pendingQuoteForShell.attachment
-                ? { attachment: pendingQuoteForShell.attachment }
-                : {}),
+              attachments: pendingQuoteForShell.attachments,
               ...(pendingQuoteForShell.roomId
                 ? { roomId: pendingQuoteForShell.roomId }
                 : {}),

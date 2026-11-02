@@ -1241,11 +1241,13 @@ describe("ChatMessageRow", () => {
           messageId: "original-image",
           authorName: "Bob",
           snippet: "check this shot",
-          attachment: {
-            fileName: "launch.png",
-            url: "https://blob.example/launch.png",
-            mediaKind: "image",
-          },
+          attachments: [
+            {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          ],
         },
       }),
     });
@@ -1264,6 +1266,38 @@ describe("ChatMessageRow", () => {
     expect(screen.getByText("check this shot")).toBeInTheDocument();
   });
 
+  it("shows a thumbnail for every image of a quoted message", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-images",
+          authorName: "Bob",
+          snippet: "all the ways",
+          attachments: ["a", "b", "c", "d"].map((name) => ({
+            fileName: `${name}.png`,
+            url: `https://blob.example/${name}.png`,
+            mediaKind: "image" as const,
+          })),
+        },
+      }),
+    });
+
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(
+      [...jumpButton.querySelectorAll("img")].map((img) =>
+        img.getAttribute("src"),
+      ),
+    ).toEqual([
+      "https://blob.example/a.png",
+      "https://blob.example/b.png",
+      "https://blob.example/c.png",
+      "https://blob.example/d.png",
+    ]);
+  });
+
   it("shows quote file attachment as inert icon thumb, not a link", () => {
     renderRow({
       message: userMessage({
@@ -1272,11 +1306,13 @@ describe("ChatMessageRow", () => {
           messageId: "original-file",
           authorName: "Bob",
           snippet: "see the brief",
-          attachment: {
-            fileName: "brief.pdf",
-            url: "https://blob.example/brief.pdf",
-            mediaKind: "file",
-          },
+          attachments: [
+            {
+              fileName: "brief.pdf",
+              url: "https://blob.example/brief.pdf",
+              mediaKind: "file",
+            },
+          ],
         },
       }),
     });
@@ -1302,11 +1338,13 @@ describe("ChatMessageRow", () => {
           messageId: "original-with-thumb",
           authorName: "Bob",
           snippet: "check this shot",
-          attachment: {
-            fileName: "launch.png",
-            url: "https://blob.example/launch.png",
-            mediaKind: "image",
-          },
+          attachments: [
+            {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          ],
         },
       }),
       onJumpToQuotedMessage,

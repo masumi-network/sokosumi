@@ -93,7 +93,7 @@ describe("RoomComposer quote preview mentions", () => {
           messageId: "msg-1",
           authorName: "Ada",
           snippet: "@cow_1:elena please look",
-          attachment: null,
+          attachments: [],
         }}
         onClearPendingQuote={() => undefined}
         canOpenHumanDirect
@@ -127,7 +127,7 @@ describe("RoomComposer quote preview mentions", () => {
           messageId: "msg-1",
           authorName: "Yves Bollinger",
           snippet: "@b0user:andreas-osberghaus please look",
-          attachment: null,
+          attachments: [],
         }}
         onClearPendingQuote={() => undefined}
       />,
@@ -139,5 +139,39 @@ describe("RoomComposer quote preview mentions", () => {
     expect(chip).not.toBeNull();
     expect(chip).toHaveTextContent("@Andreas Osberghaus");
     expect(container.textContent).not.toContain("@b0user:andreas-osberghaus");
+  });
+
+  it("previews every attachment of the quoted message", () => {
+    const { container } = render(
+      <RoomComposer
+        value=""
+        onValueChange={() => undefined}
+        mentions={{}}
+        onSelectedKeysChange={() => undefined}
+        placeholder="Message"
+        attachments={[]}
+        onAttachmentsChange={() => undefined}
+        onSubmit={(event) => event.preventDefault()}
+        isSending={false}
+        sendDisabled={false}
+        pendingQuote={{
+          messageId: "msg-1",
+          authorName: "Ada",
+          snippet: "",
+          attachments: ["a", "b"].map((name) => ({
+            fileName: `${name}.png`,
+            url: `https://blob.example/${name}.png`,
+            mediaKind: "image" as const,
+          })),
+        }}
+        onClearPendingQuote={() => undefined}
+      />,
+    );
+
+    const images = container.querySelectorAll('[role="status"] img');
+    expect([...images].map((img) => img.getAttribute("src"))).toEqual([
+      "https://blob.example/a.png",
+      "https://blob.example/b.png",
+    ]);
   });
 });
