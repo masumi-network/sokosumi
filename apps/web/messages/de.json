@@ -10039,13 +10039,17 @@
       },
       "empty": {
         "title": "Hier leben die Kontakte deines Teams",
-        "description": "Menschen kommen automatisch aus den E-Mails, Kalendern und Slack-Konten dazu, mit denen eure Soko Bots verbunden sind, samt der Info, wer im Team sie kennt. Keine Newsletter, keine automatischen Absender.",
+        "description": "Kontakte werden über deinen Soko Bot synchronisiert: Er fügt die Personen aus den mit ihm verbundenen Mails, Kalendern und Slack hinzu, samt wer im Team sie kennt. Keine Newsletter oder automatischen Absender.",
         "connect": "{name} verbinden",
         "connected": "{name} verbunden",
         "connectFailed": "Die Verbindung wurde nicht gestartet. Versuch es noch einmal.",
         "manageConnections": "Verbindungen verwalten",
         "addByHand": "Jemanden hinzufügen",
-        "import": "Aus einer Tabelle importieren"
+        "import": "Aus einer Tabelle importieren",
+        "needsBot": "Kontakte werden über einen Soko Bot synchronisiert. Richte deinen ein und verbinde Mail und Kalender, dann fügt er die Personen hinzu, mit denen du zu tun hast, samt wer im Team sie kennt.",
+        "needsConnections": "Dein Soko Bot fügt die Personen hinzu, mit denen du zu tun hast, sobald Mail und Kalender mit ihm verbunden sind. Keine Newsletter oder automatischen Absender.",
+        "syncing": "{bot} liest deine verbundenen Mails und Kalender. Die ersten Kontakte erscheinen in etwa 15 Minuten.",
+        "setUpBot": "Soko Bot einrichten"
       },
       "panel": {
         "loading": "Kontakt wird geladen",
