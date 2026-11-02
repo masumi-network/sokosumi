@@ -71,15 +71,16 @@ describe("JobStatusBadge", () => {
   it("lets the caller replace the glyph colour", () => {
     const { container } = render(
       <JobStatusBadge
-        status={SokosumiJobStatus.COMPLETED}
+        status={SokosumiJobStatus.FAILED}
         variant="dot"
         tone="text-primary-foreground"
       />,
     );
 
+    // A glyph on a disc keeps its disc's colour, so this uses a discless one.
     const glyph = container.querySelector("svg");
     expect(glyph).toHaveClass("text-primary-foreground");
-    expect(glyph).not.toHaveClass("text-semantic-success");
+    expect(glyph).not.toHaveClass("text-semantic-destructive");
   });
 
   it("renders dot-only version when variant is dot", () => {
@@ -108,7 +109,7 @@ describe("JobStatusBadge", () => {
     );
 
     const glyph = container.querySelector("svg");
-    expect(glyph).toHaveClass("text-semantic-destructive-solid");
+    expect(glyph).toHaveClass("text-semantic-destructive");
     expect(glyph).not.toHaveClass("text-semantic-destructive-foreground");
   });
 
@@ -117,9 +118,8 @@ describe("JobStatusBadge", () => {
       <JobStatusBadge status={SokosumiJobStatus.INPUT_REQUIRED} />,
     );
 
-    expect(container.querySelector("svg")).toHaveClass(
-      "size-3.5",
-      "text-semantic-warning",
-    );
+    const glyph = container.querySelector("svg");
+    expect(glyph?.parentElement).toHaveClass("size-3.5", "bg-semantic-warning");
+    expect(glyph).toHaveClass("text-semantic-warning-foreground");
   });
 });

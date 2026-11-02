@@ -40,7 +40,7 @@ export function ContactsList({
               <button
                 type="button"
                 onClick={() => onOpen(contact.id)}
-                className="hover:bg-card-background-hover flex min-h-14 w-full items-center gap-3 px-3 py-2 text-start"
+                className="hover:bg-accent transition-colors flex min-h-14 w-full items-center gap-3 px-3 py-2 text-start"
               >
                 <ContactAvatar
                   name={contact.name}

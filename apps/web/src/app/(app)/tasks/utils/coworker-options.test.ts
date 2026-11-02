@@ -142,6 +142,15 @@ describe("owner soko bot option", () => {
     );
   });
 
+  it("carries the style of the bot's avatar so a crafted one can be cropped", () => {
+    expect(
+      getOwnerSokoBotOption(
+        { ...baseBot(), avatarStyleId: "crafted-desk" },
+        OWNER_SOKO_BOT_COPY,
+      ),
+    ).toMatchObject({ avatarStyleId: "crafted-desk" });
+  });
+
   it("prepends the owner option once", () => {
     const options = getCoworkerOptions([baseCoworker()]);
     const withBot = withOwnerSokoBotOption(

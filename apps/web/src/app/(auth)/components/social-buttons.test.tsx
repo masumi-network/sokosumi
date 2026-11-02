@@ -289,10 +289,10 @@ describe("SocialButtons", () => {
       });
       const important = method === "google" ? "!" : "";
       expect(button).toHaveClass(
-        `bg-primary-quinary${important}`,
-        `hover:bg-primary-quaternary${important}`,
+        `bg-muted${important}`,
+        `hover:bg-quinary${important}`,
       );
-      expect(button).not.toHaveClass(`dark:bg-primary-quaternary${important}`);
+      expect(button).not.toHaveClass(`dark:bg-quinary${important}`);
     },
   );
 
@@ -348,7 +348,7 @@ describe("SocialButtons", () => {
 
     expect(lastUsedLabel).toBeInTheDocument();
     expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
-    expect(button).toHaveClass("border-primary-tertiary", "bg-primary-quinary");
+    expect(button).toHaveClass("border-border", "bg-muted");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });

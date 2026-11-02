@@ -95,7 +95,7 @@ describe("ScenarioLab version URL state", () => {
     );
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Operator" })).toHaveClass(
-        "border-primary",
+        "border-foreground",
       ),
     );
     expect(screen.getByText("allTools")).toBeInTheDocument();

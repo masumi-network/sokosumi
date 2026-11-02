@@ -172,6 +172,24 @@ describe("proxy", () => {
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
+  it("passes Sentry tunnel posts through without a session", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    const { SENTRY_TUNNEL_PATH } = await import("@/config/sentry-tunnel");
+    getSessionCookieMock.mockReturnValue(null);
+    // A redirect keeps the POST, so the report lands on /signin as a 405.
+    const response = await proxy(
+      new NextRequest(
+        `https://app.example.com${SENTRY_TUNNEL_PATH}?o=4509292861325312&p=4509292868010064`,
+        { method: "POST" },
+      ),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("location")).toBeNull();
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
   it("serves .well-known documents without a session", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("./proxy");

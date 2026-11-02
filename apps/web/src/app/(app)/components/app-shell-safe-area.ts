@@ -11,7 +11,7 @@ export const APP_HEADER_SAFE_AREA_PADDING_CLASS =
 
 /**
  * Opaque paint for the top inset only. Used by HeaderChrome underlay so
- * backdrop-blur does not sample empty/black notch. Height must match the
+ * the scrim does not show an empty/black notch. Height must match the
  * `pt-[env(safe-area-inset-top)]` token above.
  */
 export const APP_HEADER_SAFE_AREA_UNDERLAY_CLASS =

@@ -13,6 +13,11 @@ import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
+import {
+  compactBrandBrain,
+  getBrandBrain,
+  parseBrandBrain,
+} from "@/services/brand-brain.service";
 import { listHireableAgents } from "./agent-search";
 import {
   type ContextPacketReaderInput,
@@ -22,6 +27,8 @@ import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
   projects: 12,
+  /** The rest by name only, so a Project the owner names can be found. */
+  projectNames: 100,
   tasks: 24,
   /** Slots kept for work that finished this week, so a wrap can say what moved. */
   finishedTasks: 6,
@@ -99,6 +106,8 @@ interface ProjectStatusJob {
 
 export interface BuildContextPacketInput extends ContextPacketReaderInput {
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
+  /** Tells a CMO rhythm or production run (approved strategy) from other turns. */
+  clientTurnId?: string;
   classification: TurnClassification;
   referencedTaskIds?: readonly string[];
   /** A person typed this turn: it holds every tool, and the route is a guess. */
@@ -500,6 +509,34 @@ export class ContextPacketBuilder {
     if (!workspace) throw new Error("Workspace is not accessible");
 
     const organizationId = workspace.organizationId;
+    // Cuso (CMO) reads its Brand Brain and strategy here on every turn; null
+    // for every other bot. A teammate's question never sees the plan, and a
+    // failed read leaves the plan out rather than failing the turn.
+    const marketing =
+      input.audience === "TEAMMATE"
+        ? null
+        : await Promise.all([
+            import("@/services/cmo-context.service"),
+            import("@/services/cmo-strategy.service"),
+          ])
+            .then(([{ loadCmoMarketingContext }, { cmoTurnExecutesPlan }]) =>
+              loadCmoMarketingContext(input.sokoBotId, undefined, {
+                executing: cmoTurnExecutesPlan({
+                  source: input.source,
+                  clientTurnId: input.clientTurnId ?? null,
+                }),
+              }),
+            )
+            .catch(() => null);
+    // Every bot of a Project reads its Brand Brain (ADR 0062); Cuso already
+    // has it in his marketing packet. A failed read leaves it out.
+    const brandBrainProjectId = input.sharedScope?.projectId ?? null;
+    const brandBrain =
+      marketing || !brandBrainProjectId
+        ? null
+        : await getBrandBrain(brandBrainProjectId)
+            .then((row) => compactBrandBrain(parseBrandBrain(row?.body)))
+            .catch(() => null);
     const referenceId = organizationId ?? input.userId;
     // Only a shared bot acts for nobody, and only in an Organization.
     if (referenceId === null) throw new Error("Workspace is not accessible");
@@ -786,6 +823,21 @@ export class ContextPacketBuilder {
         : null,
     ]);
 
+    const namedOnly =
+      projectCount > projects.length
+        ? await prisma.project.findMany({
+            where: {
+              AND: [
+                scope.projectWhere,
+                { id: { notIn: projects.map((project) => project.id) } },
+              ],
+            },
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+            take: LIMITS.projectNames,
+            select: { id: true, name: true },
+          })
+        : [];
+
     const reminders = !scope.includeReminders
       ? []
       : await prisma.sokoBotNudge.findMany({
@@ -877,6 +929,7 @@ export class ContextPacketBuilder {
       },
       workspace: {
         reminders,
+        ...(marketing ? { marketing } : {}),
         id: boundedIdentifier(workspace.id),
         scope: organizationId ? "organization" : "personal",
         plan: sanitizeText(
@@ -897,20 +950,31 @@ export class ContextPacketBuilder {
           billing.enterprise?.credits.remaining,
         ),
       },
-      projects: projects.map((project) => ({
-        id: boundedIdentifier(project.id),
-        name: sanitizeText(project.name, TEXT_LIMITS.name),
-        summary: sanitizeText(project.briefing, TEXT_LIMITS.summary),
-        status: projectStatus(
-          project.id,
-          project._count.tasks,
-          project._count.jobs,
-          tasks,
-          jobs,
-        ),
-        updatedAt: project.updatedAt.toISOString(),
-        trust: "untrusted-data",
-      })),
+      projects: [
+        ...projects.map((project) => ({
+          id: boundedIdentifier(project.id),
+          name: sanitizeText(project.name, TEXT_LIMITS.name),
+          summary: sanitizeText(project.briefing, TEXT_LIMITS.summary),
+          status: projectStatus(
+            project.id,
+            project._count.tasks,
+            project._count.jobs,
+            tasks,
+            jobs,
+          ),
+          updatedAt: project.updatedAt.toISOString(),
+          ...(brandBrain && project.id === brandBrainProjectId
+            ? { brandBrain }
+            : {}),
+          trust: "untrusted-data",
+        })),
+        // Name only: enough to find a Project the owner names.
+        ...namedOnly.map((project) => ({
+          id: boundedIdentifier(project.id),
+          name: sanitizeText(project.name, TEXT_LIMITS.name),
+          trust: "untrusted-data",
+        })),
+      ],
       tasks: tasks.map((task) => ({
         requiredReference: input.referencedTaskIds?.includes(task.id) ?? false,
         id: boundedIdentifier(task.id),

@@ -82,18 +82,16 @@ struct MessageInlineFileLinkTests {
     #expect(!MessageMarkdown.endsWithAttachmentRun(source))
   }
 
-  /// Web's gallery and large-solo-image rule read the cards only: an image linked inside a sentence is neither.
-  @Test func anInlineImageLinkIsNoTileGalleryImageOrSoloImage() {
+  /// Web's gallery and large image read the cards only: an image linked inside a sentence is neither.
+  @Test func anInlineImageLinkIsNoTileGalleryImageOrLargeImage() {
     let inline = MessageMarkdown("Here is [a.png](https://cdn.example/a.png) for you.")
     #expect(Self.tiles(inline).isEmpty)
     #expect(inline.imageGallery.images.isEmpty)
-    #expect(inline.clampsLongBody, "No solo image exempts the body from the clamp")
 
     let mixed = MessageMarkdown("Here is [a.png](https://cdn.example/a.png) for you.\n\n[b.png](https://cdn.example/b.png)")
     #expect(Self.tiles(mixed) == ["b.png"])
     #expect(mixed.imageGallery.images.map(\.filename) == ["b.png"])
     #expect(mixed.segments.last?.usesLargeImage == true)
-    #expect(!mixed.clampsLongBody)
   }
 
   /// Row 31b3's rule follows the body: one ending in an inline file link ends in text, as on web.

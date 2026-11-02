@@ -17,6 +17,8 @@ struct MessageMarkdownView: View {
   var body: some View {
     MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
       .textSelection(.enabled)
+      // Web's links: the text colour, underlined. Iris is a fill, and the system blue is not ours.
+      .tint(.primary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .environment(\.openURL, OpenURLAction { url in
         if url.scheme == "sokosumi-channel" {
@@ -70,13 +72,13 @@ private struct MessageMarkdownContent: View {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else if let document = preparedDocument ?? document {
-        ExpandableMessageBody(source: source, clampHeight: document.clampsLongBody) {
+        ExpandableMessageBody(source: source) {
           VStack(alignment: .leading, spacing: 8) {
             ForEach(document.segments) { segment in
               if segment.files.isEmpty {
                 MarkdownBlocksView(blocks: segment.blocks)
               } else if segment.usesLargeImage, let file = segment.files.first {
-                MessageAttachmentView(attachment: file.attachment).id(file.attachment.url)
+                MessageAttachmentView(attachment: file.attachment).messageClampLargeImage().id(file.attachment.url)
               } else {
                 WrappingRow(alignment: .top, constrainsWidth: true) {
                   ForEach(segment.files) { file in
@@ -189,7 +191,7 @@ private struct MarkdownBlockView: View {
     return VStack(alignment: .leading, spacing: 8) {
       ForEach(segments) { segment in
         if let attachment = segment.attachment {
-          MessageAttachmentView(attachment: attachment).id(attachment.url)
+          MessageAttachmentView(attachment: attachment).messageClampLargeImage().id(attachment.url)
         } else if segment.text.runs.contains(where: { $0.link != nil }) {
           LinkPointerText(text: styled(segment.text)).fixedSize(horizontal: false, vertical: true)
         } else {
@@ -206,7 +208,10 @@ private struct MarkdownBlockView: View {
         result[run.range].underlineStyle = .single
       }
       if run[MessageMentionAttribute.self] == true {
-        result[run.range].foregroundColor = .accentColor
+        result[run.range].inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(.stronglyEmphasized)
+      }
+      if run.link != nil {
+        result[run.range].underlineStyle = .single
       }
     }
     return result

@@ -38,7 +38,7 @@ struct MessageAttachmentView: View {
             Text(attachment.filename).lineLimit(2)
             Text(attachment.url.host ?? "").font(.caption).foregroundStyle(.secondary)
           }
-          Link("Open", destination: attachment.url)
+          Link("Open", destination: attachment.url).foregroundStyle(.primary).underline()
           AttachmentSaveButton(attachment: attachment)
         }
         .font(.callout)
@@ -106,6 +106,7 @@ struct AttachmentViewerToolbar: View {
       Link(destination: attachment.url) {
         Label("Open in Browser", systemImage: "arrow.up.right.square")
       }
+      .foregroundStyle(.primary)
       .help("Open in Browser")
       #if os(macOS)
         if offersImageActions {

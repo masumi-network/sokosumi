@@ -7,24 +7,15 @@ import {
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
 import {
-  SIDEBAR_RAIL_SQUARE_CLASS,
   SIDEBAR_ROW_CLASS,
   SIDEBAR_ROW_LABEL_CLASS,
-  SIDEBAR_ROW_RAIL_PAD_CLASS,
 } from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
  * Placeholder rooms for `OrganizationChatList`, built from the same sidebar
- * primitives the real list uses so the rail's `group-data-[collapsible=icon]`
- * rules apply to it for free.
- *
- * Both states are answered, because the rail is not a narrower version of the
- * panel: the section header becomes one 32px square and each row keeps only
- * its leading mark, on the same 28px axis every rail item uses (`pl-1`, not
- * `justify-center`, so a shrinking name cannot drag the mark). A full-width
- * bar in a 56px rail is the shape nothing on this sidebar has.
+ * primitives the real list uses so its rows take the same shape.
  *
  * It stands in for the two sections a reader in an organization has — Channels
  * and Direct Messages — rather than one anonymous stack, because those two are
@@ -32,6 +23,8 @@ import { cn } from "@/lib/utils";
  * depend on data this frame has not loaded, and a section that appeared and
  * then went away would move every row under it. Two headings also put the
  * list's one landmark, the break between sections, where it will really land.
+ * Above them stands the Chats heading the real list hangs from in the sidebar,
+ * also always drawn.
  *
  * Channels is the one section that is not always there: the real list gates it
  * on `hasOrganization`, so a personal workspace has Directs alone. A caller
@@ -39,12 +32,10 @@ import { cn } from "@/lib/utils";
  * either. The boot shell has no session yet and so cannot know, which is what
  * the default answers — the same call the row counts make.
  *
- * The marks are the two a room row actually draws, and they differ by state
- * exactly as the real ones do (Channel tile, CONTEXT.md): a Channel is a 16px
- * kind glyph beside its name and a 20px tile on the rail, a Direct is a 20px
- * face in both, with a group Direct's second face growing its slot to the
- * right and dropping off the rail. A 24px square in the expanded panel — what
- * this used to draw for every row — is a mark no expanded row has.
+ * The marks are the two a room row actually draws: a Channel is a 16px kind
+ * glyph beside its name, a Direct is a 20px face, with a group Direct's second
+ * face growing its slot to the right. A 24px square — what this used to draw
+ * for every row — is a mark no row has.
  */
 
 /**
@@ -65,23 +56,14 @@ const DIRECT_ROWS = [
 ] as const;
 
 /**
- * A section heading's box: a titled row expanded, the section's 32px icon
- * square on the rail. Its create and browse controls are left out — they are
- * chrome that arrives with the real heading, and a grey square standing in
- * for a `+` reads as content that never comes.
+ * A section heading's box: a titled row, title first like the real one. Its
+ * chevron hides at rest and its create and browse controls are left out —
+ * they are chrome that arrives with the real heading, and a grey square
+ * standing in for a `+` reads as content that never comes.
  */
 function SectionHeaderSkeleton({ titleWidth }: { titleWidth: string }) {
   return (
-    <div
-      className={cn(
-        SIDEBAR_ROW_CLASS,
-        SIDEBAR_RAIL_SQUARE_CLASS,
-        SIDEBAR_ROW_RAIL_PAD_CLASS,
-      )}
-    >
-      <SidebarRowSlot>
-        <Skeleton className="size-4 md:size-3 group-data-[collapsible=icon]:size-4" />
-      </SidebarRowSlot>
+    <div className={SIDEBAR_ROW_CLASS}>
       <Skeleton
         className={cn(SIDEBAR_ROW_LABEL_CLASS, "h-3 flex-none", titleWidth)}
       />
@@ -102,13 +84,7 @@ function RoomRowSkeleton({
 }) {
   return (
     <SidebarMenuItem>
-      <div
-        className={cn(
-          SIDEBAR_ROW_CLASS,
-          SIDEBAR_RAIL_SQUARE_CLASS,
-          SIDEBAR_ROW_RAIL_PAD_CLASS,
-        )}
-      >
+      <div className={SIDEBAR_ROW_CLASS}>
         <SidebarRowSlot>{mark}</SidebarRowSlot>
         <Skeleton
           className={cn(SIDEBAR_ROW_LABEL_CLASS, "h-3 flex-none", nameWidth)}
@@ -118,25 +94,19 @@ function RoomRowSkeleton({
   );
 }
 
-/** `ChannelRoomMark`'s two shapes: the kind glyph, then the Channel tile. */
+/** `ChannelKindGlyph`: the kind glyph, at the size the row slot gives it. */
 function ChannelMarkSkeleton() {
-  return (
-    <>
-      <Skeleton className="group-data-[collapsible=icon]:hidden size-4" />
-      <Skeleton className="hidden size-5 group-data-[collapsible=icon]:block" />
-    </>
-  );
+  return <Skeleton className="size-4 md:size-3.5" />;
 }
 
-/** `DirectRoomAvatarStack`: round faces, the first alone on the rail. */
+/** `DirectRoomAvatarStack`: overlapping round faces. */
 function DirectMarkSkeleton({ faces }: { faces: number }) {
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center",
-        // The stack's 2px axis padding, same as the real mark's — and the
-        // rail drop, because extra faces are gone there.
-        faces > 1 && "pl-0.5 group-data-[collapsible=icon]:pl-0",
+        // The stack's 2px axis padding, same as the real mark's.
+        faces > 1 && "pl-0.5",
       )}
     >
       {Array.from({ length: faces }, (_, index) => (
@@ -144,7 +114,7 @@ function DirectMarkSkeleton({ faces }: { faces: number }) {
           key={index}
           className={cn(
             "border-sidebar size-5 shrink-0 rounded-full border",
-            index > 0 && "group-data-[collapsible=icon]:hidden -ml-1.5",
+            index > 0 && "-ml-1.5",
           )}
         />
       ))}
@@ -160,6 +130,9 @@ export function SidebarChatListSkeleton({
 } = {}) {
   return (
     <SidebarGroup className="w-full" aria-hidden>
+      {/* The Chats heading the whole list hangs from, which every reader
+          has: its row is held so the sections land where they will be. */}
+      <SectionHeaderSkeleton titleWidth="w-10" />
       <SidebarGroupContent className="space-y-2">
         {hasOrganization ? (
           <>

@@ -154,3 +154,21 @@ describe("CodeQL JS drafts", () => {
     );
   });
 });
+
+// The CI legs' own draft guards are pinned in turbo-remote-cache.test.mjs.
+describe("PR CI drafts", () => {
+  it("skips draft PRs and re-runs on ready_for_review", async () => {
+    for (const file of ["ci.yml", "apple.yml"]) {
+      const yaml = await readRepoFile(".github", "workflows", file);
+      assert.match(
+        yaml,
+        /types: \[opened, synchronize, reopened, ready_for_review\]/,
+      );
+      // Apple's test and lint need `changes`, so they skip with it.
+      assert.match(
+        jobBlock(yaml, "changes"),
+        /if: .*!github\.event\.pull_request\.draft/,
+      );
+    }
+  });
+});

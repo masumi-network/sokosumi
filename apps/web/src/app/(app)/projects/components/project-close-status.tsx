@@ -170,9 +170,7 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
       <Card
         role={status.state === "CLOSE_FAILED" ? "alert" : "status"}
         className={
-          status.state === "CLOSE_FAILED"
-            ? "border-semantic-destructive-tertiary"
-            : undefined
+          status.state === "CLOSE_FAILED" ? "border-border" : undefined
         }
       >
         <CardContent className="space-y-4">
@@ -292,7 +290,7 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
             <AlertDialogAction
               className={
                 recoveryAction === "cancelOwed"
-                  ? "bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+                  ? "bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
                   : undefined
               }
               loading={isPending}

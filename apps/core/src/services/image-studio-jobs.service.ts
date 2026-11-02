@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import {
+  FileSourceKind,
   type Prisma,
   ProjectImageJobKind,
   ProjectImageJobStatus,
@@ -13,12 +14,16 @@ import {
   convertCreditsToCents,
   readImageDimensionsFromBytes,
 } from "@sokosumi/utils";
-import { put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
+import {
+  DriveFileDownloadError,
+  downloadDriveFile,
+} from "@/helpers/drive-file-download";
 import {
   notFound,
   tooManyRequests,
@@ -71,7 +76,7 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { publishStudioAssetToFiles } from "@/services/image-studio-files.service";
+import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -128,6 +133,11 @@ export interface CreateImageJobInput {
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
+  /**
+   * Files in this workspace sent as references after the assets: a brand's
+   * product photos. The caller checks the person may open them.
+   */
+  referenceFileIds?: string[];
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -327,6 +337,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         prompt: input.prompt,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
+        referenceFileIds: input.referenceFileIds ?? [],
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -451,20 +462,32 @@ const SETTLE_LEASE_MS = 180_000;
  */
 async function buildReferenceUrls(job: {
   projectId: string;
+  workspaceId: string;
   referenceAssetIds: string[];
+  referenceFileIds: string[];
 }): Promise<string[]> {
-  if (job.referenceAssetIds.length === 0) return [];
-  if (
-    job.referenceAssetIds.length > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB
-  ) {
+  const count = job.referenceAssetIds.length + job.referenceFileIds.length;
+  if (count === 0) return [];
+  if (count > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
     throw unprocessableEntity(
       `At most ${LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB} reference images are allowed.`,
     );
   }
-  const assets = await prisma.projectImageAsset.findMany({
-    where: { id: { in: job.referenceAssetIds }, projectId: job.projectId },
-    select: { id: true, blobPathname: true, contentType: true, bytes: true },
-  });
+  const assets =
+    job.referenceAssetIds.length === 0
+      ? []
+      : await prisma.projectImageAsset.findMany({
+          where: {
+            id: { in: job.referenceAssetIds },
+            projectId: job.projectId,
+          },
+          select: {
+            id: true,
+            blobPathname: true,
+            contentType: true,
+            bytes: true,
+          },
+        });
   if (assets.length !== job.referenceAssetIds.length) {
     throw notFound("A reference image was not found in this project");
   }
@@ -488,7 +511,47 @@ async function buildReferenceUrls(job: {
       }),
     );
   }
+  for (const fileId of job.referenceFileIds) {
+    urls.push(await uploadFileReference(job.workspaceId, fileId));
+  }
   return urls;
+}
+
+/** A workspace image File, sent to fal the way an asset reference is. */
+async function uploadFileReference(
+  workspaceId: string,
+  fileId: string,
+): Promise<string> {
+  const file = await prisma.fileResource.findFirst({
+    where: {
+      id: fileId,
+      workspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+    },
+    select: { sourceId: true, mimeType: true },
+  });
+  if (!file?.mimeType?.startsWith("image/"))
+    throw notFound("A reference image was not found in this workspace");
+  const url = (await head(file.sourceId)).url;
+  const download = () =>
+    downloadDriveFile(url, {
+      maxBytes: LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES,
+      timeoutMs: 30_000,
+      acceptsMimeType: (mime) => mime.startsWith("image/"),
+    });
+  // One retry: a live test once got a passing error status for a stored
+  // photo, and nothing is charged before the job is sent.
+  const { bytes, mimeType } = await download().catch(async (error) => {
+    if (!(error instanceof DriveFileDownloadError)) throw error;
+    if (error.reason !== "unavailable") throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    return await download();
+  });
+  return await uploadReference({
+    bytes,
+    contentType: mimeType,
+    fileName: `${fileId}.${mimeType.split("/")[1] ?? "png"}`,
+  });
 }
 
 function webhookUrl(): string | null {
@@ -524,13 +587,11 @@ export async function createImageJob(input: CreateImageJobInput) {
   // provider and were lost at settlement.
   requireStudioBlobToken();
 
+  const references =
+    input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
   let settings: ImageJobSettings;
   try {
-    settings = resolveImageSettings(
-      input.modelId,
-      input.settings,
-      input.referenceAssetIds.length,
-    );
+    settings = resolveImageSettings(input.modelId, input.settings, references);
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid image settings",
@@ -550,9 +611,7 @@ export async function createImageJob(input: CreateImageJobInput) {
   }
 
   const kind =
-    input.referenceAssetIds.length > 0
-      ? ProjectImageJobKind.EDIT
-      : ProjectImageJobKind.GENERATE;
+    references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
   const { modelId, ...request } = input;
   return await reserveAndSend({
     ...request,
@@ -1409,7 +1468,6 @@ export async function settleWithMedia(
   // Only the settler that stored the asset gets here, so this runs once per job.
   await publishStudioAssetToFiles({
     jobId: job.id,
-    projectId: project.id,
     workspaceId: project.workspaceId,
     organizationId: project.organizationId,
     userId: job.requestedByUserId,

@@ -1,8 +1,43 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRoomQuoteSnippetParts,
+  chatRoomQuotePromptLine,
   cleanChatMessageText,
 } from "./chat-room-quote-snippet";
+
+describe("chatRoomQuotePromptLine", () => {
+  const a = { fileName: "a.png" };
+  const b = { fileName: "b.pdf" };
+
+  it("flattens the snippet onto one line", () => {
+    expect(
+      chatRoomQuotePromptLine({
+        authorName: "Alice",
+        snippet: "Launch risk is\nthe vendor.",
+      }),
+    ).toBe("> Alice: Launch risk is the vendor.");
+  });
+
+  it("names every attachment after the snippet", () => {
+    expect(
+      chatRoomQuotePromptLine({
+        authorName: "Alice",
+        snippet: "look at this",
+        attachments: [a, b],
+      }),
+    ).toBe("> Alice: look at this (attached: a.png, b.pdf)");
+  });
+
+  it("names the attachments of a quote that is only files", () => {
+    expect(
+      chatRoomQuotePromptLine({
+        authorName: "Alice",
+        snippet: "",
+        attachments: [a],
+      }),
+    ).toBe("> Alice: (attached: a.png)");
+  });
+});
 
 describe("buildRoomQuoteSnippetParts snippet", () => {
   it("strips light markdown and collapses horizontal whitespace", () => {
@@ -45,48 +80,90 @@ describe("buildRoomQuoteSnippetParts snippet", () => {
 });
 
 describe("buildRoomQuoteSnippetParts", () => {
+  const notes = {
+    fileName: "notes.pdf",
+    url: "https://blob.example/notes.pdf",
+    mediaKind: "file",
+  };
+  const shot = {
+    fileName: "shot.png",
+    url: "https://blob.example/shot.png",
+    mediaKind: "image",
+  };
+
+  it("lifts every file link out of the snippet, in body order", () => {
+    expect(
+      buildRoomQuoteSnippetParts(
+        "look at this\n\n[a.png](https://blob.example/a.png)\n[b.png](https://blob.example/b.png)\n[c.png](https://blob.example/c.png)\n[d.png](https://blob.example/d.png)",
+      ),
+    ).toMatchObject({
+      snippet: "look at this",
+      attachments: ["a", "b", "c", "d"].map((name) => ({
+        fileName: `${name}.png`,
+        url: `https://blob.example/${name}.png`,
+        mediaKind: "image",
+      })),
+    });
+  });
+
+  it("lists a file linked twice once and removes both links", () => {
+    const parts = buildRoomQuoteSnippetParts(
+      "[shot.png](https://blob.example/shot.png) again [shot.png](https://blob.example/shot.png)",
+    );
+    expect(parts.snippet).toBe("again");
+    expect(parts.attachments).toEqual([shot]);
+  });
+
   it("prefers the first image-like file link as attachment", () => {
     expect(
       buildRoomQuoteSnippetParts(
         "see [notes.pdf](https://blob.example/notes.pdf) and [shot.png](https://blob.example/shot.png)",
       ),
     ).toEqual({
-      snippet: "see notes.pdf and",
-      attachment: {
-        fileName: "shot.png",
-        url: "https://blob.example/shot.png",
-        mediaKind: "image",
-      },
+      snippet: "see and",
+      attachment: shot,
+      attachments: [notes, shot],
     });
   });
 
   it("falls back to the first file-like link when no image exists", () => {
+    const spec = {
+      fileName: "spec.pdf",
+      url: "https://blob.example/spec.pdf",
+      mediaKind: "file",
+    };
     expect(
       buildRoomQuoteSnippetParts(
         "docs [spec.pdf](https://blob.example/spec.pdf) then [more.txt](https://blob.example/more.txt)",
       ),
     ).toEqual({
-      snippet: "docs then more.txt",
-      attachment: {
-        fileName: "spec.pdf",
-        url: "https://blob.example/spec.pdf",
-        mediaKind: "file",
-      },
+      snippet: "docs then",
+      attachment: spec,
+      attachments: [
+        spec,
+        {
+          fileName: "more.txt",
+          url: "https://blob.example/more.txt",
+          mediaKind: "file",
+        },
+      ],
     });
   });
 
   it("excludes attachment link text from snippet so filename is not the only cue", () => {
+    const launch = {
+      fileName: "launch.png",
+      url: "https://blob.example/launch.png",
+      mediaKind: "image",
+    };
     expect(
       buildRoomQuoteSnippetParts(
         "[launch.png](https://blob.example/launch.png)",
       ),
     ).toEqual({
       snippet: "",
-      attachment: {
-        fileName: "launch.png",
-        url: "https://blob.example/launch.png",
-        mediaKind: "image",
-      },
+      attachment: launch,
+      attachments: [launch],
     });
   });
 
@@ -96,21 +173,24 @@ describe("buildRoomQuoteSnippetParts", () => {
     ).toEqual({
       snippet: "check docs",
       attachment: null,
+      attachments: [],
     });
   });
 
   it("uses the markdown link label as fileName", () => {
+    const pretty = {
+      fileName: "Pretty Name.png",
+      url: "https://blob.example/raw.png",
+      mediaKind: "image",
+    };
     expect(
       buildRoomQuoteSnippetParts(
         "cap [Pretty Name.png](https://blob.example/raw.png)",
       ),
     ).toEqual({
       snippet: "cap",
-      attachment: {
-        fileName: "Pretty Name.png",
-        url: "https://blob.example/raw.png",
-        mediaKind: "image",
-      },
+      attachment: pretty,
+      attachments: [pretty],
     });
   });
 });

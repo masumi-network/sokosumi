@@ -58,7 +58,7 @@ interface TaskStatusPickerProps {
 
 /** The quiet full-width row trigger shared by the task properties sidebar pickers. */
 export const ROW_TRIGGER_CLASS =
-  "hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm";
+  "hover:bg-accent transition-colors -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm";
 
 const DIGIT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as const;
 
@@ -137,7 +137,7 @@ export function TaskStatusPicker({
           ? { tone: marker.tone, icon: MARKER_ICONS.running, spin: true }
           : marker
       }
-      tone={variant === "row" ? style.labelOnSurface : undefined}
+      tone={variant === "row" ? style.onSurface : undefined}
     />
   );
 
@@ -149,7 +149,7 @@ export function TaskStatusPicker({
       aria-label={labels.ariaLabel}
       disabled={disabled || isPending}
       className={cn(
-        "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+        "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
         variant === "row" && ROW_TRIGGER_CLASS,
       )}
     >
@@ -234,10 +234,10 @@ export function TaskStatusPicker({
                     // selected row --accent, which in dark is lighter; the
                     // fault glyph measures 2.53:1 there, under the 3:1 SC
                     // 1.4.11 asks. Selection is a resting state, reached by
-                    // arrow key, not a hover garnish. `labelOnSurface` is the
+                    // arrow key, not a hover garnish. `onSurface` is the
                     // readable form of the same hue and measures 4.72 on that
                     // row in dark, 6.01 in light.
-                    tone={getToneStyle(rowMarker.tone).labelOnSurface}
+                    tone={getToneStyle(rowMarker.tone).onSurface}
                     // A status you could pick, not one that is running.
                     live={false}
                   />

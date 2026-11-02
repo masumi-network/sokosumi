@@ -68,7 +68,7 @@ export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
   return (
     <div className="space-y-0.5" data-testid="social-post-preview-failure">
       {post.partiallyPublished ? (
-        <p className="text-semantic-warning text-sm" role="status">
+        <p className="text-foreground text-sm" role="status">
           {t("thread.progress", {
             published: post.publishedThreadPartCount,
             total: post.threadPartCount,
@@ -79,7 +79,7 @@ export function SocialPostPreviewFailure({ post }: { post: SocialPost }) {
         </p>
       ) : null}
       {post.publishingThreadPartPosition ? (
-        <p className="text-semantic-warning text-sm">
+        <p className="text-foreground text-sm">
           {t("thread.outcomeUnknown", {
             part: post.publishingThreadPartPosition,
           })}

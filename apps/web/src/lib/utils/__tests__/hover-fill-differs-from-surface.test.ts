@@ -36,7 +36,7 @@ const FIXED_SITES: ReadonlyArray<readonly [string, string]> = [
   ["components/agents/agent-card.tsx", "md:hover:bg-card-background-hover"],
   [
     "components/notifications/notification-center-row.tsx",
-    'className="hover:bg-card-background-hover -mx-1',
+    'className="hover:bg-accent -mx-1',
   ],
 ];
 

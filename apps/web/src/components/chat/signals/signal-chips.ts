@@ -1,10 +1,15 @@
-import type { ChatMessageSignal, ChatSignalTag } from "@sokosumi/core-client";
+import type {
+  ChatMessageSignal,
+  ChatRoomMessage,
+  ChatSignalTag,
+} from "@sokosumi/core-client";
 
 /** Every tag, in the order the editor lists them. */
 export const CHAT_SIGNAL_TAG_ORDER: readonly ChatSignalTag[] = [
   "question",
   "needsDecision",
   "decisionMade",
+  "announcement",
   "commitment",
   "blocker",
   "urgent",
@@ -27,6 +32,7 @@ const CHIP_ORDER: readonly ChatSignalChip[] = [
   "urgent",
   "blocker",
   "decisionMade",
+  "announcement",
   "needsDecision",
   "commitment",
   "workRequest",
@@ -65,4 +71,18 @@ export function chipTags(
   return signal.tags.filter(
     (tag) => tag === "question" || tag === "needsDecision",
   );
+}
+
+/** Who wrote a message, as the room names them; empty when unknown. */
+export function chatMessageSenderName(message: ChatRoomMessage): string {
+  switch (message.sender.type) {
+    case "user":
+      return message.sender.user.name;
+    case "coworker":
+      return message.sender.coworker.name;
+    case "sokoBot":
+      return message.sender.sokoBot.name ?? "";
+    default:
+      return "";
+  }
 }

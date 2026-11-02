@@ -36,7 +36,7 @@ struct ComposerToolbarButton: View {
 
   private var background: Color {
     if selected {
-      return .accentColor.opacity(hovered ? 0.28 : 0.18)
+      return .primary.opacity(hovered ? 0.2 : 0.14)
     }
     return hovered && isEnabled ? .primary.opacity(0.1) : .clear
   }

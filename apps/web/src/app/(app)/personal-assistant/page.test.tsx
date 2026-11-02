@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const chatStateMock = vi.fn();
 const consoleMock = vi.fn();
+const loadAdsMock = vi.fn();
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next-intl/server", () => ({
@@ -26,6 +27,9 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
     searchIntegrationCatalog: async () => [],
   },
 }));
+vi.mock("@/lib/soko-bot/load-bot-ad-accounts", () => ({
+  loadBotAdAccounts: (...a: unknown[]) => loadAdsMock(...a),
+}));
 vi.mock("./components/console/console.client", () => ({
   SokoBotConsole: (props: { canManage: boolean }) => {
     consoleMock(props);
@@ -48,6 +52,7 @@ async function renderWith(viewerCanManage: boolean): Promise<void> {
 describe("SokoBotPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadAdsMock.mockResolvedValue([]);
   });
 
   it.each([true, false])(
@@ -63,4 +68,20 @@ describe("SokoBotPage", () => {
       );
     },
   );
+
+  it("hands the console the ad accounts across the workspace's Projects", async () => {
+    await renderWith(true);
+    expect(loadAdsMock).toHaveBeenCalledWith({ projectId: null });
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ads: { accounts: [], projectId: null } }),
+    );
+  });
+
+  it("still renders the console when the ad accounts cannot be loaded", async () => {
+    loadAdsMock.mockRejectedValue(new Error("down"));
+    await renderWith(true);
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ads: null }),
+    );
+  });
 });

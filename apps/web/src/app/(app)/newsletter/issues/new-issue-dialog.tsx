@@ -1,10 +1,12 @@
 "use client";
 
 import { NewsletterTemplate } from "@sokosumi/core-client";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
+import { Button } from "@/components/ui/button";
 import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import {
   Dialog,
@@ -14,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createNewsletterIssue } from "@/lib/actions/newsletter/issues";
-import { newsletterHref } from "../newsletter-tabs";
 import { newsletterTemplateContent } from "./templates";
 
 export function NewIssueDialog({
@@ -28,20 +29,24 @@ export function NewIssueDialog({
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const router = useRouter();
-  const [pending, setPending] = useState<NewsletterTemplate | null>(null);
+  const [pending, setPending] = useState<NewsletterTemplate | "blank" | null>(
+    null,
+  );
   const [error, setError] = useState("");
 
-  async function handleCreate(template: NewsletterTemplate) {
+  async function handleCreate(start: NewsletterTemplate | "blank") {
     if (pending) return;
-    setPending(template);
+    setPending(start);
     setError("");
+    const template = start === "blank" ? NewsletterTemplate.TEXT : start;
     try {
       const result = await createNewsletterIssue({
         projectId,
         values: {
           subject: t("Templates.subject"),
           template,
-          content: newsletterTemplateContent(template, t),
+          content:
+            start === "blank" ? [] : newsletterTemplateContent(template, t),
         },
       });
       if (!result.ok) {
@@ -76,6 +81,23 @@ export function NewIssueDialog({
           <DialogTitle>{t("Templates.title")}</DialogTitle>
           <DialogDescription>{t("Templates.description")}</DialogDescription>
         </DialogHeader>
+        <div className="bg-card-background flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl p-4">
+          <p className="text-muted-foreground min-w-0 flex-1 text-sm">
+            {t("Templates.blankDescription")}
+          </p>
+          <Button
+            variant="primary"
+            disabled={pending !== null}
+            loading={pending === "blank"}
+            onClick={() => void handleCreate("blank")}
+          >
+            <Plus />
+            {t("Templates.blank")}
+          </Button>
+        </div>
+        <h3 className="text-sm font-medium">
+          {t("Templates.templateHeading")}
+        </h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {Object.values(NewsletterTemplate).map((template) => (
             <button
@@ -84,7 +106,7 @@ export function NewIssueDialog({
               disabled={!!pending}
               aria-busy={pending === template}
               onClick={() => void handleCreate(template)}
-              className="focus-visible:ring-ring-halo focus-visible:inset-ring-ring relative min-w-0 space-y-3 overflow-hidden rounded-xl border p-4 text-start outline-none hover:bg-accent focus-visible:ring-2 focus-visible:inset-ring-1 disabled:opacity-50"
+              className="focus-visible:ring-ring focus-visible:inset-ring-ring relative min-w-0 space-y-3 overflow-hidden rounded-xl border p-4 text-start outline-none hover:bg-accent focus-visible:ring-2 focus-visible:inset-ring-1 disabled:opacity-50"
             >
               <div
                 aria-hidden
@@ -99,7 +121,7 @@ export function NewIssueDialog({
                 <div className="bg-quaternary h-1 w-full rounded-xs" />
                 <div className="bg-quaternary h-1 w-4/5 rounded-xs" />
                 {template === NewsletterTemplate.BUTTONS ? (
-                  <div className="bg-primary-solid h-5 w-1/2 rounded-xs" />
+                  <div className="bg-primary h-5 w-1/2 rounded-xs" />
                 ) : (
                   <div className="bg-quaternary h-1 w-3/4 rounded-xs" />
                 )}
@@ -122,7 +144,7 @@ export function NewIssueDialog({
           ))}
         </div>
         {error ? (
-          <p role="alert" className="text-semantic-destructive-label text-sm">
+          <p role="alert" className="text-foreground text-sm">
             {error}
           </p>
         ) : null}
