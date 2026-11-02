@@ -2,15 +2,10 @@ import type { Project } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 
-import {
-  ProjectScopeButton,
-  RequireProjectScope,
-} from "@/app/components/project-scope/project-scope-required";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
+import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { projectService } from "@/lib/services/project.service";
 import { isUuidString } from "@/lib/utils/uuid";
-
-import { NewsletterPageShell } from "./components/newsletter-page-shell";
 
 const loadScopeParams = createLoader({
   projectId: parseAsString,
@@ -47,23 +42,15 @@ export async function newsletterWorkspacePage({
   unavailable: boolean;
 }) {
   const t = await getTranslations("App.Newsletter");
-  const reason = unavailable ? t("pickUnavailable") : t("description");
 
   return (
-    <NewsletterPageShell
-      description={t("description")}
-      heading={t("pickProject")}
-      title={t("title")}
-    >
-      {unavailable ? (
-        <Alert>
-          <AlertDescription>{t("pickUnavailable")}</AlertDescription>
-        </Alert>
-      ) : null}
-      <RequireProjectScope reason={reason} />
-      <ProjectScopeButton request={{ reason }}>
-        {t("pickProject")}
-      </ProjectScopeButton>
-    </NewsletterPageShell>
+    <WorkspacePageShell title={t("title")}>
+      <ProjectScopeRequired
+        action={t("pickProject")}
+        body={unavailable ? t("pickUnavailable") : t("description")}
+        testId="newsletter-no-project"
+        title={t("pickProject")}
+      />
+    </WorkspacePageShell>
   );
 }

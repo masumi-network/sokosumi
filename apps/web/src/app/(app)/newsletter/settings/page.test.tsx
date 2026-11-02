@@ -43,14 +43,11 @@ vi.mock("@/lib/services/project.service", () => ({
     listProjects: mocks.listProjects,
   },
 }));
-vi.mock("@/app/components/project-scope/project-scope-required", () => ({
-  RequireProjectScope: (props: object) => {
-    mocks.requireScope(props);
-    return null;
-  },
-  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
-    <button type="button">{children}</button>
-  ),
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: (request: object) => mocks.requireScope(request),
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
 }));
 vi.mock("../newsletter-settings-form", () => ({
   NewsletterSettingsForm: (props: object) => {
@@ -202,9 +199,9 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
       ).toBeInTheDocument();
-      expect(mocks.requireScope).toHaveBeenCalledWith({
-        reason: PAGE.description,
-      });
+      expect(mocks.requireScope).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: PAGE.description, required: true }),
+      );
       expect(
         screen.getByRole("button", { name: PAGE.pickProject }),
       ).toBeInTheDocument();
@@ -227,9 +224,9 @@ describe("NewsletterSettingsPage", () => {
       render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.requireScope).toHaveBeenCalledWith({
-        reason: PAGE.pickUnavailable,
-      });
+      expect(mocks.requireScope).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: PAGE.pickUnavailable }),
+      );
       expect(mocks.getSettings).not.toHaveBeenCalled();
     });
 

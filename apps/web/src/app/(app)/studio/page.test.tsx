@@ -87,38 +87,30 @@ describe("StudioPage", () => {
     hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
-  it("opens curated styles without reading workspace images", async () => {
-    imageStudioServiceMock.getWorkspaceState.mockResolvedValue(studioState());
+  it("asks for a project instead of opening the studio without one", async () => {
     const { default: StudioPage } = await import("./page");
 
     render(await StudioPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-project",
-      "workspace",
+    expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
+      "App.Studio.pickBody",
     );
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-assets",
-      "0",
-    );
-    expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("image-studio")).not.toBeInTheDocument();
     // Nothing is loaded for a project nobody named.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
-    expect(imageStudioServiceMock.getWorkspaceState).not.toHaveBeenCalled();
+    expect(imageStudioServiceMock.getCatalog).not.toHaveBeenCalled();
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
-    imageStudioServiceMock.getWorkspaceState.mockResolvedValue(studioState());
     const { default: StudioPage } = await import("./page");
 
     render(
       await StudioPage({ searchParams: Promise.resolve({ projectId: " " }) }),
     );
 
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-project",
-      "workspace",
+    expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
+      "App.Studio.pickBody",
     );
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });

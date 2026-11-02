@@ -37,8 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * between projects without the studio knowing anything about the switcher, and
  * `ProjectScopeGuard` clears a project this workspace can no longer see.
  *
- * With no project it offers curated styles. Generation asks which project
- * it goes to; existing images are loaded only for a selected project.
+ * With no project it asks for one, with the same placeholder as every other
+ * project-only page; the studio and its images belong to a project.
  */
 export default async function StudioPage({ searchParams }: StudioPageProps) {
   await connection();
@@ -52,12 +52,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     : null;
   // Not `notFound()`: the id came from a switchable scope, not from the path,
   // so the repair is to pick another project rather than to leave the page.
-  if (projectId && !project) {
+  if (!project) {
     return (
       <StudioPageShell title={t("title")}>
         <ProjectScopeRequired
           action={t("pickAction")}
-          body={t("pickUnavailable")}
+          body={projectId ? t("pickUnavailable") : t("pickBody")}
           testId="studio-no-project"
           title={t("pickTitle")}
         />
@@ -68,11 +68,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // In parallel, and the catalog only once per render: it is ~158KB and it is
   // deliberately no longer part of the state payload the open studio refetches
   // every three seconds.
-  const scopeId = project?.id ?? null;
   const [state, catalog] = await Promise.all([
-    scopeId
-      ? loadStudioState(scopeId, query.v)
-      : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
+    loadStudioState(project.id, query.v),
     imageStudioService.getCatalog(),
   ]);
 
@@ -90,9 +87,9 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         // Remounted per project, so no filter, selection, draft prompt or
         // queued request from the previous one can survive the switch. The
         // state hook resets on its own too; see `useStudioState`.
-        key={scopeId ?? "workspace"}
+        key={project.id}
         labels={buildStudioLabels(t)}
-        projectId={scopeId}
+        projectId={project.id}
       />
     </StudioPageShell>
   );

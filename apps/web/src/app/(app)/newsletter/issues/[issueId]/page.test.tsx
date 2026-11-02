@@ -63,11 +63,11 @@ vi.mock("../issue-editor", () => ({
   },
 }));
 
-vi.mock("@/app/components/project-scope/project-scope-required", () => ({
-  RequireProjectScope: () => null,
-  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
-    <button type="button">{children}</button>
-  ),
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: () => undefined,
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
 }));
 
 import NewsletterIssuePage from "./page";

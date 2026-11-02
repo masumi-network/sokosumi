@@ -4542,10 +4542,6 @@
       },
       "loading": "Wird geladen…",
       "pickProject": "Projekt auswählen",
-      "platforms": {
-        "label": "Social-Media-Plattformen",
-        "pause": "Plattformen pausieren"
-      },
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
         "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."

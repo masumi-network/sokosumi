@@ -39,14 +39,11 @@ vi.mock("@/lib/services/project.service", () => ({
   },
 }));
 
-vi.mock("@/app/components/project-scope/project-scope-required", () => ({
-  RequireProjectScope: (props: object) => {
-    mocks.requireScope(props);
-    return null;
-  },
-  ProjectScopeButton: ({ children }: { children: React.ReactNode }) => (
-    <button type="button">{children}</button>
-  ),
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: (request: object) => mocks.requireScope(request),
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
 }));
 
 import NewsletterPage, { generateMetadata } from "./page";
@@ -101,9 +98,9 @@ describe("NewsletterPage", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
     ).toBeInTheDocument();
-    expect(mocks.requireScope).toHaveBeenCalledWith({
-      reason: PAGE.description,
-    });
+    expect(mocks.requireScope).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: PAGE.description, required: true }),
+    );
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.getSettings).not.toHaveBeenCalled();
   });

@@ -4542,10 +4542,6 @@
       },
       "loading": "Loading…",
       "pickProject": "Choose a project",
-      "platforms": {
-        "label": "Social platforms",
-        "pause": "Pause platforms"
-      },
       "statisticsNeedProject": {
         "title": "Choose a project to see performance",
         "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."

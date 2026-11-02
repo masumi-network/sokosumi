@@ -54,28 +54,38 @@ export function ProjectScopeButton({
 }
 
 /**
- * What a project-only page (the studio, Ads) shows before it knows which
- * project it is working in: its own copy, and the header's project selector
- * open over it. Choosing there writes the scope back into the URL the way
- * every other scoped page does. The copy is the page's, so it is passed in.
+ * What every project-only page (Newsletter, Social, Ads, the studio) shows
+ * before it knows which project it is working in: its own copy, and the
+ * header's project selector open over it. Choosing there writes the scope back
+ * into the URL the way every other scoped page does. The copy is the page's,
+ * so it is passed in; the layout is this one, so the pages cannot drift apart.
  */
 export function ProjectScopeRequired({
   action,
+  autoOpen = true,
   body,
+  onSelect,
   testId,
   title,
 }: {
   action: string;
+  /**
+   * Open the header's project selector on arrival. Off where the placeholder
+   * sits above a view that works without a project, as Social's calendar does.
+   */
+  autoOpen?: boolean;
   body: string;
-  testId: string;
+  onSelect?: ProjectScopeRequest["onSelect"];
+  testId?: string;
   title: string;
 }) {
+  const request = { reason: body, onSelect };
   return (
     <div
       className="mx-auto flex max-w-md flex-col items-center py-10 text-center"
       data-testid={testId}
     >
-      <RequireProjectScope reason={body} />
+      {autoOpen ? <RequireProjectScope {...request} /> : null}
       <span
         aria-hidden
         className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
@@ -86,7 +96,7 @@ export function ProjectScopeRequired({
       <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
         {body}
       </p>
-      <ProjectScopeButton className="mt-5" request={{ reason: body }}>
+      <ProjectScopeButton className="mt-5" request={request}>
         {action}
       </ProjectScopeButton>
     </div>
