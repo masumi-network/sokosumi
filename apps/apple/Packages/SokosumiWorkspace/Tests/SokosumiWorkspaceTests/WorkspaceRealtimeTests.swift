@@ -127,8 +127,8 @@ private let acmeWorkspaceId = "22222222-2222-7222-8222-222222222222"
 /// One `UserWorkspace`: personal for nil, Acme for `org_1`.
 private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
   organizationId == nil
-    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
-    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"role":null,"memberCount":null,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
+    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"role":"member","memberCount":2,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
 }
 
 /// `GET /users/me/workspaces`: personal and Acme, `preferring` the one a

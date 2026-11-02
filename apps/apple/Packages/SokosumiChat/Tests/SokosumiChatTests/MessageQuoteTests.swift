@@ -12,15 +12,37 @@ struct MessageQuoteTests {
     return message
   }
 
-  @Test func previewPrefersImageAndRetainsOtherContent() throws {
+  @Test func previewLiftsEveryFileLinkInBodyOrder() throws {
     let quote = try #require(messageQuote(from: message("**Report**\n\n[report.pdf](https://example.com/report.pdf)\n\n[chart.png](https://example.com/chart.png)")))
     #expect(quote.authorName == "Ada")
-    #expect(quote.attachment?.fileName == "chart.png")
-    #expect(quote.attachment?.mediaKind == .image)
-    #expect(quote.snippet.contains("Report"))
-    #expect(quote.snippet.contains("report.pdf"))
-    #expect(!quote.snippet.contains("chart.png"))
-    #expect(!quote.snippet.contains("**"))
+    #expect(quote.attachments == [
+      .init(fileName: "report.pdf", url: "https://example.com/report.pdf", mediaKind: .file),
+      .init(fileName: "chart.png", url: "https://example.com/chart.png", mediaKind: .image)
+    ])
+    #expect(quote.snippet == "Report")
+  }
+
+  /// `buildRoomQuoteSnippetParts`: a sentence loses its file links, and a file linked twice is one attachment.
+  @Test func previewSnippetHoldsNoFileNameAndAFileLinkedTwiceIsOne() throws {
+    let quote = try #require(messageQuote(from: message(
+      "see [notes.pdf](https://example.com/notes.pdf) and [shot.png](https://example.com/shot.png), again [notes.pdf](https://example.com/notes.pdf)"
+    )))
+    #expect(quote.attachments?.map(\.fileName) == ["notes.pdf", "shot.png"])
+    #expect(quote.snippet == "see and , again")
+  }
+
+  @Test func previewKeepsEveryImageOfAnImageOnlyMessage() throws {
+    let names = ["a.png", "b.png", "c.png", "d.png"]
+    let quote = try #require(messageQuote(from: message(names.map { "[\($0)](https://example.com/\($0))" }.joined(separator: "\n\n"))))
+    #expect(quote.attachments?.map(\.fileName) == names)
+    #expect(quote.attachments?.allSatisfy { $0.mediaKind == .image } == true)
+    #expect(quote.snippet.isEmpty)
+  }
+
+  @Test func previewOfPlainTextHasNoAttachmentsAndKeepsAWebLink() throws {
+    let quote = try #require(messageQuote(from: message("read [the docs](https://example.com/docs)")))
+    #expect(quote.attachments?.isEmpty == true)
+    #expect(quote.snippet == "read the docs")
   }
 
   @Test func rejectsDeletedAndLocalRowsButAllowsThreadReplies() {

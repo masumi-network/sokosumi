@@ -9,23 +9,16 @@ public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Co
   }
   let content = message.content.replacingOccurrences(of: #"```[\s\S]*?```"#, with: " ", options: .regularExpression)
   let parts = paragraphs(MessageMarkdown(content).blocks)
-  let attachments = parts.flatMap { $0.compactMap(\.attachment) }
-  let attachment = attachments.first { $0.kind == .image } ?? attachments.first
-  var removedAttachment = false
+  var linked = Set<URL>()
+  let attachments = parts.flatMap { $0.compactMap(\.attachment) }.filter { linked.insert($0.url).inserted }
   let snippet = parts.map { paragraph in
-    paragraph.map { part in
-      if let attachment, part.attachment == attachment, !removedAttachment {
-        removedAttachment = true
-        return ""
-      }
-      return String(part.text.characters)
-    }.joined()
+    paragraph.map { $0.attachment == nil ? String($0.text.characters) : "" }.joined()
   }.joined(separator: "\n")
     .replacingOccurrences(of: #"[^\S\n]+"#, with: " ", options: .regularExpression)
     .trimmingCharacters(in: .whitespacesAndNewlines)
   return .init(messageId: message.id, authorName: messageSenderName(message.sender), snippet: snippet,
-               attachment: attachment.map { .init(fileName: $0.filename, url: $0.url.absoluteString,
-                                                  mediaKind: $0.kind == .image ? .image : .file) })
+               attachments: attachments.map { .init(fileName: $0.filename, url: $0.url.absoluteString,
+                                                    mediaKind: $0.kind == .image ? .image : .file) })
 }
 
 /// A mention shell that is still thinking has no actions, like web's
