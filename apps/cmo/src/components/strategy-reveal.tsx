@@ -76,8 +76,8 @@ interface StrategyRevealProps {
   intro?: boolean;
   /** The day-by-day calendar, as the host lays it out. */
   calendar: ReactNode;
-  /** Sends the owner's answer or request to Cuso. */
-  onAsk?: (text: string) => Promise<void>;
+  /** Sends the owner's answer or request to Cuso; `label` says it in a few words. */
+  onAsk?: (text: string, label?: string) => Promise<void>;
   /** Sets the owner's own monthly ad budget; Cuso re-plans around it. */
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
 }

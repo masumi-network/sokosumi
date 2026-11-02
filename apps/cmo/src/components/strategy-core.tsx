@@ -265,10 +265,12 @@ export function PacePicker({
   onAsk,
 }: {
   pace: NonNullable<Strategy["pace"]>;
-  onAsk?: (text: string) => Promise<void>;
+  onAsk?: (text: string, label?: string) => Promise<void>;
 }) {
-  const [changing, startChanging] = useTransition();
+  // Plain state, not a transition: the host shows its re-planning screen the
+  // moment this is tapped, and a refusal stays here instead of throwing.
   const [asked, setAsked] = useState<Pace | null>(null);
+  const changing = asked !== null;
   return (
     <div className="sc-pace">
       <div className="sc-pace-options" role="group" aria-label="Pace">
@@ -281,14 +283,19 @@ export function PacePicker({
               className={current ? "sc-pace-option current" : "sc-pace-option"}
               aria-pressed={current}
               disabled={!onAsk || current || changing}
-              onClick={() =>
-                startChanging(async () => {
-                  setAsked(option.level);
+              onClick={async () => {
+                setAsked(option.level);
+                try {
                   await onAsk?.(
                     `Change the pace to ${option.name} (${option.does.toLowerCase()}) and re-plan the calendar to match.`,
+                    `${option.name} pace`,
                   );
-                })
-              }
+                } catch {
+                  // The host shows the refusal.
+                } finally {
+                  setAsked(null);
+                }
+              }}
             >
               <b>{option.name}</b>
               <span>{option.does}</span>
