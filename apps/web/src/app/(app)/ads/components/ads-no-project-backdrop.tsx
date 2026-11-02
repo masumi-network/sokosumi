@@ -15,6 +15,7 @@ import {
  * staggered row of sample Search and Display ads, drawn by the same cards the
  * campaign preview uses. Decoration only, so it is hidden from readers and
  * takes no clicks; the selector above it is where the page is used.
+ * The samples wrap into a right-aligned grid to leave room for the picker.
  */
 export function AdsNoProjectBackdrop() {
   const t = useTranslations("App.Ads.backdrop");
@@ -83,24 +84,20 @@ export function AdsNoProjectBackdrop() {
     <div
       aria-hidden
       inert
-      className="pointer-events-none flex w-full items-start justify-center gap-4 overflow-hidden px-2 pb-8 text-left select-none"
+      className="pointer-events-none grid w-full max-w-2xl grid-cols-1 items-start gap-6 self-end overflow-hidden px-2 pt-3 pb-8 text-left select-none sm:grid-cols-2"
       data-testid="ads-backdrop"
     >
-      <DisplaySquareCard
-        ad={linen}
-        className="hidden w-52 shrink-0 -rotate-2 lg:block"
-      />
+      <DisplaySquareCard ad={linen} className="-rotate-2" />
       <SearchAdCard
         ad={roastery}
-        className="w-80 shrink-0 translate-y-6 rotate-1"
+        className="rotate-1"
+        imageSrc="/images/ads/backdrop/coffee-beans.webp"
       />
-      <DisplayLandscapeCard
-        ad={yoga}
-        className="hidden w-80 shrink-0 -rotate-1 sm:block"
-      />
+      <DisplayLandscapeCard ad={yoga} className="-rotate-1" />
       <SearchAdCard
         ad={studio}
-        className="hidden w-72 shrink-0 translate-y-8 rotate-2 xl:flex"
+        className="rotate-2"
+        imageSrc="/images/ads/backdrop/design-sprint.webp"
       />
     </div>
   );

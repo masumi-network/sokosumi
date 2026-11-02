@@ -62,9 +62,11 @@ function SearchPreview({
 export function SearchAdCard({
   ad,
   className,
+  imageSrc,
 }: {
   ad: ReturnType<typeof searchAdPreview>;
   className?: string;
+  imageSrc?: string;
 }) {
   const t = useTranslations("App.Ads.newCampaign.preview");
 
@@ -76,6 +78,9 @@ export function SearchAdCard({
         className,
       )}
     >
+      {imageSrc ? (
+        <Picture className="mb-3 aspect-[1.91/1] rounded-lg" src={imageSrc} />
+      ) : null}
       <p className="text-foreground text-xs font-semibold">{t("sponsored")}</p>
       <div className="mt-1 flex min-w-0 items-center gap-3">
         <Initial text={ad.domain} />

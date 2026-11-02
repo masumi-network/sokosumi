@@ -26,13 +26,26 @@ describe("AdsNoProjectBackdrop", () => {
       `${SAMPLES.roastery.headline1} | ${SAMPLES.roastery.headline2} | ${SAMPLES.roastery.headline3}`,
     );
     expect(backdrop).toHaveTextContent("northwind.coffee");
+    expect(backdrop).toHaveTextContent("northwind.coffee/beans");
+    expect(backdrop).toHaveTextContent(SAMPLES.roastery.description);
     expect(backdrop).toHaveTextContent(SAMPLES.roastery.sitelink1);
+    expect(backdrop).toHaveTextContent(SAMPLES.roastery.sitelink2);
+    expect(backdrop).toHaveTextContent(SAMPLES.roastery.sitelink3);
+    expect(backdrop).toHaveTextContent(
+      `${SAMPLES.studio.headline1} | ${SAMPLES.studio.headline2}`,
+    );
+    expect(backdrop).toHaveTextContent("fieldnotes.studio");
+    expect(backdrop).toHaveTextContent("fieldnotes.studio/sprints");
+    expect(backdrop).toHaveTextContent(SAMPLES.studio.description);
     expect(backdrop).toHaveTextContent(
       `${SAMPLES.studio.callout1} · ${SAMPLES.studio.callout2}`,
     );
     // Display: square and landscape.
     expect(backdrop).toHaveTextContent(SAMPLES.linen.headline);
+    expect(backdrop).toHaveTextContent(SAMPLES.linen.businessName);
+    expect(backdrop).toHaveTextContent(SAMPLES.linen.description);
     expect(backdrop).toHaveTextContent(SAMPLES.yoga.longHeadline);
+    expect(backdrop).toHaveTextContent(SAMPLES.yoga.description);
     // Display creatives come from the static backdrop assets.
     expect(
       Array.from(backdrop.querySelectorAll("img"), (image) =>
@@ -40,7 +53,9 @@ describe("AdsNoProjectBackdrop", () => {
       ),
     ).toEqual([
       "/images/ads/backdrop/linen-square.webp",
+      "/images/ads/backdrop/coffee-beans.webp",
       "/images/ads/backdrop/yoga-landscape.webp",
+      "/images/ads/backdrop/design-sprint.webp",
     ]);
     expect(backdrop).not.toHaveTextContent(
       messages.App.Ads.newCampaign.preview.noImage,
@@ -54,6 +69,9 @@ describe("AdsNoProjectBackdrop", () => {
     expect(backdrop).toHaveAttribute("aria-hidden", "true");
     expect(backdrop).toHaveAttribute("inert");
     expect(backdrop).toHaveClass("pointer-events-none");
+    expect(
+      backdrop.querySelector("a, button, input, select, textarea, [tabindex]"),
+    ).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
   });
 });
