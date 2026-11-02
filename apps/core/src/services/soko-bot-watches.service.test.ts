@@ -10,6 +10,7 @@ const { db, startTurnMock } = vi.hoisted(() => ({
     },
     chatRoomMessage: { findMany: vi.fn() },
     chatRoomSokoBotMember: { findUnique: vi.fn() },
+    sokoBotIntegration: { findUnique: vi.fn() },
     sokoBotWatch: {
       findFirst: vi.fn(),
       count: vi.fn(),
@@ -372,6 +373,75 @@ describe("syncSokoBotWatches", () => {
     expect(db.sokoBotWatch.update).toHaveBeenCalledWith({
       where: { id: "watch-1" },
       data: { status: "WAITING", firedAt: null, outcome: null },
+    });
+  });
+
+  describe("an app being connected", () => {
+    const app = (overrides: Record<string, unknown> = {}) =>
+      waiting({
+        kind: "app_connected",
+        targetId: "hubspot",
+        projectId: null,
+        then: "count the open HubSpot deals",
+        ...overrides,
+      });
+
+    it("checks only that bot when asked, and fires with the app's tools", async () => {
+      db.sokoBotWatch.findMany.mockResolvedValue([app()]);
+      db.sokoBotIntegration.findUnique.mockResolvedValue({ status: "ACTIVE" });
+      await syncSokoBotWatches({
+        shouldContinue: () => true,
+        sokoBotId: "bot-1",
+      });
+      expect(db.sokoBotWatch.findMany.mock.calls[0][0].where).toEqual({
+        status: "WAITING",
+        sokoBotId: "bot-1",
+      });
+      const start = startTurnMock.mock.calls[0][0];
+      expect(start.presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+        "list_integration_tools",
+        "run_integration_tool",
+      ]);
+      expect(start.message).toContain("hubspot is connected now");
+    });
+
+    it("keeps waiting until it is connected", async () => {
+      db.sokoBotWatch.findMany.mockResolvedValue([app()]);
+      db.sokoBotIntegration.findUnique.mockResolvedValue({ status: "PENDING" });
+      expect(await sync()).toMatchObject({ fired: 0 });
+    });
+
+    it("just ends when nobody connected it in time", async () => {
+      vi.setSystemTime(new Date("2026-11-01T11:00:00.000Z"));
+      db.sokoBotWatch.findMany.mockResolvedValue([app()]);
+      db.sokoBotIntegration.findUnique.mockResolvedValue(null);
+      await sync();
+      expect(startTurnMock).not.toHaveBeenCalled();
+      expect(db.sokoBotWatch.updateMany).toHaveBeenCalledWith({
+        where: { id: "watch-1", status: "WAITING" },
+        data: { status: "EXPIRED", outcome: "never connected" },
+      });
+    });
+
+    it("waits a day by default and needs a provider slug", async () => {
+      db.sokoBotIntegration.findUnique.mockResolvedValue(null);
+      await registerWatch(authorized(), {
+        kind: "app_connected",
+        id: "hubspot",
+        then: "count the open deals",
+      });
+      expect(db.sokoBotWatch.create.mock.calls[0][0].data.expiresAt).toEqual(
+        new Date("2026-11-02T10:00:00.000Z"),
+      );
+      await expect(
+        registerWatch(authorized(), {
+          kind: "app_connected",
+          id: "Hub Spot",
+          then: "x",
+        }),
+      ).rejects.toThrow("provider from find_integrations");
     });
   });
 });

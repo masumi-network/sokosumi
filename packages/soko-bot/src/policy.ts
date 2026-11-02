@@ -468,7 +468,8 @@ const OWNER_BASE_CAPABILITIES = [
 ] as const;
 
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
-  DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES],
+  // A question that needs an app not connected yet waits for it (app_connected).
+  DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES, "wait_for"],
   CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
     ...OWNER_BASE_CAPABILITIES,

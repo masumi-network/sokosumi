@@ -1026,13 +1026,14 @@ export const SOKO_BOT_WAIT_KINDS = [
   "studio_job",
   "background_run",
   "chat_reply",
+  "app_connected",
 ] as const;
 
 export const sokoBotWaitForInputSchema = z
   .object({
-    /** studio_job: an image or video; background_run: a run; chat_reply: a room. */
+    /** studio_job: an image or video; background_run: a run; chat_reply: a room; app_connected: an app. */
     kind: z.enum(SOKO_BOT_WAIT_KINDS),
-    /** The jobId from generate_image/generate_video, the runId, or the roomId. */
+    /** The jobId from generate_image/generate_video, the runId, the roomId, or the app's provider from find_integrations. */
     id: z.string().trim().min(1),
     /** The Project of a studio_job. */
     projectId: z.string().trim().min(1).optional(),
@@ -1242,7 +1243,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   start_background_run:
     "Start work that takes longer than a few minutes as a background run: it gets your tools, its own computer and up to six hours, while you keep talking with the owner. Use it for bulk work — going through months of email, building or filling a large table, research across many sources, hiring Agents and waiting for their results. Write a complete brief: the goal, what done looks like, where results go (a Files table, a Task, a chat message) and any ids; the run does not see this conversation. Tell the owner it has started. When it finishes, its final answer is posted in this chat. At most three run at once.",
   wait_for:
-    'Wait for something without blocking, then act on it: an image or video you started (kind studio_job, its jobId and projectId), a background run (background_run, its runId), or the next answer in a chat room (chat_reply, its roomId, for example after ask_coworker). Core checks every minute; once it is done, or after timeoutMinutes (default 60), it starts a follow-up with your current tools that gets the result and your `then`, and posts its answer in this chat. Put everything the next step needs in `then`, with ids. "Here" or "this chat" means the chat you are talking in right now: the follow-up\'s own answer appears there, so write "show the image here with one sentence" and never post_chat it into another room. Name another room only when the person asking named it in this message ("post it in #Sokosumi, room <roomId>"). After calling it, end your turn and say in one sentence what happens when it is done. Never wait with `bash` `sleep` or poll in a loop. When the person asking said "once X is done, do Y", that is their go-ahead for Y: put Y in `then` and do not ask again.',
+    'Wait for something without blocking, then act on it: an image or video you started (kind studio_job, its jobId and projectId), a background run (background_run, its runId), the next answer in a chat room (chat_reply, its roomId, for example after ask_coworker), or an app the person asking is connecting (app_connected, its provider from find_integrations; waits up to a day and simply ends if they never connect). Core checks every minute, and an app the moment it connects; once it is done, or after timeoutMinutes (default 60), it starts a follow-up with your current tools that gets the result and your `then`, and posts its answer in this chat. Put everything the next step needs in `then`, with ids. "Here" or "this chat" means the chat you are talking in right now: the follow-up\'s own answer appears there, so write "show the image here with one sentence" and never post_chat it into another room. Name another room only when the person asking named it in this message ("post it in #Sokosumi, room <roomId>"). After calling it, end your turn and say in one sentence what happens when it is done. Never wait with `bash` `sleep` or poll in a loop. When the person asking said "once X is done, do Y", that is their go-ahead for Y: put Y in `then` and do not ask again.',
   list_background_runs:
     "Your background runs, newest first: title, status, when it started and must end, its latest plan, and its final answer once done. Use it when the owner asks how a long job is going.",
   stop_background_run:
@@ -1399,7 +1400,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   find_integrations:
-    'Search every app you can be connected to (Composio: Notion, HubSpot, Airtable, Stripe, Jira, Figma, …) by name or what it does. Each result says whether it is connected; for one that is not, give the person asking its connectLink as a markdown link ("[Connect HubSpot](connectLink)"): one click signs them in, and then list_integration_tools and run_integration_tool work on it. Use it when a request needs an app you are not connected to, instead of saying you cannot.',
+    'Search every app you can be connected to (Composio: Notion, HubSpot, Airtable, Stripe, Jira, Figma, …) by name or what it does. Each result says whether it is connected; for one that is not, give the person asking its connectLink as a markdown link ("[Connect HubSpot](connectLink)"): one click signs them in, and then list_integration_tools and run_integration_tool work on it. Then call wait_for with kind app_connected, that provider, and the rest of the request in `then`, so you finish it by yourself once they connect. Use it when a request needs an app you are not connected to, instead of saying you cannot.',
   search_inbox:
     "Search the owner's connected mailboxes. Returns sender, subject, snippet and ids; use read_email for the full body. Gmail returns nextPageToken when more mail matches: pass it back as pageToken with the same provider and query for the next page, and page or narrow by date (after:/before: in the query) to cover months or years of mail. Reading changes nothing; update_emails marks mail read or archives it, draft_email writes drafts.",
   read_email:

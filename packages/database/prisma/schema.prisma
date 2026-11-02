@@ -2282,16 +2282,17 @@ model SokoBotWatch {
   turnId    String      @db.Uuid
   turn      SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  /// studio_job | background_run | chat_reply
+  /// studio_job | background_run | chat_reply | app_connected
   kind      String
-  /// The Studio job, the run's turn, or the chat room.
+  /// The Studio job, the run's turn, the chat room, or the app's provider.
   targetId  String
   projectId String?
   /// What the bot will do once the target is done.
   then      String
   expiresAt DateTime
 
-  /// WAITING until it fires; then FIRED with what it found.
+  /// WAITING until it fires; then FIRED with what it found, or EXPIRED for
+  /// an app nobody connected.
   status      String    @default("WAITING")
   outcome     String?
   firedAt     DateTime?
