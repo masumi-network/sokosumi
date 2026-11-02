@@ -77,6 +77,18 @@ export const SOKO_BOT_SLACK_CAPTURE_TOOLS = {
   userInfo: "SLACK_RETRIEVE_DETAILED_USER_INFORMATION",
 } as const;
 
+/**
+ * X the same way: whom the owner writes with in direct messages, and which
+ * people they follow who follow them back.
+ */
+export const SOKO_BOT_X_CAPTURE_TOOLS = {
+  provider: "twitter",
+  me: "TWITTER_USER_LOOKUP_ME",
+  dmEvents: "TWITTER_GET_RECENT_DM_EVENTS",
+  followers: "TWITTER_FOLLOWERS_BY_USER_ID",
+  following: "TWITTER_FOLLOWING_BY_USER_ID",
+} as const;
+
 /** Toolkits whose mail is ingested and read through the dedicated inbox tools only. */
 export function isSokoBotEmailProvider(id: string): boolean {
   return getSokoBotIntegrationProvider(id)?.kinds.includes("email") ?? false;

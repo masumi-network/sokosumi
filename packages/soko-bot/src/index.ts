@@ -24,6 +24,7 @@ export {
   SOKO_BOT_INTEGRATION_PROVIDERS,
   SOKO_BOT_POPULAR_TOOLKITS,
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
+  SOKO_BOT_X_CAPTURE_TOOLS,
   type SokoBotCalendarEvent,
   type SokoBotInboxAttachment,
   type SokoBotInboxMessage,
