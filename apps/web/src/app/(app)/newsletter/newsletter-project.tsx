@@ -1,21 +1,16 @@
 import type { Project } from "@sokosumi/core-client";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 
-import { PROJECTS_PAGE_LIMIT } from "@/app/projects/constants";
-import { EmptyState } from "@/components/common/empty-state";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
+import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { projectService } from "@/lib/services/project.service";
 import { isUuidString } from "@/lib/utils/uuid";
 
-import { NewsletterPageShell } from "./components/newsletter-page-shell";
-import { newsletterHref } from "./newsletter-tabs";
+import { NewsletterNoProjectBackdrop } from "./components/newsletter-no-project-backdrop";
 
 const loadScopeParams = createLoader({
   projectId: parseAsString,
-  cursor: parseAsString,
 });
 
 /**
@@ -37,77 +32,40 @@ export async function loadNewsletterProject(
 
 /**
  * The workspace view of every newsletter tab: newsletters belong to a
- * project, so it lists the projects to pick one from. A pick keeps the tab
- * the reader is on (`path`), as the sidebar's switcher does.
+ * project, so it asks for one in the header's project selector, opened over
+ * a stack of sample issues. A pick keeps the tab the reader is on, as the
+ * switcher always does.
  *
  * A plain async function rather than an async component, for the same reason
  * as `getProjectWorkspaceLabels`: the pages' tests render the tree it returns.
  */
 export async function newsletterWorkspacePage({
-  path,
-  searchParams,
   unavailable,
 }: {
-  path: string;
-  searchParams: Promise<SearchParams>;
   unavailable: boolean;
 }) {
-  const { cursor } = await loadScopeParams(searchParams);
-  const [{ projects, pagination }, t] = await Promise.all([
-    projectService.listProjects({
-      limit: PROJECTS_PAGE_LIMIT,
-      cursor: cursor ?? undefined,
-    }),
-    getTranslations("App.Newsletter"),
-  ]);
+  const t = await getTranslations("App.Newsletter");
+  const preview = await getTranslations("App.Projects.Newsletter.Preview");
+  const issue = (key: "launch" | "field" | "studio") => ({
+    body: t(`backdrop.${key}.body`),
+    from: preview("from", { sender: t(`backdrop.${key}.sender`) }),
+    name: t(`backdrop.${key}.name`),
+    subject: t(`backdrop.${key}.subject`),
+  });
 
   return (
-    <NewsletterPageShell
-      description={t("description")}
-      heading={t("pickProject")}
-      title={t("title")}
-    >
-      {unavailable ? (
-        <Alert>
-          <AlertDescription>{t("pickUnavailable")}</AlertDescription>
-        </Alert>
-      ) : null}
-      {projects.length ? (
-        <ul className="space-y-2">
-          {projects.map((project) => (
-            <li key={project.id}>
-              <Button
-                asChild
-                variant="outline"
-                className="h-auto min-h-11 w-full justify-start whitespace-normal text-start"
-              >
-                <Link href={newsletterHref(path, project.id)}>
-                  <span className="min-w-0 break-words">{project.name}</span>
-                </Link>
-              </Button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <EmptyState
-          title={t("empty.title")}
-          description={t("empty.description")}
-          action={
-            <Button asChild>
-              <Link href="/projects?create=true">{t("empty.action")}</Link>
-            </Button>
-          }
+    <WorkspacePageShell title={t("title")}>
+      <ProjectScopeRequired
+        body={unavailable ? t("pickUnavailable") : t("description")}
+        testId="newsletter-no-project"
+        title={t("pickProject")}
+      >
+        <NewsletterNoProjectBackdrop
+          button={preview("button")}
+          issues={[issue("launch"), issue("field"), issue("studio")]}
+          unsubscribe={preview("unsubscribe")}
         />
-      )}
-      {pagination?.nextCursor ? (
-        <Button asChild variant="outline">
-          <Link
-            href={`${path}?${new URLSearchParams({ cursor: pagination.nextCursor })}`}
-          >
-            {t("nextPage")}
-          </Link>
-        </Button>
-      ) : null}
-    </NewsletterPageShell>
+      </ProjectScopeRequired>
+    </WorkspacePageShell>
   );
 }

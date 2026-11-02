@@ -24,6 +24,7 @@ export {
   SOKO_BOT_INTEGRATION_PROVIDERS,
   SOKO_BOT_POPULAR_TOOLKITS,
   SOKO_BOT_SLACK_CAPTURE_TOOLS,
+  SOKO_BOT_X_CAPTURE_TOOLS,
   type SokoBotCalendarEvent,
   type SokoBotInboxAttachment,
   type SokoBotInboxMessage,
@@ -147,6 +148,7 @@ export {
 export {
   isSokoBotDecisionTarget,
   SOKO_BOT_EXA_CATEGORIES,
+  SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_TASK_STATUSES,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -158,6 +160,7 @@ export {
   sokoBotContactIdInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotDeleteFileInputSchema,
   sokoBotDraftEmailInputSchema,
   sokoBotEvaluateWithJevInputSchema,
   sokoBotGenerateImageInputSchema,

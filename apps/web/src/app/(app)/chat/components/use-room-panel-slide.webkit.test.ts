@@ -1,19 +1,21 @@
 /**
  * Opening a docked side panel (thread, threads, pinned, members) moves the
- * room's 56rem content column (header row, transcript, composer) as little as
- * it can: it keeps its left edge while it fits beside the panel, moves left
- * only as far as it must, narrows only at the pane edge, and slides there
- * instead of jumping. Needs real layout. Run with `pnpm --filter web
- * test:webkit` (Chromium + WebKit installed).
+ * room's 56rem content column (transcript, composer) as little as it can: it
+ * keeps its left edge while it fits beside the panel, moves left only as far as
+ * it must, narrows only at the pane edge, and slides there instead of jumping.
+ * The header stays outside the column and spans the room beside the panel; its
+ * title holds still and its actions move with the panel, which slides in from
+ * the pane's edge and back out. Needs real layout. Run with `pnpm --filter web test:webkit` (Chromium +
+ * WebKit installed).
  */
-import { type Browser, chromium, webkit } from "playwright";
+import { type Browser, chromium, type Page, webkit } from "playwright";
 import type { ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { startChatRowFixtureServer } from "@/app/chat/components/__tests__/chat-row-fixture-server";
 
 const PAGE_MODULE =
-  "/src/app/(app)/chat/components/__tests__/use-room-column-slide-page.tsx";
+  "/src/app/(app)/chat/components/__tests__/use-room-panel-slide-page.tsx";
 
 let server: ViteDevServer;
 
@@ -25,7 +27,7 @@ beforeAll(async () => {
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <script type="module">import "/src/app/globals.css";</script>
       </head><body><div id="fixture"></div></body></html>`,
-    cacheDir: ".vite-room-column",
+    cacheDir: ".vite-room-panel",
   });
 }, 120_000);
 
@@ -67,11 +69,21 @@ describe.each([
     );
     await page.addScriptTag({
       type: "module",
-      content: `const { renderRoomColumnSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
-        renderRoomColumnSlidePage({ headerAtMount: ${headerAtMount} });`,
+      content: `const { renderRoomPanelSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
+        renderRoomPanelSlidePage({ headerAtMount: ${headerAtMount} });`,
     });
     await page.waitForFunction(() => document.querySelector("main") !== null);
     return { page, errors };
+  }
+
+  /** Every slide has finished. */
+  async function settled(page: Page) {
+    await page.waitForFunction(() => {
+      const { list, composer, actions } = window.columns();
+      return [list, composer, actions, window.panelSlot()].every(
+        (box) => !box?.slideFrom,
+      );
+    });
   }
 
   /** Where the column rule puts the column: centred when closed, else
@@ -98,28 +110,45 @@ describe.each([
       const { page, errors } = await openRoom(pane);
       const closed = await page.evaluate(() => window.columns());
       const want = expected(pane, panel, closed.maxWidth);
-      for (const column of [closed.header, closed.list, closed.composer]) {
+      for (const column of [closed.list, closed.composer]) {
         expectPx(column.left, want.centred);
         expectPx(column.width, closed.maxWidth);
       }
+      expectPx(closed.header.left, 0);
+      expectPx(closed.header.width, pane);
 
       await page.evaluate((width) => window.setPanel(width), panel);
       const open = await page.evaluate(() => window.columns());
-      for (const column of [open.header, open.list, open.composer]) {
+      for (const column of [open.list, open.composer]) {
         expectPx(column.left, want.left);
         expectPx(column.width, want.width);
       }
-      // Header row, transcript and composer slide together, from where they
-      // were.
+      expectPx(open.header.left, 0);
+      expectPx(open.header.width, pane - panel);
+      // Transcript and composer slide together, from where they were. The
+      // header's left edge never moves, so it has nothing to slide.
       const moved = closed.composer.left - open.composer.left;
       const slide = moved === 0 ? null : `translateX(${moved}px)`;
       expect(open.composer.slideFrom).toBe(slide);
       expect(open.list.slideFrom).toBe(slide);
-      expect(open.header.slideFrom).toBe(slide);
+      expect(open.header.slideFrom).toBeNull();
+      // The actions cross the whole panel, however little the column moved.
+      expectPx(closed.actions.left - open.actions.left, panel);
+      expect(open.actions.slideFrom).toBe(`translateX(${panel}px)`);
+      // The panel comes in by the same distance, so the gap holds.
+      const docked = await page.evaluate(() => window.panelSlot());
+      expect(docked?.slideFrom).toBe(`translateX(${panel}px)`);
 
       await page.evaluate(() => window.setPanel(null));
       const reopened = await page.evaluate(() => window.columns());
       expect(reopened.composer.left).toBe(closed.composer.left);
+      expect(reopened.actions.left).toBe(closed.actions.left);
+      expect(reopened.actions.slideFrom).not.toBeNull();
+      // The room takes the width at once while the panel slides out over it.
+      expectPx(reopened.header.width, pane);
+      const leaving = await page.evaluate(() => window.panelSlot());
+      expect(leaving?.slideFrom).not.toBeNull();
+      await page.waitForFunction(() => window.panelSlot() === null);
       expect(errors).toEqual([]);
       await page.close();
     },
@@ -132,6 +161,11 @@ describe.each([
     const open = await page.evaluate(() => window.columns());
     expectPx(open.composer.left, expected(1504, 420, open.maxWidth).left);
     expect(open.composer.slideFrom).toBeNull();
+    expect(open.actions.slideFrom).toBeNull();
+    const docked = await page.evaluate(() => window.panelSlot());
+    expect(docked?.slideFrom).toBeNull();
+    await page.evaluate(() => window.setPanel(null));
+    expect(await page.evaluate(() => window.panelSlot())).toBeNull();
     await page.close();
   }, 60_000);
 
@@ -148,10 +182,70 @@ describe.each([
     const resized = await page.evaluate(() => window.columns());
     expectPx(resized.composer.left, expected(1400, 420, resized.maxWidth).left);
     expect(resized.composer.slideFrom).toBeNull();
+    expect(resized.actions.slideFrom).toBeNull();
     await page.close();
   }, 60_000);
 
-  it("slides a header row that mounted after the room", async () => {
+  it.each([
+    [420, 320],
+    [320, 420],
+  ])(
+    "swaps a %ipx panel for a %ipx one without sliding anything",
+    async (first, second) => {
+      const { page, errors } = await openRoom(1504);
+      await page.evaluate((width) => window.setPanel(width), first);
+      await settled(page);
+      await page.evaluate((width) => window.setPanel(width), second);
+
+      const swapped = await page.evaluate(() => window.columns());
+      const slot = await page.evaluate(() => window.panelSlot());
+      expectPx(slot?.width ?? 0, second);
+      expectPx(swapped.header.width, 1504 - second);
+      expect(slot?.slideFrom).toBeNull();
+      expect(swapped.actions.slideFrom).toBeNull();
+      expect(swapped.list.slideFrom).toBeNull();
+      expect(swapped.composer.slideFrom).toBeNull();
+      expect(errors).toEqual([]);
+      await page.close();
+    },
+    60_000,
+  );
+
+  it("finishes closing while the room keeps rendering", async () => {
+    const { page, errors } = await openRoom(1504);
+    await page.evaluate(() => window.setPanel(420));
+    await settled(page);
+    await page.evaluate(() => window.setPanel(null));
+    // Faster than the 200ms slide, for longer than it, as a stream does.
+    await page.evaluate(async () => {
+      for (let renders = 0; renders < 10; renders += 1) {
+        window.rerender();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    });
+    expect(await page.evaluate(() => window.panelSlot())).toBeNull();
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60_000);
+
+  it("slides in again after closing", async () => {
+    const { page, errors } = await openRoom(1504);
+    await page.evaluate(() => window.setPanel(420));
+    await settled(page);
+    await page.evaluate(() => window.setPanel(null));
+    await page.waitForFunction(() => window.panelSlot() === null);
+    await settled(page);
+
+    await page.evaluate(() => window.setPanel(420));
+    const open = await page.evaluate(() => window.columns());
+    const slot = await page.evaluate(() => window.panelSlot());
+    expect(open.actions.slideFrom).toBe("translateX(420px)");
+    expect(slot?.slideFrom).toBe("translateX(420px)");
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60_000);
+
+  it("slides the actions of a header that mounted after the room", async () => {
     const { page, errors } = await openRoom(1504, false, false);
     // Past the observer's first callback: nothing resizes as the header mounts.
     await page.evaluate(
@@ -164,8 +258,7 @@ describe.each([
 
     await page.evaluate(() => window.setPanel(420));
     const open = await page.evaluate(() => window.columns());
-    expect(open.header.slideFrom).not.toBeNull();
-    expect(open.header.slideFrom).toBe(open.list.slideFrom);
+    expect(open.actions.slideFrom).toBe("translateX(420px)");
     expect(errors).toEqual([]);
     await page.close();
   }, 60_000);
@@ -182,6 +275,7 @@ describe.each([
     const open = await page.evaluate(() => window.columns());
     expect(open.composer.slideFrom).not.toBeNull();
     expect(open.list.slideFrom).toBe(open.composer.slideFrom);
+    expect(open.actions.slideFrom).toBe("translateX(420px)");
     expect(errors).toEqual([]);
     await page.close();
   }, 60_000);

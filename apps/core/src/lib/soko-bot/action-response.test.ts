@@ -76,6 +76,56 @@ describe("action lines the owner reads", () => {
     expect(result.appliedReceiptIds).toEqual(["receipt-one"]);
   });
 
+  it.each([
+    [
+      "create_newsletter_issue",
+      "Created newsletter draft ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
+    ],
+    [
+      "update_newsletter_issue",
+      "Updated newsletter issue ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
+    ],
+    [
+      "delete_newsletter_issue",
+      "Deleted newsletter issue ([Open issues](/newsletter/issues?projectId={p})).",
+    ],
+    [
+      "submit_newsletter_issue",
+      "Submitted newsletter issue for approval ([Open issue](/newsletter/issues/issue-one?projectId={p})).",
+    ],
+    [
+      "update_newsletter_settings",
+      "Updated newsletter settings ([Open settings](/newsletter/settings?projectId={p})).",
+    ],
+    [
+      "add_newsletter_subscriber",
+      "Added newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "import_newsletter_subscribers",
+      "Imported newsletter subscribers ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "add_newsletter_subscribers_from_contacts",
+      "Added contacts to the newsletter ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "update_newsletter_subscriber",
+      "Updated newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+    [
+      "remove_newsletter_subscriber",
+      "Removed newsletter subscriber ([Open subscribers](/newsletter/subscribers?projectId={p})).",
+    ],
+  ])("links a verified %s to the Newsletter", async (capability, line) => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability, targetId: "issue-one", result: { projectId } }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(line.replace("{p}", projectId));
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",

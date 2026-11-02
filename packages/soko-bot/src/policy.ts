@@ -45,6 +45,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_table",
   "upload_file",
   "move_file",
+  "delete_file",
   "update_emails",
   "draft_email",
   "send_email_draft",
@@ -77,6 +78,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  "read_integration_tool",
   "run_integration_tool",
   "list_project_social_accounts",
   "list_ad_accounts",
@@ -101,6 +103,17 @@ export const SOKO_BOT_CAPABILITIES = [
   "get_newsletter_issue",
   "get_newsletter_analytics",
   "list_newsletter_subscribers",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "preview_newsletter_issue",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -162,6 +175,17 @@ export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
   "get_newsletter_issue",
   "get_newsletter_analytics",
   "list_newsletter_subscribers",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "preview_newsletter_issue",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotNewsletterCapability(
@@ -214,9 +238,22 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
+  // Deleting is for good; a page the bot read must not pick what goes.
+  "delete_file",
   // Spends credits, and its prompt is the kind of thing a page can inject.
   "generate_image",
   "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  // Subscribing emails people a confirmation; a page must not pick who.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "generate_video",
   "post_chat",
   "open_direct_chat",
@@ -257,6 +294,12 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  // Other people's newsletter subscriptions, and the emails that confirm them.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "create_ad_campaign",
   "update_ad_campaign",
   "edit_ad_campaign",
@@ -292,6 +335,8 @@ const DIRECT_READ_CAPABILITIES = [
   "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  // Only tools Composio marks read-only; Core refuses the rest.
+  "read_integration_tool",
   "list_project_social_accounts",
   "list_ad_accounts",
   "list_ad_campaigns",
@@ -309,6 +354,8 @@ const DIRECT_READ_CAPABILITIES = [
   "get_newsletter_issue",
   "get_newsletter_analytics",
   "list_newsletter_subscribers",
+  // Renders an issue for review; it never saves or sends one.
+  "preview_newsletter_issue",
   "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
@@ -374,6 +421,19 @@ const CONTACT_WRITE_CAPABILITIES = [
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  // Asks a person to approve; approving and sending stay with them.
+  "submit_newsletter_issue",
+  // Sender, reply-to and welcome email changes also need the owner's word.
+  "update_newsletter_settings",
+  // Core runs these only on the owner's word in their own chat.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.
@@ -383,6 +443,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "ask_coworker",
   "upload_file",
   "move_file",
+  "delete_file",
   // The owner's mailbox: read state, archive, drafts. Sending is its own
   // tool, which Core allows only on the owner's word in their chat.
   "update_emails",
@@ -560,6 +621,7 @@ export function capabilitiesForClassification(
     FILE: [
       "upload_file",
       "move_file",
+      "delete_file",
       "save_email_attachment",
       "generate_image",
       "generate_video",

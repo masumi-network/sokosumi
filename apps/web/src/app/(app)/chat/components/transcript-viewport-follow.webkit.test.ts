@@ -10,6 +10,11 @@
  * send runs in both orders the composer and the transcript can commit in:
  * the room's, and thread-panel's, which clears before the reply appends.
  *
+ * Docking a side panel narrows the scroller, not the rows on screen. Unmounted
+ * rows are estimated from a width read once: the virtualizer applies a changed
+ * estimate with no scroll correction, so the next new rows array pushed the
+ * newest message behind the composer, and it stayed there after closing.
+ *
  * And an iPhone reader near the end keeps their distance when the composer
  * grows while the virtualizer holds a correction for a finger that is down:
  * the resize is written in the virtualizer's offsets, not the element's.
@@ -127,6 +132,80 @@ describe.each([
           steps.sent = overhang();
           return steps;
         }, sendTestId);
+        expect(
+          Object.entries(overhangs).filter(
+            ([, overhang]) => overhang === null || overhang > 0,
+          ),
+          JSON.stringify(overhangs),
+        ).toEqual([]);
+        expect(errors).toEqual([]);
+      } finally {
+        await page.close();
+      }
+    },
+    60_000,
+  );
+
+  it.each([[2000], [1504], [1216]])(
+    "keeps the newest message above the composer when a panel docks and closes (%ipx)",
+    async (width) => {
+      const address = server.httpServer?.address();
+      if (!address || typeof address === "string")
+        throw new Error("Missing fixture port");
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await page.goto(`http://127.0.0.1:${address.port}/`);
+        await page.waitForFunction(
+          () => getComputedStyle(document.body).margin === "0px",
+        );
+        await page.addScriptTag({
+          type: "module",
+          // Enough history that rows above the window stay unmounted.
+          content: `const { renderFollowPage } = await import(${JSON.stringify(PAGE_MODULE)});
+            renderFollowPage({ messageCount: 300 });`,
+        });
+        await page.waitForFunction(
+          () => document.body.dataset.atEnd === "true",
+        );
+        const overhangs = await page.evaluate(async () => {
+          const settle = () =>
+            new Promise((resolve) => setTimeout(resolve, 300));
+          const click = (testId: string) =>
+            document
+              .querySelector<HTMLElement>(`[data-testid="${testId}"]`)
+              ?.click();
+          const overhang = () => {
+            const scroller =
+              document.querySelector<HTMLElement>(".overflow-y-auto");
+            const newest = [
+              ...(scroller?.querySelectorAll<HTMLElement>("[data-index]") ??
+                []),
+            ].sort(
+              (a, b) => Number(b.dataset.index) - Number(a.dataset.index),
+            )[0];
+            return scroller && newest
+              ? Math.round(
+                  newest.getBoundingClientRect().bottom -
+                    scroller.getBoundingClientRect().bottom,
+                )
+              : null;
+          };
+          await settle();
+          const steps: Record<string, number | null> = {};
+          click("toggle-panel");
+          await settle();
+          click("refresh-rows");
+          await settle();
+          steps.docked = overhang();
+          click("toggle-panel");
+          await settle();
+          click("refresh-rows");
+          await settle();
+          steps.closed = overhang();
+          return steps;
+        });
         expect(
           Object.entries(overhangs).filter(
             ([, overhang]) => overhang === null || overhang > 0,

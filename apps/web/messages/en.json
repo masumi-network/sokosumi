@@ -3852,7 +3852,6 @@
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
       "pickTitle": "Pick a project",
-      "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
@@ -3938,8 +3937,37 @@
       "title": "Ads",
       "pickTitle": "Pick a project",
       "pickBody": "Ads belong to one project: its ad accounts and campaigns are managed there. Choose a project to open its ads.",
-      "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "backdrop": {
+        "roastery": {
+          "headline1": "Single-origin beans",
+          "headline2": "Roasted this week",
+          "headline3": "Free shipping over €40",
+          "description": "Small-batch coffee, roasted to order and at your door in two days.",
+          "sitelink1": "Subscriptions",
+          "sitelink2": "Gift cards",
+          "sitelink3": "Brew guides"
+        },
+        "studio": {
+          "headline1": "Design sprints that ship",
+          "headline2": "Book a free intro call",
+          "description": "Five days from a rough idea to a tested prototype, with a team that has done it before.",
+          "callout1": "Senior team",
+          "callout2": "Fixed price"
+        },
+        "linen": {
+          "businessName": "Atelier Lune",
+          "headline": "Linen for slow summers",
+          "longHeadline": "Linen for slow summers, made to last",
+          "description": "The new season is in."
+        },
+        "yoga": {
+          "businessName": "Harbor Yoga",
+          "headline": "Your first week is on us",
+          "longHeadline": "Your first week of classes is on us",
+          "description": "Morning flow by the water, all levels."
+        }
+      },
       "tabsLabel": "Ads sections",
       "loading": "Loading ads…",
       "updated": "Updated {time}",
@@ -4510,13 +4538,27 @@
       "description": "Each project has its own newsletter. Choose a project to manage it.",
       "pickProject": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
-      "projectTitle": "{project} newsletter",
-      "nextPage": "Next projects",
-      "empty": {
-        "title": "No projects yet",
-        "description": "Create a project to start a newsletter.",
-        "action": "Create project"
-      }
+      "backdrop": {
+        "launch": {
+          "name": "The Launch Log",
+          "sender": "Mia at Northwind",
+          "subject": "Three things we learned shipping v2",
+          "body": "A look behind the release: what we cut, what we kept, and the one test that changed our plan."
+        },
+        "field": {
+          "name": "Field Notes",
+          "sender": "Field Notes Studio",
+          "subject": "The five-day sprint, step by step",
+          "body": "Monday maps the problem, Friday tests it with real people. Here is how each day runs."
+        },
+        "studio": {
+          "name": "Studio Weekly",
+          "sender": "Atelier Lune",
+          "subject": "New season, new colors",
+          "body": "Sand, clay and a deep sea blue: the palette behind this summer's collection."
+        }
+      },
+      "projectTitle": "{project} newsletter"
     },
     "Social": {
       "title": "Social posts",
@@ -4532,7 +4574,6 @@
         "sokoBotFailed": "Could not open the Soko Bot chat. Try again.",
         "sokoBotPrompt": "Help me create a post for {project}.",
         "sokoBotPromptAnyProject": "Help me create a post.",
-        "chooseProjectTitle": "Choose a project for this post",
         "chooseProjectBody": "Posts go out from one project's accounts."
       },
       "accountsNeedProject": {
@@ -4548,7 +4589,6 @@
         "body": "Choose a project to see and finish its drafts."
       },
       "loading": "Loading…",
-      "pickProject": "Choose a project",
       "platforms": {
         "label": "Social platforms",
         "pause": "Pause platforms"
@@ -9780,7 +9820,8 @@
         "SLACK": "From Slack",
         "WEB_RESEARCH": "From web research",
         "IMPORT": "Imported",
-        "OTHER": "Other source"
+        "OTHER": "Other source",
+        "X": "From X"
       },
       "presets": {
         "all": "All contacts",
@@ -9999,13 +10040,17 @@
       },
       "empty": {
         "title": "Your team's contacts live here",
-        "description": "People are added automatically from the mail, calendar and Slack your Soko Bots are connected to, with who on the team knows them. No newsletters or automated senders.",
+        "description": "Contacts sync through your Soko Bot: it adds the people from the mail, calendar and Slack connected to it, with who on the team knows them. No newsletters or automated senders.",
         "connect": "Connect {name}",
         "connected": "{name} connected",
         "connectFailed": "That connection didn't start. Try again.",
         "manageConnections": "Manage connections",
         "addByHand": "Add someone",
-        "import": "Import from a table"
+        "import": "Import from a table",
+        "needsBot": "Contacts sync through a Soko Bot. Set yours up and connect your mail and calendar to it, and it adds the people you deal with, with who on the team knows them.",
+        "needsConnections": "Your Soko Bot adds the people you deal with once your mail and calendar are connected to it. No newsletters or automated senders.",
+        "syncing": "{bot} is reading your connected mail and calendar. The first contacts appear within about 15 minutes.",
+        "setUpBot": "Set up your Soko Bot"
       },
       "panel": {
         "loading": "Loading contact",
@@ -10046,7 +10091,7 @@
         "channelSource": "{type}, {source}",
         "verified": "verified",
         "primary": "Primary",
-        "openSource": "Open where this was found",
+        "openSource": "Open source",
         "copyChannel": "Copy {value}",
         "removeChannel": "Remove {value}",
         "noChannels": "No way to reach them yet.",
@@ -10063,7 +10108,8 @@
           "SLACK": "Slack",
           "CALL": "Call",
           "MANUAL": "Note",
-          "OTHER": "Other"
+          "OTHER": "Other",
+          "X": "X"
         },
         "source": "Source",
         "showMore": "Show more",
@@ -10075,7 +10121,8 @@
           "CHANNEL_REMOVED": "{who} removed a channel",
           "MERGED": "{who} merged {names} into this contact",
           "ARCHIVED": "{who} archived this contact",
-          "UNARCHIVED": "{who} restored this contact"
+          "UNARCHIVED": "{who} restored this contact",
+          "WEB": "{who} filled {fields} from the web"
         },
         "fields": {
           "name": "name",
@@ -10090,14 +10137,21 @@
           "followUpAt": "follow-up",
           "avatarUrl": "photo",
           "customFields": "custom fields",
-          "kind": "type"
+          "kind": "type",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Mark as organization",
         "markPerson": "Mark as person",
         "waitingSince": "Since {date}, no answer yet",
         "heardFrom": "Last heard from them {when}",
         "automatic": "Automatic",
-        "classifier": "Automatic classification"
+        "classifier": "Automatic classification",
+        "enrich": "Enrich",
+        "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
+        "enriched": "Filled {fields} from the web · 1 credit",
+        "enrichedNone": "Nothing new found on the web. No credits used.",
+        "enrichFailed": "Could not look them up. Try again.",
+        "connectedVia": "Connected via"
       },
       "stageGroups": {
         "general": "General",
@@ -10157,13 +10211,16 @@
         "briefPlaceholder": "e.g. Partners at seed funds investing in AI agents, Europe or US",
         "briefRequired": "Describe who you are looking for.",
         "sizeLabel": "How many",
-        "sizeOption": "{count} people",
-        "submit": "Find {count} people · {credits} credits",
+        "sizeOption": "{count, plural, one {# person} other {# people}}",
+        "submit": "Find {count, plural, one {# person} other {# people}} · up to {credits, number} credits",
         "searching": "Searching the web…",
         "found": "Found {count, plural, one {# person} other {# people}}",
-        "foundNone": "No new people found. Try describing them differently.",
+        "foundNone": "Nobody new found. Try describing them differently. No credits used.",
         "findFailed": "The search did not work. Try again.",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "pricing": "{credits, number} credits per person found. Finding nobody is free.",
+        "personLabel": "Who are you looking for?",
+        "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
       }
     }
   },

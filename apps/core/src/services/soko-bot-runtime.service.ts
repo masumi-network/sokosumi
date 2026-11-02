@@ -50,6 +50,7 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotAskCoworkerInputSchema,
+  sokoBotDeleteFileInputSchema,
   sokoBotDraftEmailInputSchema,
   sokoBotEvaluateWithJevInputSchema,
   sokoBotInstallSkillInputSchema,
@@ -104,7 +105,7 @@ import {
   tableMutationSchema,
   tableQuerySchema,
 } from "@sokosumi/utils";
-import { head, list, put } from "@vercel/blob";
+import { del, head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
@@ -248,8 +249,17 @@ import { evaluateWithJevForBot } from "@/lib/soko-bot/jev-tool";
 import {
   mailSendRefusal,
   ownerAskedToSend,
+  ownerConfirmedConsent,
 } from "@/lib/soko-bot/mail-send-guard";
-import { runNewsletterReadTool } from "@/lib/soko-bot/newsletter-tools";
+import {
+  isNewsletterSubscriberCapability,
+  newsletterConsentClaim,
+  newsletterSettingsNeedOwner,
+  runNewsletterReadTool,
+  runNewsletterSubscriberTool,
+  runNewsletterWriteTool,
+  updateNewsletterSettings,
+} from "@/lib/soko-bot/newsletter-tools";
 import {
   persistedToolResult,
   sanitizePersistedValue,
@@ -324,6 +334,7 @@ import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
+  tombstoneDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { downloadBlob } from "@/services/file-index.service";
 import {
@@ -354,7 +365,10 @@ import {
   generateNewsletterDraft,
   isNewsletterDraftAvailable,
 } from "@/services/newsletter-draft.service";
-import { createNewsletterIssue } from "@/services/newsletter-issues.service";
+import {
+  createNewsletterIssue,
+  sokoBotNewsletterTaskContext,
+} from "@/services/newsletter-issues.service";
 import {
   createProjectAdCampaign,
   deleteProjectAdCampaign,
@@ -413,6 +427,7 @@ import {
   INBOX_ATTACHMENT_MAX_BYTES,
   listIntegrationTools,
   modifyInboxMessages,
+  readIntegrationTool,
   runIntegrationTool,
   searchSokoBotIntegrationCatalog,
   sendInboxDraft,
@@ -3036,20 +3051,41 @@ export class SokoBotRuntimeService {
     return { attached, ...(skipped.length ? { skipped } : {}) };
   }
 
-  private async readFile(
+  private async ownerFile(
     authorized: AuthorizedSokoBotRuntime,
-    input: { fileId: string; maxChars?: number },
+    fileId: string,
   ) {
     const drive = await this.ownerDrive(authorized);
     const [file] = await loadLiveResources({
       workspaceId: drive.key.workspaceId,
       actor: drive.actor,
-      resourceIds: [input.fileId],
+      resourceIds: [fileId],
     });
     if (!file)
       throw new SokoBotRuntimeValidationError(
         "File not found; use an id from list_files",
       );
+    return file;
+  }
+
+  /** A CSV as uploaded; extracted search text may not keep its rows intact. */
+  private async readCsvFile(
+    authorized: AuthorizedSokoBotRuntime,
+    fileId: string,
+  ) {
+    const text = await readDriveText(await this.ownerFile(authorized, fileId));
+    if (text === null)
+      throw new SokoBotRuntimeValidationError(
+        `Import reads an uploaded CSV text file of up to ${MAX_DIRECT_READ_BYTES / 1000} KB from the owner's Files; for other files use the Newsletter's Subscribers page`,
+      );
+    return text;
+  }
+
+  private async readFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; maxChars?: number },
+  ) {
+    const file = await this.ownerFile(authorized, input.fileId);
     const limit = input.maxChars ?? 20_000;
     // Enough chunks to fill the limit, and one more to know there is more.
     const needed = Math.ceil(
@@ -3409,16 +3445,15 @@ export class SokoBotRuntimeService {
   }
 
   /** Moves one of the owner's Drive files into a folder of the same Drive. */
-  private async moveFile(
+  /** A file in the owner's Files, by id; Task files stay with their Task. */
+  private async ownerDriveFile(
     authorized: AuthorizedSokoBotRuntime,
-    input: { fileId: string; folder: string },
-    toolCallId: string,
+    fileId: string,
   ) {
-    const folder = driveFolderFor(input.folder);
     const drive = await this.ownerDrive(authorized);
     const resource = await prisma.fileResource.findFirst({
       where: {
-        id: input.fileId,
+        id: fileId,
         workspaceId: drive.key.workspaceId,
         sourceKind: FileSourceKind.DRIVE_UPLOAD,
         sourceScope:
@@ -3439,6 +3474,19 @@ export class SokoBotRuntimeService {
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token)
       throw new SokoBotRuntimeValidationError("File storage is not configured");
+    return { drive, resource, token };
+  }
+
+  private async moveFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; folder: string },
+    toolCallId: string,
+  ) {
+    const folder = driveFolderFor(input.folder);
+    const { drive, resource, token } = await this.ownerDriveFile(
+      authorized,
+      input.fileId,
+    );
     try {
       await moveDriveFile({
         sourcePathname: resource.sourceId,
@@ -3458,6 +3506,39 @@ export class SokoBotRuntimeService {
       filename: resource.displayName,
       folder: folder || null,
       link: `/drive/files/${resource.id}`,
+    });
+  }
+
+  /** Deleting is for good, so only on the owner's own word in their chat. */
+  private async deleteFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string },
+    toolCallId: string,
+  ) {
+    const turn = authorized.turn;
+    if (
+      authorized.reader.sharedScope ||
+      turn.source !== "CHAT" ||
+      turn.chainDepth > 0 ||
+      authorized.askedByKind === "ASSISTANT"
+    )
+      throw new SokoBotRefusedUnsentError(
+        "Files are deleted only when your owner asks in their chat with you. Ask them, or move it with move_file.",
+      );
+    const { drive, resource, token } = await this.ownerDriveFile(
+      authorized,
+      input.fileId,
+    );
+    await del(resource.sourceId, { token });
+    await tombstoneDriveUploadResource({
+      workspaceId: drive.key.workspaceId,
+      scope: drive.key.scope,
+      pathname: resource.sourceId,
+    });
+    return this.commitReceipt(authorized, toolCallId, resource.id, {
+      id: resource.id,
+      filename: resource.displayName,
+      deleted: true,
     });
   }
 
@@ -6791,11 +6872,11 @@ export class SokoBotRuntimeService {
     ]);
     if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
     if (
-      capability === "list_newsletter_subscribers" &&
+      isNewsletterSubscriberCapability(capability) &&
       (authorized.reader.sharedScope || authorized.askedByKind !== "OWNER")
     ) {
       throw new SokoBotRuntimeAuthorizationError(
-        "Newsletter subscribers are personal data, read only on your owner's request. Point them to the Newsletter's Subscribers page instead.",
+        "Newsletter subscribers are personal data, handled only on your owner's request. Point them to the Newsletter's Subscribers page instead.",
       );
     }
     const scope = await requireProjectAccess({
@@ -6813,6 +6894,39 @@ export class SokoBotRuntimeService {
     }
     await getNewsletter({ projectId, workspaceId: scope.workspaceId });
     return scope;
+  }
+
+  /**
+   * Subscriber changes reach other people's inboxes, so they run only on the
+   * owner's word in their own chat: never in a turn Core started, another
+   * assistant asked for, or a page steered. "They already agreed" skips the
+   * confirmation email, so the owner must say that themselves, this turn.
+   */
+  private async requireOwnerSubscriberWord(
+    authorized: AuthorizedSokoBotRuntime,
+    capability: Parameters<typeof newsletterConsentClaim>[0],
+    rawInput: unknown,
+  ) {
+    const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+    if (!(await isOwnerDirected(authorized.turn.id)))
+      throw new SokoBotRuntimeValidationError(
+        "Newsletter subscribers change only when the owner asks in their chat; ask them, or point them to the Newsletter's Subscribers page",
+      );
+    const people = newsletterConsentClaim(capability, rawInput);
+    if (!people) return;
+    const turn = await prisma.sokoBotTurn.findUnique({
+      where: { id: authorized.turn.id },
+      select: { userMessage: true, parentTurnId: true },
+    });
+    // A background run's message is a brief the bot wrote, not the owner's.
+    if (
+      !turn ||
+      turn.parentTurnId !== null ||
+      !(await ownerConfirmedConsent(turn.userMessage, people))
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Only the owner can say people already agreed, in their own chat message this turn. Use consent ASK so they confirm by email, or ask the owner whether they agreed.",
+      );
   }
 
   private async executeAuthorizedTool(
@@ -6871,7 +6985,8 @@ export class SokoBotRuntimeService {
       case "list_newsletter_issues":
       case "get_newsletter_issue":
       case "get_newsletter_analytics":
-      case "list_newsletter_subscribers": {
+      case "list_newsletter_subscribers":
+      case "preview_newsletter_issue": {
         const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[
           input.capability
         ].parse(input.input);
@@ -6884,6 +6999,192 @@ export class SokoBotRuntimeService {
           projectId,
           workspaceId: scope.workspaceId,
         });
+      }
+      case "create_newsletter_issue":
+      case "update_newsletter_issue":
+      case "delete_newsletter_issue":
+      case "submit_newsletter_issue": {
+        const { capability } = input;
+        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
+          input.input,
+        );
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          capability,
+          projectId,
+        );
+        // Deleting loses the issue for good: only on the owner's word.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          capability === "delete_newsletter_issue" &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Newsletter issues are only deleted when the owner asks in chat; ask them first",
+          );
+        try {
+          return await serializableTransaction(async (tx) => {
+            await this.requireMutationAuthority(
+              tx,
+              authorized,
+              false,
+              capability,
+              { projectIds: [projectId] },
+            );
+            const result = await runNewsletterWriteTool(
+              capability,
+              input.input,
+              { projectId, workspaceId: scope.workspaceId },
+              {
+                client: tx,
+                creatorSokoBotId: authorized.turn.sokoBotId,
+                // As when the bot submits over REST with its own key.
+                taskContext: async () => {
+                  const auth = await loadSokoBotTurnAuthContext(
+                    authorized.turn,
+                    tx,
+                  );
+                  if (!auth)
+                    throw new SokoBotRuntimeAuthorizationError(
+                      "Soko Bot is unavailable",
+                    );
+                  return sokoBotNewsletterTaskContext(auth);
+                },
+              },
+            );
+            await commitActionReceipt(tx, {
+              turnId: authorized.turn.id,
+              toolCallId: input.toolCallId,
+              actorBotId: authorized.turn.sokoBotId,
+              targetId: result.id,
+              observedVersion: String(result.revision),
+              result: persistedToolResult(result),
+            });
+            return result;
+          }, "Newsletter issue changed concurrently");
+        } catch (error) {
+          // Stale revision or a status that no longer allows the change.
+          if (error instanceof HTTPException && error.status === 409)
+            throw new SokoBotRuntimeConflictError(
+              `${error.message}. Read the issue again with get_newsletter_issue, keep any human edits, and retry with its current revision only if the change still applies.`,
+            );
+          throw error;
+        }
+      }
+      case "update_newsletter_settings": {
+        const { projectId } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings.parse(
+            input.input,
+          );
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          input.capability,
+          projectId,
+        );
+        // Sender, reply-to and the welcome email reach subscribers' inboxes.
+        const { isOwnerDirected } = await import("@/lib/soko-bot/turn-loop");
+        if (
+          newsletterSettingsNeedOwner(input.input) &&
+          !(await isOwnerDirected(authorized.turn.id))
+        )
+          throw new SokoBotRuntimeValidationError(
+            "Newsletter sender name, reply-to and welcome email change only when the owner asks in chat; ask them first",
+          );
+        try {
+          return await serializableTransaction(async (tx) => {
+            await this.requireMutationAuthority(
+              tx,
+              authorized,
+              false,
+              input.capability,
+              { projectIds: [projectId] },
+            );
+            const result = await updateNewsletterSettings(
+              input.input,
+              { projectId, workspaceId: scope.workspaceId },
+              tx,
+            );
+            await commitActionReceipt(tx, {
+              turnId: authorized.turn.id,
+              toolCallId: input.toolCallId,
+              actorBotId: authorized.turn.sokoBotId,
+              targetId: result.id,
+              observedVersion: result.updatedAt,
+              result: persistedToolResult(result),
+            });
+            return result;
+          }, "Newsletter settings changed concurrently");
+        } catch (error) {
+          if (error instanceof HTTPException && error.status === 409)
+            throw new SokoBotRuntimeConflictError(
+              `${error.message}. Read the settings again with get_newsletter and retry only if the change still applies.`,
+            );
+          throw error;
+        }
+      }
+      case "add_newsletter_subscriber":
+      case "import_newsletter_subscribers":
+      case "add_newsletter_subscribers_from_contacts":
+      case "update_newsletter_subscriber":
+      case "remove_newsletter_subscriber": {
+        const { capability } = input;
+        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
+          input.input,
+        );
+        const scope = await this.requireNewsletterScope(
+          authorized,
+          capability,
+          projectId,
+        );
+        await this.requireOwnerSubscriberWord(
+          authorized,
+          capability,
+          input.input,
+        );
+        const { sokoBotId } = authorized.turn;
+        try {
+          return await runNewsletterSubscriberTool(
+            capability,
+            input.input,
+            { projectId, workspaceId: scope.workspaceId },
+            {
+              adder: {
+                actor: {
+                  workspaceId: scope.workspaceId,
+                  userId: actingMemberOf(authorized),
+                  sokoBotId,
+                },
+                requester: { sokoBotId },
+              },
+              hooks: {
+                authorize: (tx) =>
+                  this.requireMutationAuthority(
+                    tx,
+                    authorized,
+                    false,
+                    capability,
+                    { projectIds: [projectId] },
+                  ),
+                commit: (tx, targetId, result) =>
+                  commitActionReceipt(tx, {
+                    turnId: authorized.turn.id,
+                    toolCallId: input.toolCallId,
+                    actorBotId: sokoBotId,
+                    targetId,
+                    result: persistedToolResult(result),
+                  }),
+              },
+              readCsv: (fileId) => this.readCsvFile(authorized, fileId),
+            },
+          );
+        } catch (error) {
+          // The Subscribers page's refusals: the model reads why.
+          if (error instanceof HTTPException && error.status < 500)
+            throw error.status === 409
+              ? new SokoBotRuntimeConflictError(error.message)
+              : new SokoBotRuntimeValidationError(error.message);
+          throw error;
+        }
       }
       case "list_project_social_accounts":
       case "list_social_posts":
@@ -7498,6 +7799,12 @@ export class SokoBotRuntimeService {
           sokoBotMoveFileInputSchema.parse(input.input),
           input.toolCallId,
         );
+      case "delete_file":
+        return this.deleteFile(
+          authorized,
+          sokoBotDeleteFileInputSchema.parse(input.input),
+          input.toolCallId,
+        );
       case "list_skills":
         return this.listSkills(
           authorized,
@@ -7736,6 +8043,7 @@ export class SokoBotRuntimeService {
           }),
         };
       }
+      case "read_integration_tool":
       case "run_integration_tool": {
         const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
         // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
@@ -7751,11 +8059,11 @@ export class SokoBotRuntimeService {
             `No connected account for provider ${parsed.provider}`,
           );
         }
-        return runIntegrationTool(
-          integration,
-          parsed.tool,
-          parsed.arguments ?? {},
-        );
+        return (
+          input.capability === "read_integration_tool"
+            ? readIntegrationTool
+            : runIntegrationTool
+        )(integration, parsed.tool, parsed.arguments ?? {});
       }
       case "list_calendar_events": {
         const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);

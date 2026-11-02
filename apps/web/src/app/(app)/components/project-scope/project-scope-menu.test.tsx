@@ -439,7 +439,7 @@ describe("ProjectScopeMenu", () => {
     expect(onCreate).toHaveBeenCalledWith(null);
   });
 
-  it("closes itself before opening Create project", async () => {
+  it("opens Create project before closing, so Create keeps a page's request", async () => {
     const user = userEvent.setup();
     const { onCreate, onDone } = setup();
 
@@ -447,8 +447,8 @@ describe("ProjectScopeMenu", () => {
 
     expect(onDone).toHaveBeenCalled();
     expect(onCreate).toHaveBeenCalled();
-    expect(onDone.mock.invocationCallOrder[0]).toBeLessThan(
-      onCreate.mock.invocationCallOrder[0] ?? 0,
+    expect(onCreate.mock.invocationCallOrder[0]).toBeLessThan(
+      onDone.mock.invocationCallOrder[0] ?? 0,
     );
   });
 });

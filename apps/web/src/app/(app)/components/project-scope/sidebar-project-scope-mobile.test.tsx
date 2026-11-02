@@ -25,7 +25,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => mocks.isMobile }));
+vi.mock("@/hooks/use-mobile", () => ({
+  MOBILE_BREAKPOINT: 768,
+  useIsMobile: () => mocks.isMobile,
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
@@ -60,7 +63,12 @@ import { HeaderProjectScope } from "./header-project-scope";
 import { closedScopeProjectResponse } from "./project-scope-fixtures";
 import { SidebarProjectScope as SidebarTop } from "./sidebar-project-scope";
 import { SidebarScopeMobileChip } from "./sidebar-project-scope-mobile";
-import { openScopeCreate, openScopeSheet } from "./sidebar-project-scope-state";
+import {
+  openProjectScope,
+  openScopeCreate,
+  openScopeSheet,
+  resetScopeDialogs,
+} from "./sidebar-project-scope-state";
 
 function Harness({ chip = true }: { chip?: boolean }) {
   return (
@@ -356,5 +364,41 @@ describe("sidebar project scope Create project", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "header-home" }),
     );
+  });
+});
+
+describe("sidebar project scope when a page asks for a project", () => {
+  afterEach(() => {
+    act(() => resetScopeDialogs());
+  });
+
+  it("opens the sheet below md, required, with its own scrim", async () => {
+    vi.stubGlobal("innerWidth", 375);
+    renderHarness();
+
+    act(() => {
+      openProjectScope({ required: true, reason: "Ads need a project" });
+    });
+
+    const sheet = await screen.findByRole("dialog", { name: "switchLabel" });
+    expect(sheet).toHaveAttribute("data-required", "true");
+    expect(sheet).toHaveAccessibleDescription("Ads need a project");
+    expect(
+      document.querySelector('[data-slot="sheet-overlay"]'),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("project-scope-backdrop")).toBeNull();
+  });
+
+  it("opens the header's menu from md, not the sheet", async () => {
+    vi.stubGlobal("innerWidth", 1280);
+    renderHarness();
+
+    act(() => {
+      openProjectScope({ required: true });
+    });
+
+    await screen.findByRole("dialog", { name: "switchLabel" });
+    expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
+    expect(screen.getByTestId("project-scope-backdrop")).toBeInTheDocument();
   });
 });

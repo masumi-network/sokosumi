@@ -43,6 +43,13 @@ vi.mock("./calendar", () => ({
   },
 }));
 
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: () => undefined,
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+}));
+
 import NewsletterCalendarPage from "./page";
 
 const page = (data: unknown[], nextCursor: string | null = null) => ({

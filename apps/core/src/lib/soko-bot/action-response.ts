@@ -17,6 +17,16 @@ export const HELD_BACK_REPLY =
 
 export const ACTION_LABELS: Record<string, string> = {
   newsletter_draft_issue: "Drafted newsletter issue for review",
+  create_newsletter_issue: "Created newsletter draft",
+  update_newsletter_issue: "Updated newsletter issue",
+  delete_newsletter_issue: "Deleted newsletter issue",
+  submit_newsletter_issue: "Submitted newsletter issue for approval",
+  update_newsletter_settings: "Updated newsletter settings",
+  add_newsletter_subscriber: "Added newsletter subscriber",
+  import_newsletter_subscribers: "Imported newsletter subscribers",
+  add_newsletter_subscribers_from_contacts: "Added contacts to the newsletter",
+  update_newsletter_subscriber: "Updated newsletter subscriber",
+  remove_newsletter_subscriber: "Removed newsletter subscriber",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -47,6 +57,7 @@ export const ACTION_LABELS: Record<string, string> = {
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
   move_file: "Moved file",
+  delete_file: "Deleted file",
   update_emails: "Updated mail",
   draft_email: "Drafted email",
   send_email_draft: "Sent email",
@@ -85,6 +96,21 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     return "Updated file";
   return ACTION_LABELS[call.capability] ?? call.capability;
 }
+
+const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "submit_newsletter_issue",
+]);
+
+const NEWSLETTER_SUBSCRIBER_CAPABILITIES = new Set([
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
+]);
 
 const TABLE_CAPABILITIES = new Set([
   "create_table",
@@ -189,6 +215,29 @@ function actionTarget(
     const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
     return issue.success
       ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
+      : "";
+  }
+  if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
+    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    if (!issue.success) return "";
+    const query = `?projectId=${encodeURIComponent(issue.data.projectId)}`;
+    // A deleted issue has no editor left to open.
+    return call.capability === "delete_newsletter_issue"
+      ? `([Open issues](/newsletter/issues${query}))`
+      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
+  }
+  if (call.capability === "update_newsletter_settings") {
+    const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    return newsletter.success
+      ? `([Open settings](/newsletter/settings?projectId=${encodeURIComponent(newsletter.data.projectId)}))`
+      : "";
+  }
+  if (NEWSLETTER_SUBSCRIBER_CAPABILITIES.has(call.capability)) {
+    const subscribers = z
+      .object({ projectId: z.uuid() })
+      .safeParse(call.result);
+    return subscribers.success
+      ? `([Open subscribers](/newsletter/subscribers?projectId=${encodeURIComponent(subscribers.data.projectId)}))`
       : "";
   }
   if (TABLE_CAPABILITIES.has(call.capability))

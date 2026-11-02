@@ -43,6 +43,7 @@ function row(
     contactListId: null,
     contactListName: null,
     contactFound: null,
+    contactName: null,
     bucketSource: null,
     topUpSource: null,
     topUpNote: null,
