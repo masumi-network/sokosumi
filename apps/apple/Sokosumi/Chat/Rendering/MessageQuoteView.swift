@@ -16,7 +16,7 @@ struct MessageQuoteView: View {
     let channels: [ComposerChannel]
   }
 
-  @ScaledMetric(relativeTo: .callout) private var thumbnailSize = 48.0
+  @ScaledMetric(relativeTo: .callout) private var thumbnailSize = 40.0
   @State private var renderedSnippet = AttributedString()
 
   var body: some View {
@@ -35,17 +35,10 @@ struct MessageQuoteView: View {
             Text(renderedSnippet.characters.isEmpty ? AttributedString(quote.snippet) : renderedSnippet).font(.callout).textSelection(.enabled)
           }
         }
-        if let attachment = quote.attachment {
-          HStack {
-            if attachment.mediaKind == .image, let url = URL(string: attachment.url),
-               ["https", "http"].contains(url.scheme?.lowercased() ?? "") {
-              QuoteImageThumbnail(url: url, size: thumbnailSize)
-            } else {
-              Image(systemName: "doc")
-            }
-            Text(attachment.fileName).lineLimit(1)
+        if let attachments = quote.attachments, !attachments.isEmpty {
+          WrappingRow(spacing: 4) {
+            ForEach(attachments, id: \.url) { QuoteAttachmentThumbnail(attachment: $0, size: thumbnailSize) }
           }
-          .font(.caption).foregroundStyle(.secondary)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -95,6 +88,33 @@ struct MessageQuoteBlock<Content: View>: View {
   }
 }
 
+/// One tile of a quote's row, like web's `MessageQuoteAttachmentThumb`: an image crops to the square, a file shows its
+/// type. The tile has no room for the name, so it hovers and reads aloud.
+private struct QuoteAttachmentThumbnail: View {
+  let attachment: Components.Schemas.ChatRoomMessageQuoteAttachment
+  let size: CGFloat
+
+  private var url: URL? {
+    URL(string: attachment.url)
+  }
+
+  var body: some View {
+    Group {
+      if attachment.mediaKind == .image, let url, ["https", "http"].contains(url.scheme?.lowercased() ?? "") {
+        QuoteImageThumbnail(url: url, size: size)
+      } else {
+        AttachmentFileIcon(filename: attachment.fileName, url: url, size: size * 0.6)
+      }
+    }
+    .frame(width: size, height: size)
+    .clipShape(.rect(cornerRadius: 12))
+    .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.separator) }
+    .help(attachment.fileName)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(attachment.fileName)
+  }
+}
+
 private struct QuoteImageThumbnail: View {
   let url: URL
   let size: CGFloat
@@ -104,16 +124,18 @@ private struct QuoteImageThumbnail: View {
   var body: some View {
     Group {
       if let image {
-        Image(decorative: image, scale: displayScale).resizable().scaledToFit()
+        Image(decorative: image, scale: displayScale).resizable().scaledToFill()
       } else {
         Image(systemName: "photo")
       }
     }
     .frame(width: size, height: size)
+    .clipped()
     .accessibilityHidden(true)
     .task(id: "\(url)-\(size)-\(displayScale)") {
       image = nil
-      let loaded = await loadImageThumbnail(urlString: url.absoluteString, pointSize: size, scale: displayScale)
+      // The thumbnail fits its longest side; twice the tile keeps a wide image's cropped short side sharp.
+      let loaded = await loadImageThumbnail(urlString: url.absoluteString, pointSize: size * 2, scale: displayScale)
       guard !Task.isCancelled else { return }
       image = loaded?.cgImage
     }

@@ -4,28 +4,23 @@ import Foundation
 /// Local preview only. Core builds the authoritative snapshot from the source ID.
 public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Components.Schemas.ChatRoomMessageQuote? {
   guard canQuoteMessage(message) else { return nil }
-  func paragraphs(_ blocks: [MessageMarkdownBlock]) -> [[MessageAttachmentSegment]] {
-    blocks.flatMap { [MessageAttachmentSegment.split($0.text, linksAreAttachments: true)] + paragraphs($0.children) }
+  func paragraphs(_ blocks: [MessageMarkdownBlock]) -> [AttributedString] {
+    blocks.flatMap { [$0.text] + paragraphs($0.children) }
   }
   let content = message.content.replacingOccurrences(of: #"```[\s\S]*?```"#, with: " ", options: .regularExpression)
-  let parts = paragraphs(MessageMarkdown(content).blocks)
-  let attachments = parts.flatMap { $0.compactMap(\.attachment) }
-  let attachment = attachments.first { $0.kind == .image } ?? attachments.first
-  var removedAttachment = false
-  let snippet = parts.map { paragraph in
-    paragraph.map { part in
-      if let attachment, part.attachment == attachment, !removedAttachment {
-        removedAttachment = true
-        return ""
-      }
-      return String(part.text.characters)
-    }.joined()
+  let texts = paragraphs(MessageMarkdown(content).blocks)
+  var linked = Set<URL>()
+  let attachments = texts.flatMap { MessageAttachmentSegment.split($0, linksAreAttachments: true).compactMap(\.attachment) }
+    .filter { linked.insert($0.url).inserted }
+  // From the runs: `split` trims the lines beside an attachment for layout, which would glue the words around a lifted link.
+  let snippet = texts.map { text in
+    text.runs.map { run in run.link.map(linked.contains) == true ? "" : String(text[run.range].characters) }.joined()
   }.joined(separator: "\n")
     .replacingOccurrences(of: #"[^\S\n]+"#, with: " ", options: .regularExpression)
     .trimmingCharacters(in: .whitespacesAndNewlines)
   return .init(messageId: message.id, authorName: messageSenderName(message.sender), snippet: snippet,
-               attachment: attachment.map { .init(fileName: $0.filename, url: $0.url.absoluteString,
-                                                  mediaKind: $0.kind == .image ? .image : .file) })
+               attachments: attachments.map { .init(fileName: $0.filename, url: $0.url.absoluteString,
+                                                    mediaKind: $0.kind == .image ? .image : .file) })
 }
 
 /// A mention shell that is still thinking has no actions, like web's
