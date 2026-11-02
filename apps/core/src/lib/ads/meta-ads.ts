@@ -249,11 +249,37 @@ const metaCampaignOwnerSchema = z.object({
   daily_budget: z.coerce.number().nullish(),
 });
 
-const updateResultSchema = z.object({ success: z.literal(true) });
+const metaSuccessSchema = z.object({ success: z.literal(true) });
 
 /** Meta ad account id in its `act_…` form, however it was given. */
 function actAccountId(adAccountId: string): string {
   return adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+}
+
+/**
+ * A campaign of the attached ad account, or 404: Meta's tools take only a
+ * campaign id, so ownership is checked before any write.
+ */
+async function lookUpMetaCampaign(
+  execute: ExecuteAdsTool,
+  adAccountId: string,
+  campaignId: string,
+) {
+  const campaign = parseToolRow(
+    await execute(GET_OBJECT, {
+      object_id: campaignId,
+      fields: ["id", "account_id", "objective", "daily_budget"],
+    }),
+    metaCampaignOwnerSchema,
+    "look up Meta campaign",
+  );
+  if (
+    !campaign.objective ||
+    actAccountId(campaign.account_id) !== actAccountId(adAccountId)
+  ) {
+    throw notFound("Campaign not found");
+  }
+  return campaign;
 }
 
 /**
@@ -278,20 +304,11 @@ export async function updateMetaCampaign(
       toolSlugs: [GET_OBJECT, UPDATE_CAMPAIGN],
     },
     async (execute) => {
-      const campaign = parseToolRow(
-        await execute(GET_OBJECT, {
-          object_id: campaignId,
-          fields: ["id", "account_id", "objective", "daily_budget"],
-        }),
-        metaCampaignOwnerSchema,
-        "look up Meta campaign",
+      const campaign = await lookUpMetaCampaign(
+        execute,
+        adAccountId,
+        campaignId,
       );
-      if (
-        !campaign.objective ||
-        actAccountId(campaign.account_id) !== actAccountId(adAccountId)
-      ) {
-        throw notFound("Campaign not found");
-      }
       if (dailyBudget !== undefined && !campaign.daily_budget) {
         throw conflict("This campaign's budget is set on its ad sets");
       }
@@ -301,9 +318,42 @@ export async function updateMetaCampaign(
         ...(status !== undefined ? { status } : {}),
         ...(dailyBudget !== undefined ? { daily_budget: dailyBudget } : {}),
       });
-      if (!updateResultSchema.safeParse(result).success) {
+      if (!metaSuccessSchema.safeParse(result).success) {
         throw new ComposioToolError({
           message: "update Meta campaign was not applied",
+        });
+      }
+    },
+  );
+}
+
+/**
+ * Deletes a campaign by setting its status to DELETED through the update path.
+ * The object is read first, as for an update: it must be a campaign of the
+ * attached ad account, else 404. That is the only refusal point; the write is
+ * one call.
+ */
+export async function deleteMetaCampaign(
+  input: AdsConnectedAccount & { adAccountId: string; campaignId: string },
+): Promise<void> {
+  const { adAccountId, campaignId, ...connected } = input;
+
+  await withAdsToolSession(
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.meta_ads,
+      toolSlugs: [GET_OBJECT, UPDATE_CAMPAIGN],
+    },
+    async (execute) => {
+      await lookUpMetaCampaign(execute, adAccountId, campaignId);
+
+      const result = await execute(UPDATE_CAMPAIGN, {
+        campaign_id: campaignId,
+        status: "DELETED",
+      });
+      if (!metaSuccessSchema.safeParse(result).success) {
+        throw new ComposioToolError({
+          message: "delete Meta campaign was not applied",
         });
       }
     },

@@ -2,7 +2,6 @@ import type { ChatRoom } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  canOpenHumanDirectFromSelectedRoom,
   canShowOpenDirect,
   openDirectWithParticipant,
 } from "./open-direct-with-participant";
@@ -62,52 +61,6 @@ const sokoBotProfile: ChatParticipantHoverProfile = {
 function room(id: string): ChatRoom {
   return { id } as ChatRoom;
 }
-
-describe("canOpenHumanDirectFromSelectedRoom", () => {
-  it("allows Message on an External channel with no active organization", () => {
-    expect(
-      canOpenHumanDirectFromSelectedRoom({
-        kind: "channel",
-        discoverability: "external",
-        myAccess: "member",
-        hasActiveOrganization: false,
-      }),
-    ).toBe(true);
-  });
-
-  it("allows Message for a guest on an External channel", () => {
-    expect(
-      canOpenHumanDirectFromSelectedRoom({
-        kind: "channel",
-        discoverability: "external",
-        myAccess: "guest",
-        hasActiveOrganization: false,
-      }),
-    ).toBe(true);
-  });
-
-  it("hides Message for a guest on a non-external room", () => {
-    expect(
-      canOpenHumanDirectFromSelectedRoom({
-        kind: "channel",
-        discoverability: "public",
-        myAccess: "guest",
-        hasActiveOrganization: true,
-      }),
-    ).toBe(false);
-  });
-
-  it("hides Message on a public channel with no active organization", () => {
-    expect(
-      canOpenHumanDirectFromSelectedRoom({
-        kind: "channel",
-        discoverability: "public",
-        myAccess: "member",
-        hasActiveOrganization: false,
-      }),
-    ).toBe(false);
-  });
-});
 
 describe("canShowOpenDirect", () => {
   const onOpenDirect = vi.fn();

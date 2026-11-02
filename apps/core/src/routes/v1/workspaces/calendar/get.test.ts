@@ -673,7 +673,7 @@ describe("GET /workspaces/calendar", () => {
     );
 
     expect(
-      items.map((item) => item.kind === "RUN" && item.canChangeRun),
+      items.map((item) => item.kind !== "socialPost" && item.canChangeRun),
     ).toEqual([false, true]);
   });
 

@@ -31,7 +31,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   parseAsArrayOf,
@@ -119,7 +119,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -301,7 +300,6 @@ function DrivePageWorkspace({
     archived: parseAsBoolean.withDefault(false),
     tags: parseAsArrayOf(parseAsString).withDefault([]),
   });
-  const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesViewMode, setFilesViewMode] =
@@ -514,11 +512,6 @@ function DrivePageWorkspace({
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
-  });
-
-  useRegisterBreadcrumbOverride({
-    pathname,
-    segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
 
   function handleSearchChange(value: string) {
@@ -1868,7 +1861,7 @@ function DrivePageWorkspace({
                 taskIdParam !== null ? (
                   <span
                     aria-hidden
-                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
                   />
                 ) : null}
               </Button>
@@ -1992,7 +1985,7 @@ function DrivePageWorkspace({
                     onActivate={navigateToTasksRoot}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
-                      <Folders className="text-primary size-5" />
+                      <Folders className="text-foreground size-5" />
                     </div>
                     <DriveItemName
                       name={t("tasksFolder")}
@@ -2311,7 +2304,7 @@ function DrivePageWorkspace({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("deleteDialogCancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               onClick={(event) => {
                 event.preventDefault();
                 void handleDeleteConfirm();
@@ -2390,9 +2383,9 @@ function DrivePageWorkspace({
                     setSelectedDestination(dest.path);
                   }}
                   className={cn(
-                    "text-foreground press hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
-                      "bg-muted border-primary",
+                      "bg-muted border-foreground",
                   )}
                 >
                   <Folder className="text-muted-foreground size-4 shrink-0" />

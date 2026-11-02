@@ -11,7 +11,8 @@ import { useTranslations } from "next-intl";
 
 import { StatusBadge, type StatusTone } from "./status-badge";
 
-const BOT_STATUS_TONE: Record<SokoBotStatus, StatusTone> = {
+/** A Soko Bot status's tone, wherever the status is drawn. */
+export const SOKO_BOT_STATUS_TONE: Record<SokoBotStatus, StatusTone> = {
   IDLE: "neutral",
   RUNNING: "working",
   PAUSED: "warning",
@@ -75,7 +76,10 @@ const TOOL_TONE: Record<SokoBotToolCall["status"], StatusTone> = {
 export function SokoBotStatusBadge({ status }: { status: SokoBotStatus }) {
   const t = useTranslations("Components.SokoBot.BotStatus");
   return (
-    <StatusBadge tone={BOT_STATUS_TONE[status]} live={status === "RUNNING"}>
+    <StatusBadge
+      tone={SOKO_BOT_STATUS_TONE[status]}
+      live={status === "RUNNING"}
+    >
       {t(status)}
     </StatusBadge>
   );

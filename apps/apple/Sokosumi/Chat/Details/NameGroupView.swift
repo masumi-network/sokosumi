@@ -48,6 +48,7 @@ struct NameGroupView: View {
             Text("Save", tableName: groupNameTable, comment: "Saves a group Direct's name.")
           }
         }
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
         .disabled(!model.canSave)
       }

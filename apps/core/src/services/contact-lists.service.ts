@@ -19,7 +19,7 @@ import {
 } from "@/services/contacts.service";
 
 type Tx = Prisma.TransactionClient;
-type ContactListDto = z.input<typeof contactListSchema>;
+export type ContactListDto = z.input<typeof contactListSchema>;
 type ContactListRow = Prisma.ContactListGetPayload<object>;
 type ListColor = (typeof CONTACT_LIST_COLORS)[number];
 

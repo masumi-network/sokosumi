@@ -199,10 +199,7 @@ export function AddFromContactsDialog({
                     ) : null}
                     {rows.isError ? (
                       <div className="space-y-2">
-                        <p
-                          role="alert"
-                          className="text-semantic-destructive-label text-sm"
-                        >
+                        <p role="alert" className="text-foreground text-sm">
                           {t("FromContacts.loadPeopleError")}
                         </p>
                         <Button
@@ -298,10 +295,7 @@ export function AddFromContactsDialog({
                     ) : null}
                     {lists.isError ? (
                       <div className="space-y-2">
-                        <p
-                          role="alert"
-                          className="text-semantic-destructive-label text-sm"
-                        >
+                        <p role="alert" className="text-foreground text-sm">
                           {t("FromContacts.loadListsError")}
                         </p>
                         <Button
@@ -390,7 +384,7 @@ export function AddFromContactsDialog({
             ) : null}
           </p>
           {error ? (
-            <p role="alert" className="text-semantic-destructive-label text-sm">
+            <p role="alert" className="text-foreground text-sm">
               {error}
             </p>
           ) : null}

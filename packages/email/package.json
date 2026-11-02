@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -34,15 +34,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@react-email/render": "2.1.1",
+    "@react-email/render": "2.2.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-email": "6.11.3",
+    "react-email": "6.11.6",
     "use-intl": "4.14.9"
   },
   "devDependencies": {
     "@sokosumi/utils": "workspace:*",
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@typescript/typescript6": "6.0.2",

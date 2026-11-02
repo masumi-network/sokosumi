@@ -40,7 +40,7 @@ export function SubscriptionFreePlanRow({
     <Card
       className={cn(
         "overflow-hidden",
-        plan.isCurrent ? "border-primary" : undefined,
+        plan.isCurrent ? "border-foreground" : undefined,
       )}
     >
       <CardContent className="grid gap-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-start md:gap-10">
@@ -49,7 +49,7 @@ export function SubscriptionFreePlanRow({
             <CardTitle className="flex items-center gap-2">
               <span>{t(`Plans.${translationKey}.name`)}</span>
               {plan.isCurrent ? (
-                <span className="text-primary text-xs font-medium">
+                <span className="text-foreground text-xs font-medium">
                   {t("currentPlanBadge")}
                 </span>
               ) : null}

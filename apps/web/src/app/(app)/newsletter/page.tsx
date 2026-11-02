@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * It reads its project from `?projectId=`, so the sidebar's project switcher
  * moves it between projects. Like Social opening on its calendar, it opens
  * the newsletter's issues, or Settings to create a newsletter the project does
- * not have yet. With no project it lists the projects.
+ * not have yet. With no project it asks for one in the header's selector.
  */
 export default async function NewsletterPage({
   searchParams,
@@ -39,11 +39,7 @@ export default async function NewsletterPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({
-      path: "/newsletter",
-      searchParams,
-      unavailable: scope.unavailable,
-    });
+    return newsletterWorkspacePage({ unavailable: scope.unavailable });
   }
   const { id } = scope.project;
   const newsletter = await newsletterService.getSettings(id);

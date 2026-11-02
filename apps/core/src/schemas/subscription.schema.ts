@@ -52,7 +52,7 @@ export const activeSubscriptionResponseSchema = z
   })
   .openapi("ActiveSubscriptionResponse");
 
-/** Request body for immediately updating an organization's purchased seats. */
+/** Request body for changing an organization's purchased seats. */
 export const updateOrganizationSubscriptionSeatsSchema = z
   .object({
     seats: z.number().int().min(1).openapi({
@@ -62,12 +62,66 @@ export const updateOrganizationSubscriptionSeatsSchema = z
   })
   .openapi("UpdateOrganizationSubscriptionSeats");
 
-/** Purchased seat count after an organization seat update. */
+/** Purchased seats now, and the reduction waiting for the next renewal. */
 export const organizationSubscriptionSeatsSchema = z
   .object({
     seats: z.number().int().openapi({
       description: "Purchased seat count on the active subscription",
       example: 3,
     }),
+    scheduledReduction: z
+      .object({
+        effectiveAt: dateTimeSchema.openapi({
+          description: "When the reduction takes effect: the next renewal",
+          example: "2025-02-01T00:00:00.000Z",
+        }),
+        seats: z.number().int().openapi({
+          description: "Seat count the subscription drops to",
+          example: 2,
+        }),
+      })
+      .nullable()
+      .openapi({ description: "Null when no reduction is pending" }),
   })
   .openapi("OrganizationSubscriptionSeats");
+
+export const organizationSubscriptionSeatsPreviewQuerySchema = z.object({
+  seats: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .openapi({
+      param: { name: "seats", in: "query" },
+      description: "Desired purchased seat count",
+      example: 5,
+    }),
+});
+
+/** What a seat change would cost. Amounts are in the currency's minor units. */
+export const organizationSubscriptionSeatsPreviewSchema = z
+  .object({
+    amountDue: z.number().int().openapi({
+      description:
+        "Charged to the payment method right away, including tax. Zero unless seats are added",
+      example: 1234,
+    }),
+    currency: z.string().openapi({
+      description: "Lowercase ISO currency code",
+      example: "eur",
+    }),
+    effectiveAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a reduction takes effect: the next renewal. Null when the change applies right away",
+      example: null,
+    }),
+    newMonthlyAmount: z.number().int().openapi({
+      description:
+        "Next regular invoice at the new seat count, including tax and discounts",
+      example: 14875,
+    }),
+    seats: z.number().int().openapi({
+      description: "The seat count this preview is for",
+      example: 5,
+    }),
+  })
+  .openapi("OrganizationSubscriptionSeatsPreview");

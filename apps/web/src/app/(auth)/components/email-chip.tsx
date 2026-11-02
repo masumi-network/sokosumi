@@ -29,7 +29,7 @@ export function EmailChip({ email, onChange, disabled }: EmailChipProps) {
     <>
       <span
         aria-hidden
-        className="bg-primary-quaternary text-primary flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
+        className="bg-quinary text-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium"
       >
         {email.charAt(0).toUpperCase()}
       </span>
@@ -49,7 +49,7 @@ export function EmailChip({ email, onChange, disabled }: EmailChipProps) {
           data-testid="auth-email-chip"
           className={cn(
             CHIP_CLASS,
-            "hover:bg-quinary focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+            "hover:bg-quinary focus-visible:ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50",
           )}
           // Named for what it does; the address it changes describes it.
           aria-label={t("changeEmail")}

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
-import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
+import {
+  ProjectScopeRequired,
+  RequireProjectScope,
+} from "@/app/components/project-scope/project-scope-required";
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { imageStudioService } from "@/lib/services/image-studio.service";
@@ -37,8 +40,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * between projects without the studio knowing anything about the switcher, and
  * `ProjectScopeGuard` clears a project this workspace can no longer see.
  *
- * With no project it offers curated styles. Generation asks which project
- * it goes to; existing images are loaded only for a selected project.
+ * With no project it offers curated styles, with the header's project
+ * selector opened over them. Generation asks which project it goes to;
+ * existing images are loaded only for a selected project.
  */
 export default async function StudioPage({ searchParams }: StudioPageProps) {
   await connection();
@@ -55,8 +59,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   if (projectId && !project) {
     return (
       <StudioPageShell title={t("title")}>
-        <ProjectScopePicker
-          action={t("pickAction")}
+        <ProjectScopeRequired
           body={t("pickUnavailable")}
           testId="studio-no-project"
           title={t("pickTitle")}
@@ -83,6 +86,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
 
   return (
     <StudioPageShell title={t("title")}>
+      {/* The curated styles are the backdrop the selector opens over. */}
+      {scopeId ? null : <RequireProjectScope reason={t("pickBody")} />}
       <ImageStudio
         catalog={catalog}
         initialSelectedAssetId={initialSelectedAssetId}

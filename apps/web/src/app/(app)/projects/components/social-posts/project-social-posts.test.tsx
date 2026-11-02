@@ -7242,7 +7242,7 @@ describe("ProjectSocialPosts", () => {
     const row = screen.getByTestId(`social-post-${post.id}`);
     expect(within(row).getByText("Needs approval")).toBeVisible();
     expect(within(row).getByRole("button", { name: "Approve" })).toHaveClass(
-      "bg-primary-solid",
+      "bg-primary",
     );
     await user.click(within(row).getByRole("button", { name: "Approve" }));
     expect(approveProjectSocialPost).toHaveBeenCalledWith({

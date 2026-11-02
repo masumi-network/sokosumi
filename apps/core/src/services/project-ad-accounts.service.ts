@@ -45,6 +45,7 @@ import type {
 } from "@/lib/ads/composio-tools";
 import {
   createGoogleCampaign,
+  deleteGoogleCampaign,
   editGoogleCampaign,
   type GoogleCampaignDetails,
   type GoogleLanguage,
@@ -58,6 +59,7 @@ import {
 } from "@/lib/ads/google-ads";
 import {
   createMetaCampaign,
+  deleteMetaCampaign,
   listMetaAdAccounts,
   listMetaCampaigns,
   updateMetaCampaign,
@@ -529,6 +531,30 @@ export async function updateProjectAdCampaign(
     await updateMetaCampaign({
       ...change,
       adAccountId: account.externalAccountId,
+    });
+  }
+}
+
+/**
+ * Deletes a campaign of an attached ad account (Google removes it, Meta
+ * deletes it). The provider modules prove the campaign belongs to that
+ * account before they write. There is no way back in Sokosumi.
+ */
+export async function deleteProjectAdCampaign(
+  input: ProjectScope & { accountId: string; campaignId: string },
+): Promise<void> {
+  const account = await requireActiveAdAccount(input);
+  if (account.provider === "google_ads") {
+    await deleteGoogleCampaign({
+      ...account.connected,
+      customerId: account.externalAccountId,
+      campaignId: input.campaignId,
+    });
+  } else {
+    await deleteMetaCampaign({
+      ...account.connected,
+      adAccountId: account.externalAccountId,
+      campaignId: input.campaignId,
     });
   }
 }

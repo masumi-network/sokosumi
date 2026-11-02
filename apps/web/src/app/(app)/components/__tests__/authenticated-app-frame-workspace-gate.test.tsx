@@ -1,3 +1,4 @@
+import { MemberRole } from "@sokosumi/core-client";
 import {
   SOCIAL_PUBLIC_PROVIDERS,
   socialProvidersForWorkspace,
@@ -14,6 +15,7 @@ const getMyWorkspacesMock =
   >();
 const hasAssignedOrganizationSeatMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
+const workspaceSwitcherProviderMock = vi.fn();
 const hasSocialBetaAccessMock = vi.fn();
 const isNewsletterEnabledMock = vi.fn();
 const getRequestPathMock = vi.fn();
@@ -97,11 +99,6 @@ vi.mock("@/contexts/organization-seat-context", () => ({
     <>{children}</>
   ),
 }));
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  BreadcrumbOverrideProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}));
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
   HistorySearchDialogProvider: ({
     children,
@@ -109,6 +106,26 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
     children: React.ReactNode;
   }) => <>{children}</>,
 }));
+vi.mock(
+  "@/app/components/workspace-switcher/workspace-switcher.client",
+  () => ({
+    WorkspaceSwitcherProvider: ({
+      children,
+      ...props
+    }: {
+      children: React.ReactNode;
+    }) => {
+      workspaceSwitcherProviderMock(props);
+      return <>{children}</>;
+    },
+  }),
+);
+vi.mock(
+  "@/app/components/sidebar/components/sidebar-edge-handle.client",
+  () => ({
+    SidebarEdgeHandle: () => null,
+  }),
+);
 vi.mock("../private-cached-app-sidebar", () => ({
   default: (props: unknown) => {
     privateCachedAppSidebarMock(props);
@@ -173,6 +190,8 @@ describe("AuthenticatedAppFrame workspace gate", () => {
         name: slug ?? "Personal",
         organizationId: slug,
         slug,
+        role: slug ? MemberRole.MEMBER : null,
+        memberCount: slug ? 2 : null,
         enabledSocialProviders: [
           ...socialProvidersForWorkspace({ organizationSlug: slug }),
         ],
@@ -249,6 +268,31 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "calendarMenuEnabled",
     );
+  });
+
+  // One Workspace switcher owner for the sidebar and the top bar, fed by the
+  // frame's own workspaces read rather than a second one of its own.
+  it("hands the Workspace switcher the frame's workspaces", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "ready" });
+
+    const { default: AuthenticatedAppFrame } = await import(
+      "../authenticated-app-frame"
+    );
+
+    render(await AuthenticatedAppFrame({ children: <div>app</div> }));
+
+    expect(workspaceSwitcherProviderMock).toHaveBeenCalledOnce();
+    const [props] = workspaceSwitcherProviderMock.mock.calls[0] ?? [];
+    expect(props).toMatchObject({
+      sessionUser: { id: "user-1" },
+      activeOrganizationId: null,
+    });
+    expect(props.workspaces.map(({ name }: { name: string }) => name)).toEqual([
+      "Personal",
+      "utxo",
+      "other",
+    ]);
+    expect(getMyWorkspacesMock).toHaveBeenCalled();
   });
 
   /**

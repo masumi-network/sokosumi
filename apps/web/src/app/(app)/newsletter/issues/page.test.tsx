@@ -44,6 +44,13 @@ vi.mock("@/lib/services/project.service", () => ({
 }));
 vi.mock("./issues", () => ({ Issues: () => <p>Issue list</p> }));
 
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: () => undefined,
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+}));
+
 import NewsletterIssuesPage from "./page";
 
 const PROPS = {
@@ -97,6 +104,12 @@ describe("newsletter issues page", () => {
       `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(
+      screen.getByRole("link", { name: "Calendar.title" }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/calendar?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
+    expect(
       screen.getByRole("link", { name: "Analytics.title" }),
     ).toHaveAttribute(
       "href",
@@ -104,16 +117,14 @@ describe("newsletter issues page", () => {
     );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
-  it("lists projects to pick from without a project, keeping the tab", async () => {
-    mocks.listProjects.mockResolvedValue({
-      projects: [{ id: "project-1", name: "Launch plan" }],
-      pagination: null,
-    });
+  it("asks for a project in the header's selector without one", async () => {
     render(await NewsletterIssuesPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-      "href",
-      "/newsletter/issues?projectId=project-1",
-    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: "pickProject" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });
   it("forwards valid cursors and ignores malformed ones", async () => {

@@ -541,9 +541,13 @@ export async function proxySandboxModelCall(
   // partial tool calls must not reach the runner.
   const finish = parts.findLast((part) => part.type === "finish");
   if (!finish) throw badGateway("Model stream ended without finishing");
+  const ranSearch =
+    gatewayRanTool(parts, "web_search") ||
+    gatewayRanTool(parts, "perplexity_search");
   await log.append(
     runtimeEvent("step.completed", {
-      modelId: version.model,
+      // A search runs in its own model call; its spend shows as search.
+      modelId: ranSearch ? "web_search" : version.model,
       inference: sokoBotInferenceEvidence(finish.providerMetadata),
       usage: gatewayCallUsage(finish),
     }),
@@ -558,11 +562,7 @@ export async function proxySandboxModelCall(
       error instanceof Error ? error.message : "Inference region rejected",
     );
   }
-  if (
-    gatewayRanTool(parts, "web_search") ||
-    gatewayRanTool(parts, "perplexity_search")
-  )
-    await markUntrusted(log, "web_search");
+  if (ranSearch) await markUntrusted(log, "web_search");
   return { status: 200, body: text, contentType: "text/event-stream" };
 }
 

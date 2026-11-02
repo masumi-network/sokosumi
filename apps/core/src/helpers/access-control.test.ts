@@ -9,6 +9,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
@@ -28,7 +29,6 @@ import {
   requireJobReadForRouteVars,
   requireMutableTaskWriteAccess,
   requireTaskAssignableCoworker,
-  requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
   requireTaskCollaboration,
   requireTaskCommentAccess,

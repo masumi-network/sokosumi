@@ -1,6 +1,8 @@
 # ADR 0037: Thread unread leaves Room unread
 
-- Status: Accepted
+- Status: Partially superseded by [ADR-0058](./0058-the-sidebar-hides-instead-of-collapsing-to-a-rail.md).
+  The collapsed rail is gone, and with it the inset Thread flyout and the
+  Rail attention pill described below. Everything else stands.
 - Date: 2026-09-21
 - Relates to: [ADR-0013](./0013-thread-unread-is-participant-gated.md) (thread unread is Participant-gated), [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md) (room unread count is a field of its own; on by default since [ADR-0038](./0038-room-unread-count-is-on-by-default.md)), [ADR-0030](./0030-thread-mute-overrides-participant.md) (thread mute overrides Participant)
 

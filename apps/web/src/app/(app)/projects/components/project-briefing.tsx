@@ -1,12 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
-import { BRIEFING_COLLAPSE_CHAR_THRESHOLD } from "@/app/projects/project-briefing";
-import Markdown from "@/components/markdown";
+import { CollapsibleSectionMarkdown } from "@/app/projects/components/collapsible-section-markdown";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface ProjectBriefingProps {
   title: string;
@@ -28,40 +24,17 @@ export function ProjectBriefing({
   showLessLabel,
 }: ProjectBriefingProps) {
   const content = briefing?.trim() || null;
-  const isLong = Boolean(
-    content && content.length > BRIEFING_COLLAPSE_CHAR_THRESHOLD,
-  );
-  const [expanded, setExpanded] = useState(false);
 
   return (
     <section className="space-y-2" data-testid="project-briefing">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       {content ? (
-        <div className="space-y-2">
-          <div
-            id="project-briefing-content"
-            data-testid="project-briefing-content"
-            className={cn(
-              "text-foreground",
-              isLong && !expanded && "max-h-64 overflow-hidden",
-            )}
-          >
-            <Markdown components={SECTION_MARKDOWN_HEADINGS}>
-              {content}
-            </Markdown>
-          </div>
-          {isLong ? (
-            <button
-              type="button"
-              aria-expanded={expanded}
-              aria-controls="project-briefing-content"
-              className="text-muted-foreground press hover:text-foreground text-xs transition-colors"
-              onClick={() => setExpanded((current) => !current)}
-            >
-              {expanded ? showLessLabel : showMoreLabel}
-            </button>
-          ) : null}
-        </div>
+        <CollapsibleSectionMarkdown
+          id="project-briefing-content"
+          content={content}
+          showMoreLabel={showMoreLabel}
+          showLessLabel={showLessLabel}
+        />
       ) : (
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">{emptyLabel}</p>

@@ -390,22 +390,16 @@ type TabsContentProps = HTMLMotionProps<"div"> & {
 
 function TabsContent({
   children,
-  value,
+  // Names the panel for callers; kept off the DOM.
+  value: _value,
   className,
   ...props
 }: TabsContentProps) {
-  const { activeValue } = useTabs();
-  const isActive = activeValue === value;
-
   return (
     <motion.div
       role="tabpanel"
       data-slot="tabs-content"
       className={cn("h-full overflow-hidden", className)}
-      initial={{ filter: "blur(0px)" }}
-      animate={{ filter: isActive ? "blur(0px)" : "blur(2px)" }}
-      exit={{ filter: "blur(0px)" }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
       {...props}
     >
       {children}

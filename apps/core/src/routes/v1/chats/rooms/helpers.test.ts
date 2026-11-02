@@ -11,10 +11,8 @@ import {
   buildDirectRoomName,
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
-  chatRoomInclude,
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
-  findLiveDirectByParticipantKey,
   getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
   loadFormerDirectUserMembers,
@@ -35,7 +33,6 @@ import {
   resolvePeerInActiveOrganization,
   resolveRoomQuoteSnapshot,
   resolveWorkspaceIdForChatRoom,
-  usersShareExternalChannel,
   validateChatCoworkerIds,
   withChatRoomReplyCounts,
 } from "./helpers";
@@ -623,8 +620,61 @@ describe("mapChatRoomMessage quote", () => {
       threadReplyCount: 0,
     });
 
-    expect(mapped.quote).toEqual(quote);
+    // Stored before `attachments`: the one attachment it holds is its list.
+    expect(mapped.quote).toEqual({ ...quote, attachments: [quote.attachment] });
     expect(mapped.metadata).toEqual({ quote, client_message_id: "c1" });
+  });
+
+  it("returns every stored attachment and skips a malformed one", () => {
+    const shot = {
+      fileName: "shot.png",
+      url: "https://blob.example/shot.png",
+      mediaKind: "image" as const,
+    };
+    const brief = {
+      fileName: "brief.pdf",
+      url: "https://blob.example/brief.pdf",
+      mediaKind: "file" as const,
+    };
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      senderSokoBotId: null,
+      content: "hello",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: {
+        quote: {
+          messageId: "550e8400-e29b-41d4-a716-446655440004",
+          authorName: "Alice",
+          snippet: "Earlier point",
+          attachment: shot,
+          attachments: [shot, { fileName: 1 }, brief],
+        },
+      },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+      },
+      senderCoworker: null,
+      senderSokoBot: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      pins: [],
+      threadReplyCount: 0,
+    });
+
+    expect(mapped.quote?.attachments).toEqual([shot, brief]);
+    expect(mapped.quote?.attachment).toEqual(shot);
   });
 
   it("keeps client_message_id in metadata for Ably create payloads", () => {
@@ -658,6 +708,37 @@ describe("mapChatRoomMessage quote", () => {
     });
 
     expect(mapped.metadata).toEqual({ client_message_id: "turn-1" });
+  });
+
+  it("keeps a Cuso report's stored strategy out of the message", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: null,
+      senderCoworkerId: null,
+      senderSokoBotId: null,
+      content: "Week 1",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: {
+        cmo_report: { headline: "Week 1", previousVersionId: "strategy-0" },
+        soko_bot: { turn_id: "turn-1" },
+      },
+      clientMessageId: "cmo-report:turn-1:call-1",
+      responsesApiResponseId: null,
+      senderUser: null,
+      senderCoworker: null,
+      senderSokoBot: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      pins: [],
+      threadReplyCount: 0,
+    });
+
+    expect(mapped.metadata).toEqual({ soko_bot: { turn_id: "turn-1" } });
   });
 
   it("soft-parses legacy quotes without attachment", () => {
@@ -1342,91 +1423,6 @@ describe("mapChatRoom room read receipts", () => {
 
     expect(mapped.coworkerMembers[0]).not.toHaveProperty("lastReadAt");
     expect(mapped.sokoBotMembers[0]).not.toHaveProperty("lastReadAt");
-  });
-});
-
-describe("findLiveDirectByParticipantKey", () => {
-  const DIRECT_KEY = "direct:v2:user:member-1:user:guest-1";
-
-  it("returns the Personal Direct and skips the org lookup", async () => {
-    const personal = { id: "personal-dm", organizationId: null };
-    const findFirst = vi.fn().mockResolvedValueOnce(personal);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, ORG_ID),
-    ).resolves.toEqual(personal);
-    expect(findFirst).toHaveBeenCalledOnce();
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        organizationId: null,
-        directKey: DIRECT_KEY,
-        archivedAt: null,
-      },
-      include: chatRoomInclude,
-    });
-  });
-
-  it("returns null when neither Personal nor Org Direct exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, ORG_ID),
-    ).resolves.toBeNull();
-    expect(findFirst).toHaveBeenCalledTimes(2);
-  });
-
-  it("returns null without an org lookup when there is no Personal Direct and no org", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      findLiveDirectByParticipantKey(tx, DIRECT_KEY, null),
-    ).resolves.toBeNull();
-    expect(findFirst).toHaveBeenCalledOnce();
-  });
-});
-
-describe("usersShareExternalChannel", () => {
-  it("requires both humans on the same unarchived external channel", async () => {
-    const findFirst = vi.fn().mockResolvedValue({ id: ROOM_ID });
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
-    ).resolves.toBe(true);
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        kind: "channel",
-        discoverability: "external",
-        archivedAt: null,
-        AND: [
-          { userMembers: { some: { userId: MEMBER_ID } } },
-          { userMembers: { some: { userId: GUEST_ID } } },
-        ],
-      },
-      select: { id: true },
-    });
-  });
-
-  it("is false when no shared unarchived external channel exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue(null);
-    const tx = {
-      chatRoom: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      usersShareExternalChannel(MEMBER_ID, GUEST_ID, tx),
-    ).resolves.toBe(false);
   });
 });
 

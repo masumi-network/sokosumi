@@ -58,12 +58,12 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
 }
 
 describe("TaskListItem privacy cue", () => {
-  it("uses the hover step past the card surface", () => {
+  it("uses the hover fill every row uses", () => {
     render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
 
     expect(
       screen.getByTestId("task-detail-link").className.split(/\s+/),
-    ).toContain("hover:bg-card-background-hover");
+    ).toContain("hover:bg-accent");
   });
 
   it("shows the privacy icon beside status for PRIVATE tasks", () => {

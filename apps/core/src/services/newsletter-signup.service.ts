@@ -21,7 +21,6 @@ import {
 } from "@/lib/newsletter/confirm-token";
 import {
   newsletterPublicUrl,
-  newsletterSenderOptions,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
 import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
@@ -32,6 +31,7 @@ import {
 } from "@/schemas/newsletter.schema";
 import { inContactTransaction } from "@/services/contacts.service";
 import { linkNewsletterContacts } from "@/services/newsletter-contacts.service";
+import { resolveNewsletterSender } from "@/services/newsletter-sending-domain.service";
 
 const CONFIRMATION_RESEND_MS = 10 * 60_000;
 const WELCOME_LEASE_MS = 5 * 60_000;
@@ -176,6 +176,7 @@ async function sendNewsletterConfirmation(
   try {
     const email = await newsletterConfirmationEmail(
       newsletter,
+      await resolveNewsletterSender(newsletter),
       subscriber,
       locale,
     );
@@ -200,9 +201,10 @@ export async function sendNewsletterConfirmations(
   ) {
     try {
       const batch = subscribers.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+      const sender = await resolveNewsletterSender(newsletter);
       const emails = await Promise.all(
         batch.map((subscriber) =>
-          newsletterConfirmationEmail(newsletter, subscriber, locale),
+          newsletterConfirmationEmail(newsletter, sender, subscriber, locale),
         ),
       );
       const pending = new Set(await pendingConfirmations(newsletter, batch));
@@ -237,6 +239,7 @@ async function pendingConfirmations<T extends ConfirmationSubscriber>(
 
 async function newsletterConfirmationEmail(
   newsletter: Newsletter,
+  sender: Awaited<ReturnType<typeof resolveNewsletterSender>>,
   subscriber: ConfirmationSubscriber,
   locale: string,
 ): Promise<SendEmailInput> {
@@ -268,7 +271,7 @@ async function newsletterConfirmationEmail(
   return {
     to: subscriber.email,
     ...rendered,
-    ...newsletterSenderOptions(newsletter),
+    ...sender,
     headers,
     tag: "newsletter-confirmation",
   };
@@ -390,7 +393,7 @@ export async function confirmNewsletterSubscriber(
         await sendEmail({
           to: subscriber.email,
           ...rendered,
-          ...newsletterSenderOptions(newsletter),
+          ...(await resolveNewsletterSender(newsletter)),
           headers,
           tag: "newsletter-welcome",
           idempotencyKey: `newsletter-welcome:${subscriber.id}`,

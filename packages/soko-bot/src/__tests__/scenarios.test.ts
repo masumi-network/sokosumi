@@ -113,7 +113,9 @@ describe("evaluateScenario", () => {
         scenario.trigger?.kind === "ingest" ? [scenario.trigger.beat] : [],
       ),
     );
-    expect(beats).toEqual(new Set(["standup", "weekly-wrap", "delta"]));
+    expect(beats).toEqual(
+      new Set(["standup", "weekly-wrap", "dreaming", "delta"]),
+    );
     expect(
       SOKO_BOT_SCENARIOS.some(
         (scenario) => scenario.trigger?.kind === "task_event",

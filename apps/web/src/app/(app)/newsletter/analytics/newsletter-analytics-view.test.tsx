@@ -18,10 +18,15 @@ import { NewsletterAnalyticsView } from "./newsletter-analytics-view";
 function setup(
   analytics: typeof NEWSLETTER_ANALYTICS | null = NEWSLETTER_ANALYTICS,
   searchParams = "",
+  locale: "en" | "de" | "es" = "en",
 ) {
   const onUrlUpdate = vi.fn();
   render(
-    <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+    <NextIntlClientProvider
+      locale={locale}
+      messages={{ en, de, es }[locale]}
+      timeZone="UTC"
+    >
       <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate}>
         <NewsletterAnalyticsView
           projectId={NEWSLETTER_PROJECT_ID}
@@ -34,6 +39,59 @@ function setup(
 }
 
 describe("newsletter analytics", () => {
+  it.each(["en", "de", "es"] as const)(
+    "labels unavailable and zero metrics in phone cards in %s",
+    (locale) => {
+      const copy = { en, de, es }[locale].App.Projects.Newsletter.Analytics;
+      const issue = NEWSLETTER_ANALYTICS.issues[0]!;
+      const subject = "A long campaign subject ".repeat(8);
+      setup(
+        {
+          ...NEWSLETTER_ANALYTICS,
+          issues: [
+            {
+              ...issue,
+              subject,
+              sentAt: null,
+              uniqueOpens: 0,
+              openRate: 0,
+              uniqueClicks: 0,
+              clickRate: 0,
+            },
+          ],
+        },
+        "",
+        locale,
+      );
+      const cards = within(
+        screen.getByRole("list", { name: copy.issuePerformance }),
+      );
+      const card = within(cards.getByRole("listitem"));
+      expect(card.getByRole("link", { name: subject.trim() })).toHaveAttribute(
+        "href",
+        `/newsletter/issues/${issue.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
+      );
+      expect(card.getByText(copy.sentAt).nextElementSibling).toHaveTextContent(
+        copy.unavailable,
+      );
+      expect(
+        card.getByText(copy.metrics.uniqueOpens).nextElementSibling,
+      ).toHaveTextContent(/^0$/);
+      expect(
+        card.getByText(copy.metrics.openRate).nextElementSibling,
+      ).toHaveTextContent(/^0\s?%$/);
+      expect(
+        card.getByText(copy.metrics.uniqueClicks).nextElementSibling,
+      ).toHaveTextContent(/^0$/);
+      expect(
+        card.getByText(copy.metrics.unsubscribes).nextElementSibling,
+      ).toHaveTextContent(copy.unavailable);
+      expect(
+        card.getByText(copy.metrics.clickRate).nextElementSibling,
+      ).toHaveTextContent(/^0\s?%$/);
+    },
+  );
+
   it("renders metrics, daily charts, limitations and links to scoped issue details", () => {
     setup();
     const metrics = screen.getByRole("region", { name: "Newsletter metrics" });
@@ -46,11 +104,12 @@ describe("newsletter analytics", () => {
     expect(
       screen.getByText(en.App.Projects.Newsletter.Analytics.opensNote),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Weekly news" })).toHaveAttribute(
+    const table = within(screen.getByRole("table"));
+    expect(table.getByRole("link", { name: "Weekly news" })).toHaveAttribute(
       "href",
       `/newsletter/issues/${NEWSLETTER_ANALYTICS.issues[0]?.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
-    const row = screen.getByRole("link", { name: "Weekly news" }).closest("tr");
+    const row = table.getByRole("link", { name: "Weekly news" }).closest("tr");
     expect(row).not.toBeNull();
     if (row) expect(within(row).getAllByRole("cell")[5]).toHaveTextContent("—");
     expect(

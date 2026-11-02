@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/net`
 **Purpose**: HTTP helpers: SSRF-safe fetch for untrusted URLs (`ssrfSafeFetch`, `ssrfSafeStreamFetch`) and outbound webhook transport for operator env URLs (`postWebhook`)
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/net/` within the pnpm workspace
 
 ## Layout

@@ -42,6 +42,13 @@ vi.mock("./subscribers", () => ({
   },
 }));
 
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: () => undefined,
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+}));
+
 import SubscribersPage from "./page";
 
 const RESPONSE = {

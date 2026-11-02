@@ -779,9 +779,7 @@ describe("NotificationKinds", () => {
       "false",
     );
     // The cell that lost its channel is outlined rather than filled.
-    expect(cellFor("kindSystem", "channelInApp")).not.toHaveClass(
-      "bg-primary-solid",
-    );
+    expect(cellFor("kindSystem", "channelInApp")).not.toHaveClass("bg-primary");
   });
 
   /**
