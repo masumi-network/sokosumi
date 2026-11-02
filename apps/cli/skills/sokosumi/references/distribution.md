@@ -30,7 +30,7 @@ npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill j
 Install the CLI separately with `npm i -g @masumi_network/sokosumi`, or build the checkout below.
 
 [VERIFIED: `apps/cli/package.json`] This checkout defines `@masumi_network/sokosumi` version `1.1.0` with public npm access.
-It requires Node.js 24 and includes `dist` and `skills` in the package.
+It requires Node.js 26 and includes `dist` and `skills` in the package.
 [VERIFIED: local documentation audit, 2026-09-30] Registry publication and package installation were not checked in this audit.
 
 [VERIFIED: `apps/cli/src/cli/commands/skills.ts`] An installed CLI can locate its bundled Skills:
@@ -49,7 +49,7 @@ Focused skills are also under `apps/cli/skills`. Keep `SKILL.md` as each skill's
 
 [VERIFIED: `apps/cli/skills/sokosumi/SKILL.md`, `apps/cli/package.json`] Load the local `apps/cli/skills/sokosumi/SKILL.md` through the agent host's existing Skill loader. Keep its `references` directory beside it. The GitHub install command does not fetch uncommitted changes from this checkout. The main Skill contains the onboarding and runtime flow; focused Skills are optional and need their own installation.
 
-Build the CLI from the repository root with Node.js 24 and the checkout's dependencies:
+Build the CLI from the repository root with Node.js 26 and the checkout's dependencies:
 
 ```bash
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w
