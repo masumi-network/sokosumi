@@ -37,3 +37,23 @@ export function connectOffers(
     connected: activeProviders.has(offer.provider),
   }));
 }
+
+/**
+ * What the empty Contacts tab says about syncing: contacts only arrive
+ * through a Soko Bot's connected mail, calendar and Slack.
+ */
+export type ContactsSyncState =
+  | { kind: "noBot" }
+  | { kind: "connect"; offers: SokoBotConnectOffer[] }
+  | { kind: "syncing"; botName: string };
+
+export function contactsSyncState(
+  bot: { name: string | null } | null,
+  integrations: SokoBotIntegrations["integrations"],
+): ContactsSyncState {
+  if (!bot) return { kind: "noBot" };
+  const offers = connectOffers(integrations);
+  return offers.length
+    ? { kind: "connect", offers }
+    : { kind: "syncing", botName: bot.name ?? "Soko Bot" };
+}

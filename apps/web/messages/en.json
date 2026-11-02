@@ -10039,13 +10039,17 @@
       },
       "empty": {
         "title": "Your team's contacts live here",
-        "description": "People are added automatically from the mail, calendar and Slack your Soko Bots are connected to, with who on the team knows them. No newsletters or automated senders.",
+        "description": "Contacts sync through your Soko Bot: it adds the people from the mail, calendar and Slack connected to it, with who on the team knows them. No newsletters or automated senders.",
         "connect": "Connect {name}",
         "connected": "{name} connected",
         "connectFailed": "That connection didn't start. Try again.",
         "manageConnections": "Manage connections",
         "addByHand": "Add someone",
-        "import": "Import from a table"
+        "import": "Import from a table",
+        "needsBot": "Contacts sync through a Soko Bot. Set yours up and connect your mail and calendar to it, and it adds the people you deal with, with who on the team knows them.",
+        "needsConnections": "Your Soko Bot adds the people you deal with once your mail and calendar are connected to it. No newsletters or automated senders.",
+        "syncing": "{bot} is reading your connected mail and calendar. The first contacts appear within about 15 minutes.",
+        "setUpBot": "Set up your Soko Bot"
       },
       "panel": {
         "loading": "Loading contact",
