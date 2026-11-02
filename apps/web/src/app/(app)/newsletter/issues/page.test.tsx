@@ -120,8 +120,10 @@ describe("newsletter issues page", () => {
   it("asks for a project in the header's selector without one", async () => {
     render(await NewsletterIssuesPage({ searchParams: Promise.resolve({}) }));
     expect(
-      screen.getByRole("button", { name: "pickProject" }),
+      screen.getByRole("heading", { level: 2, name: "pickProject" }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });

@@ -3852,7 +3852,6 @@
       "modelCount": "{count, plural, one {# modelo} other {# modelos}}",
       "copyCount": "{count, plural, one {# copia} other {# copias}}",
       "pickTitle": "Elige un proyecto",
-      "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
       "referencesAcrossProjects": "Las referencias tienen que venir de un solo proyecto. Deselecciona las imágenes de otros proyectos y vuelve a generar.",
@@ -3938,8 +3937,37 @@
       "title": "Anuncios",
       "pickTitle": "Elige un proyecto",
       "pickBody": "Los anuncios pertenecen a un proyecto: sus cuentas publicitarias y campañas se gestionan allí. Elige un proyecto para abrir sus anuncios.",
-      "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "backdrop": {
+        "roastery": {
+          "headline1": "Café de origen único",
+          "headline2": "Tostado esta semana",
+          "headline3": "Envío gratis desde 40 €",
+          "description": "Café en pequeños lotes, tostado por encargo y en tu puerta en dos días.",
+          "sitelink1": "Suscripciones",
+          "sitelink2": "Tarjetas regalo",
+          "sitelink3": "Guías de preparación"
+        },
+        "studio": {
+          "headline1": "Sprints de diseño que se lanzan",
+          "headline2": "Reserva una llamada gratis",
+          "description": "Cinco días de una idea en bruto a un prototipo probado, con un equipo con experiencia.",
+          "callout1": "Equipo sénior",
+          "callout2": "Precio cerrado"
+        },
+        "linen": {
+          "businessName": "Atelier Lune",
+          "headline": "Lino para veranos tranquilos",
+          "longHeadline": "Lino para veranos tranquilos, hecho para durar",
+          "description": "La nueva temporada ya está aquí."
+        },
+        "yoga": {
+          "businessName": "Harbor Yoga",
+          "headline": "Tu primera semana corre por nuestra cuenta",
+          "longHeadline": "Tu primera semana de clases corre por nuestra cuenta",
+          "description": "Flow matutino junto al agua, para todos los niveles."
+        }
+      },
       "tabsLabel": "Secciones de anuncios",
       "loading": "Cargando anuncios…",
       "updated": "Actualizado {time}",
@@ -4510,6 +4538,26 @@
       "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
       "pickProject": "Elige un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "backdrop": {
+        "launch": {
+          "name": "The Launch Log",
+          "sender": "Mia de Northwind",
+          "subject": "Tres lecciones al lanzar la v2",
+          "body": "Un vistazo tras el lanzamiento: qué recortamos, qué mantuvimos y la prueba que cambió nuestro plan."
+        },
+        "field": {
+          "name": "Field Notes",
+          "sender": "Field Notes Studio",
+          "subject": "El sprint de cinco días, paso a paso",
+          "body": "El lunes se define el problema y el viernes se prueba con personas reales. Así funciona cada día."
+        },
+        "studio": {
+          "name": "Studio Weekly",
+          "sender": "Atelier Lune",
+          "subject": "Nueva temporada, nuevos colores",
+          "body": "Arena, arcilla y un azul mar profundo: la paleta detrás de la colección de verano."
+        }
+      },
       "projectTitle": "Boletín de {project}"
     },
     "Social": {
@@ -4541,7 +4589,10 @@
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
       "loading": "Cargando…",
-      "pickProject": "Elegir un proyecto",
+      "platforms": {
+        "label": "Plataformas de redes sociales",
+        "pause": "Pausar plataformas"
+      },
       "statisticsNeedProject": {
         "title": "Elige un proyecto para ver el rendimiento",
         "body": "El rendimiento de las cuentas pertenece a un proyecto. Elige uno para evaluar sus cuentas conectadas y su contenido publicado."

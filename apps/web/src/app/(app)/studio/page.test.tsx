@@ -1,16 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasSocialBetaAccessMock, imageStudioServiceMock, projectServiceMock } =
-  vi.hoisted(() => ({
-    hasSocialBetaAccessMock: vi.fn(),
-    imageStudioServiceMock: {
-      getCatalog: vi.fn(),
-      getState: vi.fn(),
-      getWorkspaceState: vi.fn(),
-    },
-    projectServiceMock: { getProjectById: vi.fn() },
-  }));
+const {
+  hasSocialBetaAccessMock,
+  imageStudioServiceMock,
+  projectServiceMock,
+  requireScopeMock,
+} = vi.hoisted(() => ({
+  hasSocialBetaAccessMock: vi.fn(),
+  requireScopeMock: vi.fn(),
+  imageStudioServiceMock: {
+    getCatalog: vi.fn(),
+    getState: vi.fn(),
+    getWorkspaceState: vi.fn(),
+  },
+  projectServiceMock: { getProjectById: vi.fn() },
+}));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
@@ -58,6 +63,10 @@ vi.mock("@/app/components/project-scope/project-scope-required", () => ({
     body: string;
     testId: string;
   }) => <div data-testid={testId}>{body}</div>,
+  RequireProjectScope: (props: { reason: string }) => {
+    requireScopeMock(props);
+    return null;
+  },
 }));
 
 const PROJECT = {
@@ -87,19 +96,28 @@ describe("StudioPage", () => {
     hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
-  it("asks for a project instead of opening the studio without one", async () => {
+  it("opens curated styles under the auto-opened selector without a project", async () => {
     const { default: StudioPage } = await import("./page");
 
     render(await StudioPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
-      "App.Studio.pickBody",
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "workspace",
     );
-    expect(screen.queryByTestId("image-studio")).not.toBeInTheDocument();
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-assets",
+      "0",
+    );
+    expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+    // The selector opens over the curated gallery, asking for a project.
+    expect(requireScopeMock).toHaveBeenCalledWith({
+      reason: "App.Studio.pickBody",
+    });
     // Nothing is loaded for a project nobody named.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
-    expect(imageStudioServiceMock.getCatalog).not.toHaveBeenCalled();
+    expect(imageStudioServiceMock.getWorkspaceState).not.toHaveBeenCalled();
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
@@ -109,9 +127,11 @@ describe("StudioPage", () => {
       await StudioPage({ searchParams: Promise.resolve({ projectId: " " }) }),
     );
 
-    expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
-      "App.Studio.pickBody",
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "workspace",
     );
+    expect(requireScopeMock).toHaveBeenCalledOnce();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
@@ -153,6 +173,7 @@ describe("StudioPage", () => {
     const studio = screen.getByTestId("image-studio");
     expect(studio).toHaveAttribute("data-project", "project-1");
     expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+    expect(requireScopeMock).not.toHaveBeenCalled();
   });
 
   /**

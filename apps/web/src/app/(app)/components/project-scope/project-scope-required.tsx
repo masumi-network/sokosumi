@@ -1,16 +1,15 @@
 "use client";
 
 import { FolderKanban } from "lucide-react";
+import { useId } from "react";
 import { createPortal } from "react-dom";
 
-import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 import {
   openProjectScope,
   type ProjectScopeRequest,
 } from "./sidebar-project-scope-state";
-import { usePrefetchScopeProjects } from "./use-scope-projects";
 
 /**
  * Opens the main project selector, as required, when it mounts: a page that
@@ -18,8 +17,9 @@ import { usePrefetchScopeProjects } from "./use-scope-projects";
  * (a project chosen, or the reader going elsewhere) closes it again.
  *
  * Esc closes it too, back to the page under it. That page is never broken: it
- * is the empty state that says why it needs a project, with a button to ask
- * again, so closing is always safe and never strands the reader in a modal.
+ * is the page's own backdrop that says why it needs a project, and the header's
+ * selector is still there to pick one, so closing is always safe and never
+ * strands the reader in a modal.
  */
 export function RequireProjectScope(
   request: Omit<ProjectScopeRequest, "required">,
@@ -28,78 +28,64 @@ export function RequireProjectScope(
   return null;
 }
 
-/** A button that opens the main project selector, as required. */
-export function ProjectScopeButton({
-  children,
-  className,
-  request,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  request?: Omit<ProjectScopeRequest, "required">;
-}) {
-  const prefetch = usePrefetchScopeProjects();
-  return (
-    <Button
-      className={className}
-      type="button"
-      aria-haspopup="dialog"
-      onPointerEnter={prefetch}
-      onFocus={prefetch}
-      onClick={() => openProjectScope({ ...request, required: true })}
-    >
-      {children}
-    </Button>
-  );
-}
-
 /**
- * What every project-only page (Newsletter, Social, Ads, the studio) shows
- * before it knows which project it is working in: its own copy, and the
- * header's project selector open over it. Choosing there writes the scope back
- * into the URL the way every other scoped page does. The copy is the page's,
- * so it is passed in; the layout is this one, so the pages cannot drift apart.
+ * What a project-only page (Newsletter, Social, Ads, the studio) shows before
+ * it knows which project it is working in: its own backdrop (`children`), its
+ * copy, and the header's project selector open over it. Choosing there writes
+ * the scope back into the URL the way every other scoped page does. There is
+ * no button of its own: the selector opens by itself, and the header's trigger
+ * reopens it.
  */
 export function ProjectScopeRequired({
-  action,
   autoOpen = true,
   body,
+  children,
   onSelect,
   testId,
   title,
 }: {
-  action: string;
   /**
    * Open the header's project selector on arrival. Off where the placeholder
    * sits above a view that works without a project, as Social's calendar does.
    */
   autoOpen?: boolean;
   body: string;
+  /** The page's backdrop; a plain project tile when it has none. */
+  children?: React.ReactNode;
   onSelect?: ProjectScopeRequest["onSelect"];
   testId?: string;
-  title: string;
+  title?: string;
 }) {
-  const request = { reason: body, onSelect };
+  const headingId = useId();
   return (
-    <div
-      className="mx-auto flex max-w-md flex-col items-center py-10 text-center"
+    <section
+      aria-labelledby={title ? headingId : undefined}
+      className="flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
       data-testid={testId}
     >
-      {autoOpen ? <RequireProjectScope {...request} /> : null}
-      <span
-        aria-hidden
-        className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
-      >
-        <FolderKanban className="size-5" />
-      </span>
-      <h2 className="mt-4 text-base font-semibold tracking-tight">{title}</h2>
-      <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+      {autoOpen ? (
+        <RequireProjectScope reason={body} onSelect={onSelect} />
+      ) : null}
+      {children ?? (
+        <span
+          aria-hidden
+          className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
+        >
+          <FolderKanban className="size-5" />
+        </span>
+      )}
+      {title ? (
+        <h2
+          id={headingId}
+          className="mt-8 text-2xl font-light tracking-tight text-balance"
+        >
+          {title}
+        </h2>
+      ) : null}
+      <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
         {body}
       </p>
-      <ProjectScopeButton className="mt-5" request={request}>
-        {action}
-      </ProjectScopeButton>
-    </div>
+    </section>
   );
 }
 

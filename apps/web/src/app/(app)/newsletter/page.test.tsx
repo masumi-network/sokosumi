@@ -98,6 +98,14 @@ describe("NewsletterPage", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
     ).toBeInTheDocument();
+    // Sample issues behind the selector, and no button of its own.
+    const backdrop = screen.getByTestId("newsletter-backdrop");
+    expect(backdrop).toHaveAttribute("aria-hidden", "true");
+    expect(backdrop).toHaveTextContent(PAGE.backdrop.launch.subject);
+    expect(screen.getByTestId("newsletter-no-project")).toContainElement(
+      backdrop,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
     expect(mocks.requireScope).toHaveBeenCalledWith(
       expect.objectContaining({ reason: PAGE.description, required: true }),
     );

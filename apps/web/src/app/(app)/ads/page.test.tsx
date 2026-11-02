@@ -6,6 +6,7 @@ const {
   hasSocialBetaAccessMock,
   notFoundMock,
   projectServiceMock,
+  requireScopeMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn() },
   hasSocialBetaAccessMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
     throw new Error("NEXT_NOT_FOUND");
   }),
   projectServiceMock: { getProjectById: vi.fn() },
+  requireScopeMock: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -36,16 +38,15 @@ vi.mock("@/lib/social-beta-access.server", () => ({
   hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
 
-// The picker reaches for the sidebar switcher's list, and the tabs read the
-// URL through nuqs. This file is about which state the page chooses.
-vi.mock("@/app/components/project-scope/project-scope-required", () => ({
-  ProjectScopeRequired: ({
-    body,
-    testId,
-  }: {
-    body: string;
-    testId: string;
-  }) => <div data-testid={testId}>{body}</div>,
+// The selector itself lives in the header; this file only sees what the page
+// asks it for. The tabs read the URL through nuqs, and the backdrop reads
+// client translations. This file is about which state the page chooses.
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: requireScopeMock,
+}));
+
+vi.mock("./components/ads-no-project-backdrop", () => ({
+  AdsNoProjectBackdrop: () => <div data-testid="ads-backdrop" />,
 }));
 
 vi.mock("./components/ads-tabs", () => ({
@@ -134,6 +135,14 @@ describe("AdsPage", () => {
     expect(screen.getByTestId("ads-no-project")).toHaveTextContent(
       "App.Ads.pickBody",
     );
+    expect(requireScopeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
+    );
+    // Sample ads behind the selector, and no button of its own.
+    expect(screen.getByTestId("ads-no-project")).toContainElement(
+      screen.getByTestId("ads-backdrop"),
+    );
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("ads-tabs")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
@@ -152,6 +161,9 @@ describe("AdsPage", () => {
 
     expect(screen.getByTestId("ads-no-project")).toHaveTextContent(
       "App.Ads.pickUnavailable",
+    );
+    expect(requireScopeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "App.Ads.pickUnavailable" }),
     );
     expect(notFoundMock).not.toHaveBeenCalled();
   });

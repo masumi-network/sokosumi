@@ -15,6 +15,7 @@ import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
 import { AdsCampaignsToolbar } from "./components/ads-campaigns-toolbar";
 import { AdsMarketSection } from "./components/ads-market-section";
+import { AdsNoProjectBackdrop } from "./components/ads-no-project-backdrop";
 import {
   AdsCampaignRowsSkeleton,
   AdsRowsSkeleton,
@@ -37,7 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * Ads, as a top-level destination behind the Social beta.
  *
  * Ad accounts belong to one project, so the page reads `?projectId=` like
- * Social and the studio do, and with no project it asks for one.
+ * Social and the studio do, and with no project it asks for one over a
+ * backdrop of sample ads.
  */
 export default async function AdsPage({ searchParams }: AdsPageProps) {
   await connection();
@@ -56,13 +58,14 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
     return (
       <WorkspacePageShell title={t("title")}>
         <ProjectScopeRequired
-          action={t("pickAction")}
           // Not `notFound()` for a lost id: it came from a switchable scope,
           // so the repair is to pick another project.
           body={projectId ? t("pickUnavailable") : t("pickBody")}
           testId="ads-no-project"
           title={t("pickTitle")}
-        />
+        >
+          <AdsNoProjectBackdrop />
+        </ProjectScopeRequired>
       </WorkspacePageShell>
     );
   }

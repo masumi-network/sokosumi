@@ -7,6 +7,8 @@ import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { projectService } from "@/lib/services/project.service";
 import { isUuidString } from "@/lib/utils/uuid";
 
+import { NewsletterNoProjectBackdrop } from "./components/newsletter-no-project-backdrop";
+
 const loadScopeParams = createLoader({
   projectId: parseAsString,
 });
@@ -31,7 +33,8 @@ export async function loadNewsletterProject(
 /**
  * The workspace view of every newsletter tab: newsletters belong to a
  * project, so it asks for one in the header's project selector, opened over
- * the page. A pick keeps the tab the reader is on, as the switcher always does.
+ * a stack of sample issues. A pick keeps the tab the reader is on, as the
+ * switcher always does.
  *
  * A plain async function rather than an async component, for the same reason
  * as `getProjectWorkspaceLabels`: the pages' tests render the tree it returns.
@@ -42,15 +45,27 @@ export async function newsletterWorkspacePage({
   unavailable: boolean;
 }) {
   const t = await getTranslations("App.Newsletter");
+  const preview = await getTranslations("App.Projects.Newsletter.Preview");
+  const issue = (key: "launch" | "field" | "studio") => ({
+    body: t(`backdrop.${key}.body`),
+    from: preview("from", { sender: t(`backdrop.${key}.sender`) }),
+    name: t(`backdrop.${key}.name`),
+    subject: t(`backdrop.${key}.subject`),
+  });
 
   return (
     <WorkspacePageShell title={t("title")}>
       <ProjectScopeRequired
-        action={t("pickProject")}
         body={unavailable ? t("pickUnavailable") : t("description")}
         testId="newsletter-no-project"
         title={t("pickProject")}
-      />
+      >
+        <NewsletterNoProjectBackdrop
+          button={preview("button")}
+          issues={[issue("launch"), issue("field"), issue("studio")]}
+          unsubscribe={preview("unsubscribe")}
+        />
+      </ProjectScopeRequired>
     </WorkspacePageShell>
   );
 }

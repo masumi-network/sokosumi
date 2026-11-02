@@ -202,9 +202,9 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.requireScope).toHaveBeenCalledWith(
         expect.objectContaining({ reason: PAGE.description, required: true }),
       );
-      expect(
-        screen.getByRole("button", { name: PAGE.pickProject }),
-      ).toBeInTheDocument();
+      // No button of its own: the selector opens by itself, over sample issues.
+      expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+      expect(screen.queryByRole("button")).toBeNull();
       expect(mocks.getProject).not.toHaveBeenCalled();
       expect(mocks.listProjects).not.toHaveBeenCalled();
       expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();

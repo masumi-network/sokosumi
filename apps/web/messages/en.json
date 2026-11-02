@@ -3852,7 +3852,6 @@
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
       "pickTitle": "Pick a project",
-      "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
@@ -3938,8 +3937,37 @@
       "title": "Ads",
       "pickTitle": "Pick a project",
       "pickBody": "Ads belong to one project: its ad accounts and campaigns are managed there. Choose a project to open its ads.",
-      "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "backdrop": {
+        "roastery": {
+          "headline1": "Single-origin beans",
+          "headline2": "Roasted this week",
+          "headline3": "Free shipping over €40",
+          "description": "Small-batch coffee, roasted to order and at your door in two days.",
+          "sitelink1": "Subscriptions",
+          "sitelink2": "Gift cards",
+          "sitelink3": "Brew guides"
+        },
+        "studio": {
+          "headline1": "Design sprints that ship",
+          "headline2": "Book a free intro call",
+          "description": "Five days from a rough idea to a tested prototype, with a team that has done it before.",
+          "callout1": "Senior team",
+          "callout2": "Fixed price"
+        },
+        "linen": {
+          "businessName": "Atelier Lune",
+          "headline": "Linen for slow summers",
+          "longHeadline": "Linen for slow summers, made to last",
+          "description": "The new season is in."
+        },
+        "yoga": {
+          "businessName": "Harbor Yoga",
+          "headline": "Your first week is on us",
+          "longHeadline": "Your first week of classes is on us",
+          "description": "Morning flow by the water, all levels."
+        }
+      },
       "tabsLabel": "Ads sections",
       "loading": "Loading ads…",
       "updated": "Updated {time}",
@@ -4510,6 +4538,26 @@
       "description": "Each project has its own newsletter. Choose a project to manage it.",
       "pickProject": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "backdrop": {
+        "launch": {
+          "name": "The Launch Log",
+          "sender": "Mia at Northwind",
+          "subject": "Three things we learned shipping v2",
+          "body": "A look behind the release: what we cut, what we kept, and the one test that changed our plan."
+        },
+        "field": {
+          "name": "Field Notes",
+          "sender": "Field Notes Studio",
+          "subject": "The five-day sprint, step by step",
+          "body": "Monday maps the problem, Friday tests it with real people. Here is how each day runs."
+        },
+        "studio": {
+          "name": "Studio Weekly",
+          "sender": "Atelier Lune",
+          "subject": "New season, new colors",
+          "body": "Sand, clay and a deep sea blue: the palette behind this summer's collection."
+        }
+      },
       "projectTitle": "{project} newsletter"
     },
     "Social": {
@@ -4541,7 +4589,10 @@
         "body": "Choose a project to see and finish its drafts."
       },
       "loading": "Loading…",
-      "pickProject": "Choose a project",
+      "platforms": {
+        "label": "Social platforms",
+        "pause": "Pause platforms"
+      },
       "statisticsNeedProject": {
         "title": "Choose a project to see performance",
         "body": "Account performance belongs to a project. Choose one to evaluate its connected accounts and published content."

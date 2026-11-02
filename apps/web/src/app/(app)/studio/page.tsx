@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
-import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
+import {
+  ProjectScopeRequired,
+  RequireProjectScope,
+} from "@/app/components/project-scope/project-scope-required";
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { imageStudioService } from "@/lib/services/image-studio.service";
@@ -37,8 +40,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * between projects without the studio knowing anything about the switcher, and
  * `ProjectScopeGuard` clears a project this workspace can no longer see.
  *
- * With no project it asks for one, with the same placeholder as every other
- * project-only page; the studio and its images belong to a project.
+ * With no project it offers curated styles, with the header's project
+ * selector opened over them. Generation asks which project it goes to;
+ * existing images are loaded only for a selected project.
  */
 export default async function StudioPage({ searchParams }: StudioPageProps) {
   await connection();
@@ -52,12 +56,11 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     : null;
   // Not `notFound()`: the id came from a switchable scope, not from the path,
   // so the repair is to pick another project rather than to leave the page.
-  if (!project) {
+  if (projectId && !project) {
     return (
       <StudioPageShell title={t("title")}>
         <ProjectScopeRequired
-          action={t("pickAction")}
-          body={projectId ? t("pickUnavailable") : t("pickBody")}
+          body={t("pickUnavailable")}
           testId="studio-no-project"
           title={t("pickTitle")}
         />
@@ -68,8 +71,11 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // In parallel, and the catalog only once per render: it is ~158KB and it is
   // deliberately no longer part of the state payload the open studio refetches
   // every three seconds.
+  const scopeId = project?.id ?? null;
   const [state, catalog] = await Promise.all([
-    loadStudioState(project.id, query.v),
+    scopeId
+      ? loadStudioState(scopeId, query.v)
+      : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
   ]);
 
@@ -80,6 +86,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
 
   return (
     <StudioPageShell title={t("title")}>
+      {/* The curated styles are the backdrop the selector opens over. */}
+      {scopeId ? null : <RequireProjectScope reason={t("pickBody")} />}
       <ImageStudio
         catalog={catalog}
         initialSelectedAssetId={initialSelectedAssetId}
@@ -87,9 +95,9 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         // Remounted per project, so no filter, selection, draft prompt or
         // queued request from the previous one can survive the switch. The
         // state hook resets on its own too; see `useStudioState`.
-        key={project.id}
+        key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
-        projectId={project.id}
+        projectId={scopeId}
       />
     </StudioPageShell>
   );

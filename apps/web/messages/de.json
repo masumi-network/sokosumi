@@ -3852,7 +3852,6 @@
       "modelCount": "{count, plural, one {# Modell} other {# Modelle}}",
       "copyCount": "{count, plural, one {# Kopie} other {# Kopien}}",
       "pickTitle": "Projekt auswählen",
-      "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
@@ -3938,8 +3937,37 @@
       "title": "Ads",
       "pickTitle": "Projekt auswählen",
       "pickBody": "Ads gehören zu einem Projekt: Werbekonten und Kampagnen werden dort verwaltet. Wähle ein Projekt aus, um seine Ads zu öffnen.",
-      "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
+      "backdrop": {
+        "roastery": {
+          "headline1": "Bohnen aus einer Herkunft",
+          "headline2": "Diese Woche geröstet",
+          "headline3": "Gratisversand ab 40 €",
+          "description": "Kaffee in kleinen Chargen, auf Bestellung geröstet und in zwei Tagen bei dir.",
+          "sitelink1": "Abos",
+          "sitelink2": "Gutscheine",
+          "sitelink3": "Brühanleitungen"
+        },
+        "studio": {
+          "headline1": "Design-Sprints, die liefern",
+          "headline2": "Kostenloses Erstgespräch",
+          "description": "In fünf Tagen von der groben Idee zum getesteten Prototyp, mit einem erfahrenen Team.",
+          "callout1": "Erfahrenes Team",
+          "callout2": "Festpreis"
+        },
+        "linen": {
+          "businessName": "Atelier Lune",
+          "headline": "Leinen für ruhige Sommer",
+          "longHeadline": "Leinen für ruhige Sommer, gemacht für lange",
+          "description": "Die neue Saison ist da."
+        },
+        "yoga": {
+          "businessName": "Harbor Yoga",
+          "headline": "Deine erste Woche geht auf uns",
+          "longHeadline": "Deine erste Kurswoche geht auf uns",
+          "description": "Morgenflow am Wasser, für alle Level."
+        }
+      },
       "tabsLabel": "Ads-Bereiche",
       "loading": "Ads werden geladen…",
       "updated": "Aktualisiert {time}",
@@ -4510,6 +4538,26 @@
       "description": "Jedes Projekt hat seinen eigenen Newsletter. Wähle ein Projekt aus, um ihn zu verwalten.",
       "pickProject": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "backdrop": {
+        "launch": {
+          "name": "The Launch Log",
+          "sender": "Mia von Northwind",
+          "subject": "Drei Lehren aus dem Launch von v2",
+          "body": "Ein Blick hinter das Release: was wir gestrichen, was wir behalten haben und der eine Test, der unseren Plan geändert hat."
+        },
+        "field": {
+          "name": "Field Notes",
+          "sender": "Field Notes Studio",
+          "subject": "Der Fünf-Tage-Sprint, Schritt für Schritt",
+          "body": "Am Montag wird das Problem skizziert, am Freitag mit echten Menschen getestet. So läuft jeder Tag ab."
+        },
+        "studio": {
+          "name": "Studio Weekly",
+          "sender": "Atelier Lune",
+          "subject": "Neue Saison, neue Farben",
+          "body": "Sand, Ton und ein tiefes Meeresblau: die Palette hinter der Sommerkollektion."
+        }
+      },
       "projectTitle": "Newsletter von {project}"
     },
     "Social": {
@@ -4541,7 +4589,10 @@
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
       "loading": "Wird geladen…",
-      "pickProject": "Projekt auswählen",
+      "platforms": {
+        "label": "Social-Media-Plattformen",
+        "pause": "Plattformen pausieren"
+      },
       "statisticsNeedProject": {
         "title": "Wähle ein Projekt, um die Leistung zu sehen",
         "body": "Die Kontoleistung gehört zu einem Projekt. Wähle eines, um seine verbundenen Konten und veröffentlichten Inhalte zu bewerten."
