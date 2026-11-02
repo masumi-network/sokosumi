@@ -21,7 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   scheduled: "Scheduled",
 };
 
-/** After payment: Cuso making the whole month, piece by piece. */
+/** After approval: Cuso making the whole month, piece by piece. */
 function MonthProduction({
   production,
 }: {

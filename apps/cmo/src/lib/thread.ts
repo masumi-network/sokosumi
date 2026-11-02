@@ -16,7 +16,6 @@ export type ThreadItem =
   | { kind: "learning"; at: string; done: boolean }
   | { kind: "brandBrain"; at: string }
   | { kind: "strategy"; at: string }
-  | { kind: "subscribe"; at: string }
   | { kind: "connect"; at: string }
   | { kind: "update"; at: string; update: Update };
 
@@ -26,8 +25,8 @@ function iso(value: Date | string | null | undefined): string | null {
 }
 
 /**
- * The thread in time order. Cards that wait for the owner (subscribe,
- * connect) sit right after the step that made them relevant.
+ * The thread in time order. A card that waits for the owner (connect) sits
+ * right after the step that made it relevant.
  */
 export function buildThread(
   overview: CmoOverview,
@@ -57,11 +56,8 @@ export function buildThread(
     items.push({ kind: "strategy", at: strategyAt });
   }
   const approvedAt = iso(overview.strategyVersion?.approvedAt);
-  if (approvedAt) {
-    items.push({ kind: "subscribe", at: approvedAt });
-    if (overview.channels.length === 0) {
-      items.push({ kind: "connect", at: approvedAt });
-    }
+  if (approvedAt && overview.channels.length === 0) {
+    items.push({ kind: "connect", at: approvedAt });
   }
   for (const update of overview.updates) {
     items.push({ kind: "update", at: iso(update.at) ?? created, update });
@@ -84,7 +80,6 @@ export function cusoStatus(overview: CmoOverview): string {
   if (overview.botStatus === "RUNNING") return "Working";
   if (!overview.strategy) return "Planning";
   if (!strategyApproved(overview)) return "Waiting for approval";
-  if (!overview.subscriptionActive) return "Strategy approved";
   if (overview.channels.length === 0) return "Waiting for a channel";
   return "Running";
 }

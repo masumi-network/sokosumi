@@ -9,10 +9,7 @@ import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
-import {
-  activeCmoSubscription,
-  cmoMockBilling,
-} from "@/services/cmo-billing.service";
+import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { cmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
   type CmoBrandVisual,
@@ -73,16 +70,14 @@ export interface CmoUpNextItem {
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
  * until a member confirms it, the Marketing strategy until a version is
- * approved, the accounts until the Project has an active Social connection,
- * the plan until the organization has an active CMO plan. CMO's own cookie
- * may skip the last two (ADR 0062).
+ * approved, the accounts until the Project has an active Social connection.
+ * CMO's own cookie may skip the accounts (ADR 0062).
  */
 /** Hiring Cuso's steps, in order. */
 export const CMO_ONBOARDING_STEPS = [
   "brandBrain",
   "strategy",
   "accounts",
-  "plan",
   "done",
 ] as const;
 export type CmoOnboardingStep = (typeof CMO_ONBOARDING_STEPS)[number];
@@ -91,10 +86,8 @@ export function cmoOnboardingStep(input: {
   brandBrainConfirmed: boolean;
   strategyApproved: boolean;
   connected: boolean;
-  subscribed: boolean;
 }): CmoOnboardingStep {
-  if (input.strategyApproved && input.subscribed) return "done";
-  if (input.strategyApproved) return input.connected ? "plan" : "accounts";
+  if (input.strategyApproved) return input.connected ? "done" : "accounts";
   return input.brandBrainConfirmed ? "strategy" : "brandBrain";
 }
 
@@ -127,12 +120,8 @@ export interface CmoOverview {
   }[];
   roomId: string;
   subscriptionActive: boolean;
-  /** This member may approve the strategy and start the paid month. */
+  /** This member may approve the strategy. */
   viewerCanApprove: boolean;
-  /** CMO_MOCK_BILLING: CMO offers its own tiers without checkout. */
-  mockBilling: boolean;
-  mockPlan: string | null;
-  mockPlanActivatedAt: Date | null;
   brandBrain: BrandBrain | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: MarketingStrategyPlan | null;
@@ -149,7 +138,7 @@ export interface CmoOverview {
   connectAdsUrl: string;
   /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
   measurement: CmoMeasurementStatus[];
-  /** The month's production after payment: how many pieces are made. */
+  /** The month's production after approval: how many pieces are made. */
   production: import("@/services/cmo-production.service").CmoProductionStatus;
   /** People on the newsletter list. */
   mailingListSize: number;
@@ -295,13 +284,7 @@ export async function getCmoOverview(
       organizationId: payer.organizationId,
     }),
   ]);
-  const cmoSubscription = await activeCmoSubscription(payer.referenceId);
-  const cmoPlan = cmoSubscription?.plan ?? null;
-  // A mock plan is the CMO Subscription without Stripe, while mock billing is on.
-  const mockPlan =
-    cmoMockBilling() && cmoSubscription?.stripeSubscriptionId === null
-      ? cmoSubscription
-      : null;
+  const subscribed = await isCmoSubscribed(cuso);
   const media = [
     ...(await cmoCalendarMedia({
       strategy,
@@ -320,7 +303,7 @@ export async function getCmoOverview(
         .filter((channel) => channel.status === "ACTIVE")
         .map((channel) => channel.provider.toLowerCase()),
     ),
-    subscribed: cmoPlan !== null,
+    subscribed,
     now,
   });
   const learning = await cmoLearningState(cuso, now);
@@ -368,7 +351,6 @@ export async function getCmoOverview(
       brandBrainConfirmed: cuso.brandBrainConfirmedAt !== null,
       strategyApproved: approved !== null,
       connected: channels.some((channel) => channel.status === "ACTIVE"),
-      subscribed: cmoPlan !== null,
     }),
     media,
     learning,
@@ -380,11 +362,8 @@ export async function getCmoOverview(
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,
     roomId: bot.sharedRoomId,
-    subscriptionActive: cmoPlan !== null,
+    subscriptionActive: subscribed,
     viewerCanApprove,
-    mockBilling: cmoMockBilling(),
-    mockPlan: mockPlan?.plan ?? null,
-    mockPlanActivatedAt: mockPlan?.periodStart ?? null,
     brandBrain,
     strategy,
     strategyVersions,
@@ -405,12 +384,10 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
-    // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then,
-    // opened on Cuso's organization, which is the one that has to pay.
+    // Sokosumi's billing page on Cuso's organization: its credits pay for him.
     subscribeUrl: `${web}/billing?organizationId=${payer.organizationId}`,
     billing: {
-      // The plan that gates Cuso first; otherwise whatever the org is on.
-      plan: cmoPlan ?? credits.subscription?.plan ?? null,
+      plan: credits.subscription?.plan ?? null,
       subscriptionStatus: credits.subscription?.status ?? null,
       availableCredits: credits.spendable,
     },

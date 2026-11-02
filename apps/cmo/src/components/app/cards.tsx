@@ -2,9 +2,8 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useState, useTransition } from "react";
-import { APPROVED_BY_OWNERS, STARTED_BY_OWNERS } from "../../lib/approvers";
+import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
-import { mockPlanById } from "../../lib/mock-plans";
 import { strategyApproved } from "../../lib/strategy";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
@@ -317,60 +316,6 @@ export function StrategyCard({
   );
 }
 
-export function SubscribeCard({
-  overview,
-  actions,
-}: {
-  overview: CmoOverview;
-  actions: CardActions;
-}) {
-  const subscribed = overview.subscriptionActive;
-  return (
-    <div className={subscribed ? "card" : "card highlight"}>
-      <div className="ch">
-        <b>Put Cuso to work</b>
-      </div>
-      <div className="cb">
-        <p>
-          {subscribed
-            ? "Your plan is active. Cuso executes the approved strategy."
-            : "Cuso starts scheduling and publishing once the business has an active plan. Until then everything stays a draft."}
-        </p>
-        <span className="note">
-          Plan: {planName(overview)} · Credits:{" "}
-          <span className="num">
-            {Math.floor(overview.billing.availableCredits)}
-          </span>
-        </span>
-      </div>
-      <div className="cf">
-        {subscribed ? (
-          <span className="tag ok">Subscribed</span>
-        ) : !overview.viewerCanApprove ? (
-          <span className="note">{STARTED_BY_OWNERS}</span>
-        ) : overview.mockBilling ? (
-          <button
-            type="button"
-            className="button button-accent button-small"
-            onClick={() => actions.open("settings")}
-          >
-            Pick a plan and start
-          </button>
-        ) : (
-          <a
-            className="button button-accent button-small"
-            href={overview.subscribeUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Subscribe and start
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /** Opens CMO's own Channels page, where each network connects in place. */
 export function ConnectCard({ actions }: { actions: CardActions }) {
   return (
@@ -577,12 +522,6 @@ export function joinLines(lines: string[]): string {
     .map((line) => line.trim().replace(/[.;,]+$/, ""))
     .filter(Boolean)
     .join("; ");
-}
-
-/** The active tier as its name reads ("Growth"), or "none". */
-export function planName(overview: CmoOverview): string {
-  const plan = mockPlanById(overview.mockPlan)?.name ?? overview.billing.plan;
-  return plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "none";
 }
 
 function formatTime(at: Date | string): string {
