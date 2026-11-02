@@ -140,7 +140,7 @@ function consoleElement(overrides: Partial<SokoBotConsoleProps>) {
       usage={null}
       integrations={null}
       adminHref={null}
-      catalog={[]}
+      connectProvider={null}
       integrationOutcome={null}
       paidByOrganization
       botId={BOT_ID}
