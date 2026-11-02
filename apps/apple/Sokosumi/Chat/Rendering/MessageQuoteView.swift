@@ -37,7 +37,9 @@ struct MessageQuoteView: View {
         }
         if let attachments = quote.attachments, !attachments.isEmpty {
           WrappingRow(spacing: 4) {
-            ForEach(attachments, id: \.url) { QuoteAttachmentThumbnail(attachment: $0, size: thumbnailSize) }
+            ForEach(attachments, id: \.url) {
+              QuoteAttachmentThumbnail(attachment: $0, size: thumbnailSize, jump: jump.map { jump in { jump(quote.messageId) } }, opensFile: dismiss != nil)
+            }
           }
         }
       }
@@ -89,16 +91,50 @@ struct MessageQuoteBlock<Content: View>: View {
 }
 
 /// One tile of a quote's row, like web's `MessageQuoteAttachmentThumb`: an image crops to the square, a file shows its
-/// type. The tile has no room for the name, so it hovers and reads aloud.
+/// type. The tile has no room for the name, so it hovers and reads aloud. A click follows the quote's jump, as web's
+/// tile inside the jump button does; the composer's preview, which has no jump, opens the file instead.
 private struct QuoteAttachmentThumbnail: View {
   let attachment: Components.Schemas.ChatRoomMessageQuoteAttachment
   let size: CGFloat
+  let jump: (() -> Void)?
+  let opensFile: Bool
 
   private var url: URL? {
     URL(string: attachment.url)
   }
 
+  /// Nil for anything but a web address: there is nothing to preview, and another message's scheme stays closed.
+  private var file: MessageAttachment? {
+    url.flatMap { MessageAttachment(url: $0, label: attachment.fileName, kindHint: attachment.mediaKind == .image ? .image : .file) }
+  }
+
   var body: some View {
+    Group {
+      if let jump {
+        Button(action: jump) { tile }
+          .buttonStyle(.plain)
+      } else if opensFile, let file {
+        QuoteAttachmentOpenButton(attachment: file) { tile }
+          .messageImageGallery(MessageImageGallery([file]))
+      } else {
+        tile
+      }
+    }
+    .help(attachment.fileName)
+    .accessibilityLabel(attachment.fileName)
+    // After `help`, which VoiceOver would otherwise read as the hint.
+    .accessibilityHint(hint)
+  }
+
+  private var hint: LocalizedStringKey {
+    if jump != nil {
+      return "Go to quoted message"
+    }
+    guard opensFile, let file else { return "" }
+    return file.kind == .image || file.documentPreviewKind != nil ? "Preview" : "Open in Browser"
+  }
+
+  private var tile: some View {
     Group {
       if attachment.mediaKind == .image, let url, ["https", "http"].contains(url.scheme?.lowercased() ?? "") {
         QuoteImageThumbnail(url: url, size: size)
@@ -109,9 +145,36 @@ private struct QuoteAttachmentThumbnail: View {
     .frame(width: size, height: size)
     .clipShape(.rect(cornerRadius: 12))
     .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.separator) }
-    .help(attachment.fileName)
+    .contentShape(.rect(cornerRadius: 12))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(attachment.fileName)
+  }
+}
+
+/// A composer tile's click, like web's `FileChipMiniPreview`: an image opens its viewer, a document the document
+/// viewer, and anything else, which has no viewer on web, its link.
+private struct QuoteAttachmentOpenButton<Label: View>: View {
+  let attachment: MessageAttachment
+  @ViewBuilder let label: Label
+  @Environment(MessageImageViewerPresentation.self) private var imageViewer: MessageImageViewerPresentation?
+  @Environment(\.openURL) private var openURL
+  @State private var documentPresented = false
+
+  var body: some View {
+    Button {
+      if attachment.kind == .image {
+        imageViewer?.openURL = attachment.url
+      } else if attachment.documentPreviewKind != nil {
+        documentPresented = true
+      } else {
+        openURL(attachment.url)
+      }
+    } label: {
+      label
+    }
+    .buttonStyle(.plain)
+    .sheet(isPresented: $documentPresented) {
+      AttachmentDocumentSheet(attachment: attachment) { documentPresented = false }
+    }
   }
 }
 
