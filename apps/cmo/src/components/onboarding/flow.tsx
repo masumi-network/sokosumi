@@ -2,7 +2,7 @@
 
 import "./onboarding.css";
 
-import type { CmoOverview, SubscriptionCatalog } from "@sokosumi/core-client";
+import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, ChevronDown, LogOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -14,7 +14,6 @@ import { ThemeToggle } from "../theme-toggle";
 import { BrainStep } from "./brain-step";
 import { CheckStep } from "./check-step";
 import { ConnectStep, needsAccounts } from "./connect-step";
-import { PricingStep } from "./pricing-step";
 import { QuestionsStep } from "./questions-step";
 import { ResearchStep } from "./research-step";
 import { ResultsStep } from "./results-step";
@@ -59,9 +58,6 @@ export interface OnboardingActions {
     overview: CmoOverview | null;
     error: string | null;
   }>;
-  chooseMockPlan: (
-    plan: string,
-  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   /** Records that the founder connected or skipped the Accounts step. */
   finishAccounts: () => Promise<CmoOverview>;
   /** Adds the founder's mailing list for the newsletter. */
@@ -75,8 +71,6 @@ export interface OnboardingActions {
     provider: CmoOverview["measurement"][number]["provider"],
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
-  completeOnboarding: () => Promise<void>;
-  subscribeLater: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -88,8 +82,7 @@ export type OnboardingStep =
   | "strategy"
   | "check"
   | "results"
-  | "connect"
-  | "pricing";
+  | "connect";
 
 const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "research", label: "Research" },
@@ -99,7 +92,6 @@ const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "check", label: "Check" },
   { id: "results", label: "Results" },
   { id: "connect", label: "Accounts" },
-  { id: "pricing", label: "Pricing" },
 ];
 
 /** Where the founder is, from what Cuso has done so far. */
@@ -119,9 +111,7 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
   }
   // Core reads it from a connection, and CMO's cookie from the person's skip,
   // so a reload after the Accounts step resumes on the plan.
-  return overview.onboardingStep === "accounts" && needsAccounts(overview)
-    ? "connect"
-    : "pricing";
+  return "connect";
 }
 
 /** Steps the founder can open again once past them; research only leads to the Brand Brain. */
@@ -208,7 +198,6 @@ function AccountMenu({
 interface OnboardingFlowProps {
   overview: CmoOverview;
   messages: CusoMessage[];
-  plans: SubscriptionCatalog | null;
   name: string;
   /** "connect" or "results" when a connection sends the founder back. */
   initialStep?: string;
@@ -222,7 +211,6 @@ interface OnboardingFlowProps {
 export function OnboardingFlow({
   overview: initialOverview,
   messages: initialMessages,
-  plans,
   name,
   initialStep,
   actions,
@@ -506,7 +494,7 @@ export function OnboardingFlow({
               actions.connectMeasurement(provider, "onboarding")
             }
           />
-        ) : step === "connect" ? (
+        ) : (
           <ConnectStep
             overview={overview}
             onConnect={actions.connectChannel}
@@ -518,19 +506,6 @@ export function OnboardingFlow({
             onContinue={async () => {
               setOverview(await actions.finishAccounts());
               setViewing(null);
-            }}
-          />
-        ) : (
-          <PricingStep
-            overview={overview}
-            plans={plans}
-            onStart={actions.completeOnboarding}
-            onSubscribeLater={actions.subscribeLater}
-            onRefresh={refresh}
-            onChooseMockPlan={async (plan) => {
-              const result = await actions.chooseMockPlan(plan);
-              if (result.overview) setOverview(result.overview);
-              return result.error;
             }}
           />
         )}
