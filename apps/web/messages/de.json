@@ -1065,6 +1065,9 @@
         "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut.",
         "selectedProject": "Ausgewähltes Projekt"
       }
+    },
+    "ConnectLink": {
+      "error": "Die Verbindung konnte nicht gestartet werden."
     }
   },
   "Join": {
