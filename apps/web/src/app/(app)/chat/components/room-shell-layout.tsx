@@ -1,5 +1,5 @@
 import { AnimatePresence } from "motion/react";
-import type { ReactNode, Ref } from "react";
+import type { ReactNode, Ref, RefObject } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -9,9 +9,9 @@ import {
   ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
 } from "@/app/chat/components/room-message-list-skeleton";
 import {
-  useRoomColumnSlide,
+  useRoomPanelSlide,
   useRoomPanelSlideOut,
-} from "@/app/chat/components/use-room-column-slide";
+} from "@/app/chat/components/use-room-panel-slide";
 import { cn } from "@/lib/utils";
 
 /** Root height for open room (no mobile tab bar). Instant + live must match. */
@@ -78,8 +78,14 @@ interface RoomShellLayoutProps {
  * a panel's `absolute inset-0` still measures against the room shell. A closing
  * panel leaves the flow at once, and the room takes its width while it slides.
  */
-function RoomSidePanelSlot({ children }: { children: ReactNode }) {
-  const { panelRef, isPresent } = useRoomPanelSlideOut();
+function RoomSidePanelSlot({
+  panelRef,
+  children,
+}: {
+  panelRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  const isPresent = useRoomPanelSlideOut(panelRef);
   return (
     <div
       ref={panelRef}
@@ -110,7 +116,8 @@ export function RoomShellLayout({
   composer,
   mainEnd = null,
 }: RoomShellLayoutProps): React.ReactElement {
-  const { mainRef, sectionRef, listRef, composerRef } = useRoomColumnSlide();
+  const { mainRef, sectionRef, panelRef, listRef, composerRef } =
+    useRoomPanelSlide();
   const header =
     desktopHeader != null ? (
       <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
@@ -165,7 +172,9 @@ export function RoomShellLayout({
             not slide. */}
         <AnimatePresence initial={false}>
           {mainEnd != null ? (
-            <RoomSidePanelSlot key="panel">{mainEnd}</RoomSidePanelSlot>
+            <RoomSidePanelSlot key="panel" panelRef={panelRef}>
+              {mainEnd}
+            </RoomSidePanelSlot>
           ) : null}
         </AnimatePresence>
       </main>

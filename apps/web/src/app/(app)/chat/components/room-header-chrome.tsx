@@ -3,8 +3,8 @@
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ROOM_HEADER_ACTIONS_SLOT } from "@/app/chat/components/use-room-column-slide";
 import { useRoomWorkspaceName } from "@/app/chat/components/use-room-display-name";
+import { ROOM_HEADER_ACTIONS_SLOT } from "@/app/chat/components/use-room-panel-slide";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";

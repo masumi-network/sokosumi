@@ -8,14 +8,14 @@
  * the pane's edge and back out. Needs real layout. Run with `pnpm --filter web test:webkit` (Chromium +
  * WebKit installed).
  */
-import { type Browser, chromium, webkit } from "playwright";
+import { type Browser, chromium, type Page, webkit } from "playwright";
 import type { ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { startChatRowFixtureServer } from "@/app/chat/components/__tests__/chat-row-fixture-server";
 
 const PAGE_MODULE =
-  "/src/app/(app)/chat/components/__tests__/use-room-column-slide-page.tsx";
+  "/src/app/(app)/chat/components/__tests__/use-room-panel-slide-page.tsx";
 
 let server: ViteDevServer;
 
@@ -27,7 +27,7 @@ beforeAll(async () => {
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <script type="module">import "/src/app/globals.css";</script>
       </head><body><div id="fixture"></div></body></html>`,
-    cacheDir: ".vite-room-column",
+    cacheDir: ".vite-room-panel",
   });
 }, 120_000);
 
@@ -49,7 +49,11 @@ describe.each([
     await browser?.close();
   });
 
-  async function openRoom(paneWidth: number, reducedMotion = false) {
+  async function openRoom(
+    paneWidth: number,
+    reducedMotion = false,
+    headerAtMount = true,
+  ) {
     const address = server.httpServer?.address();
     if (!address || typeof address === "string")
       throw new Error("Missing fixture port");
@@ -65,11 +69,21 @@ describe.each([
     );
     await page.addScriptTag({
       type: "module",
-      content: `const { renderRoomColumnSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
-        renderRoomColumnSlidePage();`,
+      content: `const { renderRoomPanelSlidePage } = await import(${JSON.stringify(PAGE_MODULE)});
+        renderRoomPanelSlidePage({ headerAtMount: ${headerAtMount} });`,
     });
     await page.waitForFunction(() => document.querySelector("main") !== null);
     return { page, errors };
+  }
+
+  /** Every slide has finished. */
+  async function settled(page: Page) {
+    await page.waitForFunction(() => {
+      const { list, composer, actions } = window.columns();
+      return [list, composer, actions, window.panelSlot()].every(
+        (box) => !box?.slideFrom,
+      );
+    });
   }
 
   /** Where the column rule puts the column: centred when closed, else
@@ -172,14 +186,79 @@ describe.each([
     await page.close();
   }, 60_000);
 
-  it("swaps a panel for a narrower one without sliding it out", async () => {
+  it.each([
+    [420, 320],
+    [320, 420],
+  ])(
+    "swaps a %ipx panel for a %ipx one without sliding anything",
+    async (first, second) => {
+      const { page, errors } = await openRoom(1504);
+      await page.evaluate((width) => window.setPanel(width), first);
+      await settled(page);
+      await page.evaluate((width) => window.setPanel(width), second);
+
+      const swapped = await page.evaluate(() => window.columns());
+      const slot = await page.evaluate(() => window.panelSlot());
+      expectPx(slot?.width ?? 0, second);
+      expectPx(swapped.header.width, 1504 - second);
+      expect(slot?.slideFrom).toBeNull();
+      expect(swapped.actions.slideFrom).toBeNull();
+      expect(swapped.list.slideFrom).toBeNull();
+      expect(swapped.composer.slideFrom).toBeNull();
+      expect(errors).toEqual([]);
+      await page.close();
+    },
+    60_000,
+  );
+
+  it("finishes closing while the room keeps rendering", async () => {
     const { page, errors } = await openRoom(1504);
     await page.evaluate(() => window.setPanel(420));
-    await page.waitForFunction(() => window.panelSlot()?.slideFrom === null);
-    await page.evaluate(() => window.setPanel(320));
-    const swapped = await page.evaluate(() => window.panelSlot());
-    expect(swapped?.slideFrom).toBeNull();
-    expectPx(swapped?.width ?? 0, 320);
+    await settled(page);
+    await page.evaluate(() => window.setPanel(null));
+    // Faster than the 200ms slide, for longer than it, as a stream does.
+    await page.evaluate(async () => {
+      for (let renders = 0; renders < 10; renders += 1) {
+        window.rerender();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    });
+    expect(await page.evaluate(() => window.panelSlot())).toBeNull();
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60_000);
+
+  it("slides in again after closing", async () => {
+    const { page, errors } = await openRoom(1504);
+    await page.evaluate(() => window.setPanel(420));
+    await settled(page);
+    await page.evaluate(() => window.setPanel(null));
+    await page.waitForFunction(() => window.panelSlot() === null);
+    await settled(page);
+
+    await page.evaluate(() => window.setPanel(420));
+    const open = await page.evaluate(() => window.columns());
+    const slot = await page.evaluate(() => window.panelSlot());
+    expect(open.actions.slideFrom).toBe("translateX(420px)");
+    expect(slot?.slideFrom).toBe("translateX(420px)");
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60_000);
+
+  it("slides the actions of a header that mounted after the room", async () => {
+    const { page, errors } = await openRoom(1504, false, false);
+    // Past the observer's first callback: nothing resizes as the header mounts.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    await page.evaluate(() => window.setHeader(true));
+
+    await page.evaluate(() => window.setPanel(420));
+    const open = await page.evaluate(() => window.columns());
+    expect(open.actions.slideFrom).toBe("translateX(420px)");
     expect(errors).toEqual([]);
     await page.close();
   }, 60_000);
