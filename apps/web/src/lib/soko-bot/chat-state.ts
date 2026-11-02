@@ -180,20 +180,20 @@ function iso(value: Date | null | undefined): string | null {
 }
 
 /**
- * The activity list reads only an event's summary; its raw payload (tool
- * inputs, model output) is for Explain, which loads the turn in full.
+ * Lists read only an event's type and tool; its text (reasoning, model
+ * output) and raw payload are for Explain, which loads the turn in full.
  */
-function toEvent(event: SokoBotEvent, withPayload = false): ChatTurnEvent {
+function toEvent(event: SokoBotEvent, withDetail = false): ChatTurnEvent {
   return {
     id: event.id,
     sequence: event.sequence,
     type: event.type,
-    summary: event.summary,
+    summary: withDetail ? event.summary : null,
     toolName: event.toolName,
     toolStatus: event.toolStatus,
     durationMs: event.durationMs,
     createdAt: event.createdAt.toISOString(),
-    payload: withPayload
+    payload: withDetail
       ? ((event.payload as Record<string, unknown> | null | undefined) ?? null)
       : null,
   };
