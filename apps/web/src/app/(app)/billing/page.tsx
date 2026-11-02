@@ -4,6 +4,7 @@ import {
   type SelfServeSubscriptionPlanName,
 } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
+import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
@@ -23,6 +24,7 @@ import {
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
+import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { getSession } from "@/lib/auth/auth.server";
@@ -44,6 +46,8 @@ interface BillingPageProps {
   searchParams: Promise<{
     cancel?: string;
     checkout_session_id?: string;
+    /** Opens billing on this organization; CMO links here with Cuso's. */
+    organizationId?: string;
     session_id?: string;
     status?: string;
     tab?: string;
@@ -93,6 +97,27 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   if (!session) {
     return null;
+  }
+
+  const target = query.organizationId;
+  if (target && target !== activeOrganization?.id) {
+    const members = await userService.getMyMembersWithOrganizations();
+    const member = members.find((row) => row.organizationId === target);
+    // Never show one organization's plans while the link meant another.
+    if (member) {
+      return (
+        <>
+          <AutoContextSwitch
+            activeOrganizationId={activeOrganization?.id ?? null}
+            targetOrganizationId={target}
+            successMessage={t("switchedWorkspace", {
+              account: member.organization.name,
+            })}
+          />
+          <DefaultLoading />
+        </>
+      );
+    }
   }
 
   const creditPricing = await coreClient
