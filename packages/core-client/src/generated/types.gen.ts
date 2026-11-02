@@ -4143,7 +4143,8 @@ export const ContactChannelSource = {
     SLACK: 'SLACK',
     WEB_RESEARCH: 'WEB_RESEARCH',
     IMPORT: 'IMPORT',
-    OTHER: 'OTHER'
+    OTHER: 'OTHER',
+    X: 'X'
 } as const;
 
 export type ContactChannelSource = typeof ContactChannelSource[keyof typeof ContactChannelSource];
@@ -4226,7 +4227,8 @@ export const ContactInteractionChannel = {
     SLACK: 'SLACK',
     CALL: 'CALL',
     MANUAL: 'MANUAL',
-    OTHER: 'OTHER'
+    OTHER: 'OTHER',
+    X: 'X'
 } as const;
 
 export type ContactInteractionChannel = typeof ContactInteractionChannel[keyof typeof ContactInteractionChannel];
@@ -31953,7 +31955,7 @@ export type PostContactsData = {
             value: string;
             label?: string | null;
             isPrimary?: boolean;
-            source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+            source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
             sourceUrl?: string | null;
             verified?: boolean;
         }>;
@@ -33264,7 +33266,7 @@ export type PostContactsByIdChannelsData = {
         value: string;
         label?: string | null;
         isPrimary?: boolean;
-        source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+        source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
         sourceUrl?: string | null;
         verified?: boolean;
     };
@@ -33663,7 +33665,7 @@ export type GetContactsByIdInteractionsResponse = GetContactsByIdInteractionsRes
 export type PostContactsByIdInteractionsData = {
     body?: {
         occurredAt: Date;
-        channel: 'EMAIL' | 'MEETING' | 'SLACK' | 'CALL' | 'MANUAL' | 'OTHER';
+        channel: 'EMAIL' | 'MEETING' | 'SLACK' | 'CALL' | 'MANUAL' | 'OTHER' | 'X';
         direction?: 'IN' | 'OUT' | 'BOTH' | null;
         summary: string;
         sourceRef?: string | null;

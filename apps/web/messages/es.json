@@ -9820,7 +9820,8 @@
         "SLACK": "De Slack",
         "WEB_RESEARCH": "De una búsqueda web",
         "IMPORT": "Importado",
-        "OTHER": "Otra fuente"
+        "OTHER": "Otra fuente",
+        "X": "De X"
       },
       "presets": {
         "all": "Todos los contactos",
@@ -10107,7 +10108,8 @@
           "SLACK": "Slack",
           "CALL": "Llamada",
           "MANUAL": "Nota",
-          "OTHER": "Otro"
+          "OTHER": "Otro",
+          "X": "X"
         },
         "source": "Fuente",
         "showMore": "Mostrar más",
@@ -10148,7 +10150,8 @@
         "enrichHint": "Buscar en la web y rellenar los campos vacíos · 1 crédito",
         "enriched": "{fields} completado desde la web · 1 crédito",
         "enrichedNone": "No se encontró nada nuevo en la web. No se usaron créditos.",
-        "enrichFailed": "No se pudo buscar. Inténtalo de nuevo."
+        "enrichFailed": "No se pudo buscar. Inténtalo de nuevo.",
+        "connectedVia": "Conectado por"
       },
       "stageGroups": {
         "general": "General",

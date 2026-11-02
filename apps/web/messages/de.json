@@ -9820,7 +9820,8 @@
         "SLACK": "Aus Slack",
         "WEB_RESEARCH": "Aus Webrecherche",
         "IMPORT": "Importiert",
-        "OTHER": "Andere Quelle"
+        "OTHER": "Andere Quelle",
+        "X": "Von X"
       },
       "presets": {
         "all": "Alle Kontakte",
@@ -10107,7 +10108,8 @@
           "SLACK": "Slack",
           "CALL": "Anruf",
           "MANUAL": "Notiz",
-          "OTHER": "Sonstiges"
+          "OTHER": "Sonstiges",
+          "X": "X"
         },
         "source": "Quelle",
         "showMore": "Mehr anzeigen",
@@ -10148,7 +10150,8 @@
         "enrichHint": "Im Web nachschlagen und leere Felder füllen · 1 Credit",
         "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
         "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
-        "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut."
+        "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
+        "connectedVia": "Verbunden über"
       },
       "stageGroups": {
         "general": "Allgemein",

@@ -87,7 +87,7 @@ You read the owner's connected mail and calendars (\`list_integrations\`). In Gm
       "Uses the owner's connected toolboxes carefully, and writes a script when a job repeats the same tool call many times.",
     content: `# Connected tools
 
-\`list_integrations\` shows the owner's accounts. Anything that is not a mailbox is a toolbox: \`list_integration_tools\` with the provider and a few words of intent, read the input schema, then \`run_integration_tool\`. Look up ids, channels, and pages first; never invent them.
+\`list_integrations\` shows the owner's accounts; check it before calling one missing. Anything not a mailbox is a toolbox: \`list_integration_tools\` with the provider, read the schema, then \`read_integration_tool\` (readOnly) or \`run_integration_tool\` (changes). Look up ids first; never invent them.
 - An app not connected yet: \`find_integrations\`, then give its connect link; never say you cannot first.
 - Prefer reading. Writes others will see (a message, an issue, a page) need a clear ask from the owner in this conversation or the Task; report the link or id afterwards. Never delete, archive, or bulk-edit unless asked for exactly that. Mailboxes never go through \`run_integration_tool\`.
 - When a tool fails, fix the arguments once, then report plainly.

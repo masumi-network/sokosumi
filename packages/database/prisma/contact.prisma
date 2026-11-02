@@ -52,6 +52,7 @@ enum ContactChannelSource {
   WEB_RESEARCH
   IMPORT
   OTHER
+  X
 }
 
 enum ContactInteractionChannel {
@@ -61,6 +62,7 @@ enum ContactInteractionChannel {
   CALL
   MANUAL
   OTHER
+  X
 }
 
 enum ContactInteractionDirection {

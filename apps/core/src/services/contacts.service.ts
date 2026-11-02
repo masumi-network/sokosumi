@@ -1632,6 +1632,7 @@ const CAPTURE_CHANNEL_SOURCE = {
   CALL: "OTHER",
   MANUAL: "MANUAL",
   OTHER: "OTHER",
+  X: "X",
 } as const satisfies Record<
   InteractionInput["channel"],
   NonNullable<ChannelInput["source"]>

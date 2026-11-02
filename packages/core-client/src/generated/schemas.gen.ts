@@ -14790,7 +14790,8 @@ export const ContactChannelSourceSchema = {
         'SLACK',
         'WEB_RESEARCH',
         'IMPORT',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15124,7 +15125,8 @@ export const ContactInteractionChannelSchema = {
         'SLACK',
         'CALL',
         'MANUAL',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 

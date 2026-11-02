@@ -13,6 +13,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  AtSign,
   Bot,
   Building2,
   CalendarDays,
@@ -100,6 +101,7 @@ const INTERACTION_ICONS: Record<ContactInteraction["channel"], LucideIcon> = {
   CALL: Phone,
   MANUAL: PenLine,
   OTHER: MessageSquare,
+  X: AtSign,
 };
 
 interface Props {
@@ -302,6 +304,9 @@ function PanelBody({
   const due = isFollowUpDue(contact.followUpAt, new Date());
   const email = primaryEmail(contact.channels);
   const stageOptions = useStageOptions();
+  const connections = CONNECTION_TYPES.filter((type) =>
+    contact.channels.some((channel) => channel.type === type),
+  );
 
   return (
     <div className="flex flex-col">
@@ -558,6 +563,20 @@ function PanelBody({
             </span>
           </span>
         </Property>
+        {connections.length ? (
+          <Property label={t("panel.connectedVia")}>
+            <span className="flex min-h-9 flex-wrap items-center gap-1.5">
+              {connections.map((type) => (
+                <span
+                  key={type}
+                  className="text-foreground rounded-md border px-2 py-0.5 text-xs"
+                >
+                  {t(`channelTypes.${type}`)}
+                </span>
+              ))}
+            </span>
+          </Property>
+        ) : null}
         <Property label={t("columns.lists")}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1111,6 +1130,17 @@ function changeSources(entry: ContactActivity): string[] {
       : [],
   );
 }
+
+/** Channels that mean someone on the team is connected to them, in order. */
+const CONNECTION_TYPES = [
+  "EMAIL",
+  "SLACK",
+  "X",
+  "LINKEDIN",
+  "TELEGRAM",
+  "WHATSAPP",
+  "GITHUB",
+] as const satisfies readonly ContactChannelType[];
 
 /** A change the background classifier made, recorded with its model source. */
 function isAutomatic(entry: ContactActivity): boolean {
