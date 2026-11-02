@@ -3,6 +3,7 @@
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ROOM_HEADER_ACTIONS_SLOT } from "@/app/chat/components/use-room-column-slide";
 import { useRoomWorkspaceName } from "@/app/chat/components/use-room-display-name";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
@@ -276,7 +277,7 @@ export function RoomHeaderChrome({
   );
 
   return (
-    <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4">
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4 lg:overflow-visible">
       <div className="flex min-w-0 flex-1 flex-col items-start justify-center overflow-hidden">
         {isDirectRoom && room.isGroupDirect ? (
           <NameGroupDialog
@@ -357,8 +358,13 @@ export function RoomHeaderChrome({
       {/* The row above clips at its padding edge. The threads badge hangs
           4px past the icon button (border, offset, and ring), and the last
           control's focus ring does the same. py-1.5 on that row and pe-1.5
-          here keep both inside the clip. */}
-      <div className="flex shrink-0 items-center gap-1 pe-1.5">
+          here keep both inside the clip. From lg the row does not clip: a
+          docking panel starts these actions past the section's edge, and they
+          stay visible as it brings them in. */}
+      <div
+        data-slot={ROOM_HEADER_ACTIONS_SLOT}
+        className="flex shrink-0 items-center gap-1 pe-1.5"
+      >
         <div className="flex items-center">
           <RoomSearchPanel
             key={room.id}

@@ -3,8 +3,9 @@
  * room's 56rem content column (transcript, composer) as little as it can: it
  * keeps its left edge while it fits beside the panel, moves left only as far as
  * it must, narrows only at the pane edge, and slides there instead of jumping.
- * The header stays outside the column and spans the room beside the panel.
- * Needs real layout. Run with `pnpm --filter web test:webkit` (Chromium +
+ * The header stays outside the column and spans the room beside the panel; its
+ * title holds still and its actions move with the panel, which slides in from
+ * the pane's edge and back out. Needs real layout. Run with `pnpm --filter web test:webkit` (Chromium +
  * WebKit installed).
  */
 import { type Browser, chromium, webkit } from "playwright";
@@ -117,10 +118,23 @@ describe.each([
       expect(open.composer.slideFrom).toBe(slide);
       expect(open.list.slideFrom).toBe(slide);
       expect(open.header.slideFrom).toBeNull();
+      // The actions cross the whole panel, however little the column moved.
+      expectPx(closed.actions.left - open.actions.left, panel);
+      expect(open.actions.slideFrom).toBe(`translateX(${panel}px)`);
+      // The panel comes in by the same distance, so the gap holds.
+      const docked = await page.evaluate(() => window.panelSlot());
+      expect(docked?.slideFrom).toBe(`translateX(${panel}px)`);
 
       await page.evaluate(() => window.setPanel(null));
       const reopened = await page.evaluate(() => window.columns());
       expect(reopened.composer.left).toBe(closed.composer.left);
+      expect(reopened.actions.left).toBe(closed.actions.left);
+      expect(reopened.actions.slideFrom).not.toBeNull();
+      // The room takes the width at once while the panel slides out over it.
+      expectPx(reopened.header.width, pane);
+      const leaving = await page.evaluate(() => window.panelSlot());
+      expect(leaving?.slideFrom).not.toBeNull();
+      await page.waitForFunction(() => window.panelSlot() === null);
       expect(errors).toEqual([]);
       await page.close();
     },
@@ -133,6 +147,11 @@ describe.each([
     const open = await page.evaluate(() => window.columns());
     expectPx(open.composer.left, expected(1504, 420, open.maxWidth).left);
     expect(open.composer.slideFrom).toBeNull();
+    expect(open.actions.slideFrom).toBeNull();
+    const docked = await page.evaluate(() => window.panelSlot());
+    expect(docked?.slideFrom).toBeNull();
+    await page.evaluate(() => window.setPanel(null));
+    expect(await page.evaluate(() => window.panelSlot())).toBeNull();
     await page.close();
   }, 60_000);
 
@@ -149,6 +168,19 @@ describe.each([
     const resized = await page.evaluate(() => window.columns());
     expectPx(resized.composer.left, expected(1400, 420, resized.maxWidth).left);
     expect(resized.composer.slideFrom).toBeNull();
+    expect(resized.actions.slideFrom).toBeNull();
+    await page.close();
+  }, 60_000);
+
+  it("swaps a panel for a narrower one without sliding it out", async () => {
+    const { page, errors } = await openRoom(1504);
+    await page.evaluate(() => window.setPanel(420));
+    await page.waitForFunction(() => window.panelSlot()?.slideFrom === null);
+    await page.evaluate(() => window.setPanel(320));
+    const swapped = await page.evaluate(() => window.panelSlot());
+    expect(swapped?.slideFrom).toBeNull();
+    expectPx(swapped?.width ?? 0, 320);
+    expect(errors).toEqual([]);
     await page.close();
   }, 60_000);
 
@@ -164,6 +196,7 @@ describe.each([
     const open = await page.evaluate(() => window.columns());
     expect(open.composer.slideFrom).not.toBeNull();
     expect(open.list.slideFrom).toBe(open.composer.slideFrom);
+    expect(open.actions.slideFrom).toBe("translateX(420px)");
     expect(errors).toEqual([]);
     await page.close();
   }, 60_000);

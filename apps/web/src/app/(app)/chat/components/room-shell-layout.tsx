@@ -1,3 +1,4 @@
+import { AnimatePresence } from "motion/react";
 import type { ReactNode, Ref } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
@@ -7,7 +8,10 @@ import {
   ROOM_CONTENT_COLUMN_CLASSNAME,
   ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
 } from "@/app/chat/components/room-message-list-skeleton";
-import { useRoomColumnSlide } from "@/app/chat/components/use-room-column-slide";
+import {
+  useRoomColumnSlide,
+  useRoomPanelSlideOut,
+} from "@/app/chat/components/use-room-column-slide";
 import { cn } from "@/lib/utils";
 
 /** Root height for open room (no mobile tab bar). Instant + live must match. */
@@ -67,6 +71,27 @@ interface RoomShellLayoutProps {
    * position against the room shell, not an outer fragment.
    */
   mainEnd?: ReactNode;
+}
+
+/**
+ * The box a docked side panel slides in. Below `lg` it has none (`contents`), so
+ * a panel's `absolute inset-0` still measures against the room shell. A closing
+ * panel leaves the flow at once, and the room takes its width while it slides.
+ */
+function RoomSidePanelSlot({ children }: { children: ReactNode }) {
+  const { panelRef, isPresent } = useRoomPanelSlideOut();
+  return (
+    <div
+      ref={panelRef}
+      inert={!isPresent}
+      className={cn(
+        "contents lg:flex lg:min-h-0 lg:shrink-0",
+        !isPresent && "lg:absolute lg:inset-y-0 lg:right-0",
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -136,7 +161,13 @@ export function RoomShellLayout({
         <section ref={sectionRef} className={ROOM_SHELL_SECTION_CLASSNAME}>
           {column}
         </section>
-        {mainEnd}
+        {/* One key, so swapping one panel for another keeps the slot and does
+            not slide. */}
+        <AnimatePresence initial={false}>
+          {mainEnd != null ? (
+            <RoomSidePanelSlot key="panel">{mainEnd}</RoomSidePanelSlot>
+          ) : null}
+        </AnimatePresence>
       </main>
     </div>
   );

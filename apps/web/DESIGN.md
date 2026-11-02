@@ -299,7 +299,7 @@ inside a full-width panel.
   (at most about 120 characters per line, `ROOM_CONTENT_COLUMN_CLASSNAME`, applied by
   `RoomShellLayout`); the header and the scroller stay full width. The header is the pane's
   chrome: the title starts at the pane's left edge and the actions end at the right edge of
-  the room, beside any docked panel. The title always has a second line, so it never moves
+  the room, moving with a docked panel as it slides in or out. The title always has a second line, so it never moves
   between rooms: a Channel's topic, else the member count, "Direct message" or "Only you".
   The thread panel stays full width. A docked side panel (thread, threads, pinned, members)
   does not re-centre the column: it keeps its left edge while it fits, moves left only as far
@@ -427,8 +427,9 @@ prop/state-driven.
   (buttons, tabs, toggles, rows, cards; off under reduced motion); overlays use `animate-in/out` + `fade` + `zoom-95` +
   slide.
   When layout must move, slide it with a transform from the old place (FLIP) instead of
-  animating the layout: `useRoomColumnSlide` does this for the chat column when a side panel
-  docks, with the Web Animations API at the dialog enter pairing (200ms, `--ease-out-strong`).
+  animating the layout: `useRoomColumnSlide` does this for the chat column, header actions and
+  side panel when a panel docks or closes (swapping one panel for another does not slide), with
+  the Web Animations API at the dialog enter pairing (200ms, `--ease-out-strong`).
   `motion`'s `layout` would also animate window resizes, which should stay instant.
 - **Tokens:** animations are `--animate-*` aliases in `@theme` (accordion, roll-up/down,
   rotate-once, reasoning and shimmer text, the button loading sweep, caret blink, the chat

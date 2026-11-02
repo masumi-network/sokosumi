@@ -13,6 +13,7 @@ import {
   ROOM_SHELL_COLUMN_CLASSNAME,
   RoomShellLayout,
 } from "@/app/chat/components/room-shell-layout";
+import { ROOM_HEADER_ACTIONS_SLOT } from "@/app/chat/components/use-room-column-slide";
 
 /** Where a column sits in the room pane, and its running slide. */
 export interface ColumnBox {
@@ -28,13 +29,16 @@ declare global {
     setPanel: (width: number | null) => Promise<void>;
     /** Add or drop a second child beside the column body, as the drop zone does. */
     setOverlay: (shown: boolean) => Promise<void>;
-    /** The header, the transcript and composer columns, and the column's max width. */
+    /** The header and its actions, the transcript and composer columns, and the column's max width. */
     columns: () => {
       header: ColumnBox;
+      actions: ColumnBox;
       list: ColumnBox;
       composer: ColumnBox;
       maxWidth: number;
     };
+    /** The side panel's slot, or null once it has unmounted. */
+    panelSlot: () => ColumnBox | null;
     /** The composer column node, to tell a remount from an update. */
     composerNode: () => Element | null;
   }
@@ -51,7 +55,12 @@ function App() {
   return (
     <RoomShellLayout
       rootClassName="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden"
-      desktopHeader={<span>Room</span>}
+      desktopHeader={
+        <>
+          <span>Room</span>
+          <span data-slot={ROOM_HEADER_ACTIONS_SLOT}>actions</span>
+        </>
+      }
       listContent={<p>Short transcript, so the scroller shows no scrollbar.</p>}
       composer={
         <div data-testid="composer" className="h-24 border-t">
@@ -113,12 +122,19 @@ export function renderRoomColumnSlidePage(): void {
     flushSync(() => showOverlay(shown));
     await twoFrames();
   };
+  window.panelSlot = () => {
+    const panel = document.querySelector("aside");
+    return panel ? box(panel.parentElement) : null;
+  };
   window.composerNode = () =>
     document.querySelector('[data-testid="composer"]')?.parentElement ?? null;
   window.columns = () => {
     const list = document.querySelector("[data-chat-message-list]");
     return {
       header: box(document.querySelector("header")),
+      actions: box(
+        document.querySelector(`[data-slot="${ROOM_HEADER_ACTIONS_SLOT}"]`),
+      ),
       list: box(list),
       composer: box(window.composerNode()),
       // 56rem in px: WebKit's root tracks Dynamic Type, so not always 896.
