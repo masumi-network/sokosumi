@@ -1,21 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { displayAdPreview, searchAdPreview } from "@/lib/ads/ad-preview";
 import { EMPTY_SITELINK } from "@/lib/ads/google-search";
 
-import {
-  DisplayLandscapeCard,
-  DisplaySquareCard,
-  SearchAdCard,
-} from "./ads-ad-preview";
-
 /**
  * What Ads looks like with campaigns in it, behind the project selector: a
- * staggered row of sample Search and Display ads, drawn by the same cards the
- * campaign preview uses. Decoration only, so it is hidden from readers and
- * takes no clicks; the selector above it is where the page is used.
- * The samples wrap into a right-aligned grid to leave room for the picker.
+ * horizontal marquee of sample Search and Display ads, with equal cards and
+ * the same copy the campaign preview uses. Decoration only, so it is hidden
+ * from readers and takes no clicks; the selector above it is where the page is used.
+ * The samples stay in one row and repeat for the shared auth-logo marquee loop;
+ * reduced motion shows one static horizontal track behind the required picker.
  */
 export function AdsNoProjectBackdrop() {
   const t = useTranslations("App.Ads.backdrop");
@@ -79,26 +75,112 @@ export function AdsNoProjectBackdrop() {
     );
   const linen = display("linen", "https://atelierlune.com");
   const yoga = display("yoga", "https://harbor.yoga");
+  const samples = [
+    {
+      id: "linen",
+      imageSrc: "/images/ads/backdrop/linen-square.webp",
+      name: linen.businessName,
+      displayUrl: linen.domain,
+      headline: linen.headline,
+      description: linen.description,
+      details: "",
+    },
+    {
+      id: "roastery",
+      imageSrc: "/images/ads/backdrop/coffee-beans.webp",
+      name: roastery.domain,
+      displayUrl: roastery.displayUrl,
+      headline: roastery.headline,
+      description: roastery.description,
+      details: roastery.sitelinks.join(" · "),
+    },
+    {
+      id: "yoga",
+      imageSrc: "/images/ads/backdrop/yoga-landscape.webp",
+      name: yoga.businessName,
+      displayUrl: yoga.domain,
+      headline: yoga.longHeadline,
+      description: yoga.description,
+      details: "",
+    },
+    {
+      id: "studio",
+      imageSrc: "/images/ads/backdrop/design-sprint.webp",
+      name: studio.domain,
+      displayUrl: studio.displayUrl,
+      headline: studio.headline,
+      description: studio.description,
+      details: studio.callouts.join(" · "),
+    },
+  ];
 
   return (
     <div
       aria-hidden
       inert
-      className="pointer-events-none grid w-full max-w-2xl grid-cols-1 items-start gap-6 self-end overflow-hidden px-2 pt-3 pb-8 text-left select-none sm:grid-cols-2"
+      className="group pointer-events-none relative w-full min-w-0 overflow-hidden pt-3 pb-8 text-left select-none"
       data-testid="ads-backdrop"
     >
-      <DisplaySquareCard ad={linen} className="-rotate-2" />
-      <SearchAdCard
-        ad={roastery}
-        className="rotate-1"
-        imageSrc="/images/ads/backdrop/coffee-beans.webp"
-      />
-      <DisplayLandscapeCard ad={yoga} className="-rotate-1" />
-      <SearchAdCard
-        ad={studio}
-        className="rotate-2"
-        imageSrc="/images/ads/backdrop/design-sprint.webp"
-      />
+      <div
+        className="@container relative w-full overflow-x-auto overflow-y-hidden motion-safe:overflow-x-hidden"
+        data-testid="ads-backdrop-marquee-track"
+      >
+        <div
+          className="-ml-4 flex w-max motion-safe:animate-ads-backdrop-marquee motion-safe:group-active:[animation-play-state:paused] motion-safe:group-focus-within:[animation-play-state:paused] motion-safe:[@media(hover:hover)]:group-hover:[animation-play-state:paused] motion-reduce:animate-none"
+          data-testid="ads-backdrop-marquee"
+        >
+          {[0, 1].map((copy) => (
+            <ul
+              key={copy}
+              aria-hidden={copy === 1 || undefined}
+              inert={copy === 1 || undefined}
+              className={
+                copy === 1
+                  ? "flex shrink-0 motion-reduce:hidden"
+                  : "flex shrink-0"
+              }
+            >
+              {samples.map((sample) => (
+                <li
+                  key={sample.id}
+                  className="w-[80cqw] shrink-0 pl-4 @xl:w-[calc(100cqw/2)] @5xl:w-[calc(100cqw/4)]"
+                >
+                  <figure className="bg-background flex h-[26rem] flex-col overflow-hidden rounded-xl border">
+                    <div className="bg-muted relative aspect-[1.91/1] shrink-0">
+                      <Image
+                        alt=""
+                        className="object-cover"
+                        fill
+                        sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 80vw"
+                        src={sample.imageSrc}
+                      />
+                    </div>
+                    <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {sample.name}
+                        </p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {sample.displayUrl}
+                        </p>
+                      </div>
+                      <p className="line-clamp-3 text-sm font-medium text-pretty">
+                        {sample.headline}
+                      </p>
+                      <p className="text-muted-foreground line-clamp-3 text-sm text-pretty">
+                        {sample.description}
+                      </p>
+                      <p className="text-muted-foreground mt-auto line-clamp-2 text-xs">
+                        {sample.details}
+                      </p>
+                    </div>
+                  </figure>
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
