@@ -151,6 +151,19 @@ describe("learning state", () => {
     );
   });
 
+  it("retries a finished turn that saved sections but no essentials, finishing them", async () => {
+    cusoFind.mockResolvedValue({
+      ...workspace,
+      brandBrain: { profile: { company: { answer: "Acme sells rockets." } } },
+    });
+    turnFindFirst.mockResolvedValue(turn("COMPLETED", 3));
+    startTurn.mockResolvedValue({ turnId: "turn-2" });
+    expect(await retryCmoOnboarding("user-1")).toEqual({ turnId: "turn-2" });
+    expect(startTurn.mock.calls[0]?.[0].message).toContain(
+      "save the essentials",
+    );
+  });
+
   it("says out of credits instead of starting a turn that would stop", async () => {
     cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
