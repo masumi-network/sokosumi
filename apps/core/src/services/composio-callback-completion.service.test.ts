@@ -153,7 +153,7 @@ describe("completeComposioCallback", () => {
             }),
           ).rejects.toMatchObject({
             status: 400,
-            message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+            message: `${PROJECT_SOCIAL_PROVIDERS[provider].name} is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.`,
           });
           expect(completeComposioAuthMock).not.toHaveBeenCalled();
           expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();

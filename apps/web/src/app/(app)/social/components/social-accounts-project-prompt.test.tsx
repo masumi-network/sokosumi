@@ -95,8 +95,8 @@ describe("SocialAccountsProjectPrompt", () => {
     if (!primary) throw new Error("Primary platform track is missing");
     expect(
       [...primary.querySelectorAll("li p")].map((name) => name.textContent),
-    ).toEqual(["X", "LinkedIn", "YouTube", "TikTok", "Instagram", "Facebook"]);
-    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
+    ).toEqual(["X", "Instagram", "LinkedIn", "Facebook", "YouTube", "TikTok"]);
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(1);
     expect(within(primary).getAllByText("Personal profile")).toHaveLength(1);
   });
 
@@ -220,22 +220,22 @@ describe("SocialAccountsProjectPrompt", () => {
         [...track.querySelectorAll("li p")].map((name) => name.textContent),
       ).toEqual([
         "X",
+        "Instagram",
         "LinkedIn",
+        "Facebook",
         "YouTube",
         "TikTok",
-        "Instagram",
-        "Facebook",
       ]);
     }
     expect(within(primary).getByText("TikTok")).toBeVisible();
-    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(1);
     for (const provider of SOCIAL_PROVIDERS) {
       const name = within(primary).getByText(provider.name);
       expect(name).toBeVisible();
       const card = name.parentElement;
       expect(card).not.toBeNull();
       if (!card) throw new Error("Platform card is missing");
-      if (["tiktok", "instagram", "facebook"].includes(provider.id)) {
+      if (!SOCIAL_PUBLIC_PROVIDERS.some((id) => id === provider.id)) {
         expect(within(card).getByText("Coming soon")).toHaveAttribute(
           "data-slot",
           "badge",

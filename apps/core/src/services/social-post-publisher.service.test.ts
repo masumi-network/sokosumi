@@ -184,11 +184,7 @@ const ALL_PROVIDERS = Object.keys(
   SOCIAL_POST_TEXT_LIMITS,
 ) as SocialPostProvider[];
 
-const DISABLED_PROVIDERS = [
-  ["tiktok", "TikTok"],
-  ["instagram", "Instagram"],
-  ["facebook", "Facebook"],
-] as const;
+const DISABLED_PROVIDERS = [["tiktok", "TikTok"]] as const;
 
 async function loadService() {
   return import("./social-post-publisher.service");
@@ -1630,7 +1626,7 @@ describe("social post publisher service", () => {
           } else {
             expect(publishXPostMock).not.toHaveBeenCalled();
             expect(settleCall().data.lastError).toContain(
-              "is coming soon. Available now: X, YouTube, and LinkedIn.",
+              "is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.",
             );
           }
         },
@@ -1691,7 +1687,7 @@ describe("social post publisher service", () => {
   it.each(DISABLED_PROVIDERS)(
     "keeps a due %s post and fails it with the coming-soon reason",
     async (provider, label) => {
-      const message = `${label} is coming soon. Available now: X, YouTube, and LinkedIn.`;
+      const message = `${label} is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.`;
       socialPostFindFirstMock
         .mockReset()
         .mockResolvedValueOnce({
@@ -1752,7 +1748,7 @@ describe("social post publisher service", () => {
       published: 0,
     });
     expect(settleCall().data.lastError).toBe(
-      "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
+      "TikTok is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.",
     );
     expect(publishXPostMock).not.toHaveBeenCalled();
   });
@@ -2504,9 +2500,36 @@ describe("social post publisher service", () => {
         data: expect.objectContaining({
           outcome: "failed_permanent",
           providerOutcome:
-            "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
+            "TikTok is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.",
         }),
         select: { id: true },
+      });
+    });
+
+    it("fails an Instagram post without media before contacting the provider", async () => {
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...duePost,
+          provider: "instagram",
+          media: [],
+          socialConnection: { ...activeConnection, provider: "instagram" },
+        })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        failed: 1,
+        published: 0,
+      });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "media_missing",
+          providerOutcome: "Instagram requires at least one image or video",
+        }),
       });
     });
   });
@@ -2821,6 +2844,34 @@ describe("social post publisher service", () => {
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
     });
 
+    it("refuses to publish an Instagram draft without media before claiming it", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...failedPost,
+        status: "DRAFT",
+        provider: "instagram",
+        media: [],
+        scheduledAt: null,
+        socialConnection: { ...activeConnection, provider: "instagram" },
+      });
+      const { publishSocialPostNow } = await loadService();
+
+      await expect(
+        publishSocialPostNow({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          postId: POST_ID,
+          revision: 4,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "Instagram requires at least one image or video",
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      expect(attemptCreateMock).not.toHaveBeenCalled();
+      expect(publishXPostMock).not.toHaveBeenCalled();
+    });
+
     it.each(DISABLED_PROVIDERS)(
       "refuses to publish a %s post now before claiming or contacting the provider",
       async (provider, label) => {
@@ -2844,7 +2895,7 @@ describe("social post publisher service", () => {
           }),
         ).rejects.toMatchObject({
           status: 400,
-          message: `${label} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+          message: `${label} is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.`,
         });
         expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
         expect(attemptCreateMock).not.toHaveBeenCalled();
@@ -2871,7 +2922,7 @@ describe("social post publisher service", () => {
       ).rejects.toMatchObject({
         status: 400,
         message:
-          "TikTok is coming soon. Available now: X, YouTube, and LinkedIn.",
+          "TikTok is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.",
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
       expect(publishXPostMock).not.toHaveBeenCalled();

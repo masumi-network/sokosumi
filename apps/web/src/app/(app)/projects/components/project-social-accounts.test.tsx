@@ -102,7 +102,7 @@ const MESSAGES: Record<string, string> = {
     "Reconnect the same account that is already linked to this project.",
   "errors.finalize": "We could not finish connecting this account. Try again.",
   "errors.facebookPage":
-    "Facebook needs an account that manages exactly one Page.",
+    "Connect a Facebook account that manages exactly one Page. Accounts with no Pages or multiple Pages are not supported yet.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
   "errors.sync": "Couldn't start sync.",
 };
@@ -417,7 +417,7 @@ describe("ProjectSocialAccounts", () => {
     },
   );
 
-  it.each(["youtube", "linkedin"] as const)(
+  it.each(["youtube", "linkedin", "instagram", "facebook"] as const)(
     "keeps existing %s accounts usable in a public workspace",
     (provider) => {
       render(
@@ -436,11 +436,7 @@ describe("ProjectSocialAccounts", () => {
     },
   );
 
-  it.each([
-    ["tiktok", "TikTok"],
-    ["facebook", "Facebook"],
-    ["instagram", "Instagram"],
-  ])(
+  it.each([["tiktok", "TikTok"]])(
     "shows %s as coming soon and does not start a connection",
     async (_provider, name) => {
       const user = userEvent.setup();
@@ -480,11 +476,11 @@ describe("ProjectSocialAccounts", () => {
           .map((item) => item.getAttribute("aria-label")),
       ).toEqual([
         "Connect X account",
+        "Connect Instagram account",
         "Connect LinkedIn account",
+        "Connect Facebook account",
         "Connect YouTube account",
         "TikTok (coming soon)",
-        "Instagram (coming soon)",
-        "Facebook (coming soon)",
       ]);
     },
   );
@@ -570,22 +566,25 @@ describe("ProjectSocialAccounts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("starts a connection for X", async () => {
-    vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
-      ok: false,
-      error: { code: "BAD_INPUT", message: "Unavailable" },
-    });
-    const user = userEvent.setup();
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await connectProvider(user, "X");
-    await waitFor(() =>
-      expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
-        projectId: PROJECT_ID,
-        action: "connect",
-        provider: "x",
-      }),
-    );
-  });
+  it.each(["x", "instagram", "facebook"] as const)(
+    "starts a connection for public platform %s",
+    async (provider) => {
+      vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "Unavailable" },
+      });
+      const user = userEvent.setup();
+      render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+      await connectProvider(user, socialPostProviderLabel(provider));
+      await waitFor(() =>
+        expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          action: "connect",
+          provider,
+        }),
+      );
+    },
+  );
 
   it("labels Facebook and YouTube display names without inventing handles", () => {
     render(
@@ -1346,7 +1345,7 @@ describe("ProjectSocialAccounts", () => {
     });
   });
 
-  it.each(["tiktok", "facebook", "instagram"] as const)(
+  it.each(["tiktok"] as const)(
     "keeps a connected %s account listed and disconnectable",
     async (provider) => {
       const user = userEvent.setup();
@@ -1389,7 +1388,7 @@ describe("ProjectSocialAccounts", () => {
     },
   );
 
-  it.each(["tiktok", "facebook", "instagram"] as const)(
+  it.each(["tiktok"] as const)(
     "blocks reconnect and Start over for existing %s accounts",
     async (provider) => {
       const user = userEvent.setup();
@@ -1423,7 +1422,7 @@ describe("ProjectSocialAccounts", () => {
   it("shows the Coming soon badge in a disabled account's attention row", async () => {
     const user = userEvent.setup();
     const connection = buildConnection({
-      provider: "instagram",
+      provider: "tiktok",
       status: "reauthorization_required",
     });
     render(

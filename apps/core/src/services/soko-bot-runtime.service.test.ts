@@ -6666,7 +6666,7 @@ describe("Soko Bot project social tools", () => {
         workspaceId: SCOPE.workspaceId,
       });
       expect(result).toEqual({
-        enabledProviders: ["x", "youtube", "linkedin"],
+        enabledProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
         writingGuides: {
           youtube: expect.arrayContaining([
             expect.stringMatching(/Plain text only/),
@@ -8545,7 +8545,7 @@ describe("Soko Bot project social tools", () => {
   ] as const)(
     "%s propagates disabled-provider refusal without recording a completed mutation",
     async (capability, mock, input) => {
-      const message = socialProviderUnavailableMessage("instagram", {
+      const message = socialProviderUnavailableMessage("tiktok", {
         organizationSlug: null,
       });
       if (!message) throw new Error("Expected an unavailable provider");

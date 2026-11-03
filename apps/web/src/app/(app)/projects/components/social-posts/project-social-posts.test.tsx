@@ -6,6 +6,7 @@ import type {
 import {
   CORE_API_ERROR_KINDS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_PUBLIC_PROVIDERS,
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 import {
@@ -2551,8 +2552,8 @@ describe("ProjectSocialPosts", () => {
       <ProjectSocialPosts
         connections={[
           buildConnection({
-            provider: "instagram",
-            externalHandle: "sokosumi.ig",
+            provider: "tiktok",
+            externalHandle: "sokosumi.tiktok",
           }),
         ]}
         posts={[]}
@@ -2562,7 +2563,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     const account = within(dialog).getByRole("button", {
-      name: "Instagram @sokosumi.ig",
+      name: "TikTok @sokosumi.tiktok",
     });
     expect(account).toBeDisabled();
     expect(account).toHaveAttribute("aria-pressed", "false");
@@ -2610,7 +2611,44 @@ describe("ProjectSocialPosts", () => {
     },
   );
 
-  it.each(["youtube", "linkedin"] as const)(
+  it("lists released Instagram and Facebook accounts before Coming soon accounts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection({ id: "tiktok", provider: "tiktok" }),
+          buildConnection({ id: "instagram", provider: "instagram" }),
+          buildConnection({ id: "facebook", provider: "facebook" }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Post to",
+    });
+    expect(
+      within(accounts)
+        .getAllByRole("button")
+        .map((account) => account.getAttribute("aria-label")),
+    ).toEqual([
+      "Instagram @sokosumi",
+      "Facebook @sokosumi",
+      "TikTok @sokosumi",
+    ]);
+    expect(
+      within(accounts).getByRole("button", { name: "Instagram @sokosumi" }),
+    ).toBeEnabled();
+    expect(
+      within(accounts).getByRole("button", { name: "Facebook @sokosumi" }),
+    ).toBeEnabled();
+    expect(
+      within(accounts).getByRole("button", { name: "TikTok @sokosumi" }),
+    ).toBeDisabled();
+  });
+
+  it.each(["youtube", "linkedin", "instagram", "facebook"] as const)(
     "picks an existing %s account in a public workspace",
     async (provider) => {
       const user = userEvent.setup();
@@ -2630,11 +2668,7 @@ describe("ProjectSocialPosts", () => {
     },
   );
 
-  it.each([
-    ["tiktok", "TikTok"],
-    ["instagram", "Instagram"],
-    ["facebook", "Facebook"],
-  ] as const)(
+  it.each([["tiktok", "TikTok"]] as const)(
     "shows %s with a disabled Coming soon badge and ignores remembered selections",
     async (provider, name) => {
       const user = userEvent.setup();
@@ -2693,12 +2727,12 @@ describe("ProjectSocialPosts", () => {
   it("lets an existing disabled-provider draft move to X before saving", async () => {
     const user = userEvent.setup();
     const disabledConnection = buildConnection({
-      id: "connection-ig",
-      provider: "instagram",
+      id: "connection-tiktok",
+      provider: "tiktok",
       externalHandle: "future",
     });
     const draft = buildPost({
-      provider: "instagram",
+      provider: "tiktok",
       socialConnection: disabledConnection,
     });
     render(
@@ -2713,7 +2747,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     const dialog = screen.getByRole("dialog");
     expect(
-      within(dialog).getByRole("button", { name: "Instagram @future" }),
+      within(dialog).getByRole("button", { name: "TikTok @future" }),
     ).toBeDisabled();
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
@@ -2739,12 +2773,12 @@ describe("ProjectSocialPosts", () => {
     freezeClock();
     const user = userEvent.setup();
     const disabledConnection = buildConnection({
-      id: "connection-ig",
-      provider: "instagram",
+      id: "connection-tiktok",
+      provider: "tiktok",
       externalHandle: "future",
     });
     const draft = buildPost({
-      provider: "instagram",
+      provider: "tiktok",
       socialConnection: disabledConnection,
       revision: 4,
     });
@@ -2884,7 +2918,7 @@ describe("ProjectSocialPosts", () => {
     render(
       <ProjectSocialPosts
         connections={[
-          buildConnection({ provider: "instagram", externalHandle: "future" }),
+          buildConnection({ provider: "tiktok", externalHandle: "future" }),
         ]}
         posts={[]}
         projectId={PROJECT_ID}
@@ -2902,6 +2936,55 @@ describe("ProjectSocialPosts", () => {
     expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
     expect(createProjectSocialPost).not.toHaveBeenCalled();
   });
+
+  it.each(["publish", "schedule"] as const)(
+    "allows an Instagram draft without media but blocks %s with the media requirement",
+    async (action) => {
+      freezeClock();
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection({ provider: "instagram" })]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("button", { name: "Instagram @sokosumi" }),
+      ).toBeEnabled();
+      await user.type(within(dialog).getByLabelText("Text"), "Caption draft");
+      if (action === "schedule") await pickInAnHour(user, dialog);
+      const primary = within(dialog).getByRole("button", {
+        name: action === "publish" ? "Post now" : /^Schedule for /,
+      });
+      expect(primary).toBeDisabled();
+      expect(primary).toHaveAccessibleDescription(
+        "Instagram requires at least one image or video.",
+      );
+      await user.click(primary);
+      expect(publishProjectSocialPost).not.toHaveBeenCalled();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+      expect(createProjectSocialPost).not.toHaveBeenCalled();
+      const saveDraft = within(dialog).getByRole("button", {
+        name: "Save draft",
+      });
+      expect(saveDraft).toBeEnabled();
+      await user.click(saveDraft);
+      await waitFor(() =>
+        expect(createProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            text: "Caption draft",
+            media: [],
+            socialConnectionId: "connection-1",
+          }),
+        ),
+      );
+      expect(publishProjectSocialPost).not.toHaveBeenCalled();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
 
   it("opens the composer from New post and blocks over-limit text", async () => {
     const user = userEvent.setup();
@@ -3912,6 +3995,83 @@ describe("ProjectSocialPosts", () => {
       "Publishing failed: X rejected the post",
     );
     expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("schedules the remaining short replies when a published X thread root exceeds the current tier limit", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const connection = buildConnection({ subscriptionType: "None" });
+    const post = buildThread({
+      status: "FAILED",
+      text: "x".repeat(500),
+      publishedExternalId: "thread-root",
+      publishedThreadPartCount: 1,
+      partiallyPublished: true,
+      failedThreadPartPosition: 2,
+      socialConnection: connection,
+      canEdit: false,
+      canSchedule: true,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[connection]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openTab(user, "Needs attention");
+    await openRowMenu(user, post.id);
+    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    const dialog = screen.getByRole("dialog");
+    await pickInAnHour(user, dialog);
+    const schedule = within(dialog).getByRole("button", {
+      name: /^Schedule for /,
+    });
+    expect(schedule).toBeEnabled();
+    await user.click(schedule);
+    await waitFor(() =>
+      expect(scheduleProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: post.id,
+        scheduledAt: IN_AN_HOUR.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        socialConnectionId: connection.id,
+        revision: post.revision,
+      }),
+    );
+    expect(updateProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("blocks scheduling an existing Instagram draft without media with a clear requirement", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection({ provider: "instagram" })]}
+        posts={[
+          buildPost({
+            provider: "instagram",
+            text: "Caption draft",
+            media: [],
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Schedule" }));
+    const dialog = screen.getByRole("dialog");
+    await pickInAnHour(user, dialog);
+    const schedule = within(dialog).getByRole("button", {
+      name: /^Schedule for /,
+    });
+    expect(schedule).toBeDisabled();
+    expect(schedule).toHaveAccessibleDescription(
+      "Instagram requires at least one image or video.",
+    );
+    await user.click(schedule);
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(createProjectSocialPost).not.toHaveBeenCalled();
   });
 
   it("never saves a new draft with ⌘Enter in the schedule dialog", async () => {
@@ -6709,7 +6869,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("menuitem", { name: "Schedule" })).toBeNull();
   });
 
-  it.each(["tiktok", "instagram", "facebook"] as const)(
+  it.each(["tiktok"] as const)(
     "keeps failed %s history visible without retry, schedule, or duplicate actions",
     async (provider) => {
       const user = userEvent.setup();
@@ -6735,7 +6895,7 @@ describe("ProjectSocialPosts", () => {
       await openTab(user, "Needs attention");
       expect(
         screen.getByText(
-          `${provider === "tiktok" ? "TikTok" : provider === "instagram" ? "Instagram" : "Facebook"} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+          `${socialPostProviderLabel(provider)} is coming soon. Available now: ${createTestFormatter().list(SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel), { type: "conjunction" })}.`,
         ),
       ).toBeVisible();
       expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();

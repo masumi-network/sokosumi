@@ -19,11 +19,11 @@ describe("socialProvidersEnabledFirst", () => {
         ).map(({ id }) => id),
       ).toEqual([
         "x",
+        "instagram",
         "linkedin",
+        "facebook",
         "youtube",
         "tiktok",
-        "instagram",
-        "facebook",
       ]);
     },
   );

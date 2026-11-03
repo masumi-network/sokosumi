@@ -359,6 +359,7 @@ describe("social posts service", () => {
       const { queueSocialPost } = await import("./social-queue.service");
       await expect(queueSocialPost(queueInput)).rejects.toMatchObject({
         status: 400,
+        message: "Instagram requires at least one image or video",
       });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
     });
@@ -1744,7 +1745,7 @@ describe("social posts service", () => {
     { provider: "tiktok", media: [], canPublishNow: false },
     { provider: "youtube", media: [], canPublishNow: false },
     { provider: "tiktok", media: [VIDEO_REF], canPublishNow: false },
-    { provider: "instagram", media: [JPEG_REF], canPublishNow: false },
+    { provider: "instagram", media: [JPEG_REF], canPublishNow: true },
     { provider: "x", media: [], canPublishNow: true },
   ] as const)(
     "sets canPublishNow $canPublishNow on a $provider draft",
@@ -1779,7 +1780,7 @@ describe("social posts service", () => {
   describe.each([null, "other", "utxo"])(
     "enabled providers in Project workspace %s",
     (organizationSlug) => {
-      it.each(["x", "youtube", "linkedin"])(
+      it.each(["x", "youtube", "linkedin", "instagram", "facebook"])(
         "allows all post mutations for %s",
         async (provider) => {
           const owningProject = {
@@ -1880,11 +1881,8 @@ describe("social posts service", () => {
   describe.each([null, "other", "utxo"])(
     "Project workspace %s",
     (organizationSlug) => {
-      describe.each([
-        ["tiktok", "TikTok"],
-        ["instagram", "Instagram"],
-        ["facebook", "Facebook"],
-      ] as const)("unavailable provider %s", (provider, label) => {
+      const disabled = [["tiktok", "TikTok"]] as const;
+      describe.each(disabled)("unavailable provider %s", (provider, label) => {
         const scope = {
           projectId: PROJECT_ID,
           workspaceId: WORKSPACE_ID,
@@ -1906,7 +1904,7 @@ describe("social posts service", () => {
         };
         const error = {
           status: 400,
-          message: `${label} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+          message: `${label} is coming soon. Available now: X, YouTube, LinkedIn, Instagram, and Facebook.`,
         };
 
         beforeEach(() => {
@@ -2330,6 +2328,80 @@ describe("social posts service", () => {
       message: "LinkedIn requires text",
     });
     expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  describe("Instagram media requirements", () => {
+    const input = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      text: "Draft caption",
+      media: [],
+    };
+
+    beforeEach(() => {
+      const connection = { ...activeConnection, provider: "instagram" };
+      const post = {
+        ...draftPost,
+        provider: "instagram",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        socialConnection: connection,
+      };
+      socialConnectionFindFirstMock.mockResolvedValue(connection);
+      socialPostCreateMock.mockResolvedValue(post);
+      socialPostFindFirstMock.mockResolvedValue(post);
+    });
+
+    it("allows a draft without media", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(createSocialPost(input)).resolves.toMatchObject({
+        provider: "instagram",
+        status: "DRAFT",
+        media: [],
+        canPublishNow: false,
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider: "instagram",
+            status: "DRAFT",
+            media: [],
+          }),
+        }),
+      );
+    });
+
+    it("rejects creating a scheduled post without media", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({ ...input, scheduledAt: FUTURE }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "Instagram requires at least one image or video",
+      });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects scheduling a draft without media", async () => {
+      const { scheduleSocialPost } = await loadService();
+
+      await expect(
+        scheduleSocialPost({
+          ...input,
+          postId: POST_ID,
+          revision: 0,
+          scheduledAt: FUTURE,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "Instagram requires at least one image or video",
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
   });
 
   it.each(["DRAFT", "NEEDS_APPROVAL"] as const)(

@@ -111,7 +111,13 @@ describe("POST /users/{id}/workspaces", () => {
       memberCount: null,
       logo: null,
       websiteUrl: null,
-      enabledSocialProviders: ["x", "youtube", "linkedin"],
+      enabledSocialProviders: [
+        "x",
+        "youtube",
+        "linkedin",
+        "instagram",
+        "facebook",
+      ],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -148,7 +154,13 @@ describe("POST /users/{id}/workspaces", () => {
       memberCount: 1,
       logo: null,
       websiteUrl: null,
-      enabledSocialProviders: ["x", "youtube", "linkedin"],
+      enabledSocialProviders: [
+        "x",
+        "youtube",
+        "linkedin",
+        "instagram",
+        "facebook",
+      ],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -192,7 +204,13 @@ describe("POST /users/{id}/workspaces", () => {
       memberCount: 1,
       logo: null,
       websiteUrl: null,
-      enabledSocialProviders: ["x", "youtube", "linkedin"],
+      enabledSocialProviders: [
+        "x",
+        "youtube",
+        "linkedin",
+        "instagram",
+        "facebook",
+      ],
       preferred: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);

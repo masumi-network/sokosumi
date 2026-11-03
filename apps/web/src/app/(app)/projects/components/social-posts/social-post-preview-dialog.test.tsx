@@ -241,6 +241,30 @@ describe("SocialPostPreviewDialog", () => {
     },
   );
 
+  it.each(["instagram", "facebook"] as const)(
+    "does not show a stale Coming soon reason for released %s",
+    (provider) => {
+      render(
+        <SocialPostPreviewDialog
+          open
+          post={{
+            ...POST,
+            provider,
+            status: "FAILED",
+            publishedUrl: null,
+            lastError: `${socialPostProviderLabel(provider)} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+          }}
+          onOpenChange={() => undefined}
+          onCompose={() => undefined}
+        />,
+      );
+      expect(
+        screen.getByTestId("social-post-preview-failure"),
+      ).toHaveTextContent("failures.generic");
+      expect(screen.queryByText(/is coming soon/)).not.toBeInTheDocument();
+    },
+  );
+
   it("shows the miss reason without a failure time", () => {
     render(
       <SocialPostPreviewDialog

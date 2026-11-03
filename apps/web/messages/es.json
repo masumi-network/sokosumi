@@ -2496,7 +2496,7 @@
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca la app en Conexiones."
         },
         "errors": {
-          "facebookPage": "Facebook necesita una cuenta que gestione exactamente una página.",
+          "facebookPage": "Conecta una cuenta de Facebook que gestione exactamente una página. Las cuentas sin páginas o con varias páginas aún no son compatibles.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",

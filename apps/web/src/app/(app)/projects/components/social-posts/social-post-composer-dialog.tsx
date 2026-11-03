@@ -13,6 +13,7 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   type SocialPostMediaValidationReason,
   socialPostFirstCommentLimit,
+  socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
   socialPostTextLength,
@@ -266,10 +267,16 @@ export function SocialPostComposerDialog({
   const connections = allConnections.filter(
     (connection) => connection.status === "active",
   );
-  const accountOptions = allConnections.filter(
-    (connection) =>
-      connection.status === "active" || connection.status === "pending",
-  );
+  const accountOptions = allConnections
+    .filter(
+      (connection) =>
+        connection.status === "active" || connection.status === "pending",
+    )
+    .sort(
+      (a, b) =>
+        Number(isProviderEnabled(b.provider)) -
+        Number(isProviderEnabled(a.provider)),
+    );
   const reconnections = allConnections
     .filter(
       (connection) =>
@@ -618,7 +625,9 @@ export function SocialPostComposerDialog({
     (account) => account.length > account.limit,
   );
   const mediaValid = providers.every(
-    (candidate) => validateSocialPostMedia(candidate, media).ok,
+    (candidate) =>
+      socialPostMeetsMediaRequirement(candidate, media) &&
+      validateSocialPostMedia(candidate, media).ok,
   );
   const textValid =
     !threadAccountsInvalid &&

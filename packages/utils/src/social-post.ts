@@ -24,6 +24,8 @@ export const SOCIAL_PUBLIC_PROVIDERS = [
   "x",
   "youtube",
   "linkedin",
+  "instagram",
+  "facebook",
 ] as const satisfies readonly SocialPostProvider[];
 
 export interface SocialProviderWorkspace {

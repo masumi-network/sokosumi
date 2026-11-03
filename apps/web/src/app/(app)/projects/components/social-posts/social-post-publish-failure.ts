@@ -65,7 +65,7 @@ export function publishFailureCopy(
           `${socialPostProviderLabel(provider)} is coming soon.`,
         ),
   );
-  if (provider) {
+  if (provider && !enabledProviders.includes(provider)) {
     return t("failures.providerComingSoon", {
       provider: socialPostProviderLabel(provider),
       providers: formatList(enabledProviders.map(socialPostProviderLabel)),

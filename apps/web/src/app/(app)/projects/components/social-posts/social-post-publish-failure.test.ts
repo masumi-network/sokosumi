@@ -219,6 +219,23 @@ describe("publishFailureCopy", () => {
     },
   );
 
+  it.each(["instagram", "facebook"] as const)(
+    "does not show a stale Coming soon failure for released %s",
+    (provider) => {
+      for (const source of [
+        post({ errorKind: `provider_coming_soon:${provider}` }),
+        {
+          status: "FAILED" as const,
+          lastError: `${socialPostProviderLabel(provider)} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+        },
+      ]) {
+        expect(
+          publishFailureCopy(source, t, formatList, SOCIAL_PUBLIC_PROVIDERS),
+        ).toBe(COPY["failures.generic"]);
+      }
+    },
+  );
+
   it.each(["tiktok", "instagram", "facebook", "linkedin", "youtube"])(
     "does not mislabel a non-availability %s failure as coming soon",
     (provider) => {

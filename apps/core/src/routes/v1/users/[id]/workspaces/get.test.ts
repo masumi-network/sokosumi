@@ -139,7 +139,13 @@ describe("GET /users/{id}/workspaces", () => {
           slug: null,
           role: null,
           memberCount: null,
-          enabledSocialProviders: ["x", "youtube", "linkedin"],
+          enabledSocialProviders: [
+            "x",
+            "youtube",
+            "linkedin",
+            "instagram",
+            "facebook",
+          ],
           logo: null,
           websiteUrl: null,
           preferred: false,
@@ -154,7 +160,13 @@ describe("GET /users/{id}/workspaces", () => {
           memberCount: 3,
           logo: "https://cdn.example/acme.png",
           websiteUrl: "https://acme.com",
-          enabledSocialProviders: ["x", "youtube", "linkedin"],
+          enabledSocialProviders: [
+            "x",
+            "youtube",
+            "linkedin",
+            "instagram",
+            "facebook",
+          ],
           preferred: true,
         },
       ],
@@ -190,16 +202,22 @@ describe("GET /users/{id}/workspaces", () => {
       "x",
       "youtube",
       "linkedin",
+      "instagram",
+      "facebook",
     ]);
     expect(data.workspaces[1].enabledSocialProviders).toEqual([
       "x",
       "youtube",
       "linkedin",
+      "instagram",
+      "facebook",
     ]);
     expect(data.workspaces[2].enabledSocialProviders).toEqual([
       "x",
       "youtube",
       "linkedin",
+      "instagram",
+      "facebook",
     ]);
   });
 

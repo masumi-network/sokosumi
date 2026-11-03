@@ -67,12 +67,12 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 
 ### Project social accounts
 
-Project social accounts support X, TikTok, Instagram, LinkedIn, Facebook, and
-YouTube. Connect accounts from the Project’s **Social** page. The same
-connection supports reconnection, replacement, and disconnection. Publishing
+Project social accounts are available for X, YouTube, LinkedIn, Instagram, and
+Facebook. TikTok remains Coming soon. Connect accounts from the Project’s **Social**
+page. The same connection supports reconnection, replacement, and disconnection. Publishing
 and scheduling work on every connected provider: the composer and the API
 apply the chosen account's rules (text limits, up to four images or one video,
-Instagram needs media, TikTok and YouTube need a video, LinkedIn and YouTube
+Instagram needs media, YouTube needs a video, LinkedIn and YouTube
 need text). Each provider's auth config must carry its publishing scope before
 posts can go out; publishing fails with a clear permission error until then.
 
@@ -142,8 +142,9 @@ An enabled provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays vi
 the connect menu, and choosing it returns "This integration is not configured
 yet" without starting OAuth. Social scheduling is public.
 `socialProvidersForWorkspace` in `packages/utils/src/social-post.ts`
-(`@sokosumi/utils`) returns `SOCIAL_PUBLIC_PROVIDERS` for every workspace,
-including `utxo`. Only those enabled providers can connect, create, edit, schedule, approve, publish, duplicate, or
+(`@sokosumi/utils`) returns `SOCIAL_PUBLIC_PROVIDERS` (X, YouTube, LinkedIn,
+Instagram, and Facebook) for every workspace, including `utxo`. Only those enabled
+providers can connect, create, edit, schedule, approve, publish, duplicate, or
 recycle posts; other providers show Coming soon. Existing disabled-provider posts
 fail when due with that reason without contacting the platform, preserving their
 content and history. Ads remains restricted to `utxo`.

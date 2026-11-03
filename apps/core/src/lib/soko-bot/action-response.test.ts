@@ -917,7 +917,16 @@ describe("authoritative action responses", () => {
           receipt({
             capability: "list_project_social_accounts",
             result: withAvailability
-              ? { enabledProviders: ["x", "youtube", "linkedin"], accounts }
+              ? {
+                  enabledProviders: [
+                    "x",
+                    "youtube",
+                    "linkedin",
+                    "instagram",
+                    "facebook",
+                  ],
+                  accounts,
+                }
               : accounts,
           }),
         ]);

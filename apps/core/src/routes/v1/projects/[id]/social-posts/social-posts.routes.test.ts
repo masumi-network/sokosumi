@@ -1170,7 +1170,7 @@ describe("Project social post routes", () => {
   });
 
   it("propagates disabled-provider refusals for every post mutation", async () => {
-    const message = socialProviderUnavailableMessage("instagram", {
+    const message = socialProviderUnavailableMessage("tiktok", {
       organizationSlug: null,
     });
     if (!message) throw new Error("Expected an unavailable provider");

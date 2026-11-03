@@ -2496,7 +2496,7 @@
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections."
         },
         "errors": {
-          "facebookPage": "Facebook needs an account that manages exactly one Page.",
+          "facebookPage": "Connect a Facebook account that manages exactly one Page. Accounts with no Pages or multiple Pages are not supported yet.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
