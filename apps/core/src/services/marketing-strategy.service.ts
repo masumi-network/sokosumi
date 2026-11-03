@@ -6,6 +6,8 @@ import {
 import {
   type CmoBrandAnswer,
   type CmoCalendarEntry,
+  type CmoSearchAd,
+  cmoSearchAdSchema,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
   type SocialPostPlanning,
@@ -656,6 +658,10 @@ export interface MarketingStrategyFilePiece {
   fileId: string;
   /** Picture file ids, the cover first. */
   media: string[];
+  /** A Google search ad's parts, when the piece is one. */
+  searchAd: CmoSearchAd | null;
+  /** The Google Ads campaign the owner launched from it. */
+  adCampaign: { accountId: string; campaignId: string } | null;
 }
 
 /** The version's written pieces that are Project files, by calendar entry id. */
@@ -668,13 +674,31 @@ export async function listMarketingStrategyFiles(
       marketingStrategyId: version.id,
       fileResource: { lifecycle: "ACTIVE" },
     },
-    select: { entryId: true, fileResourceId: true, mediaFileIds: true },
+    select: {
+      entryId: true,
+      fileResourceId: true,
+      mediaFileIds: true,
+      searchAd: true,
+      adAccountId: true,
+      adCampaignId: true,
+    },
   });
   return new Map(
-    links.map((link) => [
-      link.entryId,
-      { fileId: link.fileResourceId, media: link.mediaFileIds },
-    ]),
+    links.map((link) => {
+      const searchAd = cmoSearchAdSchema.safeParse(link.searchAd);
+      return [
+        link.entryId,
+        {
+          fileId: link.fileResourceId,
+          media: link.mediaFileIds,
+          searchAd: searchAd.success ? searchAd.data : null,
+          adCampaign:
+            link.adAccountId && link.adCampaignId
+              ? { accountId: link.adAccountId, campaignId: link.adCampaignId }
+              : null,
+        },
+      ];
+    }),
   );
 }
 
@@ -695,6 +719,8 @@ export function withMarketingFiles(
         fileId: piece.fileId,
         ...(cover ? { imageFileId: cover } : {}),
         ...(piece.media.length > 1 ? { slideFileIds: piece.media } : {}),
+        ...(piece.searchAd ? { searchAd: piece.searchAd } : {}),
+        ...(piece.adCampaign ? { adCampaign: piece.adCampaign } : {}),
         status: entry.status === "idea" ? "draft" : entry.status,
       };
     }),
