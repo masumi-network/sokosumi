@@ -522,6 +522,13 @@ export function OnboardingFlow({
           />
         )}
       </main>
+      <footer className="ob-foot">
+        <StartOver
+          className="button button-ghost button-small"
+          label="Use another website"
+          startOver={actions.startOver}
+        />
+      </footer>
     </div>
   );
 }
