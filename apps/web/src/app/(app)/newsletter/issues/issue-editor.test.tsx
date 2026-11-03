@@ -1,4 +1,7 @@
-import type { NewsletterIssue } from "@sokosumi/core-client";
+import type {
+  NewsletterIssue,
+  NewsletterSendingDomainState,
+} from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -10,6 +13,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -53,15 +57,27 @@ function renderEditor(
   issue = NEWSLETTER_ISSUE,
   locale: "en" | "de" | "es" = "en",
   draftedBySokoBot = false,
+  {
+    activeSubscribers = 3,
+    sendingDomain = NEWSLETTER_SENDING_DOMAIN_STATE,
+  }: {
+    activeSubscribers?: number;
+    sendingDomain?: NewsletterSendingDomainState;
+  } = {},
 ) {
   return render(
-    <NextIntlClientProvider locale={locale} messages={{ en, de, es }[locale]}>
+    <NextIntlClientProvider
+      locale={locale}
+      messages={{ en, de, es }[locale]}
+      formats={createFormats()}
+      timeZone="UTC"
+    >
       <NewsletterIssueEditor
         projectId={NEWSLETTER_PROJECT_ID}
         issue={issue}
-        activeSubscribers={3}
+        activeSubscribers={activeSubscribers}
         newsletter={NEWSLETTER}
-        sendingDomain={NEWSLETTER_SENDING_DOMAIN_STATE}
+        sendingDomain={sendingDomain}
         draftedBySokoBot={draftedBySokoBot}
       />
     </NextIntlClientProvider>,
@@ -85,6 +101,9 @@ describe("newsletter issue editor", () => {
   it("puts the writing surface first and readiness in the Send panel", () => {
     renderEditor();
     const panel = screen.getByRole("complementary", { name: "Send" });
+    expect(
+      within(panel).getByRole("tab", { name: "Checklist" }),
+    ).toHaveAttribute("aria-selected", "true");
     const readiness = within(panel).getByRole("region", {
       name: "Before sending",
     });
@@ -103,6 +122,92 @@ describe("newsletter issue editor", () => {
     expect(
       within(panel).getByRole("button", { name: "Submit for approval" }),
     ).toBeEnabled();
+  });
+
+  it("switches between Checklist and a single Preview inside the Send panel", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    const tabs = within(panel).getByRole("tablist", {
+      name: "Send panel views",
+    });
+    await user.click(within(tabs).getByRole("tab", { name: "Preview" }));
+    expect(
+      within(panel).getByRole("tabpanel", { name: "Preview" }),
+    ).toContainElement(
+      within(panel).getByText("Preview", { selector: "aside" }),
+    );
+    expect(screen.getAllByText("Preview", { selector: "aside" })).toHaveLength(
+      1,
+    );
+    expect(
+      within(panel).queryByRole("region", { name: "Before sending" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: "Save issue" }),
+    ).toBeVisible();
+
+    await user.click(within(tabs).getByRole("tab", { name: "Checklist" }));
+    expect(
+      within(panel).getByRole("region", { name: "Before sending" }),
+    ).toBeVisible();
+    expect(
+      within(panel).getByRole("button", { name: "Submit for approval" }),
+    ).toBeEnabled();
+    expect(
+      within(panel).getByText("Preview", { selector: "aside" }),
+    ).not.toBeVisible();
+  });
+
+  it("opens Preview when approval, sender and subscribers are ready", async () => {
+    const user = userEvent.setup();
+    renderEditor({
+      ...NEWSLETTER_ISSUE,
+      status: "NEEDS_APPROVAL",
+      approvedAt: new Date("2026-10-23T12:00:00Z"),
+      approvedByUserId: "reviewer",
+    });
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    expect(within(panel).getByRole("tab", { name: "Preview" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(within(panel).getByRole("tab", { name: "Checklist" }));
+    expect(
+      within(panel).getByRole("button", { name: "Schedule" }),
+    ).toBeEnabled();
+    expect(
+      within(panel).getByRole("button", { name: "Send now" }),
+    ).toBeEnabled();
+  });
+
+  it.each([
+    { activeSubscribers: 0 },
+    {
+      sendingDomain: {
+        ...NEWSLETTER_SENDING_DOMAIN_STATE,
+        fallbackAvailable: false,
+      },
+    },
+  ])("opens Checklist when delivery is blocked: %j", (readiness) => {
+    renderEditor(
+      {
+        ...NEWSLETTER_ISSUE,
+        status: "NEEDS_APPROVAL",
+        approvedAt: new Date("2026-10-23T12:00:00Z"),
+        approvedByUserId: "reviewer",
+      },
+      "en",
+      false,
+      readiness,
+    );
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    expect(
+      within(panel).getByRole("tab", { name: "Checklist" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      within(panel).getByRole("button", { name: "Send now" }),
+    ).toBeDisabled();
   });
 
   it("restores edited blocks in reverse removal order, even after saving", async () => {
@@ -378,6 +483,22 @@ describe("newsletter issue editor", () => {
     const user = userEvent.setup();
     renderEditor(NEWSLETTER_ISSUE, locale);
     const copy = messages.App.Projects.Newsletter.Issues;
+    const panel = screen.getByRole("complementary", { name: copy.sendPanel });
+    const tabs = within(panel).getByRole("tablist", {
+      name: copy.SendPanel.views,
+    });
+    expect(
+      within(tabs).getByRole("tab", { name: copy.SendPanel.checklist }),
+    ).toHaveAttribute("aria-selected", "true");
+    await user.click(
+      within(tabs).getByRole("tab", { name: copy.Preview.title }),
+    );
+    expect(
+      within(panel).getByRole("tabpanel", { name: copy.Preview.title }),
+    ).toBeVisible();
+    await user.click(
+      within(tabs).getByRole("tab", { name: copy.SendPanel.checklist }),
+    );
     await user.clear(screen.getByLabelText(copy.subject));
     await user.click(screen.getByRole("button", { name: copy.save }));
     expect(

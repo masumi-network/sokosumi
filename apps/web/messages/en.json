@@ -3617,6 +3617,10 @@
           },
           "details": "Issue details",
           "sendPanel": "Send",
+          "SendPanel": {
+            "checklist": "Checklist",
+            "views": "Send panel views"
+          },
           "saving": "Saving issue…",
           "undo": "Undo removal",
           "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",

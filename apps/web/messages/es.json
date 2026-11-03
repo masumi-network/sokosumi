@@ -3617,6 +3617,10 @@
           },
           "details": "Detalles de la edición",
           "sendPanel": "Envío",
+          "SendPanel": {
+            "checklist": "Lista de comprobación",
+            "views": "Vistas del panel de envío"
+          },
           "saving": "Guardando edición…",
           "undo": "Deshacer eliminación",
           "removedBlocks": "{count, plural, one {# bloque eliminado} other {# bloques eliminados}}",
