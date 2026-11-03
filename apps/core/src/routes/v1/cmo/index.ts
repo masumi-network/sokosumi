@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import mountCmoAds from "./ads/routes.js";
 import mountPauseCmoCalendarEntry from "./calendar/[id]/pause/post.js";
 import mountGetCmoCalendarEntryText from "./calendar/[id]/text/get.js";
 import mountGetCmoOverview from "./get.js";
@@ -32,5 +33,6 @@ mountPauseCmoCalendarEntry(app);
 mountGetCmoCalendarEntryText(app);
 mountConnectCmoMeasurement(app);
 mountFinalizeCmoMeasurement(app);
+mountCmoAds(app);
 
 export default app;

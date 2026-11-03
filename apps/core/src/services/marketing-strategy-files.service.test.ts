@@ -141,6 +141,34 @@ describe("writeMarketingStrategyFiles", () => {
     );
   });
 
+  it("keeps a search ad's parts with its words, so the owner can launch it", async () => {
+    const searchAd = {
+      keywords: ["fixed wireless internet"],
+      headlines: ["Fast internet", "No cable needed", "Check your address"],
+      descriptions: ["Internet over the air.", "Check your address."],
+      finalUrl: "https://rst.de/check",
+    };
+    await writeMarketingStrategyFiles({
+      version,
+      drive,
+      entries: [
+        entry({
+          id: "ad-1",
+          channel: "google_ads",
+          format: "search",
+          draft: "Fast internet | No cable needed",
+          searchAd,
+        }),
+      ],
+    });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ searchAd }),
+        update: expect.objectContaining({ searchAd }),
+      }),
+    );
+  });
+
   it("writes nothing for a skipped piece or one without words", async () => {
     const written = await writeMarketingStrategyFiles({
       version,
@@ -188,9 +216,23 @@ describe("withMarketingFiles", () => {
       ],
     } as never;
     const files = new Map([
-      ["seo-1", { fileId: "file-1", media: [] }],
-      ["ad-1", { fileId: "file-2", media: ["a", "b"] }],
-      ["x-1", { fileId: "file-3", media: [] }],
+      [
+        "seo-1",
+        { fileId: "file-1", media: [], searchAd: null, adCampaign: null },
+      ],
+      [
+        "ad-1",
+        {
+          fileId: "file-2",
+          media: ["a", "b"],
+          searchAd: null,
+          adCampaign: null,
+        },
+      ],
+      [
+        "x-1",
+        { fileId: "file-3", media: [], searchAd: null, adCampaign: null },
+      ],
     ]);
     const calendar = withMarketingFiles(plan, files).calendar;
     expect(calendar[0]).toMatchObject({ fileId: "file-1", status: "draft" });

@@ -3,6 +3,7 @@
 import type {
   ProjectSocialConnection,
   SocialPost,
+  SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useRef, useState } from "react";
@@ -69,6 +70,7 @@ export function SocialCalendarPreviewProvider({
   const [target, setTarget] = useState<{
     post: SocialPost;
     connections: ProjectSocialConnection[];
+    queueSlots: SocialQueueSlot[];
   } | null>(null);
 
   async function show(projectId: string, postId: string, trigger: HTMLElement) {
@@ -166,6 +168,7 @@ export function SocialCalendarPreviewProvider({
         <ProjectSocialPosts
           key={`${target.post.id}-${request.current}`}
           connections={target.connections}
+          queueSlots={target.queueSlots}
           posts={[target.post]}
           projectId={target.post.projectId}
           selectedPostId={target.post.id}

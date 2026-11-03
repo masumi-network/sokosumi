@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import messages from "@/messages/en.json";
 import { NEWSLETTER_ISSUE, NEWSLETTER_PROJECT_ID } from "@/test/newsletter";
 
 const mocks = vi.hoisted(() => ({
@@ -9,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   listProjects: vi.fn(),
   calendar: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -44,10 +47,13 @@ vi.mock("./calendar", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
-  openProjectScope: () => undefined,
+  openProjectScope: mocks.openProjectScope,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import NewsletterCalendarPage from "./page";
@@ -83,8 +89,16 @@ describe("newsletter calendar page", () => {
 
   it("shows the unknown-project notice for an inaccessible project", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await NewsletterCalendarPage(props()));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterCalendarPage(props())}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select project" }),
+    ).toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });
 

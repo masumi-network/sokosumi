@@ -25,6 +25,7 @@ import type { CusoMessage } from "../../lib/chat-messages";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
+import { type AdActions, SearchAdControl } from "../ads";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
@@ -74,7 +75,7 @@ const VIEWS = [
   ["settings", "Settings", Settings],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
 
-export interface CmoAppActions {
+export interface CmoAppActions extends AdActions {
   loadState: () => Promise<{
     overview: CmoOverview | null;
     messages: CusoMessage[];
@@ -487,6 +488,14 @@ export function CmoApp({
                 <StrategyPage
                   overview={overview}
                   loadText={actions.loadPieceText}
+                  pieceExtra={(entry) => (
+                    <SearchAdControl
+                      entry={entry}
+                      overview={overview}
+                      actions={actions}
+                      onChange={setOverview}
+                    />
+                  )}
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
                     await refresh();
@@ -507,6 +516,8 @@ export function CmoApp({
                   connectMeasurement={(provider) =>
                     actions.connectMeasurement(provider, "app")
                   }
+                  ads={actions}
+                  onChange={setOverview}
                 />
               ) : view === "brain" ? (
                 <BrandBrainPage
@@ -524,6 +535,7 @@ export function CmoApp({
                   overview={overview}
                   compose={compose}
                   connect={actions.connectChannel}
+                  connectAds={actions.connectAds}
                   connectFailed={connectFailed}
                 />
               ) : (

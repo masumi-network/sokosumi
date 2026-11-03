@@ -108,6 +108,7 @@ function overview() {
     measurement: [],
     production: { state: "waiting", ready: 0, total: 0, finishedAt: null },
     mailingListSize: 0,
+    adsAvailable: false,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 12 },
     posts: { DRAFT: 3, SCHEDULED: 1, PUBLISHING: 1, MISSED: 1 },

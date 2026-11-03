@@ -2449,6 +2449,14 @@
         "save": "Guardar",
         "cancel": "Cancelar"
       },
+      "PostingInstructions": {
+        "title": "Instrucciones de publicación",
+        "description": "Indica a Soko Bot, a los Coworkers y a los agentes cómo escribir las publicaciones sociales de este proyecto: tono, hashtags, llamadas a la acción y reglas por plataforma. Solo orienta los borradores sociales y es independiente de la memoria del proyecto y de DESIGN.md.",
+        "placeholder": "# Instrucciones de publicación\nTono: …\nSiempre / nunca: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Guardar instrucciones",
+        "saved": "Instrucciones de publicación guardadas",
+        "saveFailed": "No se pudieron guardar las instrucciones de publicación. Inténtalo de nuevo."
+      },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
         "account": "Cuenta de {provider}",
@@ -2667,6 +2675,7 @@
           "rescheduleFor": "Reprogramar para {date}",
           "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
           "connectAccount": "Conectar cuenta",
+          "reconnectAccount": "Vuelve a conectar la cuenta para publicar o programar. Aun así puedes guardar un borrador.",
           "dismiss": "Cancelar",
           "discardTitle": "¿Descartar cambios?",
           "discardDescription": "Se perderán tus cambios.",
@@ -2674,7 +2683,9 @@
           "keepEditing": "Seguir editando",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar.",
-          "tooLong": "La longitud del texto supera el límite."
+          "tooLong": "La longitud del texto supera el límite.",
+          "addToQueue": "Añadir a la cola",
+          "queueEmptyHint": "Añade horarios en Cuentas."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2705,6 +2716,7 @@
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
           "duplicated": "Borrador creado.",
+          "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}",
           "approved": "Publicación aprobada."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
@@ -2973,6 +2985,33 @@
           "later": "Más tarde"
         },
         "moreActions": "Acciones de la publicación",
+        "queue": {
+          "title": "Cola de publicación",
+          "hint": "Horarios semanales con nombre. «Añadir a la cola» usa el siguiente libre.",
+          "empty": "Aún no hay horarios de cola.",
+          "emptyHint": "Añade un horario semanal. Después podrás poner publicaciones en la cola.",
+          "add": "Añadir horario",
+          "save": "Guardar cola",
+          "name": "Nombre",
+          "weekday": "Día",
+          "time": "Hora",
+          "timezone": "Zona horaria",
+          "remove": "Quitar {name}",
+          "toasts": {
+            "saved": "Cola guardada.",
+            "empty": "Cola vaciada.",
+            "failed": "No se pudieron guardar los horarios de la cola. Inténtalo de nuevo."
+          },
+          "weekdays": {
+            "0": "Domingo",
+            "1": "Lunes",
+            "2": "Martes",
+            "3": "Miércoles",
+            "4": "Jueves",
+            "5": "Viernes",
+            "6": "Sábado"
+          }
+        },
         "thread": {
           "add": "Añadir al hilo",
           "limit": "Los hilos pueden tener hasta {max} partes.",
@@ -3575,7 +3614,10 @@
         "publicArchive": "Archivo público",
         "SignupForm": {
           "title": "Formulario de suscripción",
+          "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
           "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "previewTitle": "Vista previa del formulario de suscripción",
+          "previewDescription": "Consulta el formulario de suscripción que los lectores pueden usar en tu sitio web.",
           "hostedPage": "Página de suscripción alojada",
           "open": "Abrir página de suscripción",
           "embedCode": "Código de inserción",
@@ -3778,6 +3820,14 @@
       "regenerate": "Nueva variante",
       "schedule": "Programar esta imagen",
       "scheduleFailed": "No se pudo adjuntar esta imagen",
+      "writeCaption": "Escribir un pie de foto",
+      "writeCaptionFailed": "No se pudo escribir el pie de foto",
+      "writingCaption": "Escribiendo el pie de foto…",
+      "captionLabel": "Pie de foto",
+      "captionSuggestionLabel": "Nuevo pie de foto",
+      "useCaption": "Usar el nuevo pie de foto",
+      "keepCaption": "Conservar el pie de foto actual",
+      "undoCaption": "Deshacer el cambio del pie de foto",
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
@@ -3851,7 +3901,6 @@
       "moreOptions": "Opciones",
       "modelCount": "{count, plural, one {# modelo} other {# modelos}}",
       "copyCount": "{count, plural, one {# copia} other {# copias}}",
-      "pickTitle": "Elige un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
       "referencesAcrossProjects": "Las referencias tienen que venir de un solo proyecto. Deselecciona las imágenes de otros proyectos y vuelve a generar.",
@@ -9769,6 +9818,7 @@
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
+      "selectProject": "Seleccionar proyecto",
       "pinned": "Fijados",
       "all": "Proyectos",
       "searchPlaceholder": "Buscar un proyecto...",

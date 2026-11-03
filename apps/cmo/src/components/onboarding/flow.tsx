@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import { strategyApproved } from "../../lib/strategy";
+import type { AdActions } from "../ads";
 import { BusinessMark } from "../business-mark";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
@@ -72,6 +73,7 @@ export interface OnboardingActions {
     provider: CmoOverview["measurement"][number]["provider"],
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
+  connectAds: AdActions["connectAds"];
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -507,6 +509,7 @@ export function OnboardingFlow({
           <ConnectStep
             overview={overview}
             onConnect={actions.connectChannel}
+            onConnectAds={actions.connectAds}
             onMailingList={async (text) => {
               const result = await actions.addMailingList(text);
               if (result.overview) setOverview(result.overview);

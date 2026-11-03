@@ -1,19 +1,24 @@
 "use client";
 
 import { FolderKanban } from "lucide-react";
-import { useId } from "react";
+import { useTranslations } from "next-intl";
+import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 import {
   openProjectScope,
+  openScopeCreate,
   type ProjectScopeRequest,
+  setScopeCreateOpen,
 } from "./sidebar-project-scope-state";
+import { useHasAnyScopeProject } from "./use-scope-projects";
 
 /**
- * Opens the main project selector, as required, when it mounts: a page that
- * cannot show anything without a project asks for one on arrival. Unmounting
+ * Opens the main project selector, as required, when it mounts: an explicit
+ * action that needs a project can mount this to ask for one. Unmounting
  * (a project chosen, or the reader going elsewhere) closes it again.
  *
  * Esc closes it too, back to the page under it. That page is never broken: it
@@ -31,22 +36,27 @@ export function RequireProjectScope(
 /**
  * What a project-only page (Newsletter, Social, Ads, the studio) shows before
  * it knows which project it is working in: its own backdrop (`children`), its
- * copy, and the header's project selector open over it. Choosing there writes
- * the scope back into the URL the way every other scoped page does. There is
- * no button of its own: the selector opens by itself, and the header's trigger
- * reopens it.
+ * copy, and a primary button. Navigation never opens the selector: project
+ * availability only changes the button from Select project (also while pending)
+ * to Create project for an empty workspace. The Create button seeds a required
+ * request before opening Create. Choosing or creating writes the scope back
+ * into the URL the way every other scoped page does. Explicit user-initiated
+ * actions can use autoOpen or RequireProjectScope to open it on mount before
+ * that query has settled.
  */
 export function ProjectScopeRequired({
-  autoOpen = true,
+  autoOpen = false,
   body,
   children,
   onSelect,
   testId,
   title,
+  variant = "prompt",
 }: {
   /**
-   * Open the header's project selector on arrival. Off where the placeholder
-   * sits above a view that works without a project, as Social's calendar does.
+   * Opt into opening the header's project selector on mount for an explicit
+   * action that needs a project, even before project availability is known.
+   * Page navigation never opens it, regardless of project availability.
    */
   autoOpen?: boolean;
   body: string;
@@ -55,37 +65,86 @@ export function ProjectScopeRequired({
   onSelect?: ProjectScopeRequest["onSelect"];
   testId?: string;
   title?: string;
+  variant?: "prompt" | "action";
 }) {
   const headingId = useId();
+  const t = useTranslations("App.ProjectScope");
+  const { isPending, hasProjects } = useHasAnyScopeProject();
+  const shouldAutoOpen = autoOpen === true;
+  const shouldCreateProject = !isPending && !hasProjects;
+  const cancelRequest = useRef<ReturnType<typeof openProjectScope> | null>(
+    null,
+  );
+
+  useMountEffect(() => () => {
+    if (cancelRequest.current) {
+      cancelRequest.current();
+      setScopeCreateOpen(false);
+    }
+  });
+
+  function handleSelectProject(event: React.MouseEvent<HTMLButtonElement>) {
+    cancelRequest.current = openProjectScope({
+      required: true,
+      reason: body,
+      onSelect,
+    });
+    if (shouldCreateProject) {
+      openScopeCreate(event.currentTarget);
+    }
+  }
+
+  const Wrapper = variant === "action" ? "div" : "section";
+
   return (
-    <section
-      aria-labelledby={title ? headingId : undefined}
-      className="flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
+    <Wrapper
+      aria-labelledby={variant === "prompt" && title ? headingId : undefined}
+      className={
+        variant === "action"
+          ? "flex justify-center"
+          : "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
+      }
       data-testid={testId}
     >
-      {autoOpen ? (
+      {shouldAutoOpen ? (
         <RequireProjectScope reason={body} onSelect={onSelect} />
       ) : null}
-      {children ?? (
-        <span
-          aria-hidden
-          className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
-        >
-          <FolderKanban className="size-5" />
-        </span>
-      )}
-      {title ? (
-        <h2
-          id={headingId}
-          className="mt-8 text-2xl font-light tracking-tight text-balance"
-        >
-          {title}
-        </h2>
+      {variant === "prompt" ? (
+        <>
+          {children ?? (
+            <span
+              aria-hidden
+              className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
+            >
+              <FolderKanban className="size-5" />
+            </span>
+          )}
+          {title ? (
+            <h2
+              id={headingId}
+              className="mt-8 text-2xl font-light tracking-tight text-balance"
+            >
+              {title}
+            </h2>
+          ) : null}
+          <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
+            {body}
+          </p>
+        </>
       ) : null}
-      <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
-        {body}
-      </p>
-    </section>
+      {/* Empty workspaces offer Create in the switcher, so go straight to create. */}
+      {!shouldAutoOpen ? (
+        <Button
+          className={variant === "prompt" ? "mt-6" : undefined}
+          data-testid="project-scope-select-button"
+          onClick={handleSelectProject}
+          type="button"
+          variant="primary"
+        >
+          {shouldCreateProject ? t("create") : t("selectProject")}
+        </Button>
+      ) : null}
+    </Wrapper>
   );
 }
 

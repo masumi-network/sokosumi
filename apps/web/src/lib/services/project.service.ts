@@ -23,11 +23,14 @@ import type {
   ProjectStar,
   ProjectStatsEntry,
   PublishSocialPostRequest,
+  QueueSocialPostRequest,
   RecycleSocialAccountPostRequest,
+  ReplaceSocialQueueSlotsRequest,
   ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
   SocialPost,
   SocialPostStatus,
+  SocialQueueSlots,
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
@@ -67,6 +70,7 @@ interface PatchProjectInput {
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
+  postingInstructionsMd?: string | null;
 }
 
 export const projectService = (() => {
@@ -475,6 +479,37 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listSocialQueueSlots(
+    projectId: string,
+  ): Promise<SocialQueueSlots> {
+    const result = await coreClient.getProjectsByIdSocialQueueSlots(projectId);
+    return result.data;
+  }
+
+  async function replaceSocialQueueSlots(
+    projectId: string,
+    input: ReplaceSocialQueueSlotsRequest,
+  ): Promise<SocialQueueSlots> {
+    const result = await coreClient.putProjectsByIdSocialQueueSlots(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function queueSocialPost(
+    projectId: string,
+    postId: string,
+    input: QueueSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdQueue(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
   async function updateSocialPost(
     projectId: string,
     postId: string,
@@ -704,6 +739,9 @@ export const projectService = (() => {
     refreshSocialPostStatistics,
     getSocialPost,
     createSocialPost,
+    listSocialQueueSlots,
+    replaceSocialQueueSlots,
+    queueSocialPost,
     updateSocialPost,
     scheduleSocialPost,
     cancelSocialPost,

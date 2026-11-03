@@ -23,6 +23,14 @@ public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Co
                                                     mediaKind: $0.kind == .image ? .image : .file) })
 }
 
+public extension Components.Schemas.ChatRoomMessageQuoteAttachment {
+  /// The file a composer tile opens. Nil for anything but a web address: there is nothing to preview, and another
+  /// message's scheme stays closed.
+  var preview: MessageAttachment? {
+    URL(string: url).flatMap { MessageAttachment(url: $0, label: fileName, kindHint: mediaKind == .image ? .image : .file) }
+  }
+}
+
 /// A mention shell that is still thinking has no actions, like web's
 /// `showActions`; a failed shell keeps quote/pin/reactions.
 public func canQuoteMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {

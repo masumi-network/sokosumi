@@ -5,6 +5,7 @@ import type {
   ProjectSocialConnection,
   SocialPost,
   SocialPostMediaRef,
+  SocialQueueSlot,
 } from "@sokosumi/core-client";
 import {
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -20,10 +21,12 @@ import {
 } from "@sokosumi/utils";
 import { type Query, useQueries, useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Check, Plus } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
+import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
@@ -55,6 +58,7 @@ import {
 import {
   createProjectSocialPost,
   publishProjectSocialPost,
+  queueProjectSocialPost,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
@@ -113,6 +117,7 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
+      source?: "studio";
       /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
       scheduledAt?: string;
     }
@@ -120,7 +125,9 @@ export type SocialPostComposerMode =
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
+  queueSlots?: SocialQueueSlot[];
   connections: ProjectSocialConnection[];
+  connectDisabled?: boolean;
   mode: SocialPostComposerMode;
   /** Takes the reader to where accounts are connected; absent, none is offered. */
   onConnectAccount?: () => void;
@@ -140,7 +147,7 @@ interface ComposerThreadPart {
 
 const MAX_THREAD_PARTS = 25;
 
-type PendingSubmit = "save" | "schedule" | "publish" | null;
+type PendingSubmit = "save" | "schedule" | "publish" | "queue" | null;
 
 function accountLabel(connection: ProjectSocialConnection): string {
   return (
@@ -156,6 +163,8 @@ function resolveTimezone(): string {
 
 export function SocialPostComposerDialog({
   connections: initialConnections,
+  queueSlots = [],
+  connectDisabled = false,
   mode,
   onConnectAccount,
   onError,
@@ -189,13 +198,32 @@ export function SocialPostComposerDialog({
   const threadLimitId = useId();
   const publishHintId = useId();
   const saveHintId = useId();
+  const reconnectHintId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const quoteButtonRef = useRef<HTMLButtonElement>(null);
   const mediaTargetRef = useRef<string | null>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const fromStudio = mode.kind === "create" && mode.source === "studio";
   const revisionRef = useRef(post?.revision ?? 0);
+  const [reconnectedAccounts, setReconnectedAccounts] = useState<
+    Record<string, ProjectSocialConnection>
+  >({});
+  const knownConnections: ProjectSocialConnection[] = [...initialConnections];
+  if (
+    post?.socialConnection &&
+    !knownConnections.some(
+      (connection) => connection.id === post.socialConnection?.id,
+    )
+  ) {
+    knownConnections.push({
+      ...post.socialConnection,
+      provider: post.provider,
+      connectedAt: null,
+      disconnectedAt: null,
+    });
+  }
   const { data: session } = useSession();
   const { data: refreshedConnections } = useQuery({
     queryKey: [
@@ -214,19 +242,41 @@ export function SocialPostComposerDialog({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  // Refresh only pictures: cached query data must not reintroduce disconnected accounts.
-  const connections = initialConnections.map((connection) => ({
-    ...connection,
-    avatarUrl:
-      connection.avatarUrl ??
-      refreshedConnections?.find(
-        (fresh) =>
-          fresh.id === connection.id &&
-          fresh.provider === connection.provider &&
-          fresh.externalHandle === connection.externalHandle,
-      )?.avatarUrl ??
-      null,
-  }));
+  // Cached query data supplies pictures only; status comes from props or completed OAuth.
+  const updatedConnections = knownConnections.map((known) => {
+    const connection = reconnectedAccounts[known.id] ?? known;
+    return {
+      ...connection,
+      avatarUrl:
+        connection.avatarUrl ??
+        refreshedConnections?.find(
+          (fresh) =>
+            fresh.id === connection.id &&
+            fresh.provider === connection.provider &&
+            fresh.externalHandle === connection.externalHandle,
+        )?.avatarUrl ??
+        null,
+    };
+  });
+  const allConnections = [
+    ...new Map(
+      updatedConnections.map((connection) => [connection.id, connection]),
+    ).values(),
+  ];
+  const connections = allConnections.filter(
+    (connection) => connection.status === "active",
+  );
+  const accountOptions = allConnections.filter(
+    (connection) =>
+      connection.status === "active" || connection.status === "pending",
+  );
+  const reconnections = allConnections
+    .filter(
+      (connection) =>
+        connection.status === "reauthorization_required" ||
+        connection.status === "disconnected",
+    )
+    .map((connection) => ({ connection, affectedPosts: [] }));
   const organizationId = session?.session.activeOrganizationId ?? null;
   const enabledConnections = connections.filter((connection) =>
     isProviderEnabled(connection.provider),
@@ -294,17 +344,18 @@ export function SocialPostComposerDialog({
   const multiAccount = mode.kind === "create";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
     if (mode.kind === "create") {
+      if (fromStudio) return [];
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
         enabledProviders,
       );
     }
-    const initial = post
-      ? isProviderEnabled(post.provider)
-        ? (post.socialConnection?.id ?? enabledConnections[0]?.id)
-        : undefined
-      : enabledConnections[0]?.id;
+    const initial =
+      post?.socialConnection?.id ??
+      (post && !isProviderEnabled(post.provider)
+        ? undefined
+        : enabledConnections[0]?.id);
     return initial ? [initial] : [];
   });
   const xConnections = connections.filter(
@@ -347,11 +398,19 @@ export function SocialPostComposerDialog({
   );
   const prefilledScheduledAt =
     mode.kind === "create" ? (mode.scheduledAt ?? "") : "";
-  const [scheduledAt, setScheduledAt] = useState(
-    post?.scheduledAt
-      ? toScheduleValue(post.scheduledAt)
-      : prefilledScheduledAt,
-  );
+  const [scheduledAt, setScheduledAt] = useState<string | null>(() => {
+    if (post?.scheduledAt) {
+      if (
+        (post.status === "FAILED" || post.status === "MISSED") &&
+        post.scheduledAt.getTime() <=
+          Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+      ) {
+        return "";
+      }
+      return toScheduleValue(post.scheduledAt);
+    }
+    return fromStudio ? null : prefilledScheduledAt;
+  });
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
   const { data: suggestedTimes } = useQuery({
@@ -387,20 +446,31 @@ export function SocialPostComposerDialog({
   const [initial] = useState(() => ({
     text: post?.text ?? "",
     media: post?.media ?? [],
-    scheduledAt: post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
-    connectionId: connectionIds[0] ?? "",
+    scheduledAt,
+    connectionId: post?.socialConnection?.id ?? connectionIds[0] ?? "",
   }));
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnections = enabledConnections
-    .filter((connection) => connectionIds.includes(connection.id))
+  const selectedConnections = allConnections
+    .filter(
+      (connection) =>
+        connectionIds.includes(connection.id) &&
+        isProviderEnabled(connection.provider),
+    )
     .map((connection) => {
       const fresh = subscriptions.get(connection.id);
       return fresh
         ? { ...connection, subscriptionType: fresh.subscriptionType }
         : connection;
     });
+  const selectedAccountsConnected =
+    selectedConnections.length > 0 &&
+    selectedConnections.every((connection) => connection.status === "active");
+  const needsReconnect = reconnections.some(
+    ({ connection }) =>
+      connectionIds.includes(connection.id) || enabledConnections.length === 0,
+  );
   const connectionId = selectedConnections[0]?.id ?? "";
   // One feed at a time: the account the reader picked, else the first still
   // selected, else the post's own account while none is picked.
@@ -583,7 +653,7 @@ export function SocialPostComposerDialog({
   const canSchedule =
     textValid &&
     mediaValid &&
-    connectionId !== "" &&
+    selectedAccountsConnected &&
     scheduledAtValid &&
     !isBusy;
   const canSave =
@@ -599,13 +669,17 @@ export function SocialPostComposerDialog({
         !post.scheduledAt ||
         post.scheduledAt.getTime() <= quoteTime.getTime())
     );
+  const hasQueueSlots = queueSlots.length > 0;
+  const canQueue =
+    hasQueueSlots && textValid && mediaValid && connectionId !== "" && !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
+    scheduledAt === "" &&
     !quotePending &&
     textValid &&
     mediaValid &&
-    selectedConnections.length > 0 &&
+    selectedAccountsConnected &&
     !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
 
@@ -921,14 +995,20 @@ export function SocialPostComposerDialog({
 
   /**
    * The one main action, which follows When: a time schedules, "Now" posts,
-   * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
-   * time is all the schedule dialog does, so it never saves a new draft.
+   * and an unchosen time or existing post with no time saves. ⌘/Ctrl+Enter
+   * runs it. Picking a time is all the schedule dialog does, so it never
+   * saves a new draft.
    */
-  const canPostNow = mode.kind === "create" && enabledConnections.length > 0;
-  const primaryAction: Exclude<PendingSubmit, null> =
-    scheduledAt !== "" || isScheduleOnly
+  const canPostNow =
+    mode.kind === "create" &&
+    (enabledConnections.length > 0 ||
+      reconnections.some(({ connection }) =>
+        isProviderEnabled(connection.provider),
+      ));
+  const primaryAction: Exclude<PendingSubmit, "queue" | null> =
+    scheduledAt || isScheduleOnly
       ? "schedule"
-      : canPostNow
+      : canPostNow && scheduledAt === ""
         ? "publish"
         : "save";
   const primaryEnabled =
@@ -957,6 +1037,7 @@ export function SocialPostComposerDialog({
         : saveLabel;
   const needsAccount =
     !isScheduleOnly &&
+    !needsReconnect &&
     primaryAction !== "save" &&
     connections.length > 0 &&
     selectedConnections.length === 0;
@@ -980,7 +1061,7 @@ export function SocialPostComposerDialog({
           media,
           ...threadPayload,
           ...quotePayload,
-          socialConnectionId: connectionId || null,
+          socialConnectionId: connectionIds[0] ?? null,
           revision: revisionRef.current,
         });
         if (!result.ok) {
@@ -1114,6 +1195,94 @@ export function SocialPostComposerDialog({
     }
   }
 
+  async function handleQueue(): Promise<void> {
+    if (!canQueue) return;
+    setPending("queue");
+    try {
+      if (mode.kind === "create") {
+        const created = await createForEachAccount(
+          async (socialConnectionId) => {
+            const draft = await createProjectSocialPost({
+              projectId,
+              text: textFor(socialConnectionId).trim(),
+              ...(trimmedFirstComment
+                ? { firstComment: trimmedFirstComment }
+                : {}),
+              media,
+              ...threadPayload,
+              ...quotePayload,
+              socialConnectionId,
+            });
+            if (!draft.ok) return draft;
+            const result = await queueProjectSocialPost({
+              projectId,
+              postId: draft.value.id,
+              socialConnectionId,
+              revision: draft.value.revision,
+            });
+            // Keep the saved draft visible when scheduling fails.
+            if (!result.ok) handleSaved(draft.value);
+            return result;
+          },
+        );
+        if (created === 0) return;
+        rememberCreateAccounts();
+        toast.success(t("toasts.queued", { count: created }));
+        onOpenChange(false);
+        return;
+      }
+
+      const connectionChanged =
+        connectionId !== (mode.post.socialConnection?.id ?? "");
+      const contentChanged =
+        trimmedText !== mode.post.text ||
+        trimmedFirstComment !== (mode.post.firstComment ?? "") ||
+        !sameSocialPostMedia(media, mode.post.media) ||
+        threadChanged ||
+        quoteChanged ||
+        connectionChanged;
+      if (mode.kind === "edit" && contentChanged) {
+        const updated = await updateProjectSocialPost({
+          projectId,
+          postId: mode.post.id,
+          text: trimmedText,
+          firstComment: trimmedFirstComment,
+          media,
+          ...threadPayload,
+          ...quotePayload,
+          ...(connectionChanged
+            ? { socialConnectionId: connectionId || null }
+            : {}),
+          revision: revisionRef.current,
+        });
+        if (!updated.ok) {
+          onError(updated.error);
+          return;
+        }
+        revisionRef.current = updated.value.revision;
+        handleSaved(updated.value);
+      }
+      const result = await queueProjectSocialPost({
+        projectId,
+        postId: mode.post.id,
+        socialConnectionId: connectionId,
+        revision: revisionRef.current,
+      });
+      if (!result.ok) {
+        onError(result.error);
+        return;
+      }
+      toast.success(t("toasts.queued", { count: 1 }));
+      revisionRef.current = result.value.revision;
+      handleSaved(result.value);
+      onOpenChange(false);
+    } catch (error) {
+      onError(toActionRejectionError(error));
+    } finally {
+      setPending(null);
+    }
+  }
+
   function renderCounter(
     text: string,
     countProvider: typeof provider,
@@ -1207,7 +1376,9 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== prefilledScheduledAt
+        (fromStudio
+          ? Boolean(scheduledAt)
+          : scheduledAt !== prefilledScheduledAt)
       : threadChanged ||
         firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
@@ -1286,11 +1457,15 @@ export function SocialPostComposerDialog({
       loading={pending === primaryAction}
       onClick={runPrimary}
       aria-describedby={
-        quotePending && primaryAction === "publish"
-          ? `${publishHintId}-quote`
-          : showRequirementHint
-            ? publishHintId
-            : undefined
+        [
+          needsReconnect && primaryAction !== "save" ? reconnectHintId : null,
+          quotePending && primaryAction === "publish"
+            ? `${publishHintId}-quote`
+            : null,
+          showRequirementHint ? publishHintId : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined
       }
     >
       {primaryLabel}
@@ -1314,7 +1489,7 @@ export function SocialPostComposerDialog({
       cancelLabel={t("composer.dismiss")}
       isDismissDisabled={isBusy}
       onOpenAutoFocus={(event) => {
-        // Straight to the text: the account is already picked.
+        // Straight to the text on desktop; accounts can be picked afterwards.
         if (isScheduleOnly || isMobile) return;
         event.preventDefault();
         textareaRef.current?.focus();
@@ -1364,7 +1539,7 @@ export function SocialPostComposerDialog({
                     ? t("composer.accounts")
                     : t("composer.account")}
                 </span>
-                {connections.length === 0 ? (
+                {allConnections.length === 0 ? (
                   <div
                     className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
                     data-testid="social-post-no-accounts"
@@ -1390,7 +1565,7 @@ export function SocialPostComposerDialog({
                       </Button>
                     ) : null}
                   </div>
-                ) : (
+                ) : accountOptions.length > 0 ? (
                   <div
                     aria-invalid={needsAccount || undefined}
                     aria-labelledby={accountsLabelId}
@@ -1398,7 +1573,7 @@ export function SocialPostComposerDialog({
                     data-testid="social-post-accounts"
                     role="group"
                   >
-                    {connections.map((connection) => {
+                    {accountOptions.map((connection) => {
                       const selected = connectionIds.includes(connection.id);
                       const handle = accountChipLabel(
                         connection,
@@ -1420,7 +1595,9 @@ export function SocialPostComposerDialog({
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
                           disabled={
-                            isBusy || !isProviderEnabled(connection.provider)
+                            isBusy ||
+                            !isProviderEnabled(connection.provider) ||
+                            connection.status !== "active"
                           }
                           key={connection.id}
                           onClick={() => toggleConnection(connection.id)}
@@ -1431,6 +1608,9 @@ export function SocialPostComposerDialog({
                             provider={connection.provider}
                           />
                           <span className="max-w-40 truncate">{handle}</span>
+                          {connection.status === "pending" ? (
+                            <span>{accountsT("status.pending")}</span>
+                          ) : null}
                           {!isProviderEnabled(connection.provider) ? (
                             <Badge variant="secondary">
                               {accountsT("comingSoon")}
@@ -1451,7 +1631,40 @@ export function SocialPostComposerDialog({
                       </p>
                     ) : null}
                   </div>
-                )}
+                ) : null}
+                {reconnections.length > 0 ? (
+                  <div className="w-full space-y-2">
+                    <ProjectSocialAccounts
+                      connections={allConnections}
+                      connectDisabled={connectDisabled || isBusy}
+                      projectId={projectId}
+                      reconnections={reconnections}
+                      onReconnected={(connection, previousConnectionId) => {
+                        setReconnectedAccounts((current) => ({
+                          ...current,
+                          [previousConnectionId ?? connection.id]: connection,
+                        }));
+                        setConnectionIds((current) =>
+                          current.length === 0
+                            ? [connection.id]
+                            : current.map((id) =>
+                                id === previousConnectionId
+                                  ? connection.id
+                                  : id,
+                              ),
+                        );
+                      }}
+                    />
+                    {needsReconnect ? (
+                      <p
+                        id={reconnectHintId}
+                        className="text-muted-foreground text-xs"
+                      >
+                        {t("composer.reconnectAccount")}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {isScheduleOnly ? null : (
@@ -1996,8 +2209,37 @@ export function SocialPostComposerDialog({
               className="text-muted-foreground min-w-0 flex-1 text-sm"
             >
               {footerMessage}
+              {!hasQueueSlots ? (
+                <p>
+                  <Link
+                    className="underline underline-offset-4"
+                    href={`/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`}
+                    onNavigate={(event) => {
+                      if (onConnectAccount) {
+                        event.preventDefault();
+                        onConnectAccount();
+                      } else {
+                        onOpenChange(false);
+                      }
+                    }}
+                  >
+                    {t("composer.queueEmptyHint")}
+                  </Link>
+                </p>
+              ) : null}
             </div>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canQueue}
+                loading={pending === "queue"}
+                onClick={() => {
+                  void handleQueue();
+                }}
+              >
+                {t("composer.addToQueue")}
+              </Button>
               {!isScheduleOnly && primaryAction !== "save" ? (
                 <>
                   <Tooltip>

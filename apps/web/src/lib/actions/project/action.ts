@@ -59,6 +59,13 @@ interface UpdateProjectParameters extends AuthenticatedRequest {
   logo?: string | null;
 }
 
+interface UpdateProjectPostingInstructionsParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  /** Markdown; blank clears it. */
+  postingInstructionsMd: string;
+}
+
 interface ResolveProjectSiteIconParameters extends AuthenticatedRequest {
   url: string;
   projectId: string;
@@ -137,6 +144,24 @@ interface ScheduleProjectSocialPostParameters extends AuthenticatedRequest {
   timezone?: string | null;
   socialConnectionId?: string | null;
   revision: number;
+}
+
+interface QueueProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  socialConnectionId?: string | null;
+  revision: number;
+}
+
+interface ReplaceProjectSocialQueueSlotsParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  timezone: string;
+  slots: Array<{
+    name: string;
+    weekday: number;
+    minutesFromMidnight: number;
+  }>;
 }
 
 interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
@@ -359,6 +384,31 @@ export const updateProject = withSession<
     if (isIdentifierTaken(error)) return identifierTaken();
     console.error("Failed to update project", error);
     throwCoreActionError(error, "Failed to update project");
+  }
+});
+
+export const updateProjectPostingInstructions = withSession<
+  UpdateProjectPostingInstructionsParameters,
+  ActionResultDto<{ postingInstructionsMd: string | null }, ActionError>
+>(async ({ projectId, postingInstructionsMd }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    throw new Error("Project required");
+  }
+
+  try {
+    const project = await projectService.patchProject(normalizedProjectId, {
+      postingInstructionsMd: postingInstructionsMd.trim() || null,
+    });
+
+    revalidateProjectMutationRoutes(normalizedProjectId);
+    revalidatePath("/social");
+    return toActionResult(
+      ok({ postingInstructionsMd: project.postingInstructionsMd }),
+    );
+  } catch (error) {
+    console.error("Failed to update project posting instructions", error);
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
@@ -680,6 +730,37 @@ const scheduleProjectSocialPostSchema = z.object({
   revision: revisionSchema,
 });
 
+const queueProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  socialConnectionId: optionalConnectionId,
+  revision: revisionSchema,
+});
+
+const replaceProjectSocialQueueSlotsSchema = z
+  .object({
+    projectId: trimmedId,
+    timezone: z.string().trim().min(1),
+    slots: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1).max(40),
+          weekday: z.number().int().min(0).max(6),
+          minutesFromMidnight: z.number().int().min(0).max(1439),
+        }),
+      )
+      .max(50),
+  })
+  .refine(
+    (value) => {
+      const keys = value.slots.map(
+        (slot) => `${slot.weekday}:${slot.minutesFromMidnight}`,
+      );
+      return new Set(keys).size === keys.length;
+    },
+    { message: "Each weekday and time can be used once" },
+  );
+
 const cancelProjectSocialPostSchema = z.object({
   projectId: trimmedId,
   postId: trimmedId,
@@ -898,6 +979,74 @@ export const scheduleProjectSocialPost = withSession<
     }
   },
 );
+
+export const queueProjectSocialPost = withSession<
+  QueueProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, socialConnectionId, revision }) => {
+  const parsed = queueProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    socialConnectionId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.queueSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      {
+        revision: parsed.data.revision,
+        ...(parsed.data.socialConnectionId
+          ? { socialConnectionId: parsed.data.socialConnectionId }
+          : {}),
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const replaceProjectSocialQueueSlots = withSession<
+  ReplaceProjectSocialQueueSlotsParameters,
+  ActionResultDto<
+    Awaited<ReturnType<typeof projectService.replaceSocialQueueSlots>>,
+    ActionError
+  >
+>(async ({ projectId, timezone, slots }) => {
+  const parsed = replaceProjectSocialQueueSlotsSchema.safeParse({
+    projectId,
+    timezone,
+    slots,
+  });
+  if (!parsed.success) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsed.error.issues[0]?.message ?? "Invalid queue times",
+      }),
+    );
+  }
+
+  try {
+    const next = await projectService.replaceSocialQueueSlots(
+      parsed.data.projectId,
+      {
+        timezone: parsed.data.timezone,
+        slots: parsed.data.slots,
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(next));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
 
 export const cancelProjectSocialPost = withSession<
   CancelProjectSocialPostParameters,

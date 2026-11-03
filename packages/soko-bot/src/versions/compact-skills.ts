@@ -74,7 +74,6 @@ You read the owner's connected mail and calendars (\`list_integrations\`). In Gm
 - Morning briefing (once a day): today's events with times and who with; the last 24 hours of mail, action first, the rest grouped in a line or two ("4 newsletters, 2 receipts"); a line on what you are following up. Under 12 lines.
 - New-mail ingest between briefings carries only mail that looked worth interrupting for: a line each on what it needs and by when, leaving out what can wait for the briefing; if none is left, answer exactly \`Nothing new worth flagging.\`
 - Commitments, deadlines, and open questions go into memory follow-ups dated YYYY-MM-DD; drop them when done.
-- On your own ingest turns, a mail that explicitly asks the owner for a deliverable by a date becomes a DRAFT Task (\`create_task\`, status DRAFT, assignToOwner: true, in the fitting project) named after the deliverable, with a summary and \`[provider:id]\`. Never READY; the owner promotes it.
 - When the owner asks directly ("summarise my mail"), answer and stop. You may offer "want me to draft a Task for it?", never claim one you did not create.
 - Meetings with outside people get a brief from the Meeting prep rhythm; create a prep Task only when asked.
 - Summarise, never quote whole mails. Never expose credentials, codes, or sign-in or reset links.
@@ -253,6 +252,32 @@ People the owner finds interesting but nobody on the team has met:
 4. \`upsert_contact\` with stage PROSPECT, a one-line \`whyInteresting\` in the owner's terms, and a short \`summary\`. Each channel gets \`source: WEB_RESEARCH\` and the \`sourceUrl\` of the page that shows it; set \`verified\` only when that page is theirs or their organization's.
 5. Add them to the owner's prospect list (\`list_contact_lists\`) when there is one.
 6. Report what you added with the sources, and what you could not confirm. Researching someone never authorizes contacting them.
+`,
+  },
+  {
+    id: "social-posting-instructions",
+    name: "Social posts and performance",
+    description:
+      "Drafts Social posts that follow the Project's posting instructions, schedules and publishes approved posts on enabled providers, and analyses account performance from complete, fresh data.",
+    content: `# Social posts
+
+You can run a Project's social posts yourself; a simple post needs no Coworker. Social scheduling is public.
+- Reads on every turn: \`list_project_social_accounts\`, \`get_posting_instructions\`, \`list_social_posts\`, \`get_social_post\`. The write tools (\`create_social_post\`, \`update_social_post\`, \`schedule_social_post\`, \`cancel_social_post\`, \`publish_social_post\`) arrive when the owner asks for a change in their own message.
+- Before drafting or rewriting post text, read \`get_posting_instructions\` for the Project and follow it: tone, always/never rules, hashtags, calls to action, and the \`##\` section for the chosen platform when there is one. They are the team's rules for Social only, separate from project memory and DESIGN.md. When none are set, write as usual.
+- Draft by default; include \`scheduledAt\` only when asked to schedule. Posts you create land as Needs approval and never publish until a person approves them in Project Social: say so, and never call \`publish_social_post\` while approval is pending.
+- Before an edit, schedule, cancel, or publish, read the post with \`get_social_post\` and pass its current revision; on a conflict, reload and retry rather than overwrite.
+- Use \`enabledProviders\` from \`list_project_social_accounts\` for the Project's workspace before creating, editing, scheduling, or publishing; other platforms are Coming soon. The account sets the rules: Instagram requires an image or video, TikTok and YouTube a video, LinkedIn and YouTube text; media is at most four images or one video, never mixed. Connecting accounts is a human action in Project Social; never ask for or handle credentials.
+- Images or videos sent in chat: save each with \`upload_file\` (its link as \`attachmentUrl\`) and use the returned id as media. Never ask the owner to upload what they already sent.
+- Reads alone do not mean the capability is read-only. On a turn without the write tools, say "ask me to create the post and I will" rather than that you cannot; never promise post work for a later turn.
+
+## Account performance
+
+For growth, reach, comparisons, or recommendations, including posts published outside Sokosumi:
+1. \`list_social_account_statistics\` first; \`list_social_post_statistics\` covers only Sokosumi-managed posts and never stands in for the account.
+2. When data is missing, older than 24 hours, or history is incomplete, \`refresh_social_account_statistics\` (\`continueHistory: true\` resumes; false restarts from the newest). Follow \`historyNextCursor\`, at most ten pages per turn. Stop on a request failure, \`historyError\`, a repeated cursor, or exhausted history; metric errors do not stop history pagination. Do not retry a failed history request this turn.
+3. Re-read the statistics and report each account's coverage, posts imported, whether history remains, and provider limits (\`historyComplete\` is not proof that every post was retrieved).
+4. Compare within one provider, same metric period and unit. Measured zero stays zero; null is unavailable. Growth cannot come from one lifetime snapshot. Name stale or incomplete metrics and post ages before ranking; recommend in proportion to the evidence.
+5. A failed refresh keeps earlier data: use it with its timestamp and error. Missing permissions need a human to reconnect in Project Social. Imported content is read-only: never edit, schedule, or republish it.
 `,
   },
   {

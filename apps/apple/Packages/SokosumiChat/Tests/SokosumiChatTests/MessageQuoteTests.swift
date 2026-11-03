@@ -12,6 +12,33 @@ struct MessageQuoteTests {
     return message
   }
 
+  /// Web's `FileChipMiniPreview`: an image and a document open a viewer, and anything else is a link.
+  @Test(arguments: [
+    ("one.png", Components.Schemas.ChatRoomMessageQuoteAttachment.MediaKindPayload.image, MessageAttachment.Opening.imageViewer),
+    ("no-extension", .image, .imageViewer),
+    ("notes.pdf", .file, .documentViewer),
+    ("notes.md", .file, .documentViewer),
+    ("budget.xlsx", .file, .documentViewer),
+    ("bundle.zip", .file, .link),
+    ("clip.mp4", .file, .link),
+    ("memo.mp3", .file, .link)
+  ])
+  func aQuoteTileOpensWhatWebsDoes(name: String, kind: Components.Schemas.ChatRoomMessageQuoteAttachment.MediaKindPayload, opening: MessageAttachment.Opening) throws {
+    let attachment = Components.Schemas.ChatRoomMessageQuoteAttachment(fileName: name, url: "https://example.com/\(name)", mediaKind: kind)
+    #expect(try #require(attachment.preview).opening == opening)
+  }
+
+  /// A document's name opens its viewer when its URL has no extension.
+  @Test func aQuoteTileReadsItsNameWhenItsURLHasNoExtension() throws {
+    let attachment = Components.Schemas.ChatRoomMessageQuoteAttachment(fileName: "notes.pdf", url: "https://example.com/deliverables/1", mediaKind: .file)
+    #expect(try #require(attachment.preview).opening == .documentViewer)
+  }
+
+  @Test(arguments: ["file:///etc/notes.pdf", "javascript:alert(1)", "notes.pdf"])
+  func aQuoteTileWithNoWebAddressHasNothingToOpen(url: String) {
+    #expect(Components.Schemas.ChatRoomMessageQuoteAttachment(fileName: "notes.pdf", url: url, mediaKind: .file).preview == nil)
+  }
+
   @Test func previewLiftsEveryFileLinkInBodyOrder() throws {
     let quote = try #require(messageQuote(from: message("**Report**\n\n[report.pdf](https://example.com/report.pdf)\n\n[chart.png](https://example.com/chart.png)")))
     #expect(quote.authorName == "Ada")
