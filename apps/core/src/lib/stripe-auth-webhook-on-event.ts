@@ -34,7 +34,7 @@ export async function handleStripeAuthWebhookOnEvent(
     const session = event.data.object;
     await runReportedStripeHandler(
       event,
-      { extra: { sessionId: session.id } },
+      () => ({ extra: { sessionId: session.id } }),
       () => handleCheckoutSessionCompletedEvent(session),
     );
     return;
@@ -48,7 +48,7 @@ export async function handleStripeAuthWebhookOnEvent(
     const subscription = event.data.object;
     await runReportedStripeHandler(
       event,
-      {
+      () => ({
         tags: { stripeSubscriptionId: subscription.id },
         extra: {
           customer:
@@ -56,7 +56,7 @@ export async function handleStripeAuthWebhookOnEvent(
               ? subscription.customer
               : subscription.customer.id,
         },
-      },
+      }),
       () => handleSubscriptionCreatedEvent(subscription),
     );
     return;
@@ -66,7 +66,7 @@ export async function handleStripeAuthWebhookOnEvent(
     const subscription = event.data.object;
     await runReportedStripeHandler(
       event,
-      {
+      () => ({
         tags: { stripeSubscriptionId: subscription.id },
         extra: {
           customer:
@@ -75,7 +75,7 @@ export async function handleStripeAuthWebhookOnEvent(
               : subscription.customer.id,
           subscription: subscription.id,
         },
-      },
+      }),
       () => handleSubscriptionDeletedEvent(subscription),
     );
     return;
@@ -132,10 +132,10 @@ export async function handleStripeAuthWebhookOnEvent(
 
     await runReportedStripeHandler(
       event,
-      {
+      () => ({
         tags: { stripeSubscriptionId: subscription.id },
         rethrow: false,
-      },
+      }),
       () => releaseAppliedSeatReduction(subscription),
     );
     return;
@@ -153,27 +153,28 @@ interface StripeHandlerFailureReport {
 
 /**
  * Capture a handler failure on the Stripe event. Rethrows unless `rethrow`
- * is false.
+ * is false. `report` runs only after the handler throws.
  */
 async function runReportedStripeHandler(
   event: Stripe.Event,
-  report: StripeHandlerFailureReport,
+  report: () => StripeHandlerFailureReport,
   run: () => Promise<unknown>,
 ): Promise<void> {
   try {
     await run();
   } catch (error) {
+    const failure = report();
     Sentry.captureException(error, {
       tags: {
         stripeEventType: event.type,
-        ...report.tags,
+        ...failure.tags,
       },
       extra: {
         eventId: event.id,
-        ...report.extra,
+        ...failure.extra,
       },
     });
-    if (report.rethrow === false) {
+    if (failure.rethrow === false) {
       return;
     }
     throw error;

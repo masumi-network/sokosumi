@@ -351,6 +351,20 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     });
   });
 
+  it("handles a created subscription that has no customer", async () => {
+    const subscription = { id: "sub_123" };
+
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_created",
+      type: "customer.subscription.created",
+      data: { object: subscription },
+    } as never);
+
+    expect(handleSubscriptionCreatedEventMock).toHaveBeenCalledWith(
+      subscription,
+    );
+  });
+
   it("handles customer.subscription.created", async () => {
     const subscription = { id: "sub_123", customer: "cus_123" };
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
@@ -407,6 +421,20 @@ describe("handleStripeAuthWebhookOnEvent", () => {
       subscription,
     );
     expect(handleEventMock).not.toHaveBeenCalled();
+  });
+
+  it("handles a deleted subscription that has no customer", async () => {
+    const subscription = { id: "sub_123" };
+
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_deleted",
+      type: "customer.subscription.deleted",
+      data: { object: subscription },
+    } as never);
+
+    expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith(
+      subscription,
+    );
   });
 
   it("reports subscription delete handler failures to Sentry", async () => {
