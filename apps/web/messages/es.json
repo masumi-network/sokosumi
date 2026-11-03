@@ -3575,7 +3575,10 @@
         "publicArchive": "Archivo público",
         "SignupForm": {
           "title": "Formulario de suscripción",
+          "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
           "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "previewTitle": "Vista previa del formulario de suscripción",
+          "previewDescription": "Consulta el formulario de suscripción que los lectores pueden usar en tu sitio web.",
           "hostedPage": "Página de suscripción alojada",
           "open": "Abrir página de suscripción",
           "embedCode": "Código de inserción",
