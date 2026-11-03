@@ -1,14 +1,10 @@
 import { ProjectAdProvider } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const hasBetaMock = vi.fn();
 const listProjectsMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const listAccountsMock = vi.fn();
 
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasBetaMock(),
-}));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     listProjects: (...a: unknown[]) => listProjectsMock(...a),
@@ -28,7 +24,6 @@ function account(id: string, name: string) {
 describe("loadBotAdAccounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasBetaMock.mockResolvedValue(true);
     listProjectsMock.mockResolvedValue({
       projects: [
         { id: "p1", name: "Alpha" },
@@ -41,13 +36,6 @@ describe("loadBotAdAccounts", () => {
       if (projectId === "p3") throw new Error("boom");
       return [account(`a-${projectId}`, `Account ${projectId}`)];
     });
-  });
-
-  it("returns null without the Social beta and loads nothing", async () => {
-    hasBetaMock.mockResolvedValue(false);
-    await expect(loadBotAdAccounts({ projectId: null })).resolves.toBeNull();
-    expect(listProjectsMock).not.toHaveBeenCalled();
-    expect(listAccountsMock).not.toHaveBeenCalled();
   });
 
   it("gathers the accounts of every Project for a personal bot and drops one that fails", async () => {

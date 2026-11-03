@@ -33,7 +33,8 @@ describe("Ads beta access (Social scheduling is public)", () => {
       } as never),
     ).rejects.toMatchObject({
       status: 403,
-      message: "Ads is only available to utxo AG workspace members",
+      message:
+        "The social queue is only available to utxo AG workspace members",
     } satisfies Partial<HTTPException>);
   });
 });

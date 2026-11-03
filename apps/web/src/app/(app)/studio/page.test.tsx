@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  hasSocialBetaAccessMock,
   imageStudioServiceMock,
   projectServiceMock,
   openProjectScopeMock,
@@ -10,7 +9,6 @@ const {
   setScopeCreateOpenMock,
   useHasAnyScopeProjectMock,
 } = vi.hoisted(() => ({
-  hasSocialBetaAccessMock: vi.fn(),
   openProjectScopeMock: vi.fn(),
   openScopeCreateMock: vi.fn(),
   setScopeCreateOpenMock: vi.fn(),
@@ -41,10 +39,6 @@ vi.mock("@/lib/services/project.service", () => ({
 
 vi.mock("@/lib/services/image-studio.service", () => ({
   imageStudioService: imageStudioServiceMock,
-}));
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
 }));
 
 vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
@@ -103,7 +97,6 @@ describe("StudioPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
-    hasSocialBetaAccessMock.mockResolvedValue(false);
     useHasAnyScopeProjectMock.mockReturnValue({
       isPending: false,
       hasProjects: true,
@@ -329,11 +322,9 @@ describe("StudioPage", () => {
     // The curated landing page still has styles to show after access is lost.
     expect(imageStudioServiceMock.getCatalog).toHaveBeenCalledOnce();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
-    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
-  it("loads the public studio without an Ads beta lookup", async () => {
-    hasSocialBetaAccessMock.mockRejectedValue(new Error("Not in Ads beta"));
+  it("loads the public studio for a project", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(studioState());
 
@@ -346,7 +337,6 @@ describe("StudioPage", () => {
     );
 
     expect(screen.getByTestId("image-studio")).toBeInTheDocument();
-    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

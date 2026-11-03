@@ -52,8 +52,6 @@ const ADS_HREF = "/ads";
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
   adminSettingsChrome: AccountAdminSettingsChrome;
-  /** Ads-only beta flag; Social scheduling is public. */
-  socialBetaEnabled?: boolean;
   newsletterEnabled?: boolean;
 }
 
@@ -67,7 +65,6 @@ export function YouPageClient({
   buyCreditsLabel,
   buyCreditsPath,
   adminSettingsChrome,
-  socialBetaEnabled = false,
   newsletterEnabled = false,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
@@ -196,14 +193,12 @@ export function YouPageClient({
               label={tMenu("social")}
               testId="you-social"
             />
-            {socialBetaEnabled ? (
-              <MobileStackedMenuLink
-                href={ADS_HREF}
-                icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
-                label={tMenu("ads")}
-                testId="you-ads"
-              />
-            ) : null}
+            <MobileStackedMenuLink
+              href={ADS_HREF}
+              icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("ads")}
+              testId="you-ads"
+            />
             {newsletterEnabled ? (
               <MobileStackedMenuLink
                 href="/newsletter"

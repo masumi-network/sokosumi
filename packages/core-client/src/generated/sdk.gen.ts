@@ -5184,7 +5184,7 @@ export const chooseCmoAdAccount = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Every ad account on Cuso's Project with its campaigns and their numbers over the range. Empty outside the Ads beta.
+ * Every ad account on Cuso's Project with its campaigns and their numbers over the range.
  */
 export const listCmoAdCampaigns = <ThrowOnError extends boolean = false>(options?: Options<ListCmoAdCampaignsData, ThrowOnError>): RequestResult<ListCmoAdCampaignsResponses, ListCmoAdCampaignsErrors, ThrowOnError> => (options?.client ?? client).get<ListCmoAdCampaignsResponses, ListCmoAdCampaignsErrors, ThrowOnError>({
     responseTransformer: listCmoAdCampaignsResponseTransformer,

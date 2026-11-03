@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  hasBeta,
   mayApprove,
   approved,
   files,
@@ -16,7 +15,6 @@ const {
   adConnectionFind,
   adAccountCount,
 } = vi.hoisted(() => ({
-  hasBeta: vi.fn(),
   mayApprove: vi.fn(),
   approved: vi.fn(),
   files: vi.fn(),
@@ -38,9 +36,6 @@ vi.mock("@/lib/db/prisma", () => ({
     projectAdConnection: { findUnique: adConnectionFind },
     projectAdAccount: { count: adAccountCount },
   },
-}));
-vi.mock("@/helpers/social-beta-access", () => ({
-  hasSocialBetaAccess: hasBeta,
 }));
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/cmo-cuso.service")>()),
@@ -129,7 +124,6 @@ const google = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  hasBeta.mockResolvedValue(true);
   mayApprove.mockResolvedValue(true);
   approved.mockResolvedValue({ id: "version-1", plan });
   files.mockResolvedValue(
@@ -187,11 +181,7 @@ describe("launching a search ad", () => {
     ).rejects.toBeInstanceOf(CmoConflictError);
   });
 
-  it("is only for owners and admins in the Ads beta", async () => {
-    hasBeta.mockResolvedValueOnce(false);
-    await expect(
-      launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" }),
-    ).rejects.toBeInstanceOf(CmoForbiddenError);
+  it("is only for owners and admins", async () => {
     mayApprove.mockResolvedValueOnce(false);
     await expect(
       launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" }),

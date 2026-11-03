@@ -137,7 +137,7 @@ export function SearchAdControl({
       <p className="note">Keywords: {ad.keywords.join(", ")}</p>
       <p className="note">Headlines: {ad.headlines.join(" · ")}</p>
       <p className="note">Sends people to {ad.finalUrl}</p>
-      {!overview.adsAvailable ? null : !overview.viewerCanApprove ? (
+      {!overview.viewerCanApprove ? (
         <p className="note">An owner or admin launches ads.</p>
       ) : !googleConnected ? (
         <p className="note">Connect Google Ads in Channels to launch it.</p>
@@ -219,7 +219,7 @@ export function AdsPanel({
   const { loadAdCampaigns } = actions;
 
   useEffect(() => {
-    if (!overview.adsAvailable || !connected) return;
+    if (!connected) return;
     let current = true;
     loadAdCampaigns("LAST_7_DAYS")
       .then((loaded) => {
@@ -231,9 +231,8 @@ export function AdsPanel({
     return () => {
       current = false;
     };
-  }, [overview.adsAvailable, connected, loadAdCampaigns]);
+  }, [connected, loadAdCampaigns]);
 
-  if (!overview.adsAvailable) return null;
   return (
     <section className="panel">
       <h3>Ads</h3>

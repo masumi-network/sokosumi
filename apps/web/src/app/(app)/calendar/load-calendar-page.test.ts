@@ -7,14 +7,10 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
-const hasSocialBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 // Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
 vi.mock("temporal-polyfill", () => import("temporal-polyfill/implementation"));
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
-}));
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -149,7 +145,6 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockRejectedValue(new Error("Beta lookup failed"));
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -187,15 +182,9 @@ describe("loadWorkspaceCalendarPage", () => {
     });
   });
 
-  it.each([
-    [undefined, false],
-    [undefined, true],
-    [PROJECT.id, false],
-    [PROJECT.id, true],
-  ] as const)(
-    "includes Social for project %s with beta membership %s",
-    async (projectId, allowed) => {
-      hasSocialBetaAccessMock.mockResolvedValue(allowed);
+  it.each([undefined, PROJECT.id])(
+    "includes Social for project %s",
+    async (projectId) => {
       const result = await loadWorkspaceCalendarPage({
         projectId,
         searchParams: Promise.resolve({}),
@@ -211,7 +200,6 @@ describe("loadWorkspaceCalendarPage", () => {
         includeSocialPosts: "true",
         scope: "workspace",
       });
-      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
     },
   );
 
@@ -418,8 +406,7 @@ describe("loadWorkspaceCalendarPage", () => {
       expect(result.initialDate).toBe("2026-03-01");
     });
 
-    it("includes the full Social horizon without beta membership", async () => {
-      hasSocialBetaAccessMock.mockResolvedValue(false);
+    it("includes the full Social horizon", async () => {
       const result = await loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({ date: "2027-03-15" }),
       });
@@ -427,7 +414,6 @@ describe("loadWorkspaceCalendarPage", () => {
       expect(result.latestDate).toBe("2027-02-01");
       expect(result.initialDate).toBe("2027-02-01");
       expect(result.includeSocialPosts).toBe(true);
-      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
     });
 
     it("propagates a project horizon load failure", async () => {

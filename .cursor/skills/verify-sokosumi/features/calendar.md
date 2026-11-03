@@ -29,6 +29,6 @@ Preconditions:
 ## Gotchas
 
 - Calendar is a Tasks tab (`TASKS_TAB_VALUES` includes `calendar`), not a first-class sidebar destination. `/calendar` still exists as a redirect into that tab.
-- Social posts are included on this calendar. **Social posts only** is a filter on the grid, not a beta gate. **Ads** (`/ads`) is the sidebar row that still needs social beta.
+- Social posts are included on this calendar. **Social posts only** is a filter on the grid, not a beta gate. **Ads** (`/ads`) is its own sidebar row, open to everyone.
 - Empty week/month is valid. Copy **No scheduled releases match these filters.** is the empty filter state, not a routing failure.
 - Creating tasks from the calendar is out of scope for this landing entry.

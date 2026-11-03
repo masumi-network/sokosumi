@@ -219,8 +219,7 @@ export function ConnectStep({
                 ) : null}
                 Connect
               </button>
-            ) : overview.adsAvailable &&
-              (key === "google_ads" || key === "meta_ads") ? (
+            ) : key === "google_ads" || key === "meta_ads" ? (
               <ConnectAdsButton
                 provider={key}
                 from="onboarding"

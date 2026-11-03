@@ -10869,10 +10869,6 @@ export type CmoOverview = {
     measurement: Array<CmoMeasurement>;
     production: CmoProduction;
     mailingListSize: number;
-    /**
-     * This person is in Sokosumi's Ads beta: CMO offers to connect Google Ads and Meta Ads and to launch Cuso's search ads.
-     */
-    adsAvailable: boolean;
     subscribeUrl: string;
     billing: {
         plan: string | null;
@@ -69459,7 +69455,7 @@ export type ConnectCmoAdsErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69580,7 +69576,7 @@ export type FinalizeCmoAdsErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69700,7 +69696,7 @@ export type ListCmoAdChoicesErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69823,7 +69819,7 @@ export type ChooseCmoAdAccountErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69943,7 +69939,7 @@ export type ListCmoAdCampaignsErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -70063,7 +70059,7 @@ export type LaunchCmoSearchAdErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -70185,7 +70181,7 @@ export type SetCmoAdCampaignStatusErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;

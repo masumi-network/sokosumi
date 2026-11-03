@@ -261,7 +261,6 @@ const social = vi.hoisted(() => ({
   cancel: vi.fn(),
   publish: vi.fn(),
   xTiers: vi.fn(),
-  beta: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
   postingInstructions: vi.fn(),
@@ -319,9 +318,6 @@ vi.mock("@/services/social-post-publisher.service", () => ({
 }));
 vi.mock("@/services/x-subscription-tier.service", () => ({
   resolveProjectXSubscriptionTypes: social.xTiers,
-}));
-vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: social.beta,
 }));
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
@@ -6553,7 +6549,6 @@ describe("Soko Bot project social tools", () => {
     availabilityMock.mockResolvedValue({ disabled: false });
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
-    social.beta.mockRejectedValue(new Error("Beta access required"));
     social.seat.mockResolvedValue(undefined);
     social.project.mockResolvedValue({ workspace: { organization: null } });
     social.xTiers.mockResolvedValue(new Map());
@@ -6679,7 +6674,6 @@ describe("Soko Bot project social tools", () => {
           }),
         ],
       });
-      expect(social.beta).not.toHaveBeenCalled();
       expect(social.seat).toHaveBeenCalledWith(
         SCOPE.userId,
         "organization-one",
@@ -7158,7 +7152,6 @@ describe("Soko Bot project social tools", () => {
 
     beforeEach(() => {
       for (const mock of Object.values(ads)) mock.mockReset();
-      social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([
         adAccount,
         { ...adAccount, id: metaAccountId, provider: "meta_ads" },
@@ -7195,7 +7188,6 @@ describe("Soko Bot project social tools", () => {
         projectId,
         workspaceId: SCOPE.workspaceId,
       });
-      expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
       expect(result).toEqual({
         accounts: [
           {
@@ -7326,22 +7318,8 @@ describe("Soko Bot project social tools", () => {
           }),
         ).rejects.toThrow("only available when a person asks in chat");
         expect(ads.accounts).not.toHaveBeenCalled();
-        expect(social.beta).not.toHaveBeenCalled();
       },
     );
-
-    it("refuses ad reads without the ads beta", async () => {
-      social.beta.mockRejectedValue(new Error("Ads is beta only"));
-      await expect(
-        new SokoBotRuntimeService().executeTool({
-          ...SCOPE,
-          capability: "find_ad_targeting",
-          toolCallId: "ads-no-beta",
-          input: { projectId, accountId: adAccountId },
-        }),
-      ).rejects.toThrow("Ads is beta only");
-      expect(ads.languages).not.toHaveBeenCalled();
-    });
 
     it("hands the model a service 404 as a readable refusal", async () => {
       const { HTTPException } = await import("hono/http-exception");
@@ -7402,10 +7380,6 @@ describe("Soko Bot project social tools", () => {
         const scope = { projectId, workspaceId: SCOPE.workspaceId };
         expect(ads.marketProfile).toHaveBeenCalledWith(scope);
         expect(ads.marketKeywords).toHaveBeenCalledWith(scope);
-        expect(social.beta).toHaveBeenCalledWith(
-          SCOPE.userId,
-          expect.anything(),
-        );
         expect(result).toEqual({
           market: {
             countryCode: "DE",
@@ -7603,7 +7577,6 @@ describe("Soko Bot project social tools", () => {
 
     beforeEach(() => {
       for (const mock of Object.values(ads)) mock.mockReset();
-      social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([]);
     });
 
@@ -7647,7 +7620,6 @@ describe("Soko Bot project social tools", () => {
         await expect(call).rejects.toThrow("works only in its own Project");
         for (const mock of Object.values(ads))
           expect(mock).not.toHaveBeenCalled();
-        expect(social.beta).not.toHaveBeenCalled();
       },
     );
 
@@ -7753,7 +7725,6 @@ describe("Soko Bot project social tools", () => {
       files.put.mockImplementation(async (pathname: string) => ({
         url: `https://x.public.blob.vercel-storage.com/${pathname}`,
       }));
-      social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([
         account,
         { ...account, id: metaAccountId, provider: "meta_ads" },
@@ -8026,8 +7997,8 @@ describe("Soko Bot project social tools", () => {
         disposition: "APPLIED",
         result: { campaignId: "23850000000000000", status: "PAUSED" },
       });
-      social.beta.mockRejectedValue(new Error("Ads is beta only"));
-      await expect(run(search)).rejects.toThrow("Ads is beta only");
+      social.seat.mockRejectedValue(new Error("Seat required"));
+      await expect(run(search)).rejects.toThrow("Seat required");
       expect(ads.create).not.toHaveBeenCalled();
     });
 
@@ -8225,9 +8196,9 @@ describe("Soko Bot project social tools", () => {
             disposition: "APPLIED",
             result: { campaignId, deleted: true },
           });
-          social.beta.mockRejectedValue(new Error("Ads is beta only"));
+          social.seat.mockRejectedValue(new Error("Seat required"));
           await expect(runTool("delete_ad_campaign", {})).rejects.toThrow(
-            "Ads is beta only",
+            "Seat required",
           );
           expect(ads.delete).not.toHaveBeenCalled();
         });
@@ -8347,10 +8318,10 @@ describe("Soko Bot project social tools", () => {
             disposition: "APPLIED",
             result: { campaignId, edited: true },
           });
-          social.beta.mockRejectedValue(new Error("Ads is beta only"));
+          social.seat.mockRejectedValue(new Error("Seat required"));
           await expect(
             runTool("edit_ad_campaign", { ...edit, google: search }),
-          ).rejects.toThrow("Ads is beta only");
+          ).rejects.toThrow("Seat required");
           expect(ads.edit).not.toHaveBeenCalled();
         });
       });
@@ -8475,7 +8446,6 @@ describe("Soko Bot project social tools", () => {
         }),
       }),
     );
-    expect(social.beta).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -8572,7 +8542,6 @@ describe("Soko Bot project social tools", () => {
           data: expect.objectContaining({ status: "FAILED" }),
         }),
       );
-      expect(social.beta).not.toHaveBeenCalled();
     },
   );
 

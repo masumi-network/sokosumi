@@ -7,12 +7,7 @@ import {
   ComposioConfigError,
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import {
-  conflict,
-  forbidden,
-  notFound,
-  unprocessableEntity,
-} from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -32,7 +27,6 @@ import mountFinalize from "./connections/finalize/post.js";
 import mountInitiate from "./connections/initiate/post.js";
 
 const m = vi.hoisted(() => ({
-  requireSocialBetaAccess: vi.fn(),
   initiate: vi.fn(),
   finalize: vi.fn(),
   attach: vi.fn(),
@@ -48,9 +42,6 @@ const m = vi.hoisted(() => ({
   editCampaign: vi.fn(),
 }));
 
-vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: m.requireSocialBetaAccess,
-}));
 vi.mock("@/services/project-ad-accounts.service", () => ({
   initiateProjectAdConnection: m.initiate,
   finalizeProjectAdConnection: m.finalize,
@@ -236,7 +227,6 @@ function post(app: ReturnType<typeof createApp>, path: string, body: unknown) {
 describe("Project ads routes", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    m.requireSocialBetaAccess.mockResolvedValue(undefined);
     m.initiate.mockResolvedValue({
       connectionId: "ca_123",
       redirectUrl: "https://connect.composio.dev/link-token",
@@ -422,12 +412,6 @@ describe("Project ads routes", () => {
       expect(response.status).toBe(422);
       expect(m.discard).not.toHaveBeenCalled();
     });
-
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      expect((await discard()).status).toBe(403);
-      expect(m.discard).not.toHaveBeenCalled();
-    });
   });
 
   describe("list campaigns", () => {
@@ -478,13 +462,6 @@ describe("Project ads routes", () => {
       const response = await createApp().request(campaignsUrl());
       expect(response.status).toBe(status);
       expect(await response.text()).not.toContain("secret detail");
-    });
-
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const response = await createApp().request(campaignsUrl());
-      expect(response.status).toBe(403);
-      expect(m.campaigns).not.toHaveBeenCalled();
     });
   });
 
@@ -565,13 +542,6 @@ describe("Project ads routes", () => {
       expect(response.status).toBe(status);
       expect(await response.text()).not.toContain("secret detail");
     });
-
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const response = await createApp().request(detailsUrl());
-      expect(response.status).toBe(403);
-      expect(m.campaignDetails).not.toHaveBeenCalled();
-    });
   });
 
   describe("update campaign", () => {
@@ -637,13 +607,6 @@ describe("Project ads routes", () => {
       const response = await patch({ status: "PAUSED" });
       expect(response.status).toBe(status);
       expect(await response.text()).not.toContain("secret detail");
-    });
-
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const response = await patch({ status: "PAUSED" });
-      expect(response.status).toBe(403);
-      expect(m.updateCampaign).not.toHaveBeenCalled();
     });
   });
 
@@ -824,13 +787,6 @@ describe("Project ads routes", () => {
       const response = await put(body());
       expect(response.status).toBe(status);
       expect(await response.text()).not.toContain("secret detail");
-    });
-
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const response = await put(body());
-      expect(response.status).toBe(403);
-      expect(m.editCampaign).not.toHaveBeenCalled();
     });
 
     it("rejects a user API key", async () => {
@@ -1372,13 +1328,6 @@ describe("Project ads routes", () => {
       expect(response.status).toBe(status);
       expect(await response.text()).not.toContain("secret detail");
     });
-
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const response = await createPost({ name: "Spring", dailyBudget: 5 });
-      expect(response.status).toBe(403);
-      expect(m.createCampaign).not.toHaveBeenCalled();
-    });
   });
 
   describe("targeting lookups", () => {
@@ -1533,18 +1482,6 @@ describe("Project ads routes", () => {
       }
     });
 
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const app = createApp();
-      const responses = await Promise.all([
-        app.request(targetingUrl("locations", "?q=Berlin")),
-        app.request(targetingUrl("languages")),
-      ]);
-      expect(responses.map((r) => r.status)).toEqual([403, 403]);
-      expect(m.locations).not.toHaveBeenCalled();
-      expect(m.languages).not.toHaveBeenCalled();
-    });
-
     it("rejects a user API key", async () => {
       const app = createApp({
         ...SESSION_AUTH,
@@ -1594,28 +1531,6 @@ describe("Project ads routes", () => {
   });
 
   describe("access", () => {
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const app = createApp();
-      const responses = await Promise.all([
-        app.request(`http://localhost/${PROJECT_ID}/ads/accounts`),
-        post(app, "connections/initiate", { provider: "google_ads" }),
-        post(app, "connections/finalize", { connectionId: "ca_123" }),
-        post(app, "accounts", {
-          adConnectionId: CONNECTION_UUID,
-          externalAccountIds: ["111"],
-        }),
-        app.request(
-          `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}`,
-          { method: "DELETE" },
-        ),
-      ]);
-      expect(responses.map((r) => r.status)).toEqual([403, 403, 403, 403, 403]);
-      for (const mock of [m.initiate, m.finalize, m.attach, m.list, m.detach]) {
-        expect(mock).not.toHaveBeenCalled();
-      }
-    });
-
     it("rejects a user API key", async () => {
       const app = createApp({
         ...SESSION_AUTH,

@@ -130,7 +130,6 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
       },
     ],
     mailingListSize: 0,
-    adsAvailable: false,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
     posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
