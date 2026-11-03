@@ -1,25 +1,26 @@
 "use client";
-import { Check, FileSpreadsheet, UserPlus, Users } from "lucide-react";
+import { Bot, Check, FileSpreadsheet, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
-import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
+import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 
 /**
- * No contacts yet. They arrive on their own from connected mail, calendar
- * and Slack, so the first thing to offer is connecting them.
+ * No contacts yet. They arrive on their own, but only through a Soko Bot's
+ * connected mail, calendar and Slack, so it says which step is missing: a
+ * bot, its connections, or just the first sync.
  */
 export function ContactsEmptyState({
-  offers,
+  sync,
   onAdd,
   onImport,
 }: {
-  offers: SokoBotConnectOffer[] | null;
+  sync: ContactsSyncState | null;
   onAdd: () => void;
   onImport: () => void;
 }) {
@@ -50,11 +51,26 @@ export function ContactsEmptyState({
       </span>
       <div className="grid gap-2">
         <h2 className="text-lg font-semibold tracking-tight">{t("title")}</h2>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+        <p className="text-muted-foreground text-sm">
+          {sync?.kind === "noBot"
+            ? t("needsBot")
+            : sync?.kind === "connect"
+              ? t("needsConnections")
+              : sync?.kind === "syncing"
+                ? t("syncing", { bot: sync.botName })
+                : t("description")}
+        </p>
       </div>
-      {offers?.length ? (
+      {sync?.kind === "noBot" ? (
+        <Button asChild variant="primary">
+          <Link href={SOKO_BOT_ROUTE}>
+            <Bot aria-hidden className="size-4" />
+            {t("setUpBot")}
+          </Link>
+        </Button>
+      ) : sync?.kind === "connect" ? (
         <div className="grid w-full gap-2">
-          {offers.map((offer) => {
+          {sync.offers.map((offer) => {
             const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
             return (
               <Button

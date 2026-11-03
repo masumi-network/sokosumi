@@ -78,4 +78,13 @@ describe("newsletter signup IP limit", () => {
     m.eval.mockRejectedValue(new Error("test Redis outage"));
     expect(await allowNewsletterSignup("newsletter-1", request())).toBe(true);
   });
+
+  it("counts a Soko Bot's requests apart from any IP", async () => {
+    await allowNewsletterSignup("newsletter-1", { sokoBotId: "bot-1" });
+    expect(m.eval).toHaveBeenCalledWith(
+      expect.any(String),
+      1,
+      "newsletter:signup:newsletter-1:soko-bot:bot-1",
+    );
+  });
 });

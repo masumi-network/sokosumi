@@ -9821,7 +9821,8 @@
         "SLACK": "Aus Slack",
         "WEB_RESEARCH": "Aus Webrecherche",
         "IMPORT": "Importiert",
-        "OTHER": "Andere Quelle"
+        "OTHER": "Andere Quelle",
+        "X": "Von X"
       },
       "presets": {
         "all": "Alle Kontakte",
@@ -10040,13 +10041,17 @@
       },
       "empty": {
         "title": "Hier leben die Kontakte deines Teams",
-        "description": "Menschen kommen automatisch aus den E-Mails, Kalendern und Slack-Konten dazu, mit denen eure Soko Bots verbunden sind, samt der Info, wer im Team sie kennt. Keine Newsletter, keine automatischen Absender.",
+        "description": "Kontakte werden über deinen Soko Bot synchronisiert: Er fügt die Personen aus den mit ihm verbundenen Mails, Kalendern und Slack hinzu, samt wer im Team sie kennt. Keine Newsletter oder automatischen Absender.",
         "connect": "{name} verbinden",
         "connected": "{name} verbunden",
         "connectFailed": "Die Verbindung wurde nicht gestartet. Versuch es noch einmal.",
         "manageConnections": "Verbindungen verwalten",
         "addByHand": "Jemanden hinzufügen",
-        "import": "Aus einer Tabelle importieren"
+        "import": "Aus einer Tabelle importieren",
+        "needsBot": "Kontakte werden über einen Soko Bot synchronisiert. Richte deinen ein und verbinde Mail und Kalender, dann fügt er die Personen hinzu, mit denen du zu tun hast, samt wer im Team sie kennt.",
+        "needsConnections": "Dein Soko Bot fügt die Personen hinzu, mit denen du zu tun hast, sobald Mail und Kalender mit ihm verbunden sind. Keine Newsletter oder automatischen Absender.",
+        "syncing": "{bot} liest deine verbundenen Mails und Kalender. Die ersten Kontakte erscheinen in etwa 15 Minuten.",
+        "setUpBot": "Soko Bot einrichten"
       },
       "panel": {
         "loading": "Kontakt wird geladen",
@@ -10087,7 +10092,7 @@
         "channelSource": "{type}, {source}",
         "verified": "bestätigt",
         "primary": "Hauptkanal",
-        "openSource": "Fundstelle öffnen",
+        "openSource": "Quelle öffnen",
         "copyChannel": "{value} kopieren",
         "removeChannel": "{value} entfernen",
         "noChannels": "Noch kein Weg, die Person zu erreichen.",
@@ -10104,7 +10109,8 @@
           "SLACK": "Slack",
           "CALL": "Anruf",
           "MANUAL": "Notiz",
-          "OTHER": "Sonstiges"
+          "OTHER": "Sonstiges",
+          "X": "X"
         },
         "source": "Quelle",
         "showMore": "Mehr anzeigen",
@@ -10116,7 +10122,8 @@
           "CHANNEL_REMOVED": "{who} hat einen Kanal entfernt",
           "MERGED": "{who} hat {names} in diesen Kontakt zusammengeführt",
           "ARCHIVED": "{who} hat diesen Kontakt archiviert",
-          "UNARCHIVED": "{who} hat diesen Kontakt wiederhergestellt"
+          "UNARCHIVED": "{who} hat diesen Kontakt wiederhergestellt",
+          "WEB": "{who} hat {fields} aus dem Web ergänzt"
         },
         "fields": {
           "name": "Name",
@@ -10131,14 +10138,21 @@
           "followUpAt": "Follow-up",
           "avatarUrl": "Foto",
           "customFields": "eigene Felder",
-          "kind": "Art"
+          "kind": "Art",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Als Organisation markieren",
         "markPerson": "Als Person markieren",
         "waitingSince": "Seit {date} noch keine Antwort",
         "heardFrom": "Zuletzt von ihnen gehört: {when}",
         "automatic": "Automatisch",
-        "classifier": "Automatische Einordnung"
+        "classifier": "Automatische Einordnung",
+        "enrich": "Anreichern",
+        "enrichHint": "Im Web nachschlagen und leere Felder füllen · 1 Credit",
+        "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
+        "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
+        "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
+        "connectedVia": "Verbunden über"
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -10198,13 +10212,16 @@
         "briefPlaceholder": "z. B. Partner bei Seed-Fonds, die in KI-Agenten investieren, Europa oder USA",
         "briefRequired": "Beschreibe, wen du suchst.",
         "sizeLabel": "Wie viele",
-        "sizeOption": "{count} Personen",
-        "submit": "{count} Personen finden · {credits} Credits",
+        "sizeOption": "{count, plural, one {# Person} other {# Personen}}",
+        "submit": "{count, plural, one {# Person} other {# Personen}} finden · bis zu {credits, number} Credits",
         "searching": "Suche im Web…",
         "found": "{count, plural, one {# Person} other {# Personen}} gefunden",
-        "foundNone": "Keine neuen Personen gefunden. Beschreibe sie anders.",
+        "foundNone": "Niemand Neues gefunden. Beschreibe sie anders. Es wurden keine Credits verbraucht.",
         "findFailed": "Die Suche hat nicht geklappt. Versuch es noch einmal.",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
+        "personLabel": "Wen suchst du?",
+        "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
       }
     }
   },

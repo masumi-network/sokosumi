@@ -12,11 +12,11 @@ private let personalWorkspaceId = "11111111-1111-7111-8111-111111111111"
 /// One `UserWorkspace`: personal for nil, an organization otherwise.
 private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
   guard let organizationId else {
-    return #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    return #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"role":null,"memberCount":null,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
   }
   let slug = organizationId == "org_1" ? "acme" : "other"
   let name = organizationId == "org_1" ? "Acme" : "Other"
-  return #"{"id":"22222222-2222-7222-8222-\#(organizationId == "org_1" ? "000000000001" : "000000000002")","kind":"organization","name":"\#(name)","organizationId":"\#(organizationId)","slug":"\#(slug)","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+  return #"{"id":"22222222-2222-7222-8222-\#(organizationId == "org_1" ? "000000000001" : "000000000002")","kind":"organization","name":"\#(name)","organizationId":"\#(organizationId)","slug":"\#(slug)","logo":null,"websiteUrl":null,"role":"member","memberCount":2,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
 }
 
 /// `GET /users/me/workspaces`: the given workspaces (nil is personal) with

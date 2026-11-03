@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   isSokoBotDecisionTarget,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
@@ -186,6 +187,309 @@ describe("newsletter read tools", () => {
         from: "2026-02-30",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("newsletter issue write tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const content = [
+    { type: "heading", level: 2, text: "News" },
+    { type: "image", url: "https://example.com/a.png", alt: "A" },
+    { type: "divider" },
+  ];
+  const create = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_newsletter_issue;
+  const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_issue;
+  const remove = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_newsletter_issue;
+  const created = { projectId, subject: "Hi", template: "IMAGES", content };
+
+  it("creates from exact blocks and never from raw HTML or http links", () => {
+    expect(create.safeParse(created).success).toBe(true);
+    expect(create.safeParse({ ...created, content: [] }).success).toBe(false);
+    expect(
+      create.safeParse({
+        ...created,
+        content: [{ type: "html", html: "<b>hi</b>" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      create.safeParse({
+        ...created,
+        content: [{ type: "button", label: "Go", url: "http://example.com" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("edits need the read revision, a change, and content with a new template", () => {
+    const ref = { projectId, issueId, revision: 2 };
+    expect(update.safeParse({ ...ref, subject: "New" }).success).toBe(true);
+    expect(update.safeParse({ ...ref, previewText: null }).success).toBe(true);
+    expect(update.safeParse(ref).success).toBe(false);
+    expect(
+      update.safeParse({ projectId, issueId, subject: "New" }).success,
+    ).toBe(false);
+    expect(update.safeParse({ ...ref, template: "TEXT" }).success).toBe(false);
+    expect(
+      update.safeParse({ ...ref, template: "TEXT", content }).success,
+    ).toBe(true);
+    expect(remove.safeParse(ref).success).toBe(true);
+    expect(remove.safeParse({ projectId, issueId }).success).toBe(false);
+  });
+
+  it.each([
+    "create_newsletter_issue",
+    "update_newsletter_issue",
+    "delete_newsletter_issue",
+  ] as const)("%s leaves approving and sending to a person", (capability) => {
+    const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+    expect(description).toMatch(/untrusted/i);
+    expect(description).toMatch(
+      /never approves, schedules or sends|Newsletter UI/i,
+    );
+  });
+
+  it("says an edit sends the issue back for approval and deletes need the owner", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.update_newsletter_issue).toMatch(
+      /returns the issue to DRAFT.*approve it again/,
+    );
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_newsletter_issue).toMatch(
+      /owner explicitly asks/,
+    );
+  });
+});
+
+describe("newsletter preview and submit tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const preview = SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue;
+  const submit = SOKO_BOT_TOOL_INPUT_SCHEMAS.submit_newsletter_issue;
+  const unsaved = {
+    projectId,
+    subject: "Hi",
+    template: "TEXT",
+    content: [{ type: "text", text: "News" }],
+  };
+
+  it("previews a saved issue or unsaved content, never both", () => {
+    expect(preview.safeParse({ projectId, issueId }).success).toBe(true);
+    expect(preview.safeParse(unsaved).success).toBe(true);
+    expect(preview.safeParse({ projectId }).success).toBe(false);
+    expect(preview.safeParse({ ...unsaved, issueId }).success).toBe(false);
+    expect(
+      preview.safeParse({ projectId, subject: "Hi", template: "TEXT" }).success,
+    ).toBe(false);
+    expect(
+      preview.safeParse({
+        ...unsaved,
+        content: [{ type: "html", html: "<b>hi</b>" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("submits with the read revision and takes no approval or send flag", () => {
+    const ref = { projectId, issueId, revision: 0 };
+    expect(submit.safeParse(ref).success).toBe(true);
+    expect(submit.safeParse({ projectId, issueId }).success).toBe(false);
+    for (const field of [
+      "approve",
+      "autoApprove",
+      "skipApproval",
+      "scheduledAt",
+      "sendNow",
+    ]) {
+      expect(submit.safeParse({ ...ref, [field]: true }).success).toBe(false);
+      expect(
+        preview.safeParse({ projectId, issueId, [field]: true }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("says preview sends nothing and submit only asks a person to approve", () => {
+    const previewText = SOKO_BOT_TOOL_DESCRIPTIONS.preview_newsletter_issue;
+    expect(previewText).toMatch(/never saves, submits or sends/);
+    expect(previewText).toMatch(/untrusted/i);
+    const submitText = SOKO_BOT_TOOL_DESCRIPTIONS.submit_newsletter_issue;
+    expect(submitText).toMatch(/only asks a human to approve/);
+    expect(submitText).toMatch(/NEVER approves, schedules or sends/);
+    expect(submitText).toMatch(/Newsletter UI/);
+    expect(submitText).toMatch(/untrusted/i);
+  });
+});
+
+describe("newsletter settings tool", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const settings = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings;
+
+  it("changes only what it is given, and at least one thing", () => {
+    expect(
+      settings.safeParse({ projectId, brand: { primaryColor: "#1a2b3c" } })
+        .success,
+    ).toBe(true);
+    expect(
+      settings.safeParse({ projectId, brand: { logoUrl: null } }).success,
+    ).toBe(true);
+    expect(settings.safeParse({ projectId, name: "Weekly" }).success).toBe(
+      true,
+    );
+    expect(settings.safeParse({ projectId }).success).toBe(false);
+    expect(settings.safeParse({ projectId, brand: {} }).success).toBe(false);
+  });
+
+  it.each([
+    { brand: { primaryColor: "blue" } },
+    { brand: { accentColor: "#12345" } },
+    { brand: { logoUrl: "http://example.com/logo.png" } },
+    { brand: { logoUrl: "javascript:alert(1)" } },
+    { brand: { css: "body{}" } },
+    { replyTo: "not-an-email" },
+    { name: "" },
+  ])("rejects %j", (change) => {
+    expect(settings.safeParse({ projectId, ...change }).success).toBe(false);
+  });
+
+  it("takes no approval or send flag", () => {
+    for (const field of ["approve", "autoApprove", "skipApproval", "sendNow"])
+      expect(
+        settings.safeParse({ projectId, name: "Weekly", [field]: true })
+          .success,
+      ).toBe(false);
+  });
+
+  it("says sender, reply-to and welcome email need the owner's word", () => {
+    const description = SOKO_BOT_TOOL_DESCRIPTIONS.update_newsletter_settings;
+    expect(description).toMatch(/owner explicitly asks/);
+    expect(description).toMatch(/senderName, replyTo and the welcome email/);
+    expect(description).toMatch(/untrusted/i);
+    expect(description).toMatch(/never approves, schedules or sends/);
+  });
+});
+
+describe("newsletter subscriber tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const subscriberId = "44444444-4444-4444-8444-444444444444";
+  const contactId = "55555555-5555-4555-8555-555555555555";
+  const add = SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscriber;
+  const csv = SOKO_BOT_TOOL_INPUT_SCHEMAS.import_newsletter_subscribers;
+  const contacts =
+    SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscribers_from_contacts;
+  const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_subscriber;
+  const remove = SOKO_BOT_TOOL_INPUT_SCHEMAS.remove_newsletter_subscriber;
+  const writes = [
+    "add_newsletter_subscriber",
+    "import_newsletter_subscribers",
+    "add_newsletter_subscribers_from_contacts",
+    "update_newsletter_subscriber",
+    "remove_newsletter_subscriber",
+  ] as const;
+
+  it("needs a consent choice for every addition", () => {
+    const person = { projectId, email: "ada@example.com" };
+    expect(add.safeParse(person).success).toBe(false);
+    expect(add.safeParse({ ...person, consent: "ASK" }).success).toBe(true);
+    expect(add.safeParse({ ...person, consent: "CONFIRMED" }).success).toBe(
+      true,
+    );
+    expect(add.safeParse({ ...person, consent: "YES" }).success).toBe(false);
+    expect(csv.safeParse({ projectId, fileId: "file-1" }).success).toBe(false);
+    expect(
+      csv.safeParse({ projectId, fileId: "file-1", consent: "ASK" }).success,
+    ).toBe(true);
+    expect(
+      contacts.safeParse({ projectId, contactIds: [contactId] }).success,
+    ).toBe(false);
+  });
+
+  it("adds from contacts or lists, at most the batch cap of ids", () => {
+    expect(SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX).toBe(100);
+    expect(
+      contacts.safeParse({
+        projectId,
+        contactListIds: [contactId],
+        consent: "ASK",
+      }).success,
+    ).toBe(true);
+    expect(contacts.safeParse({ projectId, consent: "ASK" }).success).toBe(
+      false,
+    );
+    expect(
+      contacts.safeParse({
+        projectId,
+        contactIds: Array.from({ length: 101 }, () => contactId),
+        consent: "ASK",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("renames or changes status as the Subscribers page allows", () => {
+    const ref = { projectId, subscriberId };
+    expect(update.safeParse({ ...ref, name: "Ada" }).success).toBe(true);
+    expect(update.safeParse({ ...ref, status: "UNSUBSCRIBED" }).success).toBe(
+      true,
+    );
+    expect(update.safeParse({ ...ref, status: "BOUNCED" }).success).toBe(false);
+    expect(update.safeParse(ref).success).toBe(false);
+    expect(remove.safeParse(ref).success).toBe(true);
+  });
+
+  it.each(writes)("%s takes no approval, send or skip flag", (capability) => {
+    const valid = {
+      add_newsletter_subscriber: {
+        projectId,
+        email: "ada@example.com",
+        consent: "ASK",
+      },
+      import_newsletter_subscribers: {
+        projectId,
+        fileId: "file-1",
+        consent: "ASK",
+      },
+      add_newsletter_subscribers_from_contacts: {
+        projectId,
+        contactIds: [contactId],
+        consent: "ASK",
+      },
+      update_newsletter_subscriber: { projectId, subscriberId, name: "Ada" },
+      remove_newsletter_subscriber: { projectId, subscriberId },
+    }[capability];
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+    expect(schema.safeParse(valid).success).toBe(true);
+    for (const field of [
+      "approve",
+      "autoApprove",
+      "skipApproval",
+      "skipConfirmation",
+      "sendNow",
+    ])
+      expect(schema.safeParse({ ...valid, [field]: true }).success).toBe(false);
+  });
+
+  it.each(writes)(
+    "%s says it needs the owner and treats data as untrusted",
+    (capability) => {
+      const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+      expect(description).toMatch(/owner (explicitly )?asks in their chat/);
+      expect(description).toMatch(/untrusted/i);
+    },
+  );
+
+  it("says only the owner can vouch for consent, and where bigger batches go", () => {
+    for (const capability of [
+      "add_newsletter_subscriber",
+      "import_newsletter_subscribers",
+      "add_newsletter_subscribers_from_contacts",
+    ] as const) {
+      const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+      expect(description).toMatch(/ASK emails/);
+      expect(description).toMatch(/own chat message this turn/);
+      expect(description).toMatch(/never approves, schedules or sends/i);
+    }
+    for (const capability of [
+      "import_newsletter_subscribers",
+      "add_newsletter_subscribers_from_contacts",
+    ] as const)
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(
+        /At most 100 people per call.*Subscribers page/,
+      );
   });
 });
 

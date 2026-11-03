@@ -5,6 +5,7 @@ import {
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
+import { renderNewsletterEmail } from "@sokosumi/email";
 import { CORE_API_ERROR_KINDS, canArchiveTaskStatus } from "@sokosumi/utils";
 import slugify from "slugify";
 
@@ -16,10 +17,12 @@ import {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import prisma from "@/lib/db/prisma";
-import type {
-  CreateNewsletterIssueRequest,
-  ListNewsletterIssuesQuery,
-  PatchNewsletterIssueRequest,
+import type { SokoBotAuthenticationContext } from "@/middleware/auth";
+import {
+  type CreateNewsletterIssueRequest,
+  type ListNewsletterIssuesQuery,
+  newsletterBrandSchema,
+  type PatchNewsletterIssueRequest,
 } from "@/schemas/newsletter.schema";
 import {
   getNewsletter,
@@ -32,7 +35,12 @@ import {
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 
-async function withApproverNames(issues: NewsletterIssue[]) {
+type NewsletterClient = Prisma.TransactionClient | typeof prisma;
+
+async function withApproverNames(
+  issues: NewsletterIssue[],
+  client: NewsletterClient = prisma,
+) {
   const ids = [
     ...new Set(
       issues.flatMap((issue) =>
@@ -41,7 +49,7 @@ async function withApproverNames(issues: NewsletterIssue[]) {
     ),
   ];
   const users = ids.length
-    ? await prisma.user.findMany({
+    ? await client.user.findMany({
         where: { id: { in: ids } },
         select: { id: true, name: true },
       })
@@ -104,7 +112,7 @@ export async function createNewsletterIssue(
     client = prisma,
     creatorSokoBotId,
   }: {
-    client?: Prisma.TransactionClient | typeof prisma;
+    client?: NewsletterClient;
     creatorSokoBotId?: string;
   } = {},
 ) {
@@ -131,21 +139,50 @@ export async function createNewsletterIssue(
 export async function getNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
+  client: NewsletterClient = prisma,
 ) {
-  const newsletter = await getNewsletter(scope);
-  const issue = await prisma.newsletterIssue.findUnique({
+  const newsletter = await getNewsletter(scope, client);
+  const issue = await client.newsletterIssue.findUnique({
     where: { ...scope, id: issueId, newsletterId: newsletter.id },
   });
   if (!issue) throw notFound("Newsletter issue not found");
-  return (await withApproverNames([issue]))[0]!;
+  return (await withApproverNames([issue], client))[0]!;
+}
+
+/**
+ * Renders issue content with the sending renderer and the newsletter's brand.
+ * Never saves or sends anything; the unsubscribe link is a placeholder.
+ */
+export async function renderNewsletterIssuePreview(
+  scope: NewsletterScope,
+  issue: CreateNewsletterIssueRequest,
+) {
+  const newsletter = await getNewsletter(scope);
+  return renderNewsletterEmail({
+    newsletter: {
+      name: newsletter.name,
+      brand: newsletterBrandSchema.parse(newsletter.brand),
+    },
+    issue,
+    unsubscribeUrl: "#",
+  });
+}
+
+/** Runs in the caller's transaction when given one, else in its own. */
+function inTransaction<T>(
+  client: Prisma.TransactionClient | undefined,
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+) {
+  return client ? operation(client) : prisma.$transaction(operation);
 }
 
 export async function patchNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
   input: PatchNewsletterIssueRequest,
+  client?: Prisma.TransactionClient,
 ) {
-  const issue = await getNewsletterIssue(scope, issueId);
+  const issue = await getNewsletterIssue(scope, issueId, client);
   if (issue.status !== "DRAFT" && issue.status !== "NEEDS_APPROVAL") {
     throw conflict("Only draft or needs-approval issues can be edited");
   }
@@ -154,7 +191,7 @@ export async function patchNewsletterIssue(
   }
   const { revision, ...content } = input;
   // Guard both revision and status against concurrent edits or scheduling.
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.updateMany({
       where: {
         ...scope,
@@ -218,12 +255,13 @@ async function transitionNewsletterIssue(
     issue: NewsletterIssue,
     tx: Prisma.TransactionClient,
   ) => Promise<void>,
+  client?: Prisma.TransactionClient,
 ) {
-  const issue = await getNewsletterIssue(scope, issueId);
+  const issue = await getNewsletterIssue(scope, issueId, client);
   if (issue.status !== status || issue.revision !== revision) {
     throw conflict("Newsletter issue changed; refresh and try again");
   }
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.updateMany({
       where: {
         ...scope,
@@ -239,7 +277,7 @@ async function transitionNewsletterIssue(
     await effect?.(issue, tx);
     return tx.newsletterIssue.findUniqueOrThrow({ where: { id: issueId } });
   });
-  return (await withApproverNames([updated]))[0]!;
+  return (await withApproverNames([updated], client))[0]!;
 }
 
 export interface NewsletterTaskContext {
@@ -249,11 +287,28 @@ export interface NewsletterTaskContext {
   humanUserId: string | null;
 }
 
+/**
+ * A Soko Bot's approval Task keeps the bot as its submitter, under its owner
+ * (none for a shared bot), and is left for a person to pick up.
+ */
+export function sokoBotNewsletterTaskContext(
+  auth: SokoBotAuthenticationContext,
+): NewsletterTaskContext {
+  return {
+    actor: { kind: "soko_bot", sokoBotId: auth.sokoBotId },
+    ownerId: auth.userId,
+    organizationId: auth.organizationId,
+    humanUserId: null,
+  };
+}
+
+/** Runs in the caller's transaction when given one, else in its own. */
 export function submitNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
   revision: number,
   context: NewsletterTaskContext,
+  client?: Prisma.TransactionClient,
 ) {
   return transitionNewsletterIssue(
     scope,
@@ -303,6 +358,7 @@ export function submitNewsletterIssue(
         data: { taskId: task.id },
       });
     },
+    client,
   );
 }
 
@@ -402,10 +458,17 @@ export function cancelNewsletterIssue(
 export async function deleteNewsletterIssue(
   scope: NewsletterScope,
   issueId: string,
+  {
+    revision,
+    client,
+  }: { revision?: number; client?: Prisma.TransactionClient } = {},
 ) {
-  const issue = await getNewsletterIssue(scope, issueId);
+  const issue = await getNewsletterIssue(scope, issueId, client);
   if (issue.status !== "DRAFT" && issue.status !== "CANCELED") {
     throw conflict("Only draft or canceled issues can be deleted");
+  }
+  if (revision !== undefined && issue.revision !== revision) {
+    throw conflict("Newsletter issue changed; refresh and try again");
   }
   const where: Prisma.NewsletterIssueWhereInput = {
     ...scope,
@@ -414,7 +477,7 @@ export async function deleteNewsletterIssue(
     revision: issue.revision,
     status: { in: ["DRAFT", "CANCELED"] },
   };
-  await prisma.$transaction(async (tx) => {
+  await inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.deleteMany({ where });
     if (!count) throw conflict("Only draft or canceled issues can be deleted");
     if (!issue.taskId) return;

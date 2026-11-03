@@ -34,6 +34,7 @@ export const cancelSocialPost = vi.fn();
 export const eventFindFirst = vi.fn();
 export const expireTurn = vi.fn();
 export const startTurn = vi.fn();
+export const archiveBot = vi.fn();
 export const createBot = vi.fn();
 export const projectCreate = vi.fn();
 export const fileLinkFindMany = vi.fn();
@@ -263,7 +264,9 @@ export const cmoServiceMocks = {
   env: (actual: typeof import("@/config/env")) => actual,
   socialPosts: { cancelSocialPost },
   sharedCreate: { createSharedSokoBot: createBot },
-  controlPlane: { sokoBotControlPlane: { expireTurn, startTurn } },
+  controlPlane: {
+    sokoBotControlPlane: { expireTurn, startTurn, archive: archiveBot },
+  },
   organizationWorkspace: { createOrganizationWorkspace },
   userWorkspaces: { getUserWorkspace },
   subscription: {

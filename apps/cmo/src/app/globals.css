@@ -450,6 +450,18 @@ body:has(.app) .site-header {
   background: var(--hover);
 }
 
+.start-over {
+  display: grid;
+  gap: 8px;
+  max-width: 280px;
+}
+
+.start-over-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .button-ghost {
   border-color: transparent;
   background: transparent;
@@ -2533,6 +2545,10 @@ textarea {
   display: grid;
   max-width: 1040px;
   margin: 0 auto;
+}
+
+.bb[hidden] {
+  display: none;
 }
 
 .bb-hero {

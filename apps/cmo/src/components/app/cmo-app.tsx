@@ -102,6 +102,8 @@ export interface CmoAppActions {
     provider: CmoOverview["measurement"][number]["provider"],
     from: "onboarding" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
+  /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
+  startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -530,6 +532,7 @@ export function CmoApp({
                   compose={compose}
                   name={name}
                   email={email}
+                  startOver={actions.startOver}
                   signOut={actions.signOut}
                 />
               )}

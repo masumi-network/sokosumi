@@ -12,6 +12,46 @@ type Question = NonNullable<BrandBrain["questions"]>[number];
 export type Answer = NonNullable<Question["answer"]>;
 /** A yes/no question, from the Brand Brain or the plan. */
 type YesNoQuestion = Pick<Question, "id" | "question" | "answer" | "note">;
+type AnswerSaver = (
+  questionId: string,
+  answer: Answer,
+  note?: string,
+) => Promise<void>;
+type Picked = { answer: Answer; note?: string };
+
+/**
+ * Answers show the moment they are tapped; the save follows. A failed save
+ * takes the tap back. Next.js runs server actions one at a time, so a plan
+ * requested right after a tap still reads every answer.
+ */
+export function useAnswers<Q extends YesNoQuestion>(
+  questions: Q[],
+  onAnswer: AnswerSaver,
+): [Q[], AnswerSaver] {
+  const [picks, setPicks] = useState<Record<string, Picked>>({});
+  const shown = questions.map((question) => {
+    const pick = picks[question.id];
+    return pick
+      ? { ...question, answer: pick.answer, note: pick.note }
+      : question;
+  });
+  const save: AnswerSaver = async (questionId, answer, note) => {
+    const pick: Picked = { answer, note };
+    const settle = () =>
+      setPicks((current) => {
+        if (current[questionId] !== pick) return current;
+        const { [questionId]: _settled, ...rest } = current;
+        return rest;
+      });
+    setPicks((current) => ({ ...current, [questionId]: pick }));
+    try {
+      await onAnswer(questionId, answer, note);
+    } finally {
+      settle();
+    }
+  };
+  return [shown, save];
+}
 
 const ANSWERS: { value: Answer; label: string }[] = [
   { value: "yes", label: "Yes" },
@@ -42,7 +82,10 @@ export function QuestionsStep({
   onPlan,
   ahead,
 }: QuestionsStepProps) {
-  const questions = (overview.brandBrain as BrandBrain | null)?.questions ?? [];
+  const [questions, answer] = useAnswers(
+    (overview.brandBrain as BrandBrain | null)?.questions ?? [],
+    onAnswer,
+  );
   const answered = questions.filter((question) => question.answer).length;
   const [planning, startPlanning] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -128,7 +171,7 @@ export function QuestionsStep({
             question={question}
             label={BRAND_SECTIONS[question.section].title}
             number={index + 1}
-            onAnswer={(answer, note) => onAnswer(question.id, answer, note)}
+            onAnswer={(value, note) => answer(question.id, value, note)}
           />
         ))}
       </ol>
@@ -148,21 +191,15 @@ export function QuestionCard({
   number: number;
   onAnswer: (answer: Answer, note?: string) => Promise<void>;
 }) {
-  const [saving, startSaving] = useTransition();
   // A no opens a line for what is true instead; it saves with the no.
   const [correcting, setCorrecting] = useState(false);
   const [note, setNote] = useState(question.note ?? "");
   const [failed, setFailed] = useState(false);
-  const save = (answer: Answer, withNote?: string) =>
-    startSaving(async () => {
-      setFailed(false);
-      try {
-        await onAnswer(answer, withNote);
-        setCorrecting(false);
-      } catch {
-        setFailed(true);
-      }
-    });
+  const save = (answer: Answer, withNote?: string) => {
+    setFailed(false);
+    setCorrecting(false);
+    onAnswer(answer, withNote).catch(() => setFailed(true));
+  };
   const chosen = correcting ? "no" : question.answer;
 
   return (
@@ -181,15 +218,11 @@ export function QuestionCard({
             type="button"
             className={chosen === value ? "ob-answer selected" : "ob-answer"}
             aria-pressed={chosen === value}
-            disabled={saving}
             onClick={() => (value === "no" ? setCorrecting(true) : save(value))}
           >
             {label}
           </button>
         ))}
-        {saving ? (
-          <Loader2 size={16} className="ob-spin" aria-label="Saving" />
-        ) : null}
       </div>
       {correcting ? (
         <form
@@ -208,7 +241,7 @@ export function QuestionCard({
             aria-label="What's true instead"
             autoFocus
           />
-          <button type="submit" className="ob-button" disabled={saving}>
+          <button type="submit" className="ob-button">
             Save
           </button>
         </form>

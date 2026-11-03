@@ -13,6 +13,7 @@ import {
   brandBrainSectionsSaved,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
+import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
   CMO_OUT_OF_CREDITS,
@@ -308,6 +309,48 @@ export async function retryCmoOnboarding(
   return startCmoResearch(cuso, userId);
 }
 
+/** Social posts Cuso planned that have not gone out. */
+const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
+
+/**
+ * Lets this person hire Cuso again for another website: the Cuso they work
+ * with is archived (his running work stops) and his posts that have not gone
+ * out are canceled. His organization, Project and Files stay in Sokosumi.
+ * Only an organization owner or admin may (the archive checks).
+ */
+export async function startCmoOver(userId: string): Promise<void> {
+  const cuso = await requireCuso({ userId });
+  const { sokoBotControlPlane } = await import(
+    "@/services/soko-bot-control-plane.service"
+  );
+  await sokoBotControlPlane.archive(userId, cuso.workspaceId, {
+    kind: "id",
+    sokoBotId: cuso.sokoBotId,
+  });
+  const posts = await prisma.socialPost.findMany({
+    where: {
+      projectId: cuso.projectId,
+      status: { in: [...UNSENT_POST_STATUSES] },
+    },
+    select: { id: true, revision: true },
+  });
+  const { cancelSocialPost } = await import("@/services/social-posts.service");
+  for (const post of posts) {
+    await cancelSocialPost({
+      projectId: cuso.projectId,
+      workspaceId: cuso.workspaceId,
+      userId,
+      postId: post.id,
+      revision: post.revision,
+    }).catch((error) => {
+      console.warn("Starting over left a Social post", {
+        postId: post.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
+  }
+}
+
 /**
  * Starts Cuso's research turn for a hire, as the member `userId`; the CMO lab
  * reruns it per brand.
@@ -425,6 +468,16 @@ export async function startCmoOnboarding(input: {
   waitUntil(
     learnCmoBrandVisual(created).catch((error) => {
       console.warn("CMO brand visual failed", {
+        sokoBotId: created.sokoBotId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }),
+  );
+  // The homepage screenshots need no research either, so the Brand Brain
+  // opens with them instead of waiting for the full capture.
+  waitUntil(
+    captureCmoHomepage(created).catch((error) => {
+      console.warn("CMO homepage capture failed", {
         sokoBotId: created.sokoBotId,
         error: error instanceof Error ? error.message : "unknown",
       });

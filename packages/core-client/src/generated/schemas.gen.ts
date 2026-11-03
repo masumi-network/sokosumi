@@ -14363,10 +14363,16 @@ export const ContactPeopleSearchInputSchema = {
             type: 'string',
             minLength: 3,
             maxLength: 1000,
-            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used.'
+            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used. With size 1, the one person to find (a name, and where they work); the description stays.'
         },
         size: {
             anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
                 {
                     type: 'number',
                     enum: [
@@ -14381,7 +14387,7 @@ export const ContactPeopleSearchInputSchema = {
                 }
             ],
             default: 10,
-            description: 'How many people to find: 10 costs 5 credits, 25 costs 10.'
+            description: 'How many people to find; 1 looks for one particular person. Costs 0.5 credits per person found.'
         }
     }
 } as const;
@@ -14784,7 +14790,8 @@ export const ContactChannelSourceSchema = {
         'SLACK',
         'WEB_RESEARCH',
         'IMPORT',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15118,7 +15125,8 @@ export const ContactInteractionChannelSchema = {
         'SLACK',
         'CALL',
         'MANUAL',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15164,6 +15172,35 @@ export const ContactInteractionResultSchema = {
     required: [
         'interaction',
         'created'
+    ]
+} as const;
+
+export const ContactWebEnrichmentSchema = {
+    type: 'object',
+    properties: {
+        filled: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Fields it filled: role, organization, location, summary, linkedin. Empty when the web did not say more.'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The page it read them from.'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken; 0 when nothing was filled.'
+        }
+    },
+    required: [
+        'filled',
+        'sourceUrl',
+        'credits'
     ]
 } as const;
 

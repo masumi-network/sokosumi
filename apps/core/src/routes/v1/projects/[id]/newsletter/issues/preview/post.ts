@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { renderNewsletterEmail } from "@sokosumi/email";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -9,10 +8,9 @@ import {
 } from "@/lib/hono";
 import {
   createNewsletterIssueRequestSchema,
-  newsletterBrandSchema,
   newsletterProjectParamsSchema,
 } from "@/schemas/newsletter.schema";
-import { getNewsletter } from "@/services/newsletter.service";
+import { renderNewsletterIssuePreview } from "@/services/newsletter-issues.service";
 
 import { newsletterIssueScope } from "../../context";
 
@@ -49,15 +47,10 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const scope = await newsletterIssueScope(c, id);
-    const newsletter = await getNewsletter(scope);
-    const { html } = await renderNewsletterEmail({
-      newsletter: {
-        name: newsletter.name,
-        brand: newsletterBrandSchema.parse(newsletter.brand),
-      },
-      issue: c.req.valid("json"),
-      unsubscribeUrl: "#",
-    });
+    const { html } = await renderNewsletterIssuePreview(
+      scope,
+      c.req.valid("json"),
+    );
     return ok(c, { html });
   });
 }

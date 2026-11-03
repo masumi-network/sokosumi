@@ -2832,6 +2832,30 @@
           }
         }
       }
+    },
+    "Report" : {
+      "comment" : "The kind of a result card (cmo_report).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bericht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informe"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
