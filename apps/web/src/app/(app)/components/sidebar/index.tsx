@@ -90,7 +90,6 @@ interface SidebarProps {
   workspaceSwitcher: ReactNode;
   accountFooter: ReactNode;
   chatList: ReactNode;
-  socialBetaEnabled: boolean;
   newsletterEnabled: boolean;
 }
 
@@ -98,7 +97,6 @@ export default function Sidebar({
   workspaceSwitcher,
   accountFooter,
   chatList,
-  socialBetaEnabled,
   newsletterEnabled,
 }: SidebarProps) {
   return (
@@ -137,10 +135,7 @@ export default function Sidebar({
             <SidebarProjectScope />
           </Suspense>
           <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
-            <MenuItems
-              socialBetaEnabled={socialBetaEnabled}
-              newsletterEnabled={newsletterEnabled}
-            />
+            <MenuItems newsletterEnabled={newsletterEnabled} />
           </div>
           {chatList}
         </div>

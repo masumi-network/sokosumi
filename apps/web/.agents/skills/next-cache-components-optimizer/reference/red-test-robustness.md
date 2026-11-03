@@ -8,7 +8,6 @@ spend a few minutes verifying the RED is trustworthy first.
 ## The deciding question
 
 > **Does the marker render WITHOUT the lock, as the test user?**
-
 - **No**: the test is red because the marker or page is not there for that user or environment. A
   marker bug, not an instant-navigation bug. Fix the marker. (This is the most common case.)
 - **Yes**: the marker exists and is reachable; a red under the lock is a genuine "not instant".

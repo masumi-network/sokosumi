@@ -39,6 +39,11 @@ export function getNewsletterTabs(
       label: t("Subscribers.title"),
     },
     {
+      id: "signup-form",
+      href: newsletterHref("/newsletter/signup-form", projectId),
+      label: t("SignupForm.title"),
+    },
+    {
       id: "analytics",
       href: newsletterHref("/newsletter/analytics", projectId),
       label: t("Analytics.title"),

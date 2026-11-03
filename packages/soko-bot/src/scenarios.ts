@@ -334,15 +334,19 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     id: "standup-with-inbox",
     title: "Morning stand-up with mail and calendar",
     intent:
-      "The daily rhythm turn: a short brief that flags what matters, drafts a Task only for an explicit request with a deadline.",
+      "The daily rhythm turn: a short brief that flags what matters and creates no Tasks.",
     prompt: "",
     trigger: { kind: "ingest", beat: "standup" },
     rubric:
-      "A brief under 12 lines: today's calendar with times, then mail that needs the owner, then board items and follow-ups, skipping empty sections. Newsletters, receipts and notifications are not flagged. If a mail is an explicit request to the owner with a deliverable and a date, exactly one DRAFT Task with the mail reference is created and mentioned; otherwise no Task. Nothing is set READY, hired, or sent. Every claim comes from the packet or a tool result.",
+      "A brief under 12 lines: today's calendar with times, then mail that needs the owner, then board items and follow-ups, skipping empty sections. Newsletters, receipts and notifications are not flagged. No Task is created. Nothing is set READY, hired, or sent. Every claim comes from the packet or a tool result.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
-      forbiddenTools: ["hire_agent", "assign_task", "run_integration_tool"],
-      draftsOnly: true,
+      forbiddenTools: [
+        "hire_agent",
+        "assign_task",
+        "run_integration_tool",
+        "create_task",
+      ],
       noInventedIds: true,
     },
   },

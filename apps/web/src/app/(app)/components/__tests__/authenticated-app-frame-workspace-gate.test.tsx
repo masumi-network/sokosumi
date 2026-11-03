@@ -16,7 +16,6 @@ const getMyWorkspacesMock =
 const hasAssignedOrganizationSeatMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
 const workspaceSwitcherProviderMock = vi.fn();
-const hasSocialBetaAccessMock = vi.fn();
 const isNewsletterEnabledMock = vi.fn();
 const getRequestPathMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
@@ -57,10 +56,6 @@ vi.mock("@/lib/services/user.service", () => ({
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: { getMyBadgeCampaigns: async () => [] },
-}));
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
 }));
 
 vi.mock("@/lib/newsletter-access.server", () => ({
@@ -181,7 +176,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       },
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
-    hasSocialBetaAccessMock.mockResolvedValue(false);
     isNewsletterEnabledMock.mockResolvedValue(false);
     getMyWorkspacesMock.mockResolvedValue({
       workspaces: [null, "utxo", "other"].map((slug) => ({
@@ -295,33 +289,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     expect(getMyWorkspacesMock).toHaveBeenCalled();
   });
 
-  /**
-   * Ads is still beta-gated, and the sidebar is a client component, so the
-   * frame is the only place that can answer for it. It resolves alongside the
-   * seat gate rather than after it: nav paints once both are in.
-   */
-  it.each([true, false])(
-    "hands the sidebar the Ads beta answer: %s",
-    async (enabled) => {
-      hasSocialBetaAccessMock.mockResolvedValue(enabled);
-      getWorkspaceAccessMock.mockResolvedValue({
-        gate: "ready",
-        hasPersonalWorkspace: true,
-        hasOrganizationMembership: false,
-      });
-
-      const { default: AuthenticatedAppFrame } = await import(
-        "../authenticated-app-frame"
-      );
-
-      render(await AuthenticatedAppFrame({ children: <div>app</div> }));
-
-      expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
-        socialBetaEnabled: enabled,
-      });
-    },
-  );
-
   it.each([true, false])(
     "hands the sidebar the workspace Newsletter availability: %s",
     async (enabled) => {
@@ -335,7 +302,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
 
       expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
         newsletterEnabled: enabled,
-        socialBetaEnabled: false,
       });
     },
   );

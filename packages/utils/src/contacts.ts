@@ -60,6 +60,7 @@ export const CONTACT_CHANNEL_SOURCES = [
   "WEB_RESEARCH",
   "IMPORT",
   "OTHER",
+  "X",
 ] as const;
 
 export const CONTACT_INTERACTION_CHANNELS = [
@@ -69,6 +70,7 @@ export const CONTACT_INTERACTION_CHANNELS = [
   "CALL",
   "MANUAL",
   "OTHER",
+  "X",
 ] as const;
 
 export const CONTACT_INTERACTION_DIRECTIONS = ["IN", "OUT", "BOTH"] as const;

@@ -1,6 +1,6 @@
 /**
- * Automatic contact capture from every Soko Bot's connected mail, calendar
- * and Slack (docs/contacts/design.md, Phase 3).
+ * Automatic contact capture from every Soko Bot's connected mail, calendar,
+ * Slack and X (docs/contacts/design.md, Phase 3).
  *
  * Each integration has a `ContactCaptureState`: per source, a forward
  * position (`since`) read every run, and a backward 12-month backfill read a
@@ -10,7 +10,10 @@
  * idempotent by `sourceRef`, so reading a page twice adds nothing.
  */
 import type { Prisma } from "@sokosumi/database";
-import { SOKO_BOT_SLACK_CAPTURE_TOOLS } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_SLACK_CAPTURE_TOOLS,
+  SOKO_BOT_X_CAPTURE_TOOLS,
+} from "@sokosumi/soko-bot";
 import { normalizeContactChannelValue } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
@@ -21,20 +24,27 @@ import {
   extractMeeting,
   extractSentMail,
   extractSlackConversation,
+  extractXDms,
   parseEvent,
   parseMail,
   parseSlackConversation,
   parseSlackProfile,
+  parseXDmEvent,
+  parseXPage,
+  parseXUser,
   type SlackConversation,
   type SlackProfile,
   slackCandidate,
   slackDays,
+  type XUser,
+  xCandidate,
 } from "@/lib/contacts/capture-extract";
 import type { CaptureSkipReason } from "@/lib/contacts/capture-filters";
 import {
   judgeRoleInboxes,
   MIN_PERSON_PROBABILITY,
 } from "@/lib/contacts/capture-judge";
+import { normalizePersonName } from "@/lib/contacts/merge-rules";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
@@ -49,6 +59,7 @@ import {
   refreshContactFamiliarity,
 } from "@/services/contact-scores.service";
 import {
+  addContactChannel,
   type ContactActor,
   captureContactInteraction,
   inContactTransaction,
@@ -70,6 +81,7 @@ export const CAPTURE_SOURCES = [
   "mail.received",
   "calendar",
   "slack",
+  "x",
 ] as const;
 export type CaptureSource = (typeof CAPTURE_SOURCES)[number];
 
@@ -79,6 +91,7 @@ const PROVIDER_SOURCES: Readonly<Record<string, readonly CaptureSource[]>> = {
   outlook: ["mail.sent", "mail.received", "calendar"],
   googlecalendar: ["calendar"],
   [SOKO_BOT_SLACK_CAPTURE_TOOLS.provider]: ["slack"],
+  [SOKO_BOT_X_CAPTURE_TOOLS.provider]: ["x"],
 };
 
 /** Gmail's folders for each mail source; Outlook uses its folder argument. */
@@ -112,6 +125,12 @@ export interface CaptureLimits {
   /** A channel with more members is not a conversation. */
   slackSmallChannel: number;
   slackIntervalMs: number;
+  /** X allows few calls per 15 minutes, so a run asks little. */
+  xCallsPerRun: number;
+  xIntervalMs: number;
+  /** Follower and following lists change slowly. */
+  xFollowsIntervalMs: number;
+  xFollowPages: number;
   /** Re-read this much before `since`; capture is idempotent. */
   overlapMs: number;
   /** Pause between Composio calls, so a backfill never bursts. */
@@ -137,6 +156,10 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   slackHistoryPagesPerConversation: 5,
   slackSmallChannel: 8,
   slackIntervalMs: 60 * 60 * 1_000,
+  xCallsPerRun: 12,
+  xIntervalMs: 60 * 60 * 1_000,
+  xFollowsIntervalMs: DAY_MS,
+  xFollowPages: 3,
   overlapMs: 10 * 60 * 1_000,
   callSpacingMs: 250,
   unsupportedPauseMs: DAY_MS,
@@ -151,6 +174,8 @@ interface SourceCursor {
   pageToken: string | null;
   /** Slack's forward pass resumes its conversation walk here. */
   forwardToken?: string | null;
+  /** When X's mutual follows were last matched to contacts. */
+  followsAt?: string;
   /** Provider lacks a needed tool: left alone until then. */
   pausedUntil?: string;
 }
@@ -569,6 +594,10 @@ export class ContactCaptureService {
           await this.captureSlack(context, current, state.backfillFloor, save);
           continue;
         }
+        if (source === "x") {
+          await this.captureX(context, current, state.backfillFloor, save);
+          continue;
+        }
         await this.readForward(context, source, current, save);
         // Mail the owner received only counts from people they wrote to, so
         // the sent backfill runs first.
@@ -630,7 +659,7 @@ export class ContactCaptureService {
 
   private async readForward(
     context: RunContext,
-    source: Exclude<CaptureSource, "slack">,
+    source: Exclude<CaptureSource, "slack" | "x">,
     cursor: SourceCursor,
     save: () => Promise<unknown>,
   ): Promise<void> {
@@ -655,7 +684,7 @@ export class ContactCaptureService {
 
   private async backfill(
     context: RunContext,
-    source: Exclude<CaptureSource, "slack">,
+    source: Exclude<CaptureSource, "slack" | "x">,
     cursor: SourceCursor,
     floor: Date,
     save: () => Promise<unknown>,
@@ -695,7 +724,7 @@ export class ContactCaptureService {
 
   private async readPage(
     context: RunContext,
-    source: Exclude<CaptureSource, "slack">,
+    source: Exclude<CaptureSource, "slack" | "x">,
     window: { from: Date; to: Date; pageToken?: string },
   ): Promise<PageOutcome & { nextPageToken: string | null }> {
     context.pagesLeft -= 1;
@@ -854,7 +883,7 @@ export class ContactCaptureService {
     const existing = await prisma.contactInteraction.findMany({
       where: {
         workspaceId: context.actor.workspaceId,
-        OR: (["EMAIL", "MEETING", "SLACK"] as const).map((channel) => ({
+        OR: (["EMAIL", "MEETING", "SLACK", "X"] as const).map((channel) => ({
           channel,
           sourceRef: {
             in: unique
@@ -1006,7 +1035,8 @@ export class ContactCaptureService {
   // Slack: whom the owner talks with in direct messages and small channels.
   // -------------------------------------------------------------------------
 
-  private async slackCall(
+  /** One Composio call within a run's call budget, spaced out. */
+  private async call(
     context: RunContext,
     budget: { calls: number },
     tool: string,
@@ -1028,17 +1058,14 @@ export class ContactCaptureService {
     const budget = { calls: this.limits.slackCallsPerRun };
     // Feature detection: a toolkit without the tool, or an account that
     // cannot say who it is, pauses Slack capture for this integration.
-    const auth = await this.slackCall(
-      context,
-      budget,
-      tools.authTest,
-      {},
-    ).catch((error: unknown) => {
-      throw new SokoBotIntegrationError(
-        error instanceof Error ? error.message : "Slack is unavailable",
-        "NOT_FOUND",
-      );
-    });
+    const auth = await this.call(context, budget, tools.authTest, {}).catch(
+      (error: unknown) => {
+        throw new SokoBotIntegrationError(
+          error instanceof Error ? error.message : "Slack is unavailable",
+          "NOT_FOUND",
+        );
+      },
+    );
     const ownerSlackId = textOf(auth, "user_id");
     const teamId = textOf(auth, "team_id");
     if (!ownerSlackId || !teamId)
@@ -1105,7 +1132,7 @@ export class ContactCaptureService {
     const tools = SOKO_BOT_SLACK_CAPTURE_TOOLS;
     let position = parseSlackToken(input.token);
     while (input.budget.calls > 0 && this.canRead(context)) {
-      const list = await this.slackCall(
+      const list = await this.call(
         context,
         input.budget,
         tools.listConversations,
@@ -1159,7 +1186,7 @@ export class ContactCaptureService {
     const { conversation } = input;
     if (!conversation.isDirect) {
       if (input.budget.calls <= 0) return { done: false, cursor: null };
-      const members = await this.slackCall(
+      const members = await this.call(
         context,
         input.budget,
         tools.conversationMembers,
@@ -1178,7 +1205,7 @@ export class ContactCaptureService {
       )
         break;
       pages += 1;
-      const history = await this.slackCall(
+      const history = await this.call(
         context,
         input.budget,
         tools.conversationHistory,
@@ -1248,7 +1275,7 @@ export class ContactCaptureService {
   ): Promise<SlackProfile | null> {
     if (input.profiles.has(userId)) return input.profiles.get(userId) ?? null;
     if (input.budget.calls <= 0) return null;
-    const data = await this.slackCall(
+    const data = await this.call(
       context,
       input.budget,
       SOKO_BOT_SLACK_CAPTURE_TOOLS.userInfo,
@@ -1257,6 +1284,218 @@ export class ContactCaptureService {
     const profile = parseSlackProfile(data);
     input.profiles.set(userId, profile);
     return profile;
+  }
+
+  // -------------------------------------------------------------------------
+  // X: whom the owner writes with in DMs, and mutual follows on contacts.
+  // -------------------------------------------------------------------------
+
+  /**
+   * X keeps about 30 days of DMs, so there is no long backfill: every hour
+   * the newest pages back to `since` (the first run reads all it has). Once
+   * a day, people who follow the owner back are matched to contacts.
+   */
+  private async captureX(
+    context: RunContext,
+    cursor: SourceCursor,
+    floor: Date,
+    save: () => Promise<unknown>,
+  ): Promise<void> {
+    const tools = SOKO_BOT_X_CAPTURE_TOOLS;
+    const budget = { calls: this.limits.xCallsPerRun };
+    const now = context.now;
+    const since = new Date(cursor.since);
+    const dmsDue =
+      cursor.backfillUntil !== null ||
+      now.getTime() - since.getTime() >= this.limits.xIntervalMs;
+    const followsDue =
+      !cursor.followsAt ||
+      now.getTime() - new Date(cursor.followsAt).getTime() >=
+        this.limits.xFollowsIntervalMs;
+    if (!dmsDue && !followsDue) return;
+    const me = parseXUser(
+      await this.call(context, budget, tools.me, {}).catch((error: unknown) => {
+        throw new SokoBotIntegrationError(
+          error instanceof Error ? error.message : "X is unavailable",
+          "NOT_FOUND",
+        );
+      }),
+    );
+    if (!me)
+      throw new SokoBotIntegrationError(
+        "X did not say who is connected",
+        "NOT_FOUND",
+      );
+    if (dmsDue) {
+      const from =
+        cursor.backfillUntil !== null
+          ? floor
+          : new Date(since.getTime() - this.limits.overlapMs);
+      if (await this.readXDms(context, budget, me, from)) {
+        cursor.since = now.toISOString();
+        cursor.backfillUntil = null;
+        cursor.pageToken = null;
+      }
+      await save();
+    }
+    if (followsDue && budget.calls > 0 && this.canRead(context)) {
+      await this.linkXFollows(context, budget, me);
+      cursor.followsAt = now.toISOString();
+      await save();
+    }
+  }
+
+  /** Reads DM events newest first back to `from`; true when it got there. */
+  private async readXDms(
+    context: RunContext,
+    budget: { calls: number },
+    me: XUser,
+    from: Date,
+  ): Promise<boolean> {
+    const events = [];
+    const users = new Map<string, XUser>();
+    let token: string | null = null;
+    let reached = false;
+    while (budget.calls > 0 && this.canRead(context)) {
+      const page = parseXPage(
+        await this.call(context, budget, SOKO_BOT_X_CAPTURE_TOOLS.dmEvents, {
+          event_types: ["MessageCreate"],
+          dm_event_fields: [
+            "created_at",
+            "sender_id",
+            "dm_conversation_id",
+            "participant_ids",
+          ],
+          expansions: ["sender_id", "participant_ids"],
+          user_fields: ["name", "username"],
+          max_results: 100,
+          ...(token ? { pagination_token: token } : {}),
+        }),
+      );
+      for (const user of page.users) users.set(user.id, user);
+      for (const raw of page.items) {
+        const event = parseXDmEvent(raw);
+        if (!event) continue;
+        if (new Date(event.createdAt) < from) reached = true;
+        else events.push(event);
+      }
+      token = page.nextToken;
+      if (reached || !token) {
+        reached = true;
+        break;
+      }
+    }
+    const candidates: CaptureCandidate[] = [];
+    const skipped: CaptureSkipReason[] = [];
+    for (const talk of extractXDms({ events, ownerId: me.id })) {
+      const user = users.get(talk.userId);
+      if (!user) {
+        skipped.push("invalid_address");
+        continue;
+      }
+      candidates.push(
+        xCandidate({ ...talk, user, teammateUserId: context.teammateUserId }),
+      );
+    }
+    const outcome = await this.write(context, { candidates, skipped });
+    return reached && outcome.complete;
+  }
+
+  /**
+   * People the owner follows who follow them back get their X handle on the
+   * one contact with the same full name. Nobody new is created: a follow is
+   * not a conversation.
+   */
+  private async linkXFollows(
+    context: RunContext,
+    budget: { calls: number },
+    me: XUser,
+  ): Promise<void> {
+    const read = async (tool: string) => {
+      const users: XUser[] = [];
+      let token: string | null = null;
+      for (let page = 0; page < this.limits.xFollowPages; page += 1) {
+        if (budget.calls <= 0) break;
+        const result = parseXPage(
+          await this.call(context, budget, tool, {
+            id: me.id,
+            max_results: 1000,
+            user_fields: ["name", "username"],
+            ...(token ? { pagination_token: token } : {}),
+          }),
+        );
+        users.push(...result.items.flatMap((raw) => parseXUser(raw) ?? []));
+        token = result.nextToken;
+        if (!token) break;
+      }
+      return users;
+    };
+    const following = await read(SOKO_BOT_X_CAPTURE_TOOLS.following);
+    const followerIds = new Set(
+      (await read(SOKO_BOT_X_CAPTURE_TOOLS.followers)).map((user) => user.id),
+    );
+    const mutual = following.filter(
+      (user) =>
+        followerIds.has(user.id) &&
+        user.name &&
+        normalizePersonName(user.name).includes(" "),
+    );
+    if (mutual.length === 0) return;
+    const { workspaceId } = context.actor;
+    const linked = new Set(
+      (
+        await prisma.contactChannel.findMany({
+          where: {
+            workspaceId,
+            type: "X",
+            value: { in: mutual.map((user) => user.username.toLowerCase()) },
+          },
+          select: { value: true },
+        })
+      ).map((channel) => channel.value),
+    );
+    const open = mutual.filter(
+      (user) => !linked.has(user.username.toLowerCase()),
+    );
+    const contacts = await prisma.contact.findMany({
+      where: {
+        workspaceId,
+        kind: "PERSON",
+        archivedAt: null,
+        mergedIntoId: null,
+        name: {
+          in: open.flatMap((user) => user.name ?? []),
+          mode: "insensitive",
+        },
+        channels: { none: { type: "X" } },
+      },
+      select: { id: true, name: true },
+    });
+    const byName = new Map<string, string[]>();
+    for (const contact of contacts) {
+      const key = normalizePersonName(contact.name);
+      byName.set(key, [...(byName.get(key) ?? []), contact.id]);
+    }
+    for (const user of open) {
+      const ids = byName.get(normalizePersonName(user.name ?? ""));
+      // Two contacts with that name: no telling which one it is.
+      const contactId = ids?.length === 1 ? ids[0] : undefined;
+      if (!contactId || context.budget.captures <= 0) continue;
+      context.budget.captures -= 1;
+      try {
+        await inContactTransaction((tx) =>
+          addContactChannel(tx, context.actor, contactId, {
+            type: "X",
+            value: user.username,
+            source: "X",
+            sourceUrl: `https://x.com/${user.username}`,
+          }),
+        );
+        context.stats.updated += 1;
+      } catch (error) {
+        if (!isConflict(error)) throw error;
+      }
+    }
   }
 }
 

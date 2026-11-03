@@ -7,13 +7,18 @@ const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const getContactLists = vi.fn();
 const postContactLists = vi.fn();
 const postContactListsByIdImport = vi.fn();
+const startCmoOver = vi.fn();
 const revalidatePath = vi.fn();
+const redirect = vi.fn((to: string) => {
+  throw new Error(`redirect ${to}`);
+});
 const cookieJar = new Map<string, string>();
 const setCookie = vi.fn((name: string, value: string) => {
   cookieJar.set(name, value);
 });
 
 vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("next/navigation", () => ({ redirect }));
 
 vi.mock("next/headers", () => ({
   headers: async () =>
@@ -40,6 +45,7 @@ vi.mock("@sokosumi/core-client", () => ({
   getContactLists,
   postContactLists,
   postContactListsByIdImport,
+  startCmoOver,
 }));
 
 const {
@@ -49,6 +55,7 @@ const {
   finishAccounts,
   loadOverview,
   onboard,
+  startOver,
 } = await import("./cmo-actions");
 
 const EMPTY = { attempt: 0, websiteUrl: "", errors: {} };
@@ -253,5 +260,23 @@ describe("skipped hiring steps", () => {
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("start over", () => {
+  it("opens the hiring form once Cuso is archived", async () => {
+    startCmoOver.mockResolvedValue({ data: { data: { startedOver: true } } });
+    await expect(startOver()).rejects.toThrow("redirect /");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
+
+  it("says why when Core refuses", async () => {
+    startCmoOver.mockResolvedValue({
+      error: { message: "Only an organization owner or admin can archive" },
+    });
+    expect(await startOver()).toBe(
+      "Only an organization owner or admin can archive",
+    );
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

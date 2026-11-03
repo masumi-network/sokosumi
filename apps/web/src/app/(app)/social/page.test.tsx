@@ -1,15 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { type ReactNode, Suspense, use } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  hasSocialBetaAccessMock,
   loadWorkspaceCalendarPageMock,
   notFoundMock,
   projectServiceMock,
   sokoBotGetMineMock,
 } = vi.hoisted(() => ({
   sokoBotGetMineMock: vi.fn(),
-  hasSocialBetaAccessMock: vi.fn(),
   loadWorkspaceCalendarPageMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -19,6 +18,7 @@ const {
     getSocialPost: vi.fn(),
     listSocialConnections: vi.fn(),
     listSocialPosts: vi.fn(),
+    listSocialQueueSlots: vi.fn(),
   },
 }));
 
@@ -34,6 +34,7 @@ vi.mock("next/server", () => ({ connection: async () => undefined }));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
+  useSearchParams: () => new URLSearchParams("tab=accounts"),
   unstable_rethrow: (error: unknown) => {
     if (
       error instanceof Error &&
@@ -52,10 +53,6 @@ vi.mock("next-intl/server", () => ({
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
-}));
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
 
 vi.mock("@/app/calendar/load-calendar-page", () => ({
@@ -130,6 +127,21 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
       data-connections={props.connections.length}
       data-project={props.projectId}
       data-connect-disabled={String(Boolean(props.connectDisabled))}
+    />
+  ),
+}));
+
+vi.mock("@/app/projects/components/project-posting-instructions", () => ({
+  ProjectPostingInstructions: (props: {
+    projectId: string;
+    postingInstructionsMd: string | null;
+    disabled?: boolean;
+  }) => (
+    <div
+      data-testid="posting-instructions"
+      data-project={props.projectId}
+      data-value={props.postingInstructionsMd ?? ""}
+      data-disabled={String(Boolean(props.disabled))}
     />
   ),
 }));
@@ -229,15 +241,62 @@ async function visit(
   render(await SocialPage({ searchParams: Promise.resolve(searchParams) }));
 }
 
+function StreamedPage({ page }: { page: Promise<ReactNode> }) {
+  return use(page);
+}
+
 describe("SocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockRejectedValue(new Error("Beta lookup failed"));
     projectServiceMock.listSocialPosts.mockResolvedValue(page());
     projectServiceMock.listSocialConnections.mockResolvedValue([]);
+    projectServiceMock.listSocialQueueSlots.mockResolvedValue({
+      timezone: null,
+      slots: [],
+    });
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
     sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
   });
+
+  it.each([
+    { connections: [] },
+    { connections: [{ id: "conn-x", status: "active", provider: "x" }] },
+  ])(
+    "keeps the accounts skeleton until the accounts request resolves ($connections)",
+    async ({ connections }) => {
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+      const request = Promise.withResolvers<typeof connections>();
+      projectServiceMock.listSocialConnections.mockReturnValue(request.promise);
+      const { default: SocialPage } = await import("./page");
+      const { default: SocialLoading } = await import("./loading");
+      const page = SocialPage({
+        searchParams: Promise.resolve({
+          projectId: PROJECT.id,
+          tab: "accounts",
+        }),
+      });
+      const fallback = await SocialLoading();
+      await act(async () => {
+        render(
+          <Suspense fallback={fallback}>
+            <StreamedPage page={page} />
+          </Suspense>,
+        );
+      });
+
+      expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+      expect(screen.queryByTestId("social-accounts")).not.toBeInTheDocument();
+      await act(async () => {
+        request.resolve(connections);
+        await page;
+      });
+      expect(await screen.findByTestId("social-accounts")).toHaveAttribute(
+        "data-connections",
+        String(connections.length),
+      );
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    },
+  );
 
   it("offers every active connection to the post composer", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
@@ -279,9 +338,8 @@ describe("SocialPage", () => {
   });
 
   it.each([undefined, PROJECT.id])(
-    "shows Social outside the beta for project %s",
+    "shows Social for project %s",
     async (projectId) => {
-      hasSocialBetaAccessMock.mockResolvedValue(false);
       projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
       await visit({ projectId });
@@ -296,7 +354,6 @@ describe("SocialPage", () => {
         ),
       ).toBeInTheDocument();
       expect(notFoundMock).not.toHaveBeenCalled();
-      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
       if (projectId) {
         expect(projectServiceMock.getProjectById).toHaveBeenCalledWith(
           projectId,
@@ -347,6 +404,47 @@ describe("SocialPage", () => {
       "",
     );
   });
+
+  it.each([undefined, PROJECT.id])(
+    "ignores hidden task-calendar filters for Social project %s",
+    async (projectId) => {
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+      projectServiceMock.getSocialPost.mockResolvedValue(null);
+
+      await visit({
+        projectId,
+        assigneeId: "coworker-1",
+        assigneeUserId: "user-1",
+        status: "READY",
+        sourceId: "workspace:workspace-1",
+        date: "2026-11-03",
+        view: "month",
+        timezone: "Europe/Prague",
+        scope: "owned",
+        postStatus: "SCHEDULED",
+        provider: "linkedin",
+        postId: "post-deep",
+        tab: "calendar",
+      });
+
+      const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+      await expect(searchParams).resolves.toEqual({
+        projectId,
+        assigneeId: undefined,
+        assigneeUserId: undefined,
+        status: undefined,
+        sourceId: undefined,
+        date: "2026-11-03",
+        view: "month",
+        timezone: "Europe/Prague",
+        scope: "owned",
+        postStatus: "SCHEDULED",
+        provider: "linkedin",
+        postId: "post-deep",
+        tab: "calendar",
+      });
+    },
+  );
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
     await visit({ projectId: " " });
@@ -431,6 +529,15 @@ describe("SocialPage", () => {
       "data-connect-disabled",
       "false",
     );
+    // Posting instructions sit beside the accounts on the Accounts tab.
+    expect(screen.getByTestId("posting-instructions")).toHaveAttribute(
+      "data-project",
+      "project-1",
+    );
+    expect(screen.getByTestId("posting-instructions")).toHaveAttribute(
+      "data-disabled",
+      "false",
+    );
     // Scheduled posts also supply the affected-post count for reconnection.
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(3);
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledWith(
@@ -510,6 +617,29 @@ describe("SocialPage", () => {
     expect(screen.getByTestId("social-posts")).toHaveAttribute(
       "data-accounts-failed",
       "true",
+    );
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
+  });
+
+  it("keeps Social up when queue times fail to load", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialQueueSlots.mockRejectedValue(
+      new Error("core down"),
+    );
+    projectServiceMock.listSocialConnections.mockResolvedValue([
+      { id: "conn-x", status: "active", provider: "x" },
+    ]);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "true",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-connections",
+      "conn-x",
     );
     expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();

@@ -10367,6 +10367,12 @@
                           "description": "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
                           "example": true
                         },
+                        "tagDirectMessages": {
+                          "type": "boolean",
+                          "default": false,
+                          "description": "Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.",
+                          "example": false
+                        },
                         "notificationPreferences": {
                           "type": "array",
                           "items": {
@@ -10702,6 +10708,11 @@
                     "description": "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
                     "example": true
                   },
+                  "tagDirectMessages": {
+                    "type": "boolean",
+                    "description": "Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.",
+                    "example": false
+                  },
                   "notificationPreferences": {
                     "type": "array",
                     "items": {
@@ -10769,6 +10780,12 @@
                           "type": "boolean",
                           "description": "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
                           "example": true
+                        },
+                        "tagDirectMessages": {
+                          "type": "boolean",
+                          "default": false,
+                          "description": "Whether Jev may read this person's person-to-person Directs to sort and highlight them (chat signals). Off by default; a Direct is read only when every human in it turned this on. Channels are always read.",
+                          "example": false
                         },
                         "notificationPreferences": {
                           "type": "array",
@@ -24371,7 +24388,7 @@
     },
     "/chats/rooms/starred": {
       "put": {
-        "description": "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
+        "description": "Set the order of the current user's starred chat rooms, one order across every workspace (ADR-0062). The listed rooms take the places those same rooms already hold in that order, and every other pin keeps its place, so a client listing every pin sets the whole order and one listing a single workspace's pins rearranges only those. Rewrites `starredAt`, the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room.",
         "tags": [
           "Chat Rooms"
         ],
@@ -25992,7 +26009,7 @@
     },
     "/chats/rooms/{id}/members": {
       "post": {
-        "description": "Add organization members, Coworkers and the caller's own Soko Bots to a Channel. Any host member (`access=member`) may add; Guests may not. Only a Soko Bot's owner may add it. Members already in the Channel are left as they are. Matched channels are managed by Sokosumi.",
+        "description": "Add organization members, Coworkers and Soko Bots to a Channel. Any host member (`access=member`) may add; Guests may not. Only its owner may add a personal Soko Bot. Any member may add a shared Soko Bot, as with a Coworker. Members already in the Channel are left as they are. Matched channels are managed by Sokosumi.",
         "tags": [
           "Chat Rooms"
         ],
@@ -27372,6 +27389,8 @@
                         "name": "Acme",
                         "organizationId": "org_123",
                         "slug": "acme-x1y2z3",
+                        "role": "owner",
+                        "memberCount": 14,
                         "logo": null,
                         "websiteUrl": "https://acme.com",
                         "preferred": true
@@ -27773,6 +27792,8 @@
                     "name": "Acme",
                     "organizationId": "org_123",
                     "slug": "acme-x1y2z3",
+                    "role": "owner",
+                    "memberCount": 14,
                     "logo": null,
                     "websiteUrl": "https://acme.com",
                     "preferred": true
@@ -29345,7 +29366,7 @@
     },
     "/projects/{id}/image-studio/assets/{assetId}/content": {
       "get": {
-        "description": "Stream one image version's bytes. Authorized per request; the stored object has no publicly readable URL.",
+        "description": "Stream one image or video version's bytes, honouring a Range header. Authorized per request; the stored object has no publicly readable URL.",
         "tags": [
           "Projects"
         ],
@@ -29376,9 +29397,26 @@
         ],
         "responses": {
           "200": {
-            "description": "Image bytes",
+            "description": "Image or video bytes",
             "content": {
               "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "video/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "The requested byte range of a video",
+            "content": {
+              "video/*": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -30260,6 +30298,22 @@
             "description": "Host organization display name. Required for guest rows in list; may be null for personal directs.",
             "example": "Acme Corp"
           },
+          "organizationLogo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Host organization logo, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+            "example": "https://example.com/acme.png"
+          },
+          "organizationWebsiteUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Host organization website, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+            "example": "https://acme.com"
+          },
           "name": {
             "type": "string",
             "example": "Launch Room"
@@ -30425,6 +30479,13 @@
             "type": "integer",
             "minimum": 0,
             "description": "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
+            "example": 1
+          },
+          "unreadNeedsYouCount": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.",
             "example": 1
           },
           "starredAt": {
@@ -30740,6 +30801,17 @@
             },
             "maxItems": 3,
             "description": "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers."
+          },
+          "signal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMessageSignal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in."
           }
         },
         "required": [
@@ -30930,7 +31002,42 @@
             "example": "Can you summarize this launch risk?"
           },
           "attachment": {
-            "$ref": "#/components/schemas/ChatRoomMessageQuoteAttachment"
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "fileName": {
+                "type": "string",
+                "example": "launch.png"
+              },
+              "url": {
+                "type": "string",
+                "example": "https://blob.example/launch.png"
+              },
+              "mediaKind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "file"
+                ],
+                "example": "image"
+              }
+            },
+            "required": [
+              "fileName",
+              "url",
+              "mediaKind"
+            ],
+            "deprecated": true,
+            "description": "One attachment for shipped Mac builds: the first image, else the first file. Use `attachments`."
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatRoomMessageQuoteAttachment"
+            },
+            "description": "Every file and image linked in the quoted message, in body order. Absent on an older quote that had none."
           },
           "roomId": {
             "type": "string",
@@ -30946,10 +31053,7 @@
         ]
       },
       "ChatRoomMessageQuoteAttachment": {
-        "type": [
-          "object",
-          "null"
-        ],
+        "type": "object",
         "properties": {
           "fileName": {
             "type": "string",
@@ -31189,6 +31293,30 @@
             ],
             "example": "orb:user_123"
           },
+          "avatarStyleId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The style of the bot's claimed avatar, null when it has none. Always sent; optional so clients written before it compile.",
+            "example": "crafted-desk"
+          },
+          "idleLoopUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The bot's Idle loop (silent MP4), played on its face while its hover card is open. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.",
+            "example": "https://example.com/idle-480.mp4"
+          },
+          "workingLoopUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The bot's Working loop (silent MP4), played on its face while a reply is in progress. Null for a mascot or before the loop is rendered. Always sent; optional so clients written before it compile.",
+            "example": "https://example.com/working-480.mp4"
+          },
           "ownerUserId": {
             "type": [
               "string",
@@ -31199,6 +31327,15 @@
           },
           "scope": {
             "$ref": "#/components/schemas/ChatRoomSokoBotScope"
+          },
+          "sharedRoomId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The shared Soko Bot's own room. The bot stays in it and nobody can remove it there. Null for a personal Soko Bot, or before the room exists.",
+            "example": "01960001-0001-7001-8001-0000000000ab"
           },
           "presence": {
             "$ref": "#/components/schemas/ChatRoomPresence"
@@ -31212,6 +31349,7 @@
           "avatarSeed",
           "ownerUserId",
           "scope",
+          "sharedRoomId",
           "presence"
         ]
       },
@@ -32087,6 +32225,17 @@
                 },
                 "maxItems": 3,
                 "description": "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers."
+              },
+              "signal": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ChatMessageSignal"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in."
               }
             },
             "required": [
@@ -32825,6 +32974,19 @@
                   "null"
                 ]
               },
+              "avatarState": {
+                "$ref": "#/components/schemas/SokoBotAvatarState"
+              },
+              "avatar": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarView"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "versionId": {
                 "type": [
                   "string",
@@ -32832,6 +32994,9 @@
                 ]
               },
               "followWholeBoard": {
+                "type": "boolean"
+              },
+              "mailAutoRead": {
                 "type": "boolean"
               },
               "ingestTimezone": {
@@ -34084,6 +34249,34 @@
             "description": "Organization website from its metadata, or null for none and for a personal workspace",
             "example": "https://acme.com"
           },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "example": "member",
+            "description": "The person's role in the organization, or null for a personal workspace or a role this API does not know"
+          },
+          "memberCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "description": "How many people are members of the organization, or null for a personal workspace",
+            "example": 14
+          },
+          "enabledSocialProviders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectSocialProvider"
+            },
+            "description": "Social providers enabled for projects owned by this workspace"
+          },
           "preferred": {
             "type": "boolean",
             "description": "Whether a new session opens this workspace",
@@ -34098,6 +34291,9 @@
           "slug",
           "logo",
           "websiteUrl",
+          "role",
+          "memberCount",
+          "enabledSocialProviders",
           "preferred"
         ]
       },
@@ -34215,7 +34411,8 @@
               "job",
               "file",
               "decision",
-              "project_selection"
+              "project_selection",
+              "cmo_report"
             ]
           },
           "title": {
@@ -34298,6 +34495,28 @@
             ],
             "maxLength": 4000,
             "default": null
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ]
+            },
+            "maxItems": 8,
+            "default": []
           },
           "outputs": {
             "type": "array",
@@ -34429,6 +34648,14 @@
                     ],
                     "maxLength": 200,
                     "default": null
+                  },
+                  "avatarStyleId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 200,
+                    "default": null
                   }
                 },
                 "required": [
@@ -34471,6 +34698,14 @@
                       "maxLength": 200
                     },
                     "avatarSeed": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 200,
+                      "default": null
+                    },
+                    "avatarStyleId": {
                       "type": [
                         "string",
                         "null"
@@ -34614,6 +34849,14 @@
                 "maxLength": 200
               },
               "avatarSeed": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 200,
+                "default": null
+              },
+              "avatarStyleId": {
                 "type": [
                   "string",
                   "null"
@@ -34949,7 +35192,14 @@
           "marketing",
           "social",
           "seo",
-          "operations"
+          "operations",
+          "presentations",
+          "dashboards",
+          "monitoring",
+          "media",
+          "communication",
+          "finance",
+          "qa"
         ]
       },
       "ChatResultUnavailable": {
@@ -35034,6 +35284,19 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "avatarState": {
+            "$ref": "#/components/schemas/SokoBotAvatarState"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SokoBotAvatarView"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "status": {
@@ -35148,6 +35411,285 @@
           "email",
           "image"
         ]
+      },
+      "ChatMessageSignal": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatSignalTag"
+            },
+            "description": "Tags that apply: Jev's probability at or above the threshold, with readers' corrections on top. A guide for sorting and highlighting; it never hides a message."
+          },
+          "probabilities": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "needsDecision": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "commitment": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "blocker": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "decisionMade": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "announcement": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "fyi": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "urgent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "chitChat": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "workRequest": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "escalation": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "description": "Jev's probability per tag, as it answered."
+          },
+          "addressedUserIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to."
+          },
+          "commitmentDueAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z",
+            "description": "When a commitment said it would be done (end of that UTC day). Null without a commitment or a date."
+          },
+          "loopClosedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z",
+            "description": "When a reader closed this open loop, by making a Task of it or dismissing it."
+          },
+          "loopTaskId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "correctedTags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatSignalTag"
+            },
+            "description": "Tags a reader corrected by hand."
+          }
+        },
+        "required": [
+          "tags",
+          "probabilities",
+          "addressedUserIds",
+          "commitmentDueAt",
+          "loopClosedAt",
+          "loopTaskId",
+          "correctedTags"
+        ]
+      },
+      "ChatSignalTag": {
+        "type": "string",
+        "enum": [
+          "question",
+          "needsDecision",
+          "commitment",
+          "blocker",
+          "decisionMade",
+          "announcement",
+          "fyi",
+          "urgent",
+          "chitChat",
+          "workRequest",
+          "escalation"
+        ],
+        "description": "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only)."
+      },
+      "SokoBotAvatarState": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "thinking",
+          "working",
+          "done",
+          "needs_you",
+          "offline"
+        ]
+      },
+      "SokoBotAvatarView": {
+        "type": "object",
+        "properties": {
+          "styleId": {
+            "type": "string"
+          },
+          "styleVersion": {
+            "type": "integer"
+          },
+          "stillUrl": {
+            "type": "string"
+          },
+          "states": {
+            "type": "object",
+            "properties": {
+              "idle": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarStateAssets"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "thinking": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarStateAssets"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "working": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarStateAssets"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "done": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarStateAssets"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "needs_you": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarStateAssets"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "offline": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SokoBotAvatarStateAssets"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "idle",
+              "thinking",
+              "working",
+              "done",
+              "needs_you",
+              "offline"
+            ]
+          }
+        },
+        "required": [
+          "styleId",
+          "styleVersion",
+          "stillUrl",
+          "states"
+        ]
+      },
+      "SokoBotAvatarStateAssets": {
+        "type": "object",
+        "properties": {
+          "stillUrl": {
+            "type": "string"
+          },
+          "loopUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loopLargeUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "stillUrl",
+          "loopUrl",
+          "loopLargeUrl"
+        ]
+      },
+      "ProjectSocialProvider": {
+        "type": "string",
+        "enum": [
+          "x",
+          "tiktok",
+          "instagram",
+          "linkedin",
+          "facebook",
+          "youtube"
+        ],
+        "example": "x"
       }
     }
   }

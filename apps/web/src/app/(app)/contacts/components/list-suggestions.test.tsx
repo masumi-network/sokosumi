@@ -82,7 +82,7 @@ describe("ListSuggestions", () => {
     service.suggestions.mockResolvedValue([]);
     service.findPeople.mockResolvedValue({
       found: 1,
-      credits: 10,
+      credits: 0.5,
       suggestions: [mara],
     });
     const user = userEvent.setup();
@@ -96,7 +96,9 @@ describe("ListSuggestions", () => {
     );
     await user.click(screen.getByRole("radio", { name: "25 people" }));
     await user.click(
-      screen.getByRole("button", { name: "Find 25 people · 10 credits" }),
+      screen.getByRole("button", {
+        name: "Find 25 people · up to 12.5 credits",
+      }),
     );
 
     expect(service.findPeople).toHaveBeenCalledWith("list-1", {
@@ -104,5 +106,33 @@ describe("ListSuggestions", () => {
       size: 25,
     });
     expect(await screen.findByText("Mara Lind")).toBeTruthy();
+  });
+
+  it("looks for one particular person without touching the list's description", async () => {
+    service.suggestions.mockResolvedValue([]);
+    service.findPeople.mockResolvedValue({
+      found: 1,
+      credits: 0.5,
+      suggestions: [mara],
+    });
+    const user = userEvent.setup();
+    renderSuggestions();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Find people" }),
+    );
+    await user.click(screen.getByRole("radio", { name: "1 person" }));
+    await user.type(
+      screen.getByLabelText("Who are you looking for?"),
+      "Mara Lind, Northwind",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Find 1 person · up to 0.5 credits" }),
+    );
+
+    expect(service.findPeople).toHaveBeenCalledWith("list-1", {
+      brief: "Mara Lind, Northwind",
+      size: 1,
+    });
   });
 });

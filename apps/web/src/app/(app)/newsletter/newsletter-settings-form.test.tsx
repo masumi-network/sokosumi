@@ -74,6 +74,25 @@ beforeEach(() => {
 });
 
 describe("NewsletterSettingsForm", () => {
+  it("preserves signup overrides when shared settings are saved", async () => {
+    const signupForm = {
+      accentColor: "#123456",
+      buttonShape: "pill" as const,
+      spacing: "compact" as const,
+    };
+    renderForm({ ...NEWSLETTER, brand: { ...NEWSLETTER.brand, signupForm } });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({
+          signupForm: expect.objectContaining(signupForm),
+        }),
+      }),
+    );
+  });
+
   it("prefills the project name and logo and validates before saving", async () => {
     const user = userEvent.setup();
     renderForm();
@@ -104,7 +123,7 @@ describe("NewsletterSettingsForm", () => {
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
-  it("loads all saved fields and displays the signup card", () => {
+  it("loads all saved fields without signup controls", () => {
     renderForm(NEWSLETTER);
     for (const [label, value] of [
       ["Newsletter name", NEWSLETTER.name],
@@ -127,11 +146,11 @@ describe("NewsletterSettingsForm", () => {
       screen.getByRole("switch", { name: "Send a welcome email" }),
     ).toBeChecked();
     expect(
-      screen.getByRole("heading", { name: "Signup form" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Signup form" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Public archive" }),
-    ).toHaveAttribute("href", `/n/${NEWSLETTER.publicSlug}/archive`);
+      screen.queryByRole("link", { name: "Public archive" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: NEWSLETTER.publicSlug }),
     ).not.toBeInTheDocument();
@@ -207,7 +226,7 @@ describe("NewsletterSettingsForm", () => {
     expect(preview).not.toHaveTextContent(NEWSLETTER.welcomeSubject ?? "");
   });
 
-  it("saves welcome content, shows a toast, and displays the new public address", async () => {
+  it("saves welcome content, shows a toast, and finishes setup", async () => {
     const user = userEvent.setup();
     renderForm();
     await user.type(
@@ -251,8 +270,11 @@ describe("NewsletterSettingsForm", () => {
     expect(mocks.success).toHaveBeenCalledWith("Newsletter settings saved");
     expect(mocks.refresh).toHaveBeenCalled();
     expect(
-      screen.getByRole("heading", { name: "Signup form" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Set up your newsletter" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Signup form" }),
+    ).not.toBeInTheDocument();
   });
 
   it("preserves welcome text when the welcome email is toggled off and on", async () => {

@@ -24,7 +24,7 @@
 
 [CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live end-to-end acceptance must tie the delivered Task to the intended seller's payment.
 
-[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `c2271e441`] The source manifest declares `@masumi_network/sokosumi` version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. Earlier private-package and undecided-package statements are stale. [OPEN] This review did not check npm's current release or perform a fresh registry installation.
+[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `da193024e`] The source manifest declares `@masumi_network/sokosumi` version `1.1.0`, public access, Node.js 26.x, and `dist` plus `skills`. Earlier private-package and undecided-package statements are stale. [OPEN] This review did not check npm's current release or perform a fresh registry installation.
 
 ## Feature PR delivery, 2026-09-27
 

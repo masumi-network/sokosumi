@@ -40,7 +40,7 @@ So the minimal change resolves the Task claim's purchase on demand through the s
 
 [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:71`, `apps/cli/src/cli/commands/runtime.ts:258-276`] Core reuses the existing payment client. The CLI calls Core for the receipt.
 
-[VERIFIED: `apps/cli/package.json:2-18,30-36`, at `c2271e441`] The source manifest declares version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. It has no Masumi package dependency. [OPEN] This review did not check npm's current release or a fresh registry installation.
+[VERIFIED: `apps/cli/package.json:2-18,30-36`, at `da193024e`] The source manifest declares version `1.1.0`, public access, Node.js 26.x, and `dist` plus `skills`. It has no Masumi package dependency. [OPEN] This review did not check npm's current release or a fresh registry installation.
 
 ## Acceptance criteria (SOK-1132)
 

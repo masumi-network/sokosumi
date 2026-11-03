@@ -46,6 +46,11 @@ describe("activeProjectTabId", () => {
         label: "Issues",
       },
       {
+        id: "signup-form",
+        href: "/newsletter/signup-form?projectId=p1",
+        label: "Signup form",
+      },
+      {
         id: "settings",
         href: "/newsletter/settings?projectId=p1",
         label: "Settings",
@@ -53,6 +58,9 @@ describe("activeProjectTabId", () => {
     ];
     expect(activeProjectTabId("/newsletter/settings", tabs)).toBe("settings");
     expect(activeProjectTabId("/newsletter/issues/i1", tabs)).toBe("issues");
+    expect(activeProjectTabId("/newsletter/signup-form", tabs)).toBe(
+      "signup-form",
+    );
     expect(activeProjectTabId("/newsletter/subscribers", tabs)).toBeNull();
   });
 });

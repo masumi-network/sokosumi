@@ -62,7 +62,9 @@ export function StrategyStep({
   const [open, setOpen] = useState<Entry | null>(null);
   const [note, setNote] = useState("");
   const [asked, setAsked] = useState<string | null>(null);
-  const [changing, startChanging] = useTransition();
+  // The change on its way to Cuso, in a few words.
+  const [sending, setSending] = useState<string | null>(null);
+  const changing = sending !== null;
   const [approving, startApproving] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -73,6 +75,8 @@ export function StrategyStep({
   const stopped =
     work?.kind === "strategy" && work.status === "failed" && asked !== null;
   const busy = writing || changing;
+  // From the tap until the new plan lands, the old one is not shown as if it held.
+  const replanning = sending ?? (writing && asked ? asked : null);
   const changes = strategy.changes ?? [];
   const goal = lowerFirst(outcomeLine(strategy)) || "your goal";
   const checks = (strategy.questions ?? []).filter(
@@ -82,17 +86,29 @@ export function StrategyStep({
     (question) => question.answer === "no",
   );
 
+  // Plain async, not a transition: React holds a transition's state updates
+  // until it ends, and the re-planning screen must show on the tap. A refusal
+  // throws so the control that asked can stay open.
+  async function send(label: string, run: () => Promise<string | null>) {
+    setSending(label);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const refused = await run();
+      setRefusal(refused);
+      if (refused) throw new Error(refused);
+      setAsked(label);
+    } finally {
+      setSending(null);
+    }
+  }
+
   function requestChange(text: string) {
     const request = text.trim();
     if (!request) return;
-    startChanging(async () => {
-      const refused = await onChange(request);
-      setRefusal(refused);
-      if (!refused) {
-        setAsked(request);
-        setNote("");
-      }
-    });
+    send(request, () => onChange(request)).then(
+      () => setNote(""),
+      () => {},
+    );
   }
 
   return (
@@ -185,6 +201,16 @@ export function StrategyStep({
         </p>
       ) : null}
 
+      {replanning ? (
+        <div className="ob-replanning" role="status">
+          <Loader2 size={20} className="ob-spin" aria-hidden="true" />
+          <p className="ob-replanning-title">Cuso is re-planning your month</p>
+          <p className="ob-note">
+            {replanning}. About two minutes; your new plan opens here.
+          </p>
+        </div>
+      ) : null}
+
       {changes.length > 0 && !writing ? (
         <motion.div
           className="ob-changed"
@@ -205,18 +231,13 @@ export function StrategyStep({
       <StrategyReveal
         overview={overview}
         intro={!ahead}
-        onAsk={async (text) => {
-          const refused = await onChange(text);
-          setRefusal(refused);
-          if (refused) throw new Error(refused);
-          setAsked(text);
-        }}
-        onSetAds={async (monthly, currency) => {
-          const refused = await onSetAds(monthly, currency);
-          setRefusal(refused);
-          if (refused) throw new Error(refused);
-          setAsked(`Ad budget: ${currency} ${monthly} a month`);
-        }}
+        hidden={replanning !== null}
+        onAsk={(text, label) => send(label ?? text, () => onChange(text))}
+        onSetAds={(monthly, currency) =>
+          send(`Ad budget: ${currency} ${monthly} a month`, () =>
+            onSetAds(monthly, currency),
+          )
+        }
         calendar={
           <div className="ob-weeks">
             <div className="ob-weekdays" aria-hidden="true">

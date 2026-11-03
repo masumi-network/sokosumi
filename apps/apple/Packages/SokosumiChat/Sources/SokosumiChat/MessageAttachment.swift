@@ -9,6 +9,8 @@ enum MessageAttachmentKindAttribute: AttributedStringKey {
 public struct MessageAttachment: Hashable, Sendable {
   public enum Kind: Hashable, Sendable { case image, audio, video, file }
   public enum DocumentPreviewKind: Sendable { case pdf, text, office }
+  /// What a click on a composer quote's tile opens, like web's `FileChipMiniPreview`.
+  public enum Opening: Sendable { case imageViewer, documentViewer, link }
   public let url: URL
   public let filename: String
   public let kind: Kind
@@ -27,6 +29,14 @@ public struct MessageAttachment: Hashable, Sendable {
     case "doc", "docx", "ppt", "pptx", "xls", "xlsx": .office
     default: nil
     }
+  }
+
+  /// Web has no viewer for an archive, a video or a sound, so its compact tile is a link.
+  public var opening: Opening {
+    if kind == .image {
+      return .imageViewer
+    }
+    return documentPreviewKind == nil ? .link : .documentViewer
   }
 
   public init?(url: URL, label: String, kindHint: Kind? = nil) {

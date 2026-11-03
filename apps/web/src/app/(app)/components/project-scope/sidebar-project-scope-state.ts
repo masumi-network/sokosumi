@@ -103,11 +103,20 @@ let createOpener: HTMLElement | null = null;
 /** The request Create project took over from the selector, if any. */
 let createRequest: ProjectScopeRequest | null = null;
 
-/** Opens the chip's Create project dialog from the selector. */
+/**
+ * Opens the chip's Create project dialog from the selector.
+ * Transfers its request before closing the selector so direct page prompts
+ * use the same handoff without leaving a menu or sheet behind.
+ */
 export function openScopeCreate(opener: HTMLElement | null = null) {
   createOpener = opener;
   createRequest = state.request;
-  update({ createOpen: true, request: null });
+  update({
+    createOpen: true,
+    menuOpen: false,
+    sheetOpen: false,
+    request: null,
+  });
 }
 
 /** Create project closed. Without a project made, its request is dismissed. */

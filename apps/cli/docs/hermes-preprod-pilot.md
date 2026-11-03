@@ -35,7 +35,7 @@
 
 ## Build and inspect
 
-[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `c2271e441`] The source manifest declares version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. [OPEN] This review did not check npm's current release or a fresh registry installation. Run these commands with Node.js 24 from the repository root. They build local CLI output and show its help.
+[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `da193024e`] The source manifest declares version `1.1.0`, public access, Node.js 26.x, and `dist` plus `skills`. [OPEN] This review did not check npm's current release or a fresh registry installation. Run these commands with Node.js 26.x from the repository root. They build local CLI output and show its help.
 
 ```sh
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w

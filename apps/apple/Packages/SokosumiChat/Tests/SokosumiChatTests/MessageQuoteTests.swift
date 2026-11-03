@@ -12,15 +12,73 @@ struct MessageQuoteTests {
     return message
   }
 
-  @Test func previewPrefersImageAndRetainsOtherContent() throws {
+  /// Web's `FileChipMiniPreview`: an image and a document open a viewer, and anything else is a link.
+  @Test(arguments: [
+    ("one.png", Components.Schemas.ChatRoomMessageQuoteAttachment.MediaKindPayload.image, MessageAttachment.Opening.imageViewer),
+    ("no-extension", .image, .imageViewer),
+    ("notes.pdf", .file, .documentViewer),
+    ("notes.md", .file, .documentViewer),
+    ("budget.xlsx", .file, .documentViewer),
+    ("bundle.zip", .file, .link),
+    ("clip.mp4", .file, .link),
+    ("memo.mp3", .file, .link)
+  ])
+  func aQuoteTileOpensWhatWebsDoes(name: String, kind: Components.Schemas.ChatRoomMessageQuoteAttachment.MediaKindPayload, opening: MessageAttachment.Opening) throws {
+    let attachment = Components.Schemas.ChatRoomMessageQuoteAttachment(fileName: name, url: "https://example.com/\(name)", mediaKind: kind)
+    #expect(try #require(attachment.preview).opening == opening)
+  }
+
+  /// A document's name opens its viewer when its URL has no extension.
+  @Test func aQuoteTileReadsItsNameWhenItsURLHasNoExtension() throws {
+    let attachment = Components.Schemas.ChatRoomMessageQuoteAttachment(fileName: "notes.pdf", url: "https://example.com/deliverables/1", mediaKind: .file)
+    #expect(try #require(attachment.preview).opening == .documentViewer)
+  }
+
+  @Test(arguments: ["file:///etc/notes.pdf", "javascript:alert(1)", "notes.pdf"])
+  func aQuoteTileWithNoWebAddressHasNothingToOpen(url: String) {
+    #expect(Components.Schemas.ChatRoomMessageQuoteAttachment(fileName: "notes.pdf", url: url, mediaKind: .file).preview == nil)
+  }
+
+  @Test func previewLiftsEveryFileLinkInBodyOrder() throws {
     let quote = try #require(messageQuote(from: message("**Report**\n\n[report.pdf](https://example.com/report.pdf)\n\n[chart.png](https://example.com/chart.png)")))
     #expect(quote.authorName == "Ada")
-    #expect(quote.attachment?.fileName == "chart.png")
-    #expect(quote.attachment?.mediaKind == .image)
-    #expect(quote.snippet.contains("Report"))
-    #expect(quote.snippet.contains("report.pdf"))
-    #expect(!quote.snippet.contains("chart.png"))
-    #expect(!quote.snippet.contains("**"))
+    #expect(quote.attachments == [
+      .init(fileName: "report.pdf", url: "https://example.com/report.pdf", mediaKind: .file),
+      .init(fileName: "chart.png", url: "https://example.com/chart.png", mediaKind: .image)
+    ])
+    #expect(quote.snippet == "Report")
+  }
+
+  /// `buildRoomQuoteSnippetParts`: a sentence loses its file links, and a file linked twice is one attachment.
+  @Test func previewSnippetHoldsNoFileNameAndAFileLinkedTwiceIsOne() throws {
+    let quote = try #require(messageQuote(from: message(
+      "see [notes.pdf](https://example.com/notes.pdf) and [shot.png](https://example.com/shot.png), again [notes.pdf](https://example.com/notes.pdf)"
+    )))
+    #expect(quote.attachments?.map(\.fileName) == ["notes.pdf", "shot.png"])
+    #expect(quote.snippet == "see and , again")
+  }
+
+  /// `buildRoomQuoteSnippetParts` deletes the link and leaves the lines around it.
+  @Test func previewKeepsTheLinesAroundALiftedLink() throws {
+    let quote = try #require(messageQuote(from: message(
+      "first\n[a.png](https://example.com/a.png)\nsecond\n[b.png](https://example.com/b.png)\nthird"
+    )))
+    #expect(quote.attachments?.map(\.fileName) == ["a.png", "b.png"])
+    #expect(quote.snippet == "first\n\nsecond\n\nthird")
+  }
+
+  @Test func previewKeepsEveryImageOfAnImageOnlyMessage() throws {
+    let names = ["a.png", "b.png", "c.png", "d.png"]
+    let quote = try #require(messageQuote(from: message(names.map { "[\($0)](https://example.com/\($0))" }.joined(separator: "\n\n"))))
+    #expect(quote.attachments?.map(\.fileName) == names)
+    #expect(quote.attachments?.allSatisfy { $0.mediaKind == .image } == true)
+    #expect(quote.snippet.isEmpty)
+  }
+
+  @Test func previewOfPlainTextHasNoAttachmentsAndKeepsAWebLink() throws {
+    let quote = try #require(messageQuote(from: message("read [the docs](https://example.com/docs)")))
+    #expect(quote.attachments?.isEmpty == true)
+    #expect(quote.snippet == "read the docs")
   }
 
   @Test func rejectsDeletedAndLocalRowsButAllowsThreadReplies() {

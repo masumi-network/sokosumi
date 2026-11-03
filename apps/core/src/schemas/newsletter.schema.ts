@@ -7,6 +7,7 @@ import {
 import {
   newsletterContentSchema,
   newsletterDraftInputSchema,
+  newsletterBrandSchema as sharedNewsletterBrandSchema,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -59,6 +60,17 @@ export const patchNewsletterIssueRequestSchema =
       { message: "Provide issue content to update" },
     )
     .openapi("PatchNewsletterIssueRequest");
+
+/** A draft design from the issue studio previews without being saved. */
+export const previewNewsletterIssueRequestSchema =
+  createNewsletterIssueRequestSchema
+    .extend({
+      brand: sharedNewsletterBrandSchema.clone().optional().openapi({
+        description:
+          "Unsaved newsletter design to preview with; the saved brand otherwise.",
+      }),
+    })
+    .openapi("PreviewNewsletterIssueRequest");
 
 export const newsletterIssueRevisionRequestSchema = z
   .object({ revision: z.int().nonnegative() })
@@ -152,6 +164,9 @@ export type CreateNewsletterIssueRequest = z.infer<
 export type PatchNewsletterIssueRequest = z.infer<
   typeof patchNewsletterIssueRequestSchema
 >;
+export type PreviewNewsletterIssueRequest = z.infer<
+  typeof previewNewsletterIssueRequestSchema
+>;
 export type ListNewsletterIssuesQuery = z.infer<
   typeof listNewsletterIssuesQuerySchema
 >;
@@ -162,19 +177,8 @@ export const newsletterEmailSchema = z
   .toLowerCase()
   .pipe(z.email().max(254));
 
-const brandColorSchema = z.string().regex(/^#(?:[\da-f]{3}|[\da-f]{6})$/i);
-
-export const newsletterBrandSchema = z
-  .object({
-    logoUrl: z
-      .url({ protocol: /^https?$/ })
-      .max(2048)
-      .optional(),
-    primaryColor: brandColorSchema.optional(),
-    accentColor: brandColorSchema.optional(),
-    fontFamily: z.string().trim().min(1).max(200).optional(),
-    footerText: z.string().max(5000).optional(),
-  })
+export const newsletterBrandSchema = sharedNewsletterBrandSchema
+  .clone()
   .openapi("NewsletterBrand");
 
 export const putNewsletterRequestSchema = z

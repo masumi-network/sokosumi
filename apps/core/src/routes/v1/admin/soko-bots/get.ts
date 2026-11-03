@@ -43,13 +43,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       take,
       kind: query.kind,
     });
-    const items = fleet.items.map(({ _count, user, ...bot }) => ({
-      ...bot,
-      owner: user,
-      turnCount: _count.turns,
-      pendingDecisionCount: _count.pendingDecisions,
-      scheduleCount: _count.schedules,
-    }));
+    // Project bots (Cuso) have no userId; the member who created them owns them.
+    const items = fleet.items.map(
+      ({ _count, user, createdByUser, ...bot }) => ({
+        ...bot,
+        owner: user ?? (bot.projectId ? createdByUser : null),
+        turnCount: _count.turns,
+        pendingDecisionCount: _count.pendingDecisions,
+        scheduleCount: _count.schedules,
+      }),
+    );
     return ok(
       c,
       adminSokoBotListSchema.parse({

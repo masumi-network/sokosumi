@@ -84,6 +84,8 @@ const classifyWorkspaceId = randomUUID();
 const classifyOrganizationId = randomUUID();
 const guardWorkspaceId = randomUUID();
 const guardOrganizationId = randomUUID();
+const xWorkspaceId = randomUUID();
+const xOrganizationId = randomUUID();
 const OWNER_EMAIL = "patrick@yellowhouse.gmbh";
 const TEAMMATE_EMAIL = "bob@yellowhouse.gmbh";
 
@@ -229,6 +231,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       mergeWorkspaceId,
       classifyWorkspaceId,
       guardWorkspaceId,
+      xWorkspaceId,
     ];
     await prisma.sokoBot.deleteMany({
       where: { workspaceId: { in: workspaces } },
@@ -243,7 +246,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     await prisma.organization.deleteMany({
       where: {
         id: {
-          in: [organizationId, guardOrganizationId, classifyOrganizationId],
+          in: [
+            organizationId,
+            guardOrganizationId,
+            classifyOrganizationId,
+            xOrganizationId,
+          ],
         },
       },
     });
@@ -953,6 +961,154 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         })
       ).enrichedAt,
     ).toBeNull();
+  });
+
+  describe("X", () => {
+    const user = (id: string, name: string, username: string) => ({
+      id,
+      name,
+      username,
+    });
+    const dm = (
+      conversation: string,
+      sender: string,
+      at: string,
+      participants?: string[],
+    ) => ({
+      event_type: "MessageCreate",
+      dm_conversation_id: conversation,
+      sender_id: sender,
+      created_at: at,
+      ...(participants ? { participant_ids: participants } : {}),
+    });
+    const ruth = user("200", "Ruth Weber", "RuthW");
+    const omar = user("400", "Omar Haddad", "omarh");
+    const spammer = user("300", "Crypto Deals", "deals");
+
+    function xTool(_integration: unknown, tool: string) {
+      switch (tool) {
+        case "TWITTER_USER_LOOKUP_ME":
+          return { data: user("100", "Alice Owner", "alice") };
+        case "TWITTER_GET_RECENT_DM_EVENTS":
+          return {
+            data: [
+              dm("100-200", "200", "2026-10-20T16:00:00Z"),
+              dm("100-200", "100", "2026-10-20T09:00:00Z"),
+              dm("g1", "100", "2026-10-19T10:00:00Z", ["100", "200", "400"]),
+              dm("100-300", "300", "2026-10-18T10:00:00Z"),
+              // Before the floor: read, but not captured.
+              dm("100-200", "100", "2026-09-01T10:00:00Z"),
+            ],
+            includes: { users: [ruth, omar, spammer] },
+            meta: { result_count: 5 },
+          };
+        case "TWITTER_FOLLOWING_BY_USER_ID":
+          return {
+            data: [
+              user("500", "Nina Keller", "ninak"),
+              user("600", "Sam Lee", "samlee"),
+              user("700", "Solo", "solo"),
+              user("800", "Followed Only", "followedonly"),
+              ruth,
+            ],
+          };
+        case "TWITTER_FOLLOWERS_BY_USER_ID":
+          return {
+            data: [
+              user("500", "Nina Keller", "ninak"),
+              user("600", "Sam Lee", "samlee"),
+              user("700", "Solo", "solo"),
+              ruth,
+            ],
+          };
+        default:
+          throw new Error(`unexpected tool ${tool}`);
+      }
+    }
+
+    it("captures whom the owner writes with on X, and puts mutual follows on the one contact with that name", async () => {
+      await prisma.organization.create({
+        data: {
+          id: xOrganizationId,
+          name: "Capture X",
+          slug: `capture-x-${xOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: xWorkspaceId, organizationId: xOrganizationId },
+      });
+      const actor: ContactActor = {
+        workspaceId: xWorkspaceId,
+        userId: alice,
+        sokoBotId: null,
+      };
+      await inContactTransaction(async (tx) => {
+        await upsertContact(tx, actor, {
+          name: "Nina Keller",
+          channels: [{ type: "EMAIL", value: "nina@acme.com" }],
+          upsert: false,
+        });
+        for (const email of ["sam@one.com", "sam@two.com"])
+          await upsertContact(tx, actor, {
+            name: "Sam Lee",
+            channels: [{ type: "EMAIL", value: email }],
+            upsert: false,
+          });
+      });
+      await addBot(xWorkspaceId, ["twitter"]);
+      mocks.runIntegrationTool.mockImplementation(async (...args: unknown[]) =>
+        xTool(args[0], args[1] as string),
+      );
+
+      const run = await service().captureWorkspace(xWorkspaceId, () => true);
+      expect(run.capture).toMatchObject({ errors: [], unsupported: [] });
+
+      const contacts = await contactsOf(xWorkspaceId);
+      expect(contacts.map((contact) => contact.name).sort()).toEqual([
+        "Nina Keller",
+        "Omar Haddad",
+        "Ruth Weber",
+        "Sam Lee",
+        "Sam Lee",
+      ]);
+      const ruthContact = contacts.find((c) => c.name === "Ruth Weber");
+      expect(
+        ruthContact?.channels.map(({ type, value, source }) => ({
+          type,
+          value,
+          source,
+        })),
+      ).toEqual([{ type: "X", value: "ruthw", source: "X" }]);
+      expect(
+        ruthContact?.interactions.map(({ channel, direction, summary }) => ({
+          channel,
+          direction,
+          summary,
+        })),
+      ).toEqual([
+        { channel: "X", direction: "OUT", summary: "X group message" },
+        { channel: "X", direction: "BOTH", summary: "X direct message" },
+      ]);
+      const nina = contacts.find((c) => c.name === "Nina Keller");
+      expect(nina?.interactions).toEqual([]);
+      expect(
+        nina?.channels.map(({ type, value, source }) => ({
+          type,
+          value,
+          source,
+        })),
+      ).toEqual([
+        { type: "EMAIL", value: "nina@acme.com", source: "MANUAL" },
+        { type: "X", value: "ninak", source: "X" },
+      ]);
+      for (const sam of contacts.filter((c) => c.name === "Sam Lee"))
+        expect(sam.channels.map((c) => c.type)).toEqual(["EMAIL"]);
+
+      mocks.runIntegrationTool.mockClear();
+      await service().captureWorkspace(xWorkspaceId, () => true);
+      expect(mocks.runIntegrationTool).not.toHaveBeenCalled();
+    });
   });
 
   describe("guards", () => {

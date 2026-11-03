@@ -2449,6 +2449,14 @@
         "save": "Save",
         "cancel": "Cancel"
       },
+      "PostingInstructions": {
+        "title": "Posting instructions",
+        "description": "Tell Soko Bot, Coworkers and agents how to write this project's social posts: tone, hashtags, calls to action, and rules per platform. This only guides social drafts. It is separate from project memory and DESIGN.md.",
+        "placeholder": "# Posting instructions\nTone: …\nAlways / never: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Save instructions",
+        "saved": "Posting instructions saved",
+        "saveFailed": "Could not save posting instructions. Try again."
+      },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
         "account": "{provider} account",
@@ -2667,6 +2675,7 @@
           "rescheduleFor": "Reschedule for {date}",
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
+          "reconnectAccount": "Reconnect to post or schedule. You can still save a draft.",
           "dismiss": "Cancel",
           "discardTitle": "Discard changes?",
           "discardDescription": "Your changes will be lost.",
@@ -2674,7 +2683,9 @@
           "keepEditing": "Keep editing",
           "previewEmpty": "Your post shows here as you write.",
           "pickAccount": "Pick an account to post to.",
-          "tooLong": "Text length is over the limit."
+          "tooLong": "Text length is over the limit.",
+          "addToQueue": "Add to queue",
+          "queueEmptyHint": "Add queue times in accounts."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2705,6 +2716,7 @@
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}",
           "duplicated": "Draft created.",
+          "queued": "{count, plural, one {Added to the queue.} other {# posts added to the queue.}}",
           "approved": "Post approved."
         },
         "needsReconnect": "Account needs reconnecting",
@@ -2973,6 +2985,33 @@
           "later": "Later"
         },
         "moreActions": "Post actions",
+        "queue": {
+          "title": "Posting queue",
+          "hint": "Named weekly times. Add to queue uses the next free one.",
+          "empty": "No queue times yet.",
+          "emptyHint": "Add a weekly time, then use Add to queue on a post.",
+          "add": "Add time",
+          "save": "Save queue",
+          "name": "Name",
+          "weekday": "Day",
+          "time": "Time",
+          "timezone": "Time zone",
+          "remove": "Remove {name}",
+          "toasts": {
+            "saved": "Queue saved.",
+            "empty": "Queue cleared.",
+            "failed": "Could not save queue times. Try again."
+          },
+          "weekdays": {
+            "0": "Sunday",
+            "1": "Monday",
+            "2": "Tuesday",
+            "3": "Wednesday",
+            "4": "Thursday",
+            "5": "Friday",
+            "6": "Saturday"
+          }
+        },
         "thread": {
           "add": "Add to thread",
           "limit": "Threads can have up to {max} parts.",
@@ -3195,7 +3234,6 @@
         "brand": "Brand",
         "welcome": "Welcome email",
         "welcomeDescription": "Send a welcome email after a subscriber confirms their email address.",
-        "colorHint": "Use a hex color, such as #1a2b3c, or leave blank.",
         "save": "Save settings",
         "success": "Newsletter settings saved",
         "error": "Failed to save newsletter settings. Try again.",
@@ -3212,13 +3250,21 @@
           "footerText": "Footer text",
           "welcomeEmailEnabled": "Send a welcome email",
           "welcomeSubject": "Welcome email subject",
-          "welcomeBody": "Welcome email body"
+          "welcomeBody": "Welcome email body",
+          "headerImageUrl": "Header image",
+          "backgroundColor": "Background color",
+          "buttonTextColor": "Button text color",
+          "buttonShape": "Button shape",
+          "headerAlign": "Header alignment",
+          "spacing": "Spacing"
         },
         "fonts": {
           "arial": "Arial",
           "georgia": "Georgia",
           "verdana": "Verdana",
-          "timesNewRoman": "Times New Roman"
+          "timesNewRoman": "Times New Roman",
+          "helvetica": "Helvetica",
+          "trebuchet": "Trebuchet MS"
         },
         "Validation": {
           "required": "Enter a value.",
@@ -3445,7 +3491,11 @@
             "text": "Text",
             "image": "Image",
             "button": "Button",
-            "divider": "Divider"
+            "divider": "Divider",
+            "columns": "Columns",
+            "spacer": "Spacer",
+            "social": "Social links",
+            "footer": "Footer"
           },
           "Validation": {
             "subject": "Enter a subject between 1 and 200 characters.",
@@ -3546,7 +3596,6 @@
             "senderSettings": "Review sender settings",
             "audience": "Current audience",
             "audienceCount": "{count, plural, one {# active subscriber} other {# active subscribers}}",
-            "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
             "manageSubscribers": "Manage subscribers",
             "approval": "Approval",
             "approved": "Approved",
@@ -3567,29 +3616,105 @@
             "sending": "Sending is in progress. Domain warm-up may spread delivery over time. Check back for the outcome."
           },
           "details": "Issue details",
+          "sendPanel": "Send",
+          "SendPanel": {
+            "checklist": "Checklist",
+            "views": "Send panel views"
+          },
           "saving": "Saving issue…",
           "undo": "Undo removal",
           "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",
-          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another."
+          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another.",
+          "duplicateBlock": "Duplicate block {number}",
+          "footerText": "Closing text",
+          "Image": {
+            "width": "Width",
+            "widths": {
+              "100": "Full width",
+              "75": "Three quarters",
+              "50": "Half",
+              "25": "Quarter"
+            },
+            "align": "Alignment",
+            "aligns": {
+              "left": "Left",
+              "center": "Center",
+              "right": "Right"
+            }
+          },
+          "Columns": {
+            "column": "Column {number}",
+            "remove": "Remove column {number}",
+            "add": "Add column"
+          },
+          "Spacer": {
+            "size": "Height",
+            "sizes": {
+              "sm": "Small",
+              "md": "Medium",
+              "lg": "Large"
+            }
+          },
+          "Social": {
+            "network": "Network {number}",
+            "url": "Link {number} URL",
+            "remove": "Remove link {number}",
+            "add": "Add link",
+            "networks": {
+              "website": "Website",
+              "x": "X",
+              "linkedin": "LinkedIn",
+              "instagram": "Instagram",
+              "facebook": "Facebook",
+              "youtube": "YouTube",
+              "tiktok": "TikTok"
+            }
+          },
+          "Studio": {
+            "label": "Studio",
+            "content": "Content",
+            "design": "Design",
+            "designUnsaved": "Unsaved design changes",
+            "saveDesignFirst": "Save or discard the design changes before sending."
+          }
         },
         "publicArchive": "Public archive",
         "SignupForm": {
           "title": "Signup form",
+          "pageDescription": "Grow your newsletter audience with a hosted signup page or an embedded form.",
           "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "previewTitle": "Signup form preview",
+          "previewDescription": "Changes appear here immediately. Save design to update the public page and embed.",
           "hostedPage": "Hosted signup page",
           "open": "Open signup page",
           "embedCode": "Embed code",
-          "embedTitle": "Newsletter signup"
+          "embedTitle": "Newsletter signup",
+          "sharedDesign": "Shared newsletter design",
+          "sharedDescription": "Used by issue emails, the signup page, and embeds. Signup overrides below stay in place.",
+          "customize": "Customize signup form",
+          "customizeDescription": "Optional. Use shared design to match your newsletter. Overrides affect only the signup page and embed.",
+          "useShared": "Use shared design",
+          "resetOverrides": "Reset to shared design",
+          "accentColor": "Button color",
+          "buttonTextColor": "Button label color",
+          "clear": {
+            "accentColor": "Use shared button color",
+            "buttonTextColor": "Use shared button label color"
+          },
+          "previewMode": "Preview format",
+          "previewNote": "Preview only. Subscriptions are disabled."
         },
         "Analytics": {
           "title": "Analytics",
           "description": "Track subscriber growth and newsletter engagement.",
           "keyMetrics": "Newsletter metrics",
-          "from": "From",
-          "to": "To",
+          "rangeLabel": "Date range",
+          "rangeSelected": "Date range: {range}",
           "lastDays": "Last {days} days",
-          "resetRange": "Reset dates",
-          "invalidRange": "Choose valid dates spanning 1 to 366 days, with the start before the end, or reset dates.",
+          "presetDays": "{days} days",
+          "clearRange": "Clear date range",
+          "periodNoteAria": "About analytics dates",
+          "invalidRange": "Choose a valid date range of 1 to 366 days, or clear the date range.",
           "periodNote": "Dates use UTC. Sends and events are counted when they happen, including engagement with older issues. Subscriber totals show the current audience.",
           "ratesNote": "Open and click rates use delivered emails, or sent emails when no deliveries are recorded. Opens and clicks count each subscriber once per period or issue. Delayed events can make period rates exceed 100%.",
           "opensNote": "Opens can be under-counted because some mail apps block images.",
@@ -3630,14 +3755,16 @@
           }
         },
         "generalDescription": "Who the newsletter comes from and where replies go.",
-        "brandDescription": "The logo, colors, and font your issues use.",
+        "brandDescription": "Logo, colors, type, and layout shared by issue emails and signup forms.",
         "welcomeCardDescription": "An optional first email for new subscribers.",
         "unsavedChanges": "You have unsaved changes.",
         "colorPlaceholder": "No color",
         "presetColors": "Preset colors",
         "clearColor": {
           "primaryColor": "Clear primary color",
-          "accentColor": "Clear accent color"
+          "accentColor": "Clear accent color",
+          "backgroundColor": "Clear background color",
+          "buttonTextColor": "Clear button text color"
         },
         "Logo": {
           "description": "Upload an image up to {maxSize}. Save settings to use it in your issues.",
@@ -3764,6 +3891,48 @@
             "resume": "Resume sending",
             "resumed": "Sending resumed. Queued recipients continue within the daily limit."
           }
+        },
+        "colorHints": {
+          "primaryColor": "Headings and text. Leave blank for the default.",
+          "accentColor": "Button fill. Leave blank for the default.",
+          "backgroundColor": "Behind the email card. Leave blank for light gray.",
+          "buttonTextColor": "Button labels. Keep them readable on the accent color."
+        },
+        "Image": {
+          "upload": "Upload image",
+          "replace": "Replace image",
+          "remove": "Remove image",
+          "previewAlt": "Image preview",
+          "uploadError": "Failed to upload the image. Try again.",
+          "fileTooLarge": "File is too large",
+          "fileTypeNotAccepted": "Use a PNG, JPEG, WebP or GIF image",
+          "maxFilesExceeded": "Upload one image at a time",
+          "headerDescription": "A banner above your logo, up to {maxSize}. Wide images work best."
+        },
+        "Design": {
+          "title": "Newsletter design",
+          "description": "Applies to every issue not yet sent and to signup forms. The preview updates as you change it.",
+          "header": "Header",
+          "colors": "Colors",
+          "layout": "Type and layout",
+          "footer": "Footer",
+          "save": "Save design",
+          "reset": "Discard changes",
+          "saved": "Design saved",
+          "headerAlign": {
+            "left": "Left",
+            "center": "Center"
+          },
+          "spacing": {
+            "compact": "Compact",
+            "normal": "Normal",
+            "roomy": "Roomy"
+          },
+          "buttonShape": {
+            "square": "Square",
+            "rounded": "Rounded",
+            "pill": "Pill"
+          }
         }
       }
     },
@@ -3778,6 +3947,14 @@
       "regenerate": "New variation",
       "schedule": "Schedule this image",
       "scheduleFailed": "Could not attach this image",
+      "writeCaption": "Write a caption",
+      "writeCaptionFailed": "Could not write a caption",
+      "writingCaption": "Writing caption…",
+      "captionLabel": "Caption",
+      "captionSuggestionLabel": "New caption",
+      "useCaption": "Use new caption",
+      "keepCaption": "Keep current caption",
+      "undoCaption": "Undo caption change",
       "reroll": "Re-roll",
       "reusePrompt": "Reuse prompt",
       "download": "Download",
@@ -3851,7 +4028,6 @@
       "moreOptions": "Options",
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
-      "pickTitle": "Pick a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
@@ -9574,7 +9750,7 @@
         "dayEmpty": "Nothing scheduled on this day.",
         "dayCount": "{count, plural, =0 {no posts} one {# post} other {# posts}}",
         "statusFilter": "Show posts by status",
-        "postCount": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
+        "postCount": "{count, plural, =0 {No posts in this period} one {# post} other {# posts}}",
         "dayAttention": "{count, plural, one {# needs attention} other {# need attention}}",
         "reschedule": "Reschedule",
         "rescheduleNamed": "Reschedule the {time} post: {text}"
@@ -9769,6 +9945,7 @@
       "label": "Project",
       "allProjects": "All projects",
       "switchLabel": "Switch project",
+      "selectProject": "Select project",
       "pinned": "Pinned",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",
@@ -9820,7 +9997,8 @@
         "SLACK": "From Slack",
         "WEB_RESEARCH": "From web research",
         "IMPORT": "Imported",
-        "OTHER": "Other source"
+        "OTHER": "Other source",
+        "X": "From X"
       },
       "presets": {
         "all": "All contacts",
@@ -10039,13 +10217,17 @@
       },
       "empty": {
         "title": "Your team's contacts live here",
-        "description": "People are added automatically from the mail, calendar and Slack your Soko Bots are connected to, with who on the team knows them. No newsletters or automated senders.",
+        "description": "Contacts sync through your Soko Bot: it adds the people from the mail, calendar and Slack connected to it, with who on the team knows them. No newsletters or automated senders.",
         "connect": "Connect {name}",
         "connected": "{name} connected",
         "connectFailed": "That connection didn't start. Try again.",
         "manageConnections": "Manage connections",
         "addByHand": "Add someone",
-        "import": "Import from a table"
+        "import": "Import from a table",
+        "needsBot": "Contacts sync through a Soko Bot. Set yours up and connect your mail and calendar to it, and it adds the people you deal with, with who on the team knows them.",
+        "needsConnections": "Your Soko Bot adds the people you deal with once your mail and calendar are connected to it. No newsletters or automated senders.",
+        "syncing": "{bot} is reading your connected mail and calendar. The first contacts appear within about 15 minutes.",
+        "setUpBot": "Set up your Soko Bot"
       },
       "panel": {
         "loading": "Loading contact",
@@ -10086,7 +10268,7 @@
         "channelSource": "{type}, {source}",
         "verified": "verified",
         "primary": "Primary",
-        "openSource": "Open where this was found",
+        "openSource": "Open source",
         "copyChannel": "Copy {value}",
         "removeChannel": "Remove {value}",
         "noChannels": "No way to reach them yet.",
@@ -10103,7 +10285,8 @@
           "SLACK": "Slack",
           "CALL": "Call",
           "MANUAL": "Note",
-          "OTHER": "Other"
+          "OTHER": "Other",
+          "X": "X"
         },
         "source": "Source",
         "showMore": "Show more",
@@ -10115,7 +10298,8 @@
           "CHANNEL_REMOVED": "{who} removed a channel",
           "MERGED": "{who} merged {names} into this contact",
           "ARCHIVED": "{who} archived this contact",
-          "UNARCHIVED": "{who} restored this contact"
+          "UNARCHIVED": "{who} restored this contact",
+          "WEB": "{who} filled {fields} from the web"
         },
         "fields": {
           "name": "name",
@@ -10130,14 +10314,21 @@
           "followUpAt": "follow-up",
           "avatarUrl": "photo",
           "customFields": "custom fields",
-          "kind": "type"
+          "kind": "type",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Mark as organization",
         "markPerson": "Mark as person",
         "waitingSince": "Since {date}, no answer yet",
         "heardFrom": "Last heard from them {when}",
         "automatic": "Automatic",
-        "classifier": "Automatic classification"
+        "classifier": "Automatic classification",
+        "enrich": "Enrich",
+        "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
+        "enriched": "Filled {fields} from the web · 1 credit",
+        "enrichedNone": "Nothing new found on the web. No credits used.",
+        "enrichFailed": "Could not look them up. Try again.",
+        "connectedVia": "Connected via"
       },
       "stageGroups": {
         "general": "General",
@@ -10197,13 +10388,16 @@
         "briefPlaceholder": "e.g. Partners at seed funds investing in AI agents, Europe or US",
         "briefRequired": "Describe who you are looking for.",
         "sizeLabel": "How many",
-        "sizeOption": "{count} people",
-        "submit": "Find {count} people · {credits} credits",
+        "sizeOption": "{count, plural, one {# person} other {# people}}",
+        "submit": "Find {count, plural, one {# person} other {# people}} · up to {credits, number} credits",
         "searching": "Searching the web…",
         "found": "Found {count, plural, one {# person} other {# people}}",
-        "foundNone": "No new people found. Try describing them differently.",
+        "foundNone": "Nobody new found. Try describing them differently. No credits used.",
         "findFailed": "The search did not work. Try again.",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "pricing": "{credits, number} credits per person found. Finding nobody is free.",
+        "personLabel": "Who are you looking for?",
+        "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
       }
     }
   },

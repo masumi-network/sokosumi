@@ -376,6 +376,35 @@ describe("Project newsletter access", () => {
 });
 
 describe("newsletter settings", () => {
+  it("round-trips shared design and optional signup overrides without sending mail", async () => {
+    const input = {
+      ...SETTINGS,
+      brand: {
+        ...SETTINGS.brand,
+        accentColor: "#abcdef",
+        spacing: "roomy",
+        signupForm: {
+          accentColor: "#123456",
+          buttonShape: "pill",
+          spacing: "compact",
+        },
+      },
+    };
+    m.newsletterUpsert.mockResolvedValue({ ...NEWSLETTER, ...input });
+    const response = await createApp().request(BASE, json("PUT", input));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { brand: input.brand },
+    });
+    expect(m.newsletterUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ brand: input.brand }),
+      }),
+    );
+    expect(m.sendEmail).not.toHaveBeenCalled();
+    expect(m.sendEmails).not.toHaveBeenCalled();
+  });
+
   it("returns settings with ISO dates", async () => {
     const response = await createApp().request(BASE);
     expect(response.status).toBe(200);
@@ -443,6 +472,8 @@ describe("newsletter settings", () => {
     { name: " " },
     { brand: { logoUrl: "javascript:alert(1)" } },
     { brand: { primaryColor: "bad" } },
+    { brand: { signupForm: { accentColor: "red" } } },
+    { brand: { signupForm: { buttonShape: "circle" } } },
   ])("validates settings: %j", async (change) => {
     const response = await createApp().request(
       BASE,

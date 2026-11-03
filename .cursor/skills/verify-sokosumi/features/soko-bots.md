@@ -11,7 +11,7 @@ Soko Bots lets a signed-in user open `/soko-bots` and see the team's personal as
 
 ## How to get to it (user POV)
 
-- Choose **Soko Bots** at the top of the desktop sidebar (above **New task**).
+- Choose **Soko Bots**, the first link in the desktop sidebar, above the **Work** group. **New task** is a header button, not the row under it. When you already have a bot, the first row is the bot's name and opens `/personal-assistant`; the people icon still opens `/soko-bots`.
 - Open `/soko-bots` directly.
 
 ## Driving it with agent-browser

@@ -100,7 +100,7 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).toContain("enabledProviders");
@@ -145,10 +145,36 @@ describe("versions", () => {
     );
   });
 
+  it("lets v33 read and follow a Project's posting instructions before drafting", () => {
+    const v32 = getSokoBotVersion("v32");
+    const v33 = getSokoBotVersion("v33");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+    expect(v33.model).toBe(v32.model);
+    expect(v33.systemPrompt).toBe(v32.systemPrompt);
+    expect(v33.skills).toEqual(
+      v32.skills.map((skill) =>
+        skill === "social" ? "social-posting-instructions" : skill,
+      ),
+    );
+    const prompt = composeSystemPrompt(v33);
+    expect(prompt).toContain("get_posting_instructions");
+    expect(prompt).toContain("# Newsletter");
+    expect(prompt).toMatch(/separate from project memory and DESIGN\.md/);
+    expect(prompt).toContain("ask me to create the post and I will");
+    const v32Prompt = composeSystemPrompt(v32);
+    expect(v32Prompt).toContain("# Newsletter");
+    expect(v32Prompt).not.toContain("get_posting_instructions");
+    // Everything else stays the frozen v31 social skill.
+    expect(
+      getSokoBotSkill("social-posting-instructions")
+        .content.replace(/- Before drafting or rewriting post text[^\n]*\n/, "")
+        .replace(" \`get_posting_instructions\`,", ""),
+    ).toBe(getSokoBotSkill("social").content);
+  });
+
   it("lets v32 run the newsletter up to approval and leaves approving and sending to a person", () => {
     const v31 = getSokoBotVersion("v31");
     const v32 = getSokoBotVersion("v32");
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v32");
     expect(v32.skills).toEqual([...v31.skills, "newsletter"]);
     expect(v32.model).toBe(v31.model);
     expect(v32.systemPrompt).toBe(v31.systemPrompt);

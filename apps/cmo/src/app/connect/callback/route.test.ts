@@ -14,8 +14,10 @@ describe("connect callback", () => {
 
   it("finishes the connection and resumes onboarding on Accounts", async () => {
     finalizeChannel.mockResolvedValue(true);
-    const response = await callback("status=success&connectedAccountId=ca_1");
-    expect(finalizeChannel).toHaveBeenCalledWith("ca_1");
+    const response = await callback(
+      "status=success&connectedAccountId=ca_1&session_uri=s_1",
+    );
+    expect(finalizeChannel).toHaveBeenCalledWith("ca_1", "s_1");
     expect(response.headers.get("location")).toBe(
       "http://localhost:3110/?step=connect",
     );

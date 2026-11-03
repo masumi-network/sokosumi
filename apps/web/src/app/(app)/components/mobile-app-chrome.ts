@@ -22,6 +22,7 @@ const MOBILE_TAB_LIST_PATHS = [
   "/newsletter/issues",
   "/newsletter/subscribers",
   "/newsletter/calendar",
+  "/newsletter/signup-form",
   "/newsletter/analytics",
   "/newsletter/settings",
   "/studio",

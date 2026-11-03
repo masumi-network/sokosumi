@@ -34,6 +34,10 @@ type TemplatePickerProps = {
   onApplyTemplate: (template: StudioTemplate) => void;
 };
 
+interface StudioTemplateCarouselProps extends TemplatePickerProps {
+  projectAction?: React.ReactNode;
+}
+
 function TemplateButton({
   template,
   label,
@@ -160,7 +164,8 @@ export function StudioTemplateMenu({
 export function StudioTemplateCarousel({
   labels,
   onApplyTemplate,
-}: TemplatePickerProps) {
+  projectAction,
+}: StudioTemplateCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const reduceMotion = useReducedMotion();
   const apiRef = useRef(api);
@@ -286,6 +291,9 @@ export function StudioTemplateCarousel({
           <MousePointer2 aria-hidden className="size-4 shrink-0" />
           <span>{labels.emptyBody}</span>
         </p>
+        {projectAction ? (
+          <div className="flex justify-center">{projectAction}</div>
+        ) : null}
       </div>
       <Carousel
         aria-label={labels.templates}
