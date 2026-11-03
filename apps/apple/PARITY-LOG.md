@@ -4726,7 +4726,7 @@ None. ⌘K and the Link control share one function on web and on Apple; the reve
 ### What changed
 
 - SokosumiChat: `ComposerToolbarVisibility` (new): one composer's bar, read from `ComposerPreferences` once; `toggle()` stores, `reveal()` does not.
-- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`. `docs/rich-composing.md` names the type.
+- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`.
 
 ### Deviations from web (recorded)
 

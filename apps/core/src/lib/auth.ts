@@ -739,7 +739,7 @@ export const auth = betterAuth({
 
           // A running plan changes seats through the seats route only. This
           // route would take a lower count to Stripe's portal with immediate
-          // proration, past reductions at renewal (ADR 0060). `|| 1` is how
+          // proration, past reductions at renewal (ADR 0063). `|| 1` is how
           // the plugin reads a missing count.
           if (action === "upgrade-subscription") {
             const subscription =
