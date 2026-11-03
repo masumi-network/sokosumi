@@ -226,6 +226,56 @@ describe("SokoBotControlPlane reconciliation", () => {
     });
   });
 
+  it("keeps the turn's spend split by source", async () => {
+    const events = [
+      {
+        startIndex: 0,
+        event: runtimeEvent("step.completed", "model_1", {
+          modelId: "openai/gpt",
+          usage: { inputTokens: 10, outputTokens: 2, costUsd: 0.02 },
+        }),
+      },
+      {
+        startIndex: 1,
+        event: runtimeEvent("step.completed", "exa_1", {
+          modelId: "exa/search",
+          usage: { costUsd: 0.007 },
+        }),
+      },
+      {
+        startIndex: 2,
+        event: runtimeEvent("step.completed", "model_2", {
+          modelId: "openai/gpt",
+          usage: { inputTokens: 5, outputTokens: 1, costUsd: 0.01 },
+        }),
+      },
+      { startIndex: 3, event: runtimeEvent("turn.completed", "done_1") },
+    ];
+
+    await new SokoBotControlPlane(
+      runtimeFor(events),
+      undefined,
+      undefined,
+    ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN);
+
+    const usage = turnUpdateManyMock.mock.calls
+      .map(([input]) => input.data.usage)
+      .filter(Boolean)
+      .at(-1);
+    expect(usage).toMatchObject({
+      costUsd: expect.closeTo(0.037),
+      bySource: {
+        "openai/gpt": {
+          calls: 2,
+          inputTokens: 15,
+          outputTokens: 3,
+          costUsd: expect.closeTo(0.03),
+        },
+        "exa/search": { calls: 1, costUsd: expect.closeTo(0.007) },
+      },
+    });
+  });
+
   it("cancels and fails unsupported Eve input requests without hanging", async () => {
     const cancelTurn = vi.fn().mockResolvedValue(undefined);
     const events = [

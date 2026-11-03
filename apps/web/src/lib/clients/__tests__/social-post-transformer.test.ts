@@ -10,6 +10,7 @@ import {
   postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
   postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
 } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
@@ -23,6 +24,16 @@ function buildPost() {
     provider: "x",
     text: "Scheduled post",
     firstComment: null,
+    media: [],
+    threadParts: [],
+    threadPartCount: 1,
+    publishedThreadPartCount: 0,
+    failedThreadPartPosition: null,
+    partiallyPublished: false,
+    quotedPostId: null,
+    quotedPost: null,
+    needsAttentionReason: null,
+    publishingThreadPartPosition: null,
     status: "SCHEDULED",
     scheduledAt: timestamp,
     timezone: "Europe/Prague",
@@ -57,6 +68,7 @@ const transformers = [
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   patchProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
+  postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer,
   postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
   postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
@@ -67,6 +79,22 @@ const transformers = [
 ];
 
 describe("social post response transformers", () => {
+  it.each([
+    patchProjectsByIdSocialPostsByPostIdResponseTransformer,
+    postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
+  ])("%s revives moved quote times", async (transform) => {
+    const result = await transform({
+      data: {
+        ...buildPost(),
+        movedQuotes: [{ id: "quote", scheduledAt: timestamp }],
+      },
+      meta: { timestamp, requestId: "request-1" },
+    });
+    expect(result.data.movedQuotes).toEqual([
+      { id: "quote", scheduledAt: new Date(timestamp) },
+    ]);
+  });
+
   it.each(transformers)(
     "%s accepts posts with no publishing attempt",
     async (transform) => {
@@ -81,6 +109,44 @@ describe("social post response transformers", () => {
       expect(result.data.timezone).toBe("Europe/Prague");
     },
   );
+
+  it("revives a resumed thread's published parts without losing unpublished parts", async () => {
+    const result =
+      await postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer({
+        data: {
+          ...buildPost(),
+          status: "FAILED",
+          threadPartCount: 3,
+          publishedThreadPartCount: 2,
+          partiallyPublished: true,
+          threadParts: [
+            {
+              id: "part-2",
+              position: 2,
+              text: "Posted",
+              media: [],
+              externalPostId: "second-id",
+              publishedAt: timestamp,
+              error: null,
+            },
+            {
+              id: "part-3",
+              position: 3,
+              text: "Not posted",
+              media: [],
+              externalPostId: null,
+              publishedAt: null,
+              error: "Failed",
+            },
+          ],
+        },
+        meta: { timestamp, requestId: "request-1" },
+      });
+    expect(result.data.threadParts[0].publishedAt).toEqual(new Date(timestamp));
+    expect(result.data.threadParts[1].publishedAt).toBeNull();
+    expect(result.data.publishingThreadPartPosition).toBeNull();
+    expect(result.data.threadParts[0].externalPostId).toBe("second-id");
+  });
 
   it.each([null, timestamp])(
     "converts lists with absent and unfinished or finished attempts (%s)",

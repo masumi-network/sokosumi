@@ -15,10 +15,31 @@ interface ColorPickerProps {
   className?: string
   label?: string
   placeholder?: string
+  /** Heading above the preset swatches. */
+  presetsLabel?: string
+  /** Forwarded to the trigger so a `FormLabel` can name it. */
+  id?: string
+  "aria-describedby"?: string
+  "aria-invalid"?: boolean
 }
 
 const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
-  ({ value = "#000000", onChange, onBlur, disabled, className, label, placeholder = "Select color" }, ref) => {
+  (
+    {
+      value = "#000000",
+      onChange,
+      onBlur,
+      disabled,
+      className,
+      label,
+      placeholder = "Select color",
+      presetsLabel = "Preset Colors",
+      id,
+      "aria-describedby": ariaDescribedBy,
+      "aria-invalid": ariaInvalid,
+    },
+    ref,
+  ) => {
     const [internalValue, setInternalValue] = React.useState(value)
     const [isOpen, setIsOpen] = React.useState(false)
 
@@ -68,6 +89,9 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
+              id={id}
+              aria-describedby={ariaDescribedBy}
+              aria-invalid={ariaInvalid}
               variant="outline"
               disabled={disabled}
               className={cn("w-full justify-start text-left font-normal", !internalValue && "text-muted-foreground")}
@@ -84,7 +108,8 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
                   ref={ref}
                   id="color-input"
                   type="color"
-                  value={internalValue}
+                  // A native color input cannot hold "", so an unset color shows black.
+                  value={internalValue || "#000000"}
                   onChange={handleColorInputChange}
                   onBlur={onBlur}
                   disabled={disabled}
@@ -102,7 +127,7 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
 
               {/* Preset colors */}
               <div>
-                <Label className="text-xs font-medium text-muted-foreground mb-2 block">Preset Colors</Label>
+                <Label className="text-xs font-medium text-muted-foreground mb-2 block">{presetsLabel}</Label>
                 <div className="grid grid-cols-6 gap-2">
                   {presetColors.map((color) => (
                     <button

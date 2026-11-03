@@ -5,6 +5,7 @@ import prisma from "@/lib/db/prisma";
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  withChatRoomReplyCount,
 } from "@/routes/v1/chats/rooms/helpers";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 
@@ -37,5 +38,7 @@ export async function answerWithUpdatedMessage(
       console.error("Failed to announce a chat signal change", error);
     }),
   );
-  return chatRoomMessageSchema.parse(mapChatRoomMessage(message, userId));
+  return chatRoomMessageSchema.parse(
+    mapChatRoomMessage(await withChatRoomReplyCount(prisma, message), userId),
+  );
 }

@@ -133,6 +133,23 @@ describe("chat Mermaid Markdown integration", () => {
       `${fence(REGRESSION)}\n\n\`\`\`ts\nconst value = 1;\n\`\`\``,
     );
   });
+  it("renders a message with no Mermaid fence exactly as plain Markdown", () => {
+    const content =
+      "**Notes** with `code`\n\n```ts\nconst x = 1;\n```\n\n- one\n- two :)";
+    const chat = render(<Markdown enableMermaid>{content}</Markdown>);
+    const plain = render(<Markdown>{content}</Markdown>);
+    expect(chat.container.innerHTML).toBe(plain.container.innerHTML);
+  });
+
+  it("finds a fence that names Mermaid in another case", () => {
+    const { container } = render(
+      <Markdown enableMermaid>
+        {"```Mermaid\nflowchart LR\nA-->B\n```"}
+      </Markdown>,
+    );
+    expect(container.querySelector("figure")).toHaveTextContent("flowchart LR");
+  });
+
   it("leaves non-chat Mermaid fences as ordinary code", () => {
     const { container } = render(<Markdown>{fence(REGRESSION)}</Markdown>);
     expect(container.querySelector("figure")).toBeNull();

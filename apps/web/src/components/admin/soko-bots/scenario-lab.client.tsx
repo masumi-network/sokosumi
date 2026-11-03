@@ -164,10 +164,10 @@ function LiveRunPanel({ live }: { live: LiveRun }) {
           : t("phaseRunning");
 
   return (
-    <div className="border-primary-tertiary bg-primary-quinary mt-3 rounded-md border px-3 py-2">
+    <div className="border-border bg-muted mt-3 rounded-md border px-3 py-2">
       <p className="flex items-center gap-2 text-xs font-medium">
         <span
-          className="bg-primary size-1.5 shrink-0 animate-pulse rounded-full"
+          className="bg-foreground size-1.5 shrink-0 animate-pulse rounded-full"
           aria-hidden
         />
         {phaseLabel}
@@ -200,7 +200,7 @@ function LiveRunPanel({ live }: { live: LiveRun }) {
                     ? "text-semantic-destructive"
                     : call.status === "COMPLETED"
                       ? "text-muted-foreground"
-                      : "text-primary",
+                      : "text-foreground",
                 )}
               >
                 {call.status === "FAILED"
@@ -506,7 +506,7 @@ export function ScenarioLab({
             className={cn(
               "rounded-md border px-2 py-1 text-xs transition-colors",
               activeVersion === version.id
-                ? "border-primary bg-primary-quinary text-foreground"
+                ? "border-foreground bg-muted text-foreground"
                 : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
@@ -768,10 +768,10 @@ function ScenarioRow({
                   className={cn(
                     "rounded-md border px-3 py-2 text-xs",
                     latest.judge.verdict === "pass"
-                      ? "border-semantic-success-tertiary"
+                      ? "border-border"
                       : latest.judge.verdict === "weak"
-                        ? "border-semantic-warning-tertiary"
-                        : "border-semantic-destructive-tertiary",
+                        ? "border-border"
+                        : "border-border",
                   )}
                 >
                   <p className="font-medium">
@@ -821,7 +821,7 @@ function ScenarioRow({
                       {check.pass ? (
                         <Check
                           aria-hidden
-                          className="text-semantic-success mt-0.5 size-3.5 shrink-0"
+                          className="text-foreground mt-0.5 size-3.5 shrink-0"
                         />
                       ) : (
                         <X

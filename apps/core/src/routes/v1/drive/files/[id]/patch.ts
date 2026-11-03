@@ -161,7 +161,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (error instanceof BlobNotFoundError) {
         throw notFound("Source file not found");
       }
-      // Check for conflict/already-exists errors from rename
       if (
         error &&
         typeof error === "object" &&

@@ -111,9 +111,10 @@ const INTENT_HEADER = "x-sokosumi-studio-intent";
  * session, and which installed eve therefore refuses on a message-free create.
  *
  * Exactly the set its validator names: a message-free create "does not accept
- * 'clientContext', 'callback', 'activityObserver', or 'outputSchema'".
- * `taskDeliveryPolicy` joins them because it is parsed against the message.
- * Each of these is accepted on the send route, which is where they go.
+ * 'clientContext', 'callback', or 'outputSchema'". `activityObserver` is
+ * accepted only alongside `callback`. `turnPolicy` and `idempotencyKey` are
+ * message-route fields, unknown on create. Each of these is accepted on the
+ * send route, which is where they go.
  */
 const TURN_SCOPED_FIELDS = [
   "message",
@@ -121,7 +122,8 @@ const TURN_SCOPED_FIELDS = [
   "callback",
   "activityObserver",
   "outputSchema",
-  "taskDeliveryPolicy",
+  "turnPolicy",
+  "idempotencyKey",
 ] as const;
 
 type CreateBody = Record<string, unknown>;
@@ -437,7 +439,9 @@ function recordOnCreate(
       claims,
       context,
       held: registration,
-      onDelivered: () => created,
+      // The turn receipt, not the empty create. eve 0.84's client requires
+      // `deliveryId` on a message-bearing create; the empty create has none.
+      onDelivered: (sent) => withSessionId(sent, sessionId),
       request,
       sendToSession,
       sessionId,
@@ -462,11 +466,11 @@ async function deliverOwedFirstMessage(options: {
   context: never;
   held: InitialTurnMove | Registration;
   /**
-   * What to answer with when it goes. Creation answers with its own create
-   * response; an ordinary send answers with the runtime's, which carries the
-   * delivery id its client insists on.
+   * What to answer with when it goes. Both paths answer with the runtime
+   * receipt: eve 0.84's client reads `deliveryId` from it. Creation rewrites
+   * that id onto the conversation the binding recorded.
    */
-  onDelivered: (sent: Response) => Response;
+  onDelivered: (sent: Response) => Response | Promise<Response>;
   request: Request;
   sendToSession: RouteHandler;
   sessionId: string;
@@ -501,7 +505,7 @@ async function deliverOwedFirstMessage(options: {
   );
   if (delivery.outcome === "delivered") {
     await transitionInitialTurn(claims, sessionId, "delivered", token);
-    return options.onDelivered(delivery.response);
+    return await options.onDelivered(delivery.response);
   }
   if (delivery.outcome === "undelivered") {
     // Nothing ran. Returning the message to the queue is what makes the

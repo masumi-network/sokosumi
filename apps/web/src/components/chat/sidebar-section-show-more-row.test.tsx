@@ -23,7 +23,7 @@ function Row() {
   const [showAll, setShowAll] = useState(false);
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
+      <Sidebar>
         <SidebarContent>
           <SidebarMenu>
             <SidebarSectionShowMoreRow

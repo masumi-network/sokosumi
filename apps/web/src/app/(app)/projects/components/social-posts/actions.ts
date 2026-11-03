@@ -23,3 +23,20 @@ export const loadMoreSocialPosts = withSession<
     cursor,
   });
 });
+
+export const loadSocialPostQuoteCandidates = withSession<
+  AuthenticatedRequest & {
+    projectId: string;
+    excludePostId?: string;
+    search: string;
+    cursor?: string;
+  },
+  Awaited<ReturnType<typeof projectService.listSocialPosts>>
+>(async ({ projectId, excludePostId, search, cursor }) =>
+  projectService.listSocialPosts(projectId, {
+    quoteCandidates: true,
+    excludePostId,
+    search,
+    cursor,
+  }),
+);

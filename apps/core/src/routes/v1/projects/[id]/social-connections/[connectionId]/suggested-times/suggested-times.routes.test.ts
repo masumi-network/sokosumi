@@ -91,10 +91,10 @@ describe("social connection suggested times route", () => {
     expect(mocks.list).not.toHaveBeenCalled();
   });
 
-  it("rejects beta revocation before reading history", async () => {
+  it("reads history outside the Ads beta", async () => {
     mocks.beta.mockRejectedValue(forbidden("Social unavailable"));
-    expect((await createApp().request(suggestedTimesUrl())).status).toBe(403);
-    expect(mocks.list).not.toHaveBeenCalled();
+    expect((await createApp().request(suggestedTimesUrl())).status).toBe(200);
+    expect(mocks.list).toHaveBeenCalled();
   });
 
   it("allows a delegated Coworker and rejects a bare Coworker", async () => {

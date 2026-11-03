@@ -381,14 +381,14 @@ describe("GET /workspaces/calendar/sources", () => {
     },
   );
 
-  it("requires beta access before reading Social post dates", async () => {
+  it("reads Social post dates outside the Ads beta", async () => {
     memberFindFirstMock.mockResolvedValue(null);
     const response = await createApp().request(
       "http://localhost/calendar/sources?includeSocialPosts=true",
     );
-    expect(response.status).toBe(403);
-    expect(socialPostGroupByMock).not.toHaveBeenCalled();
-    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(socialPostGroupByMock).toHaveBeenCalled();
+    expect(workspaceFindUniqueMock).toHaveBeenCalled();
   });
 
   it("rejects coworker access to Social post dates", async () => {

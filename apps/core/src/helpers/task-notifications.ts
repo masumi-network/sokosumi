@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { NotificationKind, TaskStatus } from "@sokosumi/database";
+import { NotificationKind } from "@sokosumi/database";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 
 import prisma from "@/lib/db/prisma";
@@ -271,8 +271,6 @@ const TASK_ASSIGNED_MESSAGE_KEY = "Notifications.Task.assigned";
 const TASK_PARTICIPANT_ADDED_MESSAGE_KEY =
   "Notifications.Task.participantAdded";
 
-const TASK_SETTLED_STATUSES: TaskStatus[] = [...SETTLED_TASK_STATUSES];
-
 /**
  * Notify each user the moment an @ in Task comment activity adds them.
  * A repeat mention is not passed in. Best-effort, same as assignee notify.
@@ -361,7 +359,7 @@ async function findTaskForParticipantAlert(
           archivedAt: null,
           events: {
             none: {
-              status: { in: TASK_SETTLED_STATUSES },
+              status: { in: [...SETTLED_TASK_STATUSES] },
               createdAt: { gt: event.createdAt },
             },
           },
@@ -369,7 +367,7 @@ async function findTaskForParticipantAlert(
       : {
           id: taskId,
           archivedAt: null,
-          status: { notIn: TASK_SETTLED_STATUSES },
+          status: { notIn: [...SETTLED_TASK_STATUSES] },
         },
     select: {
       id: true,

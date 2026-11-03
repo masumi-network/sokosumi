@@ -194,6 +194,30 @@ describe("fetchBackgroundJson", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("stops the request, with no retry, when the caller's signal aborts", async () => {
+    fetchMock.mockImplementation(
+      (_url: string, init: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        }),
+    );
+    const caller = new AbortController();
+
+    const result = fetchBackgroundJson(
+      "/api/chat/rooms",
+      TIMEOUT_MS,
+      undefined,
+      caller.signal,
+    );
+    caller.abort();
+
+    await expect(result).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[1].signal.aborted).toBe(true);
+  });
+
   it("stops when the deadline has already passed as the 503 lands", async () => {
     // The response arrives after the deadline, so the signal is already
     // aborted when the retry wait starts.

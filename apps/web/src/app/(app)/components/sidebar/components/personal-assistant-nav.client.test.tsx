@@ -1,13 +1,23 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { cloneElement, isValidElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+const { pathnameRef, relativeTime, reduceMotion } = vi.hoisted(() => ({
+  pathnameRef: { current: "/" },
+  relativeTime: vi.fn(() => "2h ago"),
+  reduceMotion: { current: false },
 }));
 
-const { pathnameRef } = vi.hoisted(() => ({
-  pathnameRef: { current: "/" },
+vi.mock("motion/react", () => ({
+  useReducedMotion: () => reduceMotion.current,
+}));
+
+// Values show up in the text, so a test can tell "Active {time}" got its time.
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key}(${Object.values(values).join(",")})` : key,
+  useFormatter: () => ({ relativeTime }),
+  useNow: () => NOW,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -53,12 +63,26 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
+import { type SokoBotAvatarView, SokoBotStatus } from "@sokosumi/core-client";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
-import PersonalAssistantNav from "./personal-assistant-nav.client";
+import PersonalAssistantNav, {
+  type SidebarSokoBotLive,
+} from "./personal-assistant-nav.client";
 
-const bot = { id: "bot-1", imageUrl: "https://example.com/1.png", seed: "a" };
+const NOW = new Date("2026-10-27T12:00:00Z");
+
+const bot: SidebarSokoBotLive = {
+  id: "bot-1",
+  imageUrl: "https://example.com/1.png",
+  seed: "a",
+  name: "Mo",
+  status: SokoBotStatus.IDLE,
+  lastActivityAt: null,
+  avatarState: "idle",
+  avatar: null,
+};
 
 function tokens(className: string): string[] {
   return className.split(/\s+/).filter(Boolean);
@@ -73,10 +97,8 @@ function renderNav(props: Parameters<typeof PersonalAssistantNav>[0] = {}) {
 }
 
 /**
- * Soko Bots is an ordinary Sidebar row (CONTEXT.md), not the 48px bordered
- * card it used to be: it takes the row primitive's height and the shared slot,
- * so it neither pushes the list down nor resizes its mark when the sidebar
- * toggles.
+ * Soko Bots is an ordinary Sidebar row (GLOSSARY.md), not the 48px bordered
+ * card it used to be: it takes the row primitive's height and the shared slot.
  */
 describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   beforeEach(() => {
@@ -85,21 +107,18 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   });
 
   it("takes the row primitive's height rather than a card's", () => {
-    renderNav({ bot });
+    renderNav();
     const button = screen.getByRole("link", { name: "sokoBot" });
 
     expect(tokens(button?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-11", "md:h-8"]),
+      expect.arrayContaining(["h-11", "md:h-7"]),
     );
-    // The card that is gone: its own border, radius and rail hover exception.
+    // The card that is gone: its own border and radius.
     expect(tokens(button?.className ?? "")).not.toContain("border");
     expect(tokens(button?.className ?? "")).not.toContain("rounded-lg");
-    expect(button?.className).not.toContain(
-      "group-data-[collapsible=icon]:hover:ring-0!",
-    );
   });
 
-  it("shows one 20px face in the shared slot, the same in both states", () => {
+  it("shows one 20px face in the shared slot", () => {
     const { container } = renderNav({ bot });
     const slot = container.querySelector('[data-slot="sidebar-row-slot"]');
     const face = slot?.querySelector("img");
@@ -108,8 +127,6 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(tokens(slot?.className ?? "")).toContain("min-w-6");
     expect(face).not.toBeNull();
     expect(tokens(face?.className ?? "")).toContain("size-5");
-    // No state-dependent size: the face cannot resize on a toggle.
-    expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
   it("falls back to the bot icon in the same slot when there is no bot", () => {
@@ -121,61 +138,546 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
   });
 
-  it("names the row on the sidebar button so the collapsed rail can show it", () => {
-    renderNav({ bot });
+  it("links the named row to the team's Soko Bots", () => {
+    renderNav();
     expect(screen.getByRole("link", { name: "sokoBot" })).toHaveAttribute(
       "href",
       SOKO_BOTS_ROUTE,
     );
   });
-
-  it("keeps the label in the accessibility tree when the rail collapses", () => {
-    renderNav({ bot });
-    // The row's label span; the name sits inside it beside the New pill.
-    const label = screen.getByText("sokoBot").parentElement!;
-    expect(tokens(label.className)).toContain(
-      "group-data-[collapsible=icon]:max-w-0",
-    );
-    expect(tokens(label.className)).not.toContain(
-      "group-data-[collapsible=icon]:sr-only",
-    );
-    expect(tokens(label.className)).not.toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
-  });
-
-  it("clips the label on collapse instead of re-ellipsizing it", () => {
-    renderNav({ bot });
-    const label = screen.getByText("sokoBot").parentElement!;
-    expect(tokens(label.className)).toContain("text-clip!");
-    expect(tokens(label.className)).not.toContain("truncate");
-  });
 });
 
-// Collapsed, the rail's fill belongs to hover alone. This row is on that
-// rail too, so the open destination is the same right-edge mark Chat and
-// nav already use.
-describe("PersonalAssistantNav rail selection bar", () => {
+describe("PersonalAssistantNav static entry current destination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     pathnameRef.current = "/";
   });
 
-  function railSelection(container: HTMLElement) {
-    return container.querySelector('[data-slot="sidebar-rail-selection"]');
+  function link() {
+    return screen.getByRole("link", { name: "sokoBot" });
   }
 
   it("marks the row when the reader is on Soko Bots", () => {
     pathnameRef.current = SOKO_BOTS_ROUTE;
-    expect(railSelection(renderNav({ bot }).container)).not.toBeNull();
+    renderNav();
+    expect(link()).toHaveAttribute("aria-current", "page");
   });
 
   it("marks the row from a personal-assistant page too", () => {
     pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
-    expect(railSelection(renderNav({ bot }).container)).not.toBeNull();
+    renderNav();
+    expect(link()).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows no selection mark on a route it does not own", () => {
-    expect(railSelection(renderNav({ bot }).container)).toBeNull();
+  it("marks nothing on a route it does not own", () => {
+    renderNav();
+    expect(link()).not.toHaveAttribute("aria-current");
+  });
+});
+
+/**
+ * With the team's bot data the entry is a live two-line row: the bot's face
+ * with a status dot, its name, and a line saying what it is doing.
+ */
+describe("PersonalAssistantNav live Soko Bot row", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+  });
+
+  function row(name: RegExp = /Mo/) {
+    return screen.getByRole("link", { name });
+  }
+
+  it("names the row after the bot", () => {
+    renderNav({ bot });
+    expect(row()).toHaveTextContent("Mo");
+  });
+
+  it("falls back to Soko Bot when the bot has no name", () => {
+    renderNav({ bot: { ...bot, name: null } });
+    expect(row(/fallbackName/)).toBeInTheDocument();
+  });
+
+  // The pill sweep is the only persistent busy signal: the row never pulses.
+  it("does not pulse a working bot's face", () => {
+    const { container } = renderNav({
+      bot: { ...bot, status: SokoBotStatus.RUNNING, avatarState: "working" },
+    });
+    expect(container.querySelector('[class*="animate-ping"]')).toBeNull();
+  });
+
+  // Colour lives on the dot; the line is plain text except for idle/offline
+  // (neutral → muted), matching StatusBadge after the design-system pass.
+  it.each([
+    ["thinking", /label\.thinking/, "status-working", "foreground"],
+    ["working", /label\.working/, "status-working", "foreground"],
+    ["done", /label\.done/, "semantic-success", "foreground"],
+    ["needs_you", /label\.needs_you/, "semantic-warning", "foreground"],
+    ["offline", /label\.offline/, "muted-foreground", "muted-foreground"],
+    ["idle", /ready/, "muted-foreground", "muted-foreground"],
+  ] as const)(
+    "says a %s bot's state in its line and paints the dot to match",
+    (avatarState, line, hue, text) => {
+      const { container } = renderNav({ bot: { ...bot, avatarState } });
+
+      expect(row()).toHaveAccessibleName(line);
+      expect(
+        container.querySelector('[data-slot="soko-bot-status-dot"]'),
+      ).toHaveClass(`bg-${hue}`);
+      expect(
+        container.querySelector('[data-slot="soko-bot-status-line"]')
+          ?.className,
+      ).toMatch(new RegExp(`(^|\\s)text-${text}(\\s|$)`));
+    },
+  );
+
+  it("keeps a failed idle bot's error in the row", () => {
+    const { container } = renderNav({
+      bot: { ...bot, status: SokoBotStatus.ERROR },
+    });
+
+    expect(row()).toHaveAccessibleName(/needsAttention/);
+    expect(
+      container.querySelector('[data-slot="soko-bot-status-dot"]'),
+    ).toHaveClass("bg-semantic-destructive");
+    expect(
+      container.querySelector('[data-slot="soko-bot-status-line"]')?.className,
+    ).toMatch(/(^|\s)text-foreground(\s|$)/);
+  });
+
+  it("says when an idle bot was last active, in the reader's locale", () => {
+    const lastActivityAt = new Date("2026-10-27T10:00:00Z");
+    renderNav({ bot: { ...bot, lastActivityAt } });
+
+    expect(row()).toHaveAccessibleName(/activeAgo\(2h ago\)/);
+    expect(relativeTime).toHaveBeenCalledWith(lastActivityAt, {
+      now: NOW,
+      style: "narrow",
+    });
+  });
+
+  it("opens your own bot", () => {
+    renderNav({ bot });
+    expect(row()).toHaveAttribute("href", SOKO_BOT_ROUTE);
+  });
+
+  it("marks the row while its bot is open", () => {
+    pathnameRef.current = SOKO_BOT_ROUTE;
+    renderNav({ bot });
+    expect(row()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("does not mark your bot's row on the team page", () => {
+    pathnameRef.current = SOKO_BOTS_ROUTE;
+    renderNav({ bot });
+    expect(row()).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("offers the team's Soko Bots from a people icon at the end", () => {
+    renderNav({ bot });
+    expect(screen.getByRole("link", { name: "team" })).toHaveAttribute(
+      "href",
+      SOKO_BOTS_ROUTE,
+    );
+  });
+
+  it("covers both lines with one pressable row", () => {
+    renderNav({ bot });
+    const tokens = row().className.split(/\s+/);
+    expect(row()).toHaveAttribute("data-slot", "sidebar-menu-button");
+    // It releases the height and keeps the primitive's floor; it names no
+    // row height of its own.
+    expect(tokens).toEqual(
+      expect.arrayContaining(["h-auto", "md:h-auto", "min-h-11", "md:min-h-7"]),
+    );
+    expect(tokens).not.toContain("md:min-h-8");
+  });
+});
+
+const NO_STATES = {
+  idle: null,
+  thinking: null,
+  working: null,
+  done: null,
+  needs_you: null,
+  offline: null,
+};
+
+function stateAssets(name: string) {
+  return {
+    stillUrl: `https://blob/${name}.png`,
+    loopUrl: `https://blob/${name}-480.mp4`,
+    loopLargeUrl: `https://blob/${name}-960.mp4`,
+  };
+}
+
+const CRAFTED: SokoBotAvatarView = {
+  styleId: "crafted-desk",
+  styleVersion: 1,
+  stillUrl: "https://blob/idle.png",
+  states: {
+    ...NO_STATES,
+    idle: stateAssets("idle"),
+    working: stateAssets("working"),
+    done: stateAssets("done"),
+  },
+};
+
+const craftedBot: SidebarSokoBotLive = {
+  ...bot,
+  imageUrl: CRAFTED.stillUrl,
+  avatar: CRAFTED,
+};
+
+function reducedMotion(matches: boolean) {
+  reduceMotion.current = matches;
+}
+
+function rowFace(container: HTMLElement) {
+  return container.querySelector('[data-slot="sidebar-row-slot"] img');
+}
+
+function rowLoop(container: HTMLElement) {
+  return container.querySelector('[data-slot="sidebar-row-slot"] video');
+}
+
+describe("PersonalAssistantNav crafted avatar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    pathnameRef.current = "/";
+    reducedMotion(false);
+    // No media playback in the test DOM: a loop is a video that never plays.
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(() => Promise.resolve()),
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    reduceMotion.current = false;
+  });
+
+  it("crops a crafted avatar to the creature's face", () => {
+    const { container } = renderNav({ bot: craftedBot });
+    const face = rowFace(container);
+
+    expect(face).toHaveAttribute("src", "https://blob/idle.png");
+    expect(tokens(face?.className ?? "")).toEqual(
+      expect.arrayContaining(["-left-[89%]", "-top-[51%]", "size-[240%]"]),
+    );
+    expect(face?.parentElement?.className).toContain("overflow-hidden");
+  });
+
+  it("rests on the still on mount and plays once when the state changes", () => {
+    const view = renderNav({ bot: craftedBot });
+    expect(rowLoop(view.container)).toBeNull();
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/idle.png",
+    );
+
+    view.rerender(
+      <SidebarProvider defaultOpen>
+        <PersonalAssistantNav bot={{ ...craftedBot, avatarState: "working" }} />
+      </SidebarProvider>,
+    );
+    const video = rowLoop(view.container);
+    expect(video).toHaveAttribute("src", "https://blob/working-480.mp4");
+    expect(video).toHaveAttribute("poster", "https://blob/working.png");
+    expect(video).not.toHaveAttribute("loop");
+    // The same face crop as the still.
+    expect(tokens(video?.className ?? "")).toEqual(
+      expect.arrayContaining(["-left-[89%]", "-top-[51%]", "size-[240%]"]),
+    );
+
+    fireEvent.ended(video as HTMLVideoElement);
+    expect(rowLoop(view.container)).toBeNull();
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/working.png",
+    );
+  });
+
+  it("keeps the row on the still under reduced motion", () => {
+    reducedMotion(true);
+    const view = renderNav({ bot: craftedBot });
+    view.rerender(
+      <SidebarProvider defaultOpen>
+        <PersonalAssistantNav bot={{ ...craftedBot, avatarState: "working" }} />
+      </SidebarProvider>,
+    );
+    expect(rowLoop(view.container)).toBeNull();
+    expect(rowFace(view.container)).toHaveAttribute(
+      "src",
+      "https://blob/working.png",
+    );
+  });
+
+  it("leaves a legacy mascot uncropped and still", () => {
+    const mascot: SidebarSokoBotLive = {
+      ...bot,
+      avatarState: "working",
+      avatar: {
+        styleId: "mascot",
+        styleVersion: 1,
+        stillUrl: bot.imageUrl ?? "",
+        states: NO_STATES,
+      },
+    };
+    const { container } = renderNav({ bot: mascot });
+    const face = rowFace(container);
+
+    expect(face).toHaveAttribute("src", "https://example.com/1.png");
+    expect(tokens(face?.className ?? "")).not.toContain("size-[240%]");
+  });
+
+  describe("hover card", () => {
+    const working: SidebarSokoBotLive = {
+      ...craftedBot,
+      avatarState: "working",
+    };
+
+    function cardImage() {
+      return screen.queryByRole("img", { name: "alt(Mo,label.working)" });
+    }
+
+    function cardVideo() {
+      return document.querySelector(
+        '[data-slot="hover-card-content"] video',
+      ) as HTMLVideoElement | null;
+    }
+
+    function openCard() {
+      fireEvent.focus(screen.getByRole("link", { name: /Mo/ }));
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+    }
+
+    it("is closed until the row is hovered or focused", () => {
+      renderNav({ bot: working });
+      expect(cardImage()).toBeNull();
+    });
+
+    it("opens on keyboard focus with the loop, name, state and line", () => {
+      renderNav({ bot: working });
+      openCard();
+
+      const video = cardVideo();
+      expect(video).toHaveAttribute("src", "https://blob/working-480.mp4");
+      expect(video).toHaveAttribute("poster", "https://blob/working.png");
+      expect(cardImage()).not.toBeNull();
+      expect(
+        screen.getByText("label.working", {
+          selector: '[data-slot="avatar-state-pill"]',
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("line.working")).toBeInTheDocument();
+    });
+
+    it("opens on hover too", () => {
+      renderNav({ bot: working });
+      fireEvent.pointerEnter(screen.getByRole("link", { name: /Mo/ }), {
+        pointerType: "mouse",
+      });
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(cardImage()).not.toBeNull();
+    });
+
+    it("loops while open, and closing it removes the loop", () => {
+      renderNav({ bot: working });
+      openCard();
+      expect(cardVideo()?.loop).toBe(true);
+
+      fireEvent.blur(screen.getByRole("link", { name: /Mo/ }));
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(cardVideo()).toBeNull();
+      expect(cardImage()).toBeNull();
+    });
+
+    it("shows the still under reduced motion", () => {
+      reducedMotion(true);
+      renderNav({ bot: working });
+      openCard();
+      expect(cardVideo()).toBeNull();
+      expect(cardImage()).toHaveAttribute("src", "https://blob/working.png");
+    });
+  });
+});
+
+describe("PersonalAssistantNav live status", () => {
+  const activity = (
+    avatarState: string,
+    status: string = SokoBotStatus.RUNNING,
+  ) =>
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ activity: { status, avatarState } }),
+    }));
+
+  function setVisibility(state: "visible" | "hidden") {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: state,
+    });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setVisibility("visible");
+    pathnameRef.current = "/";
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    setVisibility("visible");
+  });
+
+  const flush = (ms = 0) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  it("picks up the bot's state as soon as it is on screen, then keeps asking", async () => {
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav({ bot });
+
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/personal-assistant/activity",
+      expect.objectContaining({ cache: "no-store" }),
+    );
+    expect(screen.getByText("label.working")).toBeInTheDocument();
+
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({
+        activity: { status: SokoBotStatus.IDLE, avatarState: "done" },
+      }),
+    }));
+    await flush(5_000);
+    expect(screen.getByText("label.done")).toBeInTheDocument();
+  });
+
+  it("counts 'Active … ago' from the latest activity, without a reload", async () => {
+    const latest = new Date("2026-11-01T09:55:00.000Z");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          activity: {
+            status: SokoBotStatus.IDLE,
+            avatarState: "idle",
+            lastActivityAt: latest.toISOString(),
+          },
+        }),
+      })),
+    );
+    renderNav({
+      bot: { ...bot, lastActivityAt: new Date("2026-11-01T05:00:00.000Z") },
+    });
+    relativeTime.mockClear();
+    await flush();
+    expect(relativeTime).toHaveBeenLastCalledWith(latest, expect.anything());
+  });
+
+  it("plays the new state once when it changes", async () => {
+    vi.stubGlobal("fetch", activity("working"));
+    renderNav({
+      bot: {
+        ...bot,
+        avatar: {
+          styleId: "crafted-desk",
+          styleVersion: 1,
+          stillUrl: "https://blob/idle.png",
+          states: {
+            idle: null,
+            thinking: null,
+            working: {
+              stillUrl: "https://blob/working.png",
+              loopUrl: "https://blob/working-480.mp4",
+              loopLargeUrl: "https://blob/working-960.mp4",
+            },
+            done: null,
+            needs_you: null,
+            offline: null,
+          },
+        },
+      },
+    });
+    expect(document.querySelector("video")).toBeNull();
+
+    await flush();
+
+    expect(document.querySelector("video")).toHaveAttribute(
+      "src",
+      "https://blob/working-480.mp4",
+    );
+  });
+
+  it("does not ask while the tab is hidden, and asks on coming back", async () => {
+    setVisibility("hidden");
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav({ bot });
+
+    await flush(20_000);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("stays on what it knows when an answer is bad or the request fails", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ activity: { avatarState: "dancing" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav({ bot: { ...bot, avatarState: "working" } });
+
+    await flush();
+    expect(screen.getByText("label.working")).toBeInTheDocument();
+
+    fetchMock.mockRejectedValue(new Error("offline"));
+    await flush(5_000);
+    expect(screen.getByText("label.working")).toBeInTheDocument();
+  });
+
+  it("stops asking when it goes away", async () => {
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    const { unmount } = renderNav({ bot });
+    await flush();
+    fetchMock.mockClear();
+
+    unmount();
+    await flush(20_000);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not ask without a bot", async () => {
+    const fetchMock = activity("working");
+    vi.stubGlobal("fetch", fetchMock);
+    renderNav();
+
+    await flush(5_000);
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

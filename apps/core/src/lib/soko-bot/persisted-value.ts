@@ -112,12 +112,25 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
     return jsonInput(sanitized);
   }
   const sources = truncatedSources(sanitized);
-  const emptyWrapper = JSON.stringify({ truncated: true, preview: "" });
+  // A long Social post or thread passes the cap; result cards and post links
+  // still read its projectId back.
+  const kept =
+    sanitized &&
+    typeof sanitized === "object" &&
+    !Array.isArray(sanitized) &&
+    typeof sanitized.projectId === "string"
+      ? { projectId: sanitized.projectId.slice(0, 200) }
+      : {};
+  const emptyWrapper = JSON.stringify({
+    truncated: true,
+    ...kept,
+    preview: "",
+  });
   let preview = truncateUtf8(
     serialized,
     TOOL_RESULT_MAX_BYTES - Buffer.byteLength(emptyWrapper, "utf8"),
   );
-  let wrapper = { truncated: true, preview };
+  let wrapper = { truncated: true, ...kept, preview };
   while (
     Buffer.byteLength(JSON.stringify(wrapper), "utf8") > TOOL_RESULT_MAX_BYTES
   ) {
@@ -128,7 +141,7 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
       preview,
       Math.max(0, Buffer.byteLength(preview, "utf8") - excess - 1),
     );
-    wrapper = { truncated: true, preview };
+    wrapper = { truncated: true, ...kept, preview };
   }
   return jsonInput(sources.length ? { ...wrapper, sources } : wrapper);
 }

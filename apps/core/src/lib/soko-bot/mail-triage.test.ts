@@ -131,18 +131,22 @@ describe("triageMail", () => {
         matchesRule: false,
       },
     ]);
-    expect(evaluateMock).toHaveBeenCalledOnce();
-    const { state, questions } = evaluateMock.mock.calls[0][0];
+    // Triage in one call, the saved rules in a call of their own.
+    expect(evaluateMock).toHaveBeenCalledTimes(2);
+    const triageCall = evaluateMock.mock.calls.find(
+      ([call]) => "mail0" in call.questions,
+    )?.[0];
+    const ruleCall = evaluateMock.mock.calls.find(
+      ([call]) => "rule0" in call.questions,
+    )?.[0];
+    const { state, questions } = triageCall;
     expect(state.ownerPreferences).toEqual([
       "Do not flag Make scenario errors or DigitalOcean deployment failures.",
     ]);
     expect(state.alreadyFlaggedToday).toEqual(["Stripe: your payout failed."]);
-    expect(Object.keys(questions)).toEqual([
-      "mail0",
-      "rule0",
-      "mail1",
-      "rule1",
-    ]);
+    expect(Object.keys(questions)).toEqual(["mail0", "mail1"]);
+    expect(Object.keys(ruleCall.questions)).toEqual(["rule0", "rule1"]);
+    expect(Object.keys(ruleCall.state)).toEqual(["ownerRules", "emails"]);
     expect(questions.mail0).toMatchObject({
       type: "choice",
       criteria: MAIL_TRIAGE_CRITERIA,
@@ -150,6 +154,8 @@ describe("triageMail", () => {
     expect(questions.mail0.instructions).toMatch(/ownerPreferences/);
     expect(questions.mail0.instructions).toMatch(/alreadyFlaggedToday/);
     expect(MAIL_TRIAGE_CRITERIA.URGENT).toMatch(/DigitalOcean.*never urgent/);
+    expect(MAIL_TRIAGE_CRITERIA.BULK).toMatch(/Sentry.*are bulk/);
+    expect(MAIL_TRIAGE_CRITERIA.BULK).toMatch(/Cold pitches from strangers/);
   });
 
   it("marks mail a saved rule asks the bot to act on, only when Jev is sure", async () => {
@@ -170,12 +176,29 @@ describe("triageMail", () => {
       mail("b", "Weekly digest"),
     ]);
     expect(tagged.map((item) => item.matchesRule)).toEqual([true, false]);
-    const { state, questions } = evaluateMock.mock.calls[0][0];
+    expect(evaluateMock).toHaveBeenCalledTimes(2);
+    const { state, questions } = evaluateMock.mock.calls.find(
+      ([call]) => "rule0" in call.questions,
+    )?.[0];
     expect(state.ownerRules).toEqual([
       "Save invoice attachments into Finance/Invoices.",
     ]);
     expect(questions.rule0).toMatchObject({ type: "boolean" });
     expect(questions.rule0.instructions).toMatch(/ownerRules/);
+  });
+
+  it("keeps the triage when only the rule call fails", async () => {
+    memoryMock.mockResolvedValue({
+      markdown:
+        "# Soko Bot memory\n\n## Decisions\n\n- Save invoice attachments into Finance/Invoices.\n",
+    });
+    evaluateMock.mockImplementation(async ({ questions }) => {
+      if ("rule0" in questions) throw new Error("timeout");
+      return { answers: { mail0: choice(0, 1, 0) } };
+    });
+    const { mail: tagged, failed } = await triage([mail("a", "Invoice")]);
+    expect(failed).toBe(false);
+    expect(tagged[0]).toMatchObject({ tag: "NOTABLE", matchesRule: false });
   });
 
   it("asks no rule questions when the owner saved none", async () => {
@@ -234,6 +257,44 @@ describe("triageMail", () => {
       { message: inbox[0], tag: null, probability: null, matchesRule: false },
     ]);
     expect(logSetMock.mock.calls[0][0].mailTriage.failed).toBe(true);
+  });
+
+  it("asks a busy hour in batches of 25 and keeps the order", async () => {
+    evaluateMock.mockImplementation(async ({ questions }) => ({
+      answers: Object.fromEntries(
+        Object.keys(questions).map((key) => [key, choice(0, 0, 1)]),
+      ),
+    }));
+    const inbox = Array.from({ length: 60 }, (_, i) =>
+      mail(`m${i}`, `Newsletter ${i}`),
+    );
+    const { mail: tagged, failed } = await triage(inbox);
+    expect(evaluateMock).toHaveBeenCalledTimes(3);
+    expect(
+      evaluateMock.mock.calls.map(
+        ([call]) => Object.keys(call.questions).length,
+      ),
+    ).toEqual([25, 25, 10]);
+    expect(failed).toBe(false);
+    expect(tagged.map((item) => item.message.id)).toEqual(
+      inbox.map((message) => message.id),
+    );
+    expect(tagged.every((item) => item.tag === "BULK")).toBe(true);
+  });
+
+  it("leaves only a failed batch untagged", async () => {
+    evaluateMock
+      .mockResolvedValueOnce({
+        answers: Object.fromEntries(
+          Array.from({ length: 25 }, (_, i) => [`mail${i}`, choice(0, 0, 1)]),
+        ),
+      })
+      .mockRejectedValueOnce(new Error("timeout"));
+    const inbox = Array.from({ length: 30 }, (_, i) => mail(`m${i}`, "Hi"));
+    const { mail: tagged, failed } = await triage(inbox);
+    expect(failed).toBe(true);
+    expect(tagged.slice(0, 25).every((item) => item.tag === "BULK")).toBe(true);
+    expect(tagged.slice(25).every((item) => item.tag === null)).toBe(true);
   });
 
   it("asks nothing for an empty inbox", async () => {

@@ -42,8 +42,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
     asChild?: boolean;
   }) =>
     asChild === true && isValidElement(children) ? children : <>{children}</>,
-  // The row asks whether the rail is collapsed, to offer its thread flyout.
-  useSidebar: () => ({ state: "expanded", isMobile: false }),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
@@ -100,16 +98,6 @@ describe("ChatRoomSidebarRow against the English catalog", () => {
     renderRow(makeRoom({ unreadCount: 7 }));
 
     expect(screen.getByText("7 unread messages")).toBeInTheDocument();
-  });
-
-  // The collapsed rail's pill is announced through two keys of its own.
-  it("names the rail pill's two states from the catalog", () => {
-    const { unmount } = renderRow(makeRoom({ unreadMentionCount: 1 }));
-    expect(screen.getByText("Mentions you")).toBeInTheDocument();
-    unmount();
-
-    renderRow(makeRoom({ unreadCount: 1 }));
-    expect(screen.getByText("Unread")).toBeInTheDocument();
   });
 
   // A row shows one number, so each cap is announced on its own row.

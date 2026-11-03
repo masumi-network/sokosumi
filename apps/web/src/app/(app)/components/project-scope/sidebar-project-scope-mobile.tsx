@@ -1,21 +1,14 @@
 "use client";
 
-import { ChevronsUpDown, FolderKanban, Layers, X } from "lucide-react";
+import { ChevronsUpDown, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useId, useRef } from "react";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import {
-  returnFocusTo,
-  useProjectScopeSwitch,
-} from "@/app/components/project-scope/use-project-scope";
-import {
-  usePrefetchScopeProjects,
-  useSelectedScopeProject,
-} from "@/app/components/project-scope/use-scope-projects";
+import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
+import { usePrefetchScopeProjects } from "@/app/components/project-scope/use-scope-projects";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -28,56 +21,43 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
+import { ProjectScopeReason } from "./project-scope-required";
+import {
+  ScopeClosedBadge,
+  useClearScope,
+  useCurrentScope,
+} from "./project-scope-trigger";
 import {
   getScopeCreateOpener,
   openScopeCreate,
   resetScopeDialogs,
+  selectCreatedProject,
+  selectProjectScope,
   setScopeCreateOpen,
   setScopeSheetOpen,
   useScopeCreateOpen,
+  useScopeRequest,
   useScopeSheetOpen,
 } from "./sidebar-project-scope-state";
 
-/** The current scope as a name and a mark, for any trigger. */
-export function useCurrentScope() {
-  const t = useTranslations("App.ProjectScope");
-  const scope = useProjectScopeSwitch();
-  const selectedProject = useSelectedScopeProject(scope.projectId);
-  // A project still loading reads as "Project", never as the workspace.
-  const name =
-    scope.projectId === null
-      ? t("workspaceView")
-      : (selectedProject?.name ?? t("label"));
-
-  return {
-    ...scope,
-    name,
-    /** "Project: Acme", for accessible names and the rail tooltip. */
-    label: scope.projectId === null ? name : `${t("label")}: ${name}`,
-    mark:
-      scope.projectId === null ? (
-        <Layers className="size-4 shrink-0" aria-hidden />
-      ) : selectedProject ? (
-        <ProjectAvatar
-          name={selectedProject.name}
-          logo={selectedProject.logo}
-          className="size-5 shrink-0"
-        />
-      ) : (
-        <FolderKanban className="size-4 shrink-0" aria-hidden />
-      ),
-  };
-}
-
-/** Below md: a compact scope chip in the header that opens a bottom sheet. */
+/**
+ * Below md: a compact scope chip in the header that opens a bottom sheet.
+ * While a project is picked, an × beside it returns to All projects.
+ * A page that needs a project opens the same sheet (`openProjectScope`); a
+ * required ask keeps it open on a tap outside.
+ */
 export function SidebarScopeMobileChip() {
   const prefetch = usePrefetchScopeProjects();
   const t = useTranslations("App.ProjectScope");
   const pathname = usePathname();
   const open = useScopeSheetOpen();
   const createOpen = useScopeCreateOpen();
-  const { projectId, name, label, mark, select } = useCurrentScope();
+  const request = useScopeRequest();
+  const required = open && request?.required === true;
+  const reasonId = useId();
+  const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const chipRef = useRef<HTMLButtonElement>(null);
+  const clearScope = useClearScope(chipRef);
 
   // The store outlives this chip, as when the reader leaves the app shell.
   useMountEffect(() => resetScopeDialogs);
@@ -105,10 +85,12 @@ export function SidebarScopeMobileChip() {
               onPointerDown={prefetch}
               className="h-11 max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent"
             >
-              <span aria-hidden className="flex shrink-0">
+              {/* The mark's glyph names no size, so this box gives it one. */}
+              <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
                 {mark}
               </span>
               <span className="min-w-0 truncate">{name}</span>
+              {closed ? <ScopeClosedBadge /> : null}
               <ChevronsUpDown
                 className="text-muted-foreground size-3.5 shrink-0"
                 aria-hidden
@@ -118,7 +100,12 @@ export function SidebarScopeMobileChip() {
           <SheetContent
             side="bottom"
             showCloseButton={false}
-            aria-describedby={undefined}
+            aria-describedby={request?.reason ? reasonId : undefined}
+            data-required={required || undefined}
+            // A required ask closes on Esc or ×, not on a stray tap outside.
+            onInteractOutside={(event) => {
+              if (required) event.preventDefault();
+            }}
             // A chat room hides the chip, so the sidebar row opens this sheet.
             onCloseAutoFocus={(event) => returnFocusTo(chipRef.current)(event)}
             className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl pb-[env(safe-area-inset-bottom)] motion-reduce:animate-none motion-reduce:transition-none"
@@ -137,20 +124,43 @@ export function SidebarScopeMobileChip() {
                 <span className="sr-only">{t("close")}</span>
               </Button>
             </SheetClose>
+            {request?.reason ? (
+              <ProjectScopeReason id={reasonId} reason={request.reason} />
+            ) : null}
             <ProjectScopeMenu
               selectedProjectId={projectId}
-              onSelect={select}
+              onSelect={(id) => selectProjectScope(id, select)}
               onCreate={openScopeCreate}
               onDone={() => setScopeSheetOpen(false)}
-              className="min-h-0 flex-1 rounded-none border-t"
+              // The reason's own rule already sits above the list.
+              className={cn(
+                "min-h-0 flex-1 rounded-none",
+                !request?.reason && "border-t",
+              )}
             />
           </SheetContent>
         </Sheet>
+        {projectId !== null && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("clearProject")}
+            title={t("clearProject")}
+            data-testid="project-scope-chip-clear"
+            onClick={clearScope}
+            className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        )}
       </div>
       <InlineCreateProjectModal
         open={createOpen}
         onOpenChange={setScopeCreateOpen}
-        onCreated={({ projectId: createdId }) => select(createdId)}
+        onCreated={({ projectId: createdId }) =>
+          selectCreatedProject(createdId, select)
+        }
         onCloseAutoFocus={(event) =>
           returnFocusTo(getScopeCreateOpener())(event)
         }

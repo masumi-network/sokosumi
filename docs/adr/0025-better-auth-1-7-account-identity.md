@@ -21,7 +21,7 @@ verified, so that wipe does not strip those links.
 
 ## Spent
 
-The 1.6 harvest (`pnpm data-migration:better-auth-1-7-harvest`) and the 1.7.3
+The 1.6 harvest and the 1.7.3
 relax migration (`20260907080000_better_auth_1_7_3_relax_account_issuer`)
 shipped. Do not re-run the harvest as a deploy gate. The 1.7.0–1.7.2
 `(issuer, accountId)` window, the “do not rewrite `accountId` while 1.6 is

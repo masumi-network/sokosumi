@@ -258,6 +258,7 @@
   "newsletter": {
     "why": "Recibes este correo porque te suscribiste a {name}.",
     "unsubscribe": "Cancelar suscripción",
+    "subscribe": "Suscribirse",
     "confirm": "Confirmar cancelación de suscripción",
     "unsubscribed": "Tu suscripción se ha cancelado",
     "confirmSubscription": "Confirmar suscripción",

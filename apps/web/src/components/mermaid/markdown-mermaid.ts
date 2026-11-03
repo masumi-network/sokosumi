@@ -73,7 +73,11 @@ export function prepareMermaidMarkdown({
     }
     node.children?.forEach(collect);
   }
-  collect(unified().use(remarkParse).parse(source));
+  // A mermaid fence names its language. Without the word there is none to
+  // find, and most messages skip a second full parse.
+  if (/mermaid/i.test(source)) {
+    collect(unified().use(remarkParse).parse(source));
+  }
   protectedSource += source.slice(cursor);
   const blocks = new Map<number, MermaidSource>();
   let delta = 0;

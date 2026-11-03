@@ -304,7 +304,7 @@ describe("ChatMobileBottomNav", () => {
     const nav = screen.getByRole("navigation", { name: "ariaLabel" });
     expect(nav.className).toContain("rounded-full");
     expect(nav.className).toContain("inset-x-4");
-    expect(nav.className).toContain("backdrop-blur-2xl");
+    expect(nav.className).toContain("bg-background");
     expect(nav.className).not.toContain("border-t");
 
     expect(screen.getByRole("link", { name: "chats" }).className).toContain(
@@ -328,7 +328,7 @@ describe("ChatMobileBottomNav", () => {
 
     expect(screen.getByLabelText("chatsUnread")).toBeTruthy();
     expect(screen.getByLabelText("chatsUnread").className).toContain(
-      "bg-primary",
+      "bg-foreground",
     );
     expect(screen.getByLabelText("chatsUnread").className).toContain(
       "size-1.5",

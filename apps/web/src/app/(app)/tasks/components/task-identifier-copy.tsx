@@ -36,7 +36,7 @@ export function TaskIdentifierCopy({
           type="button"
           onClick={handleCopy}
           aria-label={`${copyAriaLabelPrefix}: ${identifier}`}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-sm text-sm tabular-nums transition-colors outline-none focus-visible:ring-2"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-sm text-sm tabular-nums transition-colors outline-none focus-visible:ring-2"
         >
           {identifier}
           <Copy className="size-3.5 shrink-0" aria-hidden />

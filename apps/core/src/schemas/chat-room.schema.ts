@@ -117,18 +117,23 @@ const chatRoomUserParticipantSchema = z
   })
   .openapi("ChatRoomUserParticipant");
 
+const personFields = {
+  id: z.string().openapi({ example: "user_123" }),
+  name: z.string().openapi({ example: "Jane Doe" }),
+  email: z.string().openapi({ example: "jane@example.com" }),
+  image: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/avatar.png" }),
+};
+
 /** A human a Direct was started for who is no longer in it. Not a roster entry. */
 const chatRoomFormerUserMemberSchema = z
-  .object({
-    id: z.string().openapi({ example: "user_123" }),
-    name: z.string().openapi({ example: "Jane Doe" }),
-    email: z.string().openapi({ example: "jane@example.com" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/avatar.png" }),
-  })
+  .object(personFields)
   .openapi("ChatRoomFormerUserMember");
+
+/** Someone the reader may start a Personal Direct with (ADR-0059). */
+export const chatPersonSchema = z.object(personFields).openapi("ChatPerson");
 
 const chatRoomCoworkerParticipantSchema = z
   .object({
@@ -180,6 +185,16 @@ export const chatRoomSchema = z
       description:
         "Host organization display name. Required for guest rows in list; may be null for personal directs.",
       example: "Acme Corp",
+    }),
+    organizationLogo: z.string().nullable().optional().openapi({
+      description:
+        "Host organization logo, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://example.com/acme.png",
+    }),
+    organizationWebsiteUrl: z.string().nullable().optional().openapi({
+      description:
+        "Host organization website, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://acme.com",
     }),
     name: z.string().openapi({ example: "Launch Room" }),
     slug: z.string().nullable().openapi({
@@ -430,7 +445,7 @@ export const createChatRoomRequestSchema = z
       .object({
         kind: z.literal("direct").openapi({
           description:
-            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
+            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
@@ -572,7 +587,21 @@ const chatRoomMessageQuoteSchema = z
     snippet: z.string().openapi({
       example: "Can you summarize this launch risk?",
     }),
-    attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+    attachment: chatRoomMessageQuoteAttachmentSchema
+      .nullable()
+      .optional()
+      .openapi({
+        deprecated: true,
+        description:
+          "One attachment for shipped Mac builds: the first image, else the first file. Use `attachments`.",
+      }),
+    attachments: z
+      .array(chatRoomMessageQuoteAttachmentSchema)
+      .optional()
+      .openapi({
+        description:
+          "Every file and image linked in the quoted message, in body order. Absent on an older quote that had none.",
+      }),
     roomId: z.string().uuid().optional().openapi({
       description:
         "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
@@ -687,7 +716,7 @@ export const chatSignalTagSchema = z
   .enum(CHAT_SIGNAL_TAGS)
   .openapi("ChatSignalTag", {
     description:
-      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
+      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
   });
 
 /**

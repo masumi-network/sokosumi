@@ -3,7 +3,7 @@ import type {
   ChatRoomMessage,
   ChatRoomMessageReaction,
 } from "@sokosumi/core-client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -12,6 +12,7 @@ import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import { RoomsClient } from "../rooms-client";
 import {
+  renderWithQueryClient,
   roomsClientBaseProps,
   setMessageReactionAction,
   toast,
@@ -188,7 +189,7 @@ async function tapReact() {
 }
 
 async function mountRoom(messages: ChatRoomMessage[] = [message("m1")]) {
-  render(<RoomsClient {...baseProps} messages={messages} />);
+  renderWithQueryClient(<RoomsClient {...baseProps} messages={messages} />);
   await act(async () => {});
 }
 

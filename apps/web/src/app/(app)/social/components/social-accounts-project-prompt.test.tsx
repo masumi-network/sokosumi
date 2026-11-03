@@ -1,15 +1,22 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ProjectSocialProvider } from "@sokosumi/core-client";
+import {
+  SOCIAL_BETA_ORGANIZATION_SLUG,
+  SOCIAL_PUBLIC_PROVIDERS,
+  socialProvidersForWorkspace,
+} from "@sokosumi/utils";
 import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -22,29 +29,36 @@ vi.mock("@/app/components/project-scope/use-project-scope", () => ({
   }),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useScopeProjects: () => ({
-    pinned: [],
-    recent: [],
-    all: [{ id: "marketing", name: "Marketing", logo: null }],
-    isSearching: false,
-    isPending: false,
-    isSearchPending: false,
-    isError: false,
-    hasMore: false,
-  }),
+  usePrefetchScopeProjects: () => () => undefined,
 }));
-vi.mock("@/app/projects/components/project-avatar", () => ({
-  ProjectAvatar: () => <span aria-hidden />,
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: mocks.openProjectScope,
 }));
+
+/** What the prompt asked the header's selector for, most recently. */
+function lastRequest(): {
+  required?: boolean;
+  reason?: string;
+  onSelect?: (projectId: string) => void;
+} {
+  const request = mocks.openProjectScope.mock.lastCall?.[0];
+  if (!request) throw new Error("The project selector was not opened");
+  return request;
+}
 
 import { SocialAccountsProjectPrompt } from "./social-accounts-project-prompt";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-function setup(props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {}) {
+function setup(
+  props: Parameters<typeof SocialAccountsProjectPrompt>[0] = {},
+  enabledProviders: readonly ProjectSocialProvider[] = SOCIAL_PUBLIC_PROVIDERS,
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <SocialAccountsProjectPrompt {...props} />
+      <SocialProviderAvailabilityProvider enabledProviders={enabledProviders}>
+        <SocialAccountsProjectPrompt {...props} />
+      </SocialProviderAvailabilityProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -54,6 +68,27 @@ beforeEach(() => {
 });
 
 describe("SocialAccountsProjectPrompt", () => {
+  it("shows Coming soon badges in the utxo workspace with no project selected", () => {
+    setup(
+      {},
+      socialProvidersForWorkspace({
+        organizationSlug: SOCIAL_BETA_ORGANIZATION_SLUG,
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Choose a project" }),
+    ).toBeVisible();
+    const primary = screen
+      .getByRole("region", { name: "Social platforms" })
+      .querySelector("ul");
+    if (!primary) throw new Error("Primary platform track is missing");
+    expect(
+      [...primary.querySelectorAll("li p")].map((name) => name.textContent),
+    ).toEqual(["X", "LinkedIn", "YouTube", "TikTok", "Instagram", "Facebook"]);
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
+    expect(within(primary).getAllByText("Personal profile")).toHaveLength(1);
+  });
+
   it("asks to choose a project before connecting", () => {
     setup();
     expect(
@@ -62,18 +97,41 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(screen.getByText("Then connect accounts.")).toBeVisible();
   });
 
-  it("chooses a real project and opens its Accounts tab", async () => {
-    const user = userEvent.setup();
+  it("opens the header's selector, required, on arrival", () => {
+    setup();
+    expect(mocks.openProjectScope).toHaveBeenCalledOnce();
+    expect(lastRequest()).toMatchObject({
+      required: true,
+      reason: "Then connect accounts.",
+    });
+  });
+
+  it("does not open the selector on arrival when told not to", () => {
+    setup({ autoOpen: false });
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
+  });
+
+  it.each(["accounts", "drafts", "attention"] as const)(
+    "has no button of its own on %s: the header's selector is the way in",
+    (kind) => {
+      setup({ kind });
+      expect(
+        screen.queryByRole("button", { name: "Choose a project" }),
+      ).toBeNull();
+      expect(mocks.openProjectScope).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("chooses a real project in the header's selector and opens its Accounts tab", () => {
     setup();
 
-    await user.click(screen.getByRole("button", { name: "Choose a project" }));
-    expect(screen.getByRole("combobox")).toHaveFocus();
-    expect(screen.queryByTestId("project-scope-workspace")).toBeNull();
-    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    expect(lastRequest().required).toBe(true);
+    lastRequest().onSelect?.("marketing");
 
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=accounts",
     );
+    // No list of its own: the header's selector is the only one.
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
@@ -91,12 +149,34 @@ describe("SocialAccountsProjectPrompt", () => {
     if (!primary) {
       throw new Error("Primary platform track is missing");
     }
+    for (const track of tracks) {
+      expect(
+        [...track.querySelectorAll("li p")].map((name) => name.textContent),
+      ).toEqual([
+        "X",
+        "LinkedIn",
+        "YouTube",
+        "TikTok",
+        "Instagram",
+        "Facebook",
+      ]);
+    }
     expect(within(primary).getByText("TikTok")).toBeVisible();
-    expect(within(primary).getAllByText("Coming soon")).toHaveLength(
-      SOCIAL_PROVIDERS.filter((provider) => "comingSoon" in provider).length,
-    );
+    expect(within(primary).getAllByText("Coming soon")).toHaveLength(3);
     for (const provider of SOCIAL_PROVIDERS) {
-      expect(within(primary).getByText(provider.name)).toBeVisible();
+      const name = within(primary).getByText(provider.name);
+      expect(name).toBeVisible();
+      const card = name.parentElement;
+      expect(card).not.toBeNull();
+      if (!card) throw new Error("Platform card is missing");
+      if (["tiktok", "instagram", "facebook"].includes(provider.id)) {
+        expect(within(card).getByText("Coming soon")).toHaveAttribute(
+          "data-slot",
+          "badge",
+        );
+      } else {
+        expect(within(card).queryByText("Coming soon")).toBeNull();
+      }
     }
     expect(screen.getAllByText("TikTok")).toHaveLength(2);
 
@@ -107,9 +187,6 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(
       screen.queryByRole("button", { name: "Previous platforms" }),
     ).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Choose a project" }),
-    ).toHaveClass("min-h-11");
 
     const marquee = tracks[0]?.parentElement;
     expect(marquee).toHaveClass("motion-safe:animate-social-platform-marquee");
@@ -147,21 +224,22 @@ describe("SocialAccountsProjectPrompt", () => {
     );
   });
 
-  it("keeps Drafts as the destination and hides the account carousel", async () => {
-    const user = userEvent.setup();
+  it("keeps Drafts as the destination and hides the account carousel", () => {
     setup({ kind: "drafts" });
     expect(
       screen.queryByRole("region", { name: "Social platforms" }),
     ).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Choose a project" }));
-    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    expect(screen.getByTestId("social-post-fan")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    lastRequest().onSelect?.("marketing");
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=drafts",
     );
   });
 
-  it("keeps Needs attention as the destination and hides the account carousel", async () => {
-    const user = userEvent.setup();
+  it("keeps Needs attention as the destination and hides the account carousel", () => {
     setup({ kind: "attention" });
     expect(
       screen.getByRole("heading", { name: "Needs attention" }),
@@ -174,22 +252,22 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(
       screen.queryByRole("region", { name: "Social platforms" }),
     ).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Choose a project" }));
-    await user.click(screen.getByRole("option", { name: "Marketing" }));
+    expect(screen.getByTestId("social-post-fan")).toBeInTheDocument();
+    lastRequest().onSelect?.("marketing");
     expect(mocks.push).toHaveBeenCalledWith(
       "/social?projectId=marketing&tab=attention",
     );
   });
 
-  it("keeps an unavailable-project notice and provides a replacement picker", () => {
+  it("keeps an unavailable-project notice and asks the header's selector for another", () => {
     setup({
       notice: "That project is no longer available. Choose another project.",
     });
     expect(
       screen.getByText(/That project is no longer available/),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Choose a project" }),
-    ).toBeVisible();
+    expect(lastRequest().reason).toBe(
+      "That project is no longer available. Choose another project.",
+    );
   });
 });

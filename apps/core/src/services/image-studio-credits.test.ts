@@ -52,7 +52,7 @@ const {
   getBalanceMock: vi.fn(),
 }));
 
-vi.mock("@/services/image-studio-files.service", () => ({
+vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
@@ -186,6 +186,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     prompt: BASE_INPUT.prompt,
     settings: BASE_INPUT.settings,
     referenceAssetIds: [],
+    referenceFileIds: [],
     parentAssetId: null,
     status: "PENDING",
     submitAttempts: 0,

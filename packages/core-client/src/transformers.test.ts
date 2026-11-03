@@ -4,10 +4,69 @@ import {
   getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
   getProjectsByIdAdsMarketAdsResponseTransformer,
   getProjectsByIdAdsMarketResponseTransformer,
+  getProjectsByIdSocialPostsByPostIdResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
+
+it.each([null, { scheduledAt: meta.timestamp, account: null }])(
+  "revives quote dates and keeps nullable quotes/accounts safe (%j)",
+  async (quotedPost) => {
+    const result = await getProjectsByIdSocialPostsByPostIdResponseTransformer({
+      data: {
+        createdAt: meta.timestamp,
+        updatedAt: meta.timestamp,
+        socialConnection: null,
+        lastAttempt: null,
+        threadParts: [],
+        quotedPost,
+      },
+      meta: { ...meta },
+    });
+    expect(result.data.socialConnection).toBeNull();
+    if (quotedPost) {
+      expect(result.data.quotedPost?.scheduledAt).toEqual(
+        new Date(meta.timestamp),
+      );
+      expect(result.data.quotedPost?.account).toBeNull();
+    } else {
+      expect(result.data.quotedPost).toBeNull();
+    }
+  },
+);
+
+it("revives X thread part dates and preserves unpublished parts", async () => {
+  const result = await getProjectsByIdSocialPostsByPostIdResponseTransformer({
+    data: {
+      createdAt: meta.timestamp,
+      updatedAt: meta.timestamp,
+      socialConnection: null,
+      lastAttempt: null,
+      threadParts: [
+        {
+          position: 2,
+          externalPostId: "1908",
+          publishedAt: meta.timestamp,
+          error: null,
+        },
+        {
+          position: 3,
+          externalPostId: null,
+          publishedAt: null,
+          error: "Rejected",
+        },
+      ],
+    },
+    meta,
+  });
+  expect(result.data.threadParts[0].publishedAt).toBeInstanceOf(Date);
+  expect(result.data.threadParts[1]).toMatchObject({
+    publishedAt: null,
+    externalPostId: null,
+    error: "Rejected",
+  });
+});
 
 describe("generated response transformers keep nullable objects null-safe", () => {
   it("finalize ad connection: connection null (account reaches no ad accounts)", async () => {

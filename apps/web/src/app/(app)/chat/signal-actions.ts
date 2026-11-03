@@ -1,7 +1,6 @@
 "use server";
 
 import type {
-  ChatCatchUpSummary,
   ChatRoomCatchUp,
   ChatRoomMessage,
   ChatSignalRoutingSuggestion,
@@ -38,12 +37,6 @@ export async function getChatRoomCatchUpAction(
   roomId: string,
 ): Promise<SignalActionResult<ChatRoomCatchUp>> {
   return run(() => chatSignalsService.getRoomCatchUp(roomId));
-}
-
-export async function getChatCatchUpSummaryAction(
-  roomId?: string,
-): Promise<SignalActionResult<ChatCatchUpSummary>> {
-  return run(() => chatSignalsService.getSummary(roomId));
 }
 
 export async function listChatRoomDecisionsAction(

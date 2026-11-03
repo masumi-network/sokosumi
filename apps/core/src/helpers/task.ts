@@ -215,8 +215,7 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
     return null;
   }
 
-  // Prefer the acting agent when legacy rows stored multiple FKs
-  // (sokoBot/coworker status events used to also set context userId).
+  // Prefer the acting agent when legacy rows stored multiple FKs.
   // New writes set exactly one actor FK.
   // Prefer order: sokoBot → coworker → user.
   if (event.sokoBotId != null) {

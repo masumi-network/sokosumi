@@ -43,6 +43,11 @@ export interface TransactionHistoryRow {
   sokoBotTurnSource: string | null;
   sokoBotScheduleName: string | null;
   sokoBotScheduleKey: string | null;
+  contactListId: string | null;
+  contactListName: string | null;
+  contactFound: number | null;
+  /** The contact an Enrich looked up; null for a list's Find people. */
+  contactName: string | null;
   bucketSource: string | null;
   topUpSource: string | null;
   topUpNote: string | null;
@@ -93,6 +98,7 @@ const KIND_CASE = PrismaRaw.sql`
     WHEN te."id" IS NOT NULL THEN 'task'
     WHEN cu."id" IS NOT NULL THEN 'coworker'
     WHEN sbu."id" IS NOT NULL THEN 'sokoBot'
+    WHEN cps."id" IS NOT NULL THEN 'contacts'
     ELSE 'unattributed'
   END
 `;
@@ -191,6 +197,10 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       sbt."source"::TEXT AS "sokoBotTurnSource",
       sbs."name" AS "sokoBotScheduleName",
       sbs."systemKey" AS "sokoBotScheduleKey",
+      cps."listId"::TEXT AS "contactListId",
+      cl."name" AS "contactListName",
+      cps."found" AS "contactFound",
+      ct."name" AS "contactName",
       bucket."referenceType" AS "bucketSource",
       topup."referenceType"::TEXT AS "topUpSource",
       topup."referenceNote" AS "topUpNote",
@@ -219,6 +229,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         te."comment",
         cw."name",
         sb."name",
+        cl."name",
         topup."referenceType"::TEXT,
         topup."referenceNote",
         rj."name",
@@ -247,6 +258,9 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "soko_bot_turn" AS sbt ON sbt."id"::TEXT = sbu."referenceId"
     LEFT JOIN "soko_bot_schedule_run" AS sbr ON sbr."turnId" = sbt."id"
     LEFT JOIN "soko_bot_schedule" AS sbs ON sbs."id" = sbr."scheduleId"
+    LEFT JOIN "contact_people_search" AS cps ON cps."transactionId" = t."id"
+    LEFT JOIN "contact_list" AS cl ON cl."id" = cps."listId"
+    LEFT JOIN "contact" AS ct ON ct."id" = cps."contactId"
     -- A spend can draw from several buckets. One is enough to name a source.
     LEFT JOIN LATERAL (
       SELECT b."referenceType"::TEXT AS "referenceType"
@@ -332,6 +346,10 @@ export async function findTransactionHistoryPage(
       ledger."sokoBotTurnSource",
       ledger."sokoBotScheduleName",
       ledger."sokoBotScheduleKey",
+      ledger."contactListId",
+      ledger."contactListName",
+      ledger."contactFound",
+      ledger."contactName",
       ledger."bucketSource",
       ledger."topUpSource",
       ledger."topUpNote",
@@ -488,6 +506,7 @@ const SOKO_BOT_SYSTEM_SCHEDULE_LABELS: Record<string, string> = {
   "monday-plan": "Monday plan",
   "monthly-review": "Monthly review",
   "memory-cleanup": "Memory cleanup",
+  dreaming: "Dreaming",
 };
 
 const SOKO_BOT_SOURCE_LABELS: Record<string, string> = {
@@ -595,6 +614,19 @@ export function mapTransactionHistoryRow(
         title: `Soko Bot · ${row.sokoBotName?.trim() || "Unnamed"}`,
         description: sokoBotTurnLabel(row),
         sokoBotId: row.sokoBotId ?? "",
+      };
+    case "contacts":
+      return {
+        ...base,
+        kind: "contacts",
+        title: row.contactName
+          ? `Enrich · ${row.contactName}`
+          : `Find people · ${row.contactListName ?? "Deleted list"}`,
+        description:
+          row.contactFound === null || row.contactName
+            ? null
+            : `${row.contactFound} ${row.contactFound === 1 ? "person" : "people"} found`,
+        contactListId: row.contactListId,
       };
     case "topUp":
       return {

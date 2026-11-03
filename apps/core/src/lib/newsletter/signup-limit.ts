@@ -1,35 +1,26 @@
 import { isIP } from "node:net";
 
-import { getRedisClient } from "@/lib/redis";
+import { allowNewsletterRequest } from "./request-limit";
 
-const SIGNUP_LIMIT_SCRIPT = `
-local count = redis.call("incr", KEYS[1])
-if count == 1 then redis.call("expire", KEYS[1], 600) end
-return count
-`;
-
+/**
+ * Ten confirmation requests per newsletter in a window, counted per client
+ * IP, or per Soko Bot when a bot adds people on its owner's word.
+ */
 export async function allowNewsletterSignup(
   newsletterId: string,
-  request: Request,
+  requester: Request | { sokoBotId: string },
 ): Promise<boolean> {
+  if (!(requester instanceof Request))
+    return allowNewsletterRequest(
+      `newsletter:signup:${newsletterId}:soko-bot:${requester.sokoBotId}`,
+      10,
+    );
   const forwarded = (
-    request.headers.get("x-vercel-forwarded-for") ??
-    request.headers.get("x-forwarded-for")
+    requester.headers.get("x-vercel-forwarded-for") ??
+    requester.headers.get("x-forwarded-for")
   )
     ?.split(",")[0]
     ?.trim();
   const ip = forwarded && isIP(forwarded) ? forwarded : "unknown";
-  const redis = getRedisClient();
-  if (!redis) return true;
-  try {
-    const count = await redis.eval(
-      SIGNUP_LIMIT_SCRIPT,
-      1,
-      `newsletter:signup:${newsletterId}:${ip}`,
-    );
-    return typeof count === "number" && count <= 10;
-  } catch {
-    // Match Core's chat budget: keep requests available during Redis outages.
-    return true;
-  }
+  return allowNewsletterRequest(`newsletter:signup:${newsletterId}:${ip}`, 10);
 }

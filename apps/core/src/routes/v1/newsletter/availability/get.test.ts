@@ -10,17 +10,9 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 import mount from "./get";
 
 const config = vi.hoisted(() => ({
-  enabled: false,
   workspaceFindUnique: vi.fn(),
 }));
 
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: config.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: { workspace: { findUnique: config.workspaceFindUnique } },
 }));
@@ -58,28 +50,22 @@ function createApp(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  config.enabled = false;
   config.workspaceFindUnique.mockResolvedValue({
     organization: { slug: "utxo" },
   });
 });
 
 describe("GET /v1/newsletter/availability", () => {
-  it.each([false, true])(
-    "returns enabled=%s for a beta workspace without blocking disabled reads",
-    async (enabled) => {
-      config.enabled = enabled;
-      const response = await createApp().request("/availability");
+  it("is available for a utxo workspace", async () => {
+    const response = await createApp().request("/availability");
 
-      expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ data: { enabled } });
-    },
-  );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: { enabled: true } });
+  });
 
   it.each(["other-org", "UTXO", null])(
     "is unavailable for a workspace with organization slug %s",
     async (slug) => {
-      config.enabled = true;
       config.workspaceFindUnique.mockResolvedValue({
         organization: slug ? { slug } : null,
       });
@@ -96,7 +82,6 @@ describe("GET /v1/newsletter/availability", () => {
   );
 
   it("is unavailable when the current workspace no longer exists", async () => {
-    config.enabled = true;
     config.workspaceFindUnique.mockResolvedValue(null);
 
     const response = await createApp().request("/availability");
@@ -106,8 +91,6 @@ describe("GET /v1/newsletter/availability", () => {
   });
 
   it("is unavailable without a workspace and never queries another workspace", async () => {
-    config.enabled = true;
-
     const response = await createApp(true, null).request("/availability");
 
     expect(response.status).toBe(200);
@@ -116,7 +99,6 @@ describe("GET /v1/newsletter/availability", () => {
   });
 
   it("checks the currently selected workspace when the same user switches workspaces", async () => {
-    config.enabled = true;
     const beta = await createApp().request("/availability");
     expect(await beta.json()).toMatchObject({ data: { enabled: true } });
     config.workspaceFindUnique.mockResolvedValue({
@@ -136,24 +118,13 @@ describe("GET /v1/newsletter/availability", () => {
     });
   });
 
-  it("does not query beta eligibility while the feature switch is off", async () => {
-    const response = await createApp().request("/availability");
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ data: { enabled: false } });
-    expect(config.workspaceFindUnique).not.toHaveBeenCalled();
-  });
-
-  it("requires authentication even when disabled", async () => {
-    config.enabled = false;
+  it("requires authentication", async () => {
     const response = await createApp(false).request("/availability");
 
     expect(response.status).toBe(401);
   });
 
   it("requires an authorized user context before checking beta eligibility", async () => {
-    config.enabled = true;
-
     const response = await createApp(true, WORKSPACE, {
       actor: "coworker",
       coworkerId: "coworker_1",

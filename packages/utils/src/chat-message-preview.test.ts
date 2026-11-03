@@ -3,6 +3,7 @@ import {
   buildChatMessagePreview,
   buildNamedChatMessagePreview,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  chatMessageTextWithNames,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview";
@@ -1511,5 +1512,28 @@ describe("buildChatMessagePreview with a hyphenless mention key", () => {
         ]),
       ),
     ).toBe("@Ada hi");
+  });
+});
+
+describe("chatMessageTextWithNames", () => {
+  const ada = "019fc7e4-e4bd-7005-900c-66e44d33f5e4";
+
+  it("keeps a long message whole, with its lines and formatting", () => {
+    const body = `## Brief\n\n${"Research the market. ".repeat(20)}\n\n- **Due** Friday`;
+    expect(chatMessageTextWithNames(body)).toBe(body);
+    expect(body.length).toBeGreaterThan(CHAT_MESSAGE_PREVIEW_MAX_LENGTH);
+  });
+
+  it("names mentioned people and the room", () => {
+    expect(
+      chatMessageTextWithNames(
+        `@${ada}:ada please draft it for @all`,
+        new Map([[ada, "Ada Lovelace"]]),
+      ),
+    ).toBe("@Ada Lovelace please draft it for @all");
+  });
+
+  it("falls back to the slug when the room no longer names someone", () => {
+    expect(chatMessageTextWithNames(`ask @${ada}:ada`)).toBe("ask @ada");
   });
 });

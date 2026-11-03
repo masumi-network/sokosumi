@@ -1,7 +1,11 @@
 import { isValidTimezone } from "@sokosumi/utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { formatTimezoneLabel, getDefaultTimezone } from "./timezones";
+import {
+  calendarZoneInstant,
+  formatTimezoneLabel,
+  getDefaultTimezone,
+} from "./timezones";
 
 const SUMMER = new Date("2026-10-05T12:00:00Z");
 const WINTER = new Date("2026-01-15T12:00:00Z");
@@ -137,6 +141,88 @@ describe("formatTimezoneLabel", () => {
       { type: "timeZoneName", value: "Prague" },
     ]);
     expect(formatTimezoneLabel("Europe/Prague", "en", SUMMER)).toBe("Prague");
+  });
+});
+
+describe("calendarZoneInstant", () => {
+  const PRAGUE = "Europe/Prague";
+  const OCTOBER_2026 = { firstDayKey: "2026-10-01", lastDayKey: "2026-10-31" };
+  // Two days after Prague left summer time on 25 October 2026.
+  const AFTER_SWITCH = new Date("2026-10-27T09:00:00Z");
+
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["en", "Central European Standard Time (Prague)"],
+    ["de", "Mitteleuropäische Normalzeit (Prague)"],
+    ["es", "hora estándar de Europa central (Prague)"],
+  ])(
+    "names today's zone while today is in the shown month (%s)",
+    (locale, expected) => {
+      const at = calendarZoneInstant({
+        ...OCTOBER_2026,
+        now: AFTER_SWITCH,
+        timeZone: PRAGUE,
+      });
+      expect(at).toEqual(AFTER_SWITCH);
+      expect(formatTimezoneLabel(PRAGUE, locale, at)).toBe(expected);
+    },
+  );
+
+  it("reads now from the clock by default", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AFTER_SWITCH);
+    const at = calendarZoneInstant({ ...OCTOBER_2026, timeZone: PRAGUE });
+    expect(formatTimezoneLabel(PRAGUE, "en", at)).toBe(
+      "Central European Standard Time (Prague)",
+    );
+  });
+
+  it.each([
+    ["en", "Central European Summer Time (Prague)"],
+    ["de", "Mitteleuropäische Sommerzeit (Prague)"],
+    ["es", "hora de verano de Europa central (Prague)"],
+  ])(
+    "names the first day's zone for a month other than today's (%s)",
+    (locale, expected) => {
+      const at = calendarZoneInstant({
+        ...OCTOBER_2026,
+        now: new Date("2027-02-10T09:00:00Z"),
+        timeZone: PRAGUE,
+      });
+      // Noon on 1 October in Prague, still summer time (UTC+2).
+      expect(at.toISOString()).toBe("2026-10-01T10:00:00.000Z");
+      expect(formatTimezoneLabel(PRAGUE, locale, at)).toBe(expected);
+    },
+  );
+
+  it("names summer time for a July week viewed in winter", () => {
+    const at = calendarZoneInstant({
+      firstDayKey: "2026-07-12",
+      lastDayKey: "2026-07-18",
+      now: AFTER_SWITCH,
+      timeZone: PRAGUE,
+    });
+    expect(formatTimezoneLabel(PRAGUE, "en", at)).toBe(
+      "Central European Summer Time (Prague)",
+    );
+    expect(formatTimezoneLabel(PRAGUE, "en", at, "short")).toBe("GMT+2");
+  });
+
+  it("decides today in the calendar's zone, not UTC", () => {
+    // 23:30 UTC on 31 October is already 1 November in Prague.
+    const now = new Date("2026-10-31T23:30:00Z");
+    expect(
+      calendarZoneInstant({ ...OCTOBER_2026, now, timeZone: PRAGUE }),
+    ).not.toEqual(now);
+    expect(
+      calendarZoneInstant({
+        firstDayKey: "2026-11-01",
+        lastDayKey: "2026-11-30",
+        now,
+        timeZone: PRAGUE,
+      }),
+    ).toEqual(now);
   });
 });
 

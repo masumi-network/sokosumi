@@ -30,6 +30,7 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomMessage: { groupBy: vi.fn().mockResolvedValue([]) },
     chatRoom: { findFirst: roomFindFirstMock },
     organization: { findUnique: organizationFindUniqueMock },
     member: { findUnique: memberFindUniqueMock },
@@ -115,7 +116,6 @@ describe("GET /chats/rooms/{id}/pinned-messages", () => {
           reactions: [],
           replies: [],
           pins: [],
-          _count: { replies: 0 },
         },
       },
     ]);
@@ -166,7 +166,6 @@ describe("GET /chats/rooms/{id}/pinned-messages", () => {
           reactions: [],
           replies: [],
           pins: [],
-          _count: { replies: 0 },
         },
       },
     ]);

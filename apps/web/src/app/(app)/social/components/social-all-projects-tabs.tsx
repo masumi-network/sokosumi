@@ -10,12 +10,15 @@ import {
 import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
 import { SocialPostStatistics } from "@/app/projects/components/social-posts/social-post-statistics";
 import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SOCIAL_TABS_LIST_CLASS_NAME,
+  SOCIAL_TABS_ROW_CLASS_NAME,
+  SocialTabTrigger,
+} from "@/app/projects/components/social-posts/social-tab-trigger";
+import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -68,26 +71,21 @@ export function SocialAllProjectsTabs({
       }}
     >
       <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
           <TabsList
             aria-label={t("title")}
             className={cn(
               SEGMENTED_TABS_LIST_CLASS_NAME,
-              "w-fit min-w-0 max-w-full max-md:h-auto max-md:flex-wrap max-md:justify-start",
+              SOCIAL_TABS_LIST_CLASS_NAME,
+              "max-md:h-auto max-md:flex-wrap max-md:justify-start",
             )}
           >
             {SOCIAL_TABS.map((candidate) => (
-              <TabsTrigger
+              <SocialTabTrigger
                 key={candidate}
-                className={cn(
-                  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-                  "max-md:flex-none",
-                )}
-                data-testid={`social-posts-tab-${candidate}`}
-                value={candidate}
-              >
-                {t(`sections.${candidate}`)}
-              </TabsTrigger>
+                label={t(`sections.${candidate}`)}
+                tab={candidate}
+              />
             ))}
           </TabsList>
         </div>
@@ -107,7 +105,9 @@ export function SocialAllProjectsTabs({
             project is asked for where it is needed, on the other tabs.
             Not `notFound()` for a lost id: it came from a switchable scope,
             not from the path, so the repair is to pick another project. */}
-        {notice ? <SocialAccountsProjectPrompt notice={notice} /> : null}
+        {notice ? (
+          <SocialAccountsProjectPrompt notice={notice} autoOpen={false} />
+        ) : null}
         {calendar}
       </TabsContent>
       <TabsContent value="drafts">

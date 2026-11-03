@@ -110,11 +110,12 @@ describe("social connection subscription route", () => {
     expect(mocks.resolve).not.toHaveBeenCalled();
   });
 
-  it("checks Calendar beta access before reading or refreshing the account", async () => {
-    mocks.beta.mockRejectedValue(forbidden("Social unavailable"));
-    expect((await createApp().request(url)).status).toBe(403);
-    expect(mocks.find).not.toHaveBeenCalled();
-    expect(mocks.resolve).not.toHaveBeenCalled();
+  it("refreshes the account for a member outside the Ads beta", async () => {
+    mocks.beta.mockRejectedValue(forbidden("Ads unavailable"));
+    const response = await createApp().request(url);
+    expect(response.status).toBe(200);
+    expect(mocks.beta).not.toHaveBeenCalled();
+    expect(mocks.resolve).toHaveBeenCalledWith(connection);
   });
 
   it("publishes the GET contract with coworker context headers", () => {

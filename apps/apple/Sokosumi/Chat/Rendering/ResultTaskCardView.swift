@@ -43,7 +43,7 @@ struct ResultTaskCardView: View {
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.background, in: .rect(cornerRadius: 8))
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isHovered ? AnyShapeStyle(.tint) : AnyShapeStyle(Color.primary.opacity(0.12))))
+    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(isHovered ? 0.3 : 0.12)))
     .shadow(color: .black.opacity(isHovered ? 0.08 : 0), radius: 2, y: 1)
     .contentShape(.rect(cornerRadius: 8))
     // Web stretches the name's link over the card; its controls take their own clicks.
@@ -449,6 +449,13 @@ extension ResultTaskCard.Tag {
     case .social: LocalizedStringResource("taskTag.social", defaultValue: "Social media", table: chatTasksTable)
     case .seo: LocalizedStringResource("taskTag.seo", defaultValue: "SEO", table: chatTasksTable)
     case .operations: LocalizedStringResource("taskTag.operations", defaultValue: "Operations", table: chatTasksTable)
+    case .presentations: LocalizedStringResource("taskTag.presentations", defaultValue: "Presentations", table: chatTasksTable)
+    case .dashboards: LocalizedStringResource("taskTag.dashboards", defaultValue: "Dashboards", table: chatTasksTable)
+    case .monitoring: LocalizedStringResource("taskTag.monitoring", defaultValue: "Monitoring", table: chatTasksTable)
+    case .media: LocalizedStringResource("taskTag.media", defaultValue: "Media editing", table: chatTasksTable)
+    case .communication: LocalizedStringResource("taskTag.communication", defaultValue: "Communication", table: chatTasksTable)
+    case .finance: LocalizedStringResource("taskTag.finance", defaultValue: "Finance", table: chatTasksTable)
+    case .qa: LocalizedStringResource("taskTag.qa", defaultValue: "Review & QA", table: chatTasksTable)
     }
   }
 }

@@ -10,20 +10,24 @@ import {
 } from "@/clients/email.client";
 import { conflict, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   newsletterPublicUrl,
-  newsletterSenderOptions,
   newsletterUnsubscribeOptions,
 } from "@/lib/newsletter/email";
+import { NEWSLETTER_BETA_SCOPE } from "@/lib/newsletter/feature";
 import {
-  assertNewsletterEnabled,
-  isNewsletterEnabled,
-  NEWSLETTER_BETA_SCOPE,
-} from "@/lib/newsletter/feature";
+  compareWarmupRecipients,
+  utcDay,
+  warmupDailyCap,
+  warmupDay,
+} from "@/lib/newsletter/sending-domain-warmup";
 import {
   newsletterBrandSchema,
   newsletterTemplateSchema,
 } from "@/schemas/newsletter.schema";
+import { resolveNewsletterSendingContext } from "@/services/newsletter-sending-domain.service";
+import { pauseNewsletterSendingDomainIfUnhealthy } from "@/services/newsletter-sending-domain-warmup.service";
 
 const LEASE_MS = 5 * 60_000;
 interface SendNewsletterIssueOptions {
@@ -42,14 +46,15 @@ export async function sendNewsletterIssue(
   issueId: string,
   options: SendNewsletterIssueOptions = {},
 ): Promise<void> {
-  assertNewsletterEnabled();
   newsletterPublicUrl("unsubscribe");
   const issue = await prisma.newsletterIssue.findUnique({
     where: { id: issueId, ...NEWSLETTER_BETA_SCOPE },
     include: { newsletter: true },
   });
   if (!issue) throw notFound("Newsletter issue not found");
-  const sender = newsletterSenderOptions(issue.newsletter);
+  const { sender, domain } = await resolveNewsletterSendingContext(
+    issue.newsletter,
+  );
   const now = new Date();
   const recovering =
     issue.status === "SENDING" &&
@@ -100,7 +105,18 @@ export async function sendNewsletterIssue(
   }
 
   let lastError: string | null = null;
+  let retryAt = new Date(Date.now() + LEASE_MS);
   try {
+    // Only newly reserved rows may be dispatched, including after a crash.
+    // An interrupted provider request can be ambiguous; never resend that reservation.
+    await prisma.newsletterSend.updateMany({
+      where: { ...sendFence, status: "QUEUED", attemptedAt: { not: null } },
+      data: {
+        status: "FAILED",
+        error:
+          "Interrupted send; delivery could not be confirmed and will not be retried",
+      },
+    });
     const newsletter = {
       ...issue.newsletter,
       brand: newsletterBrandSchema.parse(issue.newsletter.brand),
@@ -122,116 +138,210 @@ export async function sendNewsletterIssue(
       });
       if (!page.length) break;
       cursor = page[page.length - 1]?.id;
-      const active = page.filter(
-        (subscriber) => subscriber.status === "ACTIVE",
+      await prisma.newsletterSend.createManyAndReturn({
+        data: page.map((subscriber) => ({
+          issueId,
+          subscriberId: subscriber.id,
+          attemptedAt: null,
+        })),
+        skipDuplicates: true,
+      });
+      if (page.length < RESEND_BATCH_MAX_SIZE) break;
+    }
+    const queued = await prisma.newsletterSend.findMany({
+      where: { ...sendFence, status: "QUEUED", attemptedAt: null },
+      include: {
+        subscriber: {
+          include: {
+            events: {
+              where: { type: { in: ["OPENED", "CLICKED"] } },
+              orderBy: { occurredAt: "desc" },
+              take: 1,
+              select: { occurredAt: true },
+            },
+          },
+        },
+      },
+    });
+    if (domain) {
+      queued.sort((a, b) =>
+        compareWarmupRecipients(
+          {
+            ...a.subscriber,
+            lastEngagedAt: a.subscriber.events[0]?.occurredAt ?? null,
+          },
+          {
+            ...b.subscriber,
+            lastEngagedAt: b.subscriber.events[0]?.occurredAt ?? null,
+          },
+        ),
       );
-      // Only newly reserved rows may be dispatched, including after a crash.
-      // An interrupted provider request can be ambiguous; never resend that reservation.
-      const reserved = active.length
-        ? await prisma.newsletterSend.createManyAndReturn({
-            data: active.map((subscriber) => ({
-              issueId,
-              subscriberId: subscriber.id,
-            })),
-            skipDuplicates: true,
-          })
-        : [];
+    }
+    for (
+      let offset = 0;
+      offset < queued.length;
+      offset += RESEND_BATCH_MAX_SIZE
+    ) {
+      if (options.shouldContinue && !options.shouldContinue()) return;
+      await renewLease();
+      const batch = queued.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
       const inputs: SendEmailInput[] = [];
-      const sends: typeof reserved = [];
-      for (const send of reserved) {
-        const subscriber = active.find(
-          (subscriber) => subscriber.id === send.subscriberId,
-        );
-        if (!subscriber) continue;
+      for (const send of batch) {
         const { unsubscribeUrl, headers } = newsletterUnsubscribeOptions({
           newsletterId: newsletter.id,
-          subscriberId: subscriber.id,
+          subscriberId: send.subscriberId,
         });
         const rendered = await renderNewsletterEmail({
           newsletter,
           issue: { ...issue, content, template },
           unsubscribeUrl,
         });
-        sends.push(send);
         inputs.push({
-          to: subscriber.email,
+          to: send.subscriber.email,
           ...rendered,
           tag: "newsletter",
           ...sender,
           headers,
         });
       }
-      if (inputs.length) {
-        await renewLease();
-        // Recheck consent immediately before dispatch, including unsubscribes during rendering.
-        const stillActive = await prisma.newsletterSubscriber.findMany({
+      // Recheck consent immediately before dispatch, including unsubscribes during rendering.
+      const stillActive = await prisma.newsletterSubscriber.findMany({
+        where: {
+          newsletterId: newsletter.id,
+          id: { in: batch.map((send) => send.subscriberId) },
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      const activeIds = new Set(stillActive.map((subscriber) => subscriber.id));
+      const deliverable = batch.flatMap((send, index) =>
+        activeIds.has(send.subscriberId)
+          ? [{ send, input: inputs[index]! }]
+          : [],
+      );
+      const skippedIds = batch
+        .filter((send) => !activeIds.has(send.subscriberId))
+        .map((send) => send.id);
+      if (skippedIds.length)
+        await prisma.newsletterSend.updateMany({
           where: {
-            newsletterId: newsletter.id,
-            id: { in: sends.map((send) => send.subscriberId) },
-            status: "ACTIVE",
+            ...sendFence,
+            id: { in: skippedIds },
+            status: "QUEUED",
+            attemptedAt: null,
           },
-          select: { id: true },
+          data: { status: "FAILED", error: "Subscriber is no longer active" },
         });
-        const activeIds = new Set(
-          stillActive.map((subscriber) => subscriber.id),
-        );
-        const deliverable = sends.flatMap((send, index) =>
-          activeIds.has(send.subscriberId)
-            ? [{ send, input: inputs[index]! }]
-            : [],
-        );
-        const skippedIds = sends
-          .filter((send) => !activeIds.has(send.subscriberId))
-          .map((send) => send.id);
-        if (skippedIds.length)
-          await prisma.newsletterSend.updateMany({
-            where: { ...sendFence, id: { in: skippedIds } },
-            data: { status: "FAILED", error: "Subscriber is no longer active" },
-          });
-        if (deliverable.length) {
-          if (options.shouldContinue && !options.shouldContinue()) {
-            // No provider call was attempted, so these reservations are safe to retry.
-            await prisma.newsletterSend.deleteMany({
-              where: {
-                ...sendFence,
-                id: { in: reserved.map((send) => send.id) },
-                status: "QUEUED",
-              },
-            });
-            return;
-          }
-          await renewLease();
-          let results: { id: string }[] | undefined;
-          try {
-            results = await sendEmails(deliverable.map(({ input }) => input));
-          } catch (error) {
-            lastError = errorMessage(error);
-            await prisma.newsletterSend.updateMany({
-              where: {
-                ...sendFence,
-                id: { in: deliverable.map(({ send }) => send.id) },
-              },
-              data: { status: "FAILED", error: lastError },
-            });
-          }
-          if (results) {
-            await prisma.$transaction(
-              deliverable.map(({ send }, index) =>
-                prisma.newsletterSend.updateMany({
-                  where: { ...sendFence, id: send.id, status: "QUEUED" },
-                  data: {
-                    status: "SENT",
-                    providerMessageId: results[index]!.id,
-                    sentAt: new Date(),
-                    error: null,
-                  },
-                }),
-              ),
-            );
-          }
-        }
+      if (!deliverable.length) continue;
+      if (options.shouldContinue && !options.shouldContinue()) {
+        // No provider call was attempted, so these reservations are safe to retry.
+        return;
       }
-      if (page.length < RESEND_BATCH_MAX_SIZE) break;
+      const reservation = await serializableTransaction(async (tx) => {
+        const attemptedAt = new Date();
+        const lease = await tx.newsletterIssue.updateMany({
+          where: { ...fence, leaseExpiresAt: { gt: attemptedAt } },
+          data: { leaseExpiresAt: new Date(attemptedAt.getTime() + LEASE_MS) },
+        });
+        if (!lease.count) throw conflict("Newsletter sending lease was lost");
+        let count = deliverable.length;
+        if (domain) {
+          const current = await tx.newsletterSendingDomain.findUnique({
+            where: { id: domain.id },
+          });
+          if (
+            !current ||
+            current.status !== "VERIFIED" ||
+            current.projectId !== newsletter.projectId ||
+            current.warmupPausedAt
+          ) {
+            return {
+              count: 0,
+              reason:
+                "Newsletter sending domain warm-up is paused or the domain is unavailable. Resume it in Newsletter settings.",
+              retryAt: new Date(attemptedAt.getTime() + LEASE_MS),
+            };
+          }
+          const day = utcDay(attemptedAt);
+          const cap = current.warmupStartedAt
+            ? warmupDailyCap(warmupDay(current.warmupStartedAt, attemptedAt))
+            : null;
+          const used =
+            current.warmupSentOnDayUtc?.getTime() === day.getTime()
+              ? current.warmupSentCount
+              : 0;
+          count = Math.min(
+            count,
+            cap === null ? count : Math.max(0, cap - used),
+          );
+          if (!count)
+            return {
+              count: 0,
+              reason: "Newsletter sending domain daily warm-up limit reached",
+              retryAt: new Date(day.getTime() + 86_400_000),
+            };
+          await tx.newsletterSendingDomain.update({
+            where: { id: current.id },
+            data: { warmupSentOnDayUtc: day, warmupSentCount: used + count },
+          });
+        }
+        const reserved = await tx.newsletterSend.updateMany({
+          where: {
+            ...sendFence,
+            id: { in: deliverable.slice(0, count).map(({ send }) => send.id) },
+            status: "QUEUED",
+            attemptedAt: null,
+          },
+          data: { attemptedAt, sendingDomainId: domain?.id ?? null },
+        });
+        if (reserved.count !== count)
+          throw conflict("Newsletter sending reservation changed");
+        return {
+          count,
+          reason: null,
+          retryAt: new Date(attemptedAt.getTime() + LEASE_MS),
+        };
+      }, "Newsletter sending domain capacity changed; retry sending");
+      if (!reservation.count) {
+        lastError = reservation.reason;
+        retryAt = reservation.retryAt;
+        break;
+      }
+      const reserved = deliverable.slice(0, reservation.count);
+      let results: { id: string }[] | undefined;
+      try {
+        results = await sendEmails(reserved.map(({ input }) => input));
+      } catch (error) {
+        lastError = errorMessage(error);
+        await prisma.newsletterSend.updateMany({
+          where: {
+            ...sendFence,
+            id: { in: reserved.map(({ send }) => send.id) },
+          },
+          data: { status: "FAILED", error: lastError },
+        });
+      }
+      if (results) {
+        await prisma.$transaction(
+          reserved.map(({ send }, index) =>
+            prisma.newsletterSend.updateMany({
+              where: { ...sendFence, id: send.id, status: "QUEUED" },
+              data: {
+                status: "SENT",
+                providerMessageId: results[index]!.id,
+                sentAt: new Date(),
+                error: null,
+              },
+            }),
+          ),
+        );
+      }
+      if (domain) await pauseNewsletterSendingDomainIfUnhealthy(domain.id);
+      if (reservation.count < deliverable.length) {
+        retryAt = new Date(utcDay(new Date()).getTime() + 86_400_000);
+        lastError = "Newsletter sending domain daily warm-up limit reached";
+        break;
+      }
     }
   } catch (error) {
     lastError = errorMessage(error);
@@ -239,13 +349,16 @@ export async function sendNewsletterIssue(
 
   await renewLease();
   await prisma.newsletterSend.updateMany({
-    where: { ...sendFence, status: "QUEUED" },
+    where: { ...sendFence, status: "QUEUED", attemptedAt: { not: null } },
     data: {
       status: "FAILED",
       error:
         lastError ??
         "Interrupted send; delivery could not be confirmed and will not be retried",
     },
+  });
+  const queued = await prisma.newsletterSend.count({
+    where: { ...sendFence, status: "QUEUED", attemptedAt: null },
   });
   const sent = await prisma.newsletterSend.count({
     where: { issueId, status: "SENT" },
@@ -256,17 +369,17 @@ export async function sendNewsletterIssue(
   const result = await prisma.newsletterIssue.updateMany({
     where: { ...fence, leaseExpiresAt: { gt: new Date() } },
     data: {
-      status: sent ? "SENT" : "FAILED",
-      sentAt: sent ? new Date() : null,
+      status: queued ? "SENDING" : sent ? "SENT" : "FAILED",
+      sentAt: !queued && sent ? new Date() : null,
       lastError:
         lastError ??
         (failed
           ? `${failed} newsletter sends failed`
-          : sent
+          : sent || queued
             ? null
             : "No active subscribers could be sent this issue"),
       leaseToken: null,
-      leaseExpiresAt: null,
+      leaseExpiresAt: queued ? retryAt : null,
     },
   });
   if (!result.count) throw conflict("Newsletter sending lease was lost");
@@ -275,7 +388,6 @@ export async function sendNewsletterIssue(
 export async function sendDueNewsletterIssues(
   options: Pick<SendNewsletterIssueOptions, "shouldContinue"> = {},
 ) {
-  if (!isNewsletterEnabled()) return;
   const now = new Date();
   const issues = await prisma.newsletterIssue.findMany({
     where: {
@@ -285,7 +397,7 @@ export async function sendDueNewsletterIssues(
         { status: "SENDING", leaseExpiresAt: { lte: now } },
       ],
     },
-    orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+    orderBy: [{ leaseExpiresAt: "asc" }, { scheduledAt: "asc" }, { id: "asc" }],
     take: 10,
     select: { id: true },
   });

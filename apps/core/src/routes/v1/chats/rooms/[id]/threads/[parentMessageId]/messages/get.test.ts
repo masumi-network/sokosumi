@@ -43,6 +43,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: memberFindUniqueMock,
     },
     chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
       findFirst: messageFindFirstMock,
       findMany: messageFindManyMock,
       count: messageCountMock,
@@ -101,7 +102,6 @@ function replyMessage() {
     reactions: [],
     replies: [],
     pins: [],
-    _count: { replies: 0 },
   };
 }
 

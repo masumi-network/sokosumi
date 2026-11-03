@@ -21,7 +21,11 @@ const { authContextState, db } = vi.hoisted(() => ({
   db: {
     sokoBot: { findUnique: vi.fn() },
     chatRoom: { findMany: vi.fn(), findFirst: vi.fn() },
-    chatRoomMessage: { findMany: vi.fn(), count: vi.fn() },
+    chatRoomMessage: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
     chatRoomUserMember: { update: vi.fn(), updateMany: vi.fn() },
     chatRoomReadState: { upsert: vi.fn(), updateMany: vi.fn() },
   },
@@ -49,6 +53,7 @@ vi.mock("../../../../chats/rooms/helpers", () => ({
     id: message.id,
     viewer,
   }),
+  withChatRoomReplyCounts: async (_db: unknown, messages: unknown) => messages,
 }));
 vi.mock("@/schemas/chat-room.schema", async () => {
   const { z } = await import("@hono/zod-openapi");

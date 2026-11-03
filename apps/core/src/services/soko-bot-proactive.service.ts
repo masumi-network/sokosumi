@@ -1,7 +1,10 @@
 import type { Prisma } from "@sokosumi/database";
 import {
   dueFollowUps,
+  getSokoBotVersion,
+  isCmoScheduleKey,
   parseSokoBotMemory,
+  SOKO_BOT_CMO_SCHEDULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
@@ -129,13 +132,18 @@ export async function proactiveGate(
  * Creates the built-in rhythms a bot is missing; idempotent per (bot, key).
  * A shared bot gets only the rhythms with an owner-free prompt, all switched
  * off: no rhythm runs for a team until a member turns it on. A shared bot's
- * rhythms have no Requester: nobody asked for them (ADR 0057).
+ * rhythms have no Requester: nobody asked for them (ADR 0057). Cuso, a shared
+ * CMO bot, is the exception: hiring him asked for his rhythms, so they are on
+ * and run as the member who hired him (ADR 0061).
  */
 export async function ensureSystemSchedules(bot: {
   id: string;
   userId: string | null;
+  /** Who hired Cuso: his rhythms run as that member. */
+  createdByUserId?: string | null;
   workspaceId: string;
   ingestTimezone: string;
+  versionId?: string | null;
 }): Promise<void> {
   const shared = isSharedSokoBot(bot);
   const existing = await prisma.sokoBotSchedule.findMany({
@@ -143,9 +151,25 @@ export async function ensureSystemSchedules(bot: {
     select: { systemKey: true },
   });
   const have = new Set(existing.map((row) => row.systemKey));
-  for (const schedule of SOKO_BOT_SYSTEM_SCHEDULES) {
+  const versionId =
+    bot.versionId !== undefined
+      ? bot.versionId
+      : (
+          await prisma.sokoBot.findUnique({
+            where: { id: bot.id },
+            select: { versionId: true },
+          })
+        )?.versionId;
+  // A CMO bot runs marketing rhythms, never the personal stand-up and wrap.
+  // They are the work Cuso was hired for, so they run on his shared bot too
+  // (ADR 0061).
+  const cmo = getSokoBotVersion(versionId).profile === "cmo";
+  const rhythms = cmo ? SOKO_BOT_CMO_SCHEDULES : SOKO_BOT_SYSTEM_SCHEDULES;
+  for (const schedule of rhythms) {
     if (have.has(schedule.key)) continue;
-    const prompt = sokoBotSystemSchedulePrompt(schedule, shared);
+    const prompt = cmo
+      ? schedule.prompt
+      : sokoBotSystemSchedulePrompt(schedule, shared);
     if (prompt === null) continue;
     const nextRunAt = computeNextRunWithMinimumInterval(
       { cron: schedule.cronExpression, timezone: bot.ingestTimezone },
@@ -156,10 +180,11 @@ export async function ensureSystemSchedules(bot: {
       .create({
         data: {
           sokoBotId: bot.id,
-          requestedByUserId: bot.userId,
+          requestedByUserId:
+            bot.userId ?? (cmo ? (bot.createdByUserId ?? null) : null),
           workspaceId: bot.workspaceId,
           name: schedule.name,
-          ...(shared ? { enabled: false } : {}),
+          ...(shared && !cmo ? { enabled: false } : {}),
           timezone: bot.ingestTimezone,
           cronExpression: schedule.cronExpression,
           prompt,
@@ -507,6 +532,17 @@ export async function buildSystemBeatMessage(input: {
   now: Date;
 }): Promise<{ message: string; nudgeKeys: string[]; skip?: boolean }> {
   const { bot, now } = input;
+  if (isCmoScheduleKey(input.key)) {
+    const { buildCmoBeatPacket } = await import(
+      "@/services/cmo-context.service"
+    );
+    const { packet, skip } = await buildCmoBeatPacket(bot.id, now, input.key);
+    return {
+      message: [input.prompt, "", packet].join("\n").trim(),
+      nudgeKeys: [],
+      ...(skip ? { skip: true } : {}),
+    };
+  }
   const lines: string[] = [input.prompt, ""];
   const nudgeKeys: string[] = [];
   if (RHYTHM_KEYS.has(input.key)) {

@@ -231,9 +231,8 @@ export async function runSokoBotMentionDispatch(params: {
 
   const accept = async () => {
     const accepted = sokoBotControlPlane.startTurn({
-      ...(isPersonalSokoBot(bot)
-        ? { userId: bot.userId }
-        : { userId, sokoBotId: bot.id }),
+      sokoBotId: bot.id,
+      userId: isPersonalSokoBot(bot) ? bot.userId : userId,
       // The mentioned bot runs in its own workspace, whatever room it was
       // asked in. The room's workspace ran a different bot of the same owner
       // (their personal one) and put its Tasks there.

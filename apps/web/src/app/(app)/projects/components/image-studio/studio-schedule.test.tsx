@@ -97,10 +97,9 @@ const ASSET = {
   contentPath: "/asset-1",
 } as unknown as StudioAsset;
 
-function mount(canScheduleSocial = false) {
+function mount() {
   return render(
     <ImageStudio
-      canScheduleSocial={canScheduleSocial}
       catalog={TEST_CATALOG}
       initialSelectedAssetId="asset-1"
       initialState={{ assets: [ASSET], jobs: [], nextCursor: null } as never}
@@ -116,16 +115,14 @@ beforeEach(() => {
 });
 
 describe("schedule this image", () => {
-  it("hides the button when Social is not available", () => {
+  it("offers social scheduling without a beta flag", () => {
     mount();
-    expect(
-      screen.queryByRole("button", { name: "schedule" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "schedule" })).toBeVisible();
   });
 
   it("opens Social with the image attached", async () => {
     prepareMock.mockResolvedValue({ ok: true, value: MEDIA });
-    mount(true);
+    mount();
 
     fireEvent.click(screen.getByRole("button", { name: "schedule" }));
 
@@ -149,7 +146,6 @@ describe("schedule this image", () => {
     prepareMock.mockResolvedValue({ ok: true, value: MEDIA });
     render(
       <ImageStudio
-        canScheduleSocial
         catalog={TEST_CATALOG}
         initialSelectedAssetId="asset-1"
         initialState={{ assets: [ASSET], jobs: [], nextCursor: null } as never}
@@ -176,7 +172,7 @@ describe("schedule this image", () => {
       ok: false,
       error: { code: "NOT_FOUND" },
     });
-    mount(true);
+    mount();
 
     fireEvent.click(screen.getByRole("button", { name: "schedule" }));
 

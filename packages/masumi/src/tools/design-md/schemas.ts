@@ -7,7 +7,8 @@ export const designMdSubmitInputSchema = z.object({
 
 export const designMdDonePayloadSchema = z.object({
   status: z.literal("done"),
-  extractionId: z.union([z.string(), z.number()]),
+  /** Null when the API built the file without a stored extraction (source "heuristic"). */
+  extractionId: z.union([z.string(), z.number(), z.null()]),
   designMd: z.string().min(1),
   cached: z.boolean().optional(),
   source: z.string().optional(),
@@ -51,7 +52,6 @@ export type DesignMdQueuedPayload = z.infer<typeof designMdQueuedPayloadSchema>;
 export type DesignMdRunningPayload = z.infer<
   typeof designMdRunningPayloadSchema
 >;
-export type DesignMdFailedPayload = z.infer<typeof designMdFailedPayloadSchema>;
 export type DesignMdJobPayload = z.infer<typeof designMdPayloadSchema>;
 
 export function isDesignMdJobInProgress(

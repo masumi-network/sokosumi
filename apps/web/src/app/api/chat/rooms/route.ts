@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   if (
     collection !== "active" &&
     collection !== "archived" &&
+    collection !== "elsewhere" &&
     collection !== "invitations"
   ) {
     return NextResponse.json({ error: "Invalid collection" }, { status: 400 });
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
   return respondToBackgroundChatRead("Chat rooms unavailable", async () => {
     if (collection === "invitations") {
       return { data: await chatRoomService.listPendingInvitations() };
+    }
+    if (collection === "elsewhere") {
+      return { data: await chatRoomService.listElsewhereRooms() };
     }
     const page = await (collection === "active"
       ? chatRoomService.listRooms()

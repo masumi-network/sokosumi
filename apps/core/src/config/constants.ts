@@ -70,6 +70,27 @@ export const LIMITS = {
   SOKO_BOT_AVATAR_GENERATION_PER_HOUR: 24,
 
   /**
+   * Avatar studio drafts one user may make per hour. A draft is one paid image
+   * edit (about $0.07 with the rewriter), so this bounds what one account can
+   * spend while trying looks.
+   */
+  SOKO_BOT_AVATAR_DRAFTS_PER_HOUR: 20,
+
+  /**
+   * Looks one user may keep per day. A keep renders five more stills and six
+   * loops (about $0.62), which is the expensive step, so it is capped tighter
+   * than drafting.
+   */
+  SOKO_BOT_AVATAR_KEEPS_PER_DAY: 5,
+
+  /**
+   * Animations one person may regenerate per day. Each is one Seedance loop
+   * (a few cents), and a ghosted clip is a random miss, so a handful of
+   * retries across the six states is the point; this bounds the rest.
+   */
+  SOKO_BOT_AVATAR_REGENERATIONS_PER_DAY: 12,
+
+  /**
    * Image-studio generations one project may have in flight at once. Each is a
    * paid fal request, and the preview only shows one image at a time, so a
    * deep queue buys nothing and spends real money.

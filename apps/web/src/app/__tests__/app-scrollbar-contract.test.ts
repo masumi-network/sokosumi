@@ -55,7 +55,7 @@ describe("the app-scrollbar utility", () => {
 
   it("is a Tailwind utility, so a per-state hide can still outrank it", () => {
     // `@utility` lands in the utilities layer. A plain class in globals.css
-    // would be unlayered and would beat the sidebar rail's hide outright.
+    // would be unlayered and would beat any per-state hide outright.
     const css = cssWithoutComments(readFileSync(GLOBALS_CSS, "utf8"));
 
     expect(css).not.toMatch(/^\s*\.app-scrollbar\b/m);

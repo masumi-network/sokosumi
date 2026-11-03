@@ -2,6 +2,6 @@
   "root": false,
   "extends": "//",
   "files": {
-    "includes": ["**", "!next-env.d.ts"]
+    "includes": ["**", "!next-env.d.ts", "!public/site"]
   }
 }

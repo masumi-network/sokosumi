@@ -145,13 +145,29 @@ describe("SocialAllProjectsTabs", () => {
     expect(tablist).toHaveClass(
       "w-fit",
       "bg-card-background",
+      "max-md:h-auto",
+      "max-md:flex-wrap",
       "max-md:justify-start",
+      "@max-[42rem]:w-full",
     );
+    // A narrow row fits every tab as an icon instead of scrolling sideways.
+    expect(tablist).not.toHaveClass("max-sm:overflow-x-auto");
     expect(tablist).not.toHaveClass("min-h-11", "flex-1");
-    expect(tablist.parentElement).toHaveClass("min-w-0", "flex-1");
-    expect(tablist.parentElement?.parentElement).toHaveClass("justify-between");
+    expect(tablist.parentElement).toHaveClass(
+      "@container",
+      "min-w-0",
+      "flex-1",
+    );
+    expect(tablist.parentElement?.parentElement).toHaveClass(
+      "justify-between",
+      "max-md:items-start",
+    );
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab).not.toHaveClass("min-h-11");
+      expect(tab).toHaveAttribute(
+        "data-testid",
+        `social-posts-tab-${tab.textContent?.replace("sections.", "")}`,
+      );
     }
     expect(screen.getByRole("button", { name: "New post" })).toBeVisible();
   });

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CHAT_API_PATH,
-  CHAT_APP_ROUTE_PREFIX,
-  CHAT_CHATS_LIST_PATH,
-  CHAT_WELCOME_PATH,
   classifyChatChromeSurface,
   hasChatNoticeFromRecord,
   hasChatNoticeQuery,
@@ -12,17 +8,11 @@ import {
   isChatRoomPathname,
   isChatShellPathname,
   pathWithSearch,
+  roomIdFromPath,
   toURLSearchParamsFromRecord,
 } from "./chat-route-base";
 
 describe("chat-route-base", () => {
-  it("exposes room-keyed BFF path constants", () => {
-    expect(CHAT_APP_ROUTE_PREFIX).toBe("/chat");
-    expect(CHAT_API_PATH).toBe("/api/chat");
-    expect(CHAT_CHATS_LIST_PATH).toBe("/chat");
-    expect(CHAT_WELCOME_PATH).toBe("/");
-  });
-
   it("isChatShellPathname recognizes only /chat tree", () => {
     expect(isChatShellPathname("/chat")).toBe(true);
     expect(isChatShellPathname("/chat/rooms/r1")).toBe(true);
@@ -39,6 +29,15 @@ describe("chat-route-base", () => {
     expect(isChatRoomPathname("/chat")).toBe(false);
     expect(isChatRoomPathname("/chat/rooms")).toBe(false);
     expect(isChatRoomPathname(null)).toBe(false);
+  });
+
+  it("roomIdFromPath reads the room of a room page only", () => {
+    expect(roomIdFromPath("/chat/rooms/r1")).toBe("r1");
+    expect(roomIdFromPath("/chat/rooms/r1/")).toBe("r1");
+    expect(roomIdFromPath("/chat/rooms/r1?message=m1")).toBe("r1");
+    expect(roomIdFromPath("/chat/rooms/r1/extra")).toBeUndefined();
+    expect(roomIdFromPath("/chat")).toBeUndefined();
+    expect(roomIdFromPath(null)).toBeUndefined();
   });
 
   it("isChatChatsPathname matches bare /chat exactly", () => {

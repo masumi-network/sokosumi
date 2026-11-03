@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
@@ -13,6 +13,7 @@ import type {
 import { RoomsClient } from "../rooms-client";
 import {
   organization,
+  renderWithQueryClient,
   sendRoomMessageAction,
   sendStreamMessage,
 } from "./rooms-client-harness";
@@ -248,7 +249,7 @@ function sentMessage(roomId: string): ChatRoomMessage {
 }
 
 function renderRoomsClient(room: ChatRoom) {
-  return render(
+  return renderWithQueryClient(
     <OrganizationSeatContext value={true}>
       <RoomsClient
         activeOrganization={organization}
