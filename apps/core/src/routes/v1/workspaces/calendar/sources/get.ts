@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
@@ -10,11 +10,18 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
+import {
+  type AuthenticationContext,
+  requireInteractiveUserAuthContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
+  CALENDAR_TYPES,
+  type CalendarType,
   workspaceCalendarSourceSchema,
   workspaceCalendarSourcesQuerySchema,
+  workspaceCalendarSourcesResponseSchema,
 } from "@/schemas/workspace-calendar.schema";
 import { canCreateTaskSchedules } from "@/services/task-schedule.service";
 import { scheduledSocialPostWhere } from "../social-post-range.js";
@@ -24,13 +31,13 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/calendar/sources",
     description:
-      "List workspace and Project Calendar sources, including sources only available for event display and filtering",
+      "List workspace and Project Calendar sources, including sources only available for event display and filtering, and the features this viewer may show",
     tags: ["Workspaces"],
     request: { query: workspaceCalendarSourcesQuerySchema },
     responses: {
       200: jsonSuccessResponse(
-        z.array(workspaceCalendarSourceSchema),
-        "Workspace Calendar sources with scheduling availability",
+        workspaceCalendarSourcesResponseSchema,
+        "Workspace Calendar sources with scheduling availability and feature list",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -39,6 +46,29 @@ const route = withCoworkerContextHeaderParameters(
     },
   }),
 );
+
+/** Features the Show filter may offer this viewer. */
+async function featuresForViewer(
+  authContext: AuthenticationContext,
+  workspaceId: string,
+): Promise<CalendarType[]> {
+  if (
+    authContext.actor !== "user" ||
+    authContext.authenticationMethod !== "session"
+  ) {
+    return ["tasks"];
+  }
+  const available = new Set<CalendarType>([
+    "tasks",
+    "social",
+    "contacts",
+    "marketing",
+  ]);
+  if (await isNewsletterWorkspaceEnabled(workspaceId)) {
+    available.add("newsletter");
+  }
+  return CALENDAR_TYPES.filter((type) => available.has(type));
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -52,7 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceId = workspaceContext.workspaceId;
     const isSchedulable = await canCreateTaskSchedules(c.var);
 
-    const [workspace, projects, latestPostDates] = await Promise.all([
+    const [workspace, projects, latestPostDates, features] = await Promise.all([
       prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: {
@@ -82,6 +112,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             _max: { scheduledAt: true },
           })
         : [],
+      featuresForViewer(c.var.authContext, workspaceId),
     ]);
     if (!workspace) {
       throw notFound("Workspace not found");
@@ -129,6 +160,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ),
     ];
 
-    return ok(c, sources);
+    return ok(c, { sources, features });
   });
 }

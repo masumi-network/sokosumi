@@ -48548,6 +48548,37 @@ export const DesignMdOwnerInfoSchema = {
     ]
 } as const;
 
+export const WorkspaceCalendarSourcesResponseSchema = {
+    type: 'object',
+    properties: {
+        sources: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/WorkspaceCalendarSource'
+            }
+        },
+        features: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'tasks',
+                    'social',
+                    'newsletter',
+                    'contacts',
+                    'marketing'
+                ],
+                description: 'A Calendar feature the Show filter can include'
+            },
+            description: 'Calendar features this viewer may show. Web offers only these in the Show filter.'
+        }
+    },
+    required: [
+        'sources',
+        'features'
+    ]
+} as const;
+
 export const WorkspaceCalendarSourceSchema = {
     type: 'object',
     properties: {

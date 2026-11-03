@@ -12871,6 +12871,14 @@ export type DesignMdOwnerInfo = {
     type: 'user';
 };
 
+export type WorkspaceCalendarSourcesResponse = {
+    sources: Array<WorkspaceCalendarSource>;
+    /**
+     * Calendar features this viewer may show. Web offers only these in the Show filter.
+     */
+    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing'>;
+};
+
 export type WorkspaceCalendarSource = {
     sourceId: string;
     sourceType: 'WORKSPACE' | 'PROJECT';
@@ -52561,7 +52569,7 @@ export type GetProjectsByIdCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session.
+         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.
          */
         types?: string;
         /**
@@ -86576,7 +86584,7 @@ export type GetWorkspacesCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session.
+         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.
          */
         types?: string;
         /**
@@ -86831,10 +86839,10 @@ export type GetWorkspacesCalendarSourcesError = GetWorkspacesCalendarSourcesErro
 
 export type GetWorkspacesCalendarSourcesResponses = {
     /**
-     * Workspace Calendar sources with scheduling availability
+     * Workspace Calendar sources with scheduling availability and feature list
      */
     200: {
-        data: Array<WorkspaceCalendarSource>;
+        data: WorkspaceCalendarSourcesResponse;
         meta: {
             timestamp: Date;
             requestId: string;

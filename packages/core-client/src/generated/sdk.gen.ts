@@ -6818,7 +6818,7 @@ export const getWorkspacesCalendar = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List workspace and Project Calendar sources, including sources only available for event display and filtering
+ * List workspace and Project Calendar sources, including sources only available for event display and filtering, and the features this viewer may show
  */
 export const getWorkspacesCalendarSources = <ThrowOnError extends boolean = false>(options?: Options<GetWorkspacesCalendarSourcesData, ThrowOnError>): RequestResult<GetWorkspacesCalendarSourcesResponses, GetWorkspacesCalendarSourcesErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkspacesCalendarSourcesResponses, GetWorkspacesCalendarSourcesErrors, ThrowOnError>({
     responseTransformer: getWorkspacesCalendarSourcesResponseTransformer,

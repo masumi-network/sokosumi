@@ -15,7 +15,7 @@ import { type CalendarReader, pageInMemory } from "./read-shared.js";
  * caller's time zone. Each sits at the start of its day.
  */
 export const readContacts: CalendarReader = async (ctx) => {
-  const { workspaceId, userId, query } = ctx;
+  const { workspaceId, query } = ctx;
   const timeZone = query.timeZone ?? "UTC";
   const contacts = await prisma.contact.findMany({
     where: {
@@ -28,7 +28,6 @@ export const readContacts: CalendarReader = async (ctx) => {
           toLocalDateKey(new Date(query.to.getTime() - 1), timeZone),
         ),
       },
-      ...(query.scope === "owned" ? { createdByUserId: userId } : {}),
     },
     select: {
       id: true,

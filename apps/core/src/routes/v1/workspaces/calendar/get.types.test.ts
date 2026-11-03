@@ -578,9 +578,10 @@ describe("GET /workspaces/calendar types", () => {
     expect(mocks.issues.mock.lastCall?.[0].where.creatorUserId).toBe(
       "user_123",
     );
-    expect(mocks.contacts.mock.lastCall?.[0].where.createdByUserId).toBe(
-      "user_123",
-    );
+    // Contacts are workspace-shared; owned scope does not narrow them.
+    expect(
+      mocks.contacts.mock.lastCall?.[0].where.createdByUserId,
+    ).toBeUndefined();
     expect(mocks.strategies).not.toHaveBeenCalled();
   });
 
@@ -628,13 +629,13 @@ describe("GET /workspaces/calendar types", () => {
   });
 
   it.each([
-    ["types=events"],
-    ["types="],
-    ["types=tasks,events"],
-    ["types=tasks&timeZone=Mars/Base"],
-  ])("rejects the invalid query %s", async (query) => {
+    ["types=events", 400],
+    ["types=", 400],
+    ["types=tasks,events", 400],
+    ["types=tasks&timeZone=Mars/Base", 422],
+  ])("rejects the invalid query %s with %i", async (query, expected) => {
     const { status } = await get(query);
-    expect(status).toBe(422);
+    expect(status).toBe(expected);
     expect(mocks.runs).not.toHaveBeenCalled();
   });
 });

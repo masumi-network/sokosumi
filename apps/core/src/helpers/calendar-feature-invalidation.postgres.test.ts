@@ -253,17 +253,17 @@ describe.skipIf(!enabled)("Calendar feature invalidation", () => {
       "contact_changed",
       { project: false },
     );
-    expectSignal(
-      await signalsOf(() =>
-        db.contact.update({
-          where: { id: contactId },
-          data: { nextStep: "Send the offer" },
-        }),
-      ),
-      "contact_changed",
-      { project: false },
-    );
-    // What the Calendar does not show.
+    // Display fields must not signal while the follow-up date stays put.
+    expect(
+      (
+        await signalsOf(() =>
+          db.contact.update({
+            where: { id: contactId },
+            data: { nextStep: "Send the offer", name: "Ada L." },
+          }),
+        )
+      ).rows,
+    ).toHaveLength(0);
     expect(
       (
         await signalsOf(() =>

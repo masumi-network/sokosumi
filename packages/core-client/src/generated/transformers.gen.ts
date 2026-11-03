@@ -5576,8 +5576,13 @@ const workspaceCalendarSourceSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const workspaceCalendarSourcesResponseSchemaResponseTransformer = (data: any) => {
+    data.sources = data.sources.map((item: any) => workspaceCalendarSourceSchemaResponseTransformer(item));
+    return data;
+};
+
 export const getWorkspacesCalendarSourcesResponseTransformer = async (data: any): Promise<GetWorkspacesCalendarSourcesResponse> => {
-    data.data = data.data.map((item: any) => workspaceCalendarSourceSchemaResponseTransformer(item));
+    data.data = workspaceCalendarSourcesResponseSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
