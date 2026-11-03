@@ -1,5 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import messages from "@/messages/en.json";
 
 const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
@@ -8,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   subscribers: vi.fn(),
   listProjects: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -43,10 +47,13 @@ vi.mock("./subscribers", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
-  openProjectScope: () => undefined,
+  openProjectScope: mocks.openProjectScope,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import SubscribersPage from "./page";
@@ -83,8 +90,16 @@ describe("newsletter subscribers page", () => {
   });
   it("shows the unknown-project notice for an inaccessible project", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await SubscribersPage(PROPS));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await SubscribersPage(PROPS)}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select project" }),
+    ).toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(mocks.settings).not.toHaveBeenCalled();
   });
   it("returns to settings until a newsletter exists", async () => {

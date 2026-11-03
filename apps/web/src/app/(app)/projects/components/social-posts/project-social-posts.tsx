@@ -1674,7 +1674,8 @@ export function ProjectSocialPosts({
 
       {composerMode ? (
         <SocialPostComposerDialog
-          connections={connections}
+          connections={managed}
+          connectDisabled={connectDisabled}
           queueSlots={queueSlots}
           mode={composerMode}
           onConnectAccount={() => {

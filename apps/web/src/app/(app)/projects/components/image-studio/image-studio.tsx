@@ -112,6 +112,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
+  projectScopePrompt,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -130,6 +131,7 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
+  projectScopePrompt?: React.ReactNode;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -723,6 +725,7 @@ export function ImageStudio({
             <StudioTemplateCarousel
               labels={labels}
               onApplyTemplate={applyTemplate}
+              projectAction={projectScopePrompt}
             />
           ) : (
             <StudioGallery

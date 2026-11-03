@@ -2449,6 +2449,14 @@
         "save": "Save",
         "cancel": "Cancel"
       },
+      "PostingInstructions": {
+        "title": "Posting instructions",
+        "description": "Tell Soko Bot, Coworkers and agents how to write this project's social posts: tone, hashtags, calls to action, and rules per platform. This only guides social drafts. It is separate from project memory and DESIGN.md.",
+        "placeholder": "# Posting instructions\nTone: …\nAlways / never: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Save instructions",
+        "saved": "Posting instructions saved",
+        "saveFailed": "Could not save posting instructions. Try again."
+      },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
         "account": "{provider} account",
@@ -2667,6 +2675,7 @@
           "rescheduleFor": "Reschedule for {date}",
           "noAccountsTitle": "No account connected yet",
           "connectAccount": "Connect account",
+          "reconnectAccount": "Reconnect to post or schedule. You can still save a draft.",
           "dismiss": "Cancel",
           "discardTitle": "Discard changes?",
           "discardDescription": "Your changes will be lost.",
@@ -3605,7 +3614,10 @@
         "publicArchive": "Public archive",
         "SignupForm": {
           "title": "Signup form",
+          "pageDescription": "Grow your newsletter audience with a hosted signup page or an embedded form.",
           "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "previewTitle": "Signup form preview",
+          "previewDescription": "See the signup form readers can use on your website.",
           "hostedPage": "Hosted signup page",
           "open": "Open signup page",
           "embedCode": "Embed code",
@@ -3881,7 +3893,6 @@
       "moreOptions": "Options",
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
-      "pickTitle": "Pick a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "pickForGeneration": "Which project do these images go to?",
       "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
@@ -9799,6 +9810,7 @@
       "label": "Project",
       "allProjects": "All projects",
       "switchLabel": "Switch project",
+      "selectProject": "Select project",
       "pinned": "Pinned",
       "all": "Projects",
       "searchPlaceholder": "Find a project...",

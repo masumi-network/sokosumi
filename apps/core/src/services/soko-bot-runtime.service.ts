@@ -296,6 +296,7 @@ import {
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
 import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
+import { projectPostingInstructionsSchema } from "@/schemas/project.schema";
 import {
   googleCampaignEditSpecSchema,
   googleCampaignSpecSchema,
@@ -5762,6 +5763,7 @@ export class SokoBotRuntimeService {
         }
         if (
           input.capability === "list_project_social_accounts" ||
+          input.capability === "get_posting_instructions" ||
           input.capability === "list_ad_accounts" ||
           input.capability === "list_ad_campaigns" ||
           input.capability === "find_ad_targeting" ||
@@ -6620,6 +6622,22 @@ export class SokoBotRuntimeService {
             }),
         };
       }
+      case "get_posting_instructions": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.get_posting_instructions.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        const project = await prisma.project.findFirst({
+          where: { id: params.projectId, workspaceId },
+          select: { postingInstructionsMd: true },
+        });
+        if (!project)
+          throw new SokoBotRuntimeValidationError(
+            "That Project is not one your owner can open.",
+          );
+        return projectPostingInstructionsSchema.parse(project);
+      }
       case "list_social_posts": {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_posts.parse(
           input.input,
@@ -7187,6 +7205,7 @@ export class SokoBotRuntimeService {
         }
       }
       case "list_project_social_accounts":
+      case "get_posting_instructions":
       case "list_social_posts":
       case "list_social_post_statistics":
       case "refresh_social_post_statistics":
