@@ -102,7 +102,7 @@ export function NewsletterBrandPreview({
             <p className="text-sm">{t("sampleBody")}</p>
           </div>
           <span
-            className="bg-primary-solid text-primary-solid-foreground inline-flex rounded px-4 py-2 text-sm font-medium"
+            className="bg-primary text-primary-foreground inline-flex rounded px-4 py-2 text-sm font-medium"
             style={accent ? { backgroundColor: accent } : undefined}
           >
             {t("button")}
@@ -121,7 +121,7 @@ export function NewsletterBrandPreview({
         {(
           [
             ["primary", primary, "bg-foreground"],
-            ["accent", accent, "bg-primary-solid"],
+            ["accent", accent, "bg-primary"],
           ] as const
         ).map(([key, color, fallback]) => (
           <div key={key} className="flex min-w-0 items-center gap-1.5">

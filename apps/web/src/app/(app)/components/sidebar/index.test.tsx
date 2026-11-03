@@ -146,7 +146,7 @@ describe("Sidebar project scope", () => {
     const chatList = screen.getByRole("navigation", { name: "chatList" });
 
     expect(tokens(scoped)).toEqual(
-      expect.arrayContaining(["border-s", "border-sidebar-border"]),
+      expect.arrayContaining(["max-md:border-s", "border-sidebar-border"]),
     );
     expect(scoped?.contains(chatList)).toBe(false);
     expect(

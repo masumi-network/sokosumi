@@ -142,6 +142,9 @@ describe("switchScopeHref", () => {
     for (const tab of [
       "/newsletter/issues",
       "/newsletter/subscribers",
+      "/newsletter/calendar",
+      "/newsletter/signup-form",
+      "/newsletter/analytics",
       "/newsletter/settings",
     ]) {
       expect(scopedHref(tab, "p1")).toBe(`${tab}?projectId=p1`);
@@ -193,5 +196,6 @@ describe("detailPageOf", () => {
     expect(detailPageOf("/projects/p1")).toBeNull();
     expect(detailPageOf("/newsletter/issues")).toBeNull();
     expect(detailPageOf("/newsletter/subscribers")).toBeNull();
+    expect(detailPageOf("/newsletter/signup-form")).toBeNull();
   });
 });

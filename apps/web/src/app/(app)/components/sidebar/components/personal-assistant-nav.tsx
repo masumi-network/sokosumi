@@ -1,3 +1,4 @@
+import { SokoBotAvatarState } from "@sokosumi/core-client";
 import { cache, Suspense } from "react";
 
 import { defaultOrbSeed } from "@/lib/aurora-orb";
@@ -8,16 +9,15 @@ import PersonalAssistantNavClient, {
 } from "./personal-assistant-nav.client";
 
 /**
- * The bot the row shows: the workspace's first Soko Bot, yours when you have
- * one. Null in a workspace with none, where the row falls back to the static
- * entry rather than borrowing a mascot that belongs to nobody. Cached per
- * request, so the sidebar and the phone Chats page share one team load.
+ * Your own Soko Bot. Null when you have none, where the row falls back to the
+ * static Soko Bots entry rather than showing a teammate's bot as if it were
+ * yours. Cached per request, so the sidebar and the phone Chats page share
+ * one team load.
  */
-const loadWorkspaceBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
+const loadYourBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
   try {
     const { members } = await sokoBotService.getTeam();
-    const withBot = members.filter((member) => member.bot);
-    const member = withBot.find(({ isYou }) => isYou) ?? withBot[0];
+    const member = members.find(({ isYou }) => isYou);
     if (!member?.bot) {
       return null;
     }
@@ -28,7 +28,8 @@ const loadWorkspaceBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
       name: member.bot.name,
       status: member.bot.status,
       lastActivityAt: member.bot.lastActivityAt,
-      isYours: member.isYou,
+      avatarState: member.bot.avatarState ?? SokoBotAvatarState.IDLE,
+      avatar: member.bot.avatar ?? null,
     };
   } catch {
     return null;
@@ -36,7 +37,7 @@ const loadWorkspaceBot = cache(async (): Promise<SidebarSokoBotLive | null> => {
 });
 
 async function WithBot() {
-  return <PersonalAssistantNavClient bot={await loadWorkspaceBot()} />;
+  return <PersonalAssistantNavClient bot={await loadYourBot()} />;
 }
 
 /**

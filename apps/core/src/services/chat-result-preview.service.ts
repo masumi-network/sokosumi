@@ -10,6 +10,11 @@ import {
   requireTaskReadForWorkspace,
 } from "@/helpers/access-control";
 import { readPreparedResultSnapshots } from "@/helpers/chat-result-metadata";
+import {
+  CMO_REPORT_MESSAGE_PREFIX,
+  cmoReportCard,
+  readCmoReport,
+} from "@/helpers/cmo-report-card";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
@@ -73,6 +78,7 @@ function previewAssignee(source: {
     id: string;
     name: string | null;
     avatarImageUrl: string | null;
+    avatar: { styleId: string } | null;
     avatarSeed: string | null;
   } | null;
 }) {
@@ -95,6 +101,7 @@ function previewAssignee(source: {
         name: (bot.name ?? "Soko Bot").slice(0, 500),
         image: bot.avatarImageUrl,
         avatarSeed: bot.avatarSeed,
+        avatarStyleId: bot.avatar?.styleId ?? null,
         kind: "sokoBot" as const,
       }
     : null;
@@ -154,6 +161,7 @@ interface SocialHydration {
   status: string;
   revision: number;
   canApprove: boolean;
+  canReject: boolean;
   scheduledAt: Date | null;
   publishedAt: Date | null;
   timezone: string | null;
@@ -409,6 +417,7 @@ export async function preloadChatResultHydration(
         revision: post.revision,
         canApprove:
           post.status === "NEEDS_APPROVAL" && isSocialPostProviderEnabled(post),
+        canReject: post.status === "NEEDS_APPROVAL",
         scheduledAt: post.scheduledAt,
         publishedAt: post.publishedAt,
         timezone: post.timezone,
@@ -510,6 +519,29 @@ export async function resolveChatResultReference(
   }
   let data: ChatResultAvailable;
   switch (ref.kind) {
+    case "cmo_report": {
+      // Any member of the Workspace reads Cuso's shared room.
+      const message = await client.chatRoomMessage.findFirst({
+        where: {
+          id: ref.id,
+          deletedAt: null,
+          clientMessageId: { startsWith: CMO_REPORT_MESSAGE_PREFIX },
+          room: { sharedSokoBot: { workspaceId: actor.workspaceId } },
+        },
+        select: {
+          metadata: true,
+          room: { select: { sharedSokoBot: { select: { projectId: true } } } },
+        },
+      });
+      const report = readCmoReport(message?.metadata);
+      const projectId = message?.room.sharedSokoBot?.projectId;
+      if (!report || !projectId) throw notFound("Result unavailable");
+      data = chatResultAvailableSchema.parse({
+        ...base,
+        ...cmoReportCard(report, projectId),
+      });
+      break;
+    }
     case "project_selection": {
       const projects = await client.project.findMany({
         where: { workspaceId: actor.workspaceId, id: { in: ref.projectIds } },
@@ -542,6 +574,7 @@ export async function resolveChatResultReference(
               id: true,
               name: true,
               avatarImageUrl: true,
+              avatar: { select: { styleId: true } },
               avatarSeed: true,
             },
           },
@@ -631,6 +664,7 @@ export async function resolveChatResultReference(
               id: true,
               name: true,
               avatarImageUrl: true,
+              avatar: { select: { styleId: true } },
               avatarSeed: true,
             },
           },
@@ -670,6 +704,7 @@ export async function resolveChatResultReference(
               id: true,
               name: true,
               avatarImageUrl: true,
+              avatar: { select: { styleId: true } },
               avatarSeed: true,
             },
           },
@@ -718,6 +753,7 @@ export async function resolveChatResultReference(
               status: loaded.status,
               revision: loaded.revision,
               canApprove: loaded.canApprove,
+              canReject: loaded.canReject,
               scheduledAt: loaded.scheduledAt,
               publishedAt: loaded.publishedAt,
               timezone: loaded.timezone,
@@ -757,6 +793,7 @@ export async function resolveChatResultReference(
           postId: ref.id,
           revision: post.revision,
           canApprove: post.canApprove,
+          canReject: post.canReject,
         },
         status: post.status,
         summary: post.text.slice(0, 4000),
@@ -936,6 +973,10 @@ export async function hydrateChatResultSnapshots(
           previewId: snapshot.data.id,
           scope: resolved,
         });
+        // Approval is live, so the card never offers Approve on a stale revision.
+        if (snapshot.data.kind === "social_post") {
+          return { ...current.data, capturedAt: snapshot.data.capturedAt };
+        }
         const allowedOutputs = new Set(
           current.data.outputs.map((output) => output.openHref),
         );
@@ -954,20 +995,9 @@ export async function hydrateChatResultSnapshots(
                 outputs: current.data.outputs,
               }
             : {}),
-          // Approval is live, so the card never offers Approve on a stale revision.
-          ...(snapshot.data.kind === "social_post" &&
-          snapshot.data.social &&
-          current.data.social
-            ? {
-                status: current.data.status,
-                social: {
-                  ...snapshot.data.social,
-                  projectId: current.data.social.projectId,
-                  postId: current.data.social.postId,
-                  revision: current.data.social.revision,
-                  canApprove: current.data.social.canApprove,
-                },
-              }
+          // A report the owner reverted says so on its card.
+          ...(snapshot.data.kind === "cmo_report"
+            ? { status: current.data.status }
             : {}),
           // Auto tags, the project and the assignee usually land seconds
           // after the turn; the card keeps the name and status it reported.

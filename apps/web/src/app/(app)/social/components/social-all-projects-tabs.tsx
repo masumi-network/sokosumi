@@ -70,13 +70,14 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-row items-center justify-between gap-3">
+      <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
         <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
           <TabsList
             aria-label={t("title")}
             className={cn(
               SEGMENTED_TABS_LIST_CLASS_NAME,
               SOCIAL_TABS_LIST_CLASS_NAME,
+              "max-md:h-auto max-md:flex-wrap max-md:justify-start",
             )}
           >
             {SOCIAL_TABS.map((candidate) => (
@@ -104,7 +105,9 @@ export function SocialAllProjectsTabs({
             project is asked for where it is needed, on the other tabs.
             Not `notFound()` for a lost id: it came from a switchable scope,
             not from the path, so the repair is to pick another project. */}
-        {notice ? <SocialAccountsProjectPrompt notice={notice} /> : null}
+        {notice ? (
+          <SocialAccountsProjectPrompt notice={notice} autoOpen={false} />
+        ) : null}
         {calendar}
       </TabsContent>
       <TabsContent value="drafts">

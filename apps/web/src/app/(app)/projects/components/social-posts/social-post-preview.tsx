@@ -305,7 +305,7 @@ function XPreview({
         ) : null}
         {publishedUrl ? (
           <a
-            className="text-primary mt-2 inline-flex min-h-10 items-center gap-1 text-xs underline-offset-4 hover:underline"
+            className="text-foreground mt-2 inline-flex min-h-10 items-center gap-1 text-xs underline-offset-4 underline"
             href={publishedUrl}
             target="_blank"
             rel="noreferrer"

@@ -3,9 +3,8 @@ import {
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "@sokosumi/utils";
 
-// NOTE: allowlist copied verbatim from the former web flag
-// (apps/web/src/lib/flags/zero-margin-top-up.ts). Core is now the sole owner;
-// this list must never reach a browser bundle.
+// NOTE: allowlist copied verbatim from the former web flag.
+// Core is now the sole owner; this list must never reach a browser bundle.
 const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
   "aladin-freelance.com",
   "almamedia.es",

@@ -145,7 +145,7 @@ export function NewsletterCalendar({
                       className={cn(
                         "inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums",
                         day === today &&
-                          "bg-primary-solid text-primary-solid-foreground font-semibold",
+                          "bg-primary text-primary-foreground font-semibold",
                       )}
                     >
                       <span className="sm:hidden">
@@ -169,7 +169,7 @@ export function NewsletterCalendar({
                                 `/newsletter/issues/${encodeURIComponent(issue.id)}`,
                                 projectId,
                               )}
-                              className="bg-background text-foreground hover:bg-muted border-border focus-visible:ring-ring-halo block min-w-0 rounded border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
+                              className="bg-background text-foreground hover:bg-muted border-border focus-visible:ring-ring block min-w-0 rounded border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
                             >
                               <span className="text-muted-foreground block tabular-nums">
                                 {format.dateTime(at, "time", {

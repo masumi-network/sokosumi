@@ -74,6 +74,20 @@ export function Subscribers({
     (sum, count) => sum + count,
     0,
   );
+
+  function renderName(subscriber: NewsletterSubscriber) {
+    return subscriber.contact ? (
+      <Link
+        href={`/contacts?contact=${encodeURIComponent(subscriber.contact.id)}`}
+        className="rounded-sm wrap-anywhere underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        {subscriber.contact.name}
+      </Link>
+    ) : (
+      <span className="wrap-anywhere">{subscriber.name ?? t("noName")}</span>
+    );
+  }
+
   const columns = columnHelper.columns([
     columnHelper.accessor("email", {
       header: t("columns.email"),
@@ -85,19 +99,7 @@ export function Subscribers({
     columnHelper.accessor("name", {
       header: t("columns.name"),
       size: 180,
-      cell: ({ row }) =>
-        row.original.contact ? (
-          <Link
-            href={`/contacts?contact=${encodeURIComponent(row.original.contact.id)}`}
-            className="rounded-sm break-words underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            {row.original.contact.name}
-          </Link>
-        ) : (
-          <span className="break-words">
-            {row.original.name ?? t("noName")}
-          </span>
-        ),
+      cell: ({ row }) => renderName(row.original),
     }),
     columnHelper.accessor("status", {
       header: t("columns.status"),
@@ -197,7 +199,7 @@ export function Subscribers({
             key={status}
             className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-1 px-4 py-3")}
           >
-            <dt className="text-muted-foreground truncate text-sm">
+            <dt className="text-muted-foreground text-sm wrap-anywhere">
               {t(`statuses.${status}`)}
             </dt>
             <dd className="text-2xl font-semibold tabular-nums">
@@ -289,14 +291,73 @@ export function Subscribers({
             ) : null}
           </div>
           <div aria-busy={pending} className={cn(HOLDER_CLASS, "min-w-0")}>
-            <DataTable
-              columns={columns}
-              data={data.subscribers}
-              enableRowSelection={false}
-              showPagination={false}
-              manualSorting
-              tableClassName={HOLDER_ITEM_CLASS}
-            />
+            <ul
+              aria-label={t("title")}
+              className="grid min-w-0 gap-2 lg:grid-cols-2 xl:hidden"
+            >
+              {data.subscribers.map((subscriber) => (
+                <li
+                  key={subscriber.id}
+                  className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <h4 className="text-sm font-semibold wrap-anywhere">
+                        {subscriber.email}
+                      </h4>
+                      <div className="text-muted-foreground text-sm">
+                        {renderName(subscriber)}
+                      </div>
+                    </div>
+                    <SubscriberActions
+                      projectId={projectId}
+                      subscriber={subscriber}
+                    />
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="max-w-full whitespace-normal wrap-anywhere"
+                  >
+                    {t(`statuses.${subscriber.status}`)}
+                  </Badge>
+                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="min-w-0 space-y-1">
+                      <dt className="text-muted-foreground wrap-anywhere">
+                        {t("columns.source")}
+                      </dt>
+                      <dd className="wrap-anywhere">
+                        {t(`sources.${subscriber.source}`)}
+                      </dd>
+                    </div>
+                    <div className="min-w-0 space-y-1">
+                      <dt className="text-muted-foreground wrap-anywhere">
+                        {t("columns.subscribedAt")}
+                      </dt>
+                      <dd className="wrap-anywhere">
+                        {format.dateTime(new Date(subscriber.createdAt), {
+                          dateStyle: "medium",
+                        })}
+                      </dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+              {!data.subscribers.length ? (
+                <li className={cn(HOLDER_ITEM_CLASS, "p-4 text-sm")}>
+                  {t("results", { count: 0 })}
+                </li>
+              ) : null}
+            </ul>
+            <div className="hidden xl:block">
+              <DataTable
+                columns={columns}
+                data={data.subscribers}
+                enableRowSelection={false}
+                showPagination={false}
+                manualSorting
+                tableClassName={HOLDER_ITEM_CLASS}
+              />
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p

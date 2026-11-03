@@ -1,25 +1,35 @@
 import type { ChatResultAvailable } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cardHref,
   fileSize,
+  hasPendingStudioJob,
   ResultPreviewCard,
   ResultPreviews,
 } from "./result-previews";
 
-const { resultQuery, approveSocialPost, toastSuccess } = vi.hoisted(() => ({
+const {
+  resultQuery,
+  approveSocialPost,
+  rejectSocialPost,
+  toastSuccess,
+  toastError,
+} = vi.hoisted(() => ({
   resultQuery: vi.fn(),
   approveSocialPost: vi.fn(),
+  rejectSocialPost: vi.fn(),
   toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 vi.mock("@/lib/actions/project/action", () => ({
   approveProjectSocialPost: approveSocialPost,
+  rejectProjectSocialPost: rejectSocialPost,
 }));
 vi.mock("sonner", () => ({
-  toast: { success: toastSuccess, error: vi.fn() },
+  toast: { success: toastSuccess, error: toastError },
 }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: resultQuery }));
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -74,6 +84,7 @@ const task: ChatResultAvailable = {
   outputs: [],
 };
 describe("chat result cards", () => {
+  beforeEach(() => vi.clearAllMocks());
   it("shows the recorded task, real question, timezone and source link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard result={task} onDecisionResolved={() => {}} />,
@@ -320,6 +331,7 @@ describe("chat result cards", () => {
     postId: "post",
     revision: 2,
     canApprove: true,
+    canReject: true,
   };
   const pendingPost: ChatResultAvailable = {
     ...task,
@@ -330,41 +342,166 @@ describe("chat result cards", () => {
     social: pendingSocial,
     outputs: [],
   };
-  it("lets a person approve a post that needs approval and refreshes the card", async () => {
-    approveSocialPost.mockResolvedValue({ ok: true, value: {} });
-    const onSocialPostApproved = vi.fn();
+  async function decide(decision: "approve" | "reject") {
+    await userEvent.click(screen.getByRole("button", { name: decision }));
+    if (decision === "reject") {
+      expect(rejectSocialPost).not.toHaveBeenCalled();
+      await userEvent.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "reject",
+        }),
+      );
+    }
+  }
+  it.each(["approve", "reject"] as const)(
+    "lets a person %s a pending post and refetches the card",
+    async (decision) => {
+      const action =
+        decision === "approve" ? approveSocialPost : rejectSocialPost;
+      action.mockResolvedValue({ ok: true, value: {} });
+      const refetch = vi.fn();
+      resultQuery.mockReturnValue({ data: [pendingPost], refetch });
+      render(
+        <ResultPreviews
+          descriptors={[
+            { id: pendingPost.id, capturedAt: pendingPost.capturedAt },
+          ]}
+          source={{ roomId: "room", messageId: "message" }}
+        />,
+      );
+      expect(
+        screen.getByTestId("social-post-status-NEEDS_APPROVAL"),
+      ).toHaveTextContent("label");
+      await decide(decision);
+      expect(action).toHaveBeenCalledWith({
+        projectId: "project",
+        postId: "post",
+        revision: 2,
+      });
+      await waitFor(() => expect(refetch).toHaveBeenCalledOnce());
+      expect(toastSuccess).toHaveBeenCalledWith(
+        decision === "approve" ? "approved" : "rejected",
+      );
+      expect(
+        decision === "approve" ? rejectSocialPost : approveSocialPost,
+      ).not.toHaveBeenCalled();
+    },
+  );
+  it("keeps the pending post when Reject confirmation is dismissed", async () => {
     render(
-      <ResultPreviewCard
-        result={pendingPost}
-        onDecisionResolved={() => {}}
-        onSocialPostApproved={onSocialPostApproved}
-      />,
+      <ResultPreviewCard result={pendingPost} onDecisionResolved={() => {}} />,
     );
-    expect(
-      screen.getByTestId("social-post-status-NEEDS_APPROVAL"),
-    ).toHaveTextContent("label");
-    await userEvent.click(screen.getByRole("button", { name: "approve" }));
-    expect(approveSocialPost).toHaveBeenCalledWith({
-      projectId: "project",
-      postId: "post",
-      revision: 2,
-    });
-    await waitFor(() => expect(onSocialPostApproved).toHaveBeenCalled());
-    expect(toastSuccess).toHaveBeenCalledWith("approved");
+    await userEvent.click(screen.getByRole("button", { name: "reject" }));
+    await userEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "cancel",
+      }),
+    );
+    expect(rejectSocialPost).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "approve" })).toBeEnabled();
   });
-  it("shows Needs approval without Approve when the post cannot be approved", () => {
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+  ])(
+    "gates Approve (%s) and Reject (%s) by their own permissions",
+    (canApprove, canReject) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{
+            ...pendingPost,
+            social: { ...pendingSocial, canApprove, canReject },
+          }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).toContain('data-testid="social-post-status-NEEDS_APPROVAL"');
+      expect(html.includes(">approve</")).toBe(canApprove);
+      expect(html.includes(">reject</")).toBe(canReject);
+    },
+  );
+  it.each(["DRAFT", "SCHEDULED", "CANCELED", "PUBLISHED"])(
+    "hides approval controls once status is %s",
+    (status) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{ ...pendingPost, status }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).not.toContain(">approve</");
+      expect(html).not.toContain(">reject</");
+      expect(html).not.toContain(
+        'data-testid="social-post-status-NEEDS_APPROVAL"',
+      );
+    },
+  );
+  it("keeps old social snapshots read-only when mutation fields are absent", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
         result={{
           ...pendingPost,
-          social: { ...pendingSocial, canApprove: false },
+          social: { provider: "x", account: null, timestamp: null },
         }}
         onDecisionResolved={() => {}}
       />,
     );
     expect(html).toContain('data-testid="social-post-status-NEEDS_APPROVAL"');
-    expect(html).not.toContain(">approve<");
+    expect(html).not.toContain(">approve</");
+    expect(html).not.toContain(">reject</");
   });
+  it.each(["approve", "reject"] as const)(
+    "keeps the card available when %s fails",
+    async (decision) => {
+      const action =
+        decision === "approve" ? approveSocialPost : rejectSocialPost;
+      action.mockResolvedValue({
+        ok: false,
+        error: { message: "Post changed. Reload and try again." },
+      });
+      const onSocialPostResolved = vi.fn();
+      render(
+        <ResultPreviewCard
+          result={pendingPost}
+          onDecisionResolved={() => {}}
+          onSocialPostResolved={onSocialPostResolved}
+        />,
+      );
+      await decide(decision);
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(
+          "Post changed. Reload and try again.",
+        ),
+      );
+      expect(onSocialPostResolved).not.toHaveBeenCalled();
+      expect(toastSuccess).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["approve", "reject"] as const)(
+    "shows a fallback when %s throws",
+    async (decision) => {
+      const action =
+        decision === "approve" ? approveSocialPost : rejectSocialPost;
+      action.mockRejectedValue(new Error("Network unavailable"));
+      const onSocialPostResolved = vi.fn();
+      render(
+        <ResultPreviewCard
+          result={pendingPost}
+          onDecisionResolved={() => {}}
+          onSocialPostResolved={onSocialPostResolved}
+        />,
+      );
+      await decide(decision);
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(
+          decision === "approve" ? "failed" : "rejectFailed",
+        ),
+      );
+      expect(onSocialPostResolved).not.toHaveBeenCalled();
+    },
+  );
   it("renders an unavailable card without a resource link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard
@@ -482,22 +619,38 @@ describe("result footer hydration", () => {
     );
     expect(footer).toHaveBeenCalledWith([task]);
   });
-  it.each([{ isFetching: true }, { isError: true }])(
-    "preserves fallback links when no card can be shown",
-    (state) => {
-      resultQuery.mockReturnValue({ ...state, data: [task] });
-      const footer = vi.fn(() => <span>fallback link</span>);
-      const html = renderToStaticMarkup(
-        <ResultPreviews
-          descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
-          source={{ roomId: "room", messageId: "message" }}
-          renderFooter={footer}
-        />,
-      );
-      expect(footer).toHaveBeenCalledWith([]);
-      expect(html).toContain("fallback link");
-    },
-  );
+  it("keeps the cards on screen while it asks again", () => {
+    resultQuery.mockReturnValue({
+      data: [task],
+      isFetching: true,
+      isError: false,
+    });
+    const footer = vi.fn(() => <span>footer</span>);
+    renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+        source={{ roomId: "room", messageId: "message" }}
+        renderFooter={footer}
+      />,
+    );
+    expect(footer).toHaveBeenCalledWith([task]);
+  });
+  it.each([
+    { isFetching: true, data: undefined },
+    { isError: true, data: [task] },
+  ])("preserves fallback links when no card can be shown", (state) => {
+    resultQuery.mockReturnValue(state);
+    const footer = vi.fn(() => <span>fallback link</span>);
+    const html = renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+        source={{ roomId: "room", messageId: "message" }}
+        renderFooter={footer}
+      />,
+    );
+    expect(footer).toHaveBeenCalledWith([]);
+    expect(html).toContain("fallback link");
+  });
 });
 
 describe("decision cards from a shared bot", () => {
@@ -644,5 +797,25 @@ describe("bot card links for a shared bot", () => {
       </SokoBotTargetContext.Provider>,
     );
     expect(html).toContain('href="/soko-bots/bot-1"');
+  });
+});
+
+describe("hasPendingStudioJob", () => {
+  const studio = (status: string | null): ChatResultAvailable => ({
+    ...task,
+    kind: "studio_job",
+    status,
+  });
+
+  it("keeps asking while an image is queued or running", () => {
+    expect(hasPendingStudioJob([studio("QUEUED")])).toBe(true);
+    expect(hasPendingStudioJob([studio("RUNNING")])).toBe(true);
+  });
+
+  it("stops once it is done or failed, and ignores other cards", () => {
+    expect(hasPendingStudioJob([studio("SUCCEEDED")])).toBe(false);
+    expect(hasPendingStudioJob([studio("FAILED")])).toBe(false);
+    expect(hasPendingStudioJob([{ ...task, status: "RUNNING" }])).toBe(false);
+    expect(hasPendingStudioJob(undefined)).toBe(false);
   });
 });

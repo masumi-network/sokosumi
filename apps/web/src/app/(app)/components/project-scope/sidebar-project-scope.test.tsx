@@ -47,6 +47,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
   ProjectAvatar: () => <span aria-hidden />,
 }));
 
+import { closedScopeProjectResponse } from "./project-scope-fixtures";
 import { SidebarProjectScope as SidebarTop } from "./sidebar-project-scope";
 import { SidebarScopeMobileChip as HeaderMobile } from "./sidebar-project-scope-mobile";
 
@@ -101,7 +102,7 @@ function expectTitled(value: string) {
   expect(title()).toHaveTextContent(new RegExp(`^${value}$`));
   const name = within(title()).getByText(value, { exact: true });
   // The selector's up-down chevron, not a section's fold chevron.
-  const chevron = title().querySelector("svg.lucide-arrow-left-right");
+  const chevron = title().querySelector("svg.lucide-chevrons-up-down");
   if (!chevron) throw new Error("no chevron");
   expect(
     name.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -136,18 +137,6 @@ afterEach(() => {
 });
 
 describe("sidebar project scope", () => {
-  it("opens the chip's Create dialog from the desktop popover", async () => {
-    const user = userEvent.setup();
-    renderHarness();
-
-    await user.click(title());
-    await user.click(await screen.findByTestId("project-scope-create"));
-
-    expect(
-      await screen.findByRole("dialog", { name: "create-project" }),
-    ).toBeInTheDocument();
-  });
-
   it("hands the mobile title off to the chip's bottom sheet", async () => {
     const user = userEvent.setup();
     mocks.isMobile = true;
@@ -176,27 +165,6 @@ describe("sidebar project scope", () => {
     ).toBeInTheDocument();
   });
 
-  it("closes the desktop popover and navigates when a project is picked", async () => {
-    const user = userEvent.setup();
-    mocks.loadPinned.mockResolvedValue([
-      { id: "p-2", name: "Beta", logo: null, closedAt: null },
-    ]);
-    renderHarness();
-
-    await user.click(title());
-    expect(
-      await screen.findByRole("dialog", { name: "switchLabel" }),
-    ).toBeInTheDocument();
-    await user.click(await screen.findByTestId("project-scope-item-p-2"));
-
-    expect(mocks.push).toHaveBeenCalledTimes(1);
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("dialog", { name: "switchLabel" }),
-      ).not.toBeInTheDocument(),
-    );
-  });
-
   // As the workspace switcher: the hover and open fill cover the name and its
   // arrows, not the sidebar's width, and a long name still shortens to fit.
   it("is only as wide as its name and arrows", () => {
@@ -223,7 +191,7 @@ describe("sidebar project scope", () => {
   });
 
   // The title the nav sits under, not one more row of it: no leading mark,
-  // a semibold name shortened with "…" that stays whole in its name.
+  // a medium name shortened with "…" that stays whole in its name.
   it("is a title rather than a sidebar row", () => {
     const { container } = renderHarness();
     const name = within(title()).getByText("allProjects", { exact: true });
@@ -234,23 +202,60 @@ describe("sidebar project scope", () => {
         '[data-testid="project-scope-sidebar-title"] [data-slot="sidebar-row-slot"]',
       ),
     ).toBeNull();
-    expect(tokens(title())).toContain("font-semibold");
+    expect(tokens(title())).toContain("font-medium");
     expect(tokens(name)).toEqual(
       expect.arrayContaining(["min-w-0", "truncate"]),
     );
   });
 
-  // A thumb's 44px on the phone sheet, the sketch's 32px with a pointer.
-  it("keeps a touch-sized target on the phone sheet", () => {
+  // A thumb's 44px, and gone from md: the header's selector is the control.
+  it("keeps a touch-sized target on the phone sheet only", () => {
     renderHarness();
 
-    expect(tokens(title())).toEqual(expect.arrayContaining(["h-11", "md:h-8"]));
+    expect(tokens(title())).toContain("h-11");
+    expect(
+      tokens(title().closest('[data-sidebar="group"]') as Element),
+    ).toContain("md:hidden");
   });
 
   it("draws no rule under the picker", () => {
     const { container } = renderHarness();
 
     expect(container.querySelector('[data-sidebar="separator"]')).toBeNull();
+  });
+
+  it("badges a Closed project on the title", async () => {
+    mocks.fetch.mockImplementation(closedScopeProjectResponse);
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() =>
+      expect(title()).toHaveAccessibleName("label: Acme, closed"),
+    );
+    expect(
+      within(title()).getByTestId("project-scope-closed-badge"),
+    ).toHaveTextContent("closed");
+  });
+
+  // In a chat room the chip, and its ×, give way to the room's toolbar.
+  it("clears the picked project with the title's ×, even in a chat room", async () => {
+    const user = userEvent.setup();
+    mocks.pathname = "/chat/room-1";
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    const clear = screen.getByTestId("project-scope-title-clear");
+    expect(clear).toHaveAccessibleName("clearProject");
+    await user.click(clear);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/chat/room-1");
+    expect(title()).toHaveFocus();
+  });
+
+  it("shows no × on the title in the workspace view", () => {
+    renderHarness();
+
+    expect(screen.queryByTestId("project-scope-title-clear")).toBeNull();
   });
 
   it("names the mobile title with the full scope label", async () => {

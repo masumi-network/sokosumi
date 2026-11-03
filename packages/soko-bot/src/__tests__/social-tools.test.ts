@@ -35,6 +35,7 @@ const media = {
 };
 const reads = [
   "list_project_social_accounts",
+  "get_posting_instructions",
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
@@ -52,6 +53,7 @@ const writes = [
 const schemas = SOKO_BOT_TOOL_INPUT_SCHEMAS;
 const inputs = {
   list_project_social_accounts: { projectId },
+  get_posting_instructions: { projectId },
   list_social_posts: { projectId },
   list_social_post_statistics: { projectId },
   refresh_social_post_statistics: { projectId, postId },
@@ -192,7 +194,16 @@ describe("Social tool contracts", () => {
         "# Social performance",
       );
     }
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v31");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v33");
+  });
+
+  it("tells the bot to read posting instructions before drafting", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_social_post).toMatch(
+      /^Before drafting, call get_posting_instructions/,
+    );
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.get_posting_instructions).toContain(
+      "separate from project memory and DESIGN.md",
+    );
   });
 
   it("describes available publishing platforms while retaining all-provider history", () => {
@@ -215,13 +226,36 @@ describe("Social tool contracts", () => {
     expect(descriptions.create_social_post).toMatch(/video/);
     expect(descriptions.create_social_post).toMatch(/LinkedIn/);
     expect(descriptions.create_social_post).toMatch(/Needs approval/);
-    expect(descriptions.create_social_post).toMatch(
-      /By default the post is a Draft, or Scheduled/,
-    );
-    expect(descriptions.create_social_post).toMatch(
-      /requires approval for agent posts/,
+    expect(descriptions.create_social_post).toContain(
+      "The post lands as Needs approval (NEEDS_APPROVAL)",
     );
     expect(descriptions.publish_social_post).toMatch(/Needs approval/);
+  });
+
+  it("leaves approval to people and prepares the chat card after creation", () => {
+    const descriptions = SOKO_BOT_TOOL_DESCRIPTIONS;
+    expect(descriptions.create_social_post).toContain(
+      "Tell the owner it is waiting for approval",
+    );
+    expect(descriptions.create_social_post).toContain(
+      'preview_result with reference {kind:"social_post",id,projectId}',
+    );
+    expect(descriptions.create_social_post).toContain("Approve and Reject");
+    for (const capability of [
+      "create_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+    ] as const) {
+      expect(descriptions[capability]).toContain(
+        "You never approve or reject posts",
+      );
+    }
+    expect(descriptions.publish_social_post).toContain(
+      "Never call it while status is Needs approval (NEEDS_APPROVAL)",
+    );
+    expect(descriptions.create_social_post).toContain(
+      "never call publish_social_post while approval is pending",
+    );
   });
 
   it("requires text or media for creation and preserves partial updates", () => {
@@ -254,7 +288,7 @@ describe("Social tool contracts", () => {
       schemas.create_social_post.safeParse({
         projectId,
         text: "",
-        media: Array.from({ length: 5 }, () => media),
+        media: Array.from({ length: 11 }, () => media),
       }).success,
     ).toBe(false);
     expect(

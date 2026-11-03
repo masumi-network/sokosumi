@@ -12,7 +12,8 @@ vi.mock("next-intl", () => ({
 }));
 
 function clearConsentCookie() {
-  document.cookie = `${CONSENT_COOKIE}=; Max-Age=0; Path=/`;
+  // happy-dom keeps a Max-Age=0 cookie (as `name=`) until the clock ticks; a past Expires drops it at once.
+  document.cookie = `${CONSENT_COOKIE}=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/`;
 }
 
 describe("CookieBanner mobile", () => {

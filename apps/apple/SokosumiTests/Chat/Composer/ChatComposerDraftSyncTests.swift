@@ -38,7 +38,7 @@
         defer { saved.save("") }
         state.openRoom.room.timeline.reset(roomId: roomId)
         state.openRoom.room.timeline.failInitialLoad(message: "Fixture has no server", generation: state.openRoom.room.timeline.generation)
-        let content = ChatComposerView(userId: userId, organizationId: nil, roomId: roomId)
+        let content = ChatComposerView(userId: userId, draftScope: .init(organizationId: nil), roomId: roomId)
           .environmentObject(state).environmentObject(AuthState())
           .environmentObject(ComposeUploads(savedDraft: saved)).environmentObject(ComposerAttachmentIngress())
           .frame(width: 520)

@@ -20,9 +20,9 @@ import VerifyEmailButton from "./verify-email-button";
 /** A filled row's action takes the row's colour; the others stay neutral. */
 const FILLED_ACTION_STYLES = {
   warning:
-    "border-semantic-warning-tertiary text-semantic-warning hover:bg-semantic-warning-quinary hover:text-semantic-warning bg-transparent",
+    "border-border text-foreground hover:bg-muted hover:text-foreground bg-transparent",
   destructive:
-    "border-semantic-destructive-tertiary text-semantic-destructive hover:bg-semantic-destructive-quinary hover:text-semantic-destructive bg-transparent",
+    "border-border text-semantic-destructive hover:bg-muted hover:text-semantic-destructive bg-transparent",
 } as const;
 
 /**

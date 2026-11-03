@@ -2,15 +2,6 @@
 
 import { cn } from "@/lib/utils/index";
 import { Slot } from "@radix-ui/react-slot";
-import {
-  FileArchiveIcon,
-  FileAudioIcon,
-  FileCodeIcon,
-  FileCogIcon,
-  FileIcon,
-  FileTextIcon,
-  FileVideoIcon,
-} from "lucide-react";
 import * as React from "react";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {getExtensionFromUrl} from "@sokosumi/utils";
@@ -827,7 +818,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
       tabIndex={context.disabled ? undefined : 0}
       {...dropzoneProps}
       className={cn(
-        "relative flex select-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 outline-none transition-colors hover:bg-card-background focus-visible:border-ring data-disabled:pointer-events-none data-dragging:border-primary-tertiary data-invalid:border-destructive data-dragging:bg-card-background data-invalid:ring-destructive-halo",
+        "relative flex select-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 outline-none transition-colors hover:bg-card-background focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring data-disabled:pointer-events-none data-dragging:border-border data-invalid:border-destructive data-dragging:bg-card-background",
         className,
       )}
       onClick={onClick}
@@ -1010,61 +1001,6 @@ function FileUploadItem(props: FileUploadItemProps) {
       </ItemPrimitive>
     </FileUploadItemContext.Provider>
   );
-}
-
-function getFileIcon(file: File) {
-  const type = file.type;
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-
-  if (type.startsWith("video/")) {
-    return <FileVideoIcon />;
-  }
-
-  if (type.startsWith("audio/")) {
-    return <FileAudioIcon />;
-  }
-
-  if (
-    type.startsWith("text/") ||
-    ["txt", "md", "rtf", "pdf"].includes(extension)
-  ) {
-    return <FileTextIcon />;
-  }
-
-  if (
-    [
-      "html",
-      "css",
-      "js",
-      "jsx",
-      "ts",
-      "tsx",
-      "json",
-      "xml",
-      "php",
-      "py",
-      "rb",
-      "java",
-      "c",
-      "cpp",
-      "cs",
-    ].includes(extension)
-  ) {
-    return <FileCodeIcon />;
-  }
-
-  if (["zip", "rar", "7z", "tar", "gz", "bz2"].includes(extension)) {
-    return <FileArchiveIcon />;
-  }
-
-  if (
-    ["exe", "msi", "app", "apk", "deb", "rpm"].includes(extension) ||
-    type.startsWith("application/")
-  ) {
-    return <FileCogIcon />;
-  }
-
-  return <FileIcon />;
 }
 
 interface FileUploadItemPreviewProps

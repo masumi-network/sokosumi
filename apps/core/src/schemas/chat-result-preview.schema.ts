@@ -32,6 +32,8 @@ const actorSchema = z.object({
   kind: z.enum(["user", "coworker", "sokoBot"]),
   slug: z.string().max(200).optional(),
   avatarSeed: z.string().max(200).nullable().default(null),
+  /** Soko Bots only: the style of the claimed avatar. */
+  avatarStyleId: z.string().max(200).nullable().default(null),
 });
 const projectSchema = z.object({
   id: z.string().max(200),
@@ -64,13 +66,14 @@ const socialPreviewSchema = z.object({
     })
     .nullable(),
   timestamp: dateTimeSchema.nullable(),
-  // Approve from the chat card. Defaults keep snapshots stored before these
+  // Approve or reject from the chat card. Defaults keep snapshots stored before these
   // fields parseable; such cards simply link out to Project Social.
   projectId: z.string().max(200).nullable().default(null),
   postId: z.string().max(200).nullable().default(null),
   revision: z.number().int().nonnegative().nullable().default(null),
-  // Chat is human UI; agents never approve, so no agent reads this flag.
+  // Chat is human UI; agents never approve or reject, so no agent reads these flags.
   canApprove: z.boolean().default(false),
+  canReject: z.boolean().default(false),
 });
 
 export const chatResultAvailableSchema = z
@@ -88,6 +91,7 @@ export const chatResultAvailableSchema = z
       "file",
       "decision",
       "project_selection",
+      "cmo_report",
     ]),
     title: z.string().max(500),
     // Each resource retains its native state; Core reads it, never the model.

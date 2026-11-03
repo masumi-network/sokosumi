@@ -5,7 +5,6 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const {
   adsServiceMock,
-  breadcrumbMock,
   errorMock,
   modalMock,
   hasSocialBetaAccessMock,
@@ -14,7 +13,6 @@ const {
   setupMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn(), getCampaignDetails: vi.fn() },
-  breadcrumbMock: vi.fn(),
   errorMock: vi.fn(),
   modalMock: vi.fn(),
   hasSocialBetaAccessMock: vi.fn(),
@@ -41,12 +39,6 @@ vi.mock("@/lib/social-beta-access.server", () => ({
 }));
 vi.mock("@/lib/ads/google-setup", () => ({
   loadGoogleSetup: setupMock,
-}));
-vi.mock("@/app/ads/components/ads-campaign-breadcrumb", () => ({
-  AdsCampaignBreadcrumb: (props: Record<string, unknown>) => {
-    breadcrumbMock(props);
-    return null;
-  },
 }));
 // The modal has its own tests; here it shows what the page hands it.
 vi.mock("@/app/ads/components/ads-edit-campaign-modal", () => ({
@@ -183,28 +175,6 @@ describe.each([
           name: "Spring sale",
           dailyBudget: "25",
         }),
-      },
-    });
-  });
-
-  it("names the campaign in the breadcrumb, ending with Edit, on the edit route only", async () => {
-    render(await visit());
-
-    if (route !== "./page") {
-      // Over the details page, their breadcrumb stays.
-      expect(breadcrumbMock).not.toHaveBeenCalled();
-      return;
-    }
-
-    expect(breadcrumbMock).toHaveBeenCalledWith({
-      adsHref: "/ads?projectId=project-1&tab=campaigns&account=a1&range=7d",
-      campaign: {
-        name: "Spring sale",
-        href: "/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
-      },
-      page: {
-        label: "edit",
-        href: "/ads/campaigns/42/edit?projectId=project-1&accountId=a1&range=7d",
       },
     });
   });

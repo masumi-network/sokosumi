@@ -28,6 +28,8 @@ const CMO = {
   name: "CMO",
   uri: "https://cmo.xyz/",
   logoUri: "https://cmo.xyz/logo.png",
+  // The request's callback is CMO.xyz's, so the pages wear its look.
+  brand: "cmo",
 };
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));

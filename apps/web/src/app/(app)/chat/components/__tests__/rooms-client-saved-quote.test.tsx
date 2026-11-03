@@ -212,7 +212,7 @@ function savedQuoteMessage(): ChatRoomMessage {
       roomId: "room-source",
       authorName: "Bob",
       snippet: "Ship the launch notes",
-      attachment: null,
+      attachments: [],
     },
   };
 }

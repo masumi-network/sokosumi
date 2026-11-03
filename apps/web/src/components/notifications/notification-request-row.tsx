@@ -16,21 +16,21 @@ export type NotificationRequestEmphasis =
 
 const EMPHASIS_STYLES = {
   "filled-warning": {
-    row: "bg-semantic-warning-quinary",
+    row: "bg-muted",
     rail: "bg-semantic-warning forced-colors:bg-[Highlight]",
-    circle: "bg-semantic-warning-quaternary text-semantic-warning",
-    title: "font-medium text-semantic-warning",
+    circle: "bg-semantic-warning text-semantic-warning-foreground",
+    title: "font-medium",
   },
   "filled-destructive": {
-    row: "bg-semantic-destructive-quinary",
+    row: "bg-muted",
     rail: "bg-semantic-destructive forced-colors:bg-[Highlight]",
-    circle: "bg-semantic-destructive-quaternary text-semantic-destructive",
+    circle: "bg-quinary text-semantic-destructive",
     title: "font-medium text-semantic-destructive",
   },
   marked: {
     row: "",
     rail: "bg-semantic-warning forced-colors:bg-[Highlight]",
-    circle: "bg-semantic-warning-quaternary text-semantic-warning",
+    circle: "bg-semantic-warning text-semantic-warning-foreground",
     title: "font-medium",
   },
   quiet: {

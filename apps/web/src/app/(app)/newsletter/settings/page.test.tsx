@@ -1,6 +1,7 @@
 import type { Newsletter } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
-import { createTranslator } from "next-intl";
+import userEvent from "@testing-library/user-event";
+import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/messages/en.json";
@@ -10,8 +11,12 @@ const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   listProjects: vi.fn(),
   getSettings: vi.fn(),
+  getSendingDomain: vi.fn(),
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
+  requireScope: vi.fn(),
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -32,6 +37,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
   newsletterService: {
     isEnabled: mocks.enabled,
     getSettings: mocks.getSettings,
+    getSendingDomain: mocks.getSendingDomain,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -39,6 +45,15 @@ vi.mock("@/lib/services/project.service", () => ({
     getProjectById: mocks.getProject,
     listProjects: mocks.listProjects,
   },
+}));
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: (request: object) => mocks.requireScope(request),
+  openScopeCreate: mocks.openScopeCreate,
+  setScopeCreateOpen: mocks.setScopeCreateOpen,
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 vi.mock("../newsletter-settings-form", () => ({
   NewsletterSettingsForm: (props: object) => {
@@ -50,6 +65,11 @@ vi.mock("../newsletter-settings-form", () => ({
 import NewsletterSettingsPage, { generateMetadata } from "./page";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const SENDING_DOMAIN_STATE = {
+  sendingDomain: null,
+  canManage: true,
+  fallbackAvailable: true,
+};
 const PAGE = messages.App.Newsletter;
 const SETTINGS = messages.App.Projects.Newsletter;
 
@@ -67,6 +87,7 @@ beforeEach(() => {
     logo: "https://example.com/logo.png",
   });
   mocks.getSettings.mockResolvedValue(null);
+  mocks.getSendingDomain.mockResolvedValue(SENDING_DOMAIN_STATE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 
@@ -117,7 +138,7 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.getProject).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
     });
 
-    it("loads existing settings and offers Issues, Calendar, Subscribers, Settings", async () => {
+    it("loads existing settings and offers every newsletter tab in order", async () => {
       const newsletter: Pick<Newsletter, "id" | "name"> = {
         id: "n1",
         name: "Weekly",
@@ -129,6 +150,13 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.form).toHaveBeenCalledWith(
         expect.objectContaining({ newsletter }),
       );
+      // The selected project's sending domain card rides along with its settings.
+      expect(mocks.getSendingDomain).toHaveBeenCalledWith(PROJECT_ID);
+      const { sendingDomain } = mocks.form.mock.calls[0]![0];
+      expect(sendingDomain.props).toEqual({
+        state: SENDING_DOMAIN_STATE,
+        projectId: PROJECT_ID,
+      });
       const nav = screen.getByRole("navigation", {
         name: SETTINGS.navigation,
       });
@@ -146,6 +174,10 @@ describe("NewsletterSettingsPage", () => {
         [
           SETTINGS.Subscribers.title,
           `/newsletter/subscribers?projectId=${PROJECT_ID}`,
+        ],
+        [
+          SETTINGS.SignupForm.title,
+          `/newsletter/signup-form?projectId=${PROJECT_ID}`,
         ],
         [
           SETTINGS.Analytics.title,
@@ -168,16 +200,13 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("without a project", () => {
-    it("lists workspace projects linking to their newsletter", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [
-          { id: "project-1", name: "Launch plan" },
-          { id: "project-2", name: "Weekly update" },
-        ],
-        pagination: null,
-      });
-
-      render(await NewsletterSettingsPage(props()));
+    it("offers project selection without opening the selector on navigation", async () => {
+      const user = userEvent.setup();
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props())}
+        </NextIntlClientProvider>,
+      );
 
       expect(
         screen.getByRole("heading", { level: 1, name: PAGE.title }),
@@ -185,62 +214,65 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
       ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.description)).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Launch plan" })).toHaveAttribute(
-        "href",
-        "/newsletter/settings?projectId=project-1",
+      expect(mocks.requireScope).not.toHaveBeenCalled();
+      // The page's button opens the selector over its stack of sample issues.
+      expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+      const button = screen.getByRole("button", { name: "Select project" });
+      await user.click(button);
+      expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ reason: PAGE.description, required: true }),
       );
-      expect(
-        screen.getByRole("link", { name: "Weekly update" }),
-      ).toHaveAttribute("href", "/newsletter/settings?projectId=project-2");
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
       expect(mocks.getProject).not.toHaveBeenCalled();
+      expect(mocks.listProjects).not.toHaveBeenCalled();
       expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();
     });
 
-    it("shows an empty state with a way to create a project", async () => {
-      render(await NewsletterSettingsPage(props({ projectId: " " })));
-
-      expect(
-        screen.getByRole("heading", { name: PAGE.empty.title }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(PAGE.empty.description)).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: PAGE.empty.action }),
-      ).toHaveAttribute("href", "/projects?create=true");
-      expect(mocks.getProject).not.toHaveBeenCalled();
-    });
-
-    it("keeps later projects reachable through Core's pagination", async () => {
-      mocks.listProjects.mockResolvedValue({
-        projects: [{ id: "project-2", name: "Later project" }],
-        pagination: { nextCursor: "next/page" },
-      });
-
-      render(await NewsletterSettingsPage(props({ cursor: "current-page" })));
-
-      expect(mocks.listProjects).toHaveBeenCalledWith({
-        limit: 20,
-        cursor: "current-page",
-      });
-      expect(screen.getByRole("link", { name: PAGE.nextPage })).toHaveAttribute(
-        "href",
-        "/newsletter/settings?cursor=next%2Fpage",
+    it("treats a blank project ID as none", async () => {
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props({ projectId: " " }))}
+        </NextIntlClientProvider>,
       );
+
+      expect(mocks.requireScope).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("button", { name: "Select project" }),
+      ).toBeInTheDocument();
+      expect(mocks.getProject).not.toHaveBeenCalled();
     });
   });
 
   describe("with an unknown project", () => {
-    it("says so above the project list instead of 404-ing", async () => {
+    it("offers a button to replace an unavailable project instead of 404-ing", async () => {
+      const user = userEvent.setup();
       mocks.getProject.mockResolvedValue(null);
-      render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props({ projectId: PROJECT_ID }))}
+        </NextIntlClientProvider>,
+      );
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
-      expect(mocks.listProjects).toHaveBeenCalled();
+      expect(mocks.requireScope).not.toHaveBeenCalled();
+      const button = screen.getByRole("button", { name: "Select project" });
+      await user.click(button);
+      expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          reason: PAGE.pickUnavailable,
+          required: true,
+        }),
+      );
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
       expect(mocks.getSettings).not.toHaveBeenCalled();
     });
 
     it("does not ask Core about a malformed project ID", async () => {
-      render(await NewsletterSettingsPage(props({ projectId: "missing" })));
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {await NewsletterSettingsPage(props({ projectId: "missing" }))}
+        </NextIntlClientProvider>,
+      );
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
       expect(mocks.getProject).not.toHaveBeenCalled();

@@ -7,7 +7,7 @@ struct DirectRecipientPickerTests {
   private let coworker = ChatRecipientTarget(id: .coworker("coworker"), name: "AI")
 
   @Test func groupedRecipientsPutCoworkersFirstAndOmitEmptySections() async {
-    let picker = DirectRecipientPicker(hasOrganization: true, currentUserId: "me")
+    let picker = DirectRecipientPicker(currentUserId: "me")
     let assistant = ChatRecipientTarget(id: .sokoBot("bot"), name: "Personal assistant")
     await picker.load { .init(targets: [person, assistant, coworker]) }
     #expect(picker.sections.map(\.id) == [.coworkers, .people, .assistant])
@@ -29,7 +29,7 @@ struct DirectRecipientPickerTests {
   }
 
   @Test func selectionAndRetryPreserveOnlyAvailableRecipients() async {
-    let picker = DirectRecipientPicker(hasOrganization: true, currentUserId: "me")
+    let picker = DirectRecipientPicker(currentUserId: "me")
     await picker.load { .init(targets: [person, coworker]) }
     picker.add(person)
     #expect(picker.candidates == [coworker])
@@ -45,7 +45,7 @@ struct DirectRecipientPickerTests {
   }
 
   @Test func rejectedCreationKeepsSelectionAndShowsRetryError() async {
-    let picker = DirectRecipientPicker(hasOrganization: false, currentUserId: "me")
+    let picker = DirectRecipientPicker(currentUserId: "me")
     await picker.load { .init(targets: [coworker]) }
     picker.add(coworker)
     #expect(await picker.create { _ in false } == false)
@@ -56,7 +56,7 @@ struct DirectRecipientPickerTests {
   }
 
   @Test func latestRosterWinsAndCreateIsSingleFlight() async {
-    let picker = DirectRecipientPicker(hasOrganization: false, currentUserId: "me")
+    let picker = DirectRecipientPicker(currentUserId: "me")
     var resumeLoad: CheckedContinuation<ChatRecipientRoster, Never>?
     let first = Task {
       await picker.load { await withCheckedContinuation { resumeLoad = $0 } }
@@ -89,7 +89,7 @@ struct DirectRecipientPickerTests {
   /// other row then unavailable, and the request is the reader's own id; a peer chosen first makes it unavailable.
   @Test func messageYourselfIsChosenAloneAndOpensTheReader() async {
     let yourself = ChatRecipientTarget.messageYourself(userId: "me", name: "Ada", imageURL: nil)
-    let picker = DirectRecipientPicker(hasOrganization: false, currentUserId: "me")
+    let picker = DirectRecipientPicker(currentUserId: "me")
     await picker.load { .init(targets: [yourself, person, coworker]) }
     #expect(picker.sections.first { $0.id == .people }?.targets.first == yourself)
     picker.add(yourself)

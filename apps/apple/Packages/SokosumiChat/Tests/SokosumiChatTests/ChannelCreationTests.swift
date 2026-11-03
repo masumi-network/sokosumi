@@ -100,7 +100,7 @@ struct ChannelCreationTests {
     #expect(model.availability == .taken)
     #expect(!model.canAdvance)
     await model.checkSlug { _ in true }
-    await model.load { .init(recipients: .init(targets: [], membersLoadFailed: true), isOwnerOrAdmin: false) }
+    await model.load { .init(recipients: .init(targets: [], humansLoadFailed: true), isOwnerOrAdmin: false) }
     #expect(!model.canAdvance)
     model.advance()
     #expect(model.step == .details)

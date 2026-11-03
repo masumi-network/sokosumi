@@ -1241,11 +1241,13 @@ describe("ChatMessageRow", () => {
           messageId: "original-image",
           authorName: "Bob",
           snippet: "check this shot",
-          attachment: {
-            fileName: "launch.png",
-            url: "https://blob.example/launch.png",
-            mediaKind: "image",
-          },
+          attachments: [
+            {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          ],
         },
       }),
     });
@@ -1264,6 +1266,38 @@ describe("ChatMessageRow", () => {
     expect(screen.getByText("check this shot")).toBeInTheDocument();
   });
 
+  it("shows a thumbnail for every image of a quoted message", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-images",
+          authorName: "Bob",
+          snippet: "all the ways",
+          attachments: ["a", "b", "c", "d"].map((name) => ({
+            fileName: `${name}.png`,
+            url: `https://blob.example/${name}.png`,
+            mediaKind: "image" as const,
+          })),
+        },
+      }),
+    });
+
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(
+      [...jumpButton.querySelectorAll("img")].map((img) =>
+        img.getAttribute("src"),
+      ),
+    ).toEqual([
+      "https://blob.example/a.png",
+      "https://blob.example/b.png",
+      "https://blob.example/c.png",
+      "https://blob.example/d.png",
+    ]);
+  });
+
   it("shows quote file attachment as inert icon thumb, not a link", () => {
     renderRow({
       message: userMessage({
@@ -1272,11 +1306,13 @@ describe("ChatMessageRow", () => {
           messageId: "original-file",
           authorName: "Bob",
           snippet: "see the brief",
-          attachment: {
-            fileName: "brief.pdf",
-            url: "https://blob.example/brief.pdf",
-            mediaKind: "file",
-          },
+          attachments: [
+            {
+              fileName: "brief.pdf",
+              url: "https://blob.example/brief.pdf",
+              mediaKind: "file",
+            },
+          ],
         },
       }),
     });
@@ -1302,11 +1338,13 @@ describe("ChatMessageRow", () => {
           messageId: "original-with-thumb",
           authorName: "Bob",
           snippet: "check this shot",
-          attachment: {
-            fileName: "launch.png",
-            url: "https://blob.example/launch.png",
-            mediaKind: "image",
-          },
+          attachments: [
+            {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          ],
         },
       }),
       onJumpToQuotedMessage,
@@ -1352,6 +1390,19 @@ describe("ChatMessageRow", () => {
     const rows = screen.getAllByTestId("room-message-attachment-row");
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
+  });
+
+  it("renders a sent sticker for another participant without the sender's collection", () => {
+    const url =
+      "https://test.public.blob.vercel-storage.com/stickers/alice/id/wave.png";
+    renderRow({
+      currentUserId: "recipient-user",
+      message: userMessage({ content: `[wave.png](${url})\n` }),
+    });
+    const image = screen.getByRole("img", { name: "wave.png" });
+    expect(image).toHaveAttribute("src", url);
+    expect(image).toHaveAttribute("width", "160");
+    expect(screen.queryByTestId("chip")).not.toBeInTheDocument();
   });
 
   it("uses large variant for a single image attachment", () => {
@@ -1546,7 +1597,7 @@ describe("ChatMessageRow", () => {
     });
     // Markdown mock renders children as text, so the mention HTML string is visible.
     const formatted = quoteButton.textContent ?? "";
-    expect(formatted).toContain("text-primary");
+    expect(formatted).toContain("text-foreground");
     expect(formatted).toContain(">@Everyone</span>");
     expect(formatted).not.toContain("@all");
   });
@@ -3150,6 +3201,60 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(trace).toHaveAttribute("data-working", "true");
     expect(trace).toHaveTextContent("Reading the calendar");
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
+  describe("a crafted Soko Bot's face", () => {
+    const crafted = (overrides: Partial<ChatRoomMessage>) => {
+      const message = sokoBotMessage(overrides);
+      return {
+        ...message,
+        sender: {
+          type: "sokoBot" as const,
+          sokoBot: {
+            ...(
+              message.sender as Extract<
+                ChatRoomMessage["sender"],
+                { type: "sokoBot" }
+              >
+            ).sokoBot,
+            image: "https://blob/idle.png",
+            avatarStyleId: "crafted-desk",
+            workingLoopUrl: "https://blob/working-480.mp4",
+          },
+        },
+      };
+    };
+    const video = () =>
+      screen.getByTestId("message-sender-avatar").querySelector("video");
+
+    it("loops while its reply is in progress", () => {
+      renderRow({
+        message: crafted({
+          content: "",
+          metadata: { streaming: true, mention_id: "mention_1" },
+        }),
+      });
+
+      expect(video()).toHaveAttribute("src", "https://blob/working-480.mp4");
+      expect(video()).toHaveAttribute("loop");
+    });
+
+    it("rests on its still once the reply has landed", () => {
+      renderRow({ message: crafted({ content: "Done." }) });
+
+      expect(video()).toBeNull();
+    });
+
+    it("rests on its still when the reply failed", () => {
+      renderRow({
+        message: crafted({
+          content: "",
+          metadata: { mention_failed: true, mention_id: "mention_1" },
+        }),
+      });
+
+      expect(video()).toBeNull();
+    });
   });
 
   it("shows Failed to reply on a failed Soko Bot shell", () => {

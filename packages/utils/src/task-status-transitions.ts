@@ -12,22 +12,28 @@
 /**
  * Task statuses referenced by status helpers. CREATED is not one: it is only
  * the first event of a Task, never a status any actor can move a Task to.
+ *
+ * Order matches Prisma `TaskStatus` minus `CREATED`.
  */
+export const USER_TRANSITION_TASK_STATUSES = [
+  "DRAFT",
+  "QUEUED",
+  "READY",
+  "GRANT_PENDING",
+  "INPUT_REQUIRED",
+  "APPROVAL_REQUIRED",
+  "AUTHENTICATION_REQUIRED",
+  "OUT_OF_CREDITS",
+  "CREDITS_TOPPED_UP",
+  "RUNNING",
+  "AWAITING_EXTERNAL",
+  "COMPLETED",
+  "FAILED",
+  "CANCELED",
+] as const;
+
 export type UserTransitionTaskStatus =
-  | "DRAFT"
-  | "QUEUED"
-  | "READY"
-  | "GRANT_PENDING"
-  | "INPUT_REQUIRED"
-  | "APPROVAL_REQUIRED"
-  | "AUTHENTICATION_REQUIRED"
-  | "OUT_OF_CREDITS"
-  | "CREDITS_TOPPED_UP"
-  | "RUNNING"
-  | "AWAITING_EXTERNAL"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELED";
+  (typeof USER_TRANSITION_TASK_STATUSES)[number];
 
 /** Who the Task is handed to. */
 export type TaskAssigneeKind = "coworker" | "sokoBot" | "human" | "unset";

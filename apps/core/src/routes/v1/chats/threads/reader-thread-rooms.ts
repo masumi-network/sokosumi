@@ -14,7 +14,7 @@ export async function readerThreadRoomIds(
 ): Promise<string[]> {
   const rooms = await prisma.chatRoom.findMany({
     where: {
-      ...membershipVisibleActiveRoomWhere(userId, organizationId),
+      ...membershipVisibleActiveRoomWhere(organizationId),
       userMembers: { some: { userId, mutedAt: null } },
     },
     select: { id: true },

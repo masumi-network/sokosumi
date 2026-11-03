@@ -1,25 +1,18 @@
 "use client";
 
-import { ChevronDown, FolderKanban } from "lucide-react";
+import { CircleAlert, PenLine } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
-import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
+import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import {
   type SOCIAL_PROVIDERS,
   socialProvidersEnabledFirst,
 } from "@/components/social-providers";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
+import { cn } from "@/lib/utils";
 
 const NEED_PROJECT_COPY = {
   accounts: "accountsNeedProject",
@@ -30,73 +23,80 @@ const NEED_PROJECT_COPY = {
 interface SocialAccountsProjectPromptProps {
   kind?: keyof typeof NEED_PROJECT_COPY;
   notice?: string;
+  /**
+   * Opt in to opening the header's project selector on arrival. Off by default
+   * so navigation leaves the creative backdrop and project choice visible,
+   * including above views that work without a project, as the calendar does.
+   */
+  autoOpen?: boolean;
 }
 
-/** Project-owned accounts and drafts start with the same menu as Content Studio. */
+/**
+ * Project-owned accounts and drafts ask for a project through the header's
+ * own selector, as Content Studio does, over a backdrop of what the tab holds:
+ * the platforms to connect for Accounts, a post fan for Drafts and Attention.
+ */
 export function SocialAccountsProjectPrompt({
   kind = "accounts",
   notice,
+  autoOpen = false,
 }: SocialAccountsProjectPromptProps) {
   const copy = NEED_PROJECT_COPY[kind];
   const t = useTranslations("App.Social");
   const router = useRouter();
-  const { projectId, switchHref } = useProjectScope();
-  const [open, setOpen] = useState(false);
-
-  function handleSelect(nextProjectId: string | null) {
-    if (!nextProjectId) return;
-    // Scope switching resets page filters. Keep the tab that asked for a project.
-    router.push(`${switchHref(nextProjectId)}&tab=${kind}`);
-  }
+  const { switchHref } = useProjectScope();
 
   return (
-    <section
-      aria-labelledby="social-accounts-heading"
-      className="mx-auto flex w-full flex-col items-center px-2 py-12 text-center sm:py-20"
-      data-testid="social-no-project"
+    <ProjectScopeRequired
+      autoOpen={autoOpen}
+      body={notice ?? t(`${copy}.body`)}
+      onSelect={(nextProjectId) => {
+        // Scope switching resets page filters. Keep the tab that asked for a project.
+        router.push(`${switchHref(nextProjectId)}&tab=${kind}`);
+      }}
+      testId="social-no-project"
+      title={t(`${copy}.title`)}
     >
       {kind === "accounts" ? (
         <SocialPlatformCarousel />
       ) : (
-        <span
-          aria-hidden
-          className="bg-background text-muted-foreground flex size-12 items-center justify-center rounded-xl border"
-        >
-          <FolderKanban className="size-6" />
-        </span>
+        <SocialPostFan kind={kind} />
       )}
-      <h2
-        id="social-accounts-heading"
-        className="mt-8 text-2xl font-light tracking-tight text-balance"
+    </ProjectScopeRequired>
+  );
+}
+
+/** Two platforms fanned behind the tab's own mark: a post waiting on them. */
+function SocialPostFan({ kind }: { kind: "attention" | "drafts" }) {
+  const [left, right] = socialProvidersEnabledFirst(
+    useSocialProviderAvailability().enabledProviders,
+  );
+  const Mark = kind === "drafts" ? PenLine : CircleAlert;
+  const tile =
+    "bg-card flex size-16 items-center justify-center rounded-2xl border";
+
+  return (
+    <div
+      aria-hidden
+      className="flex items-end justify-center"
+      data-testid="social-post-fan"
+    >
+      {left ? (
+        <span className={cn(tile, "-mr-3 -rotate-6")}>
+          <left.Icon className="size-7" />
+        </span>
+      ) : null}
+      <span
+        className={cn(tile, "text-muted-foreground relative z-10 mb-3 size-20")}
       >
-        {t(`${copy}.title`)}
-      </h2>
-      <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
-        {notice ?? t(`${copy}.body`)}
-      </p>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button className="mt-6 min-h-11 md:min-h-10" type="button">
-            <FolderKanban className="size-4" aria-hidden />
-            {t("pickProject")}
-            <ChevronDown className="size-4" aria-hidden />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="center"
-          side="bottom"
-          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
-        >
-          <ProjectScopeMenu
-            selectedProjectId={projectId}
-            includeWorkspace={false}
-            onSelect={handleSelect}
-            onCreate={openScopeCreate}
-            onDone={() => setOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
-    </section>
+        <Mark className="size-8" />
+      </span>
+      {right ? (
+        <span className={cn(tile, "-ml-3 rotate-6")}>
+          <right.Icon className="size-7" />
+        </span>
+      ) : null}
+    </div>
   );
 }
 

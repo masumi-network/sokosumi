@@ -425,6 +425,140 @@ describe("WorkspaceCalendar Social-only view", () => {
   });
 
   describe("locked to Social", () => {
+    it.each([
+      "status=COMPLETED",
+      "assigneeId=coworker-1",
+      "assigneeUserId=user-1",
+      "sourceId=workspace%3Aworkspace-1",
+    ])("ignores an incompatible workspace calendar filter: %s", (filter) => {
+      renderCalendar(
+        {
+          includeSocialPosts: true,
+          socialPostsOnly: true,
+          items: [
+            POST,
+            {
+              ...POST,
+              id: "social:other-project",
+              postId: "other-project",
+              text: "Published news",
+              status: "PUBLISHED",
+              projectName: "Community",
+              sourceId: "project:project-2",
+              sourceProjectId: "project-2",
+            },
+          ],
+        },
+        `?timezone=UTC&view=week&${filter}`,
+      );
+
+      expect(renderedEventTitles()).toEqual(["Launch news", "Published news"]);
+      expect(screen.getByText("Release planning")).toBeVisible();
+      expect(screen.getByText("Community")).toBeVisible();
+      expect(screen.queryByText("empty.socialOnly")).not.toBeInTheDocument();
+    });
+
+    it("keeps project, platform and post-status deep links while ignoring task filters", () => {
+      renderCalendar(
+        {
+          includeSocialPosts: true,
+          socialPostsOnly: true,
+          items: [
+            POST,
+            {
+              ...POST,
+              id: "social:other-project",
+              text: "Other project news",
+              status: "PUBLISHED",
+              provider: "linkedin",
+            },
+            {
+              ...POST,
+              id: "social:scheduled",
+              text: "Scheduled news",
+              provider: "linkedin",
+              sourceId: "project:project-2",
+              sourceProjectId: "project-2",
+            },
+            {
+              ...POST,
+              id: "social:published",
+              text: "Published LinkedIn news",
+              status: "PUBLISHED",
+              provider: "linkedin",
+              sourceId: "project:project-2",
+              sourceProjectId: "project-2",
+            },
+          ],
+        },
+        "?timezone=Europe/Prague&view=week&date=2030-01-02&projectId=project-2&postStatus=PUBLISHED&provider=linkedin&status=COMPLETED&assigneeId=coworker-1&assigneeUserId=user-1&sourceId=workspace%3Aworkspace-1",
+      );
+
+      expect(renderedEventTitles()).toEqual(["Published LinkedIn news"]);
+      expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
+      expect(screen.getByTestId("calendar-timezone")).toHaveTextContent(
+        "Prague",
+      );
+    });
+
+    it("drains mixed pages across projects without forwarding hidden task filters", async () => {
+      getWorkspaceCalendarMock
+        .mockResolvedValueOnce({
+          data: [{ ...RUN, id: "run-2" }],
+          meta: { pagination: { nextCursor: "posts-page" } },
+        })
+        .mockResolvedValueOnce({
+          data: [
+            POST,
+            {
+              ...POST,
+              id: "social:other-project",
+              text: "Other project news",
+              projectName: "Community",
+              sourceId: "project:project-2",
+              sourceProjectId: "project-2",
+            },
+          ],
+          meta: { pagination: { nextCursor: null } },
+        });
+      const range = {
+        from: new Date("2030-01-01T00:00:00Z"),
+        to: new Date("2030-02-01T00:00:00Z"),
+      };
+      renderCalendar(
+        {
+          includeSocialPosts: true,
+          socialPostsOnly: true,
+          items: [RUN],
+          pagination: { limit: 100, nextCursor: "runs-page" },
+          range,
+        },
+        "?timezone=UTC&view=month&scope=owned&status=COMPLETED&assigneeId=coworker-1&assigneeUserId=user-1&sourceId=workspace%3Aworkspace-1",
+      );
+
+      await waitFor(() =>
+        expect(renderedEventTitles()).toEqual([
+          "Launch news",
+          "Other project news",
+        ]),
+      );
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledTimes(2);
+      for (const [query] of getWorkspaceCalendarMock.mock.calls) {
+        expect(query).toEqual({
+          ...range,
+          includeSocialPosts: "true",
+          agendaOnly: undefined,
+          cursor: expect.any(String),
+          limit: 100,
+          scope: "owned",
+          assigneeId: undefined,
+          assigneeUserId: undefined,
+          status: undefined,
+        });
+      }
+      expect(getProjectCalendarMock).not.toHaveBeenCalled();
+    });
+
     it("shows posts alone, with no toggle to undo it", () => {
       renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
 
@@ -502,18 +636,21 @@ describe("WorkspaceCalendar Social-only view", () => {
       );
 
       expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
-      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-        "view.month",
-        "view.week",
-      ]);
+      expect(
+        within(screen.getByTestId("calendar-views"))
+          .getAllByRole("radio")
+          .map((view) => view.textContent),
+      ).toEqual(["view.month", "view.week"]);
     });
 
     it("gives the view tabs and filters 44px phone targets", () => {
       renderCalendar({ includeSocialPosts: true, socialPostsOnly: true });
 
       expect(screen.getByTestId("calendar-views")).toHaveClass("min-h-11");
-      for (const tab of screen.getAllByRole("tab")) {
-        expect(tab).toHaveClass("min-h-11");
+      for (const view of within(
+        screen.getByTestId("calendar-views"),
+      ).getAllByRole("radio")) {
+        expect(view).toHaveClass("min-h-11");
       }
       expect(filterDropdownMenuMock).toHaveBeenCalledWith(
         expect.objectContaining({

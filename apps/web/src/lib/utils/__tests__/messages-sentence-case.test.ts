@@ -40,7 +40,6 @@ const PROPER_PHRASES = [
   "Acceptable Use",
   "Data Processing Agreement",
   // Other names.
-  "Model Context Protocol",
   "Mistral Medium",
   "Florian Haller",
   "Serviceplan Group",
@@ -48,6 +47,14 @@ const PROPER_PHRASES = [
   "Times New Roman",
   // Example organization name in a placeholder.
   "My Organization",
+  // Example brands in the Ads and Newsletter no-project backdrops.
+  "Atelier Lune",
+  "Harbor Yoga",
+  "The Launch Log",
+  "Mia at Northwind",
+  "Field Notes Studio",
+  "Field Notes",
+  "Studio Weekly",
 ];
 
 /** Longest first, so "Soko Bots" is not stripped as "Soko Bot" plus a stray "s". */
@@ -64,6 +71,7 @@ const PROPER_WORDS = new Set([
   "WhatsApp",
   "WebP",
   "X",
+  "LinkedIn",
   "Claude",
   "Eve",
   "Jev",

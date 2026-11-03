@@ -45,6 +45,13 @@ export function ChannelKindGlyph({
 }
 
 /**
+ * The box a room's leading mark sits in beside its title, and the glyph size
+ * inside it: this kind glyph, and a Direct's icon or face in the room header.
+ */
+export const CHAT_TITLE_MARK_CLASS =
+  "inline-flex size-7 shrink-0 items-center justify-center md:size-5 [&_svg]:size-4.5 md:[&_svg]:size-3.5";
+
+/**
  * Slack-like: `#` for public, lock for private, globe for external/matched,
  * in a box of its own. Used where there is no sidebar row slot to sit in: the
  * room header and the Browse channels list.
@@ -56,10 +63,7 @@ export function ChannelDiscoverabilityIcon({
 }: ChannelDiscoverabilityIconProps) {
   return (
     <span
-      className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center md:size-5 [&_svg]:size-4.5 md:[&_svg]:size-3.5",
-        className,
-      )}
+      className={cn(CHAT_TITLE_MARK_CLASS, className)}
       {...props}
       aria-hidden
     >

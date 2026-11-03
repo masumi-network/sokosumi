@@ -52,7 +52,7 @@ function NotificationToastBody({
     <button
       type="button"
       onClick={onOpen}
-      className="press hover:bg-card-background -my-1 flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md py-1 text-left transition-colors"
+      className="press hover:bg-accent -my-1 flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md py-1 text-left transition-colors"
     >
       <span className="min-w-0 flex-1 text-sm font-medium leading-snug">
         {message}
@@ -231,7 +231,7 @@ export function NotificationToastListener({
           toasterId: NOTIFICATION_TOASTER_ID,
           duration: 10_000,
           dismissible: true,
-          icon: <Icon className="text-primary size-5 shrink-0" />,
+          icon: <Icon className="text-foreground size-5 shrink-0" />,
         },
       );
     },

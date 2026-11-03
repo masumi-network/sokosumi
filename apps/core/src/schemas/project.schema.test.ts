@@ -36,10 +36,11 @@ function createDatabaseProject(
     contextMdUpdatingSince: null,
     contextMdVersion: 0,
     websiteUrl: null,
+    sitePlatform: null,
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,
-    requireAgentPostApproval: false,
+    postingInstructionsMd: null,
     projectRevision: 0,
     calendarRevision: 0,
     closingAt: null,
@@ -108,20 +109,6 @@ describe("project schemas", () => {
     ).toBe(false);
   });
 
-  it("patches and exposes whether agent social posts need approval", () => {
-    expect(
-      patchProjectRequestSchema.parse({ requireAgentPostApproval: true }),
-    ).toMatchObject({ requireAgentPostApproval: true });
-    expect(
-      mapProjectForApi(createDatabaseProject()).requireAgentPostApproval,
-    ).toBe(false);
-    expect(
-      mapProjectForApi(
-        createDatabaseProject({ requireAgentPostApproval: true }),
-      ).requireAgentPostApproval,
-    ).toBe(true);
-  });
-
   it("uppercases and validates a project identifier on create and patch", () => {
     expect(
       createProjectRequestSchema.parse({ name: "Launch", identifier: " sok1 " })
@@ -153,6 +140,25 @@ describe("project schemas", () => {
     expect(
       mapProjectForApi(createDatabaseProject({ identifier: "LAU" })).identifier,
     ).toBe("LAU");
+  });
+
+  it("maps posting instructions and accepts them alone on PATCH", () => {
+    expect(
+      mapProjectForApi(createDatabaseProject()).postingInstructionsMd,
+    ).toBe(null);
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({ postingInstructionsMd: "Tone: warm" }),
+      ).postingInstructionsMd,
+    ).toBe("Tone: warm");
+    expect(
+      patchProjectRequestSchema.parse({ postingInstructionsMd: null }),
+    ).toMatchObject({ postingInstructionsMd: null });
+    expect(
+      patchProjectRequestSchema.safeParse({
+        postingInstructionsMd: "a".repeat(20_001),
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts deprecated description as a briefing alias", () => {

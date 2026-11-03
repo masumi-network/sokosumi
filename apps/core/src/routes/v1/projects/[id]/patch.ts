@@ -1,22 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import type { Prisma } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS, isOwnedProjectLogoUrl } from "@sokosumi/utils";
 
-import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
-import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import {
-  deleteProjectBriefingBlob,
-  ensureProjectFilesToken,
-  uploadProjectBriefingFile,
-} from "@/lib/project-files-blob";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -24,6 +13,7 @@ import {
   patchProjectRequestSchema,
   projectSchema,
 } from "@/schemas/project.schema";
+import { updateProject } from "@/services/projects.service";
 
 const paramsSchema = z.object({
   id: z
@@ -40,7 +30,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, identifier, briefing, website, logo, or whether agent-created social posts need approval. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
+      "Update a project's name, identifier, briefing, website, logo, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -69,97 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-
-    const updateData: Prisma.ProjectUpdateManyMutationInput = {
-      projectRevision: { increment: 1 },
-    };
-    if (body.name !== undefined) {
-      updateData.name = body.name;
-    }
-    if (body.identifier !== undefined) {
-      updateData.identifier = body.identifier;
-    }
-    if (body.websiteUrl !== undefined) {
-      updateData.websiteUrl = body.websiteUrl ?? null;
-    }
-    if (body.logo !== undefined) {
-      if (body.logo !== null && !isOwnedProjectLogoUrl(body.logo, id)) {
-        throw unprocessableEntity(
-          "Logo must be owned by this project's logo prefix",
-        );
-      }
-      updateData.logo = body.logo ?? null;
-    }
-    if (body.requireAgentPostApproval !== undefined) {
-      updateData.requireAgentPostApproval = body.requireAgentPostApproval;
-    }
-    const existingProject = await prisma.project.findFirst({
-      where: { id, workspaceId: workspaceContext.workspaceId },
-    });
-    if (!existingProject) {
-      throw notFound("Project not found");
-    }
-
-    let briefingUrlToDelete: string | null = null;
-    if (body.briefing !== undefined) {
-      const briefing = body.briefing?.trim() || null;
-      updateData.briefing = briefing;
-
-      if (!briefing) {
-        updateData.briefingUrl = null;
-        briefingUrlToDelete = existingProject.briefingUrl;
-      } else {
-        const filesToken = await ensureProjectFilesToken(
-          id,
-          existingProject.filesToken,
-        );
-        if (!filesToken) {
-          throw notFound("Project not found");
-        }
-
-        const briefingUrl = await uploadProjectBriefingFile(
-          id,
-          filesToken,
-          briefing,
-        );
-        updateData.briefingUrl = briefingUrl;
-        if (!briefingUrl) {
-          console.warn("Project briefing saved without a Blob URL", {
-            projectId: id,
-          });
-        }
-        if (existingProject.briefingUrl !== briefingUrl) {
-          briefingUrlToDelete = existingProject.briefingUrl;
-        }
-      }
-    }
-
-    const updateResult = await prisma.project
-      .updateMany({
-        where: { id, workspaceId: workspaceContext.workspaceId },
-        data: updateData,
-      })
-      .catch((error: unknown) => {
-        throw isProjectIdentifierUniqueConstraintError(error)
-          ? conflict("Project identifier already in use in this workspace", {
-              kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
-            })
-          : error;
-      });
-
-    if (updateResult.count === 0) {
-      throw notFound("Project not found");
-    }
-    await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
-
-    await deleteProjectBriefingBlob(briefingUrlToDelete);
-
-    const project = await prisma.project.findFirst({
-      where: { id, workspaceId: workspaceContext.workspaceId },
-    });
-    if (!project) {
-      throw notFound("Project not found");
-    }
+    const project = await updateProject(workspaceContext.workspaceId, id, body);
     return ok(c, mapProjectForApi(project));
   });
 }

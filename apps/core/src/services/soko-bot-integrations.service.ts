@@ -19,7 +19,9 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getComposio } from "@/clients/composio.client";
+import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
+import { socialProviderForToolkit } from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
 
 export class SokoBotIntegrationError extends Error {
@@ -120,32 +122,61 @@ let catalogCache: {
   entries: SokoBotIntegrationCatalogEntry[];
 } | null = null;
 
-/** Composio's toolkit catalog by usage, cached for an hour and filtered locally. */
+/** Asked of Composio in one page; it is refused above its cap, so 500 is the fallback. */
+const CATALOG_SIZES = [1_000, 500] as const;
+
+/** One click connects it: Composio signs the owner in, or a social auth config does. */
+function connectable(toolkit: {
+  slug: string;
+  composioManagedAuthSchemes?: string[];
+}): boolean {
+  return (
+    Boolean(toolkit.composioManagedAuthSchemes?.length) ||
+    Boolean(getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())) ||
+    Boolean(socialProviderForToolkit(toolkit.slug.toLowerCase()))
+  );
+}
+
+async function loadCatalog(): Promise<SokoBotIntegrationCatalogEntry[] | null> {
+  const composio = getComposio();
+  if (!composio) return null;
+  for (const limit of CATALOG_SIZES) {
+    const toolkits = await composio.toolkits
+      .get({ sortBy: "usage", limit })
+      .catch(() => null);
+    if (!toolkits) continue;
+    return toolkits
+      .filter(
+        (toolkit) =>
+          toolkit.slug.toLowerCase() !== "composio" &&
+          !adProviderForToolkit(toolkit.slug) &&
+          connectable(toolkit),
+      )
+      .map((toolkit) => ({
+        provider: toolkit.slug.toLowerCase(),
+        name: toolkit.name,
+        description: toolkit.meta?.description ?? null,
+        logoUrl: toolkit.meta?.logo ?? null,
+        kinds:
+          getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
+          [],
+      }));
+  }
+  return null;
+}
+
+/**
+ * Every Composio toolkit a bot can connect in one click, most used first,
+ * cached for an hour and filtered locally.
+ */
 export async function searchSokoBotIntegrationCatalog(
   query: string,
   limit = 20,
 ): Promise<SokoBotIntegrationCatalogEntry[]> {
-  const composio = getComposio();
-  if (!composio) return curatedCatalog(query, limit);
   if (!catalogCache || Date.now() - catalogCache.at > CATALOG_TTL_MS) {
-    const toolkits = await composio.toolkits
-      .get({ sortBy: "usage", limit: 500 })
-      .catch(() => null);
-    if (!toolkits) return curatedCatalog(query, limit);
-    catalogCache = {
-      at: Date.now(),
-      entries: toolkits
-        .filter((toolkit) => toolkit.slug.toLowerCase() !== "composio")
-        .map((toolkit) => ({
-          provider: toolkit.slug.toLowerCase(),
-          name: toolkit.name,
-          description: toolkit.meta?.description ?? null,
-          logoUrl: toolkit.meta?.logo ?? null,
-          kinds:
-            getSokoBotIntegrationProvider(toolkit.slug.toLowerCase())?.kinds ??
-            [],
-        })),
-    };
+    const entries = await loadCatalog();
+    if (!entries) return curatedCatalog(query, limit);
+    catalogCache = { at: Date.now(), entries };
   }
   const needle = query.trim().toLowerCase();
   const entries = needle
@@ -157,18 +188,6 @@ export async function searchSokoBotIntegrationCatalog(
       )
     : catalogCache.entries;
   return entries.slice(0, limit);
-}
-
-/** Toolkit logos by slug from the cached catalog; empty when unreachable. */
-export async function catalogLogos(): Promise<Map<string, string>> {
-  const entries = await searchSokoBotIntegrationCatalog("", 500).catch(
-    () => [] as SokoBotIntegrationCatalogEntry[],
-  );
-  return new Map(
-    entries.flatMap((entry) =>
-      entry.logoUrl ? [[entry.provider, entry.logoUrl] as const] : [],
-    ),
-  );
 }
 
 function curatedCatalog(
@@ -277,6 +296,27 @@ export interface SokoBotIntegrationTool {
   name: string;
   description: string | null;
   inputSchema: unknown;
+  /** Composio marks it as only looking things up. */
+  readOnly: boolean;
+}
+
+const READ_ONLY_TAG = "readOnlyHint";
+
+/**
+ * Why a bot may not use this toolkit (or tool) directly: ads go through the
+ * Project's ad account, never a connection of the bot's own. Null when allowed.
+ */
+export function adToolkitRefusal(
+  providerId: string,
+  tool?: string,
+): string | null {
+  // A tool slug is `{TOOLKIT}_{ACTION}`, so its prefix names the toolkit.
+  const provider =
+    adProviderForToolkit(providerId) ??
+    (tool ? adProviderForToolkit(tool.trim().split("_")[0]) : undefined);
+  return provider
+    ? `${provider.name} is used through the Project's ad account: start with list_ad_accounts and use the ad tools`
+    : null;
 }
 
 /** Tool descriptors of one toolkit, optionally narrowed by intent words. */
@@ -284,6 +324,8 @@ export async function listIntegrationTools(
   integration: ActiveIntegration,
   options: { query?: string; limit: number },
 ): Promise<SokoBotIntegrationTool[]> {
+  const refusal = adToolkitRefusal(integration.provider.id);
+  if (refusal) throw new SokoBotIntegrationError(refusal);
   const composio = requireComposio();
   const tools = await withComposio("list tools", () =>
     composio.tools.getRawComposioTools({
@@ -297,15 +339,44 @@ export async function listIntegrationTools(
     name: tool.name,
     description: tool.description ?? null,
     inputSchema: tool.inputParameters ?? null,
+    readOnly: tool.tags?.includes(READ_ONLY_TAG) ?? false,
   }));
 }
 
-/** Runs one toolkit tool as the connected account; mailboxes are refused. */
+/** Runs one toolkit tool as the connected account; mailboxes and ad toolkits are refused. */
 export async function runIntegrationTool(
   integration: ActiveIntegration,
   tool: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  return execute(integration, integrationToolSlug(integration, tool), args);
+}
+
+/** Runs a tool only when Composio marks it read-only, so a read can never write. */
+export async function readIntegrationTool(
+  integration: ActiveIntegration,
+  tool: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const slug = integrationToolSlug(integration, tool);
+  const composio = requireComposio();
+  const described = await withComposio("describe tool", () =>
+    composio.tools.getRawComposioToolBySlug(slug),
+  );
+  if (!described.tags?.includes(READ_ONLY_TAG))
+    throw new SokoBotIntegrationError(
+      `${slug} is not marked read-only; a tool that changes something runs through run_integration_tool`,
+    );
+  return execute(integration, slug, args);
+}
+
+/** The tool's slug, after refusing mailboxes, ad toolkits and other toolkits' tools. */
+function integrationToolSlug(
+  integration: ActiveIntegration,
+  tool: string,
+): string {
+  const refusal = adToolkitRefusal(integration.provider.id, tool);
+  if (refusal) throw new SokoBotIntegrationError(refusal);
   if (isSokoBotEmailProvider(integration.provider.id)) {
     throw new SokoBotIntegrationError(
       "Mailboxes are read through search_inbox and read_email only",
@@ -318,7 +389,7 @@ export async function runIntegrationTool(
       `Tool ${tool} does not belong to ${integration.provider.name}`,
     );
   }
-  return execute(integration, slug, args);
+  return slug;
 }
 
 /** A Composio call the model is waiting on; well under the turn budget. */

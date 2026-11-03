@@ -11,7 +11,6 @@ import { LIMITS } from "@/config/constants";
 import {
   requireMutableTaskWriteAccess,
   requireTaskAssignableCoworker,
-  requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
 } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
@@ -26,6 +25,7 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
+import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import {
   mapTask,
   parseFutureRunAt,

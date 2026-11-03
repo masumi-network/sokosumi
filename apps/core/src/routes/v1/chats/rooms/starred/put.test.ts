@@ -29,6 +29,8 @@ const USER_ID = "user_123";
 const ROOM_A = "550e8400-e29b-41d4-a716-44665544000a";
 const ROOM_B = "550e8400-e29b-41d4-a716-44665544000b";
 const ROOM_C = "550e8400-e29b-41d4-a716-44665544000c";
+const ROOM_D = "550e8400-e29b-41d4-a716-44665544000e";
+const ROOM_E = "550e8400-e29b-41d4-a716-44665544000f";
 const ROOM_NOT_STARRED = "550e8400-e29b-41d4-a716-44665544000d";
 
 const tx = {
@@ -95,14 +97,7 @@ describe("PUT /chats/rooms/starred", () => {
     expect(response.status).toBe(200);
     expect(membershipFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          userId: USER_ID,
-          starredAt: { not: null },
-          room: expect.objectContaining({
-            archivedAt: null,
-            OR: expect.arrayContaining([{ organizationId: "org_1" }]),
-          }),
-        },
+        where: { userId: USER_ID, starredAt: { not: null } },
       }),
     );
     expect(writtenOrder()).toEqual([ROOM_C, ROOM_A, ROOM_B]);
@@ -120,14 +115,55 @@ describe("PUT /chats/rooms/starred", () => {
     expect(Math.max(...times)).toBeLessThanOrEqual(Date.now());
   });
 
-  it("ignores unstarred ids and keeps omitted starred rooms after the listed ones", async () => {
+  it("sets the whole order from a client that lists every pin", async () => {
+    membershipFindManyMock.mockResolvedValue(
+      [ROOM_A, ROOM_B, ROOM_C, ROOM_D, ROOM_E].map((roomId, index) => ({
+        roomId,
+        starredAt: new Date(2026, 0, index + 1),
+      })),
+    );
+
+    await put({ roomIds: [ROOM_E, ROOM_D, ROOM_C, ROOM_B, ROOM_A] });
+
+    expect(writtenOrder()).toEqual([ROOM_E, ROOM_D, ROOM_C, ROOM_B, ROOM_A]);
+  });
+
+  // The Apple apps list one workspace's pins. Across a list that interleaves
+  // workspaces, their rooms swap only among the places they already hold.
+  it("moves one workspace's pins only within the places they hold", async () => {
+    membershipFindManyMock.mockResolvedValue(
+      [ROOM_A, ROOM_B, ROOM_C, ROOM_D, ROOM_E].map((roomId, index) => ({
+        roomId,
+        starredAt: new Date(2026, 0, index + 1),
+      })),
+    );
+
+    const response = await put({ roomIds: [ROOM_E, ROOM_C, ROOM_A] });
+
+    expect(writtenOrder()).toEqual([ROOM_E, ROOM_B, ROOM_C, ROOM_D, ROOM_A]);
+    const body = await response.json();
+    expect(body.data.map((row: { roomId: string }) => row.roomId)).toEqual([
+      ROOM_E,
+      ROOM_B,
+      ROOM_C,
+      ROOM_D,
+      ROOM_A,
+    ]);
+  });
+
+  it("ignores unstarred ids, duplicates and a room left in its own place", async () => {
     const response = await put({
       roomIds: [ROOM_NOT_STARRED, ROOM_C, ROOM_C],
     });
 
     expect(response.status).toBe(200);
-    expect(writtenOrder()).toEqual([ROOM_C, ROOM_A, ROOM_B]);
-    expect(membershipUpdateMock).toHaveBeenCalledTimes(3);
+    expect(membershipUpdateMock).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data.map((row: { roomId: string }) => row.roomId)).toEqual([
+      ROOM_A,
+      ROOM_B,
+      ROOM_C,
+    ]);
   });
 
   it("only ever writes to rows that are still starred", async () => {
@@ -172,19 +208,7 @@ describe("PUT /chats/rooms/starred", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("does not load starred rooms from another workspace", async () => {
-    await put({ roomIds: [ROOM_C, ROOM_A, ROOM_B] });
-
-    const where = membershipFindManyMock.mock.calls[0]?.[0]?.where as {
-      room: { OR: unknown[] };
-    };
-    expect(where.room.OR).toContainEqual({ organizationId: "org_1" });
-    expect(where.room.OR).not.toContainEqual({
-      organizationId: "org_other",
-    });
-  });
-
-  it("scopes personal workspace to org-less rooms, not an org", async () => {
+  it("reads every pin of the reader's, whichever workspace is active", async () => {
     await createApp({
       ...userAuthContext,
       organizationId: null,
@@ -194,14 +218,10 @@ describe("PUT /chats/rooms/starred", () => {
       body: JSON.stringify({ roomIds: [ROOM_A, ROOM_B] }),
     });
 
-    const where = membershipFindManyMock.mock.calls[0]?.[0]?.where as {
-      room: { OR: unknown[] };
-    };
-    expect(where.room.OR).toContainEqual({
-      organizationId: null,
-      kind: "direct",
+    expect(membershipFindManyMock.mock.calls[0]?.[0]?.where).toEqual({
+      userId: USER_ID,
+      starredAt: { not: null },
     });
-    expect(where.room.OR).not.toContainEqual({ organizationId: "org_1" });
   });
 
   it("rejects a non-user actor", async () => {

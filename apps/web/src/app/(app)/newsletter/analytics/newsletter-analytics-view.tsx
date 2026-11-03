@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useState, useTransition } from "react";
+import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { EmptyState } from "@/components/common/empty-state";
 import { DailyBarChart } from "@/components/performance/daily-bar-chart";
 import { PerformanceDateRange } from "@/components/performance/performance-date-range";
@@ -31,7 +32,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { newsletterHref } from "../newsletter-tabs";
 import {
   NewsletterAnalyticsNotes,
   NewsletterMetrics,
@@ -47,6 +47,15 @@ type GrowthMetric =
   | "bounced"
   | "net"
   | "runningTotal";
+
+const ISSUE_METRICS = [
+  "sent",
+  "uniqueOpens",
+  "uniqueClicks",
+  "unsubscribes",
+  "openRate",
+  "clickRate",
+] as const;
 
 export function NewsletterAnalyticsView({
   projectId,
@@ -67,6 +76,29 @@ export function NewsletterAnalyticsView({
   >("uniqueOpens");
   const from = range.from ?? analytics?.from ?? "";
   const to = range.to ?? analytics?.to ?? "";
+  const issueItems = (analytics?.issues ?? []).map((issue) => ({
+    issue,
+    href: newsletterHref(
+      `/newsletter/issues/${encodeURIComponent(issue.id)}`,
+      projectId,
+    ),
+    sentAt: issue.sentAt
+      ? format.dateTime(issue.sentAt, "dateTime")
+      : t("unavailable"),
+    metrics: ISSUE_METRICS.map((key) => ({
+      key,
+      label: t(`metrics.${key}`),
+      value:
+        issue[key] == null
+          ? t("unavailable")
+          : format.number(
+              issue[key],
+              key === "openRate" || key === "clickRate"
+                ? { style: "percent", maximumFractionDigits: 1 }
+                : {},
+            ),
+    })),
+  }));
   function handlePreset(days: number) {
     const end = new Date();
     const start = new Date(end);
@@ -274,22 +306,56 @@ export function NewsletterAnalyticsView({
               <p className="text-muted-foreground text-sm">
                 {t("issueUnsubscribesNote")}
               </p>
-              <div className={cn(HOLDER_CLASS, "min-w-0")}>
-                <Table containerClassName={cn(HOLDER_ITEM_CLASS, "min-w-0")}>
+              <div className={cn(HOLDER_CLASS, "min-w-0")} aria-busy={pending}>
+                <ul
+                  aria-label={t("issuePerformance")}
+                  className="grid min-w-0 gap-2 lg:grid-cols-2 xl:hidden"
+                >
+                  {issueItems.map((item) => (
+                    <li
+                      key={item.issue.id}
+                      className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}
+                    >
+                      <h4 className="text-sm font-semibold wrap-anywhere">
+                        <Link
+                          href={item.href}
+                          className="rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          {item.issue.subject}
+                        </Link>
+                      </h4>
+                      <dl className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="col-span-2 min-w-0 space-y-1">
+                          <dt className="text-muted-foreground">
+                            {t("sentAt")}
+                          </dt>
+                          <dd className="wrap-anywhere">{item.sentAt}</dd>
+                        </div>
+                        {item.metrics.map((metric) => (
+                          <div key={metric.key} className="min-w-0 space-y-1">
+                            <dt className="text-muted-foreground wrap-anywhere">
+                              {metric.label}
+                            </dt>
+                            <dd className="font-medium tabular-nums wrap-anywhere">
+                              {metric.value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
+                <Table
+                  containerClassName={cn(
+                    HOLDER_ITEM_CLASS,
+                    "hidden min-w-0 xl:block",
+                  )}
+                >
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("subject")}</TableHead>
                       <TableHead>{t("sentAt")}</TableHead>
-                      {(
-                        [
-                          "sent",
-                          "uniqueOpens",
-                          "uniqueClicks",
-                          "unsubscribes",
-                          "openRate",
-                          "clickRate",
-                        ] as const
-                      ).map((key) => (
+                      {ISSUE_METRICS.map((key) => (
                         <TableHead key={key} className="text-end">
                           {t(`metrics.${key}`)}
                         </TableHead>
@@ -297,49 +363,23 @@ export function NewsletterAnalyticsView({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analytics.issues.map((issue) => (
-                      <TableRow key={issue.id}>
-                        <TableCell className="min-w-40 whitespace-normal">
+                    {issueItems.map((item) => (
+                      <TableRow key={item.issue.id}>
+                        <TableCell className="min-w-40 whitespace-normal wrap-anywhere">
                           <Link
                             className="underline underline-offset-4"
-                            href={newsletterHref(
-                              `/newsletter/issues/${encodeURIComponent(issue.id)}`,
-                              projectId,
-                            )}
+                            href={item.href}
                           >
-                            {issue.subject}
+                            {item.issue.subject}
                           </Link>
                         </TableCell>
-                        <TableCell>
-                          {issue.sentAt
-                            ? format.dateTime(issue.sentAt, "dateTime")
-                            : t("unavailable")}
-                        </TableCell>
-                        {(
-                          [
-                            "sent",
-                            "uniqueOpens",
-                            "uniqueClicks",
-                            "unsubscribes",
-                            "openRate",
-                            "clickRate",
-                          ] as const
-                        ).map((key) => (
+                        <TableCell>{item.sentAt}</TableCell>
+                        {item.metrics.map((metric) => (
                           <TableCell
-                            key={key}
+                            key={metric.key}
                             className="text-end tabular-nums"
                           >
-                            {issue[key] == null
-                              ? t("unavailable")
-                              : format.number(
-                                  issue[key],
-                                  key === "openRate" || key === "clickRate"
-                                    ? {
-                                        style: "percent",
-                                        maximumFractionDigits: 1,
-                                      }
-                                    : {},
-                                )}
+                            {metric.value}
                           </TableCell>
                         ))}
                       </TableRow>

@@ -4,7 +4,9 @@ permissions:
 
 on:
   workflow_dispatch:
+  # Draft PRs run nothing (see `changes`); `ready_for_review` starts the run.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # Main-scoped caches (Mint, SwiftPM, Xcode compilation) are what PRs restore.
   # Saving them used to mean running test/lint on every Apple push to main.
   # A daily off-peak warm plus manual dispatch fills the same keys instead.
@@ -39,8 +41,9 @@ jobs:
     name: Detect Apple changes
     # Schedule has no push/PR diff, and a tag push has no branch to diff
     # against; skip rather than fail paths-filter. Only the pull_request-only
-    # test and lint jobs need it, so Publish still runs on tags.
-    if: github.event_name != 'schedule' && !startsWith(github.ref, 'refs/tags/')
+    # test and lint jobs need it, so Publish still runs on tags. Skipping it on
+    # a draft PR skips test and lint too.
+    if: github.event_name != 'schedule' && !startsWith(github.ref, 'refs/tags/') && !github.event.pull_request.draft
     runs-on: ubuntu-latest
     permissions:
       contents: read

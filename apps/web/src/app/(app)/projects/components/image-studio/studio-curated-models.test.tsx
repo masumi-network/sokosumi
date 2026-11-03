@@ -33,6 +33,7 @@ vi.mock("next-intl", () => ({
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
+  writeStudioAssetCaption: vi.fn(),
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -69,12 +70,6 @@ vi.mock("@/components/ui/popover", () => {
     PopoverContent: Passthrough,
   };
 });
-
-// Every popover renders open under the passthrough above, including the
-// workspace view's project picker, which reads projects through react-query.
-vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
-  ProjectScopeMenu: () => null,
-}));
 
 /**
  * A catalog shaped like the real one: a ranked shortlist, out of order, with

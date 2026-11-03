@@ -14,6 +14,7 @@ const coreClientMock = {
   getProjectsByIdSocialConnections: vi.fn(),
   getProjectsByIdSocialPosts: vi.fn(),
   getProjectsByIdSocialPostsStatistics: vi.fn(),
+  getProjectsByIdSocialQueueSlots: vi.fn(),
   getProjectsByIdSocialConnectionsStatistics: vi.fn(),
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh: vi.fn(),
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh: vi.fn(),
@@ -29,9 +30,12 @@ const coreClientMock = {
   postProjectsByIdSocialConnectionsInitiate: vi.fn(),
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdReject: vi.fn(),
   postProjectsByIdSocialPostsByPostIdDuplicate: vi.fn(),
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle: vi.fn(),
   postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdQueue: vi.fn(),
+  putProjectsByIdSocialQueueSlots: vi.fn(),
   postProjectsByIdSocialPostsByPostIdSchedule: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
@@ -829,6 +833,57 @@ describe("project.service", () => {
       });
     });
 
+    it("lists, replaces, and queues through the posting-queue routes", async () => {
+      const slots = {
+        timezone: "UTC",
+        slots: [
+          {
+            id: "slot-1",
+            name: "Tuesday morning",
+            weekday: 2,
+            minutesFromMidnight: 660,
+            timezone: "UTC",
+          },
+        ],
+      };
+      coreClientMock.getProjectsByIdSocialQueueSlots.mockResolvedValue({
+        data: slots,
+      });
+      coreClientMock.putProjectsByIdSocialQueueSlots.mockResolvedValue({
+        data: slots,
+      });
+      coreClientMock.postProjectsByIdSocialPostsByPostIdQueue.mockResolvedValue(
+        {
+          data: { ...post, status: "SCHEDULED" },
+        },
+      );
+
+      const { projectService } = await import("./project.service");
+
+      await expect(
+        projectService.listSocialQueueSlots("project-1"),
+      ).resolves.toEqual(slots);
+      expect(
+        coreClientMock.getProjectsByIdSocialQueueSlots,
+      ).toHaveBeenCalledWith("project-1");
+
+      await expect(
+        projectService.replaceSocialQueueSlots("project-1", {
+          timezone: "UTC",
+          slots: [
+            { name: "Tuesday morning", weekday: 2, minutesFromMidnight: 660 },
+          ],
+        }),
+      ).resolves.toEqual(slots);
+
+      await expect(
+        projectService.queueSocialPost("project-1", "post-1", { revision: 0 }),
+      ).resolves.toMatchObject({ status: "SCHEDULED" });
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdQueue,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 0 });
+    });
+
     it("publishes a post now with the observed revision", async () => {
       const publishedAt = new Date("2026-09-15T10:00:00.000Z");
       coreClientMock.postProjectsByIdSocialPostsByPostIdPublish.mockResolvedValue(
@@ -858,6 +913,26 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdPublish,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 3 });
+    });
+
+    it("rejects a pending post using the Core reject endpoint and observed revision", async () => {
+      const rejected = { ...post, status: "CANCELED", revision: 4 };
+      coreClientMock.postProjectsByIdSocialPostsByPostIdReject.mockResolvedValue(
+        { data: rejected },
+      );
+      const { projectService } = await import("./project.service");
+      await expect(
+        projectService.rejectSocialPost("project-1", "post-1", { revision: 3 }),
+      ).resolves.toEqual(rejected);
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdReject,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 3 });
+      coreClientMock.postProjectsByIdSocialPostsByPostIdReject.mockRejectedValue(
+        new Error("Post changed"),
+      );
+      await expect(
+        projectService.rejectSocialPost("project-1", "post-1", { revision: 3 }),
+      ).rejects.toThrow("Post changed");
     });
 
     it("propagates Core errors from publishing", async () => {

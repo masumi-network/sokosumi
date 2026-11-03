@@ -8,7 +8,6 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
-import { revalidatePath } from "next/cache";
 import {
   type ActionResultDto,
   toActionResult,
@@ -106,7 +105,6 @@ export const startImageGeneration = withSession<
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,
     });
-    revalidatePath(`/projects/${input.projectId}/studio`);
     return { ok: true, job };
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
@@ -146,7 +144,6 @@ export const startVideoGeneration = withSession<
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,
     });
-    revalidatePath(`/projects/${input.projectId}/studio`);
     return { ok: true, job };
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
@@ -195,6 +192,34 @@ export const prepareStudioAssetSocialMedia = withSession<
       normalizedAssetId,
     );
     return toActionResult(ok(media));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+interface WriteCaptionParameters extends AuthenticatedRequest {
+  projectId: string;
+  assetId: string;
+}
+
+export const writeStudioAssetCaption = withSession<
+  WriteCaptionParameters,
+  ActionResultDto<{ text: string }, ActionError>
+>(async ({ projectId, assetId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedAssetId = assetId.trim();
+  if (!normalizedProjectId || !normalizedAssetId) {
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: "Image required" }),
+    );
+  }
+
+  try {
+    const caption = await imageStudioService.writeCaption(
+      normalizedProjectId,
+      normalizedAssetId,
+    );
+    return toActionResult(ok(caption));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

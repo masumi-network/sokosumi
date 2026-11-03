@@ -89,7 +89,7 @@ export function ProjectTabs({
                   // No radius: the corners belong to the indicator too, and a
                   // rounded 2px bar under a word reads as a pill rather than
                   // as an underline.
-                  "focus-visible:ring-ring-halo focus-visible:inset-ring-ring outline-none focus-visible:ring-2 focus-visible:inset-ring-1",
+                  "focus-visible:ring-ring focus-visible:inset-ring-ring outline-none focus-visible:ring-2 focus-visible:inset-ring-1",
                   isActive
                     ? "border-foreground text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground border-transparent",

@@ -34,11 +34,12 @@ beforeEach(() => {
 });
 
 describe("GET /api/project-scope/[projectId]", () => {
-  it("answers with the project's name and logo only", async () => {
+  it("answers with the project's name, logo and closedAt only", async () => {
     mocks.getProjectById.mockResolvedValue({
       id: "p-1",
       name: "Alpha",
       logo: null,
+      closedAt: new Date("2026-10-01T00:00:00.000Z"),
       briefing: "not for the switcher",
     });
 
@@ -46,7 +47,12 @@ describe("GET /api/project-scope/[projectId]", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      project: { id: "p-1", name: "Alpha", logo: null },
+      project: {
+        id: "p-1",
+        name: "Alpha",
+        logo: null,
+        closedAt: "2026-10-01T00:00:00.000Z",
+      },
     });
     expect(mocks.getProjectById).toHaveBeenCalledWith("p-1");
   });

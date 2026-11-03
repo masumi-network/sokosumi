@@ -4,6 +4,10 @@ import type {
   SocialPostStatus,
 } from "@sokosumi/database";
 import {
+  type SocialPostPlanning,
+  socialPostPlanningSchema,
+} from "@sokosumi/soko-bot";
+import {
   CORE_API_ERROR_KINDS,
   isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -58,6 +62,7 @@ import {
 } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { socialPostFormattingError } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -79,6 +84,8 @@ const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -110,6 +117,8 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 
 const socialPostInclude = {
@@ -206,6 +215,9 @@ export interface SocialPostSummary {
   lastAttemptAt: Date | null;
   lastAttempt: SocialPostLastAttempt | null;
   revision: number;
+  /** The Marketing strategy version that planned it, and its planning record. */
+  marketingStrategyId?: string | null;
+  planning?: SocialPostPlanning | null;
   createdAt: Date;
   updatedAt: Date;
   canEdit: boolean;
@@ -274,6 +286,8 @@ export interface CreateSocialPostInput
   socialConnectionId?: string;
   scheduledAt?: Date;
   timezone?: string;
+  /** A Soko Bot keeps a link in the post body because the owner asked. */
+  linkInPost?: boolean;
 }
 
 export interface UpdateSocialPostInput
@@ -281,6 +295,8 @@ export interface UpdateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** The Soko Bot editing it: its writing is checked for formatting mistakes. */
+  sokoBotId?: string;
   postId: string;
   text?: string;
   firstComment?: string;
@@ -291,6 +307,8 @@ export interface UpdateSocialPostInput
   scheduledAt?: Date;
   timezone?: string;
   revision: number;
+  /** A Soko Bot keeps a link in the post body because the owner asked. */
+  linkInPost?: boolean;
 }
 
 export interface ScheduleSocialPostInput extends ProjectScope {
@@ -435,6 +453,8 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     lastAttemptAt: record.lastAttemptAt,
     lastAttempt: record.attempts[0] ?? null,
     revision: record.revision,
+    marketingStrategyId: record.marketingStrategyId ?? null,
+    planning: socialPostPlanningSchema.safeParse(record.planning).data ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     canEdit:
@@ -553,6 +573,15 @@ function requireTextWithinLimit(
     );
   }
   return trimmed;
+}
+
+/** A Soko Bot's post that would show raw Markdown or a wall of hashtags. */
+function requireBotFormatting(
+  provider: string,
+  post: Parameters<typeof socialPostFormattingError>[1],
+): void {
+  const error = socialPostFormattingError(requireProvider(provider), post);
+  if (error) throw badRequest(error);
 }
 
 /** Publish and schedule refuse a post without the media the network needs. */
@@ -892,11 +921,13 @@ export async function createSocialPost(
       "A social post cannot have both a Coworker and Soko Bot creator",
     );
   }
-  const project = input.scheduledAt
-    ? await requireLockedOpenProject(tx, input, {
-        closedMessage: PROJECT_CLOSED_MESSAGE,
-      })
-    : await requireScopedProject(input, { client: tx });
+  if (input.scheduledAt) {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  } else {
+    await requireScopedProject(input, { client: tx });
+  }
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
@@ -938,12 +969,18 @@ export async function createSocialPost(
     threadParts: input.threadParts ?? [],
     subscriptionType: connection?.subscriptionType,
   });
+  if (input.sokoBotId)
+    requireBotFormatting(provider, {
+      texts: [text, firstComment, ...threadParts.map((part) => part.text)],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
   }
   const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
-  const needsApproval = agentDraft && project.requireAgentPostApproval;
   await requireSocialPostQuote(
     { ...input, provider, quotedPostId: input.quotedPostId ?? null },
     tx,
@@ -962,11 +999,7 @@ export async function createSocialPost(
       ...(threadParts.length > 0
         ? { threadParts: { create: threadParts } }
         : {}),
-      status: needsApproval
-        ? "NEEDS_APPROVAL"
-        : scheduled
-          ? "SCHEDULED"
-          : "DRAFT",
+      status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
       creatorUserId: input.coworkerId || input.sokoBotId ? null : input.userId,
@@ -1039,7 +1072,9 @@ export async function updateSocialPost(
             ? { scheduledAt: new Date() }
             : {}),
         }
-      : {};
+      : post.status === "FAILED" || post.status === "MISSED"
+        ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
+        : {};
   if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
   if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
@@ -1123,7 +1158,11 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    if (post.status === "SCHEDULED") {
+    if (
+      post.status === "SCHEDULED" ||
+      post.status === "FAILED" ||
+      post.status === "MISSED"
+    ) {
       requireMediaRequirement(provider, media);
     }
   }
@@ -1148,6 +1187,23 @@ export async function updateSocialPost(
       : undefined;
   if (threadParts === undefined)
     requireStoredThreadParts(post, provider, subscriptionType);
+  if (
+    input.sokoBotId &&
+    (input.text !== undefined ||
+      input.firstComment !== undefined ||
+      input.threadParts !== undefined ||
+      providerChanged)
+  )
+    requireBotFormatting(provider, {
+      texts: [
+        text,
+        firstComment,
+        ...(threadParts ?? post.threadParts).map((part) => part.text),
+      ],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
 
   const quotedPostId =
     input.quotedPostId !== undefined ? input.quotedPostId : post.quotedPostId;
@@ -1475,7 +1531,7 @@ export async function duplicateSocialPost(
   input: DuplicateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  const project = await requireScopedProject(input, { client: tx });
+  await requireScopedProject(input, { client: tx });
   const source = await requireScopedPost(input, tx);
   if (!DUPLICATABLE_STATUSES.includes(source.status)) {
     throw conflict(
@@ -1541,10 +1597,7 @@ export async function duplicateSocialPost(
       ...(threadParts.length > 0
         ? { threadParts: { create: threadParts } }
         : {}),
-      status:
-        input.coworkerId && project.requireAgentPostApproval
-          ? "NEEDS_APPROVAL"
-          : "DRAFT",
+      status: input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
     },

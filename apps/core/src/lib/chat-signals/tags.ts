@@ -12,6 +12,7 @@ export const CHAT_SIGNAL_TAGS = [
   "commitment",
   "blocker",
   "decisionMade",
+  "announcement",
   "fyi",
   "urgent",
   "chitChat",

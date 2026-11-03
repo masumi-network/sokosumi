@@ -1,15 +1,15 @@
 # Coworker Social post scheduling
 
-Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. By default, posts they create behave like a person's posts: `DRAFT`, or `SCHEDULED` when created with `scheduledAt`. A scheduled post publishes at its time. A Project can opt in to human approval instead; see [Optional approval for agent posts](#optional-approval-for-agent-posts).
+Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Posts they create or duplicate always land as `NEEDS_APPROVAL`, including when created with `scheduledAt`, and wait for a person to approve them before publishing. See [Approval for agent posts](#approval-for-agent-posts).
 
 Social scheduling is public. Every workspace, including `utxo`, gets the same enabled providers: `socialProvidersForWorkspace` in [`packages/utils/src/social-post.ts`](../../packages/utils/src/social-post.ts) returns `SOCIAL_PUBLIC_PROVIDERS`. Other platforms show Coming soon and cannot be connected or used to create, edit, schedule, approve, publish, duplicate, or recycle posts. Existing posts on unavailable providers remain readable and fail when due with the coming-soon reason without contacting the platform. Ads remains `utxo`-only.
 
 Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Organization-Id` for an organization workspace. The contextual user must belong to that workspace. Core applies the same delegated-user binding used for delegated Tasks: a granted vendor workspace grant or a baseline assigned/same-vendor task relationship. Denied/revoked grants reject access. Bare Coworker keys, human API keys, OAuth tokens, Soko Bot, and orchestrator actors do not gain this access.
 
 1. List the Project's connected accounts using `GET /v1/projects/{id}/social-connections`; choose an active connection whose provider is enabled for the Project's workspace. Workspace reads (`GET /v1/users/me/workspaces`) include `enabledSocialProviders`.
-2. Create a draft using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
+2. Create a post awaiting approval using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
 3. Schedule through `POST /v1/projects/{id}/social-posts/{postId}/schedule` with `revision`, `scheduledAt` (more than one minute in the future), and optionally `timezone`. Alternatively provide `scheduledAt` during creation.
-4. Copy a published, failed, or missed post into a new draft with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
+4. Copy a published, failed, or missed post into a new post awaiting approval with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
 5. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
 
 Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
@@ -18,14 +18,11 @@ Before a delayed provider call, Core rechecks that the contextual user is active
 
 Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, Publish now/Retry, and approve/reject remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow`, `canApprove`, and `canReject` to false. Calendar's Social feed remains interactive-human-only in this layer.
 
-## Optional approval for agent posts
+## Approval for agent posts
 
-A Project can require a person to approve every post an agent creates. The flag is `requireAgentPostApproval` on the Project (default `false`). An interactive session owner sets it with `PATCH /v1/projects/{id}` or the **Require approval for agent posts** switch on the Social accounts tab; Coworker and Soko Bot credentials cannot change it.
+Posts and duplicates created by a Coworker or Soko Bot always land as `NEEDS_APPROVAL` and never publish until a person approves them. Setting a planned time while a post still needs approval keeps that status.
 
-- Off (default): Coworker and Soko Bot posts are `DRAFT` or `SCHEDULED`, exactly like a person's post. A Coworker's duplicate is a `DRAFT`.
-- On: posts and duplicates created by a Coworker or Soko Bot land as `NEEDS_APPROVAL` and never publish until a person approves them. Setting a time while a post still needs approval keeps that status.
-
-Turning the flag on or off does not change existing posts. A post already in `NEEDS_APPROVAL` keeps waiting for a person. A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. Agents never approve.
+A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. The chat card also offers Reject when permitted; it uses Core's reject action to cancel the pending post. Project Social emphasizes Approve and Cancel. Agents never approve or reject posts.
 
 ## Published post statistics
 
@@ -49,15 +46,35 @@ Stop on a history error or repeated cursor. Prior data survives failures and val
 
 The same delegated-user, capability, workspace, and Project guards apply to both endpoints. Synchronization updates caches only; connecting accounts and granting additional analytics scopes remain human actions. Avoid unbounded work in one request or bot turn: continue page by page and state any remaining coverage.
 
+## Posting instructions
+
+Each Project can carry `postingInstructionsMd`: markdown the team writes on the Social Accounts tab that says how to write the Project's social posts — tone, always/never rules, hashtags, calls to action, and optional `##` sections per platform (`## X`, `## LinkedIn`, …). It only guides social drafts. It is separate from project memory (`CONTEXT.md`, `GET /v1/projects/{id}/context-md`) and from `DESIGN.md`.
+
+Read it before drafting a post and follow it, including the section for the chosen platform:
+
+```http
+GET /v1/projects/{id}/posting-instructions
+```
+
+```json
+{ "data": { "postingInstructionsMd": "# Posting instructions\nTone: warm…" } }
+```
+
+`postingInstructionsMd` is `null` when none are set. Access matches the other project reads: an interactive session user, or a Coworker key with `X-Context-User-Id` that passes the user-context binding (`requireAuthorizedUserContext`); the Project must belong to the context workspace, otherwise `404`. The field also appears on `GET /v1/projects/{id}`.
+
+Only interactive session users edit it, through `PATCH /v1/projects/{id}` with `{ "postingInstructionsMd": "…" }` (at most 20,000 characters). `null` or a blank string clears it. Coworker keys cannot write it.
+
 ## Soko Bot runtime tools
 
-Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), read cached performance and provider summaries (`list_social_post_statistics`), refresh published-post metrics (`refresh_social_post_statistics`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Before creating, editing, scheduling, or publishing, choose an active account whose provider appears in `enabledProviders` returned by `list_project_social_accounts` for the Project's workspace. The account's platform decides the content rules (see Provider publishing rules).
+Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), read cached performance and provider summaries (`list_social_post_statistics`), refresh published-post metrics (`refresh_social_post_statistics`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Before drafting, it reads the Project's posting instructions (`get_posting_instructions`) and follows them. Before creating, editing, scheduling, or publishing, choose an active account whose provider appears in `enabledProviders` returned by `list_project_social_accounts` for the Project's workspace. The account's platform decides the content rules (see Provider publishing rules).
 
 Core derives the user and workspace from the active turn and rechecks owner activity, workspace membership, organization seat, and provider availability. Teammate and bot-to-bot turns do not receive these tools. Mutations use revisions and action receipts; uncertain publication requires reconciliation rather than automatic retry. Social mutations after web or shell use require a fresh owner message. Account OAuth remains in Project → Social.
 
 Version `v23` keeps v22's model and base behavior and replaces the managed-post performance skill with `social-account-performance`. Use `list_social_account_statistics` for general account performance and external publications, then `refresh_social_account_statistics` when fresh or missing results matter. Continue provider history with `continueHistory: true`, up to ten pages per turn, and report freshness, metric periods, and incomplete coverage. Existing managed-post statistics tools remain available for specific Sokosumi posts. Existing version selections retain their workflows while provider availability follows the owning workspace. Account refresh and history synchronization are read capabilities under the existing Social access rules and never authorize publication.
 
-Bot-created posts identify the bot as creator and follow the Project's `requireAgentPostApproval` flag (see [Optional approval for agent posts](#optional-approval-for-agent-posts)). With the flag on, they land as Needs approval and never publish until a person approves them in Project Social or on the chat card. Scheduling under the owner's identity then only stores a planned time while approval is still pending. `publish_social_post` refuses a post that still needs approval.
+Bot-created posts identify the bot as creator and always land as Needs approval (see [Approval for agent posts](#approval-for-agent-posts)). After creation, the bot tells the owner the post is waiting for approval and calls `preview_result` with `{kind:"social_post",id,projectId}` so the in-chat card offers the person Approve and Reject when permitted. Scheduling under the owner's identity only stores a planned time while approval is still pending. The bot never approves or rejects posts and never calls `publish_social_post` while a post still needs approval; Core refuses publication in that state.
+
+Version `v33` keeps v32's model and base behavior and swaps the `social` skill for `social-posting-instructions`, which tells the bot to call `get_posting_instructions` before drafting or rewriting post text. The tool itself is a read under the same Social access rules for every version, and the `create_social_post` description names it too.
 
 ## Provider publishing rules
 

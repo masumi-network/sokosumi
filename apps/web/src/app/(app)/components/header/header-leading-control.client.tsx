@@ -33,7 +33,7 @@ export function HeaderLeadingControl(): React.ReactElement {
   const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
   const surface = classifyChatChromeSurface(pathname, searchParams);
-  const appBack = resolveMobileAppBackTarget(pathname);
+  const appBack = resolveMobileAppBackTarget(pathname, searchParams);
   const tasksReturnPath = useTasksReturnPath();
 
   if (shouldShowMobileBrandLeading(pathname, searchParams)) {

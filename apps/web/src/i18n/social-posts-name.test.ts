@@ -11,7 +11,6 @@ const NAMES = {
 };
 
 interface SocialNames {
-  Components: { Breadcrumb: { social: string } };
   App: {
     Sidebar: { Content: { MenuItems: Record<string, string> } };
     Social: { title: string };
@@ -21,8 +20,7 @@ interface SocialNames {
 /**
  * The Social destination is named as the sidebar names it (GLOSSARY.md,
  * "Announced feature"): one key for the sidebar row, the You page and the
- * badge admin, and the breadcrumb's segment key and the Social page's own
- * title saying the same.
+ * badge admin, and the Social page's own title saying the same.
  */
 describe("Social posts destination name", () => {
   it.each([
@@ -35,7 +33,6 @@ describe("Social posts destination name", () => {
 
     expect(menu.social).toBe(NAMES[locale]);
     expect(menu).not.toHaveProperty("socialPosts");
-    expect(names.Components.Breadcrumb.social).toBe(NAMES[locale]);
     expect(names.App.Social.title).toBe(NAMES[locale]);
   });
 });

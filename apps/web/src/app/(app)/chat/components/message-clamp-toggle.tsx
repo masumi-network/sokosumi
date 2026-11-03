@@ -19,7 +19,7 @@ export function MessageClampToggle({
     <button
       type="button"
       className={cn(
-        "text-primary press hover:text-primary-hover text-xs font-medium outline-none focus-visible:underline",
+        "text-foreground press underline underline-offset-4 text-xs font-medium rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
       onClick={onToggle}

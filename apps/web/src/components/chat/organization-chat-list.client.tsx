@@ -1,6 +1,10 @@
 "use client";
 
-import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
+import type {
+  ChatRoom,
+  ChatRoomInvitation,
+  StarredChatRoomOrder,
+} from "@sokosumi/core-client";
 import {
   ArrowUpDown,
   Check,
@@ -20,7 +24,14 @@ import {
 } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   acceptChatRoomInvitationAction,
@@ -32,7 +43,10 @@ import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dial
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
-import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
+import {
+  useRoomDisplayName,
+  useRoomWorkspaceName,
+} from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   AlertDialog,
@@ -72,6 +86,7 @@ import {
   getActiveRoomIdFromSelection,
 } from "./active-room-id";
 import { ChannelKindGlyph } from "./channel-discoverability-icon";
+import { ChatElsewhereOverflowRow } from "./chat-elsewhere-overflow-row";
 import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
@@ -93,12 +108,14 @@ import {
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
 } from "./pinned-rooms-dnd";
+import { rememberPinnedRooms } from "./remembered-pinned-rooms";
 import {
   resolveChatsAttention,
   resolveSectionAttention,
-  roomUnreadReads,
+  roomHasUnread,
 } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
+import { selectElsewhereRows } from "./select-elsewhere-rows";
 import { SidebarSectionShowMoreRow } from "./sidebar-section-show-more-row";
 import {
   advanceUnreadFilterPass,
@@ -106,6 +123,7 @@ import {
 } from "./unread-filter-pass";
 import { useChatUnreadsFilter } from "./use-chat-unreads-filter";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
+import { useOtherWorkspaceRooms } from "./use-other-workspace-rooms";
 import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
 
 /** Stable empty default — inline `= []` is a new array every render and
@@ -148,6 +166,19 @@ const UNREAD_FILTER_PRESENCE = {
   animate: { height: "auto", opacity: 1 },
   exit: { height: 0, opacity: 0 },
   style: { overflow: "hidden" },
+} satisfies MotionProps;
+
+/**
+ * The caught-up message is a row of the list above it, not a section: it
+ * cancels the 8px gap that sets sections apart (the `space-y-2` of the chat
+ * area, which collapses with this margin). The margin moves with the height,
+ * so a room taking its place brings the gap back as the message leaves.
+ */
+const UNREAD_CAUGHT_UP_PRESENCE = {
+  initial: { ...UNREAD_FILTER_PRESENCE.initial, marginTop: 0 },
+  animate: { ...UNREAD_FILTER_PRESENCE.animate, marginTop: -8 },
+  exit: { ...UNREAD_FILTER_PRESENCE.exit, marginTop: 0 },
+  style: UNREAD_FILTER_PRESENCE.style,
 } satisfies MotionProps;
 
 /**
@@ -204,6 +235,7 @@ export function OrganizationChatList({
   const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
+  const roomWorkspaceName = useRoomWorkspaceName();
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
   const router = useRouter();
@@ -358,16 +390,42 @@ export function OrganizationChatList({
   const activeRoomId = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath)
     : getActiveRoomIdFromPathname(pathname);
+  const {
+    rooms: otherWorkspaceRooms,
+    pinnedRooms: listedOtherWorkspacePins,
+    replaceRoom: replaceOtherWorkspaceRoom,
+    applyPinnedOrder: applyOtherWorkspacePinnedOrder,
+    readAgain: readOtherWorkspaceRoomsAgain,
+  } = useOtherWorkspaceRooms({
+    currentUserId,
+    organizationId,
+    activeRoomId,
+    enabled: !paintOnly,
+  });
+  const elsewhereRooms = paintOnly ? [] : otherWorkspaceRooms;
+  // Core's two answers share no room. The active list can still be the old
+  // workspace's for a moment after a switch, and no room may show twice.
+  const otherWorkspacePins = useMemo(
+    () =>
+      listedOtherWorkspacePins.filter(
+        (room) => !roomRows.some((row) => row.id === room.id),
+      ),
+    [listedOtherWorkspacePins, roomRows],
+  );
+  // Every room the sections list, which Elsewhere rows are not.
+  const listedRooms = useMemo(
+    () => [...roomRows, ...otherWorkspacePins],
+    [roomRows, otherWorkspacePins],
+  );
+  const { rows: elsewhereRows, overflowCount: elsewhereOverflowCount } =
+    selectElsewhereRows(elsewhereRooms, activeRoomId);
   // All unreads (SOK-1159): the rooms a read would still change, newest
   // activity first. One answer for what the filter lists and whether the
   // reader is caught up, so the two cannot disagree.
   const unreadRooms = useMemo(
     () =>
       roomRows
-        .filter((room) => {
-          const { readRoom, lookThreads } = roomUnreadReads(room);
-          return readRoom || lookThreads;
-        })
+        .filter(roomHasUnread)
         .sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime() ||
@@ -376,9 +434,14 @@ export function OrganizationChatList({
     [roomRows],
   );
   const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
-    () => partitionRoomsForSidebar(roomRows),
-    [roomRows],
+    () => partitionRoomsForSidebar(listedRooms),
+    [listedRooms],
   );
+  useEffect(() => {
+    if (!paintOnly) {
+      rememberPinnedRooms(currentUserId, pinned);
+    }
+  }, [currentUserId, paintOnly, pinned]);
   // The filter is one flat list with Pinned under it, not the sections: a
   // heading over one or two rooms is noise. Pinned stays last, so the
   // caught-up message leads and nothing moves when the reader gets there.
@@ -421,7 +484,11 @@ export function OrganizationChatList({
   const otherInboxRooms = inboxRooms.filter(
     (room) => !needsYouInboxRooms.includes(room),
   );
-  const unreadRoomIds = new Set(unreadRooms.map((room) => room.id));
+  const unreadRoomIds = new Set(
+    [...unreadRooms, ...otherWorkspacePins.filter(roomHasUnread)].map(
+      (room) => room.id,
+    ),
+  );
   const isUnreadRoom = (room: ChatRoom) => unreadRoomIds.has(room.id);
   // Past the limit a section still lists what is unread and the open room,
   // so nothing new waits behind "Show more".
@@ -455,9 +522,13 @@ export function OrganizationChatList({
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
   // (`resolveSectionAttention`). Caught up is about what is unread, not what
-  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed.
+  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed. An
+  // Elsewhere room counts, or this would stand under its unread row.
   const caughtUp =
-    unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
+    unreadOnly &&
+    unreadRoomIds.size === 0 &&
+    pendingRows.length === 0 &&
+    !elsewhereRooms.some(roomHasUnread);
   const showsReadLabel = caughtUp && inboxRooms.length > 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
@@ -474,17 +545,21 @@ export function OrganizationChatList({
       : undefined;
   }
 
+  function applyOrderToBothStores(order: StarredChatRoomOrder[]) {
+    applyPinnedOrder(order);
+    applyOtherWorkspacePinnedOrder(order);
+  }
+
   function handleReorderPinned(roomIds: string[]) {
     const request = ++reorderRequestRef.current;
-    // Local sort keys only; Core writes its own and the next list load
-    // brings them. The order is what matters, and it is the same.
+    // Local sort keys for now; Core writes its own, which its answer brings.
+    // The order is what matters, and it is the same.
     const base = Date.now() - roomIds.length;
-    applyPinnedOrder(
-      roomIds.map((roomId, index) => ({
-        roomId,
-        starredAt: new Date(base + index),
-      })),
-    );
+    const localOrder = roomIds.map((roomId, index) => ({
+      roomId,
+      starredAt: new Date(base + index),
+    }));
+    applyOrderToBothStores(localOrder);
 
     async function reloadAfterFailure() {
       // A newer reorder owns the list now.
@@ -492,6 +567,7 @@ export function OrganizationChatList({
       toast.error(tActions("actionFailed"));
       // What Core holds is the truth: an earlier overlapping reorder may
       // have landed, so no local snapshot is safe to put back.
+      readOtherWorkspaceRoomsAgain();
       const requestRevision = beginRoomAttentionRefresh();
       const roomsResult = await listOrganizationChatRoomsAction();
       if (roomsResult.ok && request === reorderRequestRef.current) {
@@ -501,11 +577,18 @@ export function OrganizationChatList({
 
     void reorderPinnedOrganizationChatRoomsAction(roomIds).then((result) => {
       if (!result.ok) return reloadAfterFailure();
+      if (request !== reorderRequestRef.current) return;
+      // Core's keys in both stores: the next read of one sorts against the
+      // other, which still holds these. That read also brings what a dropped
+      // read held, and the other workspaces' copies are stale now.
+      applyOrderToBothStores(result.value);
+      readOtherWorkspaceRoomsAgain();
     }, reloadAfterFailure);
   }
 
   function roomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
     const isDirect = room.kind === "direct";
+    const isOtherWorkspacePin = otherWorkspacePins.includes(room);
     return {
       room,
       href: `/chat/rooms/${room.id}`,
@@ -522,9 +605,15 @@ export function OrganizationChatList({
       ) : (
         <ChannelKindGlyph discoverability={room.discoverability} />
       ),
-      onRoomUpdated: replaceRoom,
+      onRoomUpdated: isOtherWorkspacePin
+        ? replaceOtherWorkspaceRoom
+        : replaceRoom,
       dismissSheetOnNavigate,
-      canManageSettings: canManageChannelSettings(room, isOrgOwnerOrAdmin),
+      // As on an Elsewhere row: the room works out its own role once it opens.
+      canManageSettings:
+        !isOtherWorkspacePin &&
+        canManageChannelSettings(room, isOrgOwnerOrAdmin),
+      workspaceName: isOtherWorkspacePin ? roomWorkspaceName(room) : undefined,
     };
   }
 
@@ -539,12 +628,41 @@ export function OrganizationChatList({
     <SidebarGroupContent className="space-y-2">
       <ChatUnreadNavRows
         rooms={roomRows}
+        markAllRooms={listedRooms}
         dismissSheetOnNavigate={dismissSheetOnNavigate}
         unreadOnly={unreadOnly}
         onUnreadOnlyChange={
           withChatsHeading ? undefined : handleUnreadOnlyChange
         }
       />
+      {/* Outside the keyed list below: the Unreads filter does not touch them,
+          because hiding what is unread is the last thing it should do. */}
+      {elsewhereRows.length > 0 ? (
+        <SidebarMenu
+          data-slot="elsewhere-rows"
+          aria-label={t("UnreadNav.elsewhereLabel")}
+          className="gap-0"
+        >
+          {elsewhereRows.map((room) => (
+            <ChatRoomSidebarRow
+              key={room.id}
+              {...roomRowProps(room)}
+              subtitle={roomWorkspaceName(room) ?? undefined}
+              onRoomUpdated={replaceOtherWorkspaceRoom}
+              // The active workspace's role says nothing about this room. The
+              // room works out its own once it opens (ADR-0061).
+              canManageSettings={false}
+              elsewhere
+            />
+          ))}
+          {elsewhereOverflowCount > 0 ? (
+            <ChatElsewhereOverflowRow
+              count={elsewhereOverflowCount}
+              dismissSheetOnNavigate={dismissSheetOnNavigate}
+            />
+          ) : null}
+        </SidebarMenu>
+      ) : null}
       {/* One list per mode, so switching fades the new one in instead of
         swapping rows under the pointer. Not on first render: the sidebar
         does not fade in on every load. A reader who left the filter on
@@ -576,7 +694,7 @@ export function OrganizationChatList({
                   key="caught-up"
                   role="status"
                   data-slot="unread-caught-up"
-                  {...UNREAD_FILTER_PRESENCE}
+                  {...UNREAD_CAUGHT_UP_PRESENCE}
                 >
                   <div
                     className={cn(
@@ -1103,13 +1221,14 @@ export function OrganizationChatList({
                 folded section's does. */}
             <ChatSidebarSectionHeader
               isOpen={chatsOpen}
-              closedAttention={resolveChatsAttention(roomRows, {
-                hasPendingInvitation: pendingRows.length > 0,
-              })}
+              closedAttention={resolveChatsAttention(
+                [...listedRooms, ...elsewhereRooms],
+                { hasPendingInvitation: pendingRows.length > 0 },
+              )}
               inlineAction={
                 <>
                   <ChatMarkAllReadButton
-                    rooms={roomRows}
+                    rooms={listedRooms}
                     unreadOnly={unreadOnly}
                   />
                   <ChatUnreadsFilterChip

@@ -10,14 +10,13 @@ struct StartDirectView: View {
   @FocusState private var searchFocused: Bool
 
   init(
-    hasOrganization: Bool,
     currentUserId: String,
     load: @escaping () async throws -> ChatRecipientRoster,
     open: @escaping (DirectConversationSelection) async throws -> Bool
   ) {
     self.load = load
     self.open = open
-    _picker = StateObject(wrappedValue: DirectRecipientPicker(hasOrganization: hasOrganization, currentUserId: currentUserId))
+    _picker = StateObject(wrappedValue: DirectRecipientPicker(currentUserId: currentUserId))
   }
 
   var body: some View {
@@ -77,6 +76,7 @@ struct StartDirectView: View {
             Text(picker.creating ? "Opening…" : "New chat")
           }
         }
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
         .disabled(picker.creating || picker.loading || picker.errorMessage != nil || picker.selectedTargets.isEmpty)
       }
@@ -126,7 +126,7 @@ struct StartDirectView: View {
       }
     } else {
       VStack(spacing: 8) {
-        if picker.roster.membersLoadFailed {
+        if picker.roster.humansLoadFailed {
           HStack {
             Text(picker.roster.recipientsLoadFailed
               ? "Couldn’t load recipients. You can still message yourself."
@@ -228,7 +228,7 @@ private struct DirectRecipientRow: View {
 }
 
 #Preview("New chat") {
-  StartDirectView(hasOrganization: true, currentUserId: "me", load: {
+  StartDirectView(currentUserId: "me", load: {
     .init(targets: [
       .messageYourself(userId: "me", name: "Ada Lovelace", imageURL: nil),
       .init(id: .human("one"), name: "Alexandra Long Recipient Name", detail: "alexandra@example.com"),

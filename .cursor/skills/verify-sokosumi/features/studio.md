@@ -11,7 +11,7 @@ Content Studio lets a signed-in user open `/studio` and generate images. With no
 
 ## How to get to it (user POV)
 
-- Choose **Content Studio** in app navigation (desktop sidebar after **Contacts** and before **Social Scheduling**; also on the You page).
+- Choose **Content Studio** in the desktop sidebar **Marketing** group (after the **Records** group, before **Social posts**; also on the You page).
 - Open `/studio` directly. A project-scoped URL is `/studio?projectId=…`.
 
 ## Driving it with agent-browser
@@ -29,5 +29,5 @@ Preconditions:
 
 - The shell `h1` / tab title **Content Studio** is not a visible product headline; the visible empty-state heading is **Create your first image**.
 - The picker (`studio-no-project`) is not the empty-query landing. Opening `/studio?projectId=<unknown-uuid>` may flash the picker, then `ProjectScopeGuard` `router.replace`s to `/studio`. A non-UUID `projectId` hits Core 422 and the Web error UI (**Try again**) before the guard rewrites.
-- Eve image-studio (`/eve/image-studio/…`) needs Node 24. A red Next.js issues badge from a dummy/local eve process is an environment gap, not proof the route is missing.
+- Eve image-studio (`/eve/image-studio/…`) needs Node 26. A red Next.js issues badge from a dummy/local eve process is an environment gap, not proof the route is missing.
 - **Image** / **Video** shows only when the catalog has video models. Landing proof stays on the image empty state. Generating an image or a video is out of scope.

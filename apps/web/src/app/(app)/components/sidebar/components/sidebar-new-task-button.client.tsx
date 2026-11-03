@@ -145,7 +145,7 @@ function NewBadge() {
         aria-hidden
         data-slot="sidebar-new-task-badge"
         className={cn(
-          "bg-primary ring-sidebar absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2",
+          "bg-foreground ring-sidebar absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2",
           "transition-opacity duration-200 ease-out motion-reduce:transition-none",
           state === "fading" && "opacity-0",
         )}

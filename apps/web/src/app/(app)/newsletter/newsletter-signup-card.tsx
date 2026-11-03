@@ -1,5 +1,6 @@
 "use client";
 
+import { newsletterSignupLinks } from "@sokosumi/utils";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CopyableValue } from "@/components/copyable-value";
@@ -16,11 +17,11 @@ import { getEnvPublicConfig } from "@/config/env.public";
 export function NewsletterSignupCard({ publicSlug }: { publicSlug: string }) {
   const t = useTranslations("App.Projects.Newsletter.SignupForm");
   const newsletterT = useTranslations("App.Projects.Newsletter");
-  const signupUrl = new URL(
-    `/n/${encodeURIComponent(publicSlug)}`,
+  const { signupUrl, embedHtml: embed } = newsletterSignupLinks(
+    publicSlug,
     getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL,
-  ).toString();
-  const embed = `<iframe src="${signupUrl}/embed" title="${t("embedTitle")}" width="100%" height="440" style="border:0;background:transparent;" loading="lazy"></iframe>`;
+    t("embedTitle"),
+  );
 
   return (
     <section aria-labelledby="newsletter-signup-card">

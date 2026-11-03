@@ -43,6 +43,7 @@ struct EditChannelView: View {
             }
           }
         }
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
         .disabled(!model.canSave)
       }

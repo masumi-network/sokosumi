@@ -4,11 +4,11 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
+import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
-import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
@@ -132,94 +132,93 @@ export default async function AuthenticatedAppFrame({
                 <HistorySearchDialogProvider
                   activeOrganizationId={activeOrganizationId}
                 >
-                  <BreadcrumbOverrideProvider>
-                    {/* Sidebar "New Task" opens the wizard in place, so the
-                        provider wraps sidebar and content. */}
-                    <AuthenticatedRoomCache
-                      currentUserId={session.user.id}
-                      workspaceId={activeOrganizationId}
-                    >
-                      <NewTaskWizardProvider>
-                        {/* The sidebar header and the phone's top bar each
-                            place a switcher trigger; this owns what is behind
-                            them, once. */}
-                        <WorkspaceSwitcherProvider
-                          sessionUser={session.user}
-                          workspaces={workspaces}
-                          activeOrganizationId={activeOrganizationId}
+                  {/* Sidebar "New Task" opens the wizard in place, so the
+                    provider wraps sidebar and content. */}
+                  <AuthenticatedRoomCache
+                    currentUserId={session.user.id}
+                    workspaceId={activeOrganizationId}
+                  >
+                    <NewTaskWizardProvider>
+                      {/* The sidebar header and the phone's top bar each
+                          place a switcher trigger; this owns what is behind
+                          them, once. */}
+                      <WorkspaceSwitcherProvider
+                        sessionUser={session.user}
+                        workspaces={workspaces}
+                        activeOrganizationId={activeOrganizationId}
+                      >
+                        <FeatureBadgesProvider
+                          userId={session.user.id}
+                          campaigns={loadBadgeCampaigns()}
                         >
-                          <FeatureBadgesProvider
-                            userId={session.user.id}
-                            campaigns={loadBadgeCampaigns()}
-                          >
-                            <PrivateCachedAppSidebar
-                              sessionUser={session.user}
-                              activeOrganizationId={activeOrganizationId}
-                              adminMenuEnabled={adminMenuEnabled}
-                              socialBetaEnabled={socialBetaEnabled}
-                              newsletterEnabled={newsletterEnabled}
-                            />
-                          </FeatureBadgesProvider>
-                          <Suspense fallback={null}>
-                            <AppShellOverlays />
-                          </Suspense>
+                          <PrivateCachedAppSidebar
+                            sessionUser={session.user}
+                            activeOrganizationId={activeOrganizationId}
+                            adminMenuEnabled={adminMenuEnabled}
+                            socialBetaEnabled={socialBetaEnabled}
+                            newsletterEnabled={newsletterEnabled}
+                          />
+                        </FeatureBadgesProvider>
+                        {/* Right after the sidebar: it follows the sidebar's
+                          `data-state` as its peer. */}
+                        <SidebarEdgeHandle />
+                        <Suspense fallback={null}>
+                          <AppShellOverlays />
+                        </Suspense>
+                        <div
+                          className="flex min-w-0 flex-1 overflow-clip"
+                          data-app-content
+                        >
                           <div
-                            className="flex min-w-0 flex-1 overflow-clip"
-                            data-app-content
+                            className="flex min-w-0 flex-1 flex-col overflow-clip"
+                            data-app-content-inner
                           >
-                            <div
-                              className="flex min-w-0 flex-1 flex-col overflow-clip"
-                              data-app-content-inner
+                            <ImpersonationBanner
+                              name={session.user.name}
+                              email={session.user.email}
+                              impersonatedBy={
+                                session.session.impersonatedBy ?? null
+                              }
+                            />
+                            <Header
+                              // Horizontal pad only on md: vertical py would fight the
+                              // shared h-16 hairline with SidebarHeader.
+                              className="px-4 py-3 md:px-4 md:py-0"
+                            />
+                            <main
+                              className={cn(
+                                // p-4 is the app's single horizontal gutter. Pages must not add one
+                                // of their own: a rule that spans the view escapes exactly this
+                                // much, so a second level of padding leaves it short.
+                                //
+                                // scrollbar-gutter: stable reserves the scrollbar's width whether
+                                // or not it is showing. Without it this scroll container takes that
+                                // width out of the content box on the right only, and every
+                                // full-bleed rule stops further from the right edge than the left.
+                                "app-scrollbar relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable] md:pt-4",
+                                APP_MAIN_MOBILE_PT_CLASS,
+                                APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+                                APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+                              )}
+                              data-app-main
                             >
-                              <ImpersonationBanner
-                                name={session.user.name}
-                                email={session.user.email}
-                                impersonatedBy={
-                                  session.session.impersonatedBy ?? null
-                                }
-                              />
-                              <Header
-                                // Horizontal pad only on md: vertical py would fight the
-                                // shared h-16 hairline with SidebarHeader.
-                                className="px-4 py-3 md:px-4 md:py-0"
-                              />
-                              <main
-                                className={cn(
-                                  // p-4 is the app's single horizontal gutter. Pages must not add one
-                                  // of their own: a rule that spans the view escapes exactly this
-                                  // much, so a second level of padding leaves it short.
-                                  //
-                                  // scrollbar-gutter: stable reserves the scrollbar's width whether
-                                  // or not it is showing. Without it this scroll container takes that
-                                  // width out of the content box on the right only, and every
-                                  // full-bleed rule stops further from the right edge than the left.
-                                  "app-scrollbar relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable] md:pt-4",
-                                  APP_MAIN_MOBILE_PT_CLASS,
-                                  APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
-                                  APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
-                                )}
-                                data-app-main
+                              <EmergencyDialog />
+                              <div
+                                className="flex min-h-full flex-1 flex-col overflow-visible"
+                                data-app-main-inner
                               >
-                                <EmergencyDialog />
-                                <div
-                                  className="flex min-h-full flex-1 flex-col overflow-visible"
-                                  data-app-main-inner
+                                <SocialProviderAvailabilityProvider
+                                  enabledProviders={enabledSocialProviders}
                                 >
-                                  <SocialProviderAvailabilityProvider
-                                    enabledProviders={enabledSocialProviders}
-                                  >
-                                    <AppMobileChrome>
-                                      {children}
-                                    </AppMobileChrome>
-                                  </SocialProviderAvailabilityProvider>
-                                </div>
-                              </main>
-                            </div>
+                                  <AppMobileChrome>{children}</AppMobileChrome>
+                                </SocialProviderAvailabilityProvider>
+                              </div>
+                            </main>
                           </div>
-                        </WorkspaceSwitcherProvider>
-                      </NewTaskWizardProvider>
-                    </AuthenticatedRoomCache>
-                  </BreadcrumbOverrideProvider>
+                        </div>
+                      </WorkspaceSwitcherProvider>
+                    </NewTaskWizardProvider>
+                  </AuthenticatedRoomCache>
                 </HistorySearchDialogProvider>
               </NoticeDialogProvider>
             </AccountNoticeProvider>

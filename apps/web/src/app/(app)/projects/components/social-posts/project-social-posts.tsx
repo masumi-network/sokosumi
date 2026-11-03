@@ -5,6 +5,7 @@ import {
   type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPost,
   type SocialPostStatus,
+  type SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
@@ -121,6 +122,7 @@ import {
 } from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
+  queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
   /** The project's Social accounts, shown as the last tab when given. */
@@ -302,6 +304,7 @@ export function ProjectSocialPosts({
   calendarFailed = false,
   connections,
   posts: initialPosts,
+  queueSlots,
   failedSections = [],
   nextCursors,
   projectId,
@@ -356,6 +359,9 @@ export function ProjectSocialPosts({
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
   const compose = useSocialCompose();
+  const studioPrefill = compose?.open
+    ? peekSocialComposePrefill(projectId)
+    : null;
   const composerMode: SocialPostComposerMode | null =
     composer ??
     (compose?.open
@@ -363,6 +369,8 @@ export function ProjectSocialPosts({
           kind: "create",
           ...peekSocialComposePrefill(projectId),
           scheduledAt: compose.scheduledAt ?? undefined,
+          ...studioPrefill,
+          source: studioPrefill ? "studio" : undefined,
         } satisfies SocialPostComposerMode)
       : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
@@ -1087,7 +1095,7 @@ export function ProjectSocialPosts({
     if (!post.connectionNeedsReconnect) return null;
     return (
       <p
-        className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+        className="text-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
         data-testid="social-post-needs-reconnect"
         role="status"
       >
@@ -1199,7 +1207,7 @@ export function ProjectSocialPosts({
         id={`social-post-${post.id}`}
         // The Task board's card: one border weight, the primary border on
         // hover, and the status badge leading like a task's.
-        className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm"
+        className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-foreground hover:shadow-sm"
         data-testid={`social-post-${post.id}`}
       >
         {retryable ? (
@@ -1283,7 +1291,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.publishedUrl ? (
                 <a
-                  className="text-primary inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+                  className="text-foreground inline-flex items-center gap-1 font-medium underline-offset-4 underline"
                   href={post.publishedUrl}
                   rel="noreferrer"
                   target="_blank"
@@ -1671,7 +1679,9 @@ export function ProjectSocialPosts({
 
       {composerMode ? (
         <SocialPostComposerDialog
-          connections={connections}
+          connections={managed}
+          connectDisabled={connectDisabled}
+          queueSlots={queueSlots}
           mode={composerMode}
           onConnectAccount={() => {
             setComposer(null);

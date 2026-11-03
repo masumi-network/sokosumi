@@ -4,10 +4,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 
-const { closeProjectMock, refreshMock, toastErrorMock } = vi.hoisted(() => ({
+const {
+  closeProjectMock,
+  refreshMock,
+  toastErrorMock,
+  toastSuccessMock,
+  hideProjectActionMock,
+  showProjectActionMock,
+  pinProjectActionMock,
+} = vi.hoisted(() => ({
   closeProjectMock: vi.fn(),
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  hideProjectActionMock: vi.fn(),
+  showProjectActionMock: vi.fn(),
+  pinProjectActionMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -20,7 +32,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({
   toast: {
     error: toastErrorMock,
-    success: vi.fn(),
+    success: toastSuccessMock,
   },
 }));
 
@@ -28,10 +40,24 @@ vi.mock("@/lib/actions/project/action", () => ({
   closeProject: closeProjectMock,
 }));
 
+vi.mock("@/app/projects/actions", () => ({
+  hideProjectAction: hideProjectActionMock,
+  showProjectAction: showProjectActionMock,
+  pinProjectAction: pinProjectActionMock,
+}));
+
 const LABELS = {
   moreActions: "More actions",
   edit: "Edit",
   close: "Close project",
+  hide: {
+    hide: "Hide project",
+    show: "Show project",
+    hidden: "Project hidden",
+    undo: "Undo",
+    hideError: "Could not hide",
+    showError: "Could not show",
+  },
   closeDialog: {
     title: "Close project?",
     description: "Scheduled work will be resolved before closing.",
@@ -49,6 +75,95 @@ describe("ProjectDetailActions", () => {
     closeProjectMock.mockReset();
     refreshMock.mockReset();
     toastErrorMock.mockReset();
+    toastSuccessMock.mockReset();
+    hideProjectActionMock.mockReset();
+    showProjectActionMock.mockReset();
+    pinProjectActionMock.mockReset();
+  });
+
+  it("hides the project with an Undo that shows and re-Pins it", async () => {
+    const user = userEvent.setup();
+    hideProjectActionMock.mockResolvedValue({ unpinned: true });
+    showProjectActionMock.mockResolvedValue({});
+    pinProjectActionMock.mockResolvedValue({});
+    render(<ProjectDetailActions projectId="project-1" labels={LABELS} />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Hide project" }));
+
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+    expect(hideProjectActionMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
+    expect(refreshMock).toHaveBeenCalled();
+    const [message, options] = toastSuccessMock.mock.calls[0];
+    expect(message).toBe("Project hidden");
+    expect(options.action.label).toBe("Undo");
+
+    options.action.onClick();
+
+    await waitFor(() =>
+      expect(pinProjectActionMock).toHaveBeenCalledWith({
+        projectId: "project-1",
+      }),
+    );
+    expect(showProjectActionMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
+  });
+
+  it("says so when the Hide fails, and offers no Undo", async () => {
+    const user = userEvent.setup();
+    hideProjectActionMock.mockRejectedValue(new Error("down"));
+    render(<ProjectDetailActions projectId="project-1" labels={LABELS} />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Hide project" }));
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Could not hide"),
+    );
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves Edit out when given no Edit label, as a project card does", async () => {
+    const user = userEvent.setup();
+    const { edit: _edit, ...cardLabels } = LABELS;
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={cardLabels}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual(["Hide project", "Close project"]);
+  });
+
+  it("offers Show, not Hide, for a project the reader has Hidden", async () => {
+    const user = userEvent.setup();
+    showProjectActionMock.mockResolvedValue({});
+    render(
+      <ProjectDetailActions projectId="project-1" isHidden labels={LABELS} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      screen.queryByRole("menuitem", { name: "Hide project" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Show project" }));
+
+    await waitFor(() =>
+      expect(showProjectActionMock).toHaveBeenCalledWith({
+        projectId: "project-1",
+      }),
+    );
+    expect(refreshMock).toHaveBeenCalled();
   });
 
   it("exposes project actions only inside the overflow menu", async () => {

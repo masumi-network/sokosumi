@@ -13,6 +13,7 @@ import {
 } from "../newsletter-project";
 import { NewsletterSettingsForm } from "../newsletter-settings-form";
 import { getNewsletterTabs } from "../newsletter-tabs";
+import { SendingDomainCard } from "../sending-domain-card";
 
 export const instant = false;
 
@@ -39,16 +40,13 @@ export default async function NewsletterSettingsPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({
-      path: "/newsletter/settings",
-      searchParams,
-      unavailable: scope.unavailable,
-    });
+    return newsletterWorkspacePage({ unavailable: scope.unavailable });
   }
   const { project } = scope;
 
-  const [newsletter, page, t] = await Promise.all([
+  const [newsletter, sendingDomain, page, t] = await Promise.all([
     newsletterService.getSettings(project.id),
+    newsletterService.getSendingDomain(project.id),
     getTranslations("App.Newsletter"),
     getTranslations("App.Projects.Newsletter"),
   ]);
@@ -67,6 +65,9 @@ export default async function NewsletterSettingsPage({
         projectId={project.id}
         projectName={project.name}
         projectLogo={project.logo}
+        sendingDomain={
+          <SendingDomainCard state={sendingDomain} projectId={project.id} />
+        }
       />
     </NewsletterPageShell>
   );

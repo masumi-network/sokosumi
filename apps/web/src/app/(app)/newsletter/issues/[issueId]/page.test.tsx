@@ -1,10 +1,13 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
+import messages from "@/messages/en.json";
 import {
   NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
+  NEWSLETTER_SENDING_DOMAIN_STATE,
   PUBLIC_NEWSLETTER_SLUG,
 } from "@/test/newsletter";
 
@@ -18,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   marker: vi.fn(),
   subscribers: vi.fn(),
   analytics: vi.fn(),
+  sendingDomain: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -39,6 +44,7 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     getSettings: mocks.settings,
     listSubscribers: mocks.subscribers,
     getIssueAnalytics: mocks.analytics,
+    getSendingDomain: mocks.sendingDomain,
   },
 }));
 vi.mock("@/lib/services/project.service", () => ({
@@ -60,6 +66,16 @@ vi.mock("../issue-editor", () => ({
   },
 }));
 
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: mocks.openProjectScope,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
+}));
+
 import NewsletterIssuePage from "./page";
 
 const PROPS = {
@@ -76,9 +92,11 @@ beforeEach(() => {
   mocks.settings.mockResolvedValue({
     id: "n1",
     publicSlug: PUBLIC_NEWSLETTER_SLUG,
+    senderName: "Ada",
   });
   mocks.subscribers.mockResolvedValue({ data: { counts: { ACTIVE: 3 } } });
   mocks.get.mockResolvedValue(NEWSLETTER_ISSUE);
+  mocks.sendingDomain.mockResolvedValue(NEWSLETTER_SENDING_DOMAIN_STATE);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 describe("newsletter issue page", () => {
@@ -102,11 +120,14 @@ describe("newsletter issue page", () => {
       NEWSLETTER_PROJECT_ID,
       NEWSLETTER_ISSUE.id,
     );
+    expect(mocks.sendingDomain).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID);
     expect(mocks.editor).toHaveBeenCalledWith(
       expect.objectContaining({
         issue: NEWSLETTER_ISSUE,
         projectId: NEWSLETTER_PROJECT_ID,
         newsletterSlug: PUBLIC_NEWSLETTER_SLUG,
+        senderName: "Ada",
+        sendingDomain: NEWSLETTER_SENDING_DOMAIN_STATE,
       }),
     );
     expect(mocks.marker).toHaveBeenCalledWith({
@@ -140,8 +161,16 @@ describe("newsletter issue page", () => {
   });
   it("shows the unknown-project notice instead of the editor", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await NewsletterIssuePage(PROPS));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterIssuePage(PROPS)}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select project" }),
+    ).toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(mocks.get).not.toHaveBeenCalled();
   });
   it("loads lifetime analytics only for sent issues", async () => {

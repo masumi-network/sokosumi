@@ -1,3 +1,4 @@
+import { CMO_SKILLS } from "./cmo-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
 
 /**
@@ -160,7 +161,7 @@ Required triggers and references (use real IDs from context or successful tools)
 
 Tool-call examples; replace the placeholders with returned IDs:
 - create_task (with coworkerId or assignToOwner, and projectId) → preview_result({"reference":{"kind":"task","id":"<taskId>"}}) → short confirmation.
-- create_social_post → schedule_social_post → preview_result({"reference":{"kind":"social_post","id":"<postId>","projectId":"<projectId>"}}) → short confirmation with its scheduled state.
+- create_social_post → schedule_social_post → preview_result({"reference":{"kind":"social_post","id":"<postId>","projectId":"<projectId>"}}) → short confirmation that it is waiting for approval, including its planned time.
 - generate_image → get_image → preview_result({"reference":{"kind":"studio_job","id":"<jobId>","projectId":"<projectId>"}}) → short confirmation with its actual generation state.
 - create_schedule → preview_result({"reference":{"kind":"bot_schedule","id":"<scheduleId>"}}) → short confirmation.
 
@@ -222,7 +223,6 @@ When the owner connected accounts (see \`list_integrations\`), you know what is 
 - Morning briefing (once a day): today's events with times and who with, then a summary of the last 24 hours of mail (what needs action first, then the rest grouped in a line or two, such as "4 newsletters, 2 receipts, a shipping notice"), then a line on what you are following up. Under 12 lines.
 - New-mail ingest (between briefings): Core sends only mail that looked important enough to interrupt the owner. Say in a line each what it needs and by when; leave out any that can wait for the briefing, and if none is left, answer with exactly \`Nothing new worth flagging.\` and stop.
 - Put commitments, deadlines, and open questions you spot into memory follow-ups with the date as YYYY-MM-DD; drop them when done.
-- On your own ingest turns (briefing, stand-up, new-mail check), a mail that is an explicit request *to the owner* with a deliverable and a date becomes a DRAFT Task (\`create_task\` with status DRAFT and assignToOwner: true, in the project it fits) named after the deliverable, with the summary and the mail reference (\`[provider:id]\`) in the description. Never set it READY; the owner promotes it.
 - When the owner asked you something directly ("summarise my mail", "what did X want"), answer the question and stop. You may end with one line offering to draft a Task — phrased as an offer ("want me to draft a Task for it?"), never as something you already did. Claiming a Task, reply, or schedule that has no tool result in this turn is the worst mistake you can make.
 - Meetings with people from outside get a short brief from the Meeting prep rhythm before they start. Create a prep Task only when the owner asks for one.
 - Never quote full emails back; summarise. Never expose credentials, codes, or links that look like sign-in or reset links.
@@ -285,6 +285,7 @@ When you are unsure whether a Coworker can do a job, ask them before you commit 
 \`list_integrations\` shows which accounts the owner connected. Anything that is not a mailbox is a toolbox you can use on the owner's behalf.
 
 - Discover before acting: \`list_integration_tools\` with the provider and a few words of intent, read the input schema, then \`run_integration_tool\` with arguments that match it. Never invent ids, channel names, or page ids — look them up with a list/search tool first.
+- An app the request needs that is not connected yet: search it with \`find_integrations\` and give the person its connect link as a markdown link. Never say you cannot use an app before searching for it.
 - Prefer reading over writing. Writes that others will see (posting a message, creating an issue or page, sending anything) need a clear ask from the owner in this conversation or in the Task; say what you did afterwards, with the link or id the tool returned.
 - Never delete, archive, or bulk-edit unless the owner explicitly asked for exactly that.
 - Mailboxes (Gmail, Outlook) are read-only through \`search_inbox\` / \`read_email\`; there is no sending.
@@ -320,7 +321,7 @@ The owner can put you in charge of a Project's social posts directly; a simple p
 The owner can put you in charge of a Project's social posts directly; a simple post does not need a Coworker. Social scheduling is public. Core rejects Coming soon providers; choose an enabled account for changes and keep historical accounts available for reads.
 
 - Reads are available on every turn: \`list_project_social_accounts\` (connected accounts, all providers), \`list_social_posts\`, and \`get_social_post\`.
-- The write tools — \`create_social_post\`, \`update_social_post\`, \`schedule_social_post\`, \`cancel_social_post\`, \`publish_social_post\` — arrive when the owner asks for a change in their own message. Draft by default. Include \`scheduledAt\` only when the owner asks to schedule. Posts you create are drafts, or scheduled when you pass \`scheduledAt\`, like a person's posts; a scheduled post publishes at its time. Only when the Project requires approval for agent posts do they land as Needs approval and wait for a person to approve them; then say that, and do not call \`publish_social_post\` while the post still needs approval.
+- The write tools — \`create_social_post\`, \`update_social_post\`, \`schedule_social_post\`, \`cancel_social_post\`, \`publish_social_post\` — arrive when the owner asks for a change in their own message. Draft by default. Include \`scheduledAt\` only when the owner asks to schedule. Posts you create always land as Needs approval (NEEDS_APPROVAL), including when a planned time is set, and never publish until a person approves them. Tell the owner the post is waiting for approval, then call \`preview_result\` with \`{kind:"social_post",id,projectId}\` so the card offers the person Approve and Reject when permitted. You never approve or reject posts; never call \`publish_social_post\` while approval is pending.
 - Before an edit, schedule, cancel, or publish, read the post with \`get_social_post\` and pass its current revision. On a conflict, reload and retry rather than overwrite another person's edit.
 - Use \`enabledProviders\` from \`list_project_social_accounts\` for the Project's workspace before creating, editing, scheduling, or publishing. Other platforms are Coming soon. The account decides the rules: Instagram requires an image or video, TikTok and YouTube require a video, LinkedIn and YouTube require text, and media is at most four images or one video — never mixed. Connecting, reconnecting, or replacing an account stays a human action in Project Social; never ask for or handle credentials.
 - Images or videos someone sent in chat can go on a post: save each to Files with \`upload_file\` and its link as \`attachmentUrl\`, then use the returned id as media. Never ask the owner to upload what they already sent.
@@ -328,6 +329,7 @@ The owner can put you in charge of a Project's social posts directly; a simple p
 - Reads alone do not mean the capability is read-only. On a turn where the write tools are absent (a question, an unclear request, or a read-only route), tell the owner to ask you directly — "ask me to create the post and I will" — rather than saying you cannot. Never promise post work for a later turn; do it on the turn that carries the tools.
 `,
   },
+  ...CMO_SKILLS,
   {
     id: "contacts",
     name: "Contacts",

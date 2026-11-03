@@ -34,6 +34,10 @@ type TemplatePickerProps = {
   onApplyTemplate: (template: StudioTemplate) => void;
 };
 
+interface StudioTemplateCarouselProps extends TemplatePickerProps {
+  projectAction?: React.ReactNode;
+}
+
 function TemplateButton({
   template,
   label,
@@ -50,11 +54,11 @@ function TemplateButton({
   return (
     <button
       className={cn(
-        "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
+        "bg-background hover:bg-accent focus-visible:ring-ring flex cursor-pointer gap-2 rounded-xl text-left transition-[background-color] outline-none focus-visible:ring-2",
         STUDIO_SELECT_NONE_CLASS,
         STUDIO_TOUCH_CALLOUT_NONE_CLASS,
         large
-          ? "border-border data-[studio-snap-target]:border-primary flex-col overflow-hidden border p-2"
+          ? "border-border data-[studio-snap-target]:border-foreground flex-col overflow-hidden border p-2"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
         large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}
@@ -160,7 +164,8 @@ export function StudioTemplateMenu({
 export function StudioTemplateCarousel({
   labels,
   onApplyTemplate,
-}: TemplatePickerProps) {
+  projectAction,
+}: StudioTemplateCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const reduceMotion = useReducedMotion();
   const apiRef = useRef(api);
@@ -286,6 +291,9 @@ export function StudioTemplateCarousel({
           <MousePointer2 aria-hidden className="size-4 shrink-0" />
           <span>{labels.emptyBody}</span>
         </p>
+        {projectAction ? (
+          <div className="flex justify-center">{projectAction}</div>
+        ) : null}
       </div>
       <Carousel
         aria-label={labels.templates}
@@ -310,7 +318,7 @@ export function StudioTemplateCarousel({
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 hidden bg-overlay-primary group-data-[studio-dragging]:block"
+          className="pointer-events-none absolute inset-0 z-20 hidden border-2 border-dashed border-foreground bg-overlay-primary group-data-[studio-dragging]:block"
         />
         <CarouselContent
           className={reduceMotion ? "py-1" : "items-center py-10"}

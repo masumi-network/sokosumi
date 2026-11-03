@@ -45,6 +45,11 @@ export type InitiateProjectSocialConnectionInput = {
   projectId: string;
   workspaceId: string;
   userId: string;
+  /**
+   * Where the provider sends the owner back. Defaults to Web's popup
+   * callback; a first-party app passes its own page, checked by the route.
+   */
+  callbackUrl?: string;
 } & (
   | {
       provider: ProjectSocialProvider;
@@ -259,7 +264,6 @@ export async function requireScopedProject(
       id: true,
       closingAt: true,
       closedAt: true,
-      requireAgentPostApproval: true,
       ...socialProviderProjectSelect,
     },
   });
@@ -276,11 +280,11 @@ export async function requireLockedOpenProject(
   tx: Prisma.TransactionClient,
   input: { projectId: string; workspaceId: string },
   options: { closedMessage?: string } = {},
-) {
+): Promise<void> {
   if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
     throw notFound("Project not found");
   }
-  return requireScopedProject(input, {
+  await requireScopedProject(input, {
     client: tx,
     requireOpen: true,
     ...options,
@@ -356,7 +360,7 @@ export async function initiateProjectSocialConnection(
     authConfigId,
     connectorUserId: projectConnectorUserId(input.userId),
     executorUserId: projectExecutorUserId(input.projectId),
-    callbackUrl: `${getWebAppBaseUrl()}/composio/callback`,
+    callbackUrl: input.callbackUrl ?? `${getWebAppBaseUrl()}/composio/callback`,
   });
   try {
     await serializableTransaction(async (tx) => {

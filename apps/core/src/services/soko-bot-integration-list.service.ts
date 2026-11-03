@@ -7,7 +7,6 @@ import {
 import { getComposio } from "@/clients/composio.client";
 import prisma from "@/lib/db/prisma";
 import { requireBot } from "@/services/soko-bot-integration-connection.service";
-import { catalogLogos } from "@/services/soko-bot-integrations.service";
 
 const INTEGRATION_SELECT = {
   id: true,
@@ -36,6 +35,11 @@ export interface SokoBotIntegrationView {
   lastError: string | null;
 }
 
+/** Composio serves every toolkit's logo at a fixed address. */
+function composioLogoUrl(provider: string): string {
+  return `https://logos.composio.dev/api/${encodeURIComponent(provider)}`;
+}
+
 /** The member's own bot's integrations, as the `me` route lists them. */
 export async function listSokoBotIntegrations(
   userId: string,
@@ -57,13 +61,12 @@ export async function listSokoBotIntegrationsForBot(
     where: { sokoBotId },
     select: INTEGRATION_SELECT,
   });
-  const logos = await catalogLogos();
   const connected: SokoBotIntegrationView[] = rows.map((row) => {
     const known = getSokoBotIntegrationProvider(row.provider);
     return {
       provider: row.provider,
       name: row.name ?? known?.name ?? row.provider,
-      logoUrl: row.logoUrl ?? known?.logoUrl ?? logos.get(row.provider) ?? null,
+      logoUrl: row.logoUrl ?? known?.logoUrl ?? composioLogoUrl(row.provider),
       kinds: known?.kinds ?? [],
       status: row.status,
       connectedAt: row.connectedAt,
@@ -79,7 +82,7 @@ export async function listSokoBotIntegrationsForBot(
     ).map((provider) => ({
       provider: provider.id,
       name: provider.name,
-      logoUrl: provider.logoUrl || logos.get(provider.id) || null,
+      logoUrl: provider.logoUrl || composioLogoUrl(provider.id),
       kinds: provider.kinds,
       status: "DISCONNECTED",
       connectedAt: null,

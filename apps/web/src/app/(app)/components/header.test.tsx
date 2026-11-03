@@ -16,8 +16,8 @@ vi.mock("next-intl", () => ({
 }));
 
 // The top bar's own regions, each tested at its own seam.
-vi.mock("@/components/breadcrumb-navigation/breadcrumb-navigation", () => ({
-  default: () => <nav aria-label="breadcrumbs" />,
+vi.mock("@/app/components/project-scope/header-project-scope", () => ({
+  HeaderProjectScope: () => null,
 }));
 vi.mock("@/app/components/project-scope/sidebar-project-scope-mobile", () => ({
   SidebarScopeMobileChip: () => null,

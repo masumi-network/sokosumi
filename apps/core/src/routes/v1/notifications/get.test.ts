@@ -489,6 +489,97 @@ describe("GET /notifications?needsAction=true", () => {
     });
   });
 
+  // ADR 0036: Needs you ignores Hidden projects. The mocked client has no
+  // projectHide, so any read of a Hide here would throw.
+  it("keeps a request waiting from a Hidden project", async () => {
+    answerNotificationLookups([
+      {
+        id: "n_task_in_hidden_project",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+
+    const response = await createApp().request(
+      "http://localhost/?needsAction=true",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["task_waiting"] }, status: "INPUT_REQUIRED" },
+      select: { id: true },
+    });
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: ["n_task_in_hidden_project"] },
+        }),
+      }),
+    );
+  });
+
+  it("narrows to one project's waiting tasks and jobs", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    answerNotificationLookups([
+      {
+        id: "n_task_waiting",
+        messageKey: "Notifications.Task.inputRequired",
+        referenceId: "task_waiting",
+      },
+      {
+        id: "n_job_waiting",
+        messageKey: "Notifications.Job.inputRequired",
+        referenceId: "job_waiting",
+      },
+      {
+        id: "n_grant_pending",
+        messageKey: "notifications.vendorGrant.pending",
+        referenceId: "grant_pending",
+      },
+    ]);
+    taskFindManyMock.mockResolvedValue([{ id: "task_waiting" }]);
+    jobFindManyMock.mockResolvedValue([jobRow("job_waiting", true)]);
+    vendorGrantFindManyMock.mockResolvedValue([{ id: "grant_pending" }]);
+
+    const response = await createApp().request(
+      `http://localhost/?needsAction=true&projectId=${projectId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["task_waiting"] },
+        status: "INPUT_REQUIRED",
+        projectId,
+      },
+      select: { id: true },
+    });
+    expect(jobFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["job_waiting"] }, projectId },
+      }),
+    );
+    // A vendor grant belongs to no project, so it is not asked about.
+    expect(vendorGrantFindManyMock).not.toHaveBeenCalled();
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: ["n_task_waiting", "n_job_waiting"] },
+        }),
+      }),
+    );
+  });
+
+  it("rejects projectId without needsAction", async () => {
+    const response = await createApp().request(
+      "http://localhost/?projectId=11111111-1111-4111-8111-111111111111",
+    );
+
+    expect(response.status).toBe(400);
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("asks no record anything when nothing ever asked the reader", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?needsAction=true");
