@@ -1,14 +1,17 @@
-import { deleteComposioToolSession, record } from "@/clients/composio.client";
+import {
+  type ComposioProxyParameter,
+  deleteComposioToolSession,
+  executeComposioProxy,
+  record,
+} from "@/clients/composio.client";
 import {
   isLinkedInOrganization,
   linkedInAuthorUrn,
   linkedInOrganizationId,
 } from "@/clients/social-post-providers/linkedin-author";
 import {
-  type ComposioProxyParameter,
   ComposioToolError,
   createComposioToolSession,
-  executeComposioProxy,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 
@@ -55,6 +58,8 @@ function text(value: unknown): string | null {
 /** LinkedIn answers a missing Community Management scope with 401/403 ACCESS_DENIED. */
 function isPermissionMissing(error: unknown): boolean {
   if (!(error instanceof ComposioToolError)) return false;
+  if (error.providerStatus === 429 || (error.providerStatus ?? 0) >= 500)
+    return false;
   if (error.providerStatus === 401 || error.providerStatus === 403) return true;
   return /access[_ ]denied|not enough permissions|permission|scope|unauthori[sz]ed|forbidden/i.test(
     error.providerMessage ?? "",
@@ -93,21 +98,67 @@ export async function listLinkedInAdministeredOrganizationUrns(
         urns.size < MAX_ORGANIZATIONS;
         start += ACL_PAGE_SIZE
       ) {
-        let data: Record<string, unknown> | null;
+        let data: Record<string, unknown> | null = null;
         try {
-          data = await executeComposioTool({
-            sessionId,
-            toolSlug: LINKEDIN_ORGANIZATION_ACLS_TOOL_SLUG,
-            arguments: {
-              role,
-              state: "APPROVED",
-              start,
-              count: ACL_PAGE_SIZE,
-            },
-            context: "list LinkedIn administered pages",
-            refused: "LinkedIn refused the page list",
-            signal: input.signal,
-          });
+          // Composio's tool enum excludes CONTENT_ADMINISTRATOR.
+          if (role === "ADMINISTRATOR") {
+            try {
+              data = await executeComposioTool({
+                sessionId,
+                toolSlug: LINKEDIN_ORGANIZATION_ACLS_TOOL_SLUG,
+                arguments: {
+                  role,
+                  state: "APPROVED",
+                  start,
+                  count: ACL_PAGE_SIZE,
+                },
+                context: "list LinkedIn administered pages",
+                refused: "LinkedIn refused the page list",
+                signal: input.signal,
+              });
+            } catch (error) {
+              if (
+                !(
+                  error instanceof ComposioToolError &&
+                  !isPermissionMissing(error) &&
+                  (error.providerStatus === null ||
+                    error.providerStatus === 400 ||
+                    error.providerStatus === 404) &&
+                  /no (?:matching )?organizations? (?:were )?found/i.test(
+                    error.providerMessage ?? "",
+                  )
+                )
+              ) {
+                throw error;
+              }
+            }
+          }
+          // Some tool versions return one company's details instead of ACLs.
+          if (!Array.isArray(data?.elements)) {
+            const response = await executeComposioProxy({
+              connectedAccountId: input.connectedAccountId,
+              endpoint: `${LINKEDIN_REST_BASE_URL}/organizationAcls`,
+              method: "GET",
+              parameters: [
+                ...LINKEDIN_REST_HEADERS,
+                { name: "q", value: "roleAssignee", type: "query" },
+                { name: "role", value: role, type: "query" },
+                { name: "state", value: "APPROVED", type: "query" },
+                { name: "start", value: String(start), type: "query" },
+                { name: "count", value: String(ACL_PAGE_SIZE), type: "query" },
+              ],
+              context: "list LinkedIn administered pages",
+              signal: input.signal,
+            });
+            if (response.status !== 200) {
+              throw new ComposioToolError({
+                message: "LinkedIn refused the page list",
+                providerMessage: text(response.data?.message),
+                providerStatus: response.status,
+              });
+            }
+            data = response.data;
+          }
         } catch (error) {
           if (isPermissionMissing(error)) return null;
           throw error;

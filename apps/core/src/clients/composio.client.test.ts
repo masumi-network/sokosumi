@@ -513,12 +513,17 @@ describe("getConnectedSocialIdentity", () => {
     },
   ];
 
-  function stubIdentity(payload: unknown) {
+  function stubIdentity(payload: unknown, linkedinProxy = false) {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
-      .mockResolvedValueOnce(Response.json(payload))
-      .mockResolvedValueOnce(Response.json({}));
+      .mockResolvedValueOnce(Response.json(payload));
+    if (linkedinProxy) {
+      fetchMock.mockResolvedValueOnce(
+        Response.json({ status: 403, data: null }),
+      );
+    }
+    fetchMock.mockResolvedValueOnce(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
   }
@@ -567,10 +572,13 @@ describe("getConnectedSocialIdentity", () => {
   it.each(identities)(
     "rejects a refused $provider lookup even if an identity is present",
     async ({ provider, payload }) => {
-      const fetchMock = stubIdentity({
-        data: { data: payload, successful: false },
-        error: null,
-      });
+      const fetchMock = stubIdentity(
+        {
+          data: { data: payload, successful: false },
+          error: null,
+        },
+        provider === "linkedin",
+      );
       const { getConnectedSocialIdentity } = await import("./composio.client");
       await expect(
         getConnectedSocialIdentity({
@@ -579,7 +587,7 @@ describe("getConnectedSocialIdentity", () => {
           executorUserId: input.executorUserId,
         }),
       ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
-      expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
     },
   );
 
@@ -625,7 +633,10 @@ describe("getConnectedSocialIdentity", () => {
   ] satisfies { provider: ProjectSocialProvider; payload: unknown }[])(
     "rejects malformed or ambiguous $provider identities: $payload",
     async ({ provider, payload }) => {
-      const fetchMock = stubIdentity({ data: { data: payload } });
+      const fetchMock = stubIdentity(
+        { data: { data: payload } },
+        provider === "linkedin",
+      );
       const { getConnectedSocialIdentity } = await import("./composio.client");
       await expect(
         getConnectedSocialIdentity({
@@ -641,7 +652,7 @@ describe("getConnectedSocialIdentity", () => {
             }
           : { name: "ComposioApiError" },
       );
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledTimes(provider === "linkedin" ? 4 : 3);
     },
   );
 
@@ -757,7 +768,7 @@ describe("getConnectedSocialIdentity", () => {
     },
   );
 
-  describe("LinkedIn photo", () => {
+  describe("LinkedIn identity", () => {
     const meProfile = {
       id: "li_123",
       vanityName: "alice",
@@ -766,14 +777,18 @@ describe("getConnectedSocialIdentity", () => {
       profilePicture: { displayImage: "urn:li:digitalmediaAsset:C4D00" },
     };
 
-    function stubLinkedIn(profile: unknown, userInfo: Response) {
+    function stubLinkedIn(profile: unknown, userInfo: Response | Error) {
       const fetchMock = vi
         .fn()
         .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
         .mockResolvedValueOnce(
           Response.json({ data: { data: profile }, successful: true }),
         )
-        .mockResolvedValueOnce(userInfo)
+        .mockImplementationOnce(() =>
+          userInfo instanceof Error
+            ? Promise.reject(userInfo)
+            : Promise.resolve(userInfo),
+        )
         .mockResolvedValueOnce(Response.json({}));
       vi.stubGlobal("fetch", fetchMock);
       return fetchMock;
@@ -859,28 +874,191 @@ describe("getConnectedSocialIdentity", () => {
       expect(fetchMock.mock.calls[3][1].method).toBe("DELETE");
     });
 
-    it("keeps the identity without a photo when userinfo is refused", async () => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      stubLinkedIn(
-        meProfile,
-        Response.json({ data: null, error: "forbidden", successful: false }),
-      );
-      const { getConnectedSocialIdentity } = await import("./composio.client");
-
-      await expect(
-        getConnectedSocialIdentity({
-          provider: "linkedin",
-          connectedAccountId: "ca_selected",
-          executorUserId: input.executorUserId,
-        }),
-      ).resolves.toMatchObject({
-        id: "li_123",
-        displayName: "Alice Doe",
-        avatarUrl: null,
+    it("keeps the session alive until optional userinfo finishes", async () => {
+      let finishUserInfo: ((response: Response) => void) | undefined;
+      const userInfo = new Promise<Response>((resolve) => {
+        finishUserInfo = resolve;
       });
-      expect(JSON.stringify(warn.mock.calls)).not.toContain("licdn");
-      warn.mockRestore();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+        .mockResolvedValueOnce(Response.json({ data: meProfile }))
+        .mockImplementationOnce(() => userInfo)
+        .mockResolvedValueOnce(Response.json({}));
+      vi.stubGlobal("fetch", fetchMock);
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      const identity = getConnectedSocialIdentity({
+        provider: "linkedin",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      });
+      await vi.waitFor(() =>
+        expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(3),
+      );
+      expect(
+        fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+      ).toHaveLength(0);
+      finishUserInfo?.(
+        Response.json({ data: { picture: "https://media.licdn.com/a.jpg" } }),
+      );
+      await expect(identity).resolves.toMatchObject({
+        id: "li_123",
+        avatarUrl: "https://media.licdn.com/a.jpg",
+      });
+      expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
     });
+
+    it.each([
+      [
+        "tool refusal",
+        () =>
+          Response.json({ data: null, error: "forbidden", successful: false }),
+      ],
+      [
+        "HTTP 403",
+        () =>
+          Response.json({ message: "openid scope required" }, { status: 403 }),
+      ],
+      ["unavailable tool", () => new Error("tool unavailable")],
+    ] as const)(
+      "keeps the profile identity without OpenID when userinfo has %s",
+      async (_reason, userInfo) => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        stubLinkedIn(meProfile, userInfo());
+        const { getConnectedSocialIdentity } = await import(
+          "./composio.client"
+        );
+
+        await expect(
+          getConnectedSocialIdentity({
+            provider: "linkedin",
+            connectedAccountId: "ca_selected",
+            executorUserId: input.executorUserId,
+          }),
+        ).resolves.toMatchObject({
+          id: "li_123",
+          displayName: "Alice Doe",
+          avatarUrl: null,
+        });
+        expect(JSON.stringify(warn.mock.calls)).not.toContain("licdn");
+        warn.mockRestore();
+      },
+    );
+
+    function stubLinkedInProfileProxy(
+      failure: "session" | "http" | "tool" | "identity",
+      proxy: Response | Error,
+    ) {
+      const fetchMock = vi.fn(async (url: URL, init?: RequestInit) => {
+        if (init?.method === "DELETE") return Response.json({});
+        if (url.pathname === "/api/v3.1/tool_router/session") {
+          return failure === "session"
+            ? Response.json(
+                { message: "identity tool unavailable" },
+                { status: 400 },
+              )
+            : Response.json({ session_id: "sess_identity" });
+        }
+        if (url.pathname.endsWith("/execute")) {
+          if (failure === "http") {
+            return Response.json(
+              { message: "openid scope required" },
+              { status: 403 },
+            );
+          }
+          return Response.json(
+            failure === "tool"
+              ? { successful: false, error: "openid scope required" }
+              : { data: { name: "Alice Doe" } },
+          );
+        }
+        if (url.pathname.endsWith("/proxy")) {
+          if (proxy instanceof Error) throw proxy;
+          return proxy;
+        }
+        throw new Error(`Unexpected path ${url.pathname}`);
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    it.each(["session", "http", "tool", "identity"] as const)(
+      "uses the basic profile proxy when the LinkedIn %s lookup fails",
+      async (failure) => {
+        const fetchMock = stubLinkedInProfileProxy(
+          failure,
+          Response.json({ status: 200, data: meProfile }),
+        );
+        const { getConnectedSocialIdentity } = await import(
+          "./composio.client"
+        );
+
+        await expect(
+          getConnectedSocialIdentity({
+            provider: "linkedin",
+            connectedAccountId: "ca_selected",
+            executorUserId: input.executorUserId,
+          }),
+        ).resolves.toEqual({
+          id: "li_123",
+          handle: "alice",
+          displayName: "Alice Doe",
+          avatarUrl: null,
+          subscriptionType: null,
+        });
+        const proxyCall = fetchMock.mock.calls.find(([url]) =>
+          url.pathname.endsWith("/proxy"),
+        );
+        expect(JSON.parse(String(proxyCall?.[1]?.body))).toMatchObject({
+          connected_account_id: "ca_selected",
+          endpoint: "https://api.linkedin.com/v2/me",
+          method: "GET",
+        });
+        expect(
+          fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+        ).toHaveLength(failure === "session" ? 0 : 1);
+      },
+    );
+
+    it.each([
+      [
+        "provider refusal",
+        () => Response.json({ status: 403, data: meProfile }),
+      ],
+      [
+        "missing id",
+        () => Response.json({ status: 200, data: { name: "Alice" } }),
+      ],
+      [
+        "provider error envelope",
+        () =>
+          Response.json({
+            status: 200,
+            data: { ...meProfile, error: "forbidden" },
+          }),
+      ],
+      ["transport error", () => new Error("proxy unavailable")],
+    ] as const)(
+      "preserves the identity lookup error after proxy %s",
+      async (_reason, proxy) => {
+        const fetchMock = stubLinkedInProfileProxy("tool", proxy());
+        const { getConnectedSocialIdentity } = await import(
+          "./composio.client"
+        );
+        await expect(
+          getConnectedSocialIdentity({
+            provider: "linkedin",
+            connectedAccountId: "ca_selected",
+            executorUserId: input.executorUserId,
+          }),
+        ).rejects.toMatchObject({
+          name: "ComposioApiError",
+          message: "LinkedIn identity lookup failed",
+          body: undefined,
+        });
+        expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+      },
+    );
 
     it("ignores a non-https photo value", async () => {
       const { linkedInAvatarUrl } = await import("./composio.client");

@@ -86,7 +86,7 @@ provider returns a setup error without starting authorization.
 | X         | `twitter`        | `COMPOSIO_X_AUTH_CONFIG_ID`         | Existing custom OAuth configuration (`users.read`) | —                                                                |
 | TikTok    | `tiktok`         | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`    | `user.info.basic`                                  | `video.publish`                                                  |
 | Instagram | `instagram`      | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic`                         | `instagram_business_content_publish`                             |
-| LinkedIn  | `linkedin`       | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `openid`, `profile`                                | `w_member_social`                                                |
+| LinkedIn  | `linkedin`       | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `r_basicprofile`                                   | `w_member_social`                                                |
 | Facebook  | `facebook`       | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`  | `public_profile`                                   | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
 | YouTube   | `youtube`        | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`   | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload`                 |
 
@@ -123,19 +123,29 @@ Posting as a LinkedIn company page is off by default behind
 `SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED`. While it is off, Core hides the pages
 routes (404), Web shows no page picker, and no extra Composio calls run.
 
-Pages need two more LinkedIn scopes on top of the personal ones:
-`w_organization_social` (post, comment and upload as the page) and
-`r_organization_admin` or `rw_organization_admin` (list the pages a member
-administers and read their name and logo). Both belong to LinkedIn's vetted
-**Community Management API** product. To turn pages on:
+Company pages use a custom LinkedIn app approved for the vetted
+**Community Management API** product. Its Composio auth config requests
+`r_basicprofile` (member id and localized name), `w_member_social` (personal
+posting), `w_organization_social` (post, comment and upload as the page), and
+`rw_organization_admin` (list administered pages and read their name and logo).
+Use `rw_organization_admin` with `w_member_social`; LinkedIn rejects the
+combination of `r_organization_admin` and `w_member_social`.
 
-1. Get Community Management API approved on Masumi's own LinkedIn app.
+Community Management cannot share an app with Sign In with LinkedIn, so this
+config must not request `openid` or `profile`. Identity comes from the member
+profile; a missing OpenID userinfo response or photo does not block connecting.
+To turn pages on:
+
+1. Get Community Management API approved on your own LinkedIn app.
 2. Create a custom Composio LinkedIn auth config on that app that requests
-   `openid`, `profile`, `w_member_social`, `w_organization_social` and
-   `r_organization_admin` (or `rw_organization_admin`), and point
+   `r_basicprofile`, `w_member_social`, `w_organization_social` and
+   `rw_organization_admin`, and point
    `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` at it.
 3. Set `SOCIAL_LINKEDIN_COMPANY_PAGES_ENABLED=true` and redeploy Core.
    Existing members reconnect LinkedIn to grant the new scopes.
+
+When switching LinkedIn apps, a fresh connection may be needed: LinkedIn person
+ids are app-specific, and reconnecting must preserve the existing identity.
 
 Do not add the scopes before LinkedIn approves the product: LinkedIn rejects
 the whole OAuth request when an app asks for a scope it lacks, which breaks

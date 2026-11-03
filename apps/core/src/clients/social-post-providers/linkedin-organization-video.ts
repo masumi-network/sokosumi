@@ -2,15 +2,18 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 import type { SocialPostMediaRef } from "@sokosumi/utils";
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
-import { ComposioApiError, record } from "@/clients/composio.client";
+import {
+  ComposioApiError,
+  type ComposioProxyResult,
+  executeComposioProxy,
+  record,
+} from "@/clients/composio.client";
 import {
   LINKEDIN_REST_BASE_URL,
   LINKEDIN_REST_HEADERS,
 } from "@/clients/social-post-providers/linkedin-organizations";
 import {
-  type ComposioProxyResult,
   ComposioToolError,
-  executeComposioProxy,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import { downloadSocialPostMedia } from "@/helpers/social-post-media";
