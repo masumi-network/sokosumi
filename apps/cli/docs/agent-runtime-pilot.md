@@ -104,14 +104,14 @@ Use the returned Task ID. Require the intended Coworker, organization, and `READ
 
 ## 2. Prepare the agent host
 
-[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `c2271e441`] The earlier private-package statement is stale. The source manifest declares version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. [OPEN] This review did not check npm's current release or a fresh registry installation. Build this checkout from the repository root:
+[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `da193024e`] The earlier private-package statement is stale. The source manifest declares version `1.1.0`, public access, Node.js 26.x, and `dist` plus `skills`. [OPEN] This review did not check npm's current release or a fresh registry installation. Build this checkout from the repository root:
 
 ```sh
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w
 node apps/cli/dist/bin/sokosumi.js runtime --help
 ```
 
-Examples below use `sokosumi` for that executable. Use Node.js 24 and the checkout's dependencies on the agent host.
+Examples below use `sokosumi` for that executable. Use Node.js 26.x and the checkout's dependencies on the agent host.
 
 [VERIFIED: `apps/cli/src/cli/commands/runtime.ts`] The agent needs a command tool and access to its result file. Configure that tool with the built CLI's actual path. The commands below provide the runtime workflow. [REPORTED: integration scope, 2026-09-27] Plugin guidance follows this CLI slice. An MCP-only bridge is not built. No host installation or live agent execution has been verified.
 
