@@ -42,6 +42,8 @@ import { readSocial } from "./read-social.js";
 import { readTasks } from "./read-tasks.js";
 import {
   getCalendarBrowseEnd,
+  laterScheduledAt,
+  scheduledNewsletterIssueWhere,
   scheduledSocialPostWhere,
 } from "./social-post-range.js";
 
@@ -249,23 +251,37 @@ export async function readWorkspaceCalendar(
   const types = requestedTypes(query).filter((type) => applies[type]);
 
   if (query.to.getTime() > Date.now() + RUN_HORIZON_MS) {
-    const latestPost = types.includes("social")
-      ? await prisma.socialPost.aggregate({
-          where: scheduledSocialPostWhere(
-            workspaceId,
-            userId,
-            query.scope,
-            options.projectId,
-          ),
-          _max: { scheduledAt: true },
-        })
-      : null;
-    if (
-      query.to >
-      getCalendarBrowseEnd(new Date(), latestPost?._max.scheduledAt ?? null)
-    ) {
+    const [latestPost, latestIssue] = await Promise.all([
+      types.includes("social")
+        ? prisma.socialPost.aggregate({
+            where: scheduledSocialPostWhere(
+              workspaceId,
+              userId,
+              query.scope,
+              options.projectId,
+            ),
+            _max: { scheduledAt: true },
+          })
+        : null,
+      types.includes("newsletter")
+        ? prisma.newsletterIssue.aggregate({
+            where: scheduledNewsletterIssueWhere(
+              workspaceId,
+              userId,
+              query.scope,
+              options.projectId,
+            ),
+            _max: { scheduledAt: true },
+          })
+        : null,
+    ]);
+    const latestScheduledAt = laterScheduledAt(
+      latestPost?._max.scheduledAt,
+      latestIssue?._max.scheduledAt,
+    );
+    if (query.to > getCalendarBrowseEnd(new Date(), latestScheduledAt)) {
       throw badRequest(
-        "Calendar browse range cannot extend beyond the next 90 days or the latest scheduled Social post's month",
+        "Calendar browse range cannot extend beyond the next 90 days or the latest scheduled Social post or Newsletter issue's month",
       );
     }
   }

@@ -74,17 +74,17 @@ export function resolveCalendarPageQuery(
   status: string | undefined,
   view?: string,
   timezone?: string,
-  latestScheduledSocialPostAt?: Date | null,
+  latestScheduledFeatureAt?: Date | null,
 ) {
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
   const now = new Date();
   const calendarTimezone = isValidTimezone(timezone) ? timezone : "UTC";
-  const latestScheduledCalendarDate = latestScheduledSocialPostAt
+  const latestScheduledCalendarDate = latestScheduledFeatureAt
     ? new Date(
         utcToDateTimeLocalInTimezone(
-          latestScheduledSocialPostAt,
+          latestScheduledFeatureAt,
           calendarTimezone,
         ),
       )
@@ -113,6 +113,32 @@ export function resolveCalendarPageQuery(
     initialDate,
     range,
   };
+}
+
+function laterScheduledAt(left: Date | null, right: Date | null): Date | null {
+  if (!left) return right;
+  if (!right) return left;
+  return left > right ? left : right;
+}
+
+function latestSourceScheduledAt(
+  sources: WorkspaceCalendarSource[],
+  selectedProjectId: string | null,
+  field: "latestScheduledSocialPostAt" | "latestScheduledNewsletterIssueAt",
+): Date | null {
+  return sources.reduce<Date | null>((latest, source) => {
+    if (
+      selectedProjectId &&
+      source.sourceId !== `project:${selectedProjectId}`
+    ) {
+      return latest;
+    }
+    const scheduledAt = source[field];
+    if (!scheduledAt) return latest;
+    const date =
+      scheduledAt instanceof Date ? scheduledAt : new Date(scheduledAt);
+    return !latest || date > latest ? date : latest;
+  }, null);
 }
 
 export async function loadCalendarPageContext(
@@ -186,23 +212,28 @@ export async function loadWorkspaceCalendarPage({
     requested.view === "agenda" && isSocialOnly(selectedTypes)
       ? { ...requested, view: undefined }
       : requested;
-  const socialPostsVisible =
+  // Task-only filters drop Social and Newsletter from Core's browse horizon.
+  const featureHorizonVisible =
     !params.assigneeId &&
     !params.assigneeUserId &&
     !Object.values(TaskStatus).some((status) => status === params.status);
-  const latestScheduledSocialPostAt = socialPostsVisible
-    ? sources.reduce<Date | null>((latest, source) => {
-        if (
-          selectedProjectId &&
-          source.sourceId !== `project:${selectedProjectId}`
-        ) {
-          return latest;
-        }
-        const scheduledAt = source.latestScheduledSocialPostAt;
-        return scheduledAt && (!latest || scheduledAt > latest)
-          ? scheduledAt
-          : latest;
-      }, null)
+  const latestScheduledFeatureAt = featureHorizonVisible
+    ? laterScheduledAt(
+        selectedTypes.includes("social")
+          ? latestSourceScheduledAt(
+              sources,
+              selectedProjectId,
+              "latestScheduledSocialPostAt",
+            )
+          : null,
+        selectedTypes.includes("newsletter")
+          ? latestSourceScheduledAt(
+              sources,
+              selectedProjectId,
+              "latestScheduledNewsletterIssueAt",
+            )
+          : null,
+      )
     : null;
   const {
     calendarStatus,
@@ -215,7 +246,7 @@ export async function loadWorkspaceCalendarPage({
     params.status,
     params.view,
     params.timezone,
-    latestScheduledSocialPostAt,
+    latestScheduledFeatureAt,
   );
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
   const typesQuery = calendarTypesQuery(selectedTypes);

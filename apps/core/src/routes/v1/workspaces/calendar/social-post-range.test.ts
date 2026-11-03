@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   getCalendarBrowseEnd,
+  laterScheduledAt,
+  scheduledNewsletterIssueWhere,
   scheduledSocialPostWhere,
 } from "./social-post-range";
 
@@ -29,6 +31,18 @@ describe("getCalendarBrowseEnd", () => {
   });
 });
 
+describe("laterScheduledAt", () => {
+  it("returns the later of two dates and treats null as absent", () => {
+    const earlier = new Date("2027-01-01T00:00:00.000Z");
+    const later = new Date("2027-06-01T00:00:00.000Z");
+    expect(laterScheduledAt(earlier, later)).toEqual(later);
+    expect(laterScheduledAt(later, earlier)).toEqual(later);
+    expect(laterScheduledAt(null, later)).toEqual(later);
+    expect(laterScheduledAt(earlier, null)).toEqual(earlier);
+    expect(laterScheduledAt(null, null)).toBeNull();
+  });
+});
+
 describe("scheduledSocialPostWhere", () => {
   it("only includes scheduled and publishing posts in the active workspace", () => {
     expect(scheduledSocialPostWhere("workspace", "user", "workspace")).toEqual({
@@ -46,6 +60,29 @@ describe("scheduledSocialPostWhere", () => {
       projectId: "project",
       scheduledByUserId: "user",
       status: { in: ["SCHEDULED", "PUBLISHING"] },
+    });
+  });
+});
+
+describe("scheduledNewsletterIssueWhere", () => {
+  it("only includes scheduled and sending issues in the active workspace", () => {
+    expect(
+      scheduledNewsletterIssueWhere("workspace", "user", "workspace"),
+    ).toEqual({
+      workspaceId: "workspace",
+      status: { in: ["SCHEDULED", "SENDING"] },
+      scheduledAt: { not: null },
+    });
+  });
+
+  it("narrows owned and project calendars without changing issue statuses", () => {
+    expect(
+      scheduledNewsletterIssueWhere("workspace", "user", "owned", "project"),
+    ).toMatchObject({
+      workspaceId: "workspace",
+      projectId: "project",
+      creatorUserId: "user",
+      status: { in: ["SCHEDULED", "SENDING"] },
     });
   });
 });

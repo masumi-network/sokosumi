@@ -1,4 +1,8 @@
-import { type Prisma, SocialPostStatus } from "@sokosumi/database";
+import {
+  NewsletterIssueStatus,
+  type Prisma,
+  SocialPostStatus,
+} from "@sokosumi/database";
 
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
@@ -17,6 +21,33 @@ export function scheduledSocialPostWhere(
     },
     scheduledAt: { not: null },
   };
+}
+
+/** Upcoming Newsletter issues that can push the Calendar browse horizon. */
+export function scheduledNewsletterIssueWhere(
+  workspaceId: string,
+  userId: string,
+  scope: "owned" | "workspace",
+  projectId?: string,
+): Prisma.NewsletterIssueWhereInput {
+  return {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+    ...(scope === "owned" ? { creatorUserId: userId } : {}),
+    status: {
+      in: [NewsletterIssueStatus.SCHEDULED, NewsletterIssueStatus.SENDING],
+    },
+    scheduledAt: { not: null },
+  };
+}
+
+export function laterScheduledAt(
+  left: Date | null | undefined,
+  right: Date | null | undefined,
+): Date | null {
+  if (!left) return right ?? null;
+  if (!right) return left;
+  return left > right ? left : right;
 }
 
 export function getCalendarBrowseEnd(

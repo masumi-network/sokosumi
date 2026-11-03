@@ -536,6 +536,39 @@ describe("loadWorkspaceCalendarPage", () => {
       expect(result.initialDate).toBe("2027-02-01");
     });
 
+    it("ignores Social posts when Social is not selected", async () => {
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({
+          date: "2027-03-15",
+          types: "tasks,newsletter",
+        }),
+      });
+
+      expect(result.latestDate).toBe("2026-03-01");
+      expect(result.initialDate).toBe("2026-03-01");
+    });
+
+    it("extends the limit to the latest Newsletter issue when Newsletter is selected", async () => {
+      getWorkspaceCalendarSourcesMock.mockResolvedValue([
+        { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
+        {
+          sourceId: "project:project-1",
+          sourceType: "PROJECT",
+          latestScheduledSocialPostAt: new Date("2026-12-31T12:00:00Z"),
+          latestScheduledNewsletterIssueAt: new Date("2027-06-15T12:00:00Z"),
+        },
+      ]);
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({
+          date: "2027-07-01",
+          types: "newsletter",
+        }),
+      });
+
+      expect(result.latestDate).toBe("2027-06-01");
+      expect(result.initialDate).toBe("2027-06-01");
+    });
+
     it("propagates a project horizon load failure", async () => {
       getWorkspaceCalendarSourcesMock.mockRejectedValue(new Error("offline"));
 

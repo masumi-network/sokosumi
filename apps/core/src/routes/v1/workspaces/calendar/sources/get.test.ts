@@ -14,6 +14,7 @@ const {
   vendorGrantFindUniqueMock,
   workspaceFindUniqueMock,
   socialPostGroupByMock,
+  newsletterIssueGroupByMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   vendorGrantFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   socialPostGroupByMock: vi.fn(),
+  newsletterIssueGroupByMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -57,6 +59,7 @@ vi.mock("@/lib/db/prisma", () => ({
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
     socialPost: { groupBy: socialPostGroupByMock },
+    newsletterIssue: { groupBy: newsletterIssueGroupByMock },
   },
 }));
 
@@ -128,6 +131,7 @@ describe("GET /workspaces/calendar/sources", () => {
     taskFindFirstMock.mockResolvedValue(null);
     vendorGrantFindUniqueMock.mockResolvedValue({ status: "GRANTED" });
     socialPostGroupByMock.mockResolvedValue([]);
+    newsletterIssueGroupByMock.mockResolvedValue([]);
   });
 
   it("lists workspace and Project sources with their scheduling availability", async () => {
@@ -400,12 +404,73 @@ describe("GET /workspaces/calendar/sources", () => {
         sourceId: `project:${emptyProjectId}`,
         latestScheduledSocialPostAt: null,
       });
+      expect(body.data.sources[1]).not.toHaveProperty(
+        "latestScheduledNewsletterIssueAt",
+      );
       expect(socialPostGroupByMock).toHaveBeenCalledWith({
         by: ["projectId"],
         where: {
           workspaceId: WORKSPACE_ID,
           ...(scope === "owned" ? { scheduledByUserId: "user_123" } : {}),
           status: { in: ["SCHEDULED", "PUBLISHING"] },
+          scheduledAt: { not: null },
+        },
+        _max: { scheduledAt: true },
+      });
+      expect(newsletterIssueGroupByMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["workspace", "owned"])(
+    "returns each project's latest scheduled Newsletter issue when the beta is on in %s scope",
+    async (scope) => {
+      const projectId = "22222222-2222-7222-8222-222222222222";
+      const emptyProjectId = "33333333-3333-7333-8333-333333333333";
+      workspaceFindUniqueMock.mockResolvedValue({
+        organization: {
+          name: "UTXO",
+          logo: null,
+          slug: NEWSLETTER_BETA_ORGANIZATION_SLUG,
+        },
+        user: null,
+      });
+      projectFindManyMock.mockResolvedValue(
+        [projectId, emptyProjectId].map((id) => ({
+          id,
+          name: "Project",
+          logo: null,
+          closingAt: null,
+          closedAt: null,
+        })),
+      );
+      newsletterIssueGroupByMock.mockResolvedValue([
+        {
+          projectId,
+          _max: { scheduledAt: new Date("2027-06-15T12:00:00.000Z") },
+        },
+      ]);
+
+      const response = await createApp().request(
+        `http://localhost/calendar/sources?includeSocialPosts=true&scope=${scope}`,
+      );
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data.sources[1]).toMatchObject({
+        sourceId: `project:${projectId}`,
+        latestScheduledNewsletterIssueAt: "2027-06-15T12:00:00.000Z",
+        latestScheduledSocialPostAt: null,
+      });
+      expect(body.data.sources[2]).toMatchObject({
+        sourceId: `project:${emptyProjectId}`,
+        latestScheduledNewsletterIssueAt: null,
+      });
+      expect(newsletterIssueGroupByMock).toHaveBeenCalledWith({
+        by: ["projectId"],
+        where: {
+          workspaceId: WORKSPACE_ID,
+          ...(scope === "owned" ? { creatorUserId: "user_123" } : {}),
+          status: { in: ["SCHEDULED", "SENDING"] },
           scheduledAt: { not: null },
         },
         _max: { scheduledAt: true },
