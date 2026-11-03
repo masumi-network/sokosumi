@@ -1,14 +1,8 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
@@ -26,8 +20,15 @@ function setup(
       locale={locale}
       messages={{ en, de, es }[locale]}
       timeZone="UTC"
+      formats={{
+        dateTime: { dateTime: { dateStyle: "medium", timeStyle: "short" } },
+      }}
     >
-      <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate}>
+      <NuqsTestingAdapter
+        searchParams={searchParams}
+        onUrlUpdate={onUrlUpdate}
+        hasMemory
+      >
         <NewsletterAnalyticsView
           projectId={NEWSLETTER_PROJECT_ID}
           analytics={analytics}
@@ -39,6 +40,15 @@ function setup(
 }
 
 describe("newsletter analytics", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-03T00:30:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it.each(["en", "de", "es"] as const)(
     "labels unavailable and zero metrics in phone cards in %s",
     (locale) => {
@@ -118,26 +128,97 @@ describe("newsletter analytics", () => {
       ),
     ).toBeVisible();
   });
-  it("updates the URL when dates or a preset change and resets the range", async () => {
-    const { onUrlUpdate } = setup();
-    fireEvent.change(screen.getByLabelText("From"), {
-      target: { value: "2026-09-01" },
-    });
-    await waitFor(() =>
-      expect(onUrlUpdate).toHaveBeenLastCalledWith(
-        expect.objectContaining({ queryString: "?from=2026-09-01" }),
-      ),
+  it("keeps the calendar and period explanation behind compact controls", async () => {
+    setup();
+    expect(screen.getByRole("button", { name: /^Date range/ })).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("From")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(en.App.Projects.Newsletter.Analytics.periodNote),
+    ).not.toBeInTheDocument();
+
+    await userEvent.hover(
+      screen.getByRole("button", {
+        name: en.App.Projects.Newsletter.Analytics.periodNoteAria,
+      }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Last 7 days" }));
-    await waitFor(() =>
-      expect(onUrlUpdate).toHaveBeenLastCalledWith(
-        expect.objectContaining({ searchParams: expect.any(URLSearchParams) }),
-      ),
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      en.App.Projects.Newsletter.Analytics.periodNote,
     );
-    const update = onUrlUpdate.mock.lastCall?.[0];
-    expect(update.searchParams.get("from")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(update.searchParams.get("to")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    await userEvent.click(screen.getByRole("button", { name: "Reset dates" }));
+  });
+  it.each([
+    {
+      locale: "de",
+      range: "Zeitraum",
+      previous: "Zum vorherigen Monat",
+      next: "Zum nächsten Monat",
+      preset: "7 Tage",
+      clear: "Zeitraum löschen",
+    },
+    {
+      locale: "es",
+      range: "Intervalo de fechas",
+      previous: "Ir al mes anterior",
+      next: "Ir al mes siguiente",
+      preset: "7 días",
+      clear: "Borrar intervalo de fechas",
+    },
+  ] as const)(
+    "localizes calendar navigation and range controls in $locale",
+    async ({ locale, range, previous, next, preset, clear }) => {
+      setup(NEWSLETTER_ANALYTICS, "", locale);
+      await userEvent.click(
+        screen.getByRole("button", { name: new RegExp(`^${range}`) }),
+      );
+      const calendar = within(screen.getByRole("dialog", { name: range }));
+      expect(calendar.getByRole("button", { name: previous })).toBeVisible();
+      expect(calendar.getByRole("button", { name: next })).toBeVisible();
+      expect(calendar.getByRole("button", { name: preset })).toBeVisible();
+      expect(calendar.getByRole("button", { name: clear })).toBeVisible();
+    },
+  );
+  it.each([
+    [7, "2026-10-28"],
+    [30, "2026-10-05"],
+    [90, "2026-08-06"],
+  ])(
+    "sets the %i day preset in UTC and clears the cursor",
+    async (days, from) => {
+      const { onUrlUpdate } = setup(
+        NEWSLETTER_ANALYTICS,
+        "?from=2026-10-01&to=2026-10-02&cursor=old-page",
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: /^Date range/ }),
+      );
+      await userEvent.click(
+        within(screen.getByRole("dialog", { name: "Date range" })).getByRole(
+          "button",
+          { name: `${days} days` },
+        ),
+      );
+      await waitFor(() =>
+        expect(onUrlUpdate).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            queryString: `?from=${from}&to=2026-11-03`,
+          }),
+        ),
+      );
+      expect(
+        screen.getByRole("button", { name: /^Date range/ }),
+      ).toHaveTextContent(`Last ${days} days`);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    },
+  );
+  it("clears both dates and the issue cursor", async () => {
+    const { onUrlUpdate } = setup(
+      NEWSLETTER_ANALYTICS,
+      "?from=2026-10-01&to=2026-10-02&cursor=old-page",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^Date range/ }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Clear date range" }),
+    );
     await waitFor(() =>
       expect(onUrlUpdate).toHaveBeenLastCalledWith(
         expect.objectContaining({ queryString: "" }),
@@ -161,13 +242,89 @@ describe("newsletter analytics", () => {
     ).toBeVisible();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
-  it("allows recovery from an invalid range without showing stale metrics", () => {
-    setup(null, "?from=bad&to=2026-10-01");
-    expect(screen.getByRole("alert")).toHaveTextContent("Choose valid dates");
-    expect(
-      screen.queryByRole("region", { name: "Newsletter metrics" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reset dates" })).toBeEnabled();
+  it.each([
+    "?from=bad&to=2026-10-01&cursor=old-page",
+    "?from=2026-10-02&to=2026-10-01&cursor=old-page",
+    "?from=2026-02-30&to=2026-10-01&cursor=old-page",
+  ])(
+    "allows clearing an invalid range without showing stale metrics: %s",
+    async (searchParams) => {
+      const { onUrlUpdate } = setup(null, searchParams);
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        en.App.Projects.Newsletter.Analytics.invalidRange,
+      );
+      expect(
+        screen.queryByRole("region", { name: "Newsletter metrics" }),
+      ).not.toBeInTheDocument();
+      await userEvent.click(
+        screen.getByRole("button", { name: /^Date range/ }),
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Clear date range" }),
+      );
+      await waitFor(() =>
+        expect(onUrlUpdate).toHaveBeenLastCalledWith(
+          expect.objectContaining({ queryString: "" }),
+        ),
+      );
+    },
+  );
+  it("writes a completed custom calendar range and clears the cursor", async () => {
+    const { onUrlUpdate } = setup(
+      NEWSLETTER_ANALYTICS,
+      "?from=2026-10-01&to=2026-10-02&cursor=old-page",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^Date range/ }));
+    const calendar = within(screen.getByRole("dialog", { name: "Date range" }));
+    await userEvent.click(
+      calendar.getByRole("button", { name: /October 10th, 2026/ }),
+    );
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    await userEvent.click(
+      calendar.getByRole("button", { name: /October 14th, 2026/ }),
+    );
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          queryString: "?from=2026-10-10&to=2026-10-14",
+        }),
+      ),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+  it("allows selecting a same-day custom range", async () => {
+    const { onUrlUpdate } = setup();
+    await userEvent.click(screen.getByRole("button", { name: /^Date range/ }));
+    const calendar = within(screen.getByRole("dialog", { name: "Date range" }));
+    await userEvent.click(
+      calendar.getByRole("button", { name: /October 10th, 2026/ }),
+    );
+    await userEvent.click(
+      calendar.getByRole("button", { name: /October 10th, 2026/ }),
+    );
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          queryString: "?from=2026-10-10&to=2026-10-10",
+        }),
+      ),
+    );
+  });
+  it("selects a custom range with the keyboard and restores trigger focus", async () => {
+    const { onUrlUpdate } = setup();
+    const trigger = screen.getByRole("button", { name: /^Date range/ });
+    await userEvent.click(trigger);
+    const calendar = within(screen.getByRole("dialog", { name: "Date range" }));
+    calendar.getByRole("button", { name: /October 10th, 2026/ }).focus();
+    await userEvent.keyboard("{Enter}{ArrowRight}{ArrowRight}{Enter}");
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          queryString: "?from=2026-10-10&to=2026-10-12",
+        }),
+      ),
+    );
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
   it("pages issues in the URL and clears the cursor when the date range changes", async () => {
     const cursor = NEWSLETTER_ANALYTICS.issues[0]!.id;
@@ -186,12 +343,13 @@ describe("newsletter analytics", () => {
         expect.objectContaining({ queryString: `?cursor=${cursor}` }),
       ),
     );
-    fireEvent.change(screen.getByLabelText("From"), {
-      target: { value: "2026-09-01" },
-    });
+    await userEvent.click(screen.getByRole("button", { name: /^Date range/ }));
+    await userEvent.click(screen.getByRole("button", { name: "7 days" }));
     await waitFor(() =>
       expect(onUrlUpdate).toHaveBeenLastCalledWith(
-        expect.objectContaining({ queryString: "?from=2026-09-01" }),
+        expect.objectContaining({
+          queryString: "?from=2026-10-28&to=2026-11-03",
+        }),
       ),
     );
   });
