@@ -30,6 +30,7 @@ import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
 import { StrategyPage, StrategyVersions } from "./app/strategy-page";
 import { Onboarding } from "./onboarding";
+import { StartOver } from "./start-over";
 
 const noop = {
   approve: async () => {},
@@ -606,5 +607,18 @@ describe("renderInline", () => {
       <p>{renderInline("[click](javascript:alert(1))", web)}</p>,
     );
     expect(html).not.toContain("href");
+  });
+});
+
+describe("start over", () => {
+  it("names the way back to the website form", () => {
+    const html = renderToStaticMarkup(
+      <StartOver
+        className="button"
+        label="Use another website"
+        startOver={async () => null}
+      />,
+    );
+    expect(html).toContain("Use another website");
   });
 });

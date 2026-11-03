@@ -9,13 +9,18 @@ interface StartOverProps {
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
   className: string;
+  label?: string;
 }
 
 /**
  * Hire Cuso again for another website. Asks once, since it stops this Cuso's
  * work and cancels his unsent posts.
  */
-export function StartOver({ startOver, className }: StartOverProps) {
+export function StartOver({
+  startOver,
+  className,
+  label = "Start over",
+}: StartOverProps) {
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +32,7 @@ export function StartOver({ startOver, className }: StartOverProps) {
         onClick={() => setAsking(true)}
       >
         <RotateCcw size={14} aria-hidden="true" />
-        Start over
+        {label}
       </button>
     );
   }
