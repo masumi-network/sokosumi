@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   cardHref,
   fileSize,
+  hasPendingStudioJob,
   ResultPreviewCard,
   ResultPreviews,
 } from "./result-previews";
@@ -417,22 +418,38 @@ describe("result footer hydration", () => {
     );
     expect(footer).toHaveBeenCalledWith([task]);
   });
-  it.each([{ isFetching: true }, { isError: true }])(
-    "preserves fallback links when no card can be shown",
-    (state) => {
-      resultQuery.mockReturnValue({ ...state, data: [task] });
-      const footer = vi.fn(() => <span>fallback link</span>);
-      const html = renderToStaticMarkup(
-        <ResultPreviews
-          descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
-          source={{ roomId: "room", messageId: "message" }}
-          renderFooter={footer}
-        />,
-      );
-      expect(footer).toHaveBeenCalledWith([]);
-      expect(html).toContain("fallback link");
-    },
-  );
+  it("keeps the cards on screen while it asks again", () => {
+    resultQuery.mockReturnValue({
+      data: [task],
+      isFetching: true,
+      isError: false,
+    });
+    const footer = vi.fn(() => <span>footer</span>);
+    renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+        source={{ roomId: "room", messageId: "message" }}
+        renderFooter={footer}
+      />,
+    );
+    expect(footer).toHaveBeenCalledWith([task]);
+  });
+  it.each([
+    { isFetching: true, data: undefined },
+    { isError: true, data: [task] },
+  ])("preserves fallback links when no card can be shown", (state) => {
+    resultQuery.mockReturnValue(state);
+    const footer = vi.fn(() => <span>fallback link</span>);
+    const html = renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+        source={{ roomId: "room", messageId: "message" }}
+        renderFooter={footer}
+      />,
+    );
+    expect(footer).toHaveBeenCalledWith([]);
+    expect(html).toContain("fallback link");
+  });
 });
 
 describe("decision cards from a shared bot", () => {
@@ -579,5 +596,25 @@ describe("bot card links for a shared bot", () => {
       </SokoBotTargetContext.Provider>,
     );
     expect(html).toContain('href="/soko-bots/bot-1"');
+  });
+});
+
+describe("hasPendingStudioJob", () => {
+  const studio = (status: string | null): ChatResultAvailable => ({
+    ...task,
+    kind: "studio_job",
+    status,
+  });
+
+  it("keeps asking while an image is queued or running", () => {
+    expect(hasPendingStudioJob([studio("QUEUED")])).toBe(true);
+    expect(hasPendingStudioJob([studio("RUNNING")])).toBe(true);
+  });
+
+  it("stops once it is done or failed, and ignores other cards", () => {
+    expect(hasPendingStudioJob([studio("SUCCEEDED")])).toBe(false);
+    expect(hasPendingStudioJob([studio("FAILED")])).toBe(false);
+    expect(hasPendingStudioJob([{ ...task, status: "RUNNING" }])).toBe(false);
+    expect(hasPendingStudioJob(undefined)).toBe(false);
   });
 });

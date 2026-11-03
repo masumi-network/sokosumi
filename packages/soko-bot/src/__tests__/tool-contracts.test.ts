@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   isSokoBotDecisionTarget,
   SOKO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
@@ -138,6 +139,360 @@ describe("Soko Bot tool contracts", () => {
   });
 });
 
+describe("newsletter read tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const reads = [
+    "get_newsletter",
+    "list_newsletter_issues",
+    "get_newsletter_issue",
+    "get_newsletter_analytics",
+    "list_newsletter_subscribers",
+  ] as const;
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const valid = (capability: (typeof reads)[number]) =>
+    capability === "get_newsletter_issue"
+      ? { projectId, issueId }
+      : { projectId };
+
+  it.each(reads)(
+    "%s needs a project and takes no approval or send flag",
+    (capability) => {
+      const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+      expect(schema.safeParse(valid(capability)).success).toBe(true);
+      expect(schema.safeParse({}).success).toBe(false);
+      for (const field of ["approve", "autoApprove", "schedule", "send"])
+        expect(
+          schema.safeParse({ ...valid(capability), [field]: true }).success,
+        ).toBe(false);
+    },
+  );
+
+  it.each(reads)("%s tells the model content is untrusted", (capability) => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(/untrusted/i);
+  });
+
+  it("pages lists by default and bounds the page size", () => {
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.list_newsletter_issues.parse({ projectId }),
+    ).toEqual({ projectId, limit: 20 });
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.list_newsletter_subscribers.safeParse({
+        projectId,
+        limit: 101,
+      }).success,
+    ).toBe(false);
+    expect(
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.get_newsletter_analytics.safeParse({
+        projectId,
+        from: "2026-02-30",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("newsletter issue write tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const content = [
+    { type: "heading", level: 2, text: "News" },
+    { type: "image", url: "https://example.com/a.png", alt: "A" },
+    { type: "divider" },
+  ];
+  const create = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_newsletter_issue;
+  const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_issue;
+  const remove = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_newsletter_issue;
+  const created = { projectId, subject: "Hi", template: "IMAGES", content };
+
+  it("creates from exact blocks and never from raw HTML or http links", () => {
+    expect(create.safeParse(created).success).toBe(true);
+    expect(create.safeParse({ ...created, content: [] }).success).toBe(false);
+    expect(
+      create.safeParse({
+        ...created,
+        content: [{ type: "html", html: "<b>hi</b>" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      create.safeParse({
+        ...created,
+        content: [{ type: "button", label: "Go", url: "http://example.com" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("edits need the read revision, a change, and content with a new template", () => {
+    const ref = { projectId, issueId, revision: 2 };
+    expect(update.safeParse({ ...ref, subject: "New" }).success).toBe(true);
+    expect(update.safeParse({ ...ref, previewText: null }).success).toBe(true);
+    expect(update.safeParse(ref).success).toBe(false);
+    expect(
+      update.safeParse({ projectId, issueId, subject: "New" }).success,
+    ).toBe(false);
+    expect(update.safeParse({ ...ref, template: "TEXT" }).success).toBe(false);
+    expect(
+      update.safeParse({ ...ref, template: "TEXT", content }).success,
+    ).toBe(true);
+    expect(remove.safeParse(ref).success).toBe(true);
+    expect(remove.safeParse({ projectId, issueId }).success).toBe(false);
+  });
+
+  it.each([
+    "create_newsletter_issue",
+    "update_newsletter_issue",
+    "delete_newsletter_issue",
+  ] as const)("%s leaves approving and sending to a person", (capability) => {
+    const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+    expect(description).toMatch(/untrusted/i);
+    expect(description).toMatch(
+      /never approves, schedules or sends|Newsletter UI/i,
+    );
+  });
+
+  it("says an edit sends the issue back for approval and deletes need the owner", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.update_newsletter_issue).toMatch(
+      /returns the issue to DRAFT.*approve it again/,
+    );
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_newsletter_issue).toMatch(
+      /owner explicitly asks/,
+    );
+  });
+});
+
+describe("newsletter preview and submit tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const issueId = "44444444-4444-4444-8444-444444444444";
+  const preview = SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue;
+  const submit = SOKO_BOT_TOOL_INPUT_SCHEMAS.submit_newsletter_issue;
+  const unsaved = {
+    projectId,
+    subject: "Hi",
+    template: "TEXT",
+    content: [{ type: "text", text: "News" }],
+  };
+
+  it("previews a saved issue or unsaved content, never both", () => {
+    expect(preview.safeParse({ projectId, issueId }).success).toBe(true);
+    expect(preview.safeParse(unsaved).success).toBe(true);
+    expect(preview.safeParse({ projectId }).success).toBe(false);
+    expect(preview.safeParse({ ...unsaved, issueId }).success).toBe(false);
+    expect(
+      preview.safeParse({ projectId, subject: "Hi", template: "TEXT" }).success,
+    ).toBe(false);
+    expect(
+      preview.safeParse({
+        ...unsaved,
+        content: [{ type: "html", html: "<b>hi</b>" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("submits with the read revision and takes no approval or send flag", () => {
+    const ref = { projectId, issueId, revision: 0 };
+    expect(submit.safeParse(ref).success).toBe(true);
+    expect(submit.safeParse({ projectId, issueId }).success).toBe(false);
+    for (const field of [
+      "approve",
+      "autoApprove",
+      "skipApproval",
+      "scheduledAt",
+      "sendNow",
+    ]) {
+      expect(submit.safeParse({ ...ref, [field]: true }).success).toBe(false);
+      expect(
+        preview.safeParse({ projectId, issueId, [field]: true }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("says preview sends nothing and submit only asks a person to approve", () => {
+    const previewText = SOKO_BOT_TOOL_DESCRIPTIONS.preview_newsletter_issue;
+    expect(previewText).toMatch(/never saves, submits or sends/);
+    expect(previewText).toMatch(/untrusted/i);
+    const submitText = SOKO_BOT_TOOL_DESCRIPTIONS.submit_newsletter_issue;
+    expect(submitText).toMatch(/only asks a human to approve/);
+    expect(submitText).toMatch(/NEVER approves, schedules or sends/);
+    expect(submitText).toMatch(/Newsletter UI/);
+    expect(submitText).toMatch(/untrusted/i);
+  });
+});
+
+describe("newsletter settings tool", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const settings = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_settings;
+
+  it("changes only what it is given, and at least one thing", () => {
+    expect(
+      settings.safeParse({ projectId, brand: { primaryColor: "#1a2b3c" } })
+        .success,
+    ).toBe(true);
+    expect(
+      settings.safeParse({ projectId, brand: { logoUrl: null } }).success,
+    ).toBe(true);
+    expect(settings.safeParse({ projectId, name: "Weekly" }).success).toBe(
+      true,
+    );
+    expect(settings.safeParse({ projectId }).success).toBe(false);
+    expect(settings.safeParse({ projectId, brand: {} }).success).toBe(false);
+  });
+
+  it.each([
+    { brand: { primaryColor: "blue" } },
+    { brand: { accentColor: "#12345" } },
+    { brand: { logoUrl: "http://example.com/logo.png" } },
+    { brand: { logoUrl: "javascript:alert(1)" } },
+    { brand: { css: "body{}" } },
+    { replyTo: "not-an-email" },
+    { name: "" },
+  ])("rejects %j", (change) => {
+    expect(settings.safeParse({ projectId, ...change }).success).toBe(false);
+  });
+
+  it("takes no approval or send flag", () => {
+    for (const field of ["approve", "autoApprove", "skipApproval", "sendNow"])
+      expect(
+        settings.safeParse({ projectId, name: "Weekly", [field]: true })
+          .success,
+      ).toBe(false);
+  });
+
+  it("says sender, reply-to and welcome email need the owner's word", () => {
+    const description = SOKO_BOT_TOOL_DESCRIPTIONS.update_newsletter_settings;
+    expect(description).toMatch(/owner explicitly asks/);
+    expect(description).toMatch(/senderName, replyTo and the welcome email/);
+    expect(description).toMatch(/untrusted/i);
+    expect(description).toMatch(/never approves, schedules or sends/);
+  });
+});
+
+describe("newsletter subscriber tools", () => {
+  const projectId = "11111111-1111-4111-8111-111111111111";
+  const subscriberId = "44444444-4444-4444-8444-444444444444";
+  const contactId = "55555555-5555-4555-8555-555555555555";
+  const add = SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscriber;
+  const csv = SOKO_BOT_TOOL_INPUT_SCHEMAS.import_newsletter_subscribers;
+  const contacts =
+    SOKO_BOT_TOOL_INPUT_SCHEMAS.add_newsletter_subscribers_from_contacts;
+  const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_newsletter_subscriber;
+  const remove = SOKO_BOT_TOOL_INPUT_SCHEMAS.remove_newsletter_subscriber;
+  const writes = [
+    "add_newsletter_subscriber",
+    "import_newsletter_subscribers",
+    "add_newsletter_subscribers_from_contacts",
+    "update_newsletter_subscriber",
+    "remove_newsletter_subscriber",
+  ] as const;
+
+  it("needs a consent choice for every addition", () => {
+    const person = { projectId, email: "ada@example.com" };
+    expect(add.safeParse(person).success).toBe(false);
+    expect(add.safeParse({ ...person, consent: "ASK" }).success).toBe(true);
+    expect(add.safeParse({ ...person, consent: "CONFIRMED" }).success).toBe(
+      true,
+    );
+    expect(add.safeParse({ ...person, consent: "YES" }).success).toBe(false);
+    expect(csv.safeParse({ projectId, fileId: "file-1" }).success).toBe(false);
+    expect(
+      csv.safeParse({ projectId, fileId: "file-1", consent: "ASK" }).success,
+    ).toBe(true);
+    expect(
+      contacts.safeParse({ projectId, contactIds: [contactId] }).success,
+    ).toBe(false);
+  });
+
+  it("adds from contacts or lists, at most the batch cap of ids", () => {
+    expect(SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX).toBe(100);
+    expect(
+      contacts.safeParse({
+        projectId,
+        contactListIds: [contactId],
+        consent: "ASK",
+      }).success,
+    ).toBe(true);
+    expect(contacts.safeParse({ projectId, consent: "ASK" }).success).toBe(
+      false,
+    );
+    expect(
+      contacts.safeParse({
+        projectId,
+        contactIds: Array.from({ length: 101 }, () => contactId),
+        consent: "ASK",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("renames or changes status as the Subscribers page allows", () => {
+    const ref = { projectId, subscriberId };
+    expect(update.safeParse({ ...ref, name: "Ada" }).success).toBe(true);
+    expect(update.safeParse({ ...ref, status: "UNSUBSCRIBED" }).success).toBe(
+      true,
+    );
+    expect(update.safeParse({ ...ref, status: "BOUNCED" }).success).toBe(false);
+    expect(update.safeParse(ref).success).toBe(false);
+    expect(remove.safeParse(ref).success).toBe(true);
+  });
+
+  it.each(writes)("%s takes no approval, send or skip flag", (capability) => {
+    const valid = {
+      add_newsletter_subscriber: {
+        projectId,
+        email: "ada@example.com",
+        consent: "ASK",
+      },
+      import_newsletter_subscribers: {
+        projectId,
+        fileId: "file-1",
+        consent: "ASK",
+      },
+      add_newsletter_subscribers_from_contacts: {
+        projectId,
+        contactIds: [contactId],
+        consent: "ASK",
+      },
+      update_newsletter_subscriber: { projectId, subscriberId, name: "Ada" },
+      remove_newsletter_subscriber: { projectId, subscriberId },
+    }[capability];
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+    expect(schema.safeParse(valid).success).toBe(true);
+    for (const field of [
+      "approve",
+      "autoApprove",
+      "skipApproval",
+      "skipConfirmation",
+      "sendNow",
+    ])
+      expect(schema.safeParse({ ...valid, [field]: true }).success).toBe(false);
+  });
+
+  it.each(writes)(
+    "%s says it needs the owner and treats data as untrusted",
+    (capability) => {
+      const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+      expect(description).toMatch(/owner (explicitly )?asks in their chat/);
+      expect(description).toMatch(/untrusted/i);
+    },
+  );
+
+  it("says only the owner can vouch for consent, and where bigger batches go", () => {
+    for (const capability of [
+      "add_newsletter_subscriber",
+      "import_newsletter_subscribers",
+      "add_newsletter_subscribers_from_contacts",
+    ] as const) {
+      const description = SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+      expect(description).toMatch(/ASK emails/);
+      expect(description).toMatch(/own chat message this turn/);
+      expect(description).toMatch(/never approves, schedules or sends/i);
+    }
+    for (const capability of [
+      "import_newsletter_subscribers",
+      "add_newsletter_subscribers_from_contacts",
+    ] as const)
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(
+        /At most 100 people per call.*Subscribers page/,
+      );
+  });
+});
+
 describe("evaluate_with_jev input", () => {
   const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.evaluate_with_jev;
   const triage = {
@@ -198,5 +553,254 @@ describe("evaluate_with_jev input", () => {
     const jsonSchema = z.toJSONSchema(schema);
     expect(jsonSchema.type).toBe("object");
     expect(jsonSchema.required).toEqual(["state", "questions"]);
+  });
+});
+
+describe("Ads read tool contracts", () => {
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const accountId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const inputs = {
+    list_ad_accounts: { projectId },
+    list_ad_campaigns: { projectId, accountId },
+    find_ad_targeting: { projectId, accountId },
+    get_market_keywords: { projectId },
+    get_ad_campaign: { projectId, accountId, campaignId: "23850000000000000" },
+  } as const;
+
+  it.each(Object.keys(inputs) as (keyof typeof inputs)[])(
+    "%s takes strict ids and says the bot never connects ad accounts itself",
+    (capability) => {
+      const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability];
+      expect(schema.safeParse(inputs[capability]).success).toBe(true);
+      expect(
+        schema.safeParse({ ...inputs[capability], projectId: "nope" }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({ ...inputs[capability], workspaceId: "x" }).success,
+      ).toBe(false);
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toMatch(/never connect/i);
+    },
+  );
+
+  it("defaults the campaign range and rejects unknown ranges", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns;
+    expect(schema.parse(inputs.list_ad_campaigns).range).toBe("LAST_30_DAYS");
+    expect(
+      schema.safeParse({ ...inputs.list_ad_campaigns, range: "LAST_YEAR" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("points campaign creation at the Market keywords", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toContain(
+      "get_market_keywords",
+    );
+  });
+
+  it("searches locations only for a non-empty query", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_ad_targeting;
+    expect(
+      schema.safeParse({ ...inputs.find_ad_targeting, locationQuery: "Berlin" })
+        .success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ ...inputs.find_ad_targeting, locationQuery: "" })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("create_ad_campaign contract", () => {
+  const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.create_ad_campaign;
+  const base = {
+    projectId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    accountId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    name: "Spring",
+    dailyBudget: 25,
+  };
+  const common = {
+    locationIds: ["1003854"],
+    languageIds: ["1001"],
+    finalUrl: "https://example.com",
+  };
+  const search = {
+    type: "SEARCH",
+    ...common,
+    keywords: [{ text: "running shoes", matchType: "EXACT" }],
+    headlines: ["One", "Two", "Three"],
+    descriptions: ["First line.", "Second line."],
+  };
+  const display = {
+    type: "DISPLAY",
+    ...common,
+    businessName: "Sokosumi",
+    headlines: ["One"],
+    longHeadline: "A longer headline",
+    descriptions: ["First line."],
+    images: [
+      { fileId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", role: "LANDSCAPE" },
+      { fileId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", role: "SQUARE" },
+    ],
+  };
+
+  it.each([search, display])("takes a valid $type campaign", (google) => {
+    expect(schema.safeParse({ ...base, google }).success).toBe(true);
+  });
+
+  it("refuses unknown keys, bad ids and a Display image that is not a file id", () => {
+    for (const bad of [
+      { ...base, google: search, workspaceId: "x" },
+      { ...base, google: { ...search, status: "ENABLED" } },
+      { ...base, google: { ...search, locationIds: ["Berlin"] } },
+      { ...base, google: { ...search, headlines: ["One", "Two"] } },
+      { ...base, google: { ...display, images: [{ role: "SQUARE" }] } },
+      {
+        ...base,
+        google: { ...display, images: [{ fileId: "x", role: "SQUARE" }] },
+      },
+      { ...base, dailyBudget: 0, google: search },
+    ])
+      expect(schema.safeParse(bad).success).toBe(false);
+  });
+
+  it("says the campaign is paused and the bot never connects accounts", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toMatch(/paused/i);
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.create_ad_campaign).toMatch(
+      /never connect/i,
+    );
+  });
+});
+
+describe("ad campaign management contracts", () => {
+  const base = {
+    projectId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    accountId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    campaignId: "23850000000000000",
+  };
+
+  it("defaults the details range and takes a digit campaign id only", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign;
+    expect(schema.parse(base).range).toBe("LAST_30_DAYS");
+    expect(schema.safeParse({ ...base, range: "LAST_YEAR" }).success).toBe(
+      false,
+    );
+    expect(schema.safeParse({ ...base, campaignId: "brand" }).success).toBe(
+      false,
+    );
+  });
+
+  describe("update_ad_campaign", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_ad_campaign;
+
+    // Google writes a budget and a status separately, so one change per call
+    // keeps a refused call honestly unsent.
+    it("takes a status or a budget, one per call, and nothing else", () => {
+      for (const change of [
+        { status: "PAUSED" },
+        { status: "ACTIVE" },
+        { dailyBudget: 12.5 },
+      ])
+        expect(schema.safeParse({ ...base, ...change }).success).toBe(true);
+      for (const bad of [
+        base,
+        { ...base, status: "PAUSED", dailyBudget: 12.5 },
+        { ...base, status: "REMOVED" },
+        { ...base, dailyBudget: 0 },
+        { ...base, status: "PAUSED", workspaceId: "x" },
+      ])
+        expect(schema.safeParse(bad).success).toBe(false);
+    });
+
+    it("lets the bot resume only when the owner asks", () => {
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.update_ad_campaign).toMatch(
+        /only resume when the owner asks/i,
+      );
+    });
+  });
+
+  describe("delete_ad_campaign", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.delete_ad_campaign;
+
+    it("takes the project, account and a digit campaign id, and nothing else", () => {
+      expect(schema.safeParse(base).success).toBe(true);
+      for (const bad of [
+        { ...base, campaignId: "brand" },
+        { projectId: base.projectId, accountId: base.accountId },
+        { ...base, status: "REMOVED" },
+        { ...base, workspaceId: "x" },
+      ])
+        expect(schema.safeParse(bad).success).toBe(false);
+    });
+
+    it("tells the bot it cannot be undone and to prefer pausing", () => {
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_ad_campaign).toMatch(
+        /cannot be undone/i,
+      );
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.delete_ad_campaign).toContain(
+        "update_ad_campaign",
+      );
+    });
+  });
+
+  describe("edit_ad_campaign", () => {
+    const schema = SOKO_BOT_TOOL_INPUT_SCHEMAS.edit_ad_campaign;
+    const common = {
+      locationIds: ["1003854"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com",
+    };
+    const display = {
+      type: "DISPLAY",
+      ...common,
+      businessName: "Sokosumi",
+      headlines: ["One"],
+      longHeadline: "A longer headline",
+      descriptions: ["First line."],
+      images: [
+        { assetId: "123456", role: "LANDSCAPE" },
+        { fileId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", role: "SQUARE" },
+      ],
+    };
+    const edit = { ...base, name: "Spring", dailyBudget: 25 };
+
+    it("keeps images by assetId and adds new ones by fileId", () => {
+      expect(schema.safeParse({ ...edit, google: display }).success).toBe(true);
+    });
+
+    it("refuses an image with both or neither id, and a Search spec with unknown keys", () => {
+      for (const image of [
+        { assetId: "123456", fileId: display.images[1].fileId, role: "SQUARE" },
+        { assetId: "not-digits", role: "SQUARE" },
+        { role: "SQUARE" },
+      ])
+        expect(
+          schema.safeParse({
+            ...edit,
+            google: { ...display, images: [image] },
+          }).success,
+        ).toBe(false);
+      expect(
+        schema.safeParse({
+          ...edit,
+          google: {
+            type: "SEARCH",
+            ...common,
+            keywords: [{ text: "shoes", matchType: "EXACT" }],
+            headlines: ["One", "Two", "Three"],
+            descriptions: ["First line.", "Second line."],
+            status: "ENABLED",
+          },
+        }).success,
+      ).toBe(false);
+    });
+
+    it("tells the bot to read the campaign first and leave the status alone", () => {
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.edit_ad_campaign).toContain(
+        "get_ad_campaign",
+      );
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.edit_ad_campaign).toContain(
+        "update_ad_campaign",
+      );
+    });
   });
 });

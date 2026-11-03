@@ -431,9 +431,3 @@ export async function decideSuggestion(input: {
     });
   return response.data.data;
 }
-
-export interface BatchOutcome {
-  resourceId: string;
-  status: "applied" | "conflict" | "forbidden" | "not-found";
-  metadataRevision: number | null;
-}

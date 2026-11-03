@@ -7,14 +7,13 @@ public enum DirectRecipient: Hashable, Sendable {
   case coworker(String)
   case sokoBot(String)
 
-  public func canOpen(from room: Components.Schemas.ChatRoom, currentUserId: String, hasActiveOrganization: Bool) -> Bool {
+  /// Offered from any workspace; Core decides whether the person is reachable.
+  public func canOpen(from room: Components.Schemas.ChatRoom, currentUserId: String) -> Bool {
     switch self {
     case let .human(id):
-      let eligible = (room.kind == .channel && room.discoverability == .external)
-        || (hasActiveOrganization && room.myAccess.value1 != .guest)
-      return id != currentUserId && eligible && room.userMembers.contains { $0.id == id }
-    case let .coworker(id): return room.coworkerMembers.contains { $0.id == id }
-    case let .sokoBot(id): return room.sokoBotMembers.contains { $0.id == id }
+      id != currentUserId && room.userMembers.contains { $0.id == id }
+    case let .coworker(id): room.coworkerMembers.contains { $0.id == id }
+    case let .sokoBot(id): room.sokoBotMembers.contains { $0.id == id }
     }
   }
 
@@ -37,9 +36,6 @@ public extension ChatService {
     }
     var body = first.requestBody
     if case .human = first {
-      guard selection.recipients.count == 1 || organizationSlug != nil else {
-        throw ChatServiceError.unexpectedResponse("Select an organization to start a group Direct.")
-      }
       body.memberUserIds = selection.recipients.compactMap {
         if case let .human(id) = $0 {
           return id

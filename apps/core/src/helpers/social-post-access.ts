@@ -2,7 +2,6 @@ import type { Prisma } from "@sokosumi/database";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden } from "@/helpers/error";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
@@ -44,7 +43,7 @@ export async function requireSocialPostPublishingAccess(
   if (!isActiveUser(user)) {
     throw forbidden("Social post scheduler is no longer active");
   }
-  await requireSocialBetaAccess(actor.userId, prisma);
+
   const workspace = await prisma.workspace.findFirst({
     where: {
       id: workspaceId,

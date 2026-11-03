@@ -4,6 +4,7 @@ interface SocialBetaMembership {
   organization: { slug: string };
 }
 
+/** Ads-only beta check; Social scheduling is public. Name retained for compatibility. */
 export function hasSocialBetaAccess(
   memberships: readonly SocialBetaMembership[],
 ): boolean {

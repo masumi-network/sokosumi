@@ -78,38 +78,68 @@ export const chatRoomCoworkerSelect = {
 type ChatRoomPresence = "online" | "afk" | "offline";
 
 /**
- * The active rooms one sidebar shows, as a `ChatRoom` filter: the active
- * organization's rooms, or with no active organization the Personal ones,
- * plus what shows in every sidebar (guest rooms, matched channels, Personal
- * human Directs). The caller adds the membership check. One definition, so
- * the list and whatever writes to "the rooms in this sidebar" cannot drift.
+ * The active rooms one sidebar shows, as a `ChatRoom` filter (ADR-0059): the
+ * active organization's rooms, or with no active organization the Personal
+ * ones, plus what shows in every sidebar (External channels, hosted or as a
+ * Guest; matched channels; Personal Directs with no coworker or Soko Bot).
+ * The caller adds the membership check. One definition, so the list and
+ * whatever writes to "the rooms in this sidebar" cannot drift.
  */
 export function membershipVisibleActiveRoomWhere(
-  userId: string,
   organizationId: string | null | undefined,
 ) {
-  const guestRoom = {
-    userMembers: { some: { userId, access: "guest" as const } },
+  return {
+    archivedAt: null,
+    OR: [
+      organizationId
+        ? { organizationId }
+        : { organizationId: null, kind: "direct" as const },
+      ...ROOMS_SHOWN_EVERYWHERE,
+    ],
   };
-  const matched = {
+}
+
+const ROOMS_SHOWN_EVERYWHERE = [
+  { kind: "channel" as const, discoverability: "external" as const },
+  {
     organizationId: null,
     kind: "channel" as const,
     discoverability: "matched" as const,
-  };
+  },
+  {
+    organizationId: null,
+    kind: "direct" as const,
+    coworkerMembers: { none: {} },
+    sokoBotMembers: { none: {} },
+  },
+];
+
+/**
+ * The live rooms another workspace shows and this one's sidebar does not: the
+ * complement of `membershipVisibleActiveRoomWhere` (ADR-0061). The caller adds
+ * the membership check.
+ *
+ * Not a `NOT` over that filter's `OR`: `organizationId` is nullable, and SQL's
+ * `NOT (NULL = 'org')` is not true, so it would drop every personal room.
+ */
+export function elsewhereActiveRoomWhere(
+  organizationId: string | null | undefined,
+) {
   return {
     archivedAt: null,
-    OR: organizationId
-      ? [
-          { organizationId },
-          guestRoom,
-          {
-            organizationId: null,
-            kind: "direct" as const,
-            coworkerMembers: { none: {} },
-          },
-          matched,
-        ]
-      : [{ organizationId: null, kind: "direct" as const }, guestRoom, matched],
+    AND: [
+      organizationId
+        ? { OR: [{ organizationId: null }, { NOT: { organizationId } }] }
+        : { NOT: { organizationId: null, kind: "direct" as const } },
+      // The same trap: a channel's `discoverability` is nullable, and a NULL one
+      // would answer the `NOT` below with NULL and lose the room.
+      {
+        OR: [
+          { kind: "channel" as const, discoverability: null },
+          { NOT: { OR: ROOMS_SHOWN_EVERYWHERE } },
+        ],
+      },
+    ],
   };
 }
 
@@ -191,11 +221,6 @@ export const chatRoomMessageInclude = {
     orderBy: { createdAt: "desc" },
     take: THREAD_REPLIER_SCAN,
   },
-  _count: {
-    select: {
-      replies: { where: { deletedAt: null } },
-    },
-  },
   // One row per message: Jev's tags, corrections oldest first.
   signal: {
     select: {
@@ -219,7 +244,45 @@ export type ChatRoomWithMembers = Prisma.ChatRoomGetPayload<{
 
 type ChatRoomMessageWithSender = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
-}>;
+}> & { threadReplyCount: number };
+
+/**
+ * Attach each message's live reply count. Not a `_count` in the include:
+ * Prisma compiles that to a `GROUP BY` over every room's messages, joined to
+ * the page. One grouped read over these ids uses the parent index instead.
+ * Soft-deleted replies stay in the DB as tombstones and are not counted, the
+ * same rule as getChatRoomThreadAggregates.
+ */
+export async function withChatRoomReplyCounts<T extends { id: string }>(
+  tx: Prisma.TransactionClient | typeof prisma,
+  messages: readonly T[],
+): Promise<Array<T & { threadReplyCount: number }>> {
+  if (messages.length === 0) return [];
+  const groups = await tx.chatRoomMessage.groupBy({
+    by: ["parentMessageId"],
+    where: {
+      parentMessageId: { in: messages.map((message) => message.id) },
+      deletedAt: null,
+    },
+    _count: { _all: true },
+  });
+  const counts = new Map(
+    groups.map((group) => [group.parentMessageId, group._count._all]),
+  );
+  return messages.map((message) => ({
+    ...message,
+    threadReplyCount: counts.get(message.id) ?? 0,
+  }));
+}
+
+/** {@link withChatRoomReplyCounts} for one message. */
+export async function withChatRoomReplyCount<T extends { id: string }>(
+  tx: Prisma.TransactionClient | typeof prisma,
+  message: T,
+): Promise<T & { threadReplyCount: number }> {
+  const [counted] = await withChatRoomReplyCounts(tx, [message]);
+  return counted;
+}
 
 /**
  * REST placeholder for human presence (ADR-0003).
@@ -256,6 +319,10 @@ export interface MapChatRoomAttentionOptions {
   myAccess?: "member" | "guest";
   /** Host org display name when batch-loaded (Task 5+); null for directs. */
   organizationName?: string | null;
+  /** Host org logo when batch-loaded for the sidebar's Workspace tile. */
+  organizationLogo?: string | null;
+  /** Host org website when batch-loaded for the sidebar's Workspace tile. */
+  organizationWebsiteUrl?: string | null;
   /** Other humans on this Direct are Members of the caller's active org. */
   peerInActiveOrganization?: boolean;
   /** Profiles of this Direct's former members, from `loadFormerDirectUserMembers`. */
@@ -304,6 +371,8 @@ export function mapChatRoom(
     markedUnread = false,
     myAccess: myAccessOverride,
     organizationName = null,
+    organizationLogo,
+    organizationWebsiteUrl,
     peerInActiveOrganization = false,
     formerUserMembers = [],
   } = attention;
@@ -321,6 +390,8 @@ export function mapChatRoom(
     id: room.id,
     organizationId: room.organizationId,
     organizationName,
+    organizationLogo,
+    organizationWebsiteUrl,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
@@ -765,7 +836,7 @@ export function mapChatRoomMessage(
           reactors: reaction.reactors,
         })),
     signal: isDeleted ? null : toChatMessageSignalDto(message.signal ?? null),
-    threadReplyCount: message._count.replies,
+    threadReplyCount: message.threadReplyCount,
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     threadRepliers: mapThreadRepliers(message.replies, currentUserId),
@@ -836,16 +907,9 @@ export function mergeChatRoomMessageMetadata(
   return Object.keys(base).length > 0 ? base : null;
 }
 
-function readQuoteAttachmentFromMetadata(
-  candidate: Record<string, unknown>,
-): ChatRoomMessageQuote["attachment"] {
-  if (!("attachment" in candidate)) {
-    return undefined;
-  }
-  const raw = candidate.attachment;
-  if (raw === null) {
-    return null;
-  }
+function parseQuoteAttachment(
+  raw: unknown,
+): NonNullable<ChatRoomMessageQuote["attachment"]> | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return undefined;
   }
@@ -862,6 +926,30 @@ function readQuoteAttachmentFromMetadata(
     url: attachment.url,
     mediaKind: attachment.mediaKind,
   };
+}
+
+function readQuoteAttachmentFromMetadata(
+  candidate: Record<string, unknown>,
+): ChatRoomMessageQuote["attachment"] {
+  if (!("attachment" in candidate)) {
+    return undefined;
+  }
+  return candidate.attachment === null
+    ? null
+    : parseQuoteAttachment(candidate.attachment);
+}
+
+function readQuoteAttachmentsFromMetadata(
+  candidate: Record<string, unknown>,
+  attachment: ChatRoomMessageQuote["attachment"],
+): ChatRoomMessageQuote["attachments"] {
+  if (Array.isArray(candidate.attachments)) {
+    return candidate.attachments.flatMap(
+      (raw) => parseQuoteAttachment(raw) ?? [],
+    );
+  }
+  // A snapshot stored before `attachments` holds at most this one.
+  return attachment ? [attachment] : undefined;
 }
 
 /** Soft-parses `metadata.quote` from a stored message's metadata JSON. */
@@ -884,11 +972,13 @@ export function readQuoteFromMetadata(
     return null;
   }
   const attachment = readQuoteAttachmentFromMetadata(candidate);
+  const attachments = readQuoteAttachmentsFromMetadata(candidate, attachment);
   return {
     messageId: candidate.messageId,
     authorName: candidate.authorName,
     snippet: candidate.snippet,
     ...(attachment !== undefined ? { attachment } : {}),
+    ...(attachments !== undefined ? { attachments } : {}),
     ...(typeof candidate.roomId === "string"
       ? { roomId: candidate.roomId }
       : {}),
@@ -919,7 +1009,9 @@ export function buildRoomQuoteSnapshot(
 ): ChatRoomMessageQuote {
   assertChatRoomContentMessage(quoted.metadata);
 
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+  const { snippet, attachment, attachments } = buildRoomQuoteSnippetParts(
+    quoted.content,
+  );
 
   return {
     messageId: quoted.id,
@@ -931,6 +1023,7 @@ export function buildRoomQuoteSnapshot(
         : "Someone"),
     snippet,
     attachment,
+    attachments,
   };
 }
 
@@ -1752,53 +1845,50 @@ export async function validateOrganizationUserIds(
   return uniqueUserIds;
 }
 
-export async function usersShareExternalChannel(
-  userIdA: string,
-  userIdB: string,
+/**
+ * People `userId` may start a Personal Direct with: anyone sharing one of
+ * their Organizations or a live External channel, whatever workspace is
+ * active (ADR-0059). Not restricted to other people; callers exclude `userId`.
+ */
+export function directReachableUserWhere(
+  userId: string,
+): Prisma.UserWhereInput {
+  return {
+    OR: [
+      {
+        members: {
+          some: { organization: { members: { some: { userId } } } },
+        },
+      },
+      {
+        chatRoomMemberships: {
+          some: {
+            room: {
+              kind: "channel",
+              discoverability: "external",
+              archivedAt: null,
+              userMembers: { some: { userId } },
+            },
+          },
+        },
+      },
+    ],
+  };
+}
+
+async function filterDirectReachableUserIds(
+  userId: string,
+  targetUserIds: readonly string[],
   tx: Prisma.TransactionClient,
-): Promise<boolean> {
-  const room = await tx.chatRoom.findFirst({
+): Promise<string[]> {
+  const users = await tx.user.findMany({
     where: {
-      kind: "channel",
-      discoverability: "external",
-      archivedAt: null,
-      AND: [
-        { userMembers: { some: { userId: userIdA } } },
-        { userMembers: { some: { userId: userIdB } } },
-      ],
+      id: { in: [...targetUserIds] },
+      ...directReachableUserWhere(userId),
     },
     select: { id: true },
   });
-  return room != null;
-}
-
-export async function findLiveDirectByParticipantKey(
-  tx: Prisma.TransactionClient | typeof prisma,
-  directKey: string,
-  organizationId: string | null,
-) {
-  const personal = await tx.chatRoom.findFirst({
-    where: {
-      organizationId: null,
-      directKey,
-      archivedAt: null,
-    },
-    include: chatRoomInclude,
-  });
-  if (personal) {
-    return personal;
-  }
-  if (!organizationId) {
-    return null;
-  }
-  return tx.chatRoom.findFirst({
-    where: {
-      organizationId,
-      directKey,
-      archivedAt: null,
-    },
-    include: chatRoomInclude,
-  });
+  return users.map((user) => user.id);
 }
 
 /**
@@ -2198,6 +2288,53 @@ async function ensureDirectSokoBotMembership(
   return restored ?? room;
 }
 
+/**
+ * Opening a Direct puts its Former members back so it is writable again: the
+ * requester always (a started Direct stays theirs), anyone else only if the
+ * requester could start a new Direct with them. Read up to now on return.
+ */
+async function restoreFormerDirectMembers(
+  tx: Prisma.TransactionClient,
+  room: NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>,
+  currentUserId: string,
+): Promise<NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>> {
+  const formerUserIds = formerDirectUserIds(room);
+  const otherFormerUserIds = formerUserIds.filter(
+    (userId) => userId !== currentUserId,
+  );
+  const restoredUserIds = [
+    ...(formerUserIds.includes(currentUserId) ? [currentUserId] : []),
+    ...(otherFormerUserIds.length > 0
+      ? await filterDirectReachableUserIds(
+          currentUserId,
+          otherFormerUserIds,
+          tx,
+        )
+      : []),
+  ];
+  if (restoredUserIds.length === 0) {
+    return room;
+  }
+
+  await tx.chatRoomUserMember.createMany({
+    data: restoredUserIds.map((userId) => ({ roomId: room.id, userId })),
+    skipDuplicates: true,
+  });
+  const readAt = new Date();
+  for (const userId of restoredUserIds) {
+    await tx.chatRoomReadState.upsert({
+      where: { roomId_userId: { roomId: room.id, userId } },
+      update: { lastReadAt: readAt, markedUnreadAt: null },
+      create: { roomId: room.id, userId, lastReadAt: readAt },
+    });
+  }
+  const restored = await tx.chatRoom.findFirst({
+    where: { id: room.id },
+    include: chatRoomInclude,
+  });
+  return restored ?? room;
+}
+
 async function serializeDirectRoomForViewer(
   room: Parameters<typeof mapChatRoom>[0],
   viewerUserId: string | null,
@@ -2294,9 +2431,8 @@ function parseDirectCreateShape(params: {
  * room instead of racing into duplicates.
  *
  * Coworker 1:1 inherits the active organization when set, else personal.
- * Human 1:1 reuses a Personal Direct if one exists, else an Org Direct when
- * both are Members of the active org, else creates a Personal Direct when
- * they share an External channel. Multi-human groups stay org-scoped.
+ * Every human Direct (1:1 or group) is a Personal Direct, reused by its
+ * participant key whichever workspace is active (ADR-0059).
  */
 /**
  * Self Direct has only the current user and is always personal.
@@ -2396,23 +2532,16 @@ export async function createOrGetDirectRoom(params: {
         });
       }
 
-      if (activeOrganizationId) {
-        if (shape.kind === "human-direct") {
-          await resolveMemberOrganizationById({
-            id: activeOrganizationId,
-            userId: currentUserId,
-            tx,
-          });
-        } else {
-          // Coworker 1:1 owner is the human on the room (user actor or
-          // originated target). A missing owner is a bad target, not
-          // "you are not a member".
-          await validateOrganizationUserIds(
-            activeOrganizationId,
-            [currentUserId],
-            tx,
-          );
-        }
+      // Human Directs belong to no workspace, so only AI 1:1s check it.
+      if (activeOrganizationId && shape.kind !== "human-direct") {
+        // Coworker 1:1 owner is the human on the room (user actor or
+        // originated target). A missing owner is a bad target, not
+        // "you are not a member".
+        await validateOrganizationUserIds(
+          activeOrganizationId,
+          [currentUserId],
+          tx,
+        );
       }
 
       if (shape.kind === "coworker-1to1") {
@@ -2500,25 +2629,6 @@ export async function createOrGetDirectRoom(params: {
         });
       }
 
-      const isGroup = requestedMemberUserIds.length > 1;
-      const orgTeammateIds = activeOrganizationId
-        ? await filterOrganizationUserIds(
-            activeOrganizationId,
-            requestedMemberUserIds,
-            tx,
-          )
-        : [];
-      const targetsAreOrgTeammates =
-        activeOrganizationId != null &&
-        orgTeammateIds.length === requestedMemberUserIds.length;
-
-      if (isGroup && !activeOrganizationId) {
-        throw badRequest("Switch to an organization to message a teammate.");
-      }
-      if (isGroup && !targetsAreOrgTeammates) {
-        throw badRequest("Room human members must belong to the organization");
-      }
-
       const memberUserIds = requestedMemberUserIds;
       const directKey = buildDirectParticipantRoomKey({
         currentUserId,
@@ -2526,42 +2636,35 @@ export async function createOrGetDirectRoom(params: {
         coworkerIds: [],
       });
       directKeyRef.current = directKey;
+      // Human Directs are Personal Directs: never tied to an Organization (ADR-0059).
+      createOrganizationIdRef.current = null;
 
-      const existing = await findLiveDirectByParticipantKey(
-        tx,
+      const existing = await findOrRestoreDirectByKey(tx, {
+        organizationId: null,
         directKey,
-        targetsAreOrgTeammates ? activeOrganizationId : null,
-      );
+      });
       if (existing) {
-        return { room: existing, created: false };
+        return {
+          room: await restoreFormerDirectMembers(tx, existing, currentUserId),
+          created: false,
+        };
       }
 
-      if (!targetsAreOrgTeammates) {
-        const peerUserId = memberUserIds[0];
-        if (!peerUserId) {
-          throw badRequest("Choose a direct message target");
-        }
-        const shareChannel = await usersShareExternalChannel(
-          currentUserId,
-          peerUserId,
-          tx,
+      const reachableUserIds = await filterDirectReachableUserIds(
+        currentUserId,
+        memberUserIds,
+        tx,
+      );
+      if (reachableUserIds.length !== memberUserIds.length) {
+        throw badRequest(
+          "You can only message people you share an organization or external channel with.",
         );
-        if (!shareChannel) {
-          throw badRequest(
-            "You can only message people you share an external channel with.",
-          );
-        }
       }
-
-      const organizationId = targetsAreOrgTeammates
-        ? activeOrganizationId
-        : null;
-      createOrganizationIdRef.current = organizationId;
 
       return createDirectRoomRecord({
         tx,
         currentUserId,
-        organizationId,
+        organizationId: null,
         directKey,
         memberUserIds,
         coworkerIds: [],
@@ -2584,17 +2687,10 @@ export async function createOrGetDirectRoom(params: {
     if (params.transaction) throw error;
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
-      const existing =
-        shape.kind !== "human-direct"
-          ? await findOrRestoreDirectByKey(prisma, {
-              organizationId: createOrganizationIdRef.current,
-              directKey: directKeyRef.current,
-            })
-          : await findLiveDirectByParticipantKey(
-              prisma,
-              directKeyRef.current,
-              createOrganizationIdRef.current,
-            );
+      const existing = await findOrRestoreDirectByKey(prisma, {
+        organizationId: createOrganizationIdRef.current,
+        directKey: directKeyRef.current,
+      });
 
       if (existing) {
         const room =

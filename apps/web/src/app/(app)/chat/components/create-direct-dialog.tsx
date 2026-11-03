@@ -10,7 +10,6 @@ import {
   ensureSokoBotDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
@@ -23,16 +22,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { getInitials } from "@/lib/utils/text";
-import {
-  CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-  useChatComposeRoster,
-} from "./chat-compose-dialog";
+import { SIDEBAR_ICON_ACTION_CLASS } from "@/components/ui/sidebar-classes";
+import { useChatComposeRoster } from "./chat-compose-dialog";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
   type DirectDraftTarget,
   DirectDraftTargetList,
+  DraftTargetFace,
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
@@ -64,7 +61,7 @@ export function CreateDirectDialog() {
           ]
         : []),
       ...buildDirectDraftTargets(
-        roster.members,
+        roster.people,
         roster.coworkers,
         roster.sokoBots,
         roster.currentUserId,
@@ -126,13 +123,6 @@ export function CreateDirectDialog() {
       return true;
     }
     if (hasSelectedSokoBot && target.kind === "coworker") {
-      return true;
-    }
-    if (
-      target.kind === "human" &&
-      hasSelectedHumans &&
-      !roster.hasOrganization
-    ) {
       return true;
     }
     return false;
@@ -213,18 +203,13 @@ export function CreateDirectDialog() {
     });
   }
 
-  const extraHumanDisabledReason =
-    hasSelectedHumans && !hasSelectedSelf && !roster.hasOrganization
-      ? t("Draft.organizationRequiredForGroup")
-      : crossKindDisabledReason;
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <button
           type="button"
           aria-label={t("Draft.title")}
-          className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+          className={SIDEBAR_ICON_ACTION_CLASS}
         >
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>
@@ -236,7 +221,7 @@ export function CreateDirectDialog() {
         </DialogHeader>
         <div
           data-testid="direct-recipient-composer"
-          className="app-scrollbar border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          className="app-scrollbar border-input focus-within:border-ring flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5"
           onClick={() => searchInputRef.current?.focus()}
         >
           <Search
@@ -248,12 +233,7 @@ export function CreateDirectDialog() {
               key={target.key}
               className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full ps-1.5 text-sm"
             >
-              <Avatar className="size-5">
-                <AvatarImage src={target.image ?? undefined} alt="" />
-                <AvatarFallback className="text-2xs">
-                  {getInitials(target.name)}
-                </AvatarFallback>
-              </Avatar>
+              <DraftTargetFace target={target} className="size-5" />
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{target.name}</span>
                 {target.kind === "coworker" || target.kind === "sokoBot" ? (
@@ -268,7 +248,7 @@ export function CreateDirectDialog() {
                 ) : null}
               </span>
               <ChipRemoveButton
-                className="hover:bg-surface-glass"
+                className="hover:bg-popover"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);
@@ -326,10 +306,12 @@ export function CreateDirectDialog() {
               </div>
             ) : (
               <>
-                {roster.membersLoadFailed ? (
+                {roster.peopleLoadFailed ? (
                   <MembersRosterLoadFailed
                     className="mx-1 mt-1 px-3 py-4"
                     onRetry={loadRoster}
+                    title={t("Empty.rosterLoadFailedTitle")}
+                    description={t("Empty.peopleLoadFailedDescription")}
                   />
                 ) : null}
                 {candidateTargets.length > 0 ? (
@@ -338,10 +320,10 @@ export function CreateDirectDialog() {
                       targets={candidateTargets}
                       onSelect={addTarget}
                       isTargetDisabled={isTargetDisabled}
-                      disabledReason={extraHumanDisabledReason}
+                      disabledReason={crossKindDisabledReason}
                     />
                   </div>
-                ) : roster.membersLoadFailed ? null : (
+                ) : roster.peopleLoadFailed ? null : (
                   <p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-sm">
                     {t("Draft.noResults")}
                   </p>

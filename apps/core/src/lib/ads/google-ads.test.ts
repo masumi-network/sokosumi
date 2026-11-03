@@ -38,6 +38,7 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
 
 import {
   createGoogleCampaign,
+  deleteGoogleCampaign,
   editGoogleCampaign,
   getGoogleCampaignDetails,
   listGoogleAdAccounts,
@@ -705,6 +706,109 @@ describe("updateGoogleCampaign", () => {
       await expect(
         updateGoogleCampaign({ ...update, status: "PAUSED" }),
       ).rejects.toBeInstanceOf(ComposioToolError);
+    },
+  );
+});
+
+describe("deleteGoogleCampaign", () => {
+  const remove = { ...input, customerId: "111", campaignId: "42" };
+  const lookupResult = {
+    results: [
+      {
+        campaign: {
+          id: "42",
+          campaignBudget: "customers/111/campaignBudgets/7",
+        },
+        campaignBudget: { explicitlyShared: false },
+      },
+    ],
+  };
+  const mutated = {
+    results: [{ resource_name: "customers/111/campaigns/42" }],
+    successful_count: 1,
+  };
+  const writes = () =>
+    executeToolMock.mock.calls
+      .map(([call]) => call)
+      .filter((call) => call.toolSlug !== "GOOGLEADS_SEARCH_STREAM_GAQL");
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL" ? lookupResult : mutated,
+    );
+  });
+
+  it("looks the campaign up in the customer, then sends one remove operation", async () => {
+    await deleteGoogleCampaign(remove);
+    const [first] = executeToolMock.mock.calls[0] ?? [];
+    expect(first).toMatchObject({
+      toolSlug: "GOOGLEADS_SEARCH_STREAM_GAQL",
+      arguments: { customer_id: "111" },
+    });
+    expect(first.arguments.query).toMatch(
+      /campaign\.id = 42 AND campaign\.status != 'REMOVED'/,
+    );
+    expect(writes()).toEqual([
+      expect.objectContaining({
+        toolSlug: "GOOGLEADS_MUTATE_CAMPAIGNS",
+        arguments: {
+          customer_id: "111",
+          operations: [
+            {
+              operation_type: "remove",
+              remove: "customers/111/campaigns/42",
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolSlugs: [
+          "GOOGLEADS_SEARCH_STREAM_GAQL",
+          "GOOGLEADS_MUTATE_CAMPAIGNS",
+        ],
+      }),
+    );
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 404 without writing when the campaign is not in the customer or already removed", async () => {
+    executeToolMock.mockResolvedValue({
+      results: [],
+      fieldMask: "campaign.id",
+    });
+    await expect(deleteGoogleCampaign(remove)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(executeToolMock).toHaveBeenCalledTimes(1);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 404 without any call for an id that is not digits", async () => {
+    await expect(
+      deleteGoogleCampaign({ ...remove, campaignId: "42 OR 1=1" }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no results", { results: [] }],
+    ["no payload", {}],
+    ["a partial failure", { results: [], partial_failure_error: { code: 3 } }],
+  ])(
+    "raises a tool error when the removal returns %s",
+    async (_name, result) => {
+      executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+        call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL"
+          ? lookupResult
+          : result,
+      );
+      await expect(deleteGoogleCampaign(remove)).rejects.toBeInstanceOf(
+        ComposioToolError,
+      );
     },
   );
 });
@@ -1477,7 +1581,22 @@ describe("createGoogleCampaign for Display", () => {
         },
       })}`;
 
-    it("raises 422 naming the image when Google rejects an upload, and stops there", async () => {
+    it("raises 422 naming the image when Google rejects the first upload", async () => {
+      executeToolMock.mockRejectedValueOnce(
+        new ComposioToolError({
+          message: "refused",
+          providerMessage: failure("The image is too small."),
+        }),
+      );
+      await expect(createGoogleCampaign(create)).rejects.toMatchObject({
+        status: 422,
+        message: 'Image "wide.png": The image is too small.',
+      });
+      expect(calls()).toHaveLength(1);
+      expect(deleteSessionMock).toHaveBeenCalled();
+    });
+
+    it("raises a tool error when a later upload fails after assets were written", async () => {
       executeToolMock
         .mockResolvedValueOnce(assetResult(100))
         .mockRejectedValueOnce(
@@ -1487,7 +1606,7 @@ describe("createGoogleCampaign for Display", () => {
           }),
         );
       await expect(createGoogleCampaign(create)).rejects.toMatchObject({
-        status: 422,
+        name: "ComposioToolError",
         message: 'Image "square.jpg": The image is too small.',
       });
       expect(calls()).toHaveLength(2);
@@ -1524,7 +1643,7 @@ describe("createGoogleCampaign for Display", () => {
       expect(calls()).toHaveLength(1);
     });
 
-    it("raises the tree failure after the uploads without retrying", async () => {
+    it("raises a tool error for the tree failure after the uploads without retrying", async () => {
       executeToolMock
         .mockResolvedValueOnce(assetResult(100))
         .mockResolvedValueOnce(assetResult(101))
@@ -1536,7 +1655,7 @@ describe("createGoogleCampaign for Display", () => {
           }),
         );
       await expect(createGoogleCampaign(create)).rejects.toMatchObject({
-        status: 422,
+        name: "ComposioToolError",
         message: "Destination not working",
       });
       expect(calls()).toHaveLength(4);
@@ -1601,7 +1720,9 @@ describe("Google targeting lookups", () => {
     const suggestions = (list: unknown[]) =>
       proxied({ geoTargetConstantSuggestions: list });
 
-    it("suggests locations by name through the proxy, without a session", async () => {
+    // Project connections are SHARED; Composio refuses (403) a proxy call
+    // without a user id from the connection's ACL.
+    it("suggests locations by name through the proxy as the executor, without a session", async () => {
       suggestions([]);
       await searchGoogleLocations({ ...connected, q: "müNCHEN" });
       expect(proxyFetchMock).toHaveBeenCalledTimes(1);
@@ -1611,6 +1732,7 @@ describe("Google targeting lookups", () => {
           method: "POST",
           jsonBody: {
             connected_account_id: "ca_google",
+            user_id: "sokosumi:project-executor:project_1",
             endpoint: SUGGEST,
             method: "POST",
             body: { locale: "en", locationNames: { names: ["müNCHEN"] } },
@@ -1625,6 +1747,7 @@ describe("Google targeting lookups", () => {
       await searchGoogleLocations({ ...connected, ids: ["2372", "2840"] });
       expect(proxyFetchMock.mock.calls[0]?.[1].jsonBody).toEqual({
         connected_account_id: "ca_google",
+        user_id: "sokosumi:project-executor:project_1",
         endpoint: SUGGEST,
         method: "POST",
         body: {

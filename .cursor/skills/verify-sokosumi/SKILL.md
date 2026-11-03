@@ -20,7 +20,7 @@ Ready when:
 
 Preconditions before launch:
 
-- Node **24.x** on `PATH` (`node -v`)
+- Node **26.x** on `PATH` (`node -v`)
 - `pnpm install` already done (`portless` is a root devDependency). Utils `dist` comes from package `prepare` on install; `@sokosumi/database` has no build (ADR 0035 — Core consumes it from source)
 - Prisma client generated (`pnpm prisma:generate`)
 - `apps/web/.env` and `apps/core/.env` present. **`verify-sokosumi launch` (and `pnpm env:bootstrap`) copy `.env.example` and sanitize placeholders.** **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see [`docs/agents/cloud-environment.md`](../../../docs/agents/cloud-environment.md)): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
@@ -81,7 +81,7 @@ Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
 1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
 2. If the fixture works: UI Enter-submit. Cookie bootstrap runs **only if UI fails**, not as a second step on success.
-3. If the fixture fails: the harness types the vault profile's username on step 1, then `agent-browser auth login sokosumi --no-navigate` with `[data-testid="auth-field-username"]` / `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
+3. If the fixture fails: the harness fills the vault profile's email into `[data-testid="auth-field-email"]` on step 1, then `agent-browser auth login sokosumi --no-navigate` fills the hidden `[data-testid="auth-field-username"]` and `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
@@ -192,10 +192,10 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
 - `/agents` stacks the Coworker gallery above an Agent catalog (`Browse all agents` when catalog data is present). Empty coworker data omits the whole gallery tier (hero included); the catalog stays independent. App Hire stays off. Cookie **Accept all** covers lower catalog cards until dismissed.
 - Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop (`md+`) `/chat` redirects to `/`; mobile may keep `/chat`.
-- Desktop main nav (after Agents / Tasks): **Schedules**, **Content Studio**, **Files** (`/drive`). **Calendar** is the **Calendar** tab on `/tasks` (`/calendar` redirects there) — not a sidebar row and not on the You page. **Credit history** is `/history` via the account menu / You page, not a sidebar row. **Social** is a sidebar row only when the org has social beta (`socialMenuEnabled`). **Projects** is not a desktop sidebar row — open `/projects` directly (or ProjectScope **Manage projects**). Mobile keeps Files on the You page, not the sidebar.
+- Desktop chrome: the header has project scope (**All projects**, or the selected project), **Search**, and **New task**. The sidebar starts with **Soko Bots** (when you already have a bot, that row shows the bot's name and opens `/personal-assistant`; the people icon opens `/soko-bots`). Grouped nav: **Work** — **Home** (desktop), **Projects** (or **Overview** of the scoped project), **Agents**, **Tasks**, **Schedules**; **Records** — **Contacts**, **Files** (`/drive`, desktop only); **Marketing** — **Content Studio**, **Social posts** (always on). **Ads** (`/ads`) is an extra Marketing row only when social beta is on. **Newsletter** (`/newsletter`) is an extra Marketing row only for the newsletter beta organization; otherwise the row is absent and `/newsletter` is a 404 (see [newsletter.md](./features/newsletter.md)). **Calendar** is the **Calendar** tab on `/tasks` (`/calendar` redirects there) — not a sidebar row and not on the You page. **Credit history** is `/history` via the account menu / You page, not a sidebar row. There is no **Manage projects** row. Mobile keeps Files on the You page, not the sidebar.
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)
-- Node **24.x** required
+- Node **26.x** required
 - `/signin` is two steps: email first (Google / Microsoft / Passkey below it), then the code or the password — automation must target `[data-testid="auth-*"]` only
 - New signup users may land on `/setup` (workspace onboarding) before `/agents` works — still authenticated if not bounced to `/signin`

@@ -290,7 +290,7 @@ describe("canonical share page", () => {
     expect(screen.getByTestId("status-dot-evt_status")).toBeInTheDocument();
     expect(screen.queryByTestId("status-dot-evt_auth")).not.toBeInTheDocument();
     expect(screen.getByTestId("activity-row-evt_comment")).toHaveClass(
-      "border-semantic-success-tertiary",
+      "border-border",
     );
     const renderedRows = Array.from(
       container.querySelectorAll("[data-testid^='activity-row-']"),

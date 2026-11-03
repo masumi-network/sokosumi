@@ -17,7 +17,6 @@ import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join
 import { firstAndLastNameFormSchema } from "@/lib/schemas/account";
 import { organizationService } from "@/lib/services/organization.service";
 import { userService } from "@/lib/services/user.service";
-import { cn } from "@/lib/utils";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {
   isJoinLinkDuplicateOfInvitation,
@@ -130,33 +129,48 @@ export default async function WorkspaceGatePage({
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
 
+  // The first step a new account sees: the same open layout as the Soko Bot
+  // setup that follows it, not a card. It stays this branch once the
+  // workspace exists, so the form keeps its state through that refresh and
+  // still sends a new account on to the assistant.
+  if (showIdentityForm) {
+    return (
+      <div
+        className="mx-auto flex w-full max-w-md flex-col gap-8 py-12"
+        data-workspace-gate-page
+        data-gate={surface}
+      >
+        {workspaceReady ? null : (
+          <header className="flex flex-col gap-2 text-center">
+            <h1 className="text-foreground text-3xl font-light tracking-tight text-balance">
+              {t(titleKey)}
+            </h1>
+            <p className="text-muted-foreground text-sm text-pretty">
+              {t(descriptionKey)}
+            </p>
+          </header>
+        )}
+        <IdentityOnboardingForm
+          key="identity-onboarding"
+          initialName={session.user.name?.trim() ?? ""}
+          initialFirstName={initialFirstName}
+          initialLastName={initialLastName}
+          askName={askName}
+          workspaceReady={workspaceReady}
+          returnUrl={returnUrl}
+        />
+      </div>
+    );
+  }
+
   return (
-    <Card
-      className={cn(
-        "w-full",
-        workspaceReady && "border-0 bg-transparent py-0 shadow-none",
-      )}
-      data-workspace-gate-page
-      data-gate={surface}
-    >
-      {workspaceReady ? null : (
-        <CardHeader>
-          <CardTitle>{t(titleKey)}</CardTitle>
-          <CardDescription>{t(descriptionKey)}</CardDescription>
-        </CardHeader>
-      )}
-      <CardContent className={cn("space-y-4", workspaceReady && "px-0")}>
-        {showIdentityForm ? (
-          <IdentityOnboardingForm
-            key="identity-onboarding"
-            initialName={session.user.name?.trim() ?? ""}
-            initialFirstName={initialFirstName}
-            initialLastName={initialLastName}
-            askName={askName}
-            workspaceReady={workspaceReady}
-            returnUrl={returnUrl}
-          />
-        ) : showPendingQueue ? (
+    <Card className="w-full" data-workspace-gate-page data-gate={surface}>
+      <CardHeader>
+        <CardTitle>{t(titleKey)}</CardTitle>
+        <CardDescription>{t(descriptionKey)}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {showPendingQueue ? (
           <PendingInvitesQueue
             items={queueItems}
             initialName={session.user.name?.trim() ?? ""}

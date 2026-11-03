@@ -7,19 +7,20 @@
  * `shouldPublishOrgPresenceUpdate` is the same kind of decision function.
  */
 
-/** Ably Chat's own default: one heartbeat per typist per throttle window. */
-export const TYPING_HEARTBEAT_THROTTLE_MS = 10_000;
-
-/** Ably's 2s grace on top, so a slow typist never flickers off mid-sentence. */
-const TYPING_EXPIRY_GRACE_MS = 2_000;
+/** One heartbeat per typist per throttle window, and only on a keystroke. */
+export const TYPING_HEARTBEAT_THROTTLE_MS = 4_000;
 
 /**
  * A typist with no heartbeat for this long is gone. The explicit `stopped`
  * event is an optimisation; this window is what makes a closed tab or a
  * dropped connection clear itself, so a lost stop self-heals.
+ *
+ * Counted from the last heartbeat, not the last keystroke, so a reader keeps
+ * the line for at least expiry minus throttle (8s) after someone's last key.
+ * Ably Chat's 10s throttle with 12s expiry left as little as 2s, and an
+ * ordinary pause to think blinked the line off and on.
  */
-export const TYPING_EXPIRY_MS =
-  TYPING_HEARTBEAT_THROTTLE_MS + TYPING_EXPIRY_GRACE_MS;
+export const TYPING_EXPIRY_MS = 12_000;
 
 /** What a typing event says: they picked it up, or they put it down. */
 export type TypingState = "started" | "stopped";

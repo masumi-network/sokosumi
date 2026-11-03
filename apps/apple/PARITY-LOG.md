@@ -691,7 +691,7 @@ Validation: 323 Chat tests cover formats, precedence, download errors, extension
 
 Room and thread rows expose Quote beside Reply and in the native context menu. Quoting focuses the matching composer and shows a removable author/snippet/attachment preview. Classic and streamed sends transmit only `quote.messageId`; Core remains the snapshot authority. Pending shells retain the preview across classic retries; pre-stream failures restore the quote with the draft. Deleted and local pending/stream rows cannot be quoted. Switching rooms/threads clears the pending quote.
 
-Received quotes render their author, expandable four-line snippet and first attachment cue. Clicking the author scrolls to the source when loaded in that transcript, matching web's loaded-DOM jump. Loading missing sources and cross-thread deep-link routing remain in row 25. Quote-only drafts required message text or an attachment until row 17a, which lets a quote be the whole message outside the coworker 1:1 stream, matching web.
+Received quotes render their author, expandable four-line snippet and first attachment cue (every attachment since row 17b). Clicking the author scrolls to the source when loaded in that transcript, matching web's loaded-DOM jump. Loading missing sources and cross-thread deep-link routing remain in row 25. Quote-only drafts required message text or an attachment until row 17a, which lets a quote be the whole message outside the coworker 1:1 stream, matching web.
 
 Verification: all 446 package tests pass (Chat 329, Workspace 55, Auth 34, Realtime 27, CoreAPI 1); Xcode app tests, pinned SwiftFormat/strict SwiftLint and the Workspace iOS 17 cross-build pass. Xcode still emits the existing AppIntents metadata and cmark module-map build warnings. A native fixture preview was rendered and inspected; it is not a live send/scroll test. Package tests cover request bodies in room/thread classic and streaming sends, source eligibility, preview attachment choice, retry retention and streamed failure restoration. No live messages were sent during verification.
 
@@ -4726,7 +4726,7 @@ None. ⌘K and the Link control share one function on web and on Apple; the reve
 ### What changed
 
 - SokosumiChat: `ComposerToolbarVisibility` (new): one composer's bar, read from `ComposerPreferences` once; `toggle()` stores, `reveal()` does not.
-- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`. `docs/rich-composing.md` names the type.
+- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`.
 
 ### Deviations from web (recorded)
 
@@ -5137,3 +5137,202 @@ Review follow-up, after #6431 merged (squash `7951fdf18`), taken from Cursor's d
 - The legal footer wraps, centered, through `WrappingRow`'s new `centersRows`, so it fits the 420pt minimum window. `theLegalFooterFitsTheMinimumWindow` checks that each link is inside the window and none overlap.
 
 Not taken from #6432: its tests, which did not compile (calls on `NSObject` in its Apple CI run); a test comparing color constants with themselves; and a Larger Text test, since macOS ignored `dynamicTypeSize` set from the environment in a harness render. Verified the same way as above: the harness rendered every state in light and dark and at 420pt. Tests and lint run in CI only.
+
+## 05b (SOK-1484) — a room counts as read only at the end of its transcript
+
+Built from spec SOK-1481, ticket SOK-1484, not mirrored from web. Opening a room no longer reads it by itself.
+
+### Behaviour
+
+- `TranscriptSession.isAtEnd` is false on every open and close and after any jump. The room's list reports `!scroll.showsJumpToLatest(anchored:)` per visit (`RoomTimelineView`), the state that hides Jump to latest.
+- `OpenRoomSession.isAtEnd` adds two holds: a message navigation in flight (`openLinkTarget`, `openMessage`, `openMessageReply` run in `holdingReads`) and a room jump the list has not taken yet. Reaching the end, and a navigation settling, run the workspace's read sync.
+- `RoomReadAttention.readIfNeeded` takes `atEnd`. Away from the end the room is not read, whatever arrives and whatever the scene phase; an open Thread is still Looked. Back at the end the room reads once; scrolling down again to content already read sends nothing.
+- A room with nothing unread opens at its end and is read on open as before. A room that opens at its Unread divider (04b, SOK-1486) reads nothing on open: the list reports the end as it mounts, before it moves to the divider, so `TranscriptSession.run` sets the Transcript away from the end where it asks the list to place the divider.
+
+### Tests
+
+- `RoomReadAttentionTests`: `onlyTheEndOfTheTranscriptReadsTheRoom`, `awayFromTheEndTheOpenThreadIsLookedButTheRoomIsNotRead`.
+- `TranscriptSessionTests.everyOpenStartsAwayFromTheEndAndAJumpLeavesIt`.
+- `OpenRoomSessionTests`: `reachingTheEndSyncsTheRead`, `anExplicitTargetHoldsTheReadUntilTheReaderIsBackAtTheEnd`, `aRoomLinkReadsOnceItsNavigationSettles`, `openingAtTheDividerReadsNothing` (fails with the `run` line removed).
+- `WorkspaceRealtimeTests.aLiveMessageWhileScrolledUpWaitsForTheEnd`. The workspace suites have no list, so `keepRoomListAtTheEnd` stands in for one that mounts at the bottom.
+
+### Verification
+
+From `apps/apple`:
+- `swift test --package-path Packages/SokosumiChat`: **1353 tests in 151 suites passed** (after merging SOK-1486); `Packages/SokosumiWorkspace`: **206 tests in 4 suites passed**.
+- `xcodebuild … build`: **BUILD SUCCEEDED**. `xcodebuild test … -enableCodeCoverage NO`: **2,137 tests, 2,136 passed, 1 failed**: `NativeWindowTests/SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` (Vision read the row as "AL YoU"). It fails the same way on the integration base `f69937351`, so it is not caused by this change.
+- `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0`: **Build complete**.
+- `mint run swiftformat --lint .`: **0/646 files require formatting**; `mint run swiftlint lint --strict`: **0 violations in 643 files**.
+
+Unverified: the running app was not launched, so the list's report at the end, and a room left halfway staying bold, were not checked live.
+## 04b — a room opens at its Unread divider (SOK-1486)
+
+Built from spec SOK-1481's acceptance list, not from web's code. Core's part is SOK-1482 (`openAtUnread` and `meta.pagination.firstUnreadMessageId` on `GET /chats/rooms/{id}/messages`); Apple's `openapi.json` already carried that operation. The read-at-the-end rule is SOK-1484's.
+
+### Behaviour
+
+- `RoomTimeline.reset(..., opensAtUnread:)`: a room's first page asks for `openAtUnread=true`; a Thread never does. The first page's `firstUnreadMessageId` is the visit's divider. Later pages, read responses and realtime never change it; opening a room again asks afresh.
+- Core answers either the newest page or, for an older divider, a window around it. Apple does not tell them apart: an answer naming a divider fetches the plain newest page in the same load, and both land together, the answer as a page of the past, so the gap row (04a) joins an older window and no history anchor is set. Jump to latest then only scrolls. (Until the SOK-1481 review fixes, a row-count guess with Core's 3/30 decided whether to fetch the newest page.)
+- `TranscriptSession.placesUnreadDivider` is set when that first page lands with a divider. The list's mount task puts the divider's row at a third of the viewport (`UnitPoint(y: 1/3)`, then the settle correction older pages use) and stops following the latest message. A jump or covered mark replaces a placement still waiting.
+- A Message link or notification (`openRoomLink` with a message) selects the room with `atUnreadDivider: false`: the plain newest page, the target lands, and the divider draws when its message is loaded.
+- `unreadDividerRowId(in:)`: the divider sits above its message, or, once that message is a tombstone the list leaves out, above the next loaded message after it; with none, it goes. Edits change nothing.
+- Look: `UnreadDividerRow`, a 1 pt accent hairline on both sides of a centered "New" in the accent, no count (variant H, user decision 2026-10-26); a day pill above the same message sits before "New" in the middle: `——— Today New ———`. VoiceOver reads a separator: SwiftUI has no separator role, so an `NSViewRepresentable` reports AppKit's splitter named "New messages". Both strings are in `ChatUnreadDivider.xcstrings` (en, de, es).
+
+### Tests
+
+- `UnreadDividerTests` (SokosumiChat, transcript-session level): the open-at-unread request and divider on the newest page; an older divider's window joined to the newest page through the gap row with Jump to latest; the divider fixed across a realtime arrival, an own post, an edit and a later page naming none; deletion moving it, then removing it; a new visit asking afresh; explicit targets winning; an unloaded divider message drawing nothing; no Room unread; a Thread never asking.
+- `WorkspaceStateTests`: a sidebar pick sends `openAtUnread=true`; a chat link does not.
+- `NativeWindowTests/UnreadDividerPlacementTests`: 100 tall rows, divider on message 60; the separator settles between 25 % and 42 % of the visible height, with read rows above. The window ignores the mouse and rows hold their hover chrome (`withoutRowHover`). The render is attached to the result.
+
+### Verification
+
+From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1346 tests in 151 suites) and `Packages/SokosumiWorkspace` (205 tests in 4 suites) passed; `xcodebuild test … -only-testing` for `UnreadDividerPlacementTests` (3 iterations), `TranscriptScrollingTests` and `RoomOlderPageTests` (3 iterations) passed; `swift build --package-path Packages/SokosumiChat --triple arm64-apple-ios17.0` built; SwiftFormat and strict SwiftLint clean. The full app suite was not run.
+
+Unverified: the running app against a real Core, the day pill sharing the divider's row on screen, dark appearance, and VoiceOver itself.
+
+## SOK-1481 review fixes (04b, 05b)
+
+Fixes from the code review of the integration branch, built from spec SOK-1481.
+
+- A short unread run is read on open. Placing the divider stops the list following; only the reader's moves and crossings of the near-bottom line turned following back on, so a room whose rows fit, or whose end stayed within 200 pt after the placement scroll, kept Jump to latest and was never read. `TranscriptScroll.placementSettled(at:anchored:)` runs once the placement has settled and follows again when the list rests near the bottom (web settles a clamped restore and measures its distance from the end the same way).
+- The list no longer reports the end while the divider is still to be placed. It used to report "at the end" as it mounted, before it moved to the divider, which could read a long unread run on open.
+- The room read after a thread Look, mute or Mark all waits for the end of the transcript like every automatic read (`syncRoomAttentionAfterThreadChange` checks `openRoom.isAtEnd`); the Look itself still goes through.
+- No row-count guess: see 04b above.
+- `RoomReadAttention.readIfNeeded(_ sight:client:organizationSlug:threadLooked:)` takes a `Sight` (room, content, historyReadable, atEnd). `TranscriptSession.endUnreadDividerPlacement()` replaces `unreadDividerPlaced()`, which also cancelled; `setAtEnd(_:)` returns nothing, and `OpenRoomSession.setAtEnd` works out "just reached" itself.
+
+Tests: `TranscriptScrollTests.aPlacementSettlingAtTheEndFollowsTheLatest`, `WorkspaceStateTests.aThreadMuteAwayFromTheEndReadsNoRoom`, `UnreadDividerPlacementTests.aShortUnreadRunOpensAtTheEnd` (six rows; without the settle check it failed in one of six local runs, as the list's own geometry sometimes turns following back on), and `theRoomOpensWithTheDividerAThirdOfTheWayDown` now also checks the room never counted as at its end. `UnreadDividerTests` serve the newest page after each answer naming a divider.
+
+The divider capture used to come out with blank names, message text and day pill: the capture draws the hosted list without the window's background, so on a Mac in dark appearance the white text vanished on it. The test window now uses the light appearance, and its messages are yesterday's and today's, so the capture shows the Today pill and "New" on one row. (On this German Mac the capture shows "Today" beside "Neu"; why the day pill stays English in the test host was not looked into.)
+
+## SOK-1481 second review fixes (04b, 05b)
+
+Fixes from the second code review of the integration branch, built from spec SOK-1481.
+
+- A room is no longer held unread for the whole visit when the list mounts before the first page lands, or before the divider's row is laid out. The list asks `TranscriptSession.unreadDividerPlacement(in:)` whenever the rows or the placement change (`onChange`, not only the mount task): it waits while the divider's row is loaded but not laid out, places it once it is, and ends the placement, scrolling to the newest message, when no loaded row is left to place it above.
+- A room that shows Room unread as it opens (`channelUnreadCount > 0`) asks for the newest page beside Core's open-at-unread answer instead of after it, so the open waits for one round trip. Any other room still asks only once the answer names a divider, so a read room costs one request. No row counts or Core constants are read.
+- A divider placement the reader interrupts settles at the list's next rest instead of being dropped (`TranscriptScroll.placedUnreadDivider()` / `cameToRest(at:anchored:)` replace `placementSettled`), so a short unread run touched while it settles is still read at the end.
+- `RoomReadAttention.Sight` is `AutomaticReadInputs`, read in place. `FirstRowsPlacement` keeps only the list's edges and derives its viewport and offset from them.
+
+Tests: `UnreadDividerTests.thePlacementWaitsForTheDividerRowAndEndsWhenThereIsNone`, `aRoomShowingRoomUnreadAsksForBothPagesAtOnce` (its transport holds the answer until the newest page is asked for, and fails it after five seconds otherwise), `aRoomShowingNoRoomUnreadAsksOnce`; `TranscriptScrollTests.aPlacementTheReaderInterruptsSettlesAtTheNextRest`. `UnreadDividerPlacementTests.aShortUnreadRunOpensAtTheEnd` stays a smoke test of the wiring, as its comment says: without the settle it fails only about one run in six, and the package tests are the guard.
+
+Verification: from `apps/apple`, `swift test --package-path Packages/SokosumiChat` (1358 tests) and `Packages/SokosumiWorkspace` (207 tests) passed; `xcodebuild test … -only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests -test-iterations 3` passed; SwiftFormat and strict SwiftLint clean. Unverified: the running app against a real Core, and the placement after a mount that precedes the first page, which no window test reproduces.
+
+## A large image no longer exempts the body from the clamp (10c follow-up), 2026-10-27
+
+Mirrors web [#6636](https://github.com/masumi-network/sokosumi/pull/6636) (open at the time, branch `claude/bot-show-more-less-buttons-a289a0`; merged 2026-10-27 as `19f420db`, clamp files unchanged since `ecd57eefdd`), which replaced `line-clamp-[16]` with a 384 px cap and a fade and deleted `hasLargeSoloImageAttachment`, so a long Soko Bot or coworker report ending in a chart offers Show more. Draft [#6638](https://github.com/masumi-network/sokosumi/pull/6638), branch `claude/apple-clamp-long-body-with-image`, started on `origin/main` `9f8c3f265`; not a `/apple-parity-next` row, the user asked for it as its own task.
+
+### Behaviour
+
+- Every body but jumbo emoji clamps. `MessageMarkdown.clampsLongBody` was the exemption alone (web's `ChannelMessageBody` now clamps every non-jumbo body, and Apple's jumbo branch never reached the clamp), so it and `ExpandableMessageBody.clampHeight` are deleted.
+- The fence-skip scan stays: `MarkdownBareDomains.attachmentRuns()` also builds the segments, the gallery and `endsWithAttachmentRun` (row 31b3). What only the exemption needed was the grouping of embedded media into rows; `attachmentRows(in:)` became `embeddedAttachments(in:)`, a flat list for the gallery.
+- Apple's sixteen `.body` lines measure about 256 pt and its large image is capped at 320 pt (`MessageAttachmentView`), unlike web's 320 px image under a 384 px cap. Measured with no allowance: a two-line caption over the fixture's 2400 × 1600 image collapsed to 81 pt with Show more and the image cut away whole (the cut snaps to the last complete text line).
+- Re-checked against web's final rules at `ecd57eefdd` (sent by the session that owns #6636): web cuts a fixed 384 px with a fade, a full-cap photo fits alone and under one caption line, and a second caption paragraph collapses it with the photo's bottom cut. A first cut of this PR counted the image as none of the lines, so a caption of any length fitted; it now counts as web counts it. `MessageClampAllowance` carries the block's height, and a large image (`messageClampLargeImage()`, a lone card or an image embedded in text) leaves uncounted `height − (height + 16) × sixteenLines / 384`, from web's `my-2` and cap. A cut that lands inside such a block (or row 10d's figure) stays there instead of snapping up past it, and a collapsed, overflowing body fades from 60 % to transparent (`fadesCut`; the quote's four-line clamp passes false, as web's quote has no fade).
+- Matches web: every non-jumbo body clamps; tables and code blocks count (they already did: their text reports line boxes and overflow is the body's measured height); a photo alone and under one caption line fits; a second paragraph collapses it with the bottom cut; long text before an image collapses; the fade; Show more / Show less and their per-message state are unchanged.
+- Deliberate differences: plain text still cuts on a whole line (web's cap of sixteen 24 px lines lands on one for plain paragraphs too). Apple has no Soko Bot brief card (web #6568 draws `inbox`, `standup`, `weeklyWrap` and `scheduled` check-ins as one, and #6636 clamps its middle), so there is nothing to clamp, and no PARITY row tracks the card yet. Web's large image focus outline moved inside the button so the clamp cannot clip it; Apple's image is a plain `Button` with the system focus ring, not checked. Quotes and web's pinned panel (`line-clamp-6`) are unchanged on web and here. Web #6636 also puts the Mermaid figure under the same height cap, which row 10d's line allowance no longer mirrors; left for row 10d.
+
+### Tests
+
+- Red first: `MessageBodyClampTests.longTextWithOneImageClamps` (flipped) and `MessageBodyPresentationTests.aLongMessageWithASoloImageOffersShowMore` (was `…IsNotClamped`) failed on the old rule; a caption-over-image test failed once the exemption was gone.
+- Mirroring web's `room-message-body-clamp.webkit.test.ts`: `aPhotoAloneOrUnderAOneLineCaptionFits` (two cases) and `aSecondCaptionParagraphCollapsesThePhoto` use a 1600 × 2400 portrait that `ScrollMediaProtocol` now serves for `shape=portrait` without `format=svg`, so the photo is the cap's full 320 pt. The second-paragraph case failed under the whole-image allowance (OCR found no Show more) and passes now; it clicks Show more, so where OCR is unavailable (CI) a missing control still fails it. `aLongTableOrCodeBlockCollapses` (two cases) passed before the change.
+- `MessageBodyClampTests` is deleted with the property it tested; its fence cases are now file-run assertions in `MessageAttachmentRunTests` (`aLinkInsideAFenceIsNoAttachment`, `anIndentedCloserEndsTheFence`, `aLinkInIndentedCodeIsAnAttachment`). `MermaidDiagramTests.aBodyThatDrawsADiagramStillClamps` and the `clampsLongBody` expectations in `MessageAttachmentRunTests` and `MessageInlineFileLinkTests` went with it.
+
+### Verification
+
+From `apps/apple`: `swift test --package-path Packages/SokosumiChat` (1338 tests) passed. After the re-check the workspace scheme ran 2138 tests (3046 runs): 2137 passed, and `RoomOlderPageTests.anOlderPageWaitsForTheScrollToRest` failed in the full run only (text-only rows that never overflow; the first cut's full run failed it and `anOlderPageKeepsTheReadingPosition` the same way) and passed 3 of 3 alone (`-test-iterations 3`). SwiftFormat and strict SwiftLint clean. Recorded screenshots: `message-body-photo-alone.png` and `message-body-photo-caption.png` show the whole photo and no control; `message-body-photo-two-paragraphs.png` shows both paragraphs, the photo fading out above its bottom and Show more; `message-body-table-collapsed.png` and `message-body-code-collapsed.png` show the first rows fading into Show more; `message-body-image-collapsed.png` shows sixteen lines and Show more. Unverified: the running app against a real Core, and the image's focus ring under the clamp.
+
+## "New" moves to the end of the Unread divider (04b follow-up), 2026-10-30
+
+`——— Today New ———` read as one phrase. User decision: "New" sits at the line's trailing end and a day pill stays centered on the line, on web and here in the same PR; not a `/apple-parity-next` row. Draft [#6734](https://github.com/masumi-network/sokosumi/pull/6734), branch `claude/yesterday-new-looks-8e2459`, started on `origin/main` `5670e429b`.
+
+### Behaviour
+
+- `UnreadDividerRow` draws `——— Today ——— New`, and `———————— New` when no day changes at the message. The hairline and "New" share a stack as wide as the leading hairline, so "New" does not push the pill off center. The VoiceOver separator is unchanged.
+
+### Verification
+
+From `apps/apple`: `-only-testing:SokosumiTests/NativeWindowTests/UnreadDividerPlacementTests` passed; SwiftFormat and strict SwiftLint clean on the changed file. A throwaway window test rendered the three states at 669 pt and 320 pt, and light and dark at 669 pt: the gap around the pill centers at 668.5 of 1338 and 319.5 of 640 backing pixels, and the room capture (`unread-divider.png`) shows the row in the transcript. The full workspace scheme did not run. Web's `unread-divider.test.tsx` pins the order and failed on the old layout; no Mac test pins it, as `apps/apple/AGENTS.md` keeps SwiftUI layout out of the required suite. Unverified: the running app against a real Core.
+## Masumi Family colours (SOKD-121 follow-up), 2026-10-30
+
+Moves the app's interior off the old blue, to match web's Masumi Family stack ([#6681](https://github.com/masumi-network/sokosumi/pull/6681), `apps/web/DESIGN.md`) and the Iris app icon. Audited web on `sokd-121-4-no-blur` at `3df4b6d0f`.
+
+- `BrandSolid` is web's `--primary`: Iris Flower `#FF51FF` light, Dark Iris `#D141D1` dark.
+- `BrandPrimaryButtonStyle` (new, `Shared/`) is every primary and default-action button: native `.borderedProminent` chrome, Neutral 950 label, lifting to full Iris under the pointer. It wraps the native button because AppKit paints the label white unless the style is set inside the label. `SignInView` no longer tints its own button.
+- Text, icons, edges and washes that used the accent are now neutral, as on web, where the primary is a fill and never text or a tint: thread rows, marks and pills, the reply bar, the unread divider, the jump mark (web's 8 / 6 / 5 % and 12 / 9 / 8 %), reactions, the composer toolbar and reference chip, card borders, the unfurl rule, Jump to latest, the paging row, avatars without a photo. Save in the edit composer stays Iris, as a fill under a dark check.
+- Links are the text colour, underlined, in messages, the composer and `Link`; they were the system blue. A mention is bold at full strength. Social post previews keep each platform's link colours.
+
+**Deviation: `AccentColor` is `#525252`, not Iris.** AppKit owns the colour on top of the accent and it is always white: the focused sidebar selection, alert default buttons, checkboxes. White on Iris is 2.7:1, and a selected room's name was hard to read in light. `.tint` on the `List` does not change it; forcing dark ink through `backgroundProminence` left the text dim and the badge white. A neutral accent fixes all of them at once and matches web's neutral selected row (`bg-accent`). A reader who picked their own accent in System Settings still gets it on those surfaces, while Iris fills use `BrandSolid` and do not change.
+
+Verified:
+
+- Whole app target type-checked with Xcode 26 against copied packages (tools version lowered in the copy). The only errors are the two known type-checker limits, `MessageRowView.swift:243` and `RoomToolsModifier.swift:53`, neither on a changed line.
+- Render: [light](docs/images/brand-iris-light.png) and [dark](docs/images/brand-iris-dark.png) are the real `ThreadListRow`, `ThreadGroupHeading`, `JumpToLatestButton`, `MessageEditControls` and `BrandPrimaryButtonStyle` in a SwiftPM harness, beside a sidebar `List` with its selected row told to draw emphasized.
+
+Tests changed, not yet run (they need Xcode 27, so CI is the gate):
+
+- `BrandColorsTests` (new): asset values, contrast, the primary label dark with no white.
+- `RoomThreadOverviewGroupsViewTests`, `CrossRoomThreadsViewTests`: unread is now found by its neutral wash, and nothing in the list draws a colour. The pixel check for the Unread count pill is gone: a neutral pill cannot be told from the heading's text by colour.
+
+Unverified: the app was not launched. Not seen: the sidebar through a real focused window (harness only, screen capture is not permitted here), alerts, hover on a primary button, a non-default system accent.
+
+How to test: open the app in light, click a room, then click the sidebar again so it has keyboard focus: the selected row is dark grey with white text. Send, Accept and any sheet's main button are Iris with dark text.
+
+## Every attachment of a quoted message (17b), 2026-11-02
+
+[#6799](https://github.com/masumi-network/sokosumi/pull/6799). Follows web and Core [#6788](https://github.com/masumi-network/sokosumi/pull/6788) (`43413e45f`).
+
+### Behaviour
+
+- `MessageQuoteView` draws `quote.attachments` as a `WrappingRow` of 40 pt tiles, in the transcript and the composer preview. A missing list is empty. An image crops to the square, a file shows `AttachmentFileIcon`. Web's tiles carry no name; here the name stays on hover and for VoiceOver.
+- `messageQuote(from:)` lifts every file link out of the snippet into `attachments`, a file linked twice once, like `buildRoomQuoteSnippetParts`. It no longer fills the deprecated `attachment`, and nothing in the app reads that field.
+- The Mac app builds no quote text for an AI reader, so `chatRoomQuotePromptLine` has no counterpart here.
+- A pin whose body is only a quote prints the author and snippet and no tiles, as web's pinned panel does. A quote of images alone therefore prints only the author there.
+
+### Where it differs from web
+
+- Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)) follow web, with these differences:
+  - Web's whole quote is one jump button. Here the author name and each tile are separate buttons, and the snippet stays selectable and does not jump.
+  - Web's jump button and composer tile tint on hover. A tile here does not, like the other attachment tiles on the Mac.
+  - A composer tile that is not a web address does nothing here. Web classifies it by extension, so it opens a viewer or a link. Core stores only http(s) file links, so this barely occurs.
+  - A composer tile whose `mediaKind` is `image` opens the image viewer here even with no image extension. Web reads only the URL and the name: a document extension opens its document viewer, and anything else is a link.
+  - `.heic` and `.heif` open the image viewer here. Web's image list has neither, so its tile is a link.
+  - A URL with a non-image extension and a file name with an image one is a file here and an image on web.
+  - A URL with a document extension and a file name with a video or sound one opens the document viewer here and a link on web.
+- A draft's tile and a quote's tile on the Mac differ for a file with no viewer: a draft's opens the document sheet with Open and Save, a quote's opens its link, as web's does for both. Draft tiles are out of scope here.
+- The composer's local preview reads parsed Markdown and web reads the raw text, so they differ on less ordinary input until Core's snapshot replaces the preview after sending:
+  - A bare file URL in a sentence is lifted here, named by its URL. Web keeps it in the text.
+  - A file link inside a code fence or inline code stays in place here. Web lifts it.
+  - A `.markdown` link and a `![alt](url)` image with no file extension are lifted here. Web leaves them.
+  - A link labelled `chart.png` to a URL with no extension is an image here and a file on web.
+  - The same link twice in a row is one tile named `a.pnga.png` here. Web names it `a.png`.
+  - A blank line, a list marker and table text survive differently in the snippet. This predates the row.
+
+### API snapshot
+
+`python3 scripts/update-core-api.py` against the Core OpenAPI document written by `write-openapi-snapshot` at `43413e45f`. Structural diff: paths 66 → 66, operations 81 → 81, none added or removed. Schemas 104 → 110, none removed: added `ChatMessageSignal`, `ChatSignalTag`, `ProjectSocialProvider`, `SokoBotAvatarState`, `SokoBotAvatarStateAssets`, `SokoBotAvatarView`; changed `ChatResultAvailable`, `ChatRoom`, `ChatRoomMessage`, `ChatRoomMessageQuote`, `ChatRoomMessageQuoteAttachment`, `ChatRoomPinnedMessageListItem`, `ChatRoomSokoBotParticipant`, `SharedSokoBotSummary`, `SokoBotState`, `TaskTagId`, `UserWorkspace`. Operations changed: `get /projects/{id}/image-studio/assets/{assetId}/content`, `get` and `patch /users/{id}/preferences`, `get /users/{id}/workspaces`, `put /users/{id}/workspaces/preferred`, `post /chats/rooms/{id}/members`, `put /chats/rooms/starred`.
+
+The refresh brought in everything Core added since the last one. Two of the additions needed code: result kind `cmo_report` (web's `ClipboardList` as `list.clipboard`, web's "Report") and seven Task tags (web's labels, with web's de and es strings in the catalogs). The rest is decoded and unused.
+
+Four fields are newly required: `UserWorkspace.role`, `memberCount` and `enabledSocialProviders`, and `ChatRoomSokoBotParticipant.sharedRoomId`. `helpers/user-workspaces.ts` and `soko-bot-participant.ts` in Core send them, so only the test fixtures needed the `UserWorkspace` fields. A fixture without them fails to decode, and `lateLoadCannotRestoreSignedOutAccount` then waits forever for a rooms request that never comes, which hangs the run rather than failing it.
+
+### Verification
+
+- Workspace scheme on this Mac: 2158 tests, 2155 passed, 3 failed. `swift test`: `SokosumiChat` 1348 passed, `SokosumiWorkspace` 210 passed. The iOS 17 Workspace build succeeded. SwiftFormat and strict SwiftLint clean.
+- Two failures are not this change: `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` and `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` fail the same way on an unmodified `43413e45f`, where Vision OCR reads "You" as "YoU" and the chosen chip as "MY Message yourself •". They failed on every run here, so they are not added to the known-flaky list.
+- The third, `MessageImageViewerActionsTests/printAndCopyAreForImagesOnly`, counted 0 of 1 print jobs. This change does not touch it, and reruns of its suite on the same code failed once and passed once, so it joins the known-flaky list.
+- `messageQuote` and web's built `buildRoomQuoteSnippetParts` ran side by side on 27 inputs. 11 match; the rest are the differences listed above, or web keeping Markdown syntax it does not parse.
+- `MessageQuoteAttachmentTests` hosts the real `MessageRowView` and `ChatComposerView` with a quote of four images and counts four drawn tiles, light and dark; a narrow quote wraps to a second row; file tiles show their type and keep their names. The recorded renders were inspected.
+
+Not run: the app against a live Core. No message was sent; the renders are the real `MessageRowView` and `ChatComposerView` hosted over a fixture server.
+
+Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)):
+
+- `MessageAttachment.opening` and `ChatRoomMessageQuoteAttachment.preview` in `SokosumiChat` decide what a tile opens, with UI-free tests in `MessageQuoteTests`.
+- `MessageQuoteAttachmentTests` sends real mouse events to tiles in the hosted `MessageRowView` and `ChatComposerView`: the source's id reaches `.jumpToQuote`, a quote from another room opens its message link, an image attaches its viewer, a Markdown file attaches its viewer and loads over a fixture server, and a zip, a video and a sound open their links. A click on a non-web address does nothing, proved by a following click on a second tile. VoiceOver finds image, document and link tiles by their file names, reads each hint and presses them.
+- The first version of the suite failed against the old `MessageQuoteView` on every action test. The final version was not rerun against it.
+- Workspace scheme on this Mac: 2170 tests, 2167 passed, 3 failed. `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` and `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` also fail on an unmodified `efe693407`. `MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` is flaky: its suite and `SokoBotFeedbackToolbarTests` failed 5 of 10 tests twice on this commit and then passed all 10 with no change. Both suites passed all 10 on an unmodified `efe693407` in one run.
+- The iOS 17 Workspace build succeeded. SwiftFormat and strict SwiftLint are clean on the whole tree.
+- The recorded renders were inspected: tiles look as before in light and dark, the image viewer shows the image and the document viewer shows the loaded file.
+
+Not checked: the signed app against a live Core, a loaded PDF or Office file in the viewer, and the tooltip on hover, which needs a real pointer.
+
+Last updated: 2026-11-02

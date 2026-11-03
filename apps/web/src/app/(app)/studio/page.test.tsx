@@ -1,16 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasSocialBetaAccessMock, imageStudioServiceMock, projectServiceMock } =
-  vi.hoisted(() => ({
-    hasSocialBetaAccessMock: vi.fn(),
-    imageStudioServiceMock: {
-      getCatalog: vi.fn(),
-      getState: vi.fn(),
-      getWorkspaceState: vi.fn(),
-    },
-    projectServiceMock: { getProjectById: vi.fn() },
-  }));
+const {
+  hasSocialBetaAccessMock,
+  imageStudioServiceMock,
+  projectServiceMock,
+  requireScopeMock,
+} = vi.hoisted(() => ({
+  hasSocialBetaAccessMock: vi.fn(),
+  requireScopeMock: vi.fn(),
+  imageStudioServiceMock: {
+    getCatalog: vi.fn(),
+    getState: vi.fn(),
+    getWorkspaceState: vi.fn(),
+  },
+  projectServiceMock: { getProjectById: vi.fn() },
+}));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
@@ -37,7 +42,6 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
     initialSelectedAssetId: string | null;
     projectId: string | null;
     initialState: { assets: unknown[] };
-    canScheduleSocial?: boolean;
   }) => (
     <div
       data-testid="image-studio"
@@ -45,17 +49,24 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-assets={props.initialState.assets.length}
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
-      data-can-schedule={String(props.canScheduleSocial ?? false)}
     />
   ),
 }));
 
 // The picker reaches for the sidebar switcher's list, which reads the session
 // through react-query. This file is about which state the page chooses.
-vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
-  ProjectScopePicker: ({ body, testId }: { body: string; testId: string }) => (
-    <div data-testid={testId}>{body}</div>
-  ),
+vi.mock("@/app/components/project-scope/project-scope-required", () => ({
+  ProjectScopeRequired: ({
+    body,
+    testId,
+  }: {
+    body: string;
+    testId: string;
+  }) => <div data-testid={testId}>{body}</div>,
+  RequireProjectScope: (props: { reason: string }) => {
+    requireScopeMock(props);
+    return null;
+  },
 }));
 
 const PROJECT = {
@@ -85,8 +96,7 @@ describe("StudioPage", () => {
     hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
-  it("opens curated styles without reading workspace images", async () => {
-    imageStudioServiceMock.getWorkspaceState.mockResolvedValue(studioState());
+  it("opens curated styles under the auto-opened selector without a project", async () => {
     const { default: StudioPage } = await import("./page");
 
     render(await StudioPage({ searchParams: Promise.resolve({}) }));
@@ -100,6 +110,10 @@ describe("StudioPage", () => {
       "0",
     );
     expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+    // The selector opens over the curated gallery, asking for a project.
+    expect(requireScopeMock).toHaveBeenCalledWith({
+      reason: "App.Studio.pickBody",
+    });
     // Nothing is loaded for a project nobody named.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
@@ -107,7 +121,6 @@ describe("StudioPage", () => {
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
-    imageStudioServiceMock.getWorkspaceState.mockResolvedValue(studioState());
     const { default: StudioPage } = await import("./page");
 
     render(
@@ -118,6 +131,7 @@ describe("StudioPage", () => {
       "data-project",
       "workspace",
     );
+    expect(requireScopeMock).toHaveBeenCalledOnce();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
@@ -159,13 +173,14 @@ describe("StudioPage", () => {
     const studio = screen.getByTestId("image-studio");
     expect(studio).toHaveAttribute("data-project", "project-1");
     expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
+    expect(requireScopeMock).not.toHaveBeenCalled();
   });
 
   /**
    * The identity row is gone, and the page outline is not.
    *
-   * The mark, the product name and the project name repeated the sidebar row,
-   * the breadcrumb and the project switcher, in the one band of the page the
+   * The mark, the product name and the project name repeated the sidebar row
+   * and the project selector, in the one band of the page the
    * composer wanted — so they went. What must not go with them is the page's
    * `h1`: everything the studio renders below it is a section *of* something,
    * and an outline that starts at `h2` leaves a screen-reader reader with no
@@ -240,8 +255,8 @@ describe("StudioPage", () => {
     expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
-  it("lets Social beta members schedule from the studio", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(true);
+  it("loads the public studio without an Ads beta lookup", async () => {
+    hasSocialBetaAccessMock.mockRejectedValue(new Error("Not in Ads beta"));
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     imageStudioServiceMock.getState.mockResolvedValue(studioState());
 
@@ -253,10 +268,8 @@ describe("StudioPage", () => {
       }),
     );
 
-    expect(screen.getByTestId("image-studio")).toHaveAttribute(
-      "data-can-schedule",
-      "true",
-    );
+    expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

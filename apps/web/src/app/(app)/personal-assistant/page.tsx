@@ -9,6 +9,7 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { loadBotAdAccounts } from "@/lib/soko-bot/load-bot-ad-accounts";
 
 import { SokoBotConsole } from "./components/console/console.client";
 import { CreateState } from "./components/create-state.client";
@@ -65,6 +66,8 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   const focusTurnId = typeof params.turn === "string" ? params.turn : null;
   const integrationOutcome =
     typeof params.integration === "string" ? params.integration : null;
+  const connectProvider =
+    typeof params.connect === "string" ? params.connect : null;
 
   if (load.kind === "disabled") {
     return (
@@ -95,16 +98,16 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   }
 
   // Skills and the version chip are only rendered behind Advanced, which is
-  // off by default; the connectors need integrations and the catalog in both.
+  // off by default; the connectors need integrations in both.
   const wantsAdvanced = params.view === "advanced" || focusTurnId !== null;
-  const [versions, installedSkills, stats, usage, integrations, catalog] =
+  const [versions, installedSkills, stats, usage, integrations, adAccounts] =
     await Promise.all([
       wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
       wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
       sokoBotService.getStats().catch(() => null),
       sokoBotService.getMyUsage().catch(() => null),
       sokoBotService.listIntegrations().catch(() => null),
-      sokoBotService.searchIntegrationCatalog("").catch(() => []),
+      loadBotAdAccounts({ projectId: null }).catch(() => null),
     ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;
@@ -120,8 +123,8 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       stats={stats}
       usage={usage}
       integrations={integrations}
-      catalog={catalog}
       integrationOutcome={integrationOutcome}
+      connectProvider={connectProvider}
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}
@@ -129,6 +132,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       botId={null}
       canManage={state.bot.viewerCanManage}
       sharedRoomId={null}
+      ads={adAccounts && { accounts: adAccounts, projectId: null }}
       adminHref={
         isAdmin
           ? `${ADMIN_SOKO_BOTS_ROUTE}/${encodeURIComponent(state.bot.id)}`

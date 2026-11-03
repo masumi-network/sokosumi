@@ -4,7 +4,10 @@ import {
   NewsletterSubscriberSource,
   NewsletterSubscriberStatus,
 } from "@sokosumi/database";
-import { newsletterContentSchema } from "@sokosumi/utils";
+import {
+  newsletterContentSchema,
+  newsletterDraftInputSchema,
+} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -24,6 +27,14 @@ const contentSchema = newsletterContentSchema
 export const newsletterTemplateSchema = z
   .enum(["TEXT", "IMAGES", "BUTTONS"])
   .openapi("NewsletterTemplate");
+
+export const draftNewsletterIssueRequestSchema = newsletterDraftInputSchema
+  .clone()
+  .openapi("DraftNewsletterIssueRequest");
+
+export type DraftNewsletterIssueRequest = z.infer<
+  typeof draftNewsletterIssueRequestSchema
+>;
 
 export const newsletterIssueStatusSchema = z
   .enum(NewsletterIssueStatus)
@@ -49,6 +60,29 @@ export const patchNewsletterIssueRequestSchema =
     )
     .openapi("PatchNewsletterIssueRequest");
 
+export const newsletterIssueRevisionRequestSchema = z
+  .object({ revision: z.int().nonnegative() })
+  .openapi("NewsletterIssueRevisionRequest");
+
+export const scheduleNewsletterIssueRequestSchema =
+  newsletterIssueRevisionRequestSchema
+    .extend({
+      scheduledAt: z.iso.datetime(),
+      timezone: z
+        .string()
+        .min(1)
+        .max(100)
+        .refine((timezone) => {
+          try {
+            new Intl.DateTimeFormat("en", { timeZone: timezone });
+            return true;
+          } catch {
+            return false;
+          }
+        }, "Use a valid IANA time zone"),
+    })
+    .openapi("ScheduleNewsletterIssueRequest");
+
 export const newsletterIssueSchema = z
   .object({
     id: z.uuid(),
@@ -66,6 +100,7 @@ export const newsletterIssueSchema = z
     timezone: z.string().nullable(),
     sentAt: dateTimeSchema.nullable(),
     approvedByUserId: z.string().nullable(),
+    approvedByName: z.string().nullable().optional(),
     approvedAt: dateTimeSchema.nullable(),
     taskId: z.string().nullable(),
     lastError: z.string().nullable(),
@@ -74,11 +109,42 @@ export const newsletterIssueSchema = z
   })
   .openapi("NewsletterIssue");
 
-export const listNewsletterIssuesQuerySchema =
-  cursorPaginationQuerySchema.extend({
-    cursor: z.uuid().optional(),
+const NEWSLETTER_ISSUE_RANGE_MAX_MS = 62 * 24 * 60 * 60 * 1000;
+
+const newsletterIssuePageQuerySchema = cursorPaginationQuerySchema.extend({
+  cursor: z.uuid().optional(),
+});
+
+export const listNewsletterIssuesQuerySchema = newsletterIssuePageQuerySchema
+  .extend({
     status: newsletterIssueStatusSchema.optional(),
-  });
+    from: z.iso.datetime().optional().openapi({
+      description:
+        "Inclusive start of a delivery range: only issues scheduled (or, without a schedule, sent) at or after this time. Requires to.",
+      example: "2026-10-01T00:00:00.000Z",
+    }),
+    to: z.iso.datetime().optional().openapi({
+      description:
+        "Exclusive end of the delivery range, at most 62 days after from. Requires from.",
+      example: "2026-11-01T00:00:00.000Z",
+    }),
+  })
+  .refine((query) => !query.from === !query.to, {
+    message: "from and to must be provided together",
+    path: ["to"],
+  })
+  .refine(
+    (query) =>
+      !query.from ||
+      !query.to ||
+      (Date.parse(query.to) > Date.parse(query.from) &&
+        Date.parse(query.to) - Date.parse(query.from) <=
+          NEWSLETTER_ISSUE_RANGE_MAX_MS),
+    {
+      message: "to must be after from and at most 62 days later",
+      path: ["to"],
+    },
+  );
 
 export type CreateNewsletterIssueRequest = z.infer<
   typeof createNewsletterIssueRequestSchema
@@ -128,6 +194,7 @@ export const newsletterSchema = z
     id: z.uuid(),
     projectId: z.uuid(),
     workspaceId: z.uuid(),
+    contactListId: z.uuid().nullable(),
     name: z.string(),
     senderName: z.string(),
     replyTo: z.email(),
@@ -148,6 +215,28 @@ export const publicNewsletterParamsSchema = z.object({
 export const publicNewsletterSchema = newsletterSchema
   .pick({ name: true, senderName: true, brand: true })
   .openapi("PublicNewsletter");
+
+export const publicNewsletterIssueParamsSchema =
+  publicNewsletterParamsSchema.extend({
+    issueSlug: z.string().min(1).max(300),
+  });
+
+export const listPublicNewsletterIssuesQuerySchema =
+  newsletterIssuePageQuerySchema;
+
+export const publicNewsletterIssueSummarySchema = z
+  .object({
+    publicSlug: z.string(),
+    subject: z.string(),
+    previewText: z.string().nullable(),
+    sentAt: dateTimeSchema,
+  })
+  .openapi("PublicNewsletterIssueSummary");
+
+export const publicNewsletterIssueSchema = publicNewsletterIssueSummarySchema
+  .omit({ publicSlug: true })
+  .extend({ html: z.string() })
+  .openapi("PublicNewsletterIssue");
 
 export const subscribeNewsletterRequestSchema = z
   .object({
@@ -181,6 +270,7 @@ export const newsletterSubscriberSchema = z
     newsletterId: z.uuid(),
     email: z.email(),
     name: z.string().nullable(),
+    contact: z.union([z.object({ id: z.uuid(), name: z.string() }), z.null()]),
     status: newsletterSubscriberStatusSchema,
     source: z
       .enum(NewsletterSubscriberSource)
@@ -212,13 +302,43 @@ export const newsletterSubscriberListSchema = z
   })
   .openapi("NewsletterSubscriberList");
 
+export const newsletterConsentSchema = z
+  .enum(["CONFIRMED", "ASK"])
+  .openapi("NewsletterConsent");
+
 export const addNewsletterSubscriberRequestSchema = z
   .object({
     email: newsletterEmailSchema,
     name: z.string().trim().max(200).nullable().optional(),
-    consent: z.literal(true),
+    consent: newsletterConsentSchema,
   })
   .openapi("AddNewsletterSubscriberRequest");
+
+export const addNewsletterSubscribersFromContactsRequestSchema = z
+  .object({
+    contactIds: z.array(z.uuid()).max(1000).optional(),
+    listIds: z.array(z.uuid()).max(20).optional(),
+    consent: newsletterConsentSchema,
+  })
+  .refine(
+    (input) =>
+      (input.contactIds?.length ?? 0) + (input.listIds?.length ?? 0) > 0,
+    {
+      message: "Provide at least one contact or list id",
+    },
+  )
+  .openapi("AddNewsletterSubscribersFromContactsRequest");
+
+export const newsletterAddFromContactsResultSchema = z
+  .object({
+    added: z.int().nonnegative(),
+    alreadySubscribed: z.int().nonnegative(),
+    skippedUnsubscribed: z.int().nonnegative(),
+    skippedBounced: z.int().nonnegative(),
+    skippedNoEmail: z.int().nonnegative(),
+    pendingConfirmation: z.int().nonnegative(),
+  })
+  .openapi("NewsletterAddFromContactsResult");
 
 export const patchNewsletterSubscriberRequestSchema = z
   .object({
@@ -238,7 +358,7 @@ export const importNewsletterSubscribersRequestSchema = z
       .refine((csv) => Buffer.byteLength(csv, "utf8") <= 5_000_000, {
         message: "CSV exceeds 5 MB",
       }),
-    consent: z.literal(true),
+    consent: newsletterConsentSchema,
   })
   .openapi("ImportNewsletterSubscribersRequest");
 
@@ -249,6 +369,9 @@ export const newsletterImportResultSchema = z
       description:
         "Valid rows skipped because the email already exists in the newsletter or CSV.",
     }),
+    skippedUnsubscribed: z.int().nonnegative(),
+    skippedBounced: z.int().nonnegative(),
+    pendingConfirmation: z.int().nonnegative(),
     invalid: z
       .array(z.object({ row: z.int().min(2), value: z.string() }))
       .max(100),
@@ -261,6 +384,13 @@ export type ListNewsletterSubscribersQuery = z.infer<
 >;
 export type AddNewsletterSubscriberRequest = z.infer<
   typeof addNewsletterSubscriberRequestSchema
+>;
+export type AddNewsletterSubscribersFromContactsRequest = z.infer<
+  typeof addNewsletterSubscribersFromContactsRequestSchema
+>;
+export type NewsletterConsent = z.infer<typeof newsletterConsentSchema>;
+export type ImportNewsletterSubscribersRequest = z.infer<
+  typeof importNewsletterSubscribersRequestSchema
 >;
 export type PatchNewsletterSubscriberRequest = z.infer<
   typeof patchNewsletterSubscriberRequestSchema

@@ -34,6 +34,7 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomMessage: { groupBy: vi.fn().mockResolvedValue([]) },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -86,6 +87,7 @@ const tx = {
     findUnique: memberFindUniqueMock,
   },
   chatRoomMessage: {
+    groupBy: vi.fn().mockResolvedValue([]),
     findFirst: messageFindFirstMock,
   },
 };
@@ -157,7 +159,6 @@ function baseMessage(overrides: Record<string, unknown> = {}) {
     mentionsAsSource: [],
     reactions: [],
     pins: [],
-    _count: { replies: 0 },
     replies: [],
     ...overrides,
   };

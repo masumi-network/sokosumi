@@ -77,18 +77,3 @@ export function shouldRenderAwaitingInputFormForViewer(
 ): boolean {
   return !readOnly && shouldRenderAwaitingInputForm(event, isLatestEvent);
 }
-
-export function shouldHighlightJobEventBorder(
-  event: JobEvent,
-  isLatestEvent: boolean,
-): boolean {
-  if (!isLatestEvent) {
-    return false;
-  }
-
-  if (event.status === AgentJobStatus.COMPLETED) {
-    return true;
-  }
-
-  return event.status === AgentJobStatus.AWAITING_INPUT && event.input == null;
-}

@@ -165,7 +165,7 @@ python3 "$M6_WORK/trace_stacks.py" "$M6_SKILL" "$M6_WORK/native-time.trace" \
   4000 9000 > "$M6_WORK/trace-stacks.json"
 ```
 
-The supplemental extractor reuses the skill's XML parser, caps stacks at 128 frames and reports inclusive sample weight. Inclusive frames overlap; do not add their shares. It caches the exported time-profile XML beside the trace. Binary traces are intentionally outside the repository; the [parsed evidence](scrolling-performance-evidence.json) retains the analysed metrics and phase boundaries.
+The supplemental extractor reuses the skill's XML parser, caps stacks at 128 frames and reports inclusive sample weight. Inclusive frames overlap; do not add their shares. It caches the exported time-profile XML beside the trace. Binary traces are intentionally outside the repository.
 
 ## Meaning of the measurements
 

@@ -23,6 +23,13 @@ public final class RoomTimeline: ObservableObject {
   public private(set) var generation = 0
 
   @Published public private(set) var historicalAnchor: String?
+  /// The Unread divider for this visit: the first unread message Core named on the room's first page. Later pages,
+  /// reads and realtime never move it; opening a room again asks Core afresh.
+  @Published public private(set) var unreadDividerMessageId: String?
+  /// The first page asks Core for the open-at-unread mode (a room's main Transcript with no explicit target).
+  public private(set) var opensAtUnread = false
+  /// The room showed Room unread as it opened, so Core's answer will most likely name a divider.
+  private var showsRoomUnread = false
   /// Per gap row (row 04a). Visibility and taps come from the caller; the
   /// page outcome settles it here, so the row is the only place a gap failure shows.
   @Published public var boundaryLoads = TranscriptBoundaryLoads()
@@ -55,8 +62,12 @@ public final class RoomTimeline: ObservableObject {
 
   public init() {}
 
-  public func reset(roomId: String? = nil, parentMessageId: String? = nil) {
+  public func reset(roomId: String? = nil, parentMessageId: String? = nil, opensAtUnread: Bool = false, showsRoomUnread: Bool = false) {
     generation += 1
+    // A Thread never shows the divider.
+    self.opensAtUnread = opensAtUnread && roomId != nil && parentMessageId == nil
+    self.showsRoomUnread = showsRoomUnread
+    unreadDividerMessageId = nil
     activePage = nil
     historyRanges = RoomHistoryRanges()
     historicalAnchor = nil
@@ -158,14 +169,15 @@ public final class RoomTimeline: ObservableObject {
       return false
     }
     do {
-      let page = try await fetchPage(kind, client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
+      let (page, newest) = try await fetchPages(kind, client: client, roomId: roomId, cursor: requestedCursor,
+                                                organizationSlug: organizationSlug)
       guard generation == expectedGeneration, !Task.isCancelled else {
         if generation == expectedGeneration {
           abandonBoundary(kind)
         }
         return false
       }
-      try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
+      try land(page, joining: newest, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
       settleBoundary(kind, succeeded: true)
       return true
     } catch {
@@ -174,6 +186,39 @@ public final class RoomTimeline: ObservableObject {
       }
       throw error
     }
+  }
+
+  /// The page `kind` asks for and, for an open-at-unread answer naming a divider, the newest page it joins. That answer
+  /// is either the newest page or the window around an older divider; either way it lands as a jump window on the
+  /// newest page, which it joins through a gap row when it is older. The rule for asking for the newest page: a room
+  /// that showed Room unread as it opened asks beside the answer, not after it, so the open waits for one round trip;
+  /// any other room asks only once the answer names a divider, so a room with nothing unread costs one request.
+  private func fetchPages(_ kind: Page, client: Client, roomId: String, cursor: String?,
+                          organizationSlug: String?) async throws -> (RoomMessagesPage, newest: RoomMessagesPage?) {
+    let asksAtUnread = kind == .initial && opensAtUnread
+    let asksEarly = asksAtUnread && showsRoomUnread
+    async let earlyNewest = asksEarly ? fetchPage(.latest, client: client, roomId: roomId, cursor: nil, organizationSlug: organizationSlug) : nil
+    let page = try await fetchPage(kind, client: client, roomId: roomId, cursor: cursor, organizationSlug: organizationSlug)
+    // Always awaited, so a page asked for is a page answered; one that failed is asked for again.
+    let early = try? await earlyNewest
+    guard asksAtUnread, page.firstUnreadMessageId != nil else { return (page, nil) }
+    if let early {
+      return (page, early)
+    }
+    return try await (page, fetchPage(.latest, client: client, roomId: roomId, cursor: nil, organizationSlug: organizationSlug))
+  }
+
+  /// The first page names the visit's Unread divider. An open-at-unread answer lands after the newest page it joins.
+  private func land(_ page: RoomMessagesPage, joining newest: RoomMessagesPage?, kind: Page, roomId: String,
+                    requestedCursor: String?) throws {
+    if kind == .initial {
+      unreadDividerMessageId = page.firstUnreadMessageId
+    }
+    guard let newest else {
+      return try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
+    }
+    try applyPage(newest, kind: kind, roomId: roomId, requestedCursor: nil)
+    try applyPage(page, kind: kind, roomId: roomId, requestedCursor: nil, reachesPresent: false)
   }
 
   private func beginPage(_ kind: Page) {
@@ -214,9 +259,9 @@ public final class RoomTimeline: ObservableObject {
     }
   }
 
+  /// `reachesPresent` false lands a page of the past whatever its kind: the open-at-unread answer.
   private func applyPage(
-    _ page: (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?),
-    kind: Page, roomId: String, requestedCursor: String?
+    _ page: RoomMessagesPage, kind: Page, roomId: String, requestedCursor: String?, reachesPresent: Bool = true
   ) throws {
     let rows = page.messages.filter { $0.roomId == roomId && $0.parentMessageId == parentMessageId }
     if case let .around(messageId) = kind {
@@ -228,7 +273,7 @@ public final class RoomTimeline: ObservableObject {
       historicalAnchor = nil
     }
     let nextCursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
-    mergeHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor)
+    mergeHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor, reachesPresent: reachesPresent)
     messages = mergeRealtimePage(messages: messages, page: rows)
     boundaryLoads.retain(historyGapMessageIds)
     hasLoadedHistory = true
@@ -242,7 +287,7 @@ public final class RoomTimeline: ObservableObject {
   }
 
   private func mergeHistory(_ rows: [Components.Schemas.ChatRoomMessage], kind: Page,
-                            requestedCursor: String?, nextCursor: String?) {
+                            requestedCursor: String?, nextCursor: String?, reachesPresent: Bool) {
     var contiguousRows = rows
     if let requestedCursor, let cursorRow = messages.first(where: { $0.id == requestedCursor }),
        !rows.contains(where: { $0.id == requestedCursor }) {
@@ -257,29 +302,31 @@ public final class RoomTimeline: ObservableObject {
     // cursor belonging to its original page with the refresh page's cursor.
     let mergedCursor = kind == .latest && rows.contains(where: { $0.id == messages.first?.id }) ? cursor : nextCursor
     historyRanges.merge(existing: messages, page: contiguousRows, nextCursor: mergedCursor,
-                        reachesPresent: kind == .initial || kind == .latest || kind == .returnToLatest)
+                        reachesPresent: reachesPresent && (kind == .initial || kind == .latest || kind == .returnToLatest))
     cursor = historyRanges.oldestCursor
   }
 
   private func fetchPage(
     _ kind: Page, client: Client, roomId: String, cursor: String?, organizationSlug: String?
-  ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
+  ) async throws -> RoomMessagesPage {
     let around: String? = if case let .around(messageId) = kind {
       messageId
     } else {
       nil
     }
     if let parentMessageId {
-      return try await ChatService().listThreadMessages(
+      let page = try await ChatService().listThreadMessages(
         client: client, roomId: roomId, parentMessageId: parentMessageId,
         cursor: cursor, around: around, organizationSlug: organizationSlug
       )
+      return RoomMessagesPage(messages: page.messages, nextCursor: page.nextCursor)
     }
     // An older page brings the latest page's 100 rows: each insertion above the reader costs the transcript a frame
     // (M6). A jump window and a gap page keep 30.
     let limit: Int? = kind == .older || (around == nil && cursor == nil) ? nil : 30
-    return try await ChatService().listMessages(
-      client: client, roomId: roomId, cursor: cursor, around: around, limit: limit, organizationSlug: organizationSlug
+    return try await ChatService().listRoomMessages(
+      client: client, roomId: roomId, cursor: cursor, around: around, limit: limit, openAtUnread: kind == .initial && opensAtUnread,
+      organizationSlug: organizationSlug
     )
   }
 }

@@ -12,6 +12,7 @@ import prisma from "@/lib/db/prisma";
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  withChatRoomReplyCount,
 } from "@/routes/v1/chats/rooms/helpers";
 import {
   type ChatRoomMessage,
@@ -58,8 +59,13 @@ export async function publishChatRoomMessageRealtime(
   options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
+    // A patch carries reactions, unfurls or mentions only and never reads the
+    // reply count, so only a full message pays for counting.
+    const counted = isPatchEventType(eventType)
+      ? { ...message, threadReplyCount: 0 }
+      : await withChatRoomReplyCount(prisma, message);
     // No currentUserId: shared wire DTO; clients derive viewer flags.
-    const dto = chatRoomMessageSchema.parse(mapChatRoomMessage(message));
+    const dto = chatRoomMessageSchema.parse(mapChatRoomMessage(counted));
     if (isPatchEventType(eventType)) {
       await publishChatRoomMessageEvent({
         eventType,

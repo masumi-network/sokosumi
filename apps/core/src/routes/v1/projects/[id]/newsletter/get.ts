@@ -6,7 +6,6 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { assertNewsletterEnabled } from "@/lib/newsletter/feature";
 import {
   newsletterProjectParamsSchema,
   newsletterSchema,
@@ -21,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter",
     tags: ["Projects"],
     description:
-      "Get the Project's newsletter settings. Returns 404 if no newsletter exists or newsletters are disabled.",
+      "Get the Project's newsletter settings. Returns 404 if no newsletter exists or the Project's workspace is outside the beta (utxo) organization.",
     request: { params: newsletterProjectParamsSchema },
     responses: {
       200: jsonSuccessResponse(newsletterSchema, "Newsletter settings"),
@@ -35,7 +34,6 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    assertNewsletterEnabled();
     const { id } = c.req.valid("param");
     const scope = await newsletterScope(c, id);
     return ok(c, newsletterSchema.parse(await getNewsletter(scope)));

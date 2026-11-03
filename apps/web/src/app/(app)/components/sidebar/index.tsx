@@ -7,17 +7,18 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import type { CreditUsage } from "@/lib/types/credit";
 
 import type { CreditWalletScope } from "./components/account-summary-types";
 
 import AnnouncementCards from "./components/announcement-cards";
-import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
+import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
+import { SidebarSearchButton } from "./components/sidebar-search-button.client";
 
 export type SidebarCreditsSubscription =
   GetUsersByIdCreditsResponse["data"]["subscription"];
@@ -85,38 +86,62 @@ export function mapAccountCreditsChrome(
 }
 
 interface SidebarProps {
+  /** The Workspace switcher, at the start of the header on desktop. */
+  workspaceSwitcher: ReactNode;
   accountFooter: ReactNode;
   chatList: ReactNode;
   socialBetaEnabled: boolean;
+  newsletterEnabled: boolean;
 }
 
 export default function Sidebar({
+  workspaceSwitcher,
   accountFooter,
   chatList,
   socialBetaEnabled,
+  newsletterEnabled,
 }: SidebarProps) {
   return (
-    <ShadcnSidebar collapsible="icon">
+    <ShadcnSidebar>
       {/*
         h-16 border-b must match HeaderChrome's desktop control row so the
-        hairline is one continuous rule across the sidebar/content seam.
+        hairline is one continuous rule across the sidebar/content seam. The
+        sidebar is shown and hidden from the top bar's toggle, so its own
+        header carries no collapse control: Search and New task are its
+        actions.
       */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
-          <SidebarLogo />
-          <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
+        <div className="flex size-full items-center justify-between gap-2 px-2">
+          {/* As in Linear: the switcher at the start, as wide as its content,
+              and the actions at the end. It hides with the sidebar: nothing
+              stands in for it in the top bar. The phone keeps its switcher
+              and Search in the top bar instead, so its sheet keeps the
+              wordmark. */}
+          <div className="flex min-w-0 flex-1 max-md:hidden">
+            {workspaceSwitcher}
+          </div>
+          <SidebarLogo className="md:hidden" />
+          <div className="flex shrink-0 items-center gap-1">
+            <SidebarSearchButton />
+            <SidebarNewTaskButton />
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
+          <PersonalAssistantNav />
+          {/* The project scope titles the nav groups it scopes; the chat
+              area after them, under its own Chats heading, is outside it. */}
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          <PersonalAssistantNav />
-          <SidebarSeparator className="-mt-px" />
-          <MenuItems socialBetaEnabled={socialBetaEnabled} />
-          <SidebarSeparator />
+          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+            <MenuItems
+              socialBetaEnabled={socialBetaEnabled}
+              newsletterEnabled={newsletterEnabled}
+            />
+          </div>
           {chatList}
         </div>
       </SidebarContent>
@@ -124,18 +149,14 @@ export default function Sidebar({
         The hairline is the twin of SidebarHeader's `border-b`: without it the
         scroll region runs straight into the account chip, and at the scroll
         position where a DM row lands flush against it the chip reads as one
-        more room. It marks the footer as chrome in both states — expanded and
-        on the collapsed rail.
+        more room. It marks the footer as chrome.
       */}
       <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
         <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
-        {/* No `justify-center` on the rail: the chip carries the same `ml-1`
-            every Sidebar row does, so its face lands on the sidebar's 28px
-            leading axis rather than on the rail's own half-pixel centre. */}
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex">
+        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)]">
           {accountFooter}
         </div>
       </SidebarFooter>

@@ -8,6 +8,8 @@ export interface RoomMessagePage {
   messages: ChatRoomMessage[];
   nextCursor: string | null;
   failed: boolean;
+  /** Where the Unread divider belongs, when the page says (SOK-1481). */
+  firstUnreadMessageId?: string | null;
 }
 
 /**

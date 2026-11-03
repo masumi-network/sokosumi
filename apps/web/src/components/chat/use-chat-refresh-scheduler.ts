@@ -18,8 +18,12 @@ interface UseChatRefreshSchedulerOptions {
   refresh: (isCurrent: () => boolean) => Promise<void>;
   /** Realtime is delivering for this data set; picks the recovery cadence. */
   healthy: boolean;
-  /** Poll cadence while unhealthy (the pre-SOK-986 interval). */
-  fallbackIntervalMs: number;
+  /**
+   * Poll cadence while unhealthy (the pre-SOK-986 interval). Left out, the data
+   * set has no timer at all and reads only when asked: on mount, on recovery,
+   * on `requestRefresh`.
+   */
+  fallbackIntervalMs?: number;
   /**
    * Read at once on mount and on key change, not only after an interval.
    * This read runs in the background too, like an explicit request.
@@ -31,6 +35,11 @@ interface UseChatRefreshSchedulerOptions {
    * gets that from its channel instead.
    */
   refreshOnRecovery?: boolean;
+  /**
+   * Read each time the window returns to the foreground, stale or not. For a
+   * data set another tab or device can change with no event to say so.
+   */
+  refreshOnForeground?: boolean;
 }
 
 /**
@@ -68,6 +77,7 @@ export function useChatRefreshScheduler({
   fallbackIntervalMs,
   refreshOnMount = false,
   refreshOnRecovery = false,
+  refreshOnForeground = false,
 }: UseChatRefreshSchedulerOptions): () => void {
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -92,7 +102,7 @@ export function useChatRefreshScheduler({
 
     function schedule() {
       window.clearTimeout(timer);
-      if (cancelled) return;
+      if (cancelled || fallbackIntervalMs === undefined) return;
       timer = window.setTimeout(
         onTimer,
         healthyRef.current ? CHAT_HEALTHY_REFRESH_MS : fallbackIntervalMs,
@@ -172,7 +182,7 @@ export function useChatRefreshScheduler({
       wasForeground = true;
       // Focus and visibility arriving together collapse into this one
       // transition; only recorded staleness turns it into a read.
-      if (!needed) return;
+      if (!needed && !refreshOnForeground) return;
       needed = false;
       void run();
     }
@@ -211,7 +221,7 @@ export function useChatRefreshScheduler({
       requestRef.current = () => {};
       rescheduleRef.current = () => {};
     };
-  }, [key, fallbackIntervalMs, refreshOnMount]);
+  }, [key, fallbackIntervalMs, refreshOnMount, refreshOnForeground]);
 
   // A health flip re-arms the pending timer with the new cadence. A
   // recovery read is only for a drop after this instance has already

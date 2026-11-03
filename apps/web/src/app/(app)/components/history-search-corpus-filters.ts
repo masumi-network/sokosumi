@@ -4,8 +4,6 @@
  */
 export const HISTORY_SEARCH_KINDS = ["task", "job", "image"] as const;
 
-export type HistorySearchKind = (typeof HISTORY_SEARCH_KINDS)[number];
-
 export type HistorySearchScope = "owned" | "workspace";
 
 /**

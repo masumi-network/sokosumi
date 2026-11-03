@@ -11,6 +11,12 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "run_integration_tool",
   "upload_file",
   "publish_social_post",
+  // Creates a campaign at Google; never repeated after an unclear failure.
+  "create_ad_campaign",
+  // Change or delete a campaign at the provider; never repeated after an unclear failure.
+  "update_ad_campaign",
+  "edit_ad_campaign",
+  "delete_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
@@ -19,7 +25,41 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "save_email_attachment",
 ]);
 
+/** A Google campaign id: digits only. */
+const adCampaignIdSchema = z.string().regex(/^\d{1,20}$/);
+
+/** Provider ack shape per ads write; one table so create/update/edit/delete stay aligned. */
+const AD_WRITE_RECEIPT_PROOF = {
+  create_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    status: z.literal("PAUSED"),
+  }),
+  update_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    updated: z.literal(true),
+  }),
+  edit_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    edited: z.literal(true),
+  }),
+  delete_ad_campaign: z.object({
+    campaignId: adCampaignIdSchema,
+    deleted: z.literal(true),
+  }),
+} as const;
+
 export const ACTION_CAPABILITIES = new Set([
+  "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   ...EXTERNAL_EFFECT_CAPABILITIES,
   "create_task",
   "create_table",
@@ -39,6 +79,8 @@ export const ACTION_CAPABILITIES = new Set([
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "create_project",
+  "update_project",
   "create_schedule",
   "update_schedule",
   "delete_schedule",
@@ -49,6 +91,7 @@ export const ACTION_CAPABILITIES = new Set([
   "schedule_social_post",
   "cancel_social_post",
   "move_file",
+  "delete_file",
   "update_emails",
   "install_skill",
   "remove_skill",
@@ -257,6 +300,12 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
+  } else if (capability in AD_WRITE_RECEIPT_PROOF) {
+    const acknowledged =
+      AD_WRITE_RECEIPT_PROOF[
+        capability as keyof typeof AD_WRITE_RECEIPT_PROOF
+      ].safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.campaignId;
   } else if (
     capability === "generate_image" ||
     capability === "generate_video"

@@ -4,7 +4,6 @@ interface ChatUnreadViewHeaderProps {
   title: string;
 }
 
-/** The Threads view's heading (SOK-1159), in the Notification Center's size. */
 export function ChatUnreadViewHeader({ title }: ChatUnreadViewHeaderProps) {
   return <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>;
 }
@@ -24,7 +23,7 @@ export function ChatCaughtUp({ title, description }: ChatCaughtUpProps) {
       data-testid="chat-caught-up"
       className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
     >
-      <span className="bg-primary-quaternary text-primary-variant grid size-8 place-items-center rounded-full">
+      <span className="bg-quinary text-foreground grid size-8 place-items-center rounded-full">
         <CheckCheck className="size-4" aria-hidden />
       </span>
       <p className="text-sm font-medium">{title}</p>

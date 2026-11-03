@@ -33,6 +33,18 @@ describe("persistedToolResult", () => {
     expect(citationsIn(stored)).toContain("example.com/report-24");
   });
 
+  it("keeps a long Social post's projectId for result cards and post links", () => {
+    const stored = persistedToolResult({
+      id: "post",
+      projectId: "project",
+      text: "x".repeat(25_000),
+    });
+    expect(stored).toMatchObject({ truncated: true, projectId: "project" });
+    expect(Buffer.byteLength(JSON.stringify(stored))).toBeLessThanOrEqual(
+      16_384,
+    );
+  });
+
   it("stores a small result as it is", () => {
     expect(persistedToolResult({ url: "https://example.com/a" })).toEqual({
       url: "https://example.com/a",

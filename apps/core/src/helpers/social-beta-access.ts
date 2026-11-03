@@ -5,13 +5,7 @@ import { forbidden } from "@/helpers/error";
 
 type SocialBetaAccessClient = Pick<Prisma.TransactionClient, "member">;
 
-/** Filters a User relation to the beta workspace, for queries that cannot await a check. */
-export const SOCIAL_BETA_USER_WHERE = {
-  members: {
-    some: { organization: { slug: SOCIAL_BETA_ORGANIZATION_SLUG } },
-  },
-} satisfies Prisma.UserWhereInput;
-
+/** Ads-only beta check. Social scheduling is public; names retained for compatibility. */
 export async function hasSocialBetaAccess(
   userId: string,
   tx: SocialBetaAccessClient,
@@ -32,6 +26,6 @@ export async function requireSocialBetaAccess(
   tx: SocialBetaAccessClient,
 ): Promise<void> {
   if (!(await hasSocialBetaAccess(userId, tx))) {
-    throw forbidden("Social is only available to utxo AG workspace members");
+    throw forbidden("Ads is only available to utxo AG workspace members");
   }
 }

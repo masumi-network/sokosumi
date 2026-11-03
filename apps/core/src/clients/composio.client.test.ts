@@ -459,7 +459,7 @@ describe("getConnectedSocialIdentity", () => {
         },
       },
       identity: {
-        id: "urn:li:person:alice",
+        id: "alice",
         handle: null,
         displayName: "Alice Doe",
         avatarUrl: "https://media.licdn.com/a.jpg",
@@ -545,7 +545,12 @@ describe("getConnectedSocialIdentity", () => {
         toolkits: { enable: [toolkit] },
         connected_accounts: { [toolkit]: ["ca_selected"] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { [toolkit]: { enable: [slug] } },
+        tools: {
+          [toolkit]: {
+            enable:
+              provider === "linkedin" ? [slug, "LINKEDIN_WHO_AM_I"] : [slug],
+          },
+        },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
         execute: { enable_multi_execute: false },
@@ -751,6 +756,142 @@ describe("getConnectedSocialIdentity", () => {
       ).resolves.toMatchObject({ id, handle: handle ?? null });
     },
   );
+
+  describe("LinkedIn photo", () => {
+    const meProfile = {
+      id: "li_123",
+      vanityName: "alice",
+      localizedFirstName: "Alice",
+      localizedLastName: "Doe",
+      profilePicture: { displayImage: "urn:li:digitalmediaAsset:C4D00" },
+    };
+
+    function stubLinkedIn(profile: unknown, userInfo: Response) {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+        .mockResolvedValueOnce(
+          Response.json({ data: { data: profile }, successful: true }),
+        )
+        .mockResolvedValueOnce(userInfo)
+        .mockResolvedValueOnce(Response.json({}));
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    it("reads the largest photo from a decorated /v2/me profile", async () => {
+      const fetchMock = stubIdentity({
+        data: {
+          data: {
+            ...meProfile,
+            profilePicture: {
+              displayImage: "urn:li:digitalmediaAsset:C4D00",
+              "displayImage~": {
+                elements: [
+                  {
+                    identifiers: [
+                      { identifier: "https://media.licdn.com/small.jpg" },
+                    ],
+                  },
+                  {
+                    identifiers: [
+                      { identifier: "https://media.licdn.com/large.jpg" },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+        successful: true,
+      });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "linkedin",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toEqual({
+        id: "li_123",
+        handle: "alice",
+        displayName: "Alice Doe",
+        avatarUrl: "https://media.licdn.com/large.jpg",
+        subscriptionType: null,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("falls back to userinfo when the profile has only a media URN", async () => {
+      const fetchMock = stubLinkedIn(
+        meProfile,
+        Response.json({
+          data: {
+            data: {
+              sub: "li_123",
+              name: "Alice Doe",
+              picture: "https://media.licdn.com/dms/image/alice.jpg",
+            },
+          },
+          successful: true,
+        }),
+      );
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "linkedin",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toEqual({
+        id: "li_123",
+        handle: "alice",
+        displayName: "Alice Doe",
+        avatarUrl: "https://media.licdn.com/dms/image/alice.jpg",
+        subscriptionType: null,
+      });
+      expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual({
+        tool_slug: "LINKEDIN_WHO_AM_I",
+        arguments: {},
+      });
+      expect(fetchMock.mock.calls[3][1].method).toBe("DELETE");
+    });
+
+    it("keeps the identity without a photo when userinfo is refused", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      stubLinkedIn(
+        meProfile,
+        Response.json({ data: null, error: "forbidden", successful: false }),
+      );
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "linkedin",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toMatchObject({
+        id: "li_123",
+        displayName: "Alice Doe",
+        avatarUrl: null,
+      });
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("licdn");
+      warn.mockRestore();
+    });
+
+    it("ignores a non-https photo value", async () => {
+      const { linkedInAvatarUrl } = await import("./composio.client");
+      expect(linkedInAvatarUrl({ picture: "urn:li:digitalmediaAsset:1" })).toBe(
+        null,
+      );
+      expect(linkedInAvatarUrl({ picture: "http://insecure/a.jpg" })).toBe(
+        null,
+      );
+    });
+  });
 
   it.each([null, { session_id: "" }, { session_id: 123 }])(
     "rejects invalid session metadata before tool execution: %j",

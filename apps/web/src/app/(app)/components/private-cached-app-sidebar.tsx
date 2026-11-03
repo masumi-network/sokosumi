@@ -1,5 +1,6 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { Suspense } from "react";
+import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { getPrivateCachedChatListChrome } from "./private-sidebar-cache";
@@ -13,8 +14,9 @@ interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
-  /** Resolved by the frame: Social is still a beta surface. */
+  /** Resolved by the frame: Ads remains in the utxo beta; Social scheduling is public. */
   socialBetaEnabled: boolean;
+  newsletterEnabled: boolean;
 }
 
 /**
@@ -28,10 +30,13 @@ export default function PrivateCachedAppSidebar({
   activeOrganizationId,
   adminMenuEnabled,
   socialBetaEnabled,
+  newsletterEnabled,
 }: PrivateCachedAppSidebarProps) {
   return (
     <Sidebar
+      workspaceSwitcher={<WorkspaceSwitcherMenu placement="sidebar" />}
       socialBetaEnabled={socialBetaEnabled}
+      newsletterEnabled={newsletterEnabled}
       chatList={
         <Suspense
           fallback={
@@ -97,6 +102,7 @@ async function PrivateCachedSidebarRooms({
       currentUserId={userId}
       organizationId={activeOrganizationId}
       isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+      withChatsHeading
     />
   );
 }

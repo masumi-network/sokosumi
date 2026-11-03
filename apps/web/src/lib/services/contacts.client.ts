@@ -3,6 +3,7 @@ import {
   deleteContactsByIdChannelsByChannelId,
   type GetContactsData,
   getContactLists,
+  getContactListsByIdSuggestions,
   getContacts,
   getContactsById,
   getContactsByIdActivity,
@@ -20,10 +21,14 @@ import {
   patchContactListsById,
   patchContactsById,
   postContactLists,
+  postContactListsByIdFind,
   postContactListsByIdMembers,
+  postContactListsByIdSuggestionsAdd,
+  postContactListsByIdSuggestionsDismiss,
   postContacts,
   postContactsByIdArchive,
   postContactsByIdChannels,
+  postContactsByIdEnrich,
   postContactsImport,
   postContactsMerge,
   putContactsByIdImportance,
@@ -154,6 +159,48 @@ export const contactsService = {
         ...options(),
         path: { id: listId },
         body: { add: change.add ?? [], remove: change.remove ?? [] },
+      })
+    ).data.data;
+  },
+  async suggestions(listId: string) {
+    return (
+      await getContactListsByIdSuggestions({
+        ...options(),
+        path: { id: listId },
+      })
+    ).data.data;
+  },
+  async findPeople(
+    listId: string,
+    body: { brief?: string; size: 1 | 10 | 25 },
+  ) {
+    return (
+      await postContactListsByIdFind({
+        ...options(),
+        path: { id: listId },
+        body,
+      })
+    ).data.data;
+  },
+  async enrich(id: string) {
+    return (await postContactsByIdEnrich({ ...options(), path: { id } })).data
+      .data;
+  },
+  async addSuggestions(listId: string, ids: string[]) {
+    return (
+      await postContactListsByIdSuggestionsAdd({
+        ...options(),
+        path: { id: listId },
+        body: { ids },
+      })
+    ).data.data;
+  },
+  async dismissSuggestions(listId: string, ids: string[]) {
+    return (
+      await postContactListsByIdSuggestionsDismiss({
+        ...options(),
+        path: { id: listId },
+        body: { ids },
       })
     ).data.data;
   },

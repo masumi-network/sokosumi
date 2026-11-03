@@ -68,7 +68,7 @@ export const saveNewsletterSettings = withSession<
 
   try {
     const newsletter = await newsletterService.saveSettings(projectId, input);
-    revalidatePath(`/projects/${projectId}/newsletter`);
+    revalidatePath("/newsletter", "layout");
     return toActionResult(ok(newsletter));
   } catch (error) {
     return toActionResult(

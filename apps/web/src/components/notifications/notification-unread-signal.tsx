@@ -20,7 +20,7 @@ interface NotificationUnreadRailProps {
  * A background rather than a left border, so the bar survives forced colors
  * mode. That mode keeps the alpha of a background-color, which leaves the
  * read row's rail invisible, but it forces a border-color outright and would
- * have painted both states the same bar. It repaints bg-primary as Canvas,
+ * have painted both states the same bar. It repaints bg-foreground as Canvas,
  * the colour of the row behind it, so the unread rail names Highlight there.
  */
 export function NotificationUnreadRail({
@@ -30,7 +30,9 @@ export function NotificationUnreadRail({
     <span
       className={cn(
         "w-0.5 shrink-0 self-stretch",
-        isRead ? "bg-transparent" : "bg-primary forced-colors:bg-[Highlight]",
+        isRead
+          ? "bg-transparent"
+          : "bg-foreground forced-colors:bg-[Highlight]",
       )}
       aria-hidden
     />

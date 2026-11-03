@@ -10,7 +10,11 @@ import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
-import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import {
+  socialPostProviderSchema,
+  socialPostQuoteSummaryShape,
+  socialPostThreadSummaryShape,
+} from "@/schemas/social-post.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -26,7 +30,7 @@ const workspaceCalendarQueryObjectSchema = z.object({
   }),
   includeSocialPosts: z.enum(["true", "false"]).optional().openapi({
     description:
-      "Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.",
+      "Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.",
   }),
   agendaOnly: z.enum(["true", "false"]).optional().openapi({
     description:
@@ -223,6 +227,10 @@ export const socialPostCalendarItemSchema = z
     kind: z.literal("socialPost"),
     id: z.string(),
     postId: z.uuid(),
+    quotedPostId: socialPostQuoteSummaryShape.quotedPostId,
+    waitingForQuotedPost: socialPostQuoteSummaryShape.waitingForQuotedPost,
+    needsAttentionReason: socialPostQuoteSummaryShape.needsAttentionReason,
+    ...socialPostThreadSummaryShape,
     provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),

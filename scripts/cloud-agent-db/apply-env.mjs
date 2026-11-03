@@ -1,8 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { agentBranchName } from "./names.mjs";
-
 const RC_BEGIN = "# >>> cloud-agent-db >>>";
 const RC_END = "# <<< cloud-agent-db <<<";
 
@@ -237,14 +235,4 @@ export function upsertEnvLines(contents, values) {
 export function applyUrlsToProcessEnv(urls, env = process.env) {
   env.DATABASE_URL = urls.databaseUrl;
   env.DATABASE_URL_UNPOOLED = urls.databaseUrlUnpooled;
-}
-
-/**
- * @param {string} agentId
- */
-export function defaultStateForAgent(agentId) {
-  return {
-    agentId,
-    branchName: agentBranchName(agentId),
-  };
 }

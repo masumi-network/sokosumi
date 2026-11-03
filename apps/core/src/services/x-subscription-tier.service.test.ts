@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  resolveProjectXSubscriptionTypes,
   resolveXSubscriptionType,
+  X_SUBSCRIPTION_LOOKUP_MAX_ACCOUNTS,
   X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS,
 } from "./x-subscription-tier.service";
 
@@ -9,9 +11,12 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   remove: vi.fn(),
   update: vi.fn(),
+  findMany: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { projectSocialConnection: { update: mocks.update } },
+  default: {
+    projectSocialConnection: { update: mocks.update, findMany: mocks.findMany },
+  },
 }));
 vi.mock("@/clients/composio.client", () => ({
   deleteComposioToolSession: mocks.remove,
@@ -227,4 +232,40 @@ describe("resolveXSubscriptionType", () => {
       );
     },
   );
+});
+
+describe("resolveProjectXSubscriptionTypes", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.create.mockResolvedValue("session");
+    mocks.remove.mockResolvedValue(undefined);
+    mocks.update.mockResolvedValue({});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("looks up a bounded set of active X accounts and keeps a stored tier on failure", async () => {
+    mocks.findMany.mockResolvedValue([
+      { ...connection, id: "premium", subscriptionType: "None" },
+      { ...connection, id: "failing", subscriptionType: "Basic" },
+    ]);
+    mocks.execute
+      .mockResolvedValueOnce({ subscription_type: "Premium" })
+      .mockRejectedValueOnce(new Error("Composio down"));
+
+    const tiers = await resolveProjectXSubscriptionTypes("project");
+
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { projectId: "project", provider: "x", status: "active" },
+        take: X_SUBSCRIPTION_LOOKUP_MAX_ACCOUNTS,
+      }),
+    );
+    expect(tiers).toEqual(
+      new Map([
+        ["premium", "Premium"],
+        ["failing", "Basic"],
+      ]),
+    );
+  });
 });

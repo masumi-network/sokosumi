@@ -3,22 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
-import { NEWSLETTER } from "@/test/newsletter";
+import { NEWSLETTER, newsletterWorkspace } from "@/test/newsletter";
 
 import router from "./index";
 
 const m = vi.hoisted(() => ({
-  enabled: true,
   newsletter: vi.fn(),
   subscriber: vi.fn(),
 }));
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NEWSLETTER_ENABLED: m.enabled }),
-  };
-});
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     newsletter: { findUnique: m.newsletter },
@@ -40,7 +32,6 @@ const URL = `http://localhost/v1/public/newsletters/${NEWSLETTER.publicSlug}`;
 
 beforeEach(() => {
   vi.resetAllMocks();
-  m.enabled = true;
   m.newsletter.mockResolvedValue({
     ...NEWSLETTER,
     brand: { primaryColor: "#123456" },
@@ -73,19 +64,18 @@ describe("public newsletter info", () => {
     expect((await app().request(URL)).status).toBe(404);
   });
 
-  it("hides newsletter metadata outside the project's beta organization", async () => {
-    m.newsletter.mockImplementation(async ({ where }) =>
-      where.project?.workspace?.organization?.slug === "utxo"
-        ? null
-        : NEWSLETTER,
-    );
-    expect((await app().request(URL)).status).toBe(404);
-    expect(m.subscriber).not.toHaveBeenCalled();
-  });
-
-  it("returns 404 without data access when disabled", async () => {
-    m.enabled = false;
-    expect((await app().request(URL)).status).toBe(404);
-    expect(m.newsletter).not.toHaveBeenCalled();
-  });
+  it.each(["other", null])(
+    "hides public metadata for workspace organization %s",
+    async (slug) => {
+      const workspace = newsletterWorkspace(slug);
+      m.newsletter.mockImplementation(({ where }) =>
+        where.project?.workspace.organization.slug ===
+        workspace.organization?.slug
+          ? NEWSLETTER
+          : null,
+      );
+      expect((await app().request(URL)).status).toBe(404);
+      expect(m.subscriber).not.toHaveBeenCalled();
+    },
+  );
 });

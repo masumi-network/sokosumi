@@ -18,6 +18,7 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  withChatRoomReplyCounts,
 } from "../../../../../../chats/rooms/helpers";
 import { botParams } from "../../../../helpers.js";
 
@@ -90,7 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.chatRoomMessage.count({ where }),
     ]);
     const hasMore = messages.length === take + 1;
-    const page = messages.slice(0, take);
+    const page = await withChatRoomReplyCounts(prisma, messages.slice(0, take));
     // Rendered from the owner's side, so their messages read as "theirs".
     return ok(
       c,
