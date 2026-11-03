@@ -29,13 +29,24 @@ export function parseCalendarTypes(value: string | undefined): CalendarType[] {
   return CALENDAR_TYPES.filter((type) => requested.includes(type));
 }
 
-/** The features a workspace offers: Newsletter only where it has it. */
+/**
+ * The features a workspace offers right now. Matches Core's silent drops:
+ * Newsletter only where it has it, Follow-ups never under a Project, and the
+ * Marketing plan never under `scope=owned`.
+ */
 export function availableCalendarTypes(
   newsletterEnabled: boolean,
+  options: {
+    projectId?: string | null;
+    scope?: "owned" | "workspace";
+  } = {},
 ): CalendarType[] {
-  return CALENDAR_TYPES.filter(
-    (type) => type !== "newsletter" || newsletterEnabled,
-  );
+  return CALENDAR_TYPES.filter((type) => {
+    if (type === "newsletter" && !newsletterEnabled) return false;
+    if (type === "contacts" && options.projectId) return false;
+    if (type === "marketing" && options.scope === "owned") return false;
+    return true;
+  });
 }
 
 /** The chosen features among those offered; none chosen means every one. */

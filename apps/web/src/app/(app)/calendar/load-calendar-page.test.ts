@@ -185,33 +185,55 @@ describe("loadWorkspaceCalendarPage", () => {
     });
   });
 
-  it.each([undefined, PROJECT.id])(
-    "asks Core for every feature, never the deprecated Social flag, for project %s",
-    async (projectId) => {
-      const result = await loadWorkspaceCalendarPage({
-        projectId,
-        searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),
-      });
-      const query = expect.objectContaining({
+  it("asks Core for every feature, never the deprecated Social flag", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),
+    });
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
         types: "tasks,social,newsletter,contacts,marketing",
         timeZone: "Europe/Berlin",
-      });
-      if (projectId)
-        expect(getProjectCalendarMock).toHaveBeenCalledWith(projectId, query);
-      else expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(query);
-      const [[calendarQuery]] = (
-        projectId ? getProjectCalendarMock : getWorkspaceCalendarMock
-      ).mock.calls.map((call) => call.slice(projectId ? 1 : 0));
-      expect(calendarQuery).not.toHaveProperty("includeSocialPosts");
-      // The sources endpoint is unchanged.
-      expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledWith({
-        includeSocialPosts: "true",
-        scope: "workspace",
-      });
-      expect(result).not.toHaveProperty("includeSocialPosts");
-      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
-    },
-  );
+      }),
+    );
+    const [[calendarQuery]] = getWorkspaceCalendarMock.mock.calls;
+    expect(calendarQuery).not.toHaveProperty("includeSocialPosts");
+    // The sources endpoint is unchanged.
+    expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledWith({
+      includeSocialPosts: "true",
+      scope: "workspace",
+    });
+    expect(result).not.toHaveProperty("includeSocialPosts");
+    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
+  });
+
+  it("drops Follow-ups from the Core query under a Project, as Core does", async () => {
+    await loadWorkspaceCalendarPage({
+      projectId: PROJECT.id,
+      searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),
+    });
+    expect(getProjectCalendarMock).toHaveBeenCalledWith(
+      PROJECT.id,
+      expect.objectContaining({
+        types: "tasks,social,newsletter,marketing",
+        timeZone: "Europe/Berlin",
+      }),
+    );
+  });
+
+  it("drops Marketing from the Core query under scope=owned, as Core does", async () => {
+    await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({
+        scope: "owned",
+        timezone: "Europe/Berlin",
+      }),
+    });
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        types: "tasks,social,newsletter,contacts",
+        scope: "owned",
+      }),
+    );
+  });
 
   it("places all-day items in UTC until the browser reports its zone", async () => {
     await loadWorkspaceCalendarPage({

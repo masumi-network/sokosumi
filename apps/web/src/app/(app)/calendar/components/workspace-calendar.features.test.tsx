@@ -375,12 +375,35 @@ describe("WorkspaceCalendar features", () => {
       expect(renderedTitles()).toEqual(["Prepare release notes"]);
     });
 
-    it("follows the Project in the URL", () => {
+    it("follows the Project in the URL", async () => {
+      const user = userEvent.setup();
       renderCalendar({}, "?timezone=UTC&view=week&projectId=project-1");
 
       // The follow-up belongs to the workspace, not to a Project.
       expect(renderedTitles()).not.toContain("Grace Hopper");
       expect(renderedTitles()).toContain("January roundup");
+      await openShowFilter(user);
+      expect(
+        screen.queryByRole("menuitemcheckbox", { name: "show.contacts" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides Marketing under scope=owned, as Core does", async () => {
+      const user = userEvent.setup();
+      renderCalendar({}, "?timezone=UTC&view=week&scope=owned");
+
+      await openShowFilter(user);
+      expect(
+        screen.queryByRole("menuitemcheckbox", { name: "show.marketing" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getAllByRole("menuitemcheckbox").map((item) => item.textContent),
+      ).toEqual([
+        "show.tasks",
+        "show.social",
+        "show.newsletter",
+        "show.contacts",
+      ]);
     });
 
     it("writes the choice to the URL, one feature at a time", async () => {

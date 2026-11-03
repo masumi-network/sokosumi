@@ -1256,13 +1256,15 @@ describe("WorkspaceCalendar", () => {
         expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
           from: new Date("2026-08-01T00:00:00.000Z"),
           to: new Date("2026-09-01T00:00:00.000Z"),
-          types: "tasks,social,newsletter,contacts,marketing",
+          // Project drops Follow-ups; owned drops Marketing.
+          types: "tasks,social,newsletter",
           timeZone: "UTC",
           agendaOnly: undefined,
           cursor: "cursor-2",
           limit: 100,
           scope: "owned",
           assigneeId: "coworker-1",
+          assigneeUserId: undefined,
           status: "QUEUED",
         }),
       );
