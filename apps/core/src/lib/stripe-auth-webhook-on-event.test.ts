@@ -151,15 +151,13 @@ describe("handleStripeAuthWebhookOnEvent", () => {
       } as never),
     ).resolves.toBeUndefined();
 
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      failure,
-      expect.objectContaining({
-        tags: {
-          stripeEventType: "customer.subscription.updated",
-          stripeSubscriptionId: "sub_1",
-        },
-      }),
-    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: {
+        stripeEventType: "customer.subscription.updated",
+        stripeSubscriptionId: "sub_1",
+      },
+      extra: { eventId: "evt_updated" },
+    });
   });
 
   it("tells the wallet when a subscription is set to end at period end", async () => {
@@ -335,6 +333,38 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     expect(handleEventMock).not.toHaveBeenCalled();
   });
 
+  it("reports a failed checkout completion and rethrows so Stripe retries", async () => {
+    const failure = new Error("checkout failed");
+    handleCheckoutSessionCompletedEventMock.mockRejectedValue(failure);
+
+    await expect(
+      handleStripeAuthWebhookOnEvent({
+        id: "evt_checkout",
+        type: "checkout.session.completed",
+        data: { object: { id: "cs_123", subscription: "sub_123" } },
+      } as never),
+    ).rejects.toBe(failure);
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: { stripeEventType: "checkout.session.completed" },
+      extra: { eventId: "evt_checkout", sessionId: "cs_123" },
+    });
+  });
+
+  it("handles a created subscription that has no customer", async () => {
+    const subscription = { id: "sub_123" };
+
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_created",
+      type: "customer.subscription.created",
+      data: { object: subscription },
+    } as never);
+
+    expect(handleSubscriptionCreatedEventMock).toHaveBeenCalledWith(
+      subscription,
+    );
+  });
+
   it("handles customer.subscription.created", async () => {
     const subscription = { id: "sub_123", customer: "cus_123" };
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
@@ -367,18 +397,15 @@ describe("handleStripeAuthWebhookOnEvent", () => {
         type: "customer.subscription.created",
         data: { object: { id: "sub_123", customer: "cus_123" } },
       } as never),
-    ).rejects.toThrow("reconcile failed");
+    ).rejects.toBe(failure);
 
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      failure,
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          stripeEventType: "customer.subscription.created",
-          stripeSubscriptionId: "sub_123",
-        }),
-        extra: { customer: "cus_123", eventId: "evt_sub_created" },
-      }),
-    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: {
+        stripeEventType: "customer.subscription.created",
+        stripeSubscriptionId: "sub_123",
+      },
+      extra: { customer: "cus_123", eventId: "evt_sub_created" },
+    });
   });
 
   it("handles customer.subscription.deleted", async () => {
@@ -396,6 +423,20 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     expect(handleEventMock).not.toHaveBeenCalled();
   });
 
+  it("handles a deleted subscription that has no customer", async () => {
+    const subscription = { id: "sub_123" };
+
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_deleted",
+      type: "customer.subscription.deleted",
+      data: { object: subscription },
+    } as never);
+
+    expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith(
+      subscription,
+    );
+  });
+
   it("reports subscription delete handler failures to Sentry", async () => {
     const failure = new Error("delete failed");
     handleSubscriptionDeletedEventMock.mockRejectedValue(failure);
@@ -406,15 +447,18 @@ describe("handleStripeAuthWebhookOnEvent", () => {
         type: "customer.subscription.deleted",
         data: { object: { id: "sub_123", customer: "cus_123" } },
       } as never),
-    ).rejects.toThrow("delete failed");
+    ).rejects.toBe(failure);
 
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      failure,
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          stripeEventType: "customer.subscription.deleted",
-        }),
-      }),
-    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(failure, {
+      tags: {
+        stripeEventType: "customer.subscription.deleted",
+        stripeSubscriptionId: "sub_123",
+      },
+      extra: {
+        customer: "cus_123",
+        eventId: "evt_sub_deleted",
+        subscription: "sub_123",
+      },
+    });
   });
 });

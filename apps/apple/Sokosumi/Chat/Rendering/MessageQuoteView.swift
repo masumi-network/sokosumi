@@ -9,6 +9,8 @@ struct MessageQuoteView: View {
   var channels: [ComposerChannel] = []
   var dismiss: (() -> Void)?
   var jump: ((String) -> Void)?
+  /// The composer's preview: a tile opens its file, as web's `FileChipMiniPreview` does.
+  var opensAttachments = false
 
   private struct RenderInput: Hashable {
     let source: String
@@ -37,7 +39,9 @@ struct MessageQuoteView: View {
         }
         if let attachments = quote.attachments, !attachments.isEmpty {
           WrappingRow(spacing: 4) {
-            ForEach(attachments, id: \.url) { QuoteAttachmentThumbnail(attachment: $0, size: thumbnailSize) }
+            ForEach(attachments, id: \.url) {
+              QuoteAttachmentThumbnail(attachment: $0, size: thumbnailSize, click: click(on: $0))
+            }
           }
         }
       }
@@ -72,6 +76,16 @@ struct MessageQuoteView: View {
       renderedSnippet.link = nil
     }
   }
+
+  private func click(on attachment: Components.Schemas.ChatRoomMessageQuoteAttachment) -> QuoteAttachmentThumbnail.Click {
+    if let jump {
+      return .jump { jump(quote.messageId) }
+    }
+    if opensAttachments, let preview = attachment.preview {
+      return .open(preview)
+    }
+    return .none
+  }
 }
 
 /// The inset block every quote sits in: the transcript card, the composer preview and a quote-only pin.
@@ -91,14 +105,49 @@ struct MessageQuoteBlock<Content: View>: View {
 /// One tile of a quote's row, like web's `MessageQuoteAttachmentThumb`: an image crops to the square, a file shows its
 /// type. The tile has no room for the name, so it hovers and reads aloud.
 private struct QuoteAttachmentThumbnail: View {
+  /// What a click does. It follows the quote's jump, as web's tile inside the jump button does, or opens the file.
+  enum Click {
+    case jump(() -> Void)
+    case open(MessageAttachment)
+    case none
+  }
+
   let attachment: Components.Schemas.ChatRoomMessageQuoteAttachment
   let size: CGFloat
+  let click: Click
 
   private var url: URL? {
     URL(string: attachment.url)
   }
 
   var body: some View {
+    Group {
+      switch click {
+      case let .jump(jump):
+        Button(action: jump) { tile }
+          .buttonStyle(.plain)
+      case let .open(preview):
+        QuoteAttachmentOpenButton(attachment: preview) { tile }
+          .messageImageGallery(MessageImageGallery([preview]))
+      case .none:
+        tile
+      }
+    }
+    .help(attachment.fileName)
+    .accessibilityLabel(attachment.fileName)
+    // After `help`, which VoiceOver would otherwise read as the hint.
+    .accessibilityHint(hint)
+  }
+
+  private var hint: LocalizedStringKey {
+    switch click {
+    case .jump: "Go to quoted message"
+    case let .open(preview): preview.opening == .link ? "Open in Browser" : "Preview"
+    case .none: ""
+    }
+  }
+
+  private var tile: some View {
     Group {
       if attachment.mediaKind == .image, let url, ["https", "http"].contains(url.scheme?.lowercased() ?? "") {
         QuoteImageThumbnail(url: url, size: size)
@@ -109,9 +158,33 @@ private struct QuoteAttachmentThumbnail: View {
     .frame(width: size, height: size)
     .clipShape(.rect(cornerRadius: 12))
     .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.separator) }
-    .help(attachment.fileName)
+    .contentShape(.rect(cornerRadius: 12))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(attachment.fileName)
+  }
+}
+
+/// A composer tile's click, like web's `FileChipMiniPreview`.
+private struct QuoteAttachmentOpenButton<Label: View>: View {
+  let attachment: MessageAttachment
+  @ViewBuilder let label: Label
+  @Environment(MessageImageViewerPresentation.self) private var imageViewer: MessageImageViewerPresentation?
+  @Environment(\.openURL) private var openURL
+  @State private var documentPresented = false
+
+  var body: some View {
+    Button {
+      switch attachment.opening {
+      case .imageViewer: imageViewer?.openURL = attachment.url
+      case .documentViewer: documentPresented = true
+      case .link: openURL(attachment.url)
+      }
+    } label: {
+      label
+    }
+    .buttonStyle(.plain)
+    .sheet(isPresented: $documentPresented) {
+      AttachmentDocumentSheet(attachment: attachment) { documentPresented = false }
+    }
   }
 }
 
