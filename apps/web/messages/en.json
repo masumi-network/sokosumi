@@ -3575,7 +3575,10 @@
         "publicArchive": "Public archive",
         "SignupForm": {
           "title": "Signup form",
+          "pageDescription": "Grow your newsletter audience with a hosted signup page or an embedded form.",
           "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "previewTitle": "Signup form preview",
+          "previewDescription": "See the signup form readers can use on your website.",
           "hostedPage": "Hosted signup page",
           "open": "Open signup page",
           "embedCode": "Embed code",

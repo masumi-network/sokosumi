@@ -138,7 +138,7 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.getProject).toHaveBeenCalledExactlyOnceWith(PROJECT_ID);
     });
 
-    it("loads existing settings and offers Issues, Calendar, Subscribers, Settings", async () => {
+    it("loads existing settings and offers every newsletter tab in order", async () => {
       const newsletter: Pick<Newsletter, "id" | "name"> = {
         id: "n1",
         name: "Weekly",
@@ -174,6 +174,10 @@ describe("NewsletterSettingsPage", () => {
         [
           SETTINGS.Subscribers.title,
           `/newsletter/subscribers?projectId=${PROJECT_ID}`,
+        ],
+        [
+          SETTINGS.SignupForm.title,
+          `/newsletter/signup-form?projectId=${PROJECT_ID}`,
         ],
         [
           SETTINGS.Analytics.title,

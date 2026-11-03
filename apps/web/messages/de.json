@@ -3575,7 +3575,10 @@
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
           "title": "Anmeldeformular",
+          "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
           "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "previewTitle": "Vorschau des Anmeldeformulars",
+          "previewDescription": "Sieh dir das Anmeldeformular an, das Leser auf deiner Website nutzen können.",
           "hostedPage": "Gehostete Anmeldeseite",
           "open": "Anmeldeseite öffnen",
           "embedCode": "Einbettungscode",
