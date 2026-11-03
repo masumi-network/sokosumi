@@ -109,6 +109,13 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
     return overview.brandBrainConfirmedAt ? "questions" : "brain";
   }
   if (!strategyApproved(overview)) {
+    // Cuso saves a first plan in two parts, the calendar last: it waits on
+    // the planning screen until there is a whole plan to approve.
+    const firstPlan = (overview.strategy.changes ?? []).length === 0;
+    const writing = work?.kind === "strategy" && work.status === "running";
+    if (firstPlan && (writing || overview.strategy.calendar.length === 0)) {
+      return "planning";
+    }
     // Part way through the plan's questions, a reload resumes on them.
     const questions = overview.strategy.questions ?? [];
     const answered = questions.filter((question) => question.answer).length;

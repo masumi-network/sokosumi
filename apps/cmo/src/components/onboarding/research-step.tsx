@@ -116,12 +116,12 @@ export function ResearchStep({
     !planning && settled === "done" && !overview.brandBrain
       ? [...messages].reverse().find((message) => message.fromCuso)
       : undefined;
-  // Done with no Brand Brain and nothing asked: Cuso stopped short, so the
-  // founder needs the way to try again.
-  const status =
-    !planning && settled === "done" && !overview.brandBrain && !asked
-      ? "failed"
-      : settled;
+  // Done with no Brand Brain and nothing asked, or a plan with no calendar:
+  // Cuso stopped short, so the founder needs the way to try again.
+  const stoppedShort = planning
+    ? settled === "done"
+    : settled === "done" && !overview.brandBrain && !asked;
+  const status = stoppedShort ? "failed" : settled;
   const running = status === "running";
   const elapsed = useElapsed(work?.startedAt, running);
   const steps = work?.steps ?? [];
@@ -146,7 +146,9 @@ export function ResearchStep({
             : asked
               ? "Cuso has a few questions"
               : planning
-                ? "Cuso is planning your month"
+                ? overview.strategy
+                  ? "Cuso is writing your day-by-day calendar"
+                  : "Cuso is planning your month"
                 : finished
                   ? `Cuso studied ${site}`
                   : `Cuso is studying ${site}`}
