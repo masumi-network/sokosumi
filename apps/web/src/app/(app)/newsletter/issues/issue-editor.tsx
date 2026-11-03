@@ -62,6 +62,7 @@ import {
   IssueStatusBadge,
 } from "./issue-delivery-status";
 import { NewsletterIssuePreview } from "./issue-preview";
+import { hasNewsletterSender } from "./issue-readiness";
 
 function newsletterSettingsValues(
   newsletter: Newsletter,
@@ -97,6 +98,14 @@ export function NewsletterIssueEditor({
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const validationT = useTranslations("App.Projects.Newsletter.Validation");
   const [tab, setTab] = useState("content");
+  const [sendPanelTab, setSendPanelTab] = useState(() =>
+    hasNewsletterSender(sendingDomain) &&
+    activeSubscribers > 0 &&
+    issue.approvedAt &&
+    issue.approvedByUserId
+      ? "preview"
+      : "checklist",
+  );
   const [currentIssue, setCurrentIssue] = useState(issue);
   const [lifecyclePending, setLifecyclePending] = useState(false);
   const [removedBlocks, setRemovedBlocks] = useState<
@@ -241,9 +250,9 @@ export function NewsletterIssueEditor({
       {status === NewsletterIssueStatus.SENT && analytics ? (
         <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
-      {/* Editor first. The Send panel sits right of the editor and preview (sticky), and on
-          phones between them, so Save stays right after the last block. */}
-      <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(18rem,22rem)]">
+      {/* Editor first. The Send panel holds checklist and preview tabs beside the editor (sticky),
+          and on phones follows it, so Save stays right after the last block. */}
+      <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
         <div
           className={cn(
             HOLDER_CLASS,
@@ -466,7 +475,7 @@ export function NewsletterIssueEditor({
           aria-label={t("sendPanel")}
           className={cn(
             HOLDER_CLASS,
-            "min-w-0 space-y-2 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:overscroll-contain 2xl:col-start-3 2xl:row-span-1",
+            "min-w-0 space-y-2 lg:sticky lg:top-4 lg:col-start-2 lg:row-start-1 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:overscroll-contain",
           )}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
@@ -545,35 +554,63 @@ export function NewsletterIssueEditor({
               </p>
             )}
           </div>
-          <IssueDeliveryOutcome issue={currentIssue} projectId={projectId} />
-          <IssueActions
-            issue={currentIssue}
-            projectId={projectId}
-            activeSubscribers={activeSubscribers}
-            senderName={newsletter.senderName}
-            sendingDomain={sendingDomain}
-            disabled={unsaved || isSubmitting}
-            disabledHint={
-              isDirty
-                ? t("Lifecycle.saveFirst")
-                : designDirty
-                  ? t("Studio.saveDesignFirst")
-                  : undefined
-            }
-            onChanged={setCurrentIssue}
-            onBusyChange={setLifecyclePending}
-          />
+          <Tabs
+            value={sendPanelTab}
+            onValueChange={setSendPanelTab}
+            className="min-w-0"
+          >
+            <TabsList aria-label={t("SendPanel.views")} className="w-full">
+              <TabsTrigger value="checklist">
+                {t("SendPanel.checklist")}
+              </TabsTrigger>
+              <TabsTrigger value="preview">{t("Preview.title")}</TabsTrigger>
+            </TabsList>
+            {/* Keep lifecycle state and the preview device when switching Send panel views. */}
+            <TabsContent
+              value="checklist"
+              forceMount
+              hidden={sendPanelTab !== "checklist"}
+              className="min-w-0 space-y-2"
+            >
+              <IssueDeliveryOutcome
+                issue={currentIssue}
+                projectId={projectId}
+              />
+              <IssueActions
+                issue={currentIssue}
+                projectId={projectId}
+                activeSubscribers={activeSubscribers}
+                senderName={newsletter.senderName}
+                sendingDomain={sendingDomain}
+                disabled={unsaved || isSubmitting}
+                disabledHint={
+                  isDirty
+                    ? t("Lifecycle.saveFirst")
+                    : designDirty
+                      ? t("Studio.saveDesignFirst")
+                      : undefined
+                }
+                onChanged={setCurrentIssue}
+                onBusyChange={setLifecyclePending}
+              />
+            </TabsContent>
+            <TabsContent
+              value="preview"
+              forceMount
+              hidden={sendPanelTab !== "preview"}
+              className="min-w-0"
+            >
+              <NewsletterIssuePreview
+                projectId={projectId}
+                values={{ subject, previewText, template, content }}
+                brand={newsletterBrandForPreview({
+                  ...newsletterSettingsValues(newsletter),
+                  ...design,
+                })}
+              />
+            </TabsContent>
+          </Tabs>
         </aside>
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2 2xl:col-start-2 2xl:row-start-1">
-          <NewsletterIssuePreview
-            projectId={projectId}
-            values={{ subject, previewText, template, content }}
-            brand={newsletterBrandForPreview({
-              ...newsletterSettingsValues(newsletter),
-              ...design,
-            })}
-          />
-        </div>
       </div>
     </div>
   );

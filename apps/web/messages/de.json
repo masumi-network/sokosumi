@@ -3617,6 +3617,10 @@
           },
           "details": "Details der Ausgabe",
           "sendPanel": "Versand",
+          "SendPanel": {
+            "checklist": "Checkliste",
+            "views": "Ansichten im Sendebereich"
+          },
           "saving": "Ausgabe wird gespeichert…",
           "undo": "Entfernen rückgängig machen",
           "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
