@@ -48,6 +48,7 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import NewsletterSignupFormPage from "./page";
@@ -122,7 +123,9 @@ describe("newsletter signup form page", () => {
 
   it("asks for a project when no project is selected", async () => {
     render(
-      await NewsletterSignupFormPage({ searchParams: Promise.resolve({}) }),
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterSignupFormPage({ searchParams: Promise.resolve({}) })}
+      </NextIntlClientProvider>,
     );
     expect(screen.getByTestId("newsletter-no-project")).toBeInTheDocument();
     expect(
@@ -134,7 +137,11 @@ describe("newsletter signup form page", () => {
 
   it("shows the unavailable notice for an inaccessible project", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await NewsletterSignupFormPage(PROPS));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterSignupFormPage(PROPS)}
+      </NextIntlClientProvider>,
+    );
     expect(
       screen.getByText(messages.App.Newsletter.pickUnavailable),
     ).toBeVisible();
