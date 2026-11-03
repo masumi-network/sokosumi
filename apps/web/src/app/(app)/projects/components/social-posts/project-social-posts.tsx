@@ -5,6 +5,7 @@ import {
   type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPost,
   type SocialPostStatus,
+  type SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
@@ -121,6 +122,7 @@ import {
 } from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
+  queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
   /** The project's Social accounts, shown as the last tab when given. */
@@ -302,6 +304,7 @@ export function ProjectSocialPosts({
   calendarFailed = false,
   connections,
   posts: initialPosts,
+  queueSlots,
   failedSections = [],
   nextCursors,
   projectId,
@@ -1678,6 +1681,7 @@ export function ProjectSocialPosts({
         <SocialPostComposerDialog
           connections={managed}
           connectDisabled={connectDisabled}
+          queueSlots={queueSlots}
           mode={composerMode}
           onConnectAccount={() => {
             setComposer(null);
