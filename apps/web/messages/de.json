@@ -9585,7 +9585,7 @@
         "dayEmpty": "An diesem Tag ist nichts geplant.",
         "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
         "statusFilter": "Beiträge nach Status anzeigen",
-        "postCount": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "postCount": "{count, plural, =0 {Keine Beiträge in diesem Zeitraum} one {# Beitrag} other {# Beiträge}}",
         "dayAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
         "reschedule": "Neu planen",
         "rescheduleNamed": "Beitrag um {time} neu planen: {text}"

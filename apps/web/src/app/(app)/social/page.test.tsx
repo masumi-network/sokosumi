@@ -363,6 +363,47 @@ describe("SocialPage", () => {
     );
   });
 
+  it.each([undefined, PROJECT.id])(
+    "ignores hidden task-calendar filters for Social project %s",
+    async (projectId) => {
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+      projectServiceMock.getSocialPost.mockResolvedValue(null);
+
+      await visit({
+        projectId,
+        assigneeId: "coworker-1",
+        assigneeUserId: "user-1",
+        status: "READY",
+        sourceId: "workspace:workspace-1",
+        date: "2026-11-03",
+        view: "month",
+        timezone: "Europe/Prague",
+        scope: "owned",
+        postStatus: "SCHEDULED",
+        provider: "linkedin",
+        postId: "post-deep",
+        tab: "calendar",
+      });
+
+      const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+      await expect(searchParams).resolves.toEqual({
+        projectId,
+        assigneeId: undefined,
+        assigneeUserId: undefined,
+        status: undefined,
+        sourceId: undefined,
+        date: "2026-11-03",
+        view: "month",
+        timezone: "Europe/Prague",
+        scope: "owned",
+        postStatus: "SCHEDULED",
+        provider: "linkedin",
+        postId: "post-deep",
+        tab: "calendar",
+      });
+    },
+  );
+
   it("treats a blank projectId as no scope rather than as a project", async () => {
     await visit({ projectId: " " });
 

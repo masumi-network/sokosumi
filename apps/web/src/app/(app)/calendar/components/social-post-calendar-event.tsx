@@ -619,6 +619,14 @@ function SocialPostCalendarChip({
         {time}
       </span>
       {text}
+      {showProject ? (
+        <span
+          className="text-muted-foreground max-w-1/3 min-w-0 truncate font-normal"
+          title={t("project", { name: item.projectName })}
+        >
+          {item.projectName}
+        </span>
+      ) : null}
       {grip}
     </>
   );
