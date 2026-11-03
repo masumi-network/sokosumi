@@ -117,6 +117,7 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
+      source?: "studio";
       /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
       scheduledAt?: string;
     }
@@ -204,6 +205,7 @@ export function SocialPostComposerDialog({
   const mediaTargetRef = useRef<string | null>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
+  const fromStudio = mode.kind === "create" && mode.source === "studio";
   const revisionRef = useRef(post?.revision ?? 0);
   const [reconnectedAccounts, setReconnectedAccounts] = useState<
     Record<string, ProjectSocialConnection>
@@ -342,6 +344,7 @@ export function SocialPostComposerDialog({
   const multiAccount = mode.kind === "create";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
     if (mode.kind === "create") {
+      if (fromStudio) return [];
       return initialCreateConnectionIds(
         connections,
         readRememberedComposerAccounts(organizationId, projectId),
@@ -395,16 +398,18 @@ export function SocialPostComposerDialog({
   );
   const prefilledScheduledAt =
     mode.kind === "create" ? (mode.scheduledAt ?? "") : "";
-  const [scheduledAt, setScheduledAt] = useState(() => {
-    if (!post?.scheduledAt) return prefilledScheduledAt;
-    if (
-      (post.status === "FAILED" || post.status === "MISSED") &&
-      post.scheduledAt.getTime() <=
-        Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
-    ) {
-      return "";
+  const [scheduledAt, setScheduledAt] = useState<string | null>(() => {
+    if (post?.scheduledAt) {
+      if (
+        (post.status === "FAILED" || post.status === "MISSED") &&
+        post.scheduledAt.getTime() <=
+          Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
+      ) {
+        return "";
+      }
+      return toScheduleValue(post.scheduledAt);
     }
-    return toScheduleValue(post.scheduledAt);
+    return fromStudio ? null : prefilledScheduledAt;
   });
   const suggestedConnectionId =
     connectionIds.length === 1 ? connectionIds[0] : undefined;
@@ -670,6 +675,7 @@ export function SocialPostComposerDialog({
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
     mode.kind === "create" &&
+    scheduledAt === "" &&
     !quotePending &&
     textValid &&
     mediaValid &&
@@ -989,8 +995,9 @@ export function SocialPostComposerDialog({
 
   /**
    * The one main action, which follows When: a time schedules, "Now" posts,
-   * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
-   * time is all the schedule dialog does, so it never saves a new draft.
+   * and an unchosen time or existing post with no time saves. ⌘/Ctrl+Enter
+   * runs it. Picking a time is all the schedule dialog does, so it never
+   * saves a new draft.
    */
   const canPostNow =
     mode.kind === "create" &&
@@ -999,9 +1006,9 @@ export function SocialPostComposerDialog({
         isProviderEnabled(connection.provider),
       ));
   const primaryAction: Exclude<PendingSubmit, "queue" | null> =
-    scheduledAt !== "" || isScheduleOnly
+    scheduledAt || isScheduleOnly
       ? "schedule"
-      : canPostNow
+      : canPostNow && scheduledAt === ""
         ? "publish"
         : "save";
   const primaryEnabled =
@@ -1369,7 +1376,9 @@ export function SocialPostComposerDialog({
         copy.shared.trim() !== "" ||
         Object.values(copy.byConnectionId).some((text) => text.trim() !== "") ||
         media.length > 0 ||
-        scheduledAt !== prefilledScheduledAt
+        (fromStudio
+          ? Boolean(scheduledAt)
+          : scheduledAt !== prefilledScheduledAt)
       : threadChanged ||
         firstComment !== (post?.firstComment ?? "") ||
         displayedText !== initial.text ||
@@ -1480,7 +1489,7 @@ export function SocialPostComposerDialog({
       cancelLabel={t("composer.dismiss")}
       isDismissDisabled={isBusy}
       onOpenAutoFocus={(event) => {
-        // Straight to the text: the account is already picked.
+        // Straight to the text on desktop; accounts can be picked afterwards.
         if (isScheduleOnly || isMobile) return;
         event.preventDefault();
         textareaRef.current?.focus();

@@ -359,6 +359,9 @@ export function ProjectSocialPosts({
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
   const compose = useSocialCompose();
+  const studioPrefill = compose?.open
+    ? peekSocialComposePrefill(projectId)
+    : null;
   const composerMode: SocialPostComposerMode | null =
     composer ??
     (compose?.open
@@ -366,6 +369,8 @@ export function ProjectSocialPosts({
           kind: "create",
           ...peekSocialComposePrefill(projectId),
           scheduledAt: compose.scheduledAt ?? undefined,
+          ...studioPrefill,
+          source: studioPrefill ? "studio" : undefined,
         } satisfies SocialPostComposerMode)
       : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);

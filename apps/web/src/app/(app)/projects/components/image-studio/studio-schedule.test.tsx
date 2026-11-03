@@ -29,6 +29,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: (...args: unknown[]) => prepareMock(...args),
+  writeStudioAssetCaption: vi.fn(),
 }));
 
 vi.mock("./use-generation-queue", () => ({
