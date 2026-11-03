@@ -3585,7 +3585,6 @@
             "senderSettings": "Absendereinstellungen prüfen",
             "audience": "Aktuelle Zielgruppe",
             "audienceCount": "{count, plural, one {# aktiver Abonnent} other {# aktive Abonnenten}}",
-            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
             "manageSubscribers": "Abonnenten verwalten",
             "approval": "Freigabe",
             "approved": "Freigegeben",
@@ -3606,6 +3605,7 @@
             "sending": "Der Versand läuft. Die Aufwärmphase der Domain kann den Versand zeitlich verteilen. Schau später nach dem Ergebnis."
           },
           "details": "Details der Ausgabe",
+          "sendPanel": "Versand",
           "saving": "Ausgabe wird gespeichert…",
           "undo": "Entfernen rückgängig machen",
           "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",

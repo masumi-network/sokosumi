@@ -3585,7 +3585,6 @@
             "senderSettings": "Revisar ajustes del remitente",
             "audience": "Audiencia actual",
             "audienceCount": "{count, plural, one {# suscriptor activo} other {# suscriptores activos}}",
-            "noSubscribers": "Añade al menos un suscriptor activo antes de programar o enviar.",
             "manageSubscribers": "Gestionar suscriptores",
             "approval": "Aprobación",
             "approved": "Aprobado",
@@ -3606,6 +3605,7 @@
             "sending": "El envío está en curso. La preparación del dominio puede distribuir el envío a lo largo del tiempo. Vuelve más tarde para ver el resultado."
           },
           "details": "Detalles de la edición",
+          "sendPanel": "Envío",
           "saving": "Guardando edición…",
           "undo": "Deshacer eliminación",
           "removedBlocks": "{count, plural, one {# bloque eliminado} other {# bloques eliminados}}",

@@ -74,20 +74,26 @@ beforeEach(() => {
 });
 
 describe("newsletter issue editor", () => {
-  it("keeps campaign readiness before the writing surface", () => {
+  it("puts the writing surface first and readiness in the Send panel", () => {
     renderEditor();
-    const readiness = screen.getByRole("region", { name: "Before sending" });
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    const readiness = within(panel).getByRole("region", {
+      name: "Before sending",
+    });
     const details = screen.getByRole("region", { name: "Issue details" });
     expect(within(details).getByLabelText("Subject")).toBeInTheDocument();
     expect(
       within(readiness).getByText("3 active subscribers"),
     ).toBeInTheDocument();
     expect(
-      readiness.compareDocumentPosition(details) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      details.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(within(panel).getByText("Draft")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Submit for approval" }),
+      within(panel).getByRole("button", { name: "Save issue" }),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: "Submit for approval" }),
     ).toBeEnabled();
   });
 

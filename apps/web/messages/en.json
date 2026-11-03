@@ -3585,7 +3585,6 @@
             "senderSettings": "Review sender settings",
             "audience": "Current audience",
             "audienceCount": "{count, plural, one {# active subscriber} other {# active subscribers}}",
-            "noSubscribers": "Add at least one active subscriber before scheduling or sending.",
             "manageSubscribers": "Manage subscribers",
             "approval": "Approval",
             "approved": "Approved",
@@ -3606,6 +3605,7 @@
             "sending": "Sending is in progress. Domain warm-up may spread delivery over time. Check back for the outcome."
           },
           "details": "Issue details",
+          "sendPanel": "Send",
           "saving": "Saving issue…",
           "undo": "Undo removal",
           "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",

@@ -29,8 +29,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { changeNewsletterIssue } from "@/lib/actions/newsletter/issue-lifecycle";
+import { cn } from "@/lib/utils";
 import { hasNewsletterSender, IssueReadiness } from "./issue-readiness";
 
 type IssueAction = "submit" | "approve" | "schedule" | "sendNow" | "cancel";
@@ -41,6 +43,8 @@ interface IssueActionsProps {
   senderName: string;
   sendingDomain: NewsletterSendingDomainState;
   disabled?: boolean;
+  /** Shown beside the actions while `disabled` holds them. */
+  disabledHint?: string;
   onChanged?: (issue: NewsletterIssue) => void;
   onBusyChange?: (busy: boolean) => void;
 }
@@ -53,6 +57,7 @@ export function IssueActions({
   senderName,
   sendingDomain,
   disabled,
+  disabledHint,
   onChanged,
   onBusyChange,
 }: IssueActionsProps) {
@@ -82,6 +87,7 @@ export function IssueActions({
   }
   const whenId = useId();
   const errorId = useId();
+  const reasonId = useId();
   const approved = Boolean(issue.approvedAt && issue.approvedByUserId);
 
   async function handleChange(action: IssueAction) {
@@ -153,9 +159,50 @@ export function IssueActions({
     locked || activeSubscribers === 0 || !hasNewsletterSender(sendingDomain);
   const confirmation =
     dialog === "sendNow" || dialog === "cancel" ? dialog : null;
+  // Only these statuses still have a next step, so only they show the checklist and actions.
+  const hasNextStep = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(
+    issue.status,
+  );
+  const canDeliver = issue.status === "NEEDS_APPROVAL" && approved;
+  // Say why the next step is unavailable right beside it, not only in the checklist.
+  const reasons = disabled
+    ? [disabledHint]
+    : canDeliver
+      ? [
+          activeSubscribers === 0 ? t("noSubscribers") : null,
+          hasNewsletterSender(sendingDomain) ? null : t("noSender"),
+        ]
+      : issue.status === "DRAFT"
+        ? [t("approvalRequired")]
+        : [];
+  const shownReasons = reasons.filter((reason): reason is string =>
+    Boolean(reason),
+  );
+  const describedBy = shownReasons.length ? reasonId : undefined;
+  const approvalDetails =
+    approved || issue.taskId ? (
+      <>
+        {approved && issue.approvedAt ? (
+          <p className="text-muted-foreground">
+            {t("approvedBy", {
+              user: issue.approvedByName ?? t("formerMember"),
+              date: format.dateTime(issue.approvedAt, "dateTime"),
+            })}
+          </p>
+        ) : null}
+        {issue.taskId ? (
+          <Link
+            className="inline-block py-1 underline underline-offset-4"
+            href={`/tasks/${issue.taskId}`}
+          >
+            {t("task")}
+          </Link>
+        ) : null}
+      </>
+    ) : null;
   return (
     <div ref={actionContainer} className="min-w-0 space-y-2">
-      {["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(issue.status) ? (
+      {hasNextStep ? (
         <IssueReadiness
           issue={issue}
           projectId={projectId}
@@ -163,18 +210,13 @@ export function IssueActions({
           senderName={senderName}
           sendingDomain={sendingDomain}
           linksDisabled={Boolean(locked)}
+          approvalDetails={approvalDetails}
         />
-      ) : null}
-      {issue.approvedAt && issue.approvedByUserId ? (
-        <p className="text-muted-foreground text-sm">
-          {t("approvedBy", {
-            user: issue.approvedByName ?? t("formerMember"),
-            date: format.dateTime(issue.approvedAt, "dateTime"),
-          })}
-        </p>
+      ) : approvalDetails ? (
+        <div className="space-y-1 px-1 text-sm">{approvalDetails}</div>
       ) : null}
       {issue.scheduledAt && issue.status === "SENDING" ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground px-1 text-sm">
           {t("scheduled", {
             date: format.dateTime(issue.scheduledAt, "dateTime", {
               timeZone: issue.timezone ?? "UTC",
@@ -183,71 +225,87 @@ export function IssueActions({
           })}
         </p>
       ) : null}
-      {issue.taskId ? (
-        <Link
-          className="text-sm underline underline-offset-4"
-          href={`/tasks/${issue.taskId}`}
-        >
-          {t("task")}
-        </Link>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        {issue.status === "DRAFT" ? (
-          <Button
-            variant="outline"
-            disabled={locked}
-            loading={pending === "submit"}
-            onClick={() => void handleChange("submit")}
-          >
-            <Send />
-            {t("submit")}
-          </Button>
-        ) : null}
-        {issue.status === "NEEDS_APPROVAL" && !approved ? (
-          <Button
-            variant="outline"
-            disabled={locked}
-            loading={pending === "approve"}
-            onClick={() => void handleChange("approve")}
-          >
-            <Check />
-            {t("approve")}
-          </Button>
-        ) : null}
-        {issue.status === "NEEDS_APPROVAL" && approved ? (
-          <>
-            <Button
-              variant="outline"
-              disabled={deliveryBlocked}
-              onClick={(event) => handleDialog("schedule", event.currentTarget)}
+      {hasNextStep ? (
+        <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
+          <div className="flex flex-wrap gap-2 [&>button]:min-w-0 [&>button]:flex-1">
+            {issue.status === "DRAFT" ? (
+              <Button
+                variant="primary"
+                disabled={locked}
+                loading={pending === "submit"}
+                aria-describedby={describedBy}
+                onClick={() => void handleChange("submit")}
+              >
+                <Send />
+                {t("submit")}
+              </Button>
+            ) : null}
+            {issue.status === "NEEDS_APPROVAL" && !approved ? (
+              <Button
+                variant="primary"
+                disabled={locked}
+                loading={pending === "approve"}
+                aria-describedby={describedBy}
+                onClick={() => void handleChange("approve")}
+              >
+                <Check />
+                {t("approve")}
+              </Button>
+            ) : null}
+            {canDeliver ? (
+              <>
+                {/* Schedule leads: Send now cannot be undone, so it stays the quieter choice. */}
+                <Button
+                  variant="primary"
+                  disabled={deliveryBlocked}
+                  aria-describedby={describedBy}
+                  onClick={(event) =>
+                    handleDialog("schedule", event.currentTarget)
+                  }
+                >
+                  <CalendarClock />
+                  {t("schedule")}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={deliveryBlocked}
+                  aria-describedby={describedBy}
+                  onClick={(event) =>
+                    handleDialog("sendNow", event.currentTarget)
+                  }
+                >
+                  <Send />
+                  {t("sendNow")}
+                </Button>
+              </>
+            ) : null}
+            {issue.status === "SCHEDULED" ? (
+              <Button
+                variant="outline"
+                disabled={locked}
+                aria-describedby={describedBy}
+                onClick={(event) => handleDialog("cancel", event.currentTarget)}
+              >
+                {t("cancel")}
+              </Button>
+            ) : null}
+          </div>
+          {shownReasons.length ? (
+            <div
+              id={reasonId}
+              className="text-muted-foreground space-y-1 text-sm"
             >
-              <CalendarClock />
-              {t("schedule")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={deliveryBlocked}
-              onClick={(event) => handleDialog("sendNow", event.currentTarget)}
-            >
-              <Send />
-              {t("sendNow")}
-            </Button>
-          </>
-        ) : null}
-        {issue.status === "SCHEDULED" ? (
-          <Button
-            variant="outline"
-            disabled={locked}
-            onClick={(event) => handleDialog("cancel", event.currentTarget)}
-          >
-            {t("cancel")}
-          </Button>
-        ) : null}
-      </div>
-      {error && !dialog ? (
-        <p role="alert" className="text-foreground text-sm">
-          {error}
-        </p>
+              {shownReasons.map((reason) => (
+                <p key={reason}>{reason}</p>
+              ))}
+            </div>
+          ) : null}
+          {error && !dialog ? (
+            <p role="alert" className="text-foreground text-sm">
+              {error}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       <Dialog
         open={dialog === "schedule"}

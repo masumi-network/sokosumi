@@ -11,7 +11,7 @@ import type { NewsletterBlock } from "@sokosumi/utils";
 import { ArrowDown, ArrowUp, Plus, Trash2, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/newsletter/analytics/issue-analytics-summary";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
@@ -78,6 +78,7 @@ export function NewsletterIssueEditor({
   const [removedBlocks, setRemovedBlocks] = useState<
     { block: NewsletterBlock; index: number }[]
   >([]);
+  const formId = useId();
   const undoButton = useRef<HTMLButtonElement>(null);
   const blockList = useRef<HTMLOListElement>(null);
   const { revision, status } = currentIssue;
@@ -213,44 +214,30 @@ export function NewsletterIssueEditor({
               </Link>
             </Button>
           ) : null}
-          <IssueStatusBadge issue={currentIssue} />
         </div>
       </div>
-      <IssueActions
-        issue={currentIssue}
-        projectId={projectId}
-        activeSubscribers={activeSubscribers}
-        senderName={senderName}
-        sendingDomain={sendingDomain}
-        disabled={isDirty || isSubmitting}
-        onChanged={setCurrentIssue}
-        onBusyChange={setLifecyclePending}
-      />
-      <IssueDeliveryOutcome issue={currentIssue} projectId={projectId} />
-      {isDirty ? (
-        <p className="text-muted-foreground text-sm">
-          {t("Lifecycle.saveFirst")}
-        </p>
-      ) : null}
-      {!editable ? (
-        <p className="text-muted-foreground text-sm" role="note">
-          {t("readOnly")}
-        </p>
-      ) : null}
       {status === NewsletterIssueStatus.SENT && analytics ? (
         <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
-      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
-        <div className={cn(HOLDER_CLASS, "min-w-0 p-3")}>
+      {/* Editor first. The Send panel sits right of the editor and preview (sticky), and on
+          phones between them, so Save stays right after the last block. */}
+      <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(18rem,22rem)]">
+        <div
+          className={cn(
+            HOLDER_CLASS,
+            "min-w-0 p-3 lg:col-start-1 lg:row-start-1",
+          )}
+        >
           <Form {...form}>
             <form
+              id={formId}
               noValidate
               onSubmit={form.handleSubmit(handleSave)}
               className="min-w-0 space-y-4"
             >
               <fieldset
                 disabled={!editable || isSubmitting || lifecyclePending}
-                className="min-w-0 space-y-4 [&_button]:scroll-mb-40 [&_input]:scroll-mb-40 [&_textarea]:scroll-mb-40"
+                className="min-w-0 space-y-4"
               >
                 <section
                   aria-label={t("details")}
@@ -407,70 +394,110 @@ export function NewsletterIssueEditor({
                   ) : null}
                 </section>
               </fieldset>
-              {errors.root?.message ? (
-                <p role="alert" className="text-foreground text-sm">
-                  {errors.root.message}
-                </p>
-              ) : null}
-              {editable ? (
-                <div className="bg-background sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-                  <div
-                    role="status"
-                    className="text-muted-foreground min-w-0 space-y-1 text-sm"
-                  >
-                    <p>
-                      {isSubmitting
-                        ? t("saving")
-                        : isDirty
-                          ? t("unsaved")
-                          : t("saved")}
-                    </p>
-                    {removedBlocks.length ? (
-                      <p>
-                        {t("removedBlocks", { count: removedBlocks.length })}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {removedBlocks.length ? (
-                      <Button
-                        ref={undoButton}
-                        type="button"
-                        variant="outline"
-                        onClick={handleUndo}
-                        disabled={
-                          isSubmitting ||
-                          lifecyclePending ||
-                          blocks.fields.length >= 200
-                        }
-                      >
-                        <Undo2 />
-                        {t("undo")}
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      loading={isSubmitting}
-                      disabled={lifecyclePending}
-                    >
-                      {t("save")}
-                    </Button>
-                  </div>
-                  {removedBlocks.length && blocks.fields.length >= 200 ? (
-                    <p className="text-muted-foreground w-full text-sm">
-                      {t("undoLimit")}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
             </form>
           </Form>
         </div>
-        <NewsletterIssuePreview
-          projectId={projectId}
-          values={{ subject, previewText, template, content }}
-        />
+        <aside
+          aria-label={t("sendPanel")}
+          className={cn(
+            HOLDER_CLASS,
+            "min-w-0 space-y-2 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:overscroll-contain 2xl:col-start-3 2xl:row-span-1",
+          )}
+        >
+          <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base font-semibold">{t("sendPanel")}</h3>
+              <IssueStatusBadge issue={currentIssue} />
+            </div>
+            {editable ? (
+              <div className="space-y-3">
+                <div
+                  role="status"
+                  className="text-muted-foreground min-w-0 space-y-1 text-sm"
+                >
+                  <p className="flex items-center gap-2">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        isDirty || isSubmitting
+                          ? "bg-semantic-warning"
+                          : "bg-semantic-success",
+                      )}
+                    />
+                    {isSubmitting
+                      ? t("saving")
+                      : isDirty
+                        ? t("unsaved")
+                        : t("saved")}
+                  </p>
+                  {removedBlocks.length ? (
+                    <p>{t("removedBlocks", { count: removedBlocks.length })}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2 [&>button]:min-w-0 [&>button]:flex-1">
+                  {removedBlocks.length ? (
+                    <Button
+                      ref={undoButton}
+                      type="button"
+                      variant="outline"
+                      onClick={handleUndo}
+                      disabled={
+                        isSubmitting ||
+                        lifecyclePending ||
+                        blocks.fields.length >= 200
+                      }
+                    >
+                      <Undo2 />
+                      {t("undo")}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="submit"
+                    form={formId}
+                    variant={isDirty ? "primary" : "outline"}
+                    loading={isSubmitting}
+                    disabled={lifecyclePending}
+                  >
+                    {t("save")}
+                  </Button>
+                </div>
+                {removedBlocks.length && blocks.fields.length >= 200 ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t("undoLimit")}
+                  </p>
+                ) : null}
+                {errors.root?.message ? (
+                  <p role="alert" className="text-foreground text-sm">
+                    {errors.root.message}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm" role="note">
+                {t("readOnly")}
+              </p>
+            )}
+          </div>
+          <IssueDeliveryOutcome issue={currentIssue} projectId={projectId} />
+          <IssueActions
+            issue={currentIssue}
+            projectId={projectId}
+            activeSubscribers={activeSubscribers}
+            senderName={senderName}
+            sendingDomain={sendingDomain}
+            disabled={isDirty || isSubmitting}
+            disabledHint={isDirty ? t("Lifecycle.saveFirst") : undefined}
+            onChanged={setCurrentIssue}
+            onBusyChange={setLifecyclePending}
+          />
+        </aside>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2 2xl:col-start-2 2xl:row-start-1">
+          <NewsletterIssuePreview
+            projectId={projectId}
+            values={{ subject, previewText, template, content }}
+          />
+        </div>
       </div>
     </div>
   );
