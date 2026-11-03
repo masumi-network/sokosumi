@@ -43,3 +43,19 @@ export async function asSignedInPersonInPage(requestHeaders: Headers) {
   }
   return asPerson(accessToken);
 }
+
+/**
+ * A Core `/v1` client for the signed-in person in CMO's Cuso actions; null
+ * when there is no usable token.
+ */
+export async function coreForCurrentUser() {
+  try {
+    const { accessToken } = await getAuth().api.getAccessToken({
+      body: { useAccountCookie: true },
+      headers: await headers(),
+    });
+    return asPerson(accessToken);
+  } catch {
+    return null;
+  }
+}

@@ -43,6 +43,7 @@ const bob = randomUUID();
 const carla = randomUUID();
 const organizationId = randomUUID();
 const channelId = randomUUID();
+const quietChannelId = randomUUID();
 const HOUR = 60 * 60 * 1000;
 const now = Date.now();
 
@@ -185,7 +186,9 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
   });
 
   afterAll(async () => {
-    await prisma.chatRoom.deleteMany({ where: { id: channelId } });
+    await prisma.chatRoom.deleteMany({
+      where: { id: { in: [channelId, quietChannelId] } },
+    });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.user.deleteMany({
       where: { id: { in: [alice, bob, carla] } },
@@ -305,10 +308,20 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
   });
 
   it("writes the summary once and reuses it until a new tagged message", async () => {
-    const generate = vi.fn<ChatSummaryDeps["generate"]>(async () => ({
+    const generate = vi.fn<ChatSummaryDeps["generate"]>(async ({ prompt }) => ({
       text: JSON.stringify({
         headline: "Bob needs the pricing sheet; launch is Monday.",
-        rooms: [{ room: "r0", line: "Pricing sheet wanted, launch Monday." }],
+        topics: [
+          {
+            title: "Pricing sheet before the call",
+            summary: "Bob wants the pricing sheet; Dan set launch for Monday.",
+            status: "fyi",
+            messages: JSON.parse(prompt).rooms.flatMap(
+              (room: { messages: { key: string }[] }) =>
+                room.messages.map((message) => message.key),
+            ),
+          },
+        ],
       }),
       costUsd: 0.0001,
     }));
@@ -319,20 +332,33 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     expect(first.headline).toBe(
       "Bob needs the pricing sheet; launch is Monday.",
     );
-    expect(first.rooms).toEqual([
-      {
-        roomId: channelId,
-        roomName: "launch",
-        line: "Pricing sheet wanted, launch Monday.",
-      },
-    ]);
+    // One topic over both messages; it waits on Alice because Jev tagged a
+    // message in it as needing her, whatever the model called it.
+    expect(first.topics).toHaveLength(1);
+    expect(first.topics[0]).toMatchObject({
+      title: "Pricing sheet before the call",
+      status: "waitingOnYou",
+      roomId: channelId,
+      roomName: "launch",
+    });
+    expect(
+      first.topics[0].messages.map((item) => item.messageId).sort(),
+    ).toEqual([question, decision].sort());
+    expect(first.unreadMessageCount).toBeGreaterThanOrEqual(2);
+    expect(first.unreadRoomCount).toBe(1);
+    expect(first.quietRooms).toEqual([]);
     expect(first.needsYou.map((item) => item.messageId)).toEqual([question]);
     expect(first.counts).toEqual([
       { bucket: "needsYou", count: 1 },
       { bucket: "decisionMade", count: 1 },
     ]);
     expect(first.decisions.map((item) => item.messageId)).toEqual([decision]);
-    // The prompt carries no ids, only room keys, authors, labels and text.
+    // A decision carries what it answers, so a bare reply reads on its own.
+    expect(first.decisions[0].inReplyTo).toEqual({
+      senderName: "Bob",
+      excerpt: "Alice, can you send the pricing sheet before the call?",
+    });
+    // The prompt carries no ids, only message keys, authors, labels and text.
     expect(generate.mock.calls[0][0].prompt).not.toContain(channelId);
 
     await getChatCatchUpSummary(
@@ -417,5 +443,76 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     });
     expect(row).toMatchObject({ state: "pending", lease: null, attempts: 1 });
     expect(row.availableAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("shows a mention in a Thread reply under Other messages", async () => {
+    await prisma.chatRoom.create({
+      data: {
+        id: quietChannelId,
+        organizationId,
+        name: "random",
+        slug: `random-${quietChannelId.slice(0, 8)}`,
+        kind: "channel",
+        discoverability: "public",
+        createdByUserId: bob,
+        userMembers: {
+          create: [alice, bob, carla].map((userId) => ({ userId })),
+        },
+        readStates: {
+          create: [alice, bob, carla].map((userId) => ({
+            userId,
+            lastReadAt: new Date(now - 7 * 24 * HOUR),
+            createdAt: new Date(now - 30 * 24 * HOUR),
+          })),
+        },
+      },
+    });
+    const parent = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: quietChannelId,
+        senderUserId: bob,
+        content: "Fun fact from the conference.",
+        createdAt: new Date(now - 3 * HOUR),
+      },
+    });
+    const reply = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: quietChannelId,
+        parentMessageId: parent.id,
+        senderUserId: carla,
+        content: "Alice would love this one.",
+        createdAt: new Date(now - 2 * HOUR),
+        userMentionsAsSource: { create: { userId: alice } },
+      },
+    });
+    await prisma.chatRoomMessage.create({
+      data: {
+        roomId: quietChannelId,
+        senderUserId: bob,
+        content: "Newer post, no mention.",
+        createdAt: new Date(now - HOUR),
+      },
+    });
+
+    const summary = await getChatCatchUpSummary(
+      { userId: alice, organizationId, roomId: null },
+      { generate: async () => ({ text: "{}", costUsd: 0 }) },
+    );
+    const quiet = summary.quietRooms.find(
+      (room) => room.roomId === quietChannelId,
+    );
+    expect(quiet).toMatchObject({
+      mentionsYou: true,
+      latest: { messageId: reply.id, parentMessageId: parent.id },
+    });
+    expect(summary.quietRooms[0].roomId).toBe(quietChannelId);
+
+    const forBob = await getChatCatchUpSummary(
+      { userId: bob, organizationId, roomId: null },
+      { generate: async () => ({ text: "{}", costUsd: 0 }) },
+    );
+    expect(
+      forBob.quietRooms.find((room) => room.roomId === quietChannelId),
+    ).toMatchObject({ mentionsYou: false });
   });
 });

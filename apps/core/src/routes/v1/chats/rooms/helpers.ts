@@ -319,6 +319,10 @@ export interface MapChatRoomAttentionOptions {
   myAccess?: "member" | "guest";
   /** Host org display name when batch-loaded (Task 5+); null for directs. */
   organizationName?: string | null;
+  /** Host org logo when batch-loaded for the sidebar's Workspace tile. */
+  organizationLogo?: string | null;
+  /** Host org website when batch-loaded for the sidebar's Workspace tile. */
+  organizationWebsiteUrl?: string | null;
   /** Other humans on this Direct are Members of the caller's active org. */
   peerInActiveOrganization?: boolean;
   /** Profiles of this Direct's former members, from `loadFormerDirectUserMembers`. */
@@ -367,6 +371,8 @@ export function mapChatRoom(
     markedUnread = false,
     myAccess: myAccessOverride,
     organizationName = null,
+    organizationLogo,
+    organizationWebsiteUrl,
     peerInActiveOrganization = false,
     formerUserMembers = [],
   } = attention;
@@ -384,6 +390,8 @@ export function mapChatRoom(
     id: room.id,
     organizationId: room.organizationId,
     organizationName,
+    organizationLogo,
+    organizationWebsiteUrl,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
@@ -899,16 +907,9 @@ export function mergeChatRoomMessageMetadata(
   return Object.keys(base).length > 0 ? base : null;
 }
 
-function readQuoteAttachmentFromMetadata(
-  candidate: Record<string, unknown>,
-): ChatRoomMessageQuote["attachment"] {
-  if (!("attachment" in candidate)) {
-    return undefined;
-  }
-  const raw = candidate.attachment;
-  if (raw === null) {
-    return null;
-  }
+function parseQuoteAttachment(
+  raw: unknown,
+): NonNullable<ChatRoomMessageQuote["attachment"]> | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return undefined;
   }
@@ -925,6 +926,30 @@ function readQuoteAttachmentFromMetadata(
     url: attachment.url,
     mediaKind: attachment.mediaKind,
   };
+}
+
+function readQuoteAttachmentFromMetadata(
+  candidate: Record<string, unknown>,
+): ChatRoomMessageQuote["attachment"] {
+  if (!("attachment" in candidate)) {
+    return undefined;
+  }
+  return candidate.attachment === null
+    ? null
+    : parseQuoteAttachment(candidate.attachment);
+}
+
+function readQuoteAttachmentsFromMetadata(
+  candidate: Record<string, unknown>,
+  attachment: ChatRoomMessageQuote["attachment"],
+): ChatRoomMessageQuote["attachments"] {
+  if (Array.isArray(candidate.attachments)) {
+    return candidate.attachments.flatMap(
+      (raw) => parseQuoteAttachment(raw) ?? [],
+    );
+  }
+  // A snapshot stored before `attachments` holds at most this one.
+  return attachment ? [attachment] : undefined;
 }
 
 /** Soft-parses `metadata.quote` from a stored message's metadata JSON. */
@@ -947,11 +972,13 @@ export function readQuoteFromMetadata(
     return null;
   }
   const attachment = readQuoteAttachmentFromMetadata(candidate);
+  const attachments = readQuoteAttachmentsFromMetadata(candidate, attachment);
   return {
     messageId: candidate.messageId,
     authorName: candidate.authorName,
     snippet: candidate.snippet,
     ...(attachment !== undefined ? { attachment } : {}),
+    ...(attachments !== undefined ? { attachments } : {}),
     ...(typeof candidate.roomId === "string"
       ? { roomId: candidate.roomId }
       : {}),
@@ -982,7 +1009,9 @@ export function buildRoomQuoteSnapshot(
 ): ChatRoomMessageQuote {
   assertChatRoomContentMessage(quoted.metadata);
 
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+  const { snippet, attachment, attachments } = buildRoomQuoteSnippetParts(
+    quoted.content,
+  );
 
   return {
     messageId: quoted.id,
@@ -994,6 +1023,7 @@ export function buildRoomQuoteSnapshot(
         : "Someone"),
     snippet,
     attachment,
+    attachments,
   };
 }
 

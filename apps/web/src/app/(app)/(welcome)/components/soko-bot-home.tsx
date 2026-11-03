@@ -1,4 +1,7 @@
-import type { TaskActivitySummary } from "@sokosumi/core-client";
+import type {
+  SokoBotAvatarView,
+  TaskActivitySummary,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -13,6 +16,7 @@ export interface SokoBotHomeBot {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
+  avatar?: SokoBotAvatarView | null;
 }
 
 interface SokoBotHomeProps {

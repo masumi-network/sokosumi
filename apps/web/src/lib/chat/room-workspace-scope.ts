@@ -35,12 +35,25 @@ export function isShownInEveryWorkspace(room: RoomWorkspaceScope): boolean {
 
 /**
  * Whether a room belongs to this workspace. Reading one that does not is a
- * Room visit (ADR-0061). It stays open across a switch to a workspace it
- * belongs to, and closes on a switch to any other.
+ * Room visit (ADR-0061), and its own Organization decides its roster and role.
+ * It stays open across a switch to a workspace it belongs to, and closes on a
+ * switch to any other, unless `isListedInWorkspace` keeps it for a pin.
  */
 export function isRoomOfWorkspace(
   room: RoomWorkspaceScope,
   workspaceId: string | null,
 ): boolean {
   return isShownInEveryWorkspace(room) || room.organizationId === workspaceId;
+}
+
+/**
+ * Whether this workspace's sidebar lists a room. A Pinned room shows in every
+ * workspace (ADR-0062), so it stays open across any switch. One of another
+ * workspace is still a Room visit, which is why this is not `isRoomOfWorkspace`.
+ */
+export function isListedInWorkspace(
+  room: RoomWorkspaceScope & Pick<ChatRoom, "starredAt">,
+  workspaceId: string | null,
+): boolean {
+  return room.starredAt != null || isRoomOfWorkspace(room, workspaceId);
 }

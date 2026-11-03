@@ -56,6 +56,7 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
+  isPersistedMentionThoughtShell,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -93,6 +94,7 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,6 +138,7 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -174,7 +177,6 @@ import {
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
-type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /**
  * Keeps the last line of a body clear of the Seen by faces in the row's
@@ -314,10 +316,10 @@ function messageImageGallery(
 function MessageQuoteAttachmentThumb({
   attachment,
 }: {
-  attachment: RoomQuoteAttachment;
+  attachment: ChatRoomMessageQuoteAttachment;
 }) {
   const thumbClassName =
-    "bg-card-background mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
+    "bg-card-background size-10 shrink-0 overflow-hidden rounded-xl border";
 
   switch (attachment.mediaKind) {
     case "image":
@@ -411,7 +413,7 @@ function MessageQuoteBlock({
       resetKey: `${quote.messageId}\0${quote.snippet}`,
     });
 
-  const attachment = quote.attachment ?? null;
+  const attachments = quote.attachments ?? [];
 
   return (
     <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-border px-2.5 py-1.5">
@@ -458,8 +460,15 @@ function MessageQuoteBlock({
             />
           </div>
         ) : null}
-        {attachment ? (
-          <MessageQuoteAttachmentThumb attachment={attachment} />
+        {attachments.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {attachments.map((attachment) => (
+              <MessageQuoteAttachmentThumb
+                key={attachment.url}
+                attachment={attachment}
+              />
+            ))}
+          </div>
         ) : null}
       </button>
       {expanded || overflows ? (
@@ -2141,6 +2150,7 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
+  busy = false,
 }: {
   sender: MessageSenderProfile;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
@@ -2149,6 +2159,8 @@ function SenderFace({
   fallbackClassName: string;
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
+  /** Its reply is in progress: a crafted bot loops its Working state. */
+  busy?: boolean;
 }) {
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
@@ -2157,6 +2169,22 @@ function SenderFace({
         size={orbSize}
         alt=""
         className={cn("ring-border ring-1", className)}
+      />
+    );
+  }
+  if (
+    sender.kind === "sokoBot" &&
+    sender.image &&
+    isCraftedStyle(sender.avatarStyleId)
+  ) {
+    return (
+      <AvatarFace
+        src={sender.image}
+        crafted
+        className={className}
+        loopSrc={sender.workingLoopUrl}
+        playing={busy}
+        loop
       />
     );
   }
@@ -2739,6 +2767,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
+              busy={
+                isStreamOverlay ||
+                isPersistedMentionThoughtShell(message.metadata)
+              }
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>

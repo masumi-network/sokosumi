@@ -1,5 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
-import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
@@ -17,6 +17,16 @@ export const HELD_BACK_REPLY =
 
 export const ACTION_LABELS: Record<string, string> = {
   newsletter_draft_issue: "Drafted newsletter issue for review",
+  create_newsletter_issue: "Created newsletter draft",
+  update_newsletter_issue: "Updated newsletter issue",
+  delete_newsletter_issue: "Deleted newsletter issue",
+  submit_newsletter_issue: "Submitted newsletter issue for approval",
+  update_newsletter_settings: "Updated newsletter settings",
+  add_newsletter_subscriber: "Added newsletter subscriber",
+  import_newsletter_subscribers: "Imported newsletter subscribers",
+  add_newsletter_subscribers_from_contacts: "Added contacts to the newsletter",
+  update_newsletter_subscriber: "Updated newsletter subscriber",
+  remove_newsletter_subscriber: "Removed newsletter subscriber",
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -36,6 +46,8 @@ export const ACTION_LABELS: Record<string, string> = {
   log_contact_interaction: "Logged a contact interaction",
   merge_contacts: "Merged contacts",
   manage_contact_lists: "Updated contact list",
+  create_project: "Created project",
+  update_project: "Updated project",
   create_schedule: "Configured schedule",
   update_schedule: "Updated schedule",
   delete_schedule: "Deleted schedule",
@@ -45,6 +57,7 @@ export const ACTION_LABELS: Record<string, string> = {
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
   move_file: "Moved file",
+  delete_file: "Deleted file",
   update_emails: "Updated mail",
   draft_email: "Drafted email",
   send_email_draft: "Sent email",
@@ -83,6 +96,21 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     return "Updated file";
   return ACTION_LABELS[call.capability] ?? call.capability;
 }
+
+const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "submit_newsletter_issue",
+]);
+
+const NEWSLETTER_SUBSCRIBER_CAPABILITIES = new Set([
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
+]);
 
 const TABLE_CAPABILITIES = new Set([
   "create_table",
@@ -189,10 +217,44 @@ function actionTarget(
       ? `([Review draft](/newsletter/issues/${encodeURIComponent(id)}?projectId=${encodeURIComponent(issue.data.projectId)}&draftedBySokoBot=true))`
       : "";
   }
+  if (NEWSLETTER_ISSUE_CAPABILITIES.has(call.capability)) {
+    const issue = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    if (!issue.success) return "";
+    const query = `?projectId=${encodeURIComponent(issue.data.projectId)}`;
+    // A deleted issue has no editor left to open.
+    return call.capability === "delete_newsletter_issue"
+      ? `([Open issues](/newsletter/issues${query}))`
+      : `([Open issue](/newsletter/issues/${encodeURIComponent(id)}${query}))`;
+  }
+  if (call.capability === "update_newsletter_settings") {
+    const newsletter = z.object({ projectId: z.uuid() }).safeParse(call.result);
+    return newsletter.success
+      ? `([Open settings](/newsletter/settings?projectId=${encodeURIComponent(newsletter.data.projectId)}))`
+      : "";
+  }
+  if (NEWSLETTER_SUBSCRIBER_CAPABILITIES.has(call.capability)) {
+    const subscribers = z
+      .object({ projectId: z.uuid() })
+      .safeParse(call.result);
+    return subscribers.success
+      ? `([Open subscribers](/newsletter/subscribers?projectId=${encodeURIComponent(subscribers.data.projectId)}))`
+      : "";
+  }
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
   if (CONTACT_CAPABILITIES.has(call.capability))
     return contactTarget(call.result);
+  if (
+    call.capability === "create_project" ||
+    call.capability === "update_project"
+  ) {
+    const project = z
+      .object({ name: z.string().min(1) })
+      .safeParse(call.result);
+    return project.success
+      ? `[${linkText(project.data.name)}](/projects/${encodeURIComponent(id)})`
+      : "";
+  }
   if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
     const post = z
       .object({ projectId: z.string().min(1) })
@@ -526,6 +588,40 @@ function inputCovers(later: unknown, earlier: unknown): boolean {
   );
 }
 
+/** Whether a Cuso turn filed its report as a chat card (report_update). */
+async function cmoReportedByCard(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  cmo: boolean,
+): Promise<boolean> {
+  if (!cmo) return false;
+  const reports = await tx.sokoBotToolCall.count({
+    where: { turnId, capability: "report_update", status: "COMPLETED" },
+  });
+  return reports > 0;
+}
+
+/**
+ * Whether a Cuso turn saved his Brand Brain or strategy. Those writes carry
+ * no action receipt, so without this a correction he applied would end on
+ * "Nothing was changed in this turn."
+ */
+async function cmoSavedRecord(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+  cmo: boolean,
+): Promise<boolean> {
+  if (!cmo) return false;
+  const saves = await tx.sokoBotToolCall.count({
+    where: {
+      turnId,
+      capability: { in: ["save_brand_brain", "save_strategy"] },
+      status: "COMPLETED",
+    },
+  });
+  return saves > 0;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -668,7 +764,7 @@ export async function buildActionResponse(
   );
   // One line per kind of effect: a hire recorded twice, or one Task reached
   // two ways, is still one thing done, and thirteen archives are one line.
-  const actionText = collapseActionLines(
+  const receiptLines = collapseActionLines(
     unique.map((call) => ({
       head: `${call.turnId !== turnId ? "Previously verified: " : ""}${
         call.disposition === "ALREADY_SATISFIED"
@@ -678,6 +774,24 @@ export async function buildActionResponse(
       target: actionTarget(call, tasks, jobAgents, assignedTaskIds),
     })),
   );
+  // Cuso reports through a card in the founder's chat. Once he filed one this
+  // turn, the receipts repeat the card; only refusals and unknowns, which the
+  // card does not carry, still follow as lines.
+  // One read of the turn serves every question about it below.
+  let turnRow:
+    | Promise<{ source: string | null; versionId: string | null } | null>
+    | undefined;
+  const turnInfo = () => {
+    turnRow ??= tx.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      select: { source: true, versionId: true },
+    });
+    return turnRow;
+  };
+  const isCmo = async () =>
+    getSokoBotVersion((await turnInfo())?.versionId).profile === "cmo";
+  const reportedByCard = await cmoReportedByCard(tx, turnId, await isCmo());
+  const actionText: string[] = reportedByCard ? [] : receiptLines;
   // A file link on its own line renders as the file's card in chat.
   const attachments = [
     ...new Set(
@@ -698,9 +812,9 @@ export async function buildActionResponse(
   // at the top of a morning update. An unknown outcome is always said.
   let ownerStarted: boolean | undefined;
   const isOwnerStarted = async () => {
-    ownerStarted ??= await tx.sokoBotTurn
-      .findUnique({ where: { id: turnId }, select: { source: true } })
-      .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source));
+    ownerStarted ??= await turnInfo().then(
+      (row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source),
+    );
     return ownerStarted;
   };
   const ownerAsked = unfulfilledActions.some(
@@ -795,23 +909,40 @@ export async function buildActionResponse(
       ? QUESTIONS[narrative.question]
       : null;
   // Observations restate reads in fixed wording; the bot's own message says
-  // the same in plain words, so they are shown only when it wrote none.
+  // the same in plain words, so they are shown only when it wrote none. A
+  // CMO bot (Cuso) never shows them: its reports are cards in the founder's
+  // chat, and raw ids and statuses there read as a leak.
+  const showObservations =
+    !message && observations.length > 0 && !(await isCmo());
   const narrativeText = message
     ? [message]
     : actionText.length
       ? question
         ? [question]
         : []
-      : [...observations, ...(question ? [question] : [])];
+      : [
+          ...(showObservations ? observations : []),
+          ...(question ? [question] : []),
+        ];
   // On a turn nobody asked for, "nothing changed" is not news: the turn ends
   // silent like "Nothing to add." instead of posting a placeholder.
   const nothingToSay =
     !calls.length && !narrativeText.length && !actionText.length;
+  // Rewriting its own memory is bookkeeping: on a turn nobody asked for (the
+  // nightly dream), "Updated memory." alone is not worth a post either.
+  const onlyMemory =
+    calls.length > 0 &&
+    calls.every((call) => call.capability === "update_memory") &&
+    !(await isOwnerStarted());
   const silent =
-    !calls.length &&
-    (narrative?.kind === "SILENT" ||
-      isSokoBotSilentAnswer(answerText) ||
-      (actionRequested && nothingToSay && !(await isOwnerStarted())));
+    (!calls.length &&
+      (narrative?.kind === "SILENT" ||
+        isSokoBotSilentAnswer(answerText) ||
+        (actionRequested && nothingToSay && !(await isOwnerStarted())))) ||
+    (onlyMemory &&
+      !question &&
+      (narrative?.kind === "SILENT" ||
+        isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
   return {
     appliedReceiptIds,
     narrative,
@@ -822,12 +953,12 @@ export async function buildActionResponse(
       : calls.length || narrativeText.length
         ? [
             actionText.join("\n"),
-            attachments.join("\n"),
+            reportedByCard ? "" : attachments.join("\n"),
             narrativeText.join("\n"),
           ]
             .filter(Boolean)
-            .join("\n\n")
-        : actionRequested
+            .join("\n\n") || "Nothing to add."
+        : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
           ? "Nothing was changed in this turn."
           : answerText,
   };

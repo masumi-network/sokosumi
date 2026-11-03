@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 import { getChatRoomNeedsYouCounts } from "@/services/chat-signal-views.service";
@@ -19,7 +20,7 @@ import {
 
 /**
  * Rooms as the sidebar's list receives them: each with what is unread in it,
- * the reader's marks and its Organization's name.
+ * the reader's marks and its Organization's name, logo and website.
  */
 export async function mapSidebarRooms(
   rooms: ChatRoomWithMembers[],
@@ -66,17 +67,25 @@ export async function mapSidebarRooms(
     organizationIds.length > 0
       ? prisma.organization.findMany({
           where: { id: { in: organizationIds } },
-          select: { id: true, name: true },
+          select: { id: true, name: true, logo: true, metadata: true },
         })
-      : Promise.resolve([] as Array<{ id: string; name: string }>),
+      : Promise.resolve(
+          [] as Array<{
+            id: string;
+            name: string;
+            logo: string | null;
+            metadata: string | null;
+          }>,
+        ),
   ]);
-  const organizationNameById = new Map(
-    organizations.map((org) => [org.id, org.name]),
-  );
+  const organizationById = new Map(organizations.map((org) => [org.id, org]));
 
   return z.array(chatRoomSchema).parse(
     rooms.map((room) => {
       const flags = sidebarFlags.get(room.id);
+      const organization = room.organizationId
+        ? organizationById.get(room.organizationId)
+        : undefined;
       return mapChatRoom(room, userId, {
         ...unreadCountFields(unreadCounts.get(room.id)),
         unreadThreads: unreadThreads.get(room.id),
@@ -86,8 +95,10 @@ export async function mapSidebarRooms(
         pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
         mutedAt: flags?.mutedAt ?? null,
         markedUnread: flags?.markedUnread ?? false,
-        organizationName: room.organizationId
-          ? (organizationNameById.get(room.organizationId) ?? null)
+        organizationName: organization?.name ?? null,
+        organizationLogo: organization?.logo ?? null,
+        organizationWebsiteUrl: organization
+          ? getOrganizationMetadata(organization.metadata).url
           : null,
         peerInActiveOrganization:
           peerInActiveOrganizationFlags.get(room.id) ?? false,

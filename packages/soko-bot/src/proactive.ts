@@ -28,7 +28,7 @@ export interface SokoBotSystemSchedule {
     | "follow-ups"
     | "monday-plan"
     | "monthly-review"
-    | "memory-cleanup";
+    | "dreaming";
   name: string;
   /** Cron in the bot's timezone. */
   cronExpression: string;
@@ -58,7 +58,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Weekday mornings: today's meetings, a summary of yesterday's mail, and what is stuck on the board.",
     prompt: brief(
-      'Daily stand-up. Using the packet below, give the owner one short brief (under 14 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail: what needs them first, then the rest grouped in one line (for example 4 newsletters, 2 receipts), 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn, assigned to the owner and in the project it fits, and name it in the brief. End with one short line on what the team has been working on, from "Team activity", as a side note: who and what, no detail. Team Tasks are context only — never nudge or comment on those. When every section is empty, answer exactly: Nothing to add.',
+      'Daily stand-up. Using the packet below, give the owner one short brief (under 14 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail: what needs them first, then the rest grouped in one line (for example 4 newsletters, 2 receipts), 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. End with one short line on what the team has been working on, from "Team activity", as a side note: who and what, no detail. Team Tasks are context only — never nudge or comment on those. When every section is empty, answer exactly: Nothing to add.',
     ),
     promptShared: brief(
       'Daily stand-up for the team. Using the packet below, give the team one short brief (under 14 lines): 1) today\'s calendar with times and who with, 2) a summary of the last 24 hours of mail in the connected accounts: what needs the team first, then the rest grouped in one line, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, or ask the team one question), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. End with one short line on what the team has been working on, from "Team activity". When every section is empty, answer exactly: Nothing to add.',
@@ -136,15 +136,15 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     ),
   },
   {
-    key: "memory-cleanup",
-    name: "Memory cleanup",
-    cronExpression: "0 18 * * 0",
+    key: "dreaming",
+    name: "Dreaming",
+    cronExpression: "0 3 * * *",
     description:
-      "Sunday evenings, silently: drops goals and follow-ups that are done or out of date.",
+      "Every night, silently: learns from the day's chats, mistakes and feedback, and tidies its memory.",
     prompt:
-      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed or belong to someone else, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the owner unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
+      'Dreaming. Nobody is asking you anything right now. Go over what happened since your last dream (below) and your memory (in your context), then rewrite your memory once with update_memory so that tomorrow you need telling less. Work through it in this order:\n1. Lessons. For each pattern below, add or sharpen one line in Decisions, written as "When <situation>, <do this>": the owner corrected you or gave a thumbs down; go through "Tools that failed" line by line: each tool that failed the same way more than once and that you can avoid next time (not failures of the platform itself, like a service that was unavailable); a reviewer found answers weak for the same reason; a saved rule should have acted and the activity shows it did not. A one-off is not a lesson.\n2. Preferences. A standing preference or correction the owner gave in a chat that is not in Preferences yet goes there, in their words. A request from someone else is not a preference of the owner.\n3. Tidy. Merge entries that say the same thing; when two contradict, keep the newer. Decisions hold rules that still apply, not a log: rewrite an entry that records finished work (costs, counts, "completed", "reports", dates) to the rule that lasts, keeping any caution in it ("validate before outreach", "never claim full coverage"), or drop it. Never repeat a Preference as a Decision. Drop goals and follow-ups that are done, about Tasks that are closed or belong to someone else, or listed below as dated more than a week ago; keep the rest.\nNever add anything your memory or the activity below does not support, and never drop a preference unless the owner later said otherwise. When nothing calls for a change, do not call update_memory.\nAnswer exactly: Nothing to add. Speak only when a saved rule of the owner\'s is not working or a lesson needs the owner\'s decision, in one or two lines. Never remind about goals, deadlines or follow-ups: the morning stand-up does that.',
     promptShared:
-      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed or outside what you can see, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the team unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
+      'Dreaming. Nobody is asking you anything right now. Go over what happened since your last dream (below) and your memory (in your context), then rewrite your memory once with update_memory so that tomorrow you need telling less. Work through it in this order:\n1. Lessons. For each pattern below, add or sharpen one line in Decisions, written as "When <situation>, <do this>": the team corrected you or gave a thumbs down; go through "Tools that failed" line by line: each tool that failed the same way more than once and that you can avoid next time (not failures of the platform itself, like a service that was unavailable); a reviewer found answers weak for the same reason; a saved rule should have acted and the activity shows it did not. A one-off is not a lesson.\n2. Preferences. A standing preference or correction the team gave in a chat that is not in Preferences yet goes there, in their words. A request from someone else is not a preference of the team.\n3. Tidy. Merge entries that say the same thing; when two contradict, keep the newer. Decisions hold rules that still apply, not a log: rewrite an entry that records finished work (costs, counts, "completed", "reports", dates) to the rule that lasts, keeping any caution in it ("validate before outreach", "never claim full coverage"), or drop it. Never repeat a Preference as a Decision. Drop goals and follow-ups that are done, about Tasks that are closed or outside what you can see, or listed below as dated more than a week ago; keep the rest.\nNever add anything your memory or the activity below does not support, and never drop a preference unless the team later said otherwise. When nothing calls for a change, do not call update_memory.\nAnswer exactly: Nothing to add. Speak only when a saved rule of the team\'s is not working or a lesson needs the team\'s decision, in one or two lines. Never remind about goals, deadlines or follow-ups: the morning stand-up does that.',
   },
 ];
 
@@ -153,7 +153,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
  * not offered to a shared bot.
  */
 export function sokoBotSystemSchedulePrompt(
-  schedule: SokoBotSystemSchedule,
+  schedule: Pick<SokoBotSystemSchedule, "prompt" | "promptShared">,
   shared: boolean,
 ): string | null {
   return shared ? (schedule.promptShared ?? null) : schedule.prompt;
@@ -189,7 +189,7 @@ export const SOKO_BOT_PROACTIVE_RULES: readonly SokoBotProactiveRule[] = [
     id: "inbox",
     title: "Reads mail and calendar",
     description:
-      "Connected mailboxes are checked hourly, but you are only interrupted for mail that needs you soon; the rest is summarised in the morning. A clear request with a deadline becomes a draft Task you can promote. Meetings within a day with an agenda you own get a prep draft.",
+      "Connected mailboxes are checked hourly, but you are only interrupted for mail that needs you soon; the rest is summarised in the morning. Meetings within a day with an agenda you own get a prep draft.",
   },
   {
     id: "memory",

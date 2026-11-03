@@ -198,6 +198,8 @@ export function ChatMarkAllReadButton({
 interface ChatUnreadNavRowsProps {
   /** The sidebar's live rooms. The row reads these and nothing of its own. */
   rooms: readonly ChatRoom[];
+  /** What Mark all as read clears: `rooms`, and Pinned rooms of elsewhere. */
+  markAllRooms: readonly ChatRoom[];
   /** When false, render plain links (page-mounted list outside a Sheet). */
   dismissSheetOnNavigate?: boolean;
   /** The All unreads filter: the list below shows only rooms with unread. */
@@ -221,6 +223,7 @@ interface ChatUnreadNavRowsProps {
  */
 export function ChatUnreadNavRows({
   rooms,
+  markAllRooms,
   dismissSheetOnNavigate = true,
   unreadOnly,
   onUnreadOnlyChange,
@@ -242,7 +245,7 @@ export function ChatUnreadNavRows({
     0,
   );
   const showMarkAll =
-    showsChip && unreadOnly && markAllReadTargets(rooms).length > 0;
+    showsChip && unreadOnly && markAllReadTargets(markAllRooms).length > 0;
   // While the filter is on, the list below is the count; the row makes room
   // for Mark all instead (where the row carries the chip; on the heading,
   // Mark all sits beside it there).
@@ -329,7 +332,10 @@ export function ChatUnreadNavRows({
         </SidebarMenuButton>
         {onUnreadOnlyChange ? (
           <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
-            <ChatMarkAllReadButton rooms={rooms} unreadOnly={unreadOnly} />
+            <ChatMarkAllReadButton
+              rooms={markAllRooms}
+              unreadOnly={unreadOnly}
+            />
             <ChatUnreadsFilterChip
               unreadOnly={unreadOnly}
               onUnreadOnlyChange={onUnreadOnlyChange}

@@ -50,13 +50,15 @@ vi.mock("next/link", () => ({
     href,
     className,
     tabIndex,
+    title,
   }: {
     children: ReactNode;
     href: string;
     className?: string;
     tabIndex?: number;
+    title?: string;
   }) => (
-    <a href={href} className={className} tabIndex={tabIndex}>
+    <a href={href} className={className} tabIndex={tabIndex} title={title}>
       {children}
     </a>
   ),
@@ -113,6 +115,12 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/app/chat/actions", () => ({
   leaveRoomAction: (...args: unknown[]) => leaveRoomActionMock(...args),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: { user: { id: "me", name: "Me", email: "me@example.com" } },
+  }),
 }));
 
 vi.mock("@/components/chat/use-show-room-unread-count", () => ({
@@ -336,7 +344,10 @@ vi.mock("@/components/ui/alert-dialog", () => {
 
 import { toast } from "sonner";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
-import { markOrganizationChatRoomUnreadAction } from "./organization-chat-list.actions";
+import {
+  markOrganizationChatRoomUnreadAction,
+  pinOrganizationChatRoomAction,
+} from "./organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
@@ -1593,6 +1604,163 @@ describe("ChatRoomSidebarRow unread message count", () => {
   });
 });
 
+describe("ChatRoomSidebarRow Workspace tile", () => {
+  const pinned = { starredAt: new Date("2026-08-01T00:00:00.000Z") };
+
+  function renderRow(
+    room: ChatRoom,
+    {
+      reorderHandle,
+      workspaceName = "Other Org",
+    }: { reorderHandle?: ReactNode; workspaceName?: string | null } = {},
+  ) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={reorderHandle}
+        workspaceName={workspaceName}
+      />,
+    );
+    return {
+      tile: container.querySelector('[data-slot="workspace-tile"]'),
+      spacer: container.querySelector('[data-slot="room-trailing-spacer"]'),
+      trailing: container.querySelector('[data-slot="room-trailing"]'),
+    };
+  }
+
+  it("carries none without a workspace to name", () => {
+    const { tile } = renderRow(makeRoom(pinned), { workspaceName: null });
+
+    expect(tile).toBeNull();
+    expect(screen.getByRole("link")).not.toHaveAttribute("title");
+  });
+
+  it("names the workspace in the row's tooltip and accessible name", () => {
+    const { tile } = renderRow(makeRoom(pinned));
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("title", "Other Org");
+    expect(link).toHaveAccessibleName("# general inWorkspace");
+    expect(tile).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("stays one line", () => {
+    const { tile } = renderRow(makeRoom(pinned));
+
+    expect(tile).not.toBeNull();
+    expect(
+      document.querySelector('[data-slot="sidebar-menu-button"]') ??
+        screen.getByRole("link"),
+    ).not.toHaveAttribute("data-lines", "2");
+  });
+
+  it("rests muted in the menu's column and gives way to the menu", () => {
+    const { tile, spacer } = renderRow(makeRoom(pinned));
+
+    const classes = tile?.className.split(" ") ?? [];
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "grayscale",
+        "opacity-70",
+        "[@media(hover:hover)]:absolute",
+        "[@media(hover:hover)]:group-hover/room-row:opacity-0",
+      ]),
+    );
+    // The hole stays open at rest, so the name never runs under the tile.
+    expect(spacer?.className.split(" ")).toContain(
+      "[@media(hover:hover)]:size-4",
+    );
+  });
+
+  it("stands left of a count and returns to full colour on hover", () => {
+    const { tile, spacer, trailing } = renderRow(
+      makeRoom({ ...pinned, unreadMentionCount: 2 }),
+    );
+
+    const classes = tile?.className.split(" ") ?? [];
+    expect(classes).not.toContain("[@media(hover:hover)]:absolute");
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "[@media(hover:hover)]:group-hover/room-row:opacity-100",
+        "[@media(hover:hover)]:group-hover/room-row:grayscale-0",
+      ]),
+    );
+    expect(spacer?.className.split(" ")).toContain("[@media(hover:hover)]:w-8");
+    expect(trailing?.firstElementChild).toBe(tile);
+  });
+
+  it("lets the pointer through to the row's link, and keeps the menu reachable", () => {
+    const { trailing } = renderRow(
+      makeRoom({ ...pinned, unreadMentionCount: 2 }),
+    );
+
+    expect(trailing?.className.split(" ")).toContain("pointer-events-none");
+    expect(
+      screen
+        .getByRole("button", { name: "Chat actions for general" })
+        .closest(".pointer-events-auto"),
+    ).not.toBeNull();
+  });
+
+  it("stands left of the handle in reorder mode", () => {
+    const { tile, spacer, trailing } = renderRow(makeRoom(pinned), {
+      reorderHandle: <button type="button">grip</button>,
+    });
+
+    const classes = tile?.className.split(" ") ?? [];
+    expect(classes).not.toContain("[@media(hover:hover)]:absolute");
+    // No count to stand beside, so it stays muted under the pointer.
+    expect(classes).not.toContain(
+      "[@media(hover:hover)]:group-hover/room-row:grayscale-0",
+    );
+    expect(spacer?.className.split(" ")).toContain("[@media(hover:hover)]:w-8");
+    expect(trailing?.firstElementChild).toBe(tile);
+    expect(trailing?.lastElementChild).toContainElement(
+      screen.getByRole("button", { name: "grip" }),
+    );
+  });
+
+  it("keeps clear of a count and a handle together", () => {
+    const { spacer } = renderRow(
+      makeRoom({ ...pinned, unreadMentionCount: 2 }),
+      { reorderHandle: <button type="button">grip</button> },
+    );
+
+    expect(spacer?.className.split(" ")).toContain(
+      "[@media(hover:hover)]:w-16",
+    );
+  });
+
+  it("widens the touch hole for the tile beside the always-visible menu", () => {
+    const { spacer } = renderRow(makeRoom(pinned));
+
+    expect(spacer?.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "[@media(hover:none)]:w-10",
+        "[@media(hover:none)]:md:w-8",
+      ]),
+    );
+  });
+
+  it("widens the touch hole again beside a count", () => {
+    const { spacer } = renderRow(
+      makeRoom({ ...pinned, unreadMentionCount: 2 }),
+    );
+
+    expect(spacer?.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "[@media(hover:none)]:w-18",
+        "[@media(hover:none)]:md:w-16",
+      ]),
+    );
+  });
+});
+
 describe("ChatRoomSidebarRow as an Elsewhere row", () => {
   function renderElsewhereRow(room = makeRoom()) {
     render(
@@ -1609,7 +1777,7 @@ describe("ChatRoomSidebarRow as an Elsewhere row", () => {
     );
   }
 
-  it("offers the normal room actions without Pin", async () => {
+  it("offers the normal room actions, and Pin", async () => {
     renderElsewhereRow();
 
     await openRoomMenu();
@@ -1618,21 +1786,37 @@ describe("ChatRoomSidebarRow as an Elsewhere row", () => {
       screen.getByRole("menuitem", { name: "Mark as unread" }),
     ).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Mute" })).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Pin" })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: "Unpin" })).toBeNull();
   });
 
-  // A pinned room cannot be muted until it is unpinned, so hiding this too would
-  // leave the row's reader with neither.
-  it("offers Unpin on a room already pinned, and still no Pin", async () => {
-    renderElsewhereRow(
-      makeRoom({ starredAt: new Date("2026-01-03T00:00:00.000Z") }),
+  it("moves the room to Pinned, then has every list read again", async () => {
+    const room = makeRoom();
+    const onRoomUpdated = vi.fn();
+    const answered = { ...room, starredAt: new Date() };
+    vi.mocked(pinOrganizationChatRoomAction).mockResolvedValue({
+      ok: true,
+      value: answered,
+    });
+    render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label="general"
+        subtitle="Other Org"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={onRoomUpdated}
+        elsewhere
+      />,
     );
 
     await openRoomMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Pin" }));
 
-    expect(screen.getByRole("menuitem", { name: "Unpin" })).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull();
+    expect(onRoomUpdated.mock.calls[0][0].starredAt).toBeInstanceOf(Date);
+    await waitFor(() => expect(onRoomUpdated).toHaveBeenCalledWith(answered));
+    expect(notifyMock).toHaveBeenCalledWith({ collections: ["active"] });
   });
 
   describe("for a room whose only unread is a Thread reply", () => {

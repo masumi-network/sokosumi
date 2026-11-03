@@ -33,6 +33,7 @@ vi.mock("next-intl", () => ({
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
+  writeStudioAssetCaption: vi.fn(),
 }));
 
 vi.mock("./use-generation-queue", () => ({

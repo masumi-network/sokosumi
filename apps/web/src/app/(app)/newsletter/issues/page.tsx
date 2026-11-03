@@ -28,11 +28,7 @@ export default async function NewsletterIssuesPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({
-      path: "/newsletter/issues",
-      searchParams,
-      unavailable: scope.unavailable,
-    });
+    return newsletterWorkspacePage({ unavailable: scope.unavailable });
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);

@@ -127,9 +127,13 @@ describe("workspace switcher", () => {
   });
 
   describe("with a room open", () => {
-    const openRoom = (organizationId: string | null) => ({
+    const openRoom = (
+      organizationId: string | null,
+      starredAt: Date | null = null,
+    ) => ({
       data: {
         organizationId,
+        starredAt,
         kind: "channel",
         discoverability: "public",
         myAccess: "member",
@@ -175,6 +179,17 @@ describe("workspace switcher", () => {
       await switchToOrgOne();
 
       expect(replaceMock).toHaveBeenCalledWith("/");
+    });
+
+    // Its Pinned row lists it in every workspace (ADR-0062).
+    it("keeps a pinned room open on a switch to a third workspace", async () => {
+      vi.mocked(coreClient.getChatRoom).mockResolvedValueOnce(
+        openRoom("org-2", new Date("2026-08-01T00:00:00.000Z")),
+      );
+
+      await switchToOrgOne();
+
+      expect(replaceMock).not.toHaveBeenCalled();
     });
 
     // The room's own page says so if the room is really gone.

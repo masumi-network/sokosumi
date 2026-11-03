@@ -77,8 +77,8 @@ private actor WorkspaceTransport: ClientTransport {
 /// One `UserWorkspace`: personal for nil, Acme for `org_1`.
 private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
   organizationId == nil
-    ? #"{"id":"11111111-1111-7111-8111-111111111111","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
-    : #"{"id":"22222222-2222-7222-8222-222222222222","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    ? #"{"id":"11111111-1111-7111-8111-111111111111","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"role":null,"memberCount":null,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
+    : #"{"id":"22222222-2222-7222-8222-222222222222","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"role":"member","memberCount":2,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
 }
 
 private let seededRoomID = "550e8400-e29b-41d4-a716-446655440000"

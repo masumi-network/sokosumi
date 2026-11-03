@@ -9,7 +9,13 @@ const {
   inboxMock,
   chargedMock,
   contactLinesMock,
+  turnFindManyMock,
+  toolCallFindManyMock,
+  scheduleRunFindFirstMock,
 } = vi.hoisted(() => ({
+  turnFindManyMock: vi.fn(),
+  toolCallFindManyMock: vi.fn(),
+  scheduleRunFindFirstMock: vi.fn(),
   contactLinesMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -25,6 +31,9 @@ vi.mock("@/lib/db/prisma", () => ({
     task: { findMany: taskFindManyMock },
     user: { findUnique: userFindUniqueMock },
     sokoBotMemoryRevision: { findFirst: memoryFindFirstMock },
+    sokoBotTurn: { findMany: turnFindManyMock },
+    sokoBotToolCall: { findMany: toolCallFindManyMock },
+    sokoBotScheduleRun: { findFirst: scheduleRunFindFirstMock },
   },
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
@@ -47,7 +56,11 @@ vi.mock("@/services/soko-bot-activity-stats.service", async (original) => ({
   activityStats: statsMock,
 }));
 
-import { buildRhythmPacket, dueSoonBlock } from "./soko-bot-rhythms.service";
+import {
+  buildRhythmPacket,
+  chatTurnRequest,
+  dueSoonBlock,
+} from "./soko-bot-rhythms.service";
 
 const bot = {
   id: "bot-1",
@@ -100,6 +113,9 @@ beforeEach(() => {
   inboxMock.mockResolvedValue([]);
   chargedMock.mockResolvedValue(new Map());
   contactLinesMock.mockResolvedValue(new Map());
+  turnFindManyMock.mockResolvedValue([]);
+  toolCallFindManyMock.mockResolvedValue([]);
+  scheduleRunFindFirstMock.mockResolvedValue(null);
 });
 
 describe("meeting prep", () => {
@@ -395,7 +411,7 @@ describe("monthly review", () => {
   });
 });
 
-describe("memory cleanup and deadline watch", () => {
+describe("dreaming and deadline watch", () => {
   beforeEach(() => {
     memoryFindFirstMock.mockResolvedValue({
       markdown:
@@ -405,7 +421,7 @@ describe("memory cleanup and deadline watch", () => {
 
   it("lists follow-ups dated more than a week ago", async () => {
     const packet = await buildRhythmPacket({
-      key: "memory-cleanup",
+      key: "dreaming",
       bot,
       now: new Date("2026-10-01T18:00:00.000Z"),
       dayStart: new Date("2026-10-01T00:00:00.000Z"),
@@ -419,6 +435,139 @@ describe("memory cleanup and deadline watch", () => {
     const block = await dueSoonBlock(bot, new Date("2026-10-01T06:00:00.000Z"));
     expect(block.join("\n")).toContain("send the agenda");
     expect(block.join("\n")).not.toContain("renew domain");
+  });
+});
+
+describe("chatTurnRequest", () => {
+  it("drops the chat history in front of a direct message", () => {
+    expect(
+      chatTurnRequest(
+        "CONTEXT (last 2 messages in this chat):\n- Joseph: hi\n- Patrick: yo\n\nNew message:\nAlways file receipts",
+      ),
+    ).toBe("Always file receipts");
+  });
+
+  it("keeps who asked in a room, and a teammate's label", () => {
+    expect(
+      chatTurnRequest(
+        "Albina (a teammate, not your owner) asked: CONTEXT (last 1 messages in #Sokosumi):\n- Andreas: hi\n\nAlbina mentioned you in #Sokosumi:\n\ncan you check?",
+      ),
+    ).toBe(
+      "Albina (a teammate, not your owner) asked: Albina mentioned you in #Sokosumi:\n\ncan you check?",
+    );
+  });
+
+  it("leaves a plain message alone", () => {
+    expect(chatTurnRequest("hello")).toBe("hello");
+  });
+});
+
+describe("dreaming", () => {
+  const now = new Date("2026-11-01T03:00:00.000Z");
+  const turn = (overrides: Record<string, unknown>) => ({
+    createdAt: new Date("2026-10-31T14:00:00.000Z"),
+    source: "CHAT",
+    status: "COMPLETED",
+    userMessage: "",
+    finalAnswer: null,
+    errorKind: null,
+    errorDetail: null,
+    ownerFeedback: null,
+    qualityVerdict: null,
+    backgroundTitle: null,
+    ...overrides,
+  });
+  const dream = async () =>
+    await buildRhythmPacket({
+      key: "dreaming",
+      bot,
+      now,
+      dayStart: new Date("2026-11-01T00:00:00.000Z"),
+    });
+
+  it("sleeps without a turn when nothing happened and nothing is stale", async () => {
+    expect(await dream()).toEqual({ lines: [], skip: true });
+  });
+
+  it("looks back to the last dream, at most a week", async () => {
+    scheduleRunFindFirstMock.mockResolvedValue({
+      scheduledFor: new Date("2026-10-31T03:00:00.000Z"),
+    });
+    await dream();
+    expect(turnFindManyMock.mock.calls[0][0].where.createdAt.gte).toEqual(
+      new Date("2026-10-31T03:00:00.000Z"),
+    );
+    scheduleRunFindFirstMock.mockResolvedValue({
+      scheduledFor: new Date("2026-09-01T03:00:00.000Z"),
+    });
+    await dream();
+    expect(turnFindManyMock.mock.calls[1][0].where.createdAt.gte).toEqual(
+      new Date("2026-10-25T03:00:00.000Z"),
+    );
+  });
+
+  it("quotes chats with the owner's thumbs, and only counts packet-driven turns", async () => {
+    turnFindManyMock.mockResolvedValue([
+      turn({
+        createdAt: new Date("2026-10-31T15:00:00.000Z"),
+        userMessage: "No, always file receipts too",
+        finalAnswer: "Noted.",
+        ownerFeedback: -1,
+      }),
+      turn({ source: "INGEST", userMessage: "## Mail\n- secret packet" }),
+      turn({
+        source: "SCHEDULE",
+        status: "FAILED",
+        errorKind: "timeout",
+        userMessage: "Weekly wrap…",
+      }),
+    ]);
+    const text = (await dream()).lines.join("\n");
+    expect(text).toContain(
+      "3 turns: 1 chats, 1 inbox checks, 1 scheduled, 0 Task events; 1 failed.",
+    );
+    expect(text).toContain(
+      'Asked: "No, always file receipts too" → You: "Noted." [thumbs down]',
+    );
+    expect(text).not.toContain("secret packet");
+    expect(text).toContain("## Turns that failed");
+    expect(text).toContain("schedule: timeout");
+  });
+
+  it("groups failing tools so a repeat shows, and lists weak answers and saved attachments", async () => {
+    turnFindManyMock.mockResolvedValue([
+      turn({
+        qualityVerdict: {
+          verdict: "fail",
+          issues: ["Claimed a Task was created without a tool result"],
+        },
+      }),
+    ]);
+    toolCallFindManyMock.mockImplementation(async ({ where }) =>
+      where.status === "FAILED"
+        ? [
+            {
+              capability: "read_email",
+              errorKind: "provider_error",
+              errorDetail: "429",
+            },
+            {
+              capability: "read_email",
+              errorKind: "provider_error",
+              errorDetail: "429",
+            },
+          ]
+        : [
+            { input: { folder: "Finance/Invoices" } },
+            { input: { folder: "Finance/Invoices" } },
+          ],
+    );
+    const text = (await dream()).lines.join("\n");
+    expect(text).toContain("- read_email (provider_error) ×2: 429");
+    expect(text).toContain(
+      "fail: Claimed a Task was created without a tool result",
+    );
+    expect(text).toContain("Finance/Invoices ×2");
   });
 });
 

@@ -12,11 +12,12 @@ const PLAIN_TEXT =
  */
 export const SOCIAL_POST_WRITING_GUIDES = {
   x: [
-    "The first line is the post: lead with the point, a claim or a question, not a preamble.",
+    "The first line is the post: lead with the point, a claim or a question, not a preamble. Name the topic in the first ten words; X shows posts to people who follow that topic.",
     "Short and concrete. One idea per post; use a thread (threadParts) only when each part adds something.",
     "Put links in firstComment (a reply), not the post: posts with links get less reach.",
     "At most 2 hashtags, only when they name a topic people follow; often none.",
     "Write to start replies: ask, take a position, or invite a take. Native images or video beat a link preview.",
+    "Space posts by about an hour: posts close together compete with each other. Never bait for reactions; people muting a post costs reach.",
     SOUNDS_HUMAN,
     PLAIN_TEXT,
   ],
@@ -24,13 +25,15 @@ export const SOCIAL_POST_WRITING_GUIDES = {
     "The first one or two lines show before 'see more' (about 140 characters on mobile): make them the hook.",
     "Short paragraphs of one or two sentences with a blank line between them; a list of plain '-' lines is fine.",
     "Speak from experience: a lesson, a result, a decision and why. End with a question or a clear takeaway.",
+    "1,200 to 1,500 characters reads best for a text post. A multi-image post (carousel) reaches well: one idea per image.",
     "Put links in firstComment, not the post: posts with links get less reach.",
     "3 to 5 specific hashtags at the end, never mid-sentence.",
     SOUNDS_HUMAN,
     PLAIN_TEXT,
   ],
   facebook: [
-    "Short wins: the point in the first line or two, before 'See more'.",
+    "Short wins: the point in the first line or two, before 'See more'. 40 to 80 characters gets the most replies.",
+    "Native video and photos reach far more people than links.",
     "Conversational, like talking to a neighbour; ask something people can answer in a comment.",
     "Put links in firstComment, not the post: link posts reach the fewest people.",
     "Hashtags add little here: at most 3, often none.",
@@ -43,6 +46,7 @@ export const SOCIAL_POST_WRITING_GUIDES = {
     "Links are not clickable in captions: point to the link in bio instead of pasting a URL.",
     "3 to 5 specific hashtags at the end, never a wall of tags.",
     "Line breaks between short paragraphs; end with a question or a call to action.",
+    "Carousels and reels reach furthest; portrait 4:5 images fill the feed. Make posts worth saving and sharing: that is what Instagram rewards.",
     SOUNDS_HUMAN,
     PLAIN_TEXT,
   ],
@@ -55,6 +59,7 @@ export const SOCIAL_POST_WRITING_GUIDES = {
     PLAIN_TEXT,
   ],
   youtube: [
+    "The title asks the viewer's question or names the task, in about 70 characters.",
     "The first one or two lines of the description show before 'Show more': say what the video is about, with its main keyword.",
     "Then a short summary, and links the viewer needs, each on its own line.",
     "For a long video, add chapters: one timestamp per line, the first at 0:00, at least three.",
@@ -82,6 +87,43 @@ const MARKDOWN: readonly { pattern: RegExp; label: string }[] = [
   },
   { pattern: /`[^`\n]+`/, label: "`code`" },
 ];
+
+/** Lines that make a post read like AI or an ad, with what to tell the bot. */
+const BANNED_COPY: readonly { pattern: RegExp; problem: string }[] = [
+  {
+    pattern: /\bit'?s not [^.,;]{1,40}, it'?s\b/i,
+    problem: "uses \"it's not X, it's Y\"",
+  },
+  {
+    pattern:
+      /\b(game[- ]changer|unlock|elevate|seamless|say goodbye to|reimagined|in today's fast-paced world)\b/i,
+    problem:
+      "uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined)",
+  },
+  {
+    pattern: /\b(agree|thoughts)\?\s*$/im,
+    problem: 'ends on engagement bait ("Agree?", "Thoughts?")',
+  },
+  { pattern: /—/, problem: "has an em dash" },
+  {
+    pattern:
+      /\b(check|read|compare|see)\b[^.!?\n]{0,50}\b(product page|details|product details|product information)\b/i,
+    problem:
+      "tells people to check the details instead of giving one: name the product, its price or a real detail of the business",
+  },
+  {
+    pattern: /\b(vary|varies) by (style|product|item|region|size)\b/i,
+    problem:
+      'hedges ("varies by style"): say what is true for the product in the post, or leave it out',
+  },
+];
+
+/** What a text breaks of the copy rules every bot's writing guide states. */
+export function bannedCopyProblems(text: string): string[] {
+  return BANNED_COPY.filter(({ pattern }) => pattern.test(text)).map(
+    ({ problem }) => problem,
+  );
+}
 
 const HASHTAG = /(?:^|\s)#[\p{L}\p{N}_]+/gu;
 const URL = /https?:\/\/\S+/i;
@@ -113,6 +155,10 @@ export function socialPostFormattingError(
     problems.push(
       `it uses Markdown (${markdown.join(", ")}), which ${provider} shows as raw symbols; write plain text`,
     );
+  const copy = [
+    ...new Set(post.texts.flatMap((text) => bannedCopyProblems(text ?? ""))),
+  ];
+  if (copy.length > 0) problems.push(`it ${copy.join("; it ")}`);
   const hashtags = Math.max(
     0,
     ...post.texts.map((text) => text?.match(HASHTAG)?.length ?? 0),

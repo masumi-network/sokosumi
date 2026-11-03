@@ -23,12 +23,12 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/elsewhere",
     description:
-      "List the current user's rooms with something unread in their other workspaces (Elsewhere rows, ADR-0061): rooms of an Organization they belong to, or their personal coworker and Soko Bot Directs, that the active workspace does not list and they have not muted. Rooms naming the user come first, then the newest. Unpaginated: the whole list. Interactive user session only.",
+      "List the current user's rooms in their other workspaces that hold something unread or that they pinned (Elsewhere rows, ADR-0061; Pinned rooms, ADR-0062): rooms of an Organization they belong to, or their personal coworker and Soko Bot Directs, that the active workspace does not list and they have not muted. Rooms naming the user come first, then the newest. Unpaginated: the whole list. Interactive user session only.",
     tags: ["Chat Rooms"],
     responses: {
       200: jsonSuccessResponse(
         z.array(chatRoomSchema),
-        "Unread rooms of the user's other workspaces",
+        "Unread and pinned rooms of the user's other workspaces",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -63,18 +63,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       getChatRoomUnreadMentionCounts(candidateIds, userId, prisma),
       getChatRoomSidebarFlags(candidateIds, userId, prisma),
     ]);
-    const unreadIds = candidateIds.filter(
-      (id) =>
+    const listedIds = candidateIds.filter((id) => {
+      const flags = sidebarFlags.get(id);
+      return (
         (unreadCounts.get(id)?.total ?? 0) > 0 ||
         (mentionCounts.get(id) ?? 0) > 0 ||
-        sidebarFlags.get(id)?.markedUnread === true,
-    );
-    if (unreadIds.length === 0) {
+        flags?.markedUnread === true ||
+        flags?.starredAt != null
+      );
+    });
+    if (listedIds.length === 0) {
       return ok(c, []);
     }
 
     const rooms = await prisma.chatRoom.findMany({
-      where: { id: { in: unreadIds } },
+      where: { id: { in: listedIds } },
       include: chatRoomInclude,
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     });

@@ -186,6 +186,16 @@ export const chatRoomSchema = z
         "Host organization display name. Required for guest rows in list; may be null for personal directs.",
       example: "Acme Corp",
     }),
+    organizationLogo: z.string().nullable().optional().openapi({
+      description:
+        "Host organization logo, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://example.com/acme.png",
+    }),
+    organizationWebsiteUrl: z.string().nullable().optional().openapi({
+      description:
+        "Host organization website, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://acme.com",
+    }),
     name: z.string().openapi({ example: "Launch Room" }),
     slug: z.string().nullable().openapi({
       description:
@@ -577,7 +587,21 @@ const chatRoomMessageQuoteSchema = z
     snippet: z.string().openapi({
       example: "Can you summarize this launch risk?",
     }),
-    attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+    attachment: chatRoomMessageQuoteAttachmentSchema
+      .nullable()
+      .optional()
+      .openapi({
+        deprecated: true,
+        description:
+          "One attachment for shipped Mac builds: the first image, else the first file. Use `attachments`.",
+      }),
+    attachments: z
+      .array(chatRoomMessageQuoteAttachmentSchema)
+      .optional()
+      .openapi({
+        description:
+          "Every file and image linked in the quoted message, in body order. Absent on an older quote that had none.",
+      }),
     roomId: z.string().uuid().optional().openapi({
       description:
         "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",

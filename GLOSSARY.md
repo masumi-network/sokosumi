@@ -94,6 +94,22 @@ _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 The product at cmo.xyz: an AI agent that runs a business's marketing end to end (social media, content, ads, SEO, graphics), built on Sokosumi. People use it with their Sokosumi account and Workspaces; it holds no accounts or product data of its own. Its brand guide lives in the CMO.XYZ-Style-Guide repository.
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
+**Cuso**:
+CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that works in one Project of the business's organization, for every member of it. A Project has at most one, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+_Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
+
+**Hiring Cuso**:
+CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
+_Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
+
+**Marketing strategy**:
+A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its calendar is the Project's Social posts.
+_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Social posts)
+
+**Brand Brain**:
+What a Project knows about the business it works for (summary, voice, audience, products, competitors, channels). Every bot in the Project reads it and any member of its Workspace edits it; Cuso drafts it while Hiring Cuso. Its look (logo, colours, fonts) is the Project's logo and DESIGN.md, not part of it.
+_Avoid_: Brand profile, business profile, brand guidelines (that is a Project's DESIGN.md), Project memory (what bots learned while working)
+
 ### Tasks
 
 **Task Manager**:
@@ -195,6 +211,10 @@ _Avoid_: Engagement over the selected period, treating an unavailable counter as
 **Social account post**:
 A read-only cached publication retrieved from a connected account's provider history, including posts created outside Sokosumi. Distinct from a schedulable Social post; identified by the connected account and provider post ID.
 _Avoid_: Draft, scheduled Social post, importing history as publishable content
+
+**Social comment**:
+A comment someone left on one of a Project's published Social posts. Mentions, direct messages, and comments on Social account posts published outside Sokosumi are not Social comments.
+_Avoid_: Social interaction, engagement, reply (when meaning the comment)
 
 ### Ads
 
@@ -425,7 +445,7 @@ The first row of the Chats block: one entry for everything the reader missed, op
 _Avoid_: Inbox, a second count, the Unreads chip on this row in the sidebar
 
 **Elsewhere row**:
-A Sidebar row under Catch up for a room of another of the reader's workspaces that holds something unread, naming the room and its workspace; opening it starts a Room visit. At most five show, mentions first, except that every room naming the reader always gets one; the rest share one row that opens Catch up. Muted rooms and rooms shown in every workspace get none.
+A Sidebar row under Catch up for a room of another of the reader's workspaces that holds something unread, naming the room and its workspace; opening it starts a Room visit. At most five show, mentions first, except that every room naming the reader always gets one; the rest share one row that opens Catch up. Muted rooms, Pinned rooms and rooms shown in every workspace get none. Pin on its menu moves the room to Pinned.
 _Avoid_: External row (External channels are something else), other-workspace row
 
 **Room visit**:
@@ -509,8 +529,12 @@ _Avoid_: Archived direct (archiving is a different, reversible action), locked c
 ### Chat pins
 
 **Pinned room**:
-The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's own order, and activity never moves it. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys); outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`) for the rooms of the sidebar it was made in only (a room in several sidebars, like a Personal Direct, has one key and moves in each), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
-_Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
+The current user's personal sidebar pin of a membership-visible room, which shows in every workspace ([ADR-0062](docs/adr/0062-a-pin-follows-the-reader-across-workspaces.md)). Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's one order across workspaces, and activity never moves it. A room of another workspace carries a Workspace tile, and opening it starts a Room visit. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys), which moves the same list in every workspace; outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
+_Avoid_: Starred room (API-only name), favorite, followed room, treating this as a Pinned message
+
+**Workspace tile**:
+The workspace's small face at the end of a Pinned row, for a room of another workspace only: its logo or favicon, else the initial of its name, or the reader's avatar for the personal workspace. Muted at rest, it stands in the column the room menu uses, and its full name is in the row's tooltip and accessible name. Not on an Elsewhere row, whose second line names the workspace.
+_Avoid_: Workspace badge, workspace indicator
 
 **Pinned message**:
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.

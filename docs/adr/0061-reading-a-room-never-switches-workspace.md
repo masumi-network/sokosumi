@@ -17,6 +17,6 @@ People who work in several workspaces missed messages in the ones they did not h
 
 - A link to any room the reader belongs to opens as a Room visit, from wherever they are. Chat notifications follow the same rule, including mentions; task and job notifications still switch.
 - Inside a visit, the room's own Organization decides the member list and who may manage the room, not the active workspace. A link from the room to a task of that workspace still switches.
-- The header names the room's workspace and switching there is one click, which keeps the room open. Switching anywhere else closes it, as it does for any room of the workspace being left.
+- The header names the room's workspace and switching there is one click, which keeps the room open. Switching anywhere else closes it, as it does for any room of the workspace being left. A Pinned room is the exception and stays open ([ADR-0062](0062-a-pin-follows-the-reader-across-workspaces.md)).
 - `@all` counts as naming the reader, because a mention notification does not say which kind it was. One room still takes one row however many mentions it holds.
-- Mark all as read stays within the active workspace, so a mention elsewhere is never cleared from a place the reader cannot see it.
+- Mark all as read stays within the active workspace, so a mention elsewhere is never cleared from a place the reader cannot see it. Pinned rooms of other workspaces are on screen, so it clears them too ([ADR-0062](0062-a-pin-follows-the-reader-across-workspaces.md)).

@@ -127,8 +127,8 @@ private let acmeWorkspaceId = "22222222-2222-7222-8222-222222222222"
 /// One `UserWorkspace`: personal for nil, Acme for `org_1`.
 private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
   organizationId == nil
-    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
-    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"role":null,"memberCount":null,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
+    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"role":"member","memberCount":2,"enabledSocialProviders":[],"preferred":\#(preferred)}"#
 }
 
 /// `GET /users/me/workspaces`: personal and Acme, `preferring` the one a
@@ -1401,7 +1401,7 @@ struct WorkspaceRealtimeTests {
     // Personal workspace: nothing to enter, nothing to publish, DTO fallback wins.
     #expect(fake.presenceOrganizations.isEmpty)
     #expect(fake.publishedPresence.isEmpty)
-    #expect(state.presence(forUser: "alice", fallback: .afk) == .afk)
+    #expect(state.presence.presence(forUser: "alice", fallback: .afk) == .afk)
 
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(option: org)
@@ -1417,9 +1417,9 @@ struct WorkspaceRealtimeTests {
     for _ in 0 ..< 1000 where state.presence.byUserId.isEmpty {
       await Task.yield()
     }
-    #expect(state.presence(forUser: "alice", fallback: .offline) == .online)
-    #expect(state.presence(forUser: "bob", fallback: .offline) == .afk)
-    #expect(state.presence(forUser: "carol", fallback: .offline) == .offline)
+    #expect(state.presence.presence(forUser: "alice", fallback: .offline) == .online)
+    #expect(state.presence.presence(forUser: "bob", fallback: .offline) == .afk)
+    #expect(state.presence.presence(forUser: "carol", fallback: .offline) == .offline)
     let human = try #require(ChatParticipantProfile(sender: .case1(.init(_type: .user, user: .init(id: "carol", name: "Carol", email: "carol@example.com", presence: .afk)))))
     #expect(state.presence(for: human) == .afk)
     let coworker = try #require(ChatParticipantProfile(sender: .case2(.init(_type: .coworker, coworker: .init(id: "cw", name: "Helper", slug: "helper", presence: .offline)))))

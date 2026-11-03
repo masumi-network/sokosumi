@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 
+import { moveLegacyStudioFolderTasks } from "@/services/image-studio-drive.service";
 import { reconcileStaleJobs } from "@/services/image-studio-jobs.service";
 
 import { handleSyncRequest } from "../handler.js";
@@ -17,7 +18,8 @@ export default function mount(app: Hono) {
         olderThanMs: STALE_AFTER_MS,
         limit: BATCH,
       });
-      console.info("[sync/image-jobs] Completed sync", result);
+      const folders = await moveLegacyStudioFolderTasks(5);
+      console.info("[sync/image-jobs] Completed sync", { ...result, folders });
     });
   });
 }

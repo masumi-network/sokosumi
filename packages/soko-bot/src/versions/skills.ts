@@ -1,3 +1,4 @@
+import { CMO_SKILLS } from "./cmo-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
 
 /**
@@ -222,7 +223,6 @@ When the owner connected accounts (see \`list_integrations\`), you know what is 
 - Morning briefing (once a day): today's events with times and who with, then a summary of the last 24 hours of mail (what needs action first, then the rest grouped in a line or two, such as "4 newsletters, 2 receipts, a shipping notice"), then a line on what you are following up. Under 12 lines.
 - New-mail ingest (between briefings): Core sends only mail that looked important enough to interrupt the owner. Say in a line each what it needs and by when; leave out any that can wait for the briefing, and if none is left, answer with exactly \`Nothing new worth flagging.\` and stop.
 - Put commitments, deadlines, and open questions you spot into memory follow-ups with the date as YYYY-MM-DD; drop them when done.
-- On your own ingest turns (briefing, stand-up, new-mail check), a mail that is an explicit request *to the owner* with a deliverable and a date becomes a DRAFT Task (\`create_task\` with status DRAFT and assignToOwner: true, in the project it fits) named after the deliverable, with the summary and the mail reference (\`[provider:id]\`) in the description. Never set it READY; the owner promotes it.
 - When the owner asked you something directly ("summarise my mail", "what did X want"), answer the question and stop. You may end with one line offering to draft a Task — phrased as an offer ("want me to draft a Task for it?"), never as something you already did. Claiming a Task, reply, or schedule that has no tool result in this turn is the worst mistake you can make.
 - Meetings with people from outside get a short brief from the Meeting prep rhythm before they start. Create a prep Task only when the owner asks for one.
 - Never quote full emails back; summarise. Never expose credentials, codes, or links that look like sign-in or reset links.
@@ -285,6 +285,7 @@ When you are unsure whether a Coworker can do a job, ask them before you commit 
 \`list_integrations\` shows which accounts the owner connected. Anything that is not a mailbox is a toolbox you can use on the owner's behalf.
 
 - Discover before acting: \`list_integration_tools\` with the provider and a few words of intent, read the input schema, then \`run_integration_tool\` with arguments that match it. Never invent ids, channel names, or page ids — look them up with a list/search tool first.
+- An app the request needs that is not connected yet: search it with \`find_integrations\` and give the person its connect link as a markdown link. Never say you cannot use an app before searching for it.
 - Prefer reading over writing. Writes that others will see (posting a message, creating an issue or page, sending anything) need a clear ask from the owner in this conversation or in the Task; say what you did afterwards, with the link or id the tool returned.
 - Never delete, archive, or bulk-edit unless the owner explicitly asked for exactly that.
 - Mailboxes (Gmail, Outlook) are read-only through \`search_inbox\` / \`read_email\`; there is no sending.
@@ -328,6 +329,7 @@ The owner can put you in charge of a Project's social posts directly; a simple p
 - Reads alone do not mean the capability is read-only. On a turn where the write tools are absent (a question, an unclear request, or a read-only route), tell the owner to ask you directly — "ask me to create the post and I will" — rather than saying you cannot. Never promise post work for a later turn; do it on the turn that carries the tools.
 `,
   },
+  ...CMO_SKILLS,
   {
     id: "contacts",
     name: "Contacts",

@@ -18,20 +18,15 @@ import {
 import { toast } from "sonner";
 
 import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
-import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
+import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
   startVideoGeneration,
+  writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
@@ -95,6 +90,12 @@ const EMPTY_STUDIO_STATE: StudioState = {
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
 
+interface StudioCaptionDraft {
+  text: string;
+  suggestion?: string;
+  previousText?: string;
+}
+
 /**
  * The studio.
  *
@@ -118,6 +119,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
+  projectScopePrompt,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -136,6 +138,7 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
+  projectScopePrompt?: React.ReactNode;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -178,14 +181,9 @@ export function ImageStudio({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
-  /** A batch from the workspace view, held while its project is picked. */
-  const [awaitingProject, setAwaitingProject] = useState<
-    GenerationRequest[] | null
-  >(null);
-
-  const [creatingProjectFor, setCreatingProjectFor] = useState<
-    GenerationRequest[] | null
-  >(null);
+  const [captionByAssetId, setCaptionByAssetId] = useState<
+    Record<string, StudioCaptionDraft>
+  >({});
 
   // Video: a second composer over the same gallery, shown only when Core
   // offers a video model.
@@ -325,10 +323,42 @@ export function ImageStudio({
       toast.error(labels.scheduleFailed);
       return;
     }
-    writeSocialComposePrefill(asset.projectId, { media: [result.value] });
+    const text = captionByAssetId[asset.id]?.text.trim();
+    writeSocialComposePrefill(asset.projectId, {
+      media: [result.value],
+      ...(text ? { text } : {}),
+    });
     router.push(
       `/social?projectId=${encodeURIComponent(asset.projectId)}&compose=new`,
     );
+  }
+
+  async function writeCaption(asset: StudioAsset) {
+    const textAtStart = captionByAssetId[asset.id]?.text;
+    const result = await writeStudioAssetCaption({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    });
+    if (!result.ok) {
+      toast.error(labels.writeCaptionFailed);
+      return;
+    }
+    setCaptionByAssetId((current) => {
+      const caption = current[asset.id];
+      // Offer replacements; even clearing the text while waiting is an edit.
+      const preserveText =
+        caption?.text.trim() || caption?.text !== textAtStart;
+      return {
+        ...current,
+        [asset.id]: preserveText
+          ? {
+              ...caption,
+              text: caption?.text ?? "",
+              suggestion: result.value.text,
+            }
+          : { text: result.value.text },
+      };
+    });
   }
 
   /**
@@ -421,8 +451,8 @@ export function ImageStudio({
    *
    * References decide it when there are any, since Core takes them only from
    * the project the generation runs in. Otherwise the open project does, and
-   * in the workspace view the batch waits in `awaitingProject` while the
-   * person picks one.
+   * in the workspace view the batch waits while the person picks one in the
+   * header's project selector. Closing it leaves the brief untouched.
    */
   function handleGenerate(requests: GenerationRequest[]) {
     setTemplateUndo(null);
@@ -434,8 +464,18 @@ export function ImageStudio({
       return;
     }
     const target = [...referenceProjectIds][0] ?? activeProjectId;
-    if (target) sendTo(target, requests);
-    else setAwaitingProject(requests);
+    if (target) {
+      sendTo(target, requests);
+      return;
+    }
+    openProjectScope({
+      required: true,
+      reason: t("pickForGeneration"),
+      onSelect: (picked) => {
+        setPickedProjectId(picked);
+        sendTo(picked, requests);
+      },
+    });
   }
 
   function sendTo(target: string, requests: GenerationRequest[]) {
@@ -728,6 +768,7 @@ export function ImageStudio({
             <StudioTemplateCarousel
               labels={labels}
               onApplyTemplate={applyTemplate}
+              projectAction={projectScopePrompt}
             />
           ) : (
             <StudioGallery
@@ -851,64 +892,14 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      {/* The composer is the anchor, so the question sits over the brief it
-      is about. Dismissing it leaves the brief untouched. */}
-      <Popover
-        onOpenChange={(open) => {
-          if (!open) setAwaitingProject(null);
-        }}
-        open={awaitingProject !== null}
-      >
-        <div className="relative shrink-0" ref={dock.slotRef}>
-          <PopoverAnchor asChild>
-            <div
-              className="bg-background absolute inset-x-0 bottom-0 pt-2"
-              ref={dock.dockRef}
-            >
-              {composer}
-            </div>
-          </PopoverAnchor>
-        </div>
-        <PopoverContent
-          align="end"
-          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
-          side="top"
+      <div className="relative shrink-0" ref={dock.slotRef}>
+        <div
+          className="bg-background absolute inset-x-0 bottom-0 pt-2"
+          ref={dock.dockRef}
         >
-          <p className="border-border shrink-0 border-b px-3 py-2 text-sm font-medium">
-            {t("pickForGeneration")}
-          </p>
-          <ProjectScopeMenu
-            onCreate={() => setCreatingProjectFor(awaitingProject)}
-            onDone={() => setAwaitingProject(null)}
-            onSelect={(picked) => {
-              if (awaitingProject) {
-                setPickedProjectId(picked);
-                sendTo(picked, awaitingProject);
-              }
-            }}
-            selectedProjectId={null}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <InlineCreateProjectModal
-        open={creatingProjectFor !== null}
-        onOpenChange={(open) => {
-          if (!open) setCreatingProjectFor(null);
-        }}
-        onCreated={({ projectId: createdId }) => {
-          if (creatingProjectFor) {
-            setPickedProjectId(createdId);
-            sendTo(createdId, creatingProjectFor);
-            setCreatingProjectFor(null);
-          }
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          promptRef.current?.focus();
-        }}
-        creationSource="project_switcher"
-      />
+          {composer}
+        </div>
+      </div>
 
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
@@ -936,6 +927,63 @@ export function ImageStudio({
             }));
             setViewing(null);
             requestAnimationFrame(() => promptRef.current?.focus());
+          }}
+          onWriteCaption={writeCaption}
+          caption={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]?.text
+              : undefined
+          }
+          captionSuggestion={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]?.suggestion
+              : undefined
+          }
+          onCaptionSuggestionResolve={(useSuggestion) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => {
+              const caption = current[asset.id];
+              if (caption?.suggestion === undefined) return current;
+              return {
+                ...current,
+                [asset.id]: useSuggestion
+                  ? { text: caption.suggestion, previousText: caption.text }
+                  : { ...caption, suggestion: undefined },
+              };
+            });
+          }}
+          onUndoCaption={
+            lightboxAssets.length === 1 &&
+            captionByAssetId[lightboxAssets[0].id]?.previousText !== undefined
+              ? () => {
+                  const assetId = lightboxAssets[0].id;
+                  setCaptionByAssetId((current) => {
+                    const caption = current[assetId];
+                    if (caption?.previousText === undefined) return current;
+                    return {
+                      ...current,
+                      [assetId]: {
+                        ...caption,
+                        text: caption.previousText,
+                        previousText: undefined,
+                      },
+                    };
+                  });
+                }
+              : undefined
+          }
+          onCaptionChange={(text) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => ({
+              ...current,
+              [asset.id]: {
+                ...current[asset.id],
+                text,
+                previousText: undefined,
+              },
+            }));
           }}
           siblings={state.assets}
         />

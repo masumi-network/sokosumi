@@ -89,6 +89,12 @@ export type ChatParticipantHoverProfile =
       caption: string | null;
       image: string | null;
       avatarSeed: string | null;
+      /** The style of the bot's claimed avatar; a crafted one is cropped to the face. */
+      avatarStyleId?: string | null;
+      /** The Idle loop, played on the face while its hover card is open. */
+      idleLoopUrl?: string | null;
+      /** The Working loop, played on the face while a reply is in progress. */
+      workingLoopUrl?: string | null;
       presence: ChatRoomPresence;
     };
 
@@ -175,6 +181,8 @@ export interface RoomMentionParticipant {
   name: string;
   slug: string;
   image: string | null;
+  /** A Soko Bot's avatar style; a crafted one is cropped to the face. */
+  avatarStyleId?: string | null;
 }
 
 /**
@@ -384,7 +392,7 @@ export interface PendingRoomQuote {
   messageId: string;
   authorName: string;
   snippet: string;
-  attachment: ChatRoomQuoteAttachment | null;
+  attachments: ChatRoomQuoteAttachment[];
   /** Source room when the quoted message is not in the room being composed in. */
   roomId?: string;
 }
@@ -392,12 +400,12 @@ export interface PendingRoomQuote {
 export function pendingQuoteFromMessage(
   message: ChatRoomMessage,
 ): PendingRoomQuote {
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(message.content);
+  const { snippet, attachments } = buildRoomQuoteSnippetParts(message.content);
   return {
     messageId: message.id,
     authorName: messageSender(message).name,
     snippet,
-    attachment,
+    attachments,
   };
 }
 
@@ -441,6 +449,9 @@ export function senderProfile(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarStyleId: sokoBot.avatarStyleId,
+      idleLoopUrl: sokoBot.idleLoopUrl,
+      workingLoopUrl: sokoBot.workingLoopUrl,
       presence: sokoBot.presence,
     };
   }
@@ -748,6 +759,8 @@ export function getRoomParticipantPreviews(
         caption: sokoBot.caption,
         image: sokoBot.image,
         avatarSeed: sokoBot.avatarSeed,
+        avatarStyleId: sokoBot.avatarStyleId,
+        idleLoopUrl: sokoBot.idleLoopUrl,
         presence: sokoBot.presence,
       }),
     )
@@ -866,6 +879,8 @@ export function chatParticipantProfileForDirectTarget(
       caption: sokoBot.caption,
       image: sokoBot.image,
       avatarSeed: sokoBot.avatarSeed,
+      avatarStyleId: sokoBot.avatarStyleId,
+      idleLoopUrl: sokoBot.idleLoopUrl,
       presence: sokoBot.presence,
     };
   }

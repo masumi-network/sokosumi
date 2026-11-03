@@ -1,5 +1,6 @@
 import { Prisma } from "@sokosumi/database";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
+import { waitUntil } from "@vercel/functions";
 
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
@@ -305,6 +306,20 @@ export async function finalizeSokoBotIntegration(input: {
         error: error instanceof Error ? error.message : "unknown",
       });
     });
+  // The request that needed this app is finished now, without asking again.
+  if (status === "ACTIVE")
+    waitUntil(
+      import("@/services/soko-bot-watches.service")
+        .then(({ followUpConnectedApp }) =>
+          followUpConnectedApp(bot.id, provider.id),
+        )
+        .catch((error: unknown) => {
+          console.error("Soko Bot app-connected follow-up failed", {
+            sokoBotId: bot.id,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }),
+    );
   // Preserve the existing replacement policy, but only revoke after the new
   // account is active and persisted. Never delete unrelated upstream accounts.
   if (replacing) {

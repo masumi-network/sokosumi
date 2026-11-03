@@ -1632,6 +1632,7 @@ const CAPTURE_CHANNEL_SOURCE = {
   CALL: "OTHER",
   MANUAL: "MANUAL",
   OTHER: "OTHER",
+  X: "X",
 } as const satisfies Record<
   InteractionInput["channel"],
   NonNullable<ChannelInput["source"]>
@@ -1736,6 +1737,7 @@ export async function captureContactInteraction(
 export interface ContactEnrichment {
   organization?: string;
   role?: string;
+  location?: string;
   summary?: string;
 }
 

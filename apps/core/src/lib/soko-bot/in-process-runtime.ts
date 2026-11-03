@@ -31,6 +31,7 @@ import {
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import { runInProcessWebTool } from "./in-process-web-tools";
 import {
   announceTurn,
   closeTurn,
@@ -47,8 +48,13 @@ import {
  * How long one turn may run inside a single invocation. Vercel kills Core at
  * `maxDuration` (300s), and a killed invocation writes neither `turn.failed`
  * nor `session.waiting`. Stopping first keeps the loop able to settle itself.
+ * Off Vercel there is no such kill, so a local lab may give big research
+ * turns longer with SOKO_BOT_IN_PROCESS_TURN_BUDGET_MS.
  */
-const TURN_RUNTIME_BUDGET_MS = 240_000;
+const TURN_RUNTIME_BUDGET_MS =
+  (!process.env.VERCEL &&
+    Number(process.env.SOKO_BOT_IN_PROCESS_TURN_BUDGET_MS)) ||
+  240_000;
 
 /** Runs one turn to completion, recording everything the drain needs. */
 async function runTurn(
@@ -62,6 +68,7 @@ async function runTurn(
     await announceTurn(log, input.message);
     const turn = await prepareTurn(sessionId, input.turnId, {
       sandbox: false,
+      web: true,
     });
 
     const tools: ToolSet = {};
@@ -81,6 +88,17 @@ async function runTurn(
           // The turn's deadline reaches the tool, not only the model.
           if (abortSignal.aborted || options.abortSignal?.aborted) {
             throw new Error("Soko Bot turn deadline reached");
+          }
+          if (capability === "web_search" || capability === "web_fetch") {
+            return runInProcessWebTool({
+              sessionId,
+              turnId: input.turnId,
+              capability,
+              toolCallId: options.toolCallId,
+              toolInput,
+              model: turn.model,
+              inferenceRegion: turn.inferenceRegion,
+            });
           }
           return runTurnTool({
             log,

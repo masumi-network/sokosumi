@@ -59,6 +59,7 @@ import { SkillPicker } from "@/components/chat/skill-picker";
 import { StickerPicker } from "@/components/chat/sticker-picker";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
@@ -66,6 +67,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
+import { isCraftedStyle } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -127,6 +129,10 @@ function RoomMentionSuggestion({
         <div className="bg-muted flex size-6 items-center justify-center rounded-full">
           <Users className="text-muted-foreground size-3.5" aria-hidden />
         </div>
+      ) : mention.data?.kind === "sokoBot" &&
+        mention.data.image &&
+        isCraftedStyle(mention.data.avatarStyleId) ? (
+        <AvatarFace src={mention.data.image} crafted className="size-6" />
       ) : (
         <Avatar className="size-6">
           <AvatarImage src={mention.data?.image ?? undefined} alt="" />
@@ -202,8 +208,6 @@ function PendingQuotePreview({
     sokoBotsBySlug: rosterSokoBotsBySlug,
   });
 
-  const attachment = quote.attachment;
-
   return (
     <div
       className="border-border bg-card-background flex items-start gap-2 border-b px-3 py-2"
@@ -214,40 +218,43 @@ function PendingQuotePreview({
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
-        <div className="flex items-start gap-2">
-          {attachment ? (
-            <FileChipMiniPreview
-              url={attachment.url}
-              fileName={attachment.fileName}
-              sizeClass="size-10"
-              className="shrink-0"
+        {quote.snippet.trim() ? (
+          <div
+            className={cn(
+              "text-muted-foreground text-xs leading-5",
+              ROOM_QUOTE_CLAMP_CLASSNAME,
+            )}
+          >
+            <RoomMessageMarkdown
+              content={quote.snippet}
+              markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              sokoBotsById={sokoBotsById}
+              sokoBotsBySlug={sokoBotsBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              channelLinks={channelLinks}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectParticipantKey}
             />
-          ) : null}
-          {quote.snippet.trim() ? (
-            <div
-              className={cn(
-                "text-muted-foreground min-w-0 flex-1 text-xs leading-5",
-                ROOM_QUOTE_CLAMP_CLASSNAME,
-              )}
-            >
-              <RoomMessageMarkdown
-                content={quote.snippet}
-                markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                sokoBotsById={sokoBotsById}
-                sokoBotsBySlug={sokoBotsBySlug}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                channelLinks={channelLinks}
-                currentUserId={currentUserId}
-                canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={onOpenDirectMessage}
-                openingDirectParticipantKey={openingDirectParticipantKey}
+          </div>
+        ) : null}
+        {quote.attachments.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {quote.attachments.map((attachment) => (
+              <FileChipMiniPreview
+                key={attachment.url}
+                url={attachment.url}
+                fileName={attachment.fileName}
+                sizeClass="size-10"
+                className="shrink-0"
               />
-            </div>
-          ) : null}
-        </div>
+            ))}
+          </div>
+        ) : null}
       </div>
       <Button
         type="button"

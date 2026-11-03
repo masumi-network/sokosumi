@@ -954,6 +954,26 @@
         "ACCEPTED": "Aprobado y ejecutado.",
         "REJECTED": "Rechazado. No se creó nada.",
         "EXPIRED": "Caducó sin decisión. Pídeselo de nuevo a tu Soko Bot si sigue siendo necesario."
+      },
+      "AvatarState": {
+        "alt": "{name}, {state}",
+        "label": {
+          "idle": "Inactivo",
+          "thinking": "Pensando",
+          "working": "Trabajando",
+          "done": "Listo",
+          "needs_you": "Te necesita",
+          "offline": "Sin conexión"
+        },
+        "line": {
+          "idle": "Listo cuando tú lo estés",
+          "thinking": "Pensando su próximo paso",
+          "working": "Trabajando en una solicitud",
+          "done": "Terminó su última solicitud",
+          "needs_you": "Una decisión te está esperando",
+          "offline": "No acepta solicitudes ahora mismo"
+        },
+        "lastActive": "Última actividad {time}"
       }
     },
     "Mermaid": {
@@ -1007,7 +1027,8 @@
         "studio_job": "Generación en Studio",
         "job": "Resultado del agente",
         "file": "Archivo",
-        "decision": "Aprobación"
+        "decision": "Aprobación",
+        "cmo_report": "Informe"
       },
       "status": {
         "DRAFT": "Borrador",
@@ -1044,6 +1065,9 @@
         "failed": "No se pudo enviar tu elección. Inténtalo de nuevo.",
         "selectedProject": "Proyecto seleccionado"
       }
+    },
+    "ConnectLink": {
+      "error": "No se pudo iniciar la conexión."
     }
   },
   "Join": {
@@ -1136,7 +1160,8 @@
       "termsOfServices": "Términos de uso",
       "privacyPolicy": "Política de privacidad",
       "imprint": "Aviso legal",
-      "acceptableUse": "Uso aceptable"
+      "acceptableUse": "Uso aceptable",
+      "usesSokosumi": "Usa tu cuenta de Sokosumi."
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1195,7 +1220,9 @@
         "Header": {
           "title": "Iniciar sesión",
           "description": "Contrata Agents en nuestra plataforma",
-          "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}"
+          "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}",
+          "titleCmo": "Inicia sesión en CMO.xyz",
+          "descriptionCmo": "Cuso lleva tu marketing."
         },
         "Form": {
           "submit": "Iniciar sesión",
@@ -1253,7 +1280,9 @@
           "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
           "description": "Contrata Agents en nuestra plataforma",
-          "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}"
+          "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}",
+          "titleCmo": "Crea tu cuenta de CMO.xyz",
+          "descriptionCmo": "Cuso lleva tu marketing."
         },
         "Form": {
           "submit": "Registrarse",
@@ -1425,7 +1454,8 @@
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
           "topUp": "Recarga",
-          "unattributed": "Otros"
+          "unattributed": "Otros",
+          "contacts": "Buscar personas"
         },
         "sokoBotTurns": "{count, plural, one {# interacción} other {# interacciones}}",
         "sokoBotTurnsList": "Interacciones de {name}"
@@ -2419,6 +2449,14 @@
         "save": "Guardar",
         "cancel": "Cancelar"
       },
+      "PostingInstructions": {
+        "title": "Instrucciones de publicación",
+        "description": "Indica a Soko Bot, a los Coworkers y a los agentes cómo escribir las publicaciones sociales de este proyecto: tono, hashtags, llamadas a la acción y reglas por plataforma. Solo orienta los borradores sociales y es independiente de la memoria del proyecto y de DESIGN.md.",
+        "placeholder": "# Instrucciones de publicación\nTono: …\nSiempre / nunca: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Guardar instrucciones",
+        "saved": "Instrucciones de publicación guardadas",
+        "saveFailed": "No se pudieron guardar las instrucciones de publicación. Inténtalo de nuevo."
+      },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
         "account": "Cuenta de {provider}",
@@ -2658,6 +2696,7 @@
           "rescheduleFor": "Reprogramar para {date}",
           "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
           "connectAccount": "Conectar cuenta",
+          "reconnectAccount": "Vuelve a conectar la cuenta para publicar o programar. Aun así puedes guardar un borrador.",
           "dismiss": "Cancelar",
           "discardTitle": "¿Descartar cambios?",
           "discardDescription": "Se perderán tus cambios.",
@@ -2665,7 +2704,9 @@
           "keepEditing": "Seguir editando",
           "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
           "pickAccount": "Elige una cuenta en la que publicar.",
-          "tooLong": "La longitud del texto supera el límite."
+          "tooLong": "La longitud del texto supera el límite.",
+          "addToQueue": "Añadir a la cola",
+          "queueEmptyHint": "Añade horarios en Cuentas."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2696,6 +2737,7 @@
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}",
           "duplicated": "Borrador creado.",
+          "queued": "{count, plural, one {Añadida a la cola.} other {# publicaciones añadidas a la cola.}}",
           "approved": "Publicación aprobada."
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
@@ -2964,6 +3006,33 @@
           "later": "Más tarde"
         },
         "moreActions": "Acciones de la publicación",
+        "queue": {
+          "title": "Cola de publicación",
+          "hint": "Horarios semanales con nombre. «Añadir a la cola» usa el siguiente libre.",
+          "empty": "Aún no hay horarios de cola.",
+          "emptyHint": "Añade un horario semanal. Después podrás poner publicaciones en la cola.",
+          "add": "Añadir horario",
+          "save": "Guardar cola",
+          "name": "Nombre",
+          "weekday": "Día",
+          "time": "Hora",
+          "timezone": "Zona horaria",
+          "remove": "Quitar {name}",
+          "toasts": {
+            "saved": "Cola guardada.",
+            "empty": "Cola vaciada.",
+            "failed": "No se pudieron guardar los horarios de la cola. Inténtalo de nuevo."
+          },
+          "weekdays": {
+            "0": "Domingo",
+            "1": "Lunes",
+            "2": "Martes",
+            "3": "Miércoles",
+            "4": "Jueves",
+            "5": "Viernes",
+            "6": "Sábado"
+          }
+        },
         "thread": {
           "add": "Añadir al hilo",
           "limit": "Los hilos pueden tener hasta {max} partes.",
@@ -3566,7 +3635,10 @@
         "publicArchive": "Archivo público",
         "SignupForm": {
           "title": "Formulario de suscripción",
+          "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
           "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "previewTitle": "Vista previa del formulario de suscripción",
+          "previewDescription": "Consulta el formulario de suscripción que los lectores pueden usar en tu sitio web.",
           "hostedPage": "Página de suscripción alojada",
           "open": "Abrir página de suscripción",
           "embedCode": "Código de inserción",
@@ -3769,6 +3841,14 @@
       "regenerate": "Nueva variante",
       "schedule": "Programar esta imagen",
       "scheduleFailed": "No se pudo adjuntar esta imagen",
+      "writeCaption": "Escribir un pie de foto",
+      "writeCaptionFailed": "No se pudo escribir el pie de foto",
+      "writingCaption": "Escribiendo el pie de foto…",
+      "captionLabel": "Pie de foto",
+      "captionSuggestionLabel": "Nuevo pie de foto",
+      "useCaption": "Usar el nuevo pie de foto",
+      "keepCaption": "Conservar el pie de foto actual",
+      "undoCaption": "Deshacer el cambio del pie de foto",
       "reroll": "Repetir",
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
@@ -3842,8 +3922,6 @@
       "moreOptions": "Opciones",
       "modelCount": "{count, plural, one {# modelo} other {# modelos}}",
       "copyCount": "{count, plural, one {# copia} other {# copias}}",
-      "pickTitle": "Elige un proyecto",
-      "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "pickForGeneration": "¿A qué proyecto van estas imágenes?",
       "referencesAcrossProjects": "Las referencias tienen que venir de un solo proyecto. Deselecciona las imágenes de otros proyectos y vuelve a generar.",
@@ -3929,8 +4007,37 @@
       "title": "Anuncios",
       "pickTitle": "Elige un proyecto",
       "pickBody": "Los anuncios pertenecen a un proyecto: sus cuentas publicitarias y campañas se gestionan allí. Elige un proyecto para abrir sus anuncios.",
-      "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "backdrop": {
+        "roastery": {
+          "headline1": "Café de origen único",
+          "headline2": "Tostado esta semana",
+          "headline3": "Envío gratis desde 40 €",
+          "description": "Café en pequeños lotes, tostado por encargo y en tu puerta en dos días.",
+          "sitelink1": "Suscripciones",
+          "sitelink2": "Tarjetas regalo",
+          "sitelink3": "Guías de preparación"
+        },
+        "studio": {
+          "headline1": "Sprints de diseño que se lanzan",
+          "headline2": "Reserva una llamada gratis",
+          "description": "Cinco días de una idea en bruto a un prototipo probado, con un equipo con experiencia.",
+          "callout1": "Equipo sénior",
+          "callout2": "Precio cerrado"
+        },
+        "linen": {
+          "businessName": "Atelier Lune",
+          "headline": "Lino para veranos tranquilos",
+          "longHeadline": "Lino para veranos tranquilos, hecho para durar",
+          "description": "La nueva temporada ya está aquí."
+        },
+        "yoga": {
+          "businessName": "Harbor Yoga",
+          "headline": "Tu primera semana corre por nuestra cuenta",
+          "longHeadline": "Tu primera semana de clases corre por nuestra cuenta",
+          "description": "Flow matutino junto al agua, para todos los niveles."
+        }
+      },
       "tabsLabel": "Secciones de anuncios",
       "loading": "Cargando anuncios…",
       "updated": "Actualizado {time}",
@@ -4501,13 +4608,27 @@
       "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
       "pickProject": "Elige un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
-      "projectTitle": "Boletín de {project}",
-      "nextPage": "Siguientes proyectos",
-      "empty": {
-        "title": "Aún no hay proyectos",
-        "description": "Crea un proyecto para empezar un boletín.",
-        "action": "Crear proyecto"
-      }
+      "backdrop": {
+        "launch": {
+          "name": "The Launch Log",
+          "sender": "Mia de Northwind",
+          "subject": "Tres lecciones al lanzar la v2",
+          "body": "Un vistazo tras el lanzamiento: qué recortamos, qué mantuvimos y la prueba que cambió nuestro plan."
+        },
+        "field": {
+          "name": "Field Notes",
+          "sender": "Field Notes Studio",
+          "subject": "El sprint de cinco días, paso a paso",
+          "body": "El lunes se define el problema y el viernes se prueba con personas reales. Así funciona cada día."
+        },
+        "studio": {
+          "name": "Studio Weekly",
+          "sender": "Atelier Lune",
+          "subject": "Nueva temporada, nuevos colores",
+          "body": "Arena, arcilla y un azul mar profundo: la paleta detrás de la colección de verano."
+        }
+      },
+      "projectTitle": "Boletín de {project}"
     },
     "Social": {
       "title": "Publicaciones sociales",
@@ -4523,7 +4644,6 @@
         "sokoBotFailed": "No se pudo abrir el chat de Soko Bot. Inténtalo de nuevo.",
         "sokoBotPrompt": "Ayúdame a crear una publicación para {project}.",
         "sokoBotPromptAnyProject": "Ayúdame a crear una publicación.",
-        "chooseProjectTitle": "Elige un proyecto para esta publicación",
         "chooseProjectBody": "Sale desde las cuentas de un proyecto."
       },
       "accountsNeedProject": {
@@ -4539,7 +4659,6 @@
         "body": "Elige un proyecto para ver y terminar sus borradores."
       },
       "loading": "Cargando…",
-      "pickProject": "Elegir un proyecto",
       "platforms": {
         "label": "Plataformas de redes sociales",
         "pause": "Pausar plataformas"
@@ -4618,7 +4737,6 @@
         },
         "SokoBot": {
           "fallbackName": "Soko Bot",
-          "workingNow": "Trabajando ahora",
           "needsAttention": "Requiere atención",
           "activeAgo": "Activo {time}",
           "ready": "Listo",
@@ -4921,6 +5039,10 @@
           "badgeCampaigns": {
             "title": "Insignias de funciones",
             "description": "Muestra una insignia Nuevo en una función de la barra lateral a los usuarios existentes durante un tiempo fijo."
+          },
+          "cmoSpend": {
+            "title": "Gasto de CMO",
+            "description": "Lo que gastó cada bot CMO (Cuso), lo que se cobró a sus dueños y en qué."
           },
           "designSystem": {
             "title": "Sistema de diseño",
@@ -5551,7 +5673,14 @@
           "archived": "Archivado",
           "version": "Versión",
           "showDormant": "Mostrar sin uso y archivados ({count})",
-          "chat": "Chat"
+          "chat": "Chat",
+          "kindLabel": "Mostrar",
+          "kind": {
+            "all": "Todos",
+            "assistant": "Soko Bots",
+            "cmo": "Cuso"
+          },
+          "cmoBadge": "CMO"
         },
         "Detail": {
           "backToList": "Volver a Soko Bots",
@@ -6238,6 +6367,32 @@
           "started": "Campaña iniciada"
         }
       },
+      "CmoSpend": {
+        "title": "Gasto de CMO",
+        "description": "Lo que gastó cada bot CMO en su trabajo, lo que se cobró a su dueño y en qué: cada modelo, búsqueda web, Exa, gastos generales e imágenes.",
+        "summary": "{bots, plural, one {# bot CMO gastó} other {# bots CMO gastaron}} {spent} y cobraron {charged} créditos.",
+        "period": "Periodo",
+        "days": "{days} días",
+        "empty": "Ningún bot CMO trabajó en este periodo.",
+        "business": "Empresa",
+        "turns": "Turnos",
+        "spent": "Gastado",
+        "charged": "Cobrado (créditos)",
+        "where": "En qué",
+        "tools": "Herramientas usadas",
+        "calls": "{calls, plural, one {# llamada} other {# llamadas}}",
+        "exa": "Búsqueda Exa",
+        "webSearch": "Búsqueda web",
+        "overhead": "Enrutamiento y control de calidad (no cobrado)",
+        "images": "créditos en imágenes",
+        "planChecks": "Revisiones del plan",
+        "checksNone": "Aún ninguna",
+        "checked": "{checked, plural, one {# guardado revisado} other {# guardados revisados}}",
+        "sentBack": "{count} devueltos para corregir",
+        "drifted": "{count} fuera de la oferta principal",
+        "unavailable": "{count} sin el evaluador",
+        "lastProblems": "Última devolución {at}:"
+      },
       "DesignSystem": {
         "title": "Sistema de diseño",
         "description": "Reglas de marca e interfaz de Masumi Family, mostradas con nuestros componentes reales y los tokens de la app. Cambia el tema de la app para ver el modo oscuro.",
@@ -6375,6 +6530,7 @@
       }
     },
     "Billing": {
+      "switchedWorkspace": "Cambiado a la cuenta de {account}",
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Tus Credits actuales en la cuenta personal.",
       "balanceDescriptionOrganization": "Credits actuales para {organization}. {purchased, plural, =1 {# Seat comprado} other {# Seats comprados}}, {assigned, plural, =1 {# asignado} other {# asignados}}, {unused, plural, =1 {# sin usar} other {# sin usar}}, {members, plural, =1 {# miembro} other {# miembros}}.",
@@ -7886,6 +8042,7 @@
       "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
+      "inWorkspace": "en {workspace}",
       "reorderPinnedDone": "Terminar de reordenar",
       "SectionLimit": {
         "showMore": "Mostrar {count} más",
@@ -8426,9 +8583,14 @@
         "dismissCatchUp": "Ocultar resumen",
         "summarize": "Resumen",
         "summarizing": "Escribiendo tu resumen…",
-        "writtenByAi": "Resumen escrito por IA {time}",
-        "byRoom": "Por sala",
+        "writtenByAi": "Actualizado {time}",
         "due": "Vence {date}",
+        "overdue": "{count, plural, one {# día de retraso} other {# días de retraso}}",
+        "inReplyTo": "En respuesta a {name}: {text}",
+        "done": "Hecho",
+        "markRead": "Marcar como leído",
+        "markAllRead": "Marcar todo como leído",
+        "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
         "aiNote": "Jev ordena los mensajes según lo que te piden. Puede equivocarse, así que no se oculta nada: corrige una etiqueta en cualquier mensaje con un clic.",
@@ -8463,7 +8625,9 @@
         },
         "Sections": {
           "needsYou": "Te esperan",
+          "blockers": "Bloqueos",
           "decisions": "Decisiones",
+          "announcements": "Anuncios",
           "openLoops": "Pendientes",
           "highlights": "Destacados"
         },
@@ -8503,6 +8667,30 @@
           "label": "Secciones de Ponerse al día",
           "overview": "Resumen",
           "threads": "Hilos"
+        },
+        "Briefing": {
+          "welcomeBack": "Bienvenido de nuevo",
+          "unread": "{messages, plural, one {# mensaje sin leer} other {# mensajes sin leer}} en {rooms, plural, one {# sala} other {# salas}}",
+          "unreadSince": "{unread} desde el {date}",
+          "waitingOnYou": "Te esperan",
+          "whileAway": "Qué pasó",
+          "stillOpen": "Aún pendiente",
+          "mentionedYou": "{name} te mencionó:",
+          "unreadInRoom": "{count} sin leer",
+          "messages": "{count, plural, one {# mensaje} other {# mensajes}}",
+          "open": "Abrir",
+          "reply": "Responder",
+          "replyPlaceholder": "Responder a {name}…",
+          "send": "Enviar",
+          "replySent": "Enviado a {room}",
+          "replyError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
+          "Status": {
+            "decided": "Decidido",
+            "inProgress": "En curso",
+            "fyi": "Para tu información"
+          },
+          "otherMessages": "Otros mensajes",
+          "otherMessagesHint": "Nada que hacer en estos, pero están sin leer."
         }
       },
       "Stickers": {
@@ -8813,23 +9001,25 @@
         "description": "El Asistente personal no está habilitado en este entorno. Vuelve a intentarlo más tarde."
       },
       "Create": {
-        "title": "Tu propio asistente",
         "successTitle": "Conoce a {name}",
-        "successHint": "Abriendo tu chat…",
-        "description": "Un Soko Bot es un asistente de IA que trabaja para ti en Sokosumi. Dile lo que necesitas con tus propias palabras y él se encarga.",
+        "successHint": "Un paso más…",
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
-        "submit": "Crear mi Soko Bot",
+        "submit": "Crear {name}",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
         "spendNotice": "Usa tus créditos. Fija un límite diario en sus ajustes.",
         "spendNoticeOrganization": "Usa los créditos de tu organización. Fija un límite diario en sus ajustes.",
-        "exampleDelegate": "Convierte «investiga a nuestros 5 principales competidores» en una tarea para el Coworker adecuado y hace seguimiento hasta que esté hecha.",
-        "exampleBrief": "Te envía cada mañana un breve resumen de tu bandeja de entrada y tu calendario.",
-        "exampleMemory": "Recuerda tus objetivos y preferencias para que no tengas que repetirte.",
-        "examplesLabel": "Lo que puede hacer por ti",
-        "nameIntro": "Primero, ponle un nombre."
+        "stepName": "Nombre",
+        "stepPicture": "Imagen",
+        "stepConnect": "Conectar",
+        "stepOf": "Paso {current} de {total}",
+        "nameTitle": "Ponle nombre a tu Soko Bot",
+        "nameHint": "Tu propio asistente de IA en Sokosumi. Puedes cambiarle el nombre más tarde.",
+        "continue": "Continuar",
+        "back": "Atrás",
+        "pictureTitle": "Elige una imagen para {name}"
       },
       "Memory": {
         "title": "Memoria",
@@ -8849,10 +9039,8 @@
       },
       "HowItWorks": {
         "title": "Cómo funciona",
-        "description": "Qué hace por su cuenta, y cuándo.",
-        "rhythms": "Rutinas",
-        "triggers": "Disparadores",
-        "paused": "En pausa"
+        "description": "Qué lo hace actuar por su cuenta.",
+        "triggers": "Disparadores"
       },
       "Integrations": {
         "connected": "Cuenta conectada.",
@@ -8871,23 +9059,16 @@
         "failed": "La conexión falló. Reconecta para intentarlo de nuevo.",
         "connectedNotChecked": "Conectado · primera comprobación en menos de 15 minutos",
         "lastChecked": "Conectado · comprobado {when}",
-        "search": "Buscar",
-        "searchPlaceholder": "Añadir otra app (Slack, Notion, Linear, …)",
-        "searchError": "La búsqueda falló.",
+        "searchPlaceholder": "Buscar todas las apps, como Notion o HubSpot",
         "noResults": "No se encontró nada.",
         "kindsGeneric": "Utilizable a través de sus herramientas",
-        "popularTitle": "Apps populares — haz clic para conectar",
-        "resultsTitle": "Resultados",
-        "showMore": "Mostrar {count} más",
-        "showFewer": "Mostrar menos",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
         "kindsMailCalendar": "Lee tu bandeja de entrada y calendario",
         "connectedNotRead": "Conectado · se lee cuando un resumen o una reunión lo necesita",
         "lastRead": "Conectado · leído {when}",
         "connectedTools": "Conectado",
-        "manage": "Gestionar",
-        "browseAll": "Ver todas las apps"
+        "manage": "Gestionar"
       },
       "Schedules": {
         "builtIn": "Integrado",
@@ -9120,7 +9301,6 @@
       },
       "Console": {
         "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
-        "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
         "openChatError": "No se pudo abrir el chat con tu Soko Bot.",
@@ -9183,7 +9363,65 @@
         "hint": "Elige una o pide otras opciones.",
         "showOthers": "Ver otras",
         "loadError": "No se pudieron cargar las imágenes.",
-        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde."
+        "rateLimited": "Has pedido demasiadas imágenes nuevas. Inténtalo de nuevo más tarde.",
+        "edit": "Editar imagen",
+        "Studio": {
+          "metadata": "Estudio de imagen",
+          "back": "Volver a {name}",
+          "title": "Elige el aspecto de {name}",
+          "description": "Cambia la criatura o añade un accesorio. El escritorio se queda: es donde trabaja tu bot.",
+          "draftAlt": "Nuevo aspecto de {name}, aún sin guardar",
+          "making": "Creando tu nuevo aspecto · unos 10 s",
+          "sizes": "Perfil arriba · imagen en el chat y las tareas",
+          "states": "Estados",
+          "statesPlay": "Elige un estado para verlo una vez",
+          "statesDraft": "Se anima cuando lo conserves",
+          "statesProgress": "Creando sus animaciones · {ready} de {total} listas",
+          "creature": "Criatura",
+          "accessory": "Accesorio",
+          "creatures": {
+            "owl": "Búho",
+            "frog": "Rana",
+            "hedgehog": "Erizo",
+            "otter": "Nutria",
+            "penguin": "Pingüino"
+          },
+          "accessories": {
+            "beanie": "Gorro",
+            "glasses": "Gafas",
+            "scarf": "Bufanda",
+            "headphones": "Auriculares",
+            "magnifier": "Lupa"
+          },
+          "describe": "O describe un cambio",
+          "placeholder": "Ponle un pequeño sombrero de mago",
+          "apply": "Aplicar",
+          "ideas": {
+            "wizard": "Un pequeño sombrero de mago",
+            "coffee": "Café en el escritorio",
+            "snow": "Que nieve",
+            "sleepy": "Que parezca soñoliento",
+            "beach": "Llévalo a la playa"
+          },
+          "keep": "Conservar este aspecto",
+          "shuffle": "Al azar",
+          "cancel": "Cancelar",
+          "saved": "Guardado.",
+          "error": "No se pudo cambiar el aspecto. Inténtalo de nuevo.",
+          "keepError": "No se pudo conservar este aspecto. Inténtalo de nuevo.",
+          "cancelError": "No se pudo volver a tu aspecto actual. Inténtalo de nuevo.",
+          "redo": "Rehacer animación",
+          "retry": "Intentar de nuevo",
+          "redoing": "Creándola…",
+          "drawing": "Dibujando…",
+          "animating": "Animando…",
+          "redoError": "No se pudo rehacer esta animación. Inténtalo de nuevo.",
+          "redoLimit": "Hoy has rehecho muchas animaciones. Inténtalo de nuevo mañana.",
+          "redoBusy": "Esa animación aún se está creando.",
+          "empty": "Todavía no hay aspecto. Elige una criatura o pulsa «Al azar» para empezar.",
+          "rateLimited": "Has creado muchos aspectos nuevos. Inténtalo de nuevo más tarde.",
+          "unavailable": "Ahora mismo no se puede cambiar el aspecto."
+        }
       },
       "Skills": {
         "builtIn": "Incluidos",
@@ -9406,7 +9644,7 @@
         "dayEmpty": "No hay nada programado este día.",
         "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}",
         "statusFilter": "Mostrar publicaciones por estado",
-        "postCount": "{count, plural, =0 {Sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "postCount": "{count, plural, =0 {Sin publicaciones en este período} one {# publicación} other {# publicaciones}}",
         "dayAttention": "{count, plural, one {# requiere atención} other {# requieren atención}}",
         "reschedule": "Reprogramar",
         "rescheduleNamed": "Reprogramar la publicación de las {time}: {text}"
@@ -9601,6 +9839,7 @@
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
       "switchLabel": "Cambiar de proyecto",
+      "selectProject": "Seleccionar proyecto",
       "pinned": "Fijados",
       "all": "Proyectos",
       "searchPlaceholder": "Buscar un proyecto...",
@@ -9652,7 +9891,8 @@
         "SLACK": "De Slack",
         "WEB_RESEARCH": "De una búsqueda web",
         "IMPORT": "Importado",
-        "OTHER": "Otra fuente"
+        "OTHER": "Otra fuente",
+        "X": "De X"
       },
       "presets": {
         "all": "Todos los contactos",
@@ -9871,13 +10111,17 @@
       },
       "empty": {
         "title": "Aquí viven los contactos de tu equipo",
-        "description": "Las personas se añaden solas desde el correo, el calendario y Slack conectados a vuestros Soko Bots, junto con quién del equipo las conoce. Sin boletines ni remitentes automáticos.",
+        "description": "Los contactos se sincronizan a través de tu Soko Bot: añade a las personas del correo, el calendario y Slack conectados a él, con quién del equipo las conoce. Sin boletines ni remitentes automáticos.",
         "connect": "Conectar {name}",
         "connected": "{name} conectado",
         "connectFailed": "La conexión no se inició. Inténtalo de nuevo.",
         "manageConnections": "Gestionar conexiones",
         "addByHand": "Añadir a alguien",
-        "import": "Importar desde una tabla"
+        "import": "Importar desde una tabla",
+        "needsBot": "Los contactos se sincronizan a través de un Soko Bot. Configura el tuyo y conéctale tu correo y calendario, y añadirá a las personas con las que tratas, con quién del equipo las conoce.",
+        "needsConnections": "Tu Soko Bot añade a las personas con las que tratas en cuanto tu correo y calendario están conectados a él. Sin boletines ni remitentes automáticos.",
+        "syncing": "{bot} está leyendo tu correo y calendario conectados. Los primeros contactos aparecen en unos 15 minutos.",
+        "setUpBot": "Configurar tu Soko Bot"
       },
       "panel": {
         "loading": "Cargando contacto",
@@ -9918,7 +10162,7 @@
         "channelSource": "{type}, {source}",
         "verified": "verificado",
         "primary": "Principal",
-        "openSource": "Abrir dónde se encontró",
+        "openSource": "Abrir fuente",
         "copyChannel": "Copiar {value}",
         "removeChannel": "Quitar {value}",
         "noChannels": "Todavía no hay forma de contactar.",
@@ -9935,7 +10179,8 @@
           "SLACK": "Slack",
           "CALL": "Llamada",
           "MANUAL": "Nota",
-          "OTHER": "Otro"
+          "OTHER": "Otro",
+          "X": "X"
         },
         "source": "Fuente",
         "showMore": "Mostrar más",
@@ -9947,7 +10192,8 @@
           "CHANNEL_REMOVED": "{who} quitó un canal",
           "MERGED": "{who} fusionó {names} en este contacto",
           "ARCHIVED": "{who} archivó este contacto",
-          "UNARCHIVED": "{who} restauró este contacto"
+          "UNARCHIVED": "{who} restauró este contacto",
+          "WEB": "{who} completó {fields} desde la web"
         },
         "fields": {
           "name": "el nombre",
@@ -9962,14 +10208,21 @@
           "followUpAt": "el seguimiento",
           "avatarUrl": "la foto",
           "customFields": "los campos propios",
-          "kind": "tipo"
+          "kind": "tipo",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Marcar como organización",
         "markPerson": "Marcar como persona",
         "waitingSince": "Desde el {date}, sin respuesta",
         "heardFrom": "Última noticia suya {when}",
         "automatic": "Automático",
-        "classifier": "Clasificación automática"
+        "classifier": "Clasificación automática",
+        "enrich": "Enriquecer",
+        "enrichHint": "Buscar en la web y rellenar los campos vacíos · 1 crédito",
+        "enriched": "{fields} completado desde la web · 1 crédito",
+        "enrichedNone": "No se encontró nada nuevo en la web. No se usaron créditos.",
+        "enrichFailed": "No se pudo buscar. Inténtalo de nuevo.",
+        "connectedVia": "Conectado por"
       },
       "stageGroups": {
         "general": "General",
@@ -10009,6 +10262,36 @@
           "close": "relación cercana",
           "noise": "parece automático o impersonal"
         }
+      },
+      "suggestions": {
+        "title": "Personas sugeridas",
+        "titleCount": "Personas sugeridas · {count}",
+        "hint": "Encuentra en la web personas que encajen en esta lista.",
+        "find": "Buscar personas",
+        "addAll": "Añadir todas",
+        "addShort": "Añadir",
+        "add": "Añadir a {name}",
+        "dismiss": "Descartar a {name}",
+        "showAll": "Mostrar las {count}",
+        "showFewer": "Mostrar menos",
+        "added": "{count, plural, one {# persona añadida} other {# personas añadidas}} a {list}",
+        "decideFailed": "No se pudieron actualizar las sugerencias.",
+        "dialogTitle": "Buscar personas para {list}",
+        "dialogDescription": "Busca en la web personas que encajen y las sugiere aquí. No se añade nada hasta que tú lo añadas.",
+        "briefLabel": "¿Quién pertenece a esta lista?",
+        "briefPlaceholder": "p. ej. socios de fondos seed que invierten en agentes de IA, Europa o EE. UU.",
+        "briefRequired": "Describe a quién buscas.",
+        "sizeLabel": "Cuántas",
+        "sizeOption": "{count, plural, one {# persona} other {# personas}}",
+        "submit": "Buscar {count, plural, one {# persona} other {# personas}} · hasta {credits, number} créditos",
+        "searching": "Buscando en la web…",
+        "found": "{count, plural, one {# persona encontrada} other {# personas encontradas}}",
+        "foundNone": "No se encontró a nadie nuevo. Prueba a describirlos de otra forma. No se usaron créditos.",
+        "findFailed": "La búsqueda no funcionó. Inténtalo de nuevo.",
+        "cancel": "Cancelar",
+        "pricing": "{credits, number} créditos por persona encontrada. Si no encuentra a nadie, es gratis.",
+        "personLabel": "¿A quién buscas?",
+        "personPlaceholder": "p. ej. Jane Doe, socia de XYZ Ventures"
       }
     }
   },
@@ -10273,8 +10556,8 @@
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "¿Cómo quieres trabajar?",
-    "identityDescriptionChoose": "Elige una opción.",
-    "identityDescriptionEnter": "Introduce tu nombre.",
+    "identityDescriptionChoose": "Elige dónde empiezas.",
+    "identityDescriptionEnter": "Escribe tu nombre y elige dónde empiezas.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescriptionInvitations": "Acepta una invitación de organización para abrir Sokosumi en esa organización.",
     "pendingInvitesDescriptionJoin": "Únete con el enlace de invitación para abrir Sokosumi en esa organización.",

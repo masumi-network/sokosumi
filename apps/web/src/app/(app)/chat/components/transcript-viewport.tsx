@@ -27,6 +27,7 @@ import {
   estimateTranscriptRowHeight,
   findTranscriptRowIndex,
   STICK_TO_BOTTOM_NEAR_PX,
+  type TranscriptRowSpace,
   transcriptRowKey,
 } from "@/app/chat/utils/transcript-viewport-model";
 import { Button } from "@/components/ui/button";
@@ -439,16 +440,18 @@ export function TranscriptViewport({
     },
     [rows],
   );
+  // Read once. The virtualizer applies a changed estimate to every unmounted
+  // row with no scroll correction, so a width that moves with a docked panel
+  // would shove the rows on screen. Measuring a row corrects its estimate.
+  const estimateSpaceRef = useRef<TranscriptRowSpace | undefined>(undefined);
+  if (!estimateSpaceRef.current && scroller && scroller.clientWidth > 0) {
+    estimateSpaceRef.current = {
+      listWidth: scroller.clientWidth,
+      viewportWidth: window.innerWidth,
+    };
+  }
   const estimateSize = (index: number) =>
-    estimateTranscriptRowHeight(
-      rows[index],
-      scroller
-        ? {
-            listWidth: scroller.clientWidth,
-            viewportWidth: window.innerWidth,
-          }
-        : undefined,
-    );
+    estimateTranscriptRowHeight(rows[index], estimateSpaceRef.current);
   // Deep overscan waits for the frame after the first rows paint.
   const [opened, setOpened] = useState(false);
   useEffect(() => {

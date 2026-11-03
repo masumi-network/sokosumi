@@ -30,7 +30,6 @@ export {
 } from "./auth-captcha.js";
 export {
   BETA_ORGANIZATION_SLUGS,
-  isBetaOrganizationSlug,
   NEWSLETTER_BETA_ORGANIZATION_SLUG,
 } from "./beta-organizations.js";
 export {
@@ -132,6 +131,7 @@ export {
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
+  chatRoomQuotePromptLine,
 } from "./chat-room-quote-snippet.js";
 export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
 export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";
@@ -147,6 +147,12 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
+export {
+  CMO_CHANNELS,
+  type CmoChannelKey,
+  isCmoChannelFormat,
+  normalizeCmoChannelFormat,
+} from "./cmo-channels.js";
 export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
@@ -326,6 +332,7 @@ export {
   newsletterBlockSchema,
   newsletterContentSchema,
   newsletterDraftInputSchema,
+  newsletterSignupLinks,
 } from "./newsletter.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,

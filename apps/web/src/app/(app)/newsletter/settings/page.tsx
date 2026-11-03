@@ -40,11 +40,7 @@ export default async function NewsletterSettingsPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({
-      path: "/newsletter/settings",
-      searchParams,
-      unavailable: scope.unavailable,
-    });
+    return newsletterWorkspacePage({ unavailable: scope.unavailable });
   }
   const { project } = scope;
 

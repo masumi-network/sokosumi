@@ -1,18 +1,41 @@
-import type { ChatCatchUpSummary, ChatRoom } from "@sokosumi/core-client";
+import type {
+  ChatCatchUpItem,
+  ChatCatchUpSummary,
+  ChatCatchUpTopic,
+  ChatRoom,
+} from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 
 import { CatchUpView } from "./catch-up-view";
 
-const { listElsewhereMock, showRoomUnreadCountMock, summaryActionMock } =
-  vi.hoisted(() => ({
-    listElsewhereMock: vi.fn(),
-    showRoomUnreadCountMock: vi.fn(),
-    summaryActionMock: vi.fn(),
-  }));
+const {
+  listElsewhereMock,
+  markAllReadMock,
+  sendMock,
+  setLoopMock,
+  showRoomUnreadCountMock,
+  summaryActionMock,
+} = vi.hoisted(() => ({
+  listElsewhereMock: vi.fn(),
+  markAllReadMock: vi.fn(),
+  sendMock: vi.fn(),
+  setLoopMock: vi.fn(),
+  showRoomUnreadCountMock: vi.fn(),
+  summaryActionMock: vi.fn(),
+}));
+
+const NOW = new Date("2026-10-31T12:00:00.000Z");
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -28,11 +51,28 @@ vi.mock("next-intl", () => ({
         namespace ? `${namespace}.${key}` : key,
         ...Object.values(values ?? {}),
       ].join(" "),
-  useFormatter: () => ({ relativeTime: () => "just now" }),
+  useFormatter: () => ({
+    relativeTime: () => "just now",
+    dateTime: () => "Fri, Oct 30",
+  }),
+  useNow: () => NOW,
 }));
 
 vi.mock("@/app/chat/signal-actions", () => ({
-  getChatCatchUpSummaryAction: () => summaryActionMock(),
+  setChatSignalLoopAction: (...args: unknown[]) => setLoopMock(...args),
+}));
+
+vi.mock("@/components/chat/signals/fetch-catch-up-summary", () => ({
+  fetchCatchUpSummary: async () => {
+    const result = await summaryActionMock();
+    if (!result.ok) throw new Error(result.error.message);
+    return result.value;
+  },
+}));
+
+vi.mock("@/app/chat/actions", () => ({
+  markAllChatUnreadReadAction: (...args: unknown[]) => markAllReadMock(...args),
+  sendRoomMessageAction: (...args: unknown[]) => sendMock(...args),
 }));
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
@@ -76,15 +116,61 @@ function elsewhereRoom(
 const EMPTY_SUMMARY: ChatCatchUpSummary = {
   scope: "all",
   unreadTaggedCount: 0,
+  unreadMessageCount: 0,
+  unreadRoomCount: 0,
+  awaySince: null,
   headline: null,
   generatedAt: null,
   counts: [],
   needsYou: [],
+  blockers: [],
   decisions: [],
+  announcements: [],
   openLoops: [],
   highlights: [],
-  rooms: [],
+  topics: [],
+  quietRooms: [],
 };
+
+function item(
+  messageId: string,
+  overrides: Partial<ChatCatchUpItem> = {},
+): ChatCatchUpItem {
+  return {
+    messageId,
+    roomId: "room-a",
+    roomName: "Sokosumi",
+    roomKind: "channel",
+    parentMessageId: null,
+    senderName: "Francis",
+    senderImageUrl: null,
+    excerpt: `text of ${messageId}`,
+    bucket: "needsYou",
+    createdAt: new Date("2026-10-29T12:00:00.000Z"),
+    dueAt: null,
+    inReplyTo: null,
+    ...overrides,
+  };
+}
+
+function topic(
+  id: string,
+  overrides: Partial<ChatCatchUpTopic> = {},
+): ChatCatchUpTopic {
+  return {
+    id,
+    title: `title of ${id}`,
+    summary: `summary of ${id}`,
+    status: "fyi",
+    roomId: "room-a",
+    roomName: "Sokosumi",
+    roomKind: "channel",
+    people: [{ name: "Francis", imageUrl: null }],
+    latestAt: new Date("2026-10-29T12:00:00.000Z"),
+    messages: [item(`${id}-m`, { bucket: "fyi" })],
+    ...overrides,
+  };
+}
 
 function summaryAnswers(summary: Partial<ChatCatchUpSummary> = {}) {
   summaryActionMock.mockResolvedValue({
@@ -229,22 +315,18 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     expect(elsewhereList()).toBeNull();
   });
 
-  it("stands above the written summary, which keeps its content", async () => {
+  it("stands below the written summary, which keeps its content", async () => {
     listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
-    summaryAnswers({
-      headline: "A quiet morning",
-      rooms: [{ roomId: "own", roomName: "own room", line: "All settled" }],
-    });
+    summaryAnswers({ headline: "A quiet morning", topics: [topic("t1")] });
 
     renderCatchUp();
     const list = await findElsewhereList();
     const summary = await screen.findByTestId("catch-up-summary");
 
-    expect(list.compareDocumentPosition(summary)).toBe(
+    expect(summary.compareDocumentPosition(list)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(within(summary).getByText("A quiet morning")).toBeTruthy();
-    expect(within(summary).getByText("All settled")).toBeTruthy();
     expect(within(summary).queryByText("launch")).toBeNull();
   });
 
@@ -314,6 +396,252 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       renderCatchUp();
 
       expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+    });
+  });
+
+  describe("the briefing", () => {
+    it("says how much came in since when, then what waits on you first", async () => {
+      summaryAnswers({
+        headline: "Francis needs your green light.",
+        unreadMessageCount: 152,
+        unreadRoomCount: 8,
+        awaySince: new Date("2026-10-27T18:00:00.000Z"),
+        topics: [
+          topic("news", { status: "decided" }),
+          topic("ask", {
+            status: "waitingOnYou",
+            messages: [item("q1"), item("q2", { bucket: "fyi" })],
+          }),
+        ],
+      });
+
+      renderCatchUp();
+      expect(
+        await screen.findByText(
+          "App.Channels.Signals.Briefing.unreadSince App.Channels.Signals.Briefing.unread 152 8 Fri, Oct 30",
+        ),
+      ).toBeTruthy();
+      const waiting = screen.getByRole("region", {
+        name: "App.Channels.Signals.Briefing.waitingOnYou 1",
+      });
+      expect(within(waiting).getByText("title of ask")).toBeTruthy();
+      expect(within(waiting).getByText("summary of ask")).toBeTruthy();
+      const away = screen.getByRole("region", {
+        name: "App.Channels.Signals.Briefing.whileAway 1",
+      });
+      expect(within(away).getByText("title of news")).toBeTruthy();
+      expect(
+        within(away).getByText("App.Channels.Signals.Briefing.Status.decided"),
+      ).toBeTruthy();
+      // Only a topic waiting on you can be marked done.
+      expect(
+        within(away).queryByRole("button", {
+          name: "App.Channels.Signals.done",
+        }),
+      ).toBeNull();
+    });
+
+    it("folds out the messages behind a topic", async () => {
+      summaryAnswers({ topics: [topic("t1")] });
+
+      renderCatchUp();
+      const toggle = await screen.findByRole("button", {
+        name: /Briefing\.messages 1/,
+      });
+      expect(screen.queryByText("text of t1-m")).toBeNull();
+      await act(async () => toggle.click());
+      expect(screen.getByText("text of t1-m")).toBeTruthy();
+    });
+
+    it("takes a topic off at once, closes its messages, and reloads", async () => {
+      summaryAnswers({
+        topics: [
+          topic("ask", {
+            status: "waitingOnYou",
+            messages: [item("q1"), item("f1", { bucket: "fyi" })],
+          }),
+        ],
+      });
+      setLoopMock.mockResolvedValue({ ok: true, value: {} });
+
+      renderCatchUp();
+      const done = await screen.findByRole("button", {
+        name: "App.Channels.Signals.done",
+      });
+      summaryAnswers();
+      await act(async () => done.click());
+
+      expect(setLoopMock).toHaveBeenCalledWith("q1", { closed: true });
+      expect(setLoopMock).toHaveBeenCalledWith("f1", { closed: true });
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+    });
+
+    it("hides a topic before the save answers, and puts it back if it fails", async () => {
+      summaryAnswers({ topics: [topic("ask", { status: "waitingOnYou" })] });
+      let answer: (value: unknown) => void = () => {};
+      setLoopMock.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+
+      renderCatchUp();
+      const done = await screen.findByRole("button", {
+        name: "App.Channels.Signals.done",
+      });
+      await act(async () => done.click());
+      expect(screen.queryByText("title of ask")).toBeNull();
+
+      await act(async () => answer({ ok: false, error: { message: "x" } }));
+      expect(await screen.findByText("title of ask")).toBeTruthy();
+    });
+
+    it("answers in the Thread the question came from", async () => {
+      summaryAnswers({
+        topics: [
+          topic("ask", {
+            status: "waitingOnYou",
+            messages: [item("q1", { parentMessageId: "parent" })],
+          }),
+        ],
+      });
+      sendMock.mockResolvedValue({ ok: true, value: {} });
+      setLoopMock.mockResolvedValue({ ok: true, value: {} });
+
+      renderCatchUp();
+      await act(async () =>
+        (
+          await screen.findByRole("button", {
+            name: "App.Channels.Signals.Briefing.reply",
+          })
+        ).click(),
+      );
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "Yes, go ahead" },
+      });
+      await act(async () =>
+        screen
+          .getByRole("button", { name: "App.Channels.Signals.Briefing.send" })
+          .click(),
+      );
+
+      expect(sendMock).toHaveBeenCalledWith("room-a", "Yes, go ahead", [], {
+        parentMessageId: "parent",
+      });
+      expect(setLoopMock).toHaveBeenCalledWith("q1", { closed: true });
+    });
+
+    it("says how overdue a promise is", async () => {
+      summaryAnswers({
+        openLoops: [
+          item("loop", {
+            bucket: "commitment",
+            dueAt: new Date("2026-10-28T09:00:00.000Z"),
+          }),
+        ],
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.overdue 3"),
+      ).toBeTruthy();
+    });
+
+    it("marks the rooms with nothing for you read", async () => {
+      summaryAnswers({
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "Andreas",
+            roomKind: "direct",
+            unreadCount: 12,
+            latest: item("dm", {
+              roomId: "room-q",
+              senderName: "Andreas",
+              excerpt: "See you tomorrow",
+            }),
+            mentionsYou: false,
+          },
+        ],
+      });
+      markAllReadMock.mockResolvedValue({ ok: true, value: null });
+
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", {
+        name: "App.Channels.Signals.Briefing.otherMessages 1",
+      });
+      // Who wrote last and what, without opening it.
+      expect(within(quiet).getByText("See you tomorrow")).toBeTruthy();
+      await act(async () =>
+        within(quiet)
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click(),
+      );
+
+      expect(markAllReadMock).toHaveBeenCalledWith([
+        { roomId: "room-q", readRoom: true, lookThreads: true },
+      ]);
+    });
+
+    it("says who mentioned you, Thread replies too", async () => {
+      summaryAnswers({
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "Sokosumi",
+            roomKind: "channel",
+            unreadCount: 8,
+            latest: item("reply", {
+              roomId: "room-q",
+              parentMessageId: "parent",
+              senderName: "Phil",
+              excerpt: "Patrick would love this",
+            }),
+            mentionsYou: true,
+          },
+        ],
+      });
+
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", {
+        name: "App.Channels.Signals.Briefing.otherMessages 1",
+      });
+      expect(
+        within(quiet).getByText(
+          "App.Channels.Signals.Briefing.mentionedYou Phil",
+        ),
+      ).toBeTruthy();
+      expect(within(quiet).queryByText(/^Phil: /)).toBeNull();
+    });
+
+    it("marks every unread room read at once", async () => {
+      summaryAnswers({
+        topics: [topic("t1"), topic("t2", { roomId: "room-b" })],
+        quietRooms: [
+          {
+            roomId: "room-q",
+            roomName: "random",
+            roomKind: "channel",
+            unreadCount: 2,
+            latest: null,
+            mentionsYou: false,
+          },
+        ],
+      });
+      markAllReadMock.mockResolvedValue({ ok: true, value: null });
+
+      renderCatchUp();
+      const button = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+      await act(async () => button.click());
+
+      expect(markAllReadMock).toHaveBeenCalledWith([
+        { roomId: "room-a", readRoom: true, lookThreads: true },
+        { roomId: "room-b", readRoom: true, lookThreads: true },
+        { roomId: "room-q", readRoom: true, lookThreads: true },
+      ]);
     });
   });
 });

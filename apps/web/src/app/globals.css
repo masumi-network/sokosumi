@@ -142,6 +142,7 @@
   --animate-auth-logo-marquee: auth-logo-marquee 40s linear infinite;
   /* Same -50% loop as the auth logos; Social's empty Accounts row reuses it. */
   --animate-social-platform-marquee: auth-logo-marquee 40s linear infinite;
+  --animate-ads-backdrop-marquee: auth-logo-marquee 40s linear infinite;
   /* The drawn caret in an InputOTP slot. */
   --animate-caret-blink: caret-blink 1.25s ease-out infinite;
   /* A loading Button's bar: sweeps out past one edge, then back out past the other. */
@@ -471,6 +472,23 @@
   --status-done: #a3a3a3; /* Neutral 400 */
 }
 
+/* CMO.xyz's Log in and Register: its black and white look in place of the
+   Sokosumi blue. The accent is the text colour, so it flips with the theme. */
+[data-brand="cmo"] {
+  --primary: var(--foreground);
+  --primary-variant: var(--foreground);
+  --primary-solid: var(--foreground);
+  --primary-solid-foreground: var(--background);
+  --primary-solid-hover: hsla(0, 0%, 20%, 1);
+  --ring: var(--foreground);
+  --ring-halo: hsla(0, 0%, 4%, 0.18);
+}
+
+.dark [data-brand="cmo"] {
+  --primary-solid-hover: hsla(0, 0%, 83%, 1);
+  --ring-halo: hsla(0, 0%, 96%, 0.22);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;
@@ -630,6 +648,16 @@ body[data-agent-fullbleed="true"] main[data-app-main] {
 
 body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   overflow: visible !important;
+}
+
+/* Vercel injects its preview toolbar outside the app; leave every page room to scroll past it. */
+body:has(vercel-live-feedback) main[data-app-main] {
+  scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom));
+}
+
+body:has(vercel-live-feedback) main[data-app-main]::after {
+  content: "";
+  flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
 }
 
 @utility container {

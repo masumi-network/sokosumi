@@ -1,4 +1,5 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
+import { socialConnectionAccountType } from "@/clients/social-post-providers/linkedin-author";
 import { badRequest } from "@/helpers/error";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 
@@ -23,6 +24,8 @@ export const socialPostQuoteSelect = {
   socialConnection: {
     select: {
       id: true,
+      provider: true,
+      externalAccountId: true,
       externalHandle: true,
       displayName: true,
       avatarUrl: true,
@@ -45,7 +48,21 @@ export function mapSocialPostQuote(post: QuotedPostRecord) {
     timezone: post.timezone,
     publishedExternalId: post.publishedExternalId,
     publishedUrl: post.publishedUrl,
-    account: post.socialConnection,
+    account: post.socialConnection
+      ? {
+          id: post.socialConnection.id,
+          provider: post.socialConnection.provider,
+          externalHandle: post.socialConnection.externalHandle,
+          displayName: post.socialConnection.displayName,
+          avatarUrl: post.socialConnection.avatarUrl,
+          subscriptionType: post.socialConnection.subscriptionType,
+          accountType: socialConnectionAccountType(
+            post.socialConnection.provider,
+            post.socialConnection.externalAccountId,
+          ),
+          status: post.socialConnection.status,
+        }
+      : null,
     text: post.text,
     media: parseSocialPostMedia(post.media, post.id).slice(0, 1),
   };

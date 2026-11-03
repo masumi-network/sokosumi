@@ -408,6 +408,7 @@ describe("MenuItems newsletter", () => {
     "/newsletter/issues",
     "/newsletter/issues/issue-1",
     "/newsletter/subscribers",
+    "/newsletter/signup-form",
     "/newsletter/settings",
   ])("marks Newsletter current on %s", (pathname) => {
     pathnameRef.current = pathname;

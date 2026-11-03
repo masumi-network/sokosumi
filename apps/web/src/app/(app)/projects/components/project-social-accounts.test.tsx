@@ -116,6 +116,7 @@ vi.mock("next-intl", () => ({
     (namespace: string) => (key: string, values?: Record<string, string>) =>
       (namespace === "App.Projects.SocialPosts"
         ? ({
+            loading: "Loading…",
             "reconnection.accounts": "Accounts needing attention",
             "reconnection.title": "{account} needs reconnecting",
             "reconnection.affected": "{count} posts affected",
@@ -331,6 +332,69 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByRole("list")).toBeVisible();
   });
 
+  it("shows skeletons instead of an empty result while an account connection is unresolved", async () => {
+    const request =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof initiateProjectSocialConnection>>
+      >();
+    vi.mocked(initiateProjectSocialConnection).mockReturnValueOnce(
+      request.promise,
+    );
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    await connectProvider(userEvent.setup());
+
+    expect(screen.queryByText("No accounts yet.")).not.toBeInTheDocument();
+    const loading = screen.getByRole("status", { name: "Loading…" });
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(loading.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+
+    await act(async () => {
+      request.resolve({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "Connection unavailable" },
+      });
+    });
+    expect(screen.getByText("No accounts yet.")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Loading…" })).toBeNull();
+  });
+
+  it("keeps skeletons through the refresh after connecting the first account", async () => {
+    const request = Promise.withResolvers<void>();
+    refreshMock.mockImplementationOnce(() => request.promise);
+    const { rerender } = render(
+      <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />,
+    );
+    await connectProvider(userEvent.setup());
+    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
+    await act(async () => {
+      MockBroadcastChannel.instances[0]?.onmessage?.({
+        data: {
+          type: "sokosumi:composio:result",
+          status: "success",
+          connectionId: "ca_known",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+          errorMessage: null,
+          nonce: "project-social-nonce",
+        },
+      } as MessageEvent);
+    });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(screen.queryByText("No accounts yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading…" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    rerender(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+    await act(async () => request.resolve());
+    expect(screen.getByText("@sokosumi")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Loading…" })).toBeNull();
+    expect(screen.queryByText("No accounts yet.")).not.toBeInTheDocument();
+  });
   it.each(SOCIAL_POST_PROVIDERS)(
     "enables connecting %s when Core enables every provider",
     async (provider) => {
@@ -998,7 +1062,10 @@ describe("ProjectSocialAccounts", () => {
       } as MessageEvent);
     });
     await waitFor(() =>
-      expect(onReconnected).toHaveBeenCalledWith(buildConnection()),
+      expect(onReconnected).toHaveBeenCalledWith(
+        buildConnection(),
+        connection.id,
+      ),
     );
   });
 

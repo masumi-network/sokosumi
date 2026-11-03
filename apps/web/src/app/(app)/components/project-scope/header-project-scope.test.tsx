@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,6 +50,12 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
 
 import { HeaderProjectScope } from "./header-project-scope";
 import { closedScopeProjectResponse } from "./project-scope-fixtures";
+import {
+  openProjectScope,
+  resetScopeDialogs,
+  selectCreatedProject,
+  setScopeCreateOpen,
+} from "./sidebar-project-scope-state";
 
 function renderScope() {
   const client = new QueryClient({
@@ -77,6 +89,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  act(() => resetScopeDialogs());
 });
 
 describe("header project scope", () => {
@@ -198,5 +211,141 @@ describe("header project scope", () => {
         screen.queryByRole("dialog", { name: "switchLabel" }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  describe("when a page asks for a project", () => {
+    beforeEach(() => {
+      mocks.loadPinned.mockResolvedValue([
+        { id: "p-2", name: "Beta", logo: null, closedAt: null },
+      ]);
+    });
+
+    it("opens as required over a dimmed page, saying why", async () => {
+      renderScope();
+
+      act(() => {
+        openProjectScope({ required: true, reason: "Ads need a project" });
+      });
+
+      const menu = await screen.findByRole("dialog", { name: "switchLabel" });
+      expect(menu).toHaveAttribute("data-required", "true");
+      expect(menu).toHaveAccessibleDescription("Ads need a project");
+      expect(screen.getByTestId("project-scope-backdrop")).toHaveClass(
+        "bg-scrim",
+      );
+    });
+
+    it("keeps a required ask open on a click outside it", async () => {
+      renderScope();
+      act(() => {
+        openProjectScope({ required: true });
+      });
+      await screen.findByRole("dialog", { name: "switchLabel" });
+
+      fireEvent.pointerDown(screen.getByTestId("project-scope-backdrop"));
+
+      expect(
+        screen.getByRole("dialog", { name: "switchLabel" }),
+      ).toBeInTheDocument();
+    });
+
+    it("closes a required ask on Esc, back to the page, and tells it", async () => {
+      const user = userEvent.setup();
+      const onDismiss = vi.fn();
+      renderScope();
+      act(() => {
+        openProjectScope({ required: true, onDismiss });
+      });
+      await screen.findByRole("dialog", { name: "switchLabel" });
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "switchLabel" }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(screen.queryByTestId("project-scope-backdrop")).toBeNull();
+      expect(onDismiss).toHaveBeenCalledOnce();
+    });
+
+    it("answers the page's own choice instead of switching scope", async () => {
+      const user = userEvent.setup();
+      const onSelect = vi.fn();
+      const onDismiss = vi.fn();
+      renderScope();
+      act(() => {
+        openProjectScope({ required: true, onSelect, onDismiss });
+      });
+
+      await user.click(await screen.findByTestId("project-scope-item-p-2"));
+
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith("p-2");
+      expect(onDismiss).not.toHaveBeenCalled();
+      expect(mocks.push).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("project-scope-backdrop")).toBeNull();
+    });
+
+    it("hands the page's choice to Create project", async () => {
+      const user = userEvent.setup();
+      const onSelect = vi.fn();
+      const onDismiss = vi.fn();
+      const switchScope = vi.fn();
+      renderScope();
+      act(() => {
+        openProjectScope({ required: true, onSelect, onDismiss });
+      });
+
+      await user.click(await screen.findByTestId("project-scope-create"));
+      expect(onDismiss).not.toHaveBeenCalled();
+      selectCreatedProject("p-new", switchScope);
+      act(() => setScopeCreateOpen(false));
+
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith("p-new");
+      expect(switchScope).not.toHaveBeenCalled();
+      expect(onDismiss).not.toHaveBeenCalled();
+    });
+
+    it("dismisses the page's ask when Create project is cancelled", async () => {
+      const user = userEvent.setup();
+      const onDismiss = vi.fn();
+      renderScope();
+      act(() => {
+        openProjectScope({ required: true, onDismiss });
+      });
+
+      await user.click(await screen.findByTestId("project-scope-create"));
+      act(() => setScopeCreateOpen(false));
+
+      expect(onDismiss).toHaveBeenCalledOnce();
+    });
+
+    it("closes when the page that asked goes away", async () => {
+      renderScope();
+      let cancel = () => {};
+      act(() => {
+        cancel = openProjectScope({ required: true });
+      });
+      await screen.findByRole("dialog", { name: "switchLabel" });
+
+      act(() => cancel());
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "switchLabel" }),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it("dims nothing when opened from its own trigger", async () => {
+      const user = userEvent.setup();
+      renderScope();
+
+      await user.click(trigger());
+
+      const menu = await screen.findByRole("dialog", { name: "switchLabel" });
+      expect(menu).not.toHaveAttribute("data-required");
+      expect(screen.queryByTestId("project-scope-backdrop")).toBeNull();
+    });
   });
 });

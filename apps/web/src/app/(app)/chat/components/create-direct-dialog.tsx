@@ -10,7 +10,6 @@ import {
   ensureSokoBotDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
@@ -24,13 +23,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SIDEBAR_ICON_ACTION_CLASS } from "@/components/ui/sidebar-classes";
-import { getInitials } from "@/lib/utils/text";
 import { useChatComposeRoster } from "./chat-compose-dialog";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
   type DirectDraftTarget,
   DirectDraftTargetList,
+  DraftTargetFace,
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
@@ -234,12 +233,7 @@ export function CreateDirectDialog() {
               key={target.key}
               className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full ps-1.5 text-sm"
             >
-              <Avatar className="size-5">
-                <AvatarImage src={target.image ?? undefined} alt="" />
-                <AvatarFallback className="text-2xs">
-                  {getInitials(target.name)}
-                </AvatarFallback>
-              </Avatar>
+              <DraftTargetFace target={target} className="size-5" />
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{target.name}</span>
                 {target.kind === "coworker" || target.kind === "sokoBot" ? (

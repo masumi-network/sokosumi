@@ -512,6 +512,8 @@ describe("quoted post response", () => {
   it("selects every account field the response schema requires", () => {
     const account = {
       id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
+      provider: "x",
+      externalAccountId: "x-account",
       externalHandle: "sokosumi",
       displayName: null,
       avatarUrl: null,

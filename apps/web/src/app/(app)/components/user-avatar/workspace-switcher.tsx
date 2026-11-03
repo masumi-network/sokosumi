@@ -12,7 +12,7 @@ import {
   activateOrganizationWorkspace,
   isUserNotMemberOfOrganizationError,
 } from "@/lib/activate-organization-workspace";
-import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
+import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
 import { coreClient } from "@/lib/clients/core.browser.client";
 
 export function getAgentJobsBasePath(pathname: string): string | null {
@@ -81,7 +81,7 @@ async function roomStaysOpen(
 ): Promise<boolean> {
   try {
     const { data } = await coreClient.getChatRoom(roomId);
-    return isRoomOfWorkspace(data, workspaceId);
+    return isListedInWorkspace(data, workspaceId);
   } catch (error) {
     console.warn("Failed to read the open room after a switch", {
       roomId,

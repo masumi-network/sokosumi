@@ -11,6 +11,7 @@ import { badRequest } from "@/helpers/error";
 const {
   botFindFirstMock,
   botFindUniqueMock,
+  marketingStrategyFindFirstMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
   chatRoomUserMemberFindFirstMock,
@@ -108,6 +109,7 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  marketingStrategyFindFirstMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
   chatRoomUserMemberFindFirstMock: vi.fn(),
@@ -153,6 +155,9 @@ const {
   files: {
     taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
+    resourceFindFirst: vi.fn(),
+    del: vi.fn(),
+    tombstone: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -259,6 +264,7 @@ const social = vi.hoisted(() => ({
   beta: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
+  postingInstructions: vi.fn(),
 }));
 const ads = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -322,6 +328,7 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@vercel/blob", () => ({
+  del: files.del,
   head: files.head,
   list: files.list,
   put: files.put,
@@ -332,7 +339,7 @@ vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   rateAgentFit: marketplace.rate,
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
-  imageModel: () => ({ id: "gemini-flash" }),
+  imageModel: () => ({ id: "gemini-flash", outputFormats: ["png", "jpeg"] }),
   resolveImageSettings: (_id: string, settings: unknown) => settings,
 }));
 vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
@@ -370,6 +377,7 @@ vi.mock("@/services/file-backfill.service", () => ({
 vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: files.reserve,
   activateDriveUploadResource: files.activate,
+  tombstoneDriveUploadResource: files.tombstone,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
@@ -385,11 +393,16 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
-    fileResource: { findUnique: files.resourceFindUnique },
+    fileResource: {
+      findUnique: files.resourceFindUnique,
+      findFirst: files.resourceFindFirst,
+    },
     taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
+    project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
+    marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -629,6 +642,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  pinToBotProject,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -4961,6 +4975,48 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(chatMessageFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("reads the owner's Directs on the owner's turns, never for a teammate", async () => {
+    chatRoomFindFirstMock.mockResolvedValueOnce({
+      id: "room_dm",
+      name: "Ada",
+      groupName: null,
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const owner = (await new SokoBotRuntimeService()["readChat"](
+      {
+        turn: SCOPE_TURN,
+        askedByKind: "OWNER",
+        reader: { sharedScope: null },
+      } as never,
+      { roomId: "room_dm" },
+    )) as { roomId: string };
+    expect(owner.roomId).toBe("room_dm");
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toEqual({
+      kind: "direct",
+      archivedAt: null,
+      OR: [{ organizationId: "org_1" }, { organizationId: null }],
+      userMembers: { some: { userId: SCOPE.userId } },
+      id: "room_dm",
+    });
+
+    chatRoomFindFirstMock.mockReset().mockResolvedValue(null);
+    await expect(
+      new SokoBotRuntimeService()["readChat"](
+        {
+          turn: SCOPE_TURN,
+          askedByKind: "TEAMMATE",
+          reader: { sharedScope: null },
+        } as never,
+        { roomId: "room_dm" },
+      ),
+    ).rejects.toThrow(/not a member/);
+    expect(chatRoomFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toMatchObject({
+      sokoBotMembers: { some: { sokoBotId: SCOPE.sokoBotId } },
+    });
+  });
+
   it("returns messages newest first and marks the bot's own", async () => {
     chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
     chatMessageFindManyMock.mockResolvedValue([
@@ -6399,6 +6455,7 @@ describe("Soko Bot project social tools", () => {
   };
   const capabilities = [
     "list_project_social_accounts",
+    "get_posting_instructions",
     "list_ad_accounts",
     "list_ad_campaigns",
     "find_ad_targeting",
@@ -6631,6 +6688,41 @@ describe("Soko Bot project social tools", () => {
       );
     },
   );
+
+  it("reads the Project's posting instructions in the turn's workspace", async () => {
+    social.postingInstructions.mockResolvedValue({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_posting_instructions",
+      toolCallId: "instructions",
+      input: { projectId },
+    });
+
+    expect(social.postingInstructions).toHaveBeenCalledWith({
+      where: { id: projectId, workspaceId: SCOPE.workspaceId },
+      select: { postingInstructionsMd: true },
+    });
+    expect(result).toEqual({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+    expect(social.owner).toHaveBeenCalled();
+  });
+
+  it("refuses posting instructions for a Project outside the workspace", async () => {
+    social.postingInstructions.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_posting_instructions",
+        toolCallId: "instructions-missing",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("That Project is not one your owner can open.");
+  });
 
   it("states each account's text limit from its current X tier", async () => {
     const account = {
@@ -8808,6 +8900,67 @@ describe("Drive file tools", () => {
     );
   });
 
+  describe("delete_file", () => {
+    const asked = {
+      ...authorized,
+      turn: { ...authorized.turn, source: "CHAT", chainDepth: 0 },
+      askedByKind: "USER",
+    };
+    beforeEach(() => {
+      getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+      files.resourceFindFirst.mockResolvedValue({
+        id: "file-1",
+        sourceId: "drive/u/meta.pdf",
+        displayName: "meta.pdf",
+      });
+    });
+
+    it("deletes the file for good when the owner asks in their chat", async () => {
+      const commit = vi
+        .spyOn(
+          service as unknown as {
+            commitReceipt: (...args: unknown[]) => unknown;
+          },
+          "commitReceipt",
+        )
+        .mockImplementation((...args) => args[3]);
+      await expect(
+        service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
+      ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
+      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+        token: "token",
+      });
+      expect(files.tombstone).toHaveBeenCalledWith({
+        workspaceId: "personal-workspace",
+        scope: "user",
+        pathname: "drive/u/meta.pdf",
+      });
+      commit.mockRestore();
+    });
+
+    it.each([
+      [
+        "a mail or scheduled turn",
+        { turn: { ...asked.turn, source: "EVENT" } },
+      ],
+      ["a chained turn", { turn: { ...asked.turn, chainDepth: 1 } }],
+      ["another assistant asking", { askedByKind: "ASSISTANT" }],
+      [
+        "a shared bot",
+        { reader: { ...asked.reader, sharedScope: { projectId: "p" } } },
+      ],
+    ])("refuses from %s", async (_, override) => {
+      await expect(
+        service["deleteFile"](
+          { ...asked, ...override } as never,
+          { fileId: "file-1" },
+          "call-1",
+        ),
+      ).rejects.toThrow("only when your owner asks");
+      expect(files.del).not.toHaveBeenCalled();
+    });
+  });
+
   it("reads a file's extracted text, and explains when there is none", async () => {
     files.loadLive.mockResolvedValueOnce([
       {
@@ -9271,6 +9424,24 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
+  it("lets Cuso's production run make a month of images, and only that run", async () => {
+    const production = new SokoBotRuntimeService();
+    production["mayActForOwner"] = vi.fn().mockResolvedValue(true);
+    const run = { ...ownerChat, turn: { ...ownerChat.turn, source: "EVENT" } };
+    const check = () =>
+      production["checkImageRequest"](run as never, request, "call-m");
+    toolCallCountMock.mockResolvedValue(4);
+    turnFindUniqueMock.mockResolvedValue({
+      clientTurnId: "cmo:production:hire-1:2026-10:1:1",
+    });
+    await expect(check()).resolves.toMatchObject({ credits: 4 });
+    toolCallCountMock.mockResolvedValue(60);
+    await expect(check()).rejects.toThrow("at most 60 images");
+    toolCallCountMock.mockResolvedValue(4);
+    turnFindUniqueMock.mockResolvedValue({ clientTurnId: "cmo:daily:hire-1" });
+    await expect(check()).rejects.toThrow("at most 4 images");
+  });
+
   it("starts an image within the price and links to the studio", async () => {
     images.create.mockResolvedValue({ id: "job-1", status: "QUEUED" });
     const result = await generate(ownerChat, request, "call-1");
@@ -9289,6 +9460,57 @@ describe("Content Studio image tools", () => {
       credits: 4,
       studioUrl: "/studio?projectId=project-1",
     });
+  });
+
+  it("makes a JPEG and sends the owner's product photos as references", async () => {
+    const photo = "11111111-1111-4111-8111-111111111111";
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: photo,
+        displayName: "leggings.jpg",
+        mimeType: "image/jpeg",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/leggings.jpg",
+      },
+    ]);
+    images.create.mockResolvedValue({ id: "job-2", status: "QUEUED" });
+    await generate(
+      ownerChat,
+      { ...request, referenceFileIds: [photo] },
+      "call-ref",
+    );
+    expect(images.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceFileIds: [photo],
+        settings: expect.objectContaining({ outputFormat: "jpeg" }),
+      }),
+    );
+  });
+
+  it("refuses a reference that is not an image in the owner's Files", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        displayName: "notes.md",
+        mimeType: "text/markdown",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/notes.md",
+      },
+    ]);
+    await expect(
+      generate(
+        ownerChat,
+        {
+          ...request,
+          referenceFileIds: [
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+          ],
+        },
+        "call-bad-ref",
+      ),
+    ).rejects.toThrow("is not an image in the owner's Files");
+    expect(images.create).not.toHaveBeenCalled();
   });
 
   it("declines an image that costs more than it may spend", async () => {
@@ -9320,6 +9542,26 @@ describe("Content Studio image tools", () => {
       generate({ ...ownerChat, ...override }, request, "call-3"),
     ).rejects.toThrow("only when a person asks in chat");
     expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("lets Cuso's daily run make the images his approved plan lists", async () => {
+    const dailyRun = {
+      ...ownerChat,
+      turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
+    };
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    // Only a draft version: nothing of it is carried out yet.
+    marketingStrategyFindFirstMock.mockResolvedValueOnce(null);
+    await expect(generate(dailyRun, request, "call-c1")).rejects.toThrow(
+      "only when a person asks in chat",
+    );
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    marketingStrategyFindFirstMock.mockResolvedValueOnce({
+      id: "strategy-1",
+      approvedAt: new Date(),
+    });
+    await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
+    expect(images.create).toHaveBeenCalledTimes(1);
   });
 
   it("generates for a teammate who asks in chat, on the owner's credits", async () => {
@@ -9812,6 +10054,7 @@ describe("find_agents", () => {
     } as never);
 
   beforeEach(() => {
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     marketplace.list.mockResolvedValue({
       count: 2,
       agents: [listing("a", "Company Researcher"), listing("b", "SEO Auditor")],
@@ -9963,5 +10206,340 @@ describe("archive_task without approval cards", () => {
       where: { id: TASK_ID, workspaceId: "w" },
       select: { id: true },
     });
+  });
+});
+
+describe("project bots", () => {
+  const PROJECT = "01960001-0001-7001-8001-0000000000aa";
+  const call = (input: unknown) => ({
+    ...SCOPE,
+    capability: "create_social_post" as const,
+    toolCallId: "call-1",
+    input,
+  });
+
+  it("puts a project bot's work in its own Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: PROJECT });
+    const pinned = await pinToBotProject(call({ text: "Hi" }), SCOPE.sokoBotId);
+    expect(pinned.input).toEqual({ text: "Hi", projectId: PROJECT });
+  });
+
+  it("refuses another Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: PROJECT });
+    await expect(
+      pinToBotProject(
+        call({ projectId: "01960001-0001-7001-8001-0000000000bb" }),
+        SCOPE.sokoBotId,
+      ),
+    ).rejects.toThrow("own Project");
+  });
+
+  it("leaves a personal assistant's choice alone", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null });
+    const input = call({ projectId: "01960001-0001-7001-8001-0000000000bb" });
+    expect(await pinToBotProject(input, SCOPE.sokoBotId)).toBe(input);
+  });
+});
+
+describe("Social comment scope", () => {
+  const PROJECT = "01960001-0001-7001-8001-0000000000c1";
+  const authorized = { turn: { sokoBotId: SCOPE.sokoBotId } } as never;
+
+  it("handles the comments of the bot's own Project, with its Brand Brain when it has one", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      projectId: PROJECT,
+      project: { brandBrain: { body: { summary: "Lofts" } } },
+    });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).resolves.toEqual({
+      projectId: PROJECT,
+      brandBrain: { summary: "Lofts" },
+    });
+  });
+
+  it("works for a Project without a Brand Brain", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      projectId: PROJECT,
+      project: { brandBrain: null },
+    });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).resolves.toEqual({ projectId: PROJECT, brandBrain: null });
+  });
+
+  it("refuses a bot with no Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null, project: null });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).rejects.toThrow("belong to a Project");
+  });
+});
+
+describe("CMO record saves", () => {
+  const report = {
+    ...SCOPE,
+    capability: "report_update" as const,
+    toolCallId: "report",
+    input: {
+      kind: "daily",
+      headline: "Today",
+      done: [],
+      upNext: [],
+      changes: [],
+    },
+  };
+  const owner = {
+    turn: { id: SCOPE.turnId, sokoBotId: SCOPE.sokoBotId, versionId: "cmo-v1" },
+    askedByKind: "OWNER",
+  };
+  function cmoTx() {
+    const tx = {
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({
+          workspaceId: SCOPE.workspaceId,
+          projectId: "project-1",
+          sharedRoomId: "room-1",
+          versionId: "cmo-v1",
+        }),
+      },
+      chatRoomMessage: {
+        upsert: vi.fn(
+          async (args: {
+            create: { id: string; createdAt: Date; metadata: unknown };
+          }) => ({
+            id: args.create.id,
+            createdAt: args.create.createdAt,
+            metadata: args.create.metadata,
+          }),
+        ),
+      },
+      chatRoom: { update: vi.fn().mockResolvedValue({}) },
+      project: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    return tx;
+  }
+
+  it("posts the report as a card in Cuso's shared room and makes it the Project's latest update", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    publishChatRoomMessageRealtimeByIdMock.mockClear();
+    const result = await service["saveCmoRecord"](owner as never, report);
+    const { create } = tx.chatRoomMessage.upsert.mock.calls[0]![0];
+    expect(create).toMatchObject({ roomId: "room-1", content: "Today" });
+    expect(result).toEqual({
+      reported: "daily",
+      id: create.id,
+      revertible: false,
+    });
+    expect(tx.project.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "project-1" }),
+        data: expect.objectContaining({
+          latestUpdateMd: expect.stringContaining("## TL;DR\n\nToday"),
+        }),
+      }),
+    );
+    // Open chats see the card at once.
+    expect(publishChatRoomMessageRealtimeByIdMock).toHaveBeenCalledWith(
+      create.id,
+      "create",
+    );
+  });
+
+  it("refuses an assistant's turn, which never sees the plan", async () => {
+    transactionMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service["saveCmoRecord"](
+        { ...owner, askedByKind: "ASSISTANT" } as never,
+        report,
+      ),
+    ).rejects.toThrow("Only the owner's turns");
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("saves a member's turn: Cuso works for the whole business", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](
+      { ...owner, askedByKind: "TEAMMATE" } as never,
+      report,
+    );
+    expect(tx.chatRoomMessage.upsert).toHaveBeenCalled();
+  });
+
+  it("refuses a teammate's turn on any other shared bot", async () => {
+    transactionMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service["saveCmoRecord"](
+        {
+          ...owner,
+          turn: { ...owner.turn, versionId: null },
+          askedByKind: "TEAMMATE",
+        } as never,
+        report,
+      ),
+    ).rejects.toThrow();
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing once the turn is cancelled or the bot paused", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi
+      .fn()
+      .mockRejectedValue(
+        new SokoBotRuntimeAuthorizationError("Turn is no longer writable"),
+      );
+    await expect(
+      service["saveCmoRecord"](owner as never, report),
+    ).rejects.toThrow("no longer writable");
+    expect(tx.chatRoomMessage.upsert).not.toHaveBeenCalled();
+  });
+
+  it("saves Cuso's plan as a new Marketing strategy version of his Project", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000ab";
+    const plan = {
+      month: "2026-11",
+      summary: "Founder-led LinkedIn posts that show the product working.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [{ channel: "linkedin", cadence: "3 a week" }],
+      calendar: [],
+    };
+    const created = {
+      id: "strategy-2",
+      projectId: PROJECT,
+      plan,
+      approvedAt: null,
+      updatedAt: new Date("2026-11-01T09:00:00Z"),
+    };
+    const tx = {
+      // Cuso, found as the Project's shared bot on CMO's version.
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: SCOPE.sokoBotId,
+          createdAt: new Date("2026-10-01T09:00:00Z"),
+          project: {
+            id: PROJECT,
+            workspaceId: SCOPE.workspaceId,
+            websiteUrl: "https://acme.io",
+            workspace: { organizationId: "org-1" },
+            brandBrain: null,
+          },
+        }),
+      },
+      marketingStrategy: {
+        // The approved version runs; this turn has written none yet.
+        findFirst: vi
+          .fn()
+          .mockImplementation(
+            async (args: { where: { authorTurnId?: string } }) =>
+              args.where.authorTurnId
+                ? null
+                : { id: "strategy-1", plan, approvedAt: new Date() },
+          ),
+        create: vi.fn().mockResolvedValue(created),
+        update: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValueOnce({
+      source: "CHAT",
+      clientTurnId: "chat-1",
+    });
+    toolCallCountMock.mockResolvedValueOnce(1);
+    // No Brand Brain to check the plan against: the drift review is skipped.
+    botFindUniqueMock.mockResolvedValueOnce(null);
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+
+    const result = await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_strategy",
+      toolCallId: "strategy",
+      input: { part: "plan", strategy: plan },
+    });
+
+    expect(tx.marketingStrategy.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: PROJECT,
+        authorTurnId: SCOPE.turnId,
+        authorSokoBotId: SCOPE.sokoBotId,
+      }),
+    });
+    expect(tx.marketingStrategy.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      saved: "strategy",
+      versionId: "strategy-2",
+      approved: false,
+    });
+  });
+
+  it("saves the Brand Brain to Cuso's Project", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000c2";
+    const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      brandBrain: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue({
+          id: "brain-1",
+          body: { profile: {} },
+          updatedAt: null,
+        }),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_brand_brain",
+      toolCallId: "brain",
+      input: {
+        sections: {
+          pricing: {
+            answer: "From 9 dollars",
+            findings: [
+              { point: "From 9 dollars", evidence: "fact", confidence: "high" },
+            ],
+          },
+        },
+      },
+    });
+    const upsert = tx.brandBrain.upsert.mock.calls[0]?.[0];
+    expect(upsert.where).toEqual({ projectId: PROJECT });
+    expect(upsert.create.body.profile.pricing.answer).toBe("From 9 dollars");
+  });
+
+  it("checks the turn's authority inside the transaction that writes", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    const authority = vi.fn().mockResolvedValue(undefined);
+    service["requireMutationAuthority"] = authority;
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, report);
+    expect(authority.mock.calls[0]?.[0]).toBe(tx);
+    expect(authority.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.chatRoomMessage.upsert.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 });

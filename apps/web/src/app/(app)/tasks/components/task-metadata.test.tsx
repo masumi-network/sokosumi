@@ -310,6 +310,33 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Joseph")).toBeInTheDocument();
   });
 
+  it("crops a crafted avatar to the bot's face, but leaves a mascot alone", () => {
+    const assignee = (avatarStyleId: string) => ({
+      type: "sokoBot" as const,
+      id: "bot-2",
+      sokoBot: {
+        id: "bot-2",
+        name: "Joseph",
+        avatarSeed: null,
+        avatarImageUrl: "https://blob.example/cat.png",
+        avatarStyleId,
+        owner: null,
+      },
+    });
+    const { unmount } = renderTaskMetadata({
+      task: createTask({ assignee: assignee("crafted-desk") }),
+    });
+    expect(screen.getByRole("img", { name: "Joseph" }).className).toContain(
+      "size-[240%]",
+    );
+    unmount();
+
+    renderTaskMetadata({ task: createTask({ assignee: assignee("mascot") }) });
+    expect(
+      screen.queryByRole("img", { name: "Joseph" })?.className ?? "",
+    ).not.toContain("size-[240%]");
+  });
+
   it("renders an sokoBot assignee with the assistant orb", () => {
     renderTaskMetadata({
       task: createTask({

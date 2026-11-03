@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
+import messages from "@/messages/en.json";
 import {
   NEWSLETTER_ANALYTICS,
   NEWSLETTER_ISSUE,
@@ -20,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   subscribers: vi.fn(),
   analytics: vi.fn(),
   sendingDomain: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -61,6 +64,16 @@ vi.mock("../issue-editor", () => ({
     mocks.editor(props);
     return <p>Issue editor</p>;
   },
+}));
+
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: mocks.openProjectScope,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import NewsletterIssuePage from "./page";
@@ -148,8 +161,16 @@ describe("newsletter issue page", () => {
   });
   it("shows the unknown-project notice instead of the editor", async () => {
     mocks.project.mockResolvedValue(null);
-    render(await NewsletterIssuePage(PROPS));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterIssuePage(PROPS)}
+      </NextIntlClientProvider>,
+    );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select project" }),
+    ).toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(mocks.get).not.toHaveBeenCalled();
   });
   it("loads lifetime analytics only for sent issues", async () => {

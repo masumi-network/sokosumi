@@ -138,6 +138,18 @@ const baseEnvSchema = z.object({
 
   // Project memory (Vercel AI Gateway, Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
+  EXA_API_KEY: z.string().min(1).optional(),
+  /**
+   * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
+   * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
+   */
+  CHROMIUM_EXECUTABLE_PATH: z.string().min(1).optional(),
+  CHROMIUM_EXECUTABLE_URL: z
+    .url()
+    .default(
+      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
+    ),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**
@@ -319,6 +331,28 @@ const baseEnvSchema = z.object({
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Masumi DESIGN.md API (the same service Web uses for brand DESIGN.md).
+   * CMO onboarding generates the brand's DESIGN.md with it when set; without
+   * it Cuso reads the logo, colours and fonts from the site directly.
+   */
+  MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
+  MASUMI_DESIGN_MD_API_URL: z
+    .string()
+    .url()
+    .default("https://www.masumi.network/api/v1"),
+  /**
+   * Where a deployed instance fetches the ffmpeg binary that encodes avatar
+   * loops: a gzip of a static linux-x64 build, unpacked into /tmp on first use
+   * (the function does not ship ffmpeg). Unset: the pinned ffmpeg-static
+   * release on GitHub. Set both together, to a copy in our own store.
+   */
+  AVATAR_FFMPEG_URL: z.url().optional(),
+  /** Lowercase hex sha256 of the gzip at `AVATAR_FFMPEG_URL`. Checked before it runs. */
+  AVATAR_FFMPEG_SHA256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, "Expected a lowercase hex sha256")
+    .optional(),
+  /**
    * Read-write token for the image studio's **own, private-access** Blob
    * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
    *
@@ -417,6 +451,19 @@ export function isProductionEnvironment(
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
+  // A different binary needs its own hash: the pinned one would never match.
+  if (
+    Boolean(value.AVATAR_FFMPEG_URL) !== Boolean(value.AVATAR_FFMPEG_SHA256)
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: [
+        value.AVATAR_FFMPEG_URL ? "AVATAR_FFMPEG_SHA256" : "AVATAR_FFMPEG_URL",
+      ],
+      message:
+        "AVATAR_FFMPEG_URL and AVATAR_FFMPEG_SHA256 must be set together",
+    });
+  }
   if (!value.SOKO_BOT_ENABLED) return;
   // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;

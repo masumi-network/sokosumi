@@ -30,6 +30,7 @@ describe("All unreads filter under the pointer", () => {
         <SidebarProvider>
           <ChatUnreadNavRows
             rooms={[]}
+            markAllRooms={[]}
             dismissSheetOnNavigate={false}
             unreadOnly
             onUnreadOnlyChange={vi.fn()}

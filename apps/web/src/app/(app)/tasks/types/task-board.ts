@@ -16,6 +16,8 @@ export interface TaskAssigneeView {
   slug?: string;
   kind: "coworker" | "sokoBot" | "user";
   avatarSeed?: string | null;
+  /** The style of a Soko Bot's claimed avatar; a crafted one is cropped to the face. */
+  avatarStyleId?: string | null;
 }
 
 /**

@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  listSkills,
-  runSkillsCommand,
-} from "../../../src/cli/commands/skills.js";
+import { runSkillsCommand } from "../../../src/cli/commands/skills.js";
 
-test("listSkills finds the bundled skills including sokosumi", async () => {
-  const { skillsDir, skills } = await listSkills();
+test("skills command finds the bundled skills including sokosumi", async () => {
+  const output: string[] = [];
+  await runSkillsCommand({
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+  });
+  const { skillsDir, skills } = JSON.parse(output.join("")) as {
+    skillsDir: string;
+    skills: { name: string; description: string; path: string }[];
+  };
   assert.ok(skillsDir.endsWith("skills"));
   const names = skills.map((skill) => skill.name);
   assert.ok(

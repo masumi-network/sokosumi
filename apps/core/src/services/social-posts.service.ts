@@ -4,6 +4,10 @@ import type {
   SocialPostStatus,
 } from "@sokosumi/database";
 import {
+  type SocialPostPlanning,
+  socialPostPlanningSchema,
+} from "@sokosumi/soko-bot";
+import {
   CORE_API_ERROR_KINDS,
   isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -24,6 +28,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
+import { socialConnectionAccountType } from "@/clients/social-post-providers/linkedin-author";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -80,6 +85,8 @@ const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -111,6 +118,8 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 
 const socialPostInclude = {
@@ -121,6 +130,7 @@ const socialPostInclude = {
     select: {
       id: true,
       provider: true,
+      externalAccountId: true,
       externalHandle: true,
       displayName: true,
       avatarUrl: true,
@@ -191,6 +201,7 @@ export interface SocialPostSummary {
     displayName: string | null;
     avatarUrl: string | null;
     subscriptionType: string | null;
+    accountType: ReturnType<typeof socialConnectionAccountType>;
     status: string;
   } | null;
   creator: SocialPostCreator;
@@ -207,6 +218,9 @@ export interface SocialPostSummary {
   lastAttemptAt: Date | null;
   lastAttempt: SocialPostLastAttempt | null;
   revision: number;
+  /** The Marketing strategy version that planned it, and its planning record. */
+  marketingStrategyId?: string | null;
+  planning?: SocialPostPlanning | null;
   createdAt: Date;
   updatedAt: Date;
   canEdit: boolean;
@@ -421,7 +435,20 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
-    socialConnection: record.socialConnection,
+    socialConnection: record.socialConnection
+      ? {
+          id: record.socialConnection.id,
+          externalHandle: record.socialConnection.externalHandle,
+          displayName: record.socialConnection.displayName,
+          avatarUrl: record.socialConnection.avatarUrl,
+          subscriptionType: record.socialConnection.subscriptionType,
+          accountType: socialConnectionAccountType(
+            record.socialConnection.provider,
+            record.socialConnection.externalAccountId,
+          ),
+          status: record.socialConnection.status,
+        }
+      : null,
     creator: mapCreator(record),
     scheduledByUserId: record.scheduledByUserId,
     scheduledByCoworkerId: record.scheduledByCoworkerId,
@@ -437,6 +464,8 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     lastAttemptAt: record.lastAttemptAt,
     lastAttempt: record.attempts[0] ?? null,
     revision: record.revision,
+    marketingStrategyId: record.marketingStrategyId ?? null,
+    planning: socialPostPlanningSchema.safeParse(record.planning).data ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     canEdit:
@@ -1054,7 +1083,9 @@ export async function updateSocialPost(
             ? { scheduledAt: new Date() }
             : {}),
         }
-      : {};
+      : post.status === "FAILED" || post.status === "MISSED"
+        ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
+        : {};
   if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
   if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
@@ -1138,7 +1169,11 @@ export async function updateSocialPost(
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    if (post.status === "SCHEDULED") {
+    if (
+      post.status === "SCHEDULED" ||
+      post.status === "FAILED" ||
+      post.status === "MISSED"
+    ) {
       requireMediaRequirement(provider, media);
     }
   }
