@@ -38,6 +38,7 @@ const labels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
+    contacts: "Find people",
     topUp: "Top up",
     unattributed: "Other",
   },
@@ -113,6 +114,7 @@ describe("HistoryViewFilters", () => {
       "task",
       "coworker",
       "sokoBot",
+      "contacts",
       "topUp",
       "unattributed",
     ]);

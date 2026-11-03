@@ -6,7 +6,7 @@ import { MODE_DRAWS, type OrbState, resolvePreset } from "thinking-orbs";
 import { cn } from "@/lib/utils";
 
 /** Brand primary: fallback when the CSS variable can't be resolved. */
-const FALLBACK_PRIMARY = "#2b5c78";
+const FALLBACK_PRIMARY = "#ff51ff";
 
 function resolvePrimary(): string {
   const value = getComputedStyle(document.documentElement)

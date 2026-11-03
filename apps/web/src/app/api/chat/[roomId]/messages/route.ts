@@ -18,10 +18,13 @@ export async function GET(
 
   const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
   const around = request.nextUrl.searchParams.get("around") ?? undefined;
+  const openAtUnread =
+    request.nextUrl.searchParams.get("openAtUnread") === "true";
   const rawLimit = request.nextUrl.searchParams.get("limit");
   const limit = rawLimit == null ? undefined : Number(rawLimit);
   if (
     (cursor && around) ||
+    (openAtUnread && (cursor || around || parentMessageId)) ||
     (limit !== undefined &&
       (!Number.isInteger(limit) || limit < 1 || limit > 100))
   ) {
@@ -31,12 +34,16 @@ export async function GET(
   return respondToBackgroundChatRead("Chat messages unavailable", async () => {
     const page = await (parentMessageId
       ? chatRoomService.listThreadMessages(roomId, parentMessageId, options)
-      : chatRoomService.listMessages(roomId, options));
+      : chatRoomService.listMessages(roomId, {
+          ...options,
+          openAtUnread: openAtUnread || undefined,
+        }));
     return {
       data: page.messages,
       pagination: {
         nextCursor: page.nextCursor,
         limit: page.messages.length,
+        firstUnreadMessageId: page.firstUnreadMessageId,
       },
     };
   });

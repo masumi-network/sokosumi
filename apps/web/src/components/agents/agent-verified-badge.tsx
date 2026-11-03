@@ -24,14 +24,11 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "bg-agent-verified-background flex items-center gap-1 rounded-md p-1",
+            "bg-muted flex items-center gap-1 rounded-md p-1",
             className,
           )}
         >
-          <ShieldCheck
-            strokeWidth={1}
-            className="text-agent-verified-foreground size-6"
-          />
+          <ShieldCheck strokeWidth={1} className="text-foreground size-6" />
         </div>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">

@@ -102,7 +102,7 @@ export function useUnreadThreadsQuery({
 /**
  * Every unread Thread across the reader's rooms (SOK-1159), newest unread
  * reply first, each naming its room: the Threads flyout on the desktop
- * sidebar and the `/chat/threads` page. Opening one opens the
+ * sidebar and the `/chat/catch-up/threads` page. Opening one opens the
  * Thread in its room; reading it removes it on the next read of the rooms,
  * and at zero the list says the reader is caught up.
  */

@@ -62,7 +62,7 @@ describe("socialPostTextWrite", () => {
   it("writes back to shared when only one account is left", () => {
     const forked = socialPostTextWrite(
       "x",
-      "Only X",
+      "Account-specific text",
       {
         shared: "Hello",
         byConnectionId: { x: "Custom" },
@@ -70,7 +70,7 @@ describe("socialPostTextWrite", () => {
       },
       false,
     );
-    expect(forked.shared).toBe("Only X");
+    expect(forked.shared).toBe("Account-specific text");
     expect(forked.byConnectionId).toEqual({});
   });
 });

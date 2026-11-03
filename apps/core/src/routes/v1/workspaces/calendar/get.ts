@@ -6,7 +6,6 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -54,7 +53,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     if (c.req.valid("query").includeSocialPosts === "true") {
       requireInteractiveUserAuthContext(c.var.authContext);
-      await requireSocialBetaAccess(userContext.userId, prisma);
     }
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const query = c.req.valid("query");

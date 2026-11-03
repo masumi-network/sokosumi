@@ -4,6 +4,7 @@ const {
   agentCountMock,
   agentFindManyMock,
   billingMock,
+  brandBrainFindUniqueMock,
   coworkerCountMock,
   coworkerFindManyMock,
   creditCostFindManyMock,
@@ -26,6 +27,7 @@ const {
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   billingMock: vi.fn(),
+  brandBrainFindUniqueMock: vi.fn(),
   coworkerCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
@@ -54,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
+    brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
     creditCost: { findMany: creditCostFindManyMock },
     job: { count: jobCountMock, findMany: jobFindManyMock },
@@ -628,6 +631,48 @@ describe("ContextPacketBuilder", () => {
     );
   });
 
+  it("gives a Project bot its Project's Brand Brain", async () => {
+    const sharedScope = {
+      sokoBotId: buildInput().sokoBotId,
+      workspaceId: buildInput().workspaceId,
+      projectId: "project-1",
+    };
+    projectFindManyMock.mockResolvedValue([project("project-1")]);
+    brandBrainFindUniqueMock.mockResolvedValue({
+      body: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: ["Founders"],
+        products: ["Rockets"],
+        competitors: [],
+        channels: [],
+        questions: [],
+      },
+    });
+
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      sharedScope,
+    });
+
+    expect(brandBrainFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { projectId: "project-1" } }),
+    );
+    expect(result.packet.projects[0]).toMatchObject({
+      id: "project-1",
+      brandBrain: {
+        summary: "Acme sells rockets.",
+        audience: ["Founders"],
+      },
+    });
+  });
+
+  it("gives a personal assistant no Brand Brain", async () => {
+    await new ContextPacketBuilder().build(buildInput());
+
+    expect(brandBrainFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("loads only public Tasks and Jobs for teammate audience packets", async () => {
     await new ContextPacketBuilder().build({
       ...buildInput(),
@@ -728,6 +773,28 @@ describe("ContextPacketBuilder", () => {
 
     for (const secret of secretValues) expect(serialized).not.toContain(secret);
     expect(serialized).toContain("[Sensitive value removed]");
+  });
+
+  it("names every Project past the detailed ones, so the owner can name any", async () => {
+    projectFindManyMock
+      .mockResolvedValueOnce([project("project-new")])
+      .mockResolvedValueOnce([{ id: "project-quiet", name: "Outreach" }]);
+    projectCountMock.mockResolvedValue(2);
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.projects).toEqual([
+      expect.objectContaining({ id: "project-new", status: expect.anything() }),
+      { id: "project-quiet", name: "Outreach", trust: "untrusted-data" },
+    ]);
+    expect(projectFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [expect.anything(), { id: { notIn: ["project-new"] } }],
+        },
+        take: 100,
+      }),
+    );
   });
 
   it("deterministically drops least-relevant tails under hard byte budget", async () => {

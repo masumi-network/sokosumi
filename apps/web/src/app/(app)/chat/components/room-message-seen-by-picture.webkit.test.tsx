@@ -4,11 +4,9 @@
  * read state through React, then check height, anchoring and corner hit-testing.
  * Run with `pnpm --filter web test:webkit` (Chromium + WebKit installed).
  */
-import path from "node:path";
-
 import { type Browser, chromium, webkit } from "playwright";
 import { renderToString } from "react-dom/server";
-import { createServer, type ViteDevServer } from "vite";
+import type { ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -18,12 +16,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+import { startChatRowFixtureServer } from "@/app/chat/components/__tests__/chat-row-fixture-server";
 import {
   PICTURE_URL,
   PicturePage,
 } from "@/app/chat/components/__tests__/room-message-seen-by-picture-page";
 
-const WEB_ROOT = path.resolve(import.meta.dirname, "../../../../..");
 const PAGE_MODULE =
   "/src/app/(app)/chat/components/__tests__/room-message-seen-by-picture-page.tsx";
 const PICTURE = `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="384"><rect width="1440" height="384" fill="black"/></svg>`;
@@ -37,85 +35,13 @@ beforeAll(async () => {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script type="module">import "/src/app/globals.css";</script>
     </head><body><div id="fixture">${renderToString(<PicturePage />)}</div></body></html>`;
-  server = await createServer({
-    // The app's own resolution and React plugin, read from its Vitest config.
-    configFile: path.join(WEB_ROOT, "vitest.config.ts"),
-    root: WEB_ROOT,
+  server = await startChatRowFixtureServer({
+    pageModule: PAGE_MODULE,
+    html,
     // The viewport suite runs another Vite server concurrently with a different
     // dependency graph. Its optimization cache must not reload this page.
-    cacheDir: path.join(WEB_ROOT, "node_modules/.vite-seen-by-picture"),
-    logLevel: "error",
-    define: { "process.env": JSON.stringify({ NODE_ENV: "development" }) },
-    plugins: [
-      {
-        name: "room-message-seen-by-picture-page",
-        enforce: "pre",
-        // Mock navigation, presence and server mutation boundaries. Row,
-        // receipts, attachment previews and CSS stay real in both runtimes.
-        resolveId(id) {
-          if (id === "next/navigation") return "\0fixture-navigation";
-          if (id === "@/contexts/org-presence-provider")
-            return "\0fixture-presence";
-          if (id === "@/app/chat/actions") return "\0fixture-room-action";
-          if (id === "@/lib/actions/soko-bot/action") return "\0fixture-action";
-          if (id === "./select-project-action")
-            return "\0fixture-project-action";
-        },
-        load(id) {
-          if (id === "\0fixture-presence") {
-            return `export const useMemberPresence = (_id, fallback) => fallback;`;
-          }
-          if (id === "\0fixture-room-action") {
-            return `const forbidden = () => {throw new Error('Room actions forbidden in this fixture');};
-              export const createDirectRoomAction = forbidden;
-              export const ensureCoworkerDirectRoomAction = forbidden;
-              export const ensureSokoBotDirectRoomAction = forbidden;`;
-          }
-          if (id === "\0fixture-navigation") {
-            return `export const useRouter = () => ({push(){}, replace(){}, refresh(){}});
-              export const usePathname = () => '/chat';
-              export const useSearchParams = () => new URLSearchParams();`;
-          }
-          if (id === "\0fixture-action") {
-            return `const forbidden = () => {
-              throw new Error('Server mutations are forbidden in this fixture');
-            };
-              export const sendSokoBotTurnFeedbackAction = forbidden;
-              export const resolveSokoBotDecisionAction = forbidden;`;
-          }
-          if (id === "\0fixture-project-action") {
-            return `export const selectChatProjectAction = () => {
-              throw new Error('Server mutations are forbidden in this fixture');
-            };`;
-          }
-        },
-        configureServer(devServer) {
-          devServer.middlewares.use((request, response, next) => {
-            if (request.url !== "/") return next();
-            devServer
-              .transformIndexHtml("/", html)
-              .then((transformed) => {
-                response.setHeader("content-type", "text/html");
-                response.end(transformed);
-              })
-              .catch(next);
-          });
-        },
-      },
-    ],
-    optimizeDeps: {
-      entries: [PAGE_MODULE.slice(1)],
-      exclude: ["next/navigation"],
-    },
-    // A fixture never changes on disk while a case runs. Hot reload would
-    // discard its SSR baseline if dependency optimization discovers an import.
-    server: { host: "127.0.0.1", port: 0, hmr: false },
+    cacheDir: ".vite-seen-by-picture",
   });
-  await server.listen();
-  // Transform the client graph before measuring SSR. Loading a new optimized
-  // dependency during hydration would reload the page and erase the transition.
-  await server.environments.client.warmupRequest(PAGE_MODULE);
-  await server.environments.client.waitForRequestsIdle();
 }, 120_000);
 
 afterAll(async () => {

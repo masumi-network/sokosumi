@@ -79,7 +79,7 @@ function NavButton({
       type="button"
       className={cn(
         "hover:bg-muted focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md text-base outline-none focus-visible:ring-2",
-        active && "bg-muted ring-primary ring-1",
+        active && "bg-muted ring-ring ring-1",
       )}
       title={label}
       aria-label={label}

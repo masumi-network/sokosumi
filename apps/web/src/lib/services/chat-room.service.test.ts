@@ -19,6 +19,7 @@ const restoreChatRoomMock = vi.fn();
 const retryChatRoomMentionMock = vi.fn();
 const getChatRoomMessageMock = vi.fn();
 const markChatRoomReadMock = vi.fn();
+const listChatPeopleMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
@@ -53,6 +54,7 @@ vi.mock("@/lib/clients/core.client", () => ({
       retryChatRoomMentionMock(...args),
     getChatRoomMessage: (...args: unknown[]) => getChatRoomMessageMock(...args),
     markChatRoomRead: (...args: unknown[]) => markChatRoomReadMock(...args),
+    listChatPeople: (...args: unknown[]) => listChatPeopleMock(...args),
   },
 }));
 
@@ -667,5 +669,38 @@ describe("chatRoomService.markAllUnreadRead", () => {
       ]),
     ).rejects.toThrow("room read failed");
     expect(markChatRoomThreadsReadMock).toHaveBeenCalledWith("a");
+  });
+});
+
+describe("chatRoomService.listPeople", () => {
+  it("reads every page of people", async () => {
+    const ada = {
+      id: "u1",
+      name: "Ada",
+      email: "ada@example.com",
+      image: null,
+    };
+    const bob = {
+      id: "u2",
+      name: "Bob",
+      email: "bob@example.com",
+      image: null,
+    };
+    listChatPeopleMock
+      .mockResolvedValueOnce({
+        data: [ada],
+        meta: { pagination: { nextCursor: "u1" } },
+      })
+      .mockResolvedValueOnce({
+        data: [bob],
+        meta: { pagination: { nextCursor: null } },
+      });
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(chatRoomService.listPeople()).resolves.toEqual([ada, bob]);
+    expect(listChatPeopleMock).toHaveBeenLastCalledWith({
+      cursor: "u1",
+      limit: 100,
+    });
   });
 });

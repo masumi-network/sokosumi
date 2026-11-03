@@ -114,10 +114,9 @@ const ASSET: StudioAsset = {
   contentPath: "/asset-1",
 };
 
-function mount(canScheduleSocial = false) {
+function mount() {
   return render(
     <ImageStudio
-      canScheduleSocial={canScheduleSocial}
       catalog={TEST_CATALOG}
       initialSelectedAssetId="asset-1"
       initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
@@ -137,7 +136,7 @@ afterEach(() => {
 });
 
 describe("write a caption", () => {
-  it("shows Write a caption without Social", () => {
+  it("offers caption writing without a beta flag", () => {
     mount();
     expect(
       screen.getByRole("button", { name: "writeCaption" }),
@@ -190,7 +189,7 @@ describe("write a caption", () => {
       value: { text: "Late sun on a red fox." },
     });
     prepareMock.mockResolvedValue({ ok: true, value: MEDIA });
-    mount(true);
+    mount();
 
     fireEvent.click(screen.getByRole("button", { name: "writeCaption" }));
     await waitFor(() => {

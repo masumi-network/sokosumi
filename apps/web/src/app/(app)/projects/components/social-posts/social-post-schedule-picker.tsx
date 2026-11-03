@@ -21,6 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { cn } from "@/lib/utils";
 
 /** Local date/time format shared by the composer and picker. */
@@ -398,8 +399,9 @@ export function SocialPostSchedulePicker({
                   aria-disabled={tooSoon || undefined}
                   aria-selected={isSelected}
                   className={cn(
-                    "hover:bg-muted focus-visible:ring-ring rounded-md px-2 py-1.5 text-start text-sm tabular-nums outline-none focus-visible:ring-2",
-                    isSelected && "bg-primary-quinary font-medium",
+                    POPOVER_ROW_CLASS,
+                    "px-2 py-1.5 text-start text-sm tabular-nums",
+                    isSelected && "bg-muted font-medium",
                     tooSoon &&
                       "text-muted-foreground pointer-events-none opacity-50",
                   )}

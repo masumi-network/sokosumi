@@ -23,6 +23,9 @@ export const CORE_API_ERROR_KINDS = {
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  NEWSLETTER_APPROVAL_REQUIRED: "newsletter_approval_required",
+  NEWSLETTER_SENDER_NOT_CONFIGURED: "newsletter_sender_not_configured",
+  NEWSLETTER_NO_ACTIVE_SUBSCRIBERS: "newsletter_no_active_subscribers",
   /** The user has no workspace, or a coworker may not act in the preferred one. */
   NO_PREFERRED_WORKSPACE: "no_preferred_workspace",
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",
@@ -32,6 +35,8 @@ export const CORE_API_ERROR_KINDS = {
   SEAT_CAPACITY_EXCEEDED: "seat_capacity_exceeded",
   SUBSCRIPTION_CHANGE_NOT_ALLOWED: "subscription_change_not_allowed",
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",
+  /** Stripe could not collect the payment, so the subscription was left unchanged. */
+  SUBSCRIPTION_PAYMENT_FAILED: "subscription_payment_failed",
   SUBSCRIPTION_SEATS_BELOW_ASSIGNED: "subscription_seats_below_assigned",
   FREE_CREDIT_INVALID: "free_credit_invalid",
   LAST_WORKSPACE: "last_workspace",

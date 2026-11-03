@@ -9,6 +9,7 @@ import {
   PUSH_WORKER_MESSAGES_PATH,
   PUSH_WORKER_RENEWAL_PATH,
 } from "@/config/push-worker-assets";
+import { SENTRY_TUNNEL_PATH } from "@/config/sentry-tunnel";
 import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
@@ -27,6 +28,7 @@ const EXCLUDED_PATHS = [
   "/accept-invitation",
   "/join/",
   "/share/",
+  "/n/",
   "/health",
   "/robots.txt",
   "/sitemap.xml",
@@ -50,6 +52,9 @@ const EXCLUDED_PATHS = [
   // `importScripts` call, so a move fails there rather than silently here.
   PUSH_WORKER_MESSAGES_PATH,
   PUSH_WORKER_RENEWAL_PATH,
+  // Sentry reports from the browser, signed in or not. A redirect would send
+  // the POST on to `/signin`, which answers 405 and drops the report.
+  SENTRY_TUNNEL_PATH,
   "/maintenance",
 ];
 
@@ -97,7 +102,10 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
-  applyDocumentSecurityHeaders(response, securityHeaderOptions);
+  applyDocumentSecurityHeaders(response, {
+    ...securityHeaderOptions,
+    pathname,
+  });
 
   // Persist `/join/:token` on the response (not an RSC cookies().set).
   const joinToken = joinTokenFromJoinPath(pathname);

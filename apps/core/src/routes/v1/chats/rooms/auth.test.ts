@@ -49,6 +49,7 @@ const {
         findUnique: memberFindUniqueMock,
       },
       chatRoomMessage: {
+        groupBy: vi.fn().mockResolvedValue([]),
         findMany: messageFindManyMock,
         count: messageCountMock,
       },
@@ -359,6 +360,7 @@ describe("chat room user auth guards", () => {
             update: vi.fn(),
           },
           chatRoomMessage: {
+            groupBy: vi.fn().mockResolvedValue([]),
             findFirst: vi.fn(),
             create: vi.fn().mockResolvedValue({
               id: MESSAGE_ID,
@@ -383,7 +385,6 @@ describe("chat room user auth guards", () => {
               reactions: [],
               replies: [],
               pins: [],
-              _count: { replies: 0 },
             }),
           },
           // The human mention rows are written in the same transaction.

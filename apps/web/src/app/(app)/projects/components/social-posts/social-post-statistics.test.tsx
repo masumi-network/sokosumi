@@ -249,7 +249,7 @@ describe("SocialPostStatistics account history", () => {
     ).toHaveLength(2);
     expect(screen.queryByText(post.text)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Last \d+ days/ }),
+      screen.queryByRole("radio", { name: /Last \d+ days/ }),
     ).not.toBeInTheDocument();
   });
   it("shows a retryable error for a successful HTTP response containing an error body", async () => {
@@ -332,7 +332,7 @@ describe("SocialPostStatistics account history", () => {
     );
     for (const days of [7, 30, 90]) {
       expect(
-        screen.getByRole("button", { name: `Last ${days} days` }),
+        screen.getByRole("radio", { name: `Last ${days} days` }),
       ).toHaveClass("h-11", "md:h-8");
     }
     expect(
@@ -887,6 +887,33 @@ describe("SocialPostStatistics account history", () => {
       }),
     );
   });
+
+  it.each(["tiktok", "instagram", "facebook"])(
+    "keeps %s history visible but disables recycling with a Coming soon badge",
+    async (provider) => {
+      mocks.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...page(),
+          posts: [{ ...post, provider, strong: true, canRecycle: true }],
+        }),
+      });
+      renderStatistics();
+      expect(await screen.findByText(post.text)).toBeVisible();
+      const recycle = await screen.findByRole("button", { name: /Recycle/ });
+      expect(recycle).toBeDisabled();
+      expect(
+        within(recycle).getByText(
+          en.App.Projects.ProjectSocialAccounts.comingSoon,
+        ),
+      ).toHaveAttribute("data-slot", "badge");
+      fireEvent.click(recycle);
+      expect(
+        screen.queryByRole("heading", { name: "Recycle this post?" }),
+      ).not.toBeInTheDocument();
+      expect(mocks.recycle).not.toHaveBeenCalled();
+    },
+  );
 
   it("saves a recycled post as a draft", async () => {
     mocks.fetch.mockResolvedValue({

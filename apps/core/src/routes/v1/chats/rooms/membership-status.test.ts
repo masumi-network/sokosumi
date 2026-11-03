@@ -42,7 +42,6 @@ function statusMessage(overrides: Record<string, unknown> = {}) {
     mentionsAsSource: [],
     reactions: [],
     replies: [],
-    _count: { replies: 0 },
     ...overrides,
   };
 }

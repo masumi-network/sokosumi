@@ -250,6 +250,12 @@ export async function publishXPost(
         arguments: {
           ...(context.text ? { text: context.text } : {}),
           ...(mediaIds.length > 0 ? { media_media_ids: mediaIds } : {}),
+          ...(context.replyToExternalId
+            ? { reply_in_reply_to_tweet_id: context.replyToExternalId }
+            : {}),
+          ...(context.quoteExternalId
+            ? { quote_tweet_id: context.quoteExternalId }
+            : {}),
         },
         context: createStep.context,
         refused: createStep.refused,

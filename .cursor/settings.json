@@ -1,8 +1,5 @@
 {
   "plugins": {
-    "caveman/caveman": {
-      "enabled": true
-    },
     "superpowers": {
       "enabled": true
     },

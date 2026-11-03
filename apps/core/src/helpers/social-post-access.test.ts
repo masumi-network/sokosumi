@@ -68,7 +68,7 @@ describe("Social post delegation", () => {
     await expect(
       requireSocialPostPublishingAccess(actor, "workspace"),
     ).rejects.toMatchObject({ status: 403 });
-    expect(mocks.beta).toHaveBeenCalledWith("user", expect.anything());
+    expect(mocks.beta).not.toHaveBeenCalled();
     expect(mocks.workspace).toHaveBeenCalledWith({
       where: {
         id: "workspace",
@@ -79,6 +79,21 @@ describe("Social post delegation", () => {
       },
       select: { id: true },
     });
+  });
+  it("allows delayed publication outside the utxo beta while checking delegation and membership", async () => {
+    mocks.beta.mockRejectedValue(forbidden("Ads beta only"));
+
+    await expect(
+      requireSocialPostPublishingAccess(actor, "workspace"),
+    ).resolves.toBeUndefined();
+    expect(mocks.beta).not.toHaveBeenCalled();
+    expect(mocks.binding).toHaveBeenCalledWith(actor, expect.anything());
+    expect(mocks.capability).toHaveBeenCalledWith(
+      "cow",
+      "tasks",
+      expect.anything(),
+    );
+    expect(mocks.workspace).toHaveBeenCalled();
   });
   it.each([
     null,

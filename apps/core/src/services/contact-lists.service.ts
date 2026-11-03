@@ -13,12 +13,13 @@ import prisma from "@/lib/db/prisma";
 import type { contactListSchema } from "@/schemas/contact.schema";
 import {
   type ContactActor,
+  type ContactWriteActor,
   contactFilterWhere,
   parseSmartFilter,
 } from "@/services/contacts.service";
 
 type Tx = Prisma.TransactionClient;
-type ContactListDto = z.input<typeof contactListSchema>;
+export type ContactListDto = z.input<typeof contactListSchema>;
 type ContactListRow = Prisma.ContactListGetPayload<object>;
 type ListColor = (typeof CONTACT_LIST_COLORS)[number];
 
@@ -267,7 +268,7 @@ export async function updateContactListMembers(
 /** The manual list of this name, created when missing; for imports. */
 export async function ensureManualContactList(
   tx: Tx,
-  actor: ContactActor,
+  actor: ContactWriteActor,
   name: string,
   color: ListColor,
 ): Promise<{ id: string; created: boolean }> {

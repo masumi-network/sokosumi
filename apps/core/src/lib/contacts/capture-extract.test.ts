@@ -13,6 +13,7 @@ import {
   extractMeeting,
   extractSentMail,
   extractSlackConversation,
+  extractXDms,
   mailTopic,
   parseAddresses,
   parseEvent,
@@ -20,6 +21,8 @@ import {
   parseSignature,
   parseSlackConversation,
   parseSlackProfile,
+  parseXDmEvent,
+  parseXPage,
   slackCandidate,
   slackDays,
 } from "./capture-extract";
@@ -238,6 +241,29 @@ describe("Outlook mail", () => {
       "bulk_header",
     ]);
   });
+
+  function htmlBody(content: string) {
+    return parseMail({
+      id: "html",
+      sentDateTime: "2026-10-20T13:05:00Z",
+      body: { contentType: "html", content },
+    })?.body;
+  }
+
+  it("strips nested tags that reassemble after one pass", () => {
+    const body = htmlBody(
+      "<p>Hi</p><scr<script>ipt>x</script><sty<style>y</style>le>z</style><scr<style></style>ipt",
+    );
+    expect(body).not.toMatch(/<\s*(script|style)/i);
+    expect(body).not.toContain("<");
+    expect(body).toContain("Hi");
+  });
+
+  it("decodes entities once", () => {
+    expect(htmlBody("<p>a &amp;lt; b &lt; c &amp;quot;</p>")).toBe(
+      "a &lt; b < c &quot;\n",
+    );
+  });
 });
 
 describe("signatures", () => {
@@ -417,5 +443,50 @@ describe("Slack", () => {
       title: "CTO",
       phone: "+41 44 555 66 77",
     });
+  });
+});
+
+describe("X", () => {
+  const event = (conversation: string, sender: string, at: string) => ({
+    event_type: "MessageCreate",
+    dm_conversation_id: conversation,
+    sender_id: sender,
+    created_at: at,
+  });
+
+  it("reads a page whether or not Composio wraps it in another data", () => {
+    const body = {
+      data: [event("1-2", "2", "2026-10-20T10:00:00Z")],
+      includes: { users: [{ id: "2", name: "Ruth", username: "ruthw" }] },
+      meta: { next_token: "n1" },
+    };
+    for (const raw of [body, { data: body }])
+      expect(parseXPage(raw)).toMatchObject({
+        items: [expect.objectContaining({ sender_id: "2" })],
+        users: [{ id: "2", username: "ruthw", name: "Ruth" }],
+        nextToken: "n1",
+      });
+  });
+
+  it("counts a day only when the owner wrote, and never a stranger who only wrote in", () => {
+    const events = [
+      event("1-2", "1", "2026-10-20T09:00:00Z"),
+      event("1-2", "2", "2026-10-20T16:00:00Z"),
+      event("1-2", "2", "2026-10-21T08:00:00Z"),
+      event("1-3", "3", "2026-10-20T08:00:00Z"),
+      {
+        ...event("1-2", "2", "2026-10-22T08:00:00Z"),
+        event_type: "ParticipantsJoin",
+      },
+    ].flatMap((raw) => parseXDmEvent(raw) ?? []);
+    expect(extractXDms({ events, ownerId: "1" })).toEqual([
+      {
+        day: "2026-10-20",
+        conversationId: "1-2",
+        userId: "2",
+        group: false,
+        direction: "BOTH",
+      },
+    ]);
   });
 });

@@ -668,6 +668,33 @@ describe("project.service", () => {
       );
     });
 
+    it("passes quote candidate filters to Core and returns pagination", async () => {
+      coreClientMock.getProjectsByIdSocialPosts.mockResolvedValue({
+        data: [post],
+        meta: { pagination: { nextCursor: "next-quote" } },
+      });
+      const { projectService } = await import("./project.service");
+      expect(
+        await projectService.listSocialPosts("project-1", {
+          quoteCandidates: true,
+          excludePostId: "post-1",
+          search: "launch",
+          cursor: "cursor",
+        }),
+      ).toEqual({ posts: [post], nextCursor: "next-quote" });
+      expect(coreClientMock.getProjectsByIdSocialPosts).toHaveBeenCalledWith(
+        "project-1",
+        {
+          quoteCandidates: "true",
+          excludePostId: "post-1",
+          search: "launch",
+          cursor: "cursor",
+          status: undefined,
+          limit: 20,
+        },
+      );
+    });
+
     it("reads a single social post", async () => {
       coreClientMock.getProjectsByIdSocialPostsByPostId.mockResolvedValue({
         data: post,

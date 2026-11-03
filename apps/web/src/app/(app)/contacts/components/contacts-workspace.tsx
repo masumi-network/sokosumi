@@ -57,7 +57,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
-import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
+import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
 import { cn } from "@/lib/utils";
 import { AddContactDialog } from "./add-contact-dialog";
 import { ContactListDialog } from "./contact-list-dialog";
@@ -73,6 +73,7 @@ import {
 } from "./contacts-toolbar";
 import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
@@ -93,9 +94,9 @@ type Dialog =
 
 /** The Contacts tab: views and companies on top, the grid, and the person panel. */
 export function ContactsWorkspace({
-  connectOffers,
+  sync,
 }: {
-  connectOffers: SokoBotConnectOffer[] | null;
+  sync: ContactsSyncState | null;
 }) {
   const t = useTranslations("App.Contacts");
   const cache = useQueryClient();
@@ -387,6 +388,9 @@ export function ContactsWorkspace({
             {viewList.description}
           </p>
         ) : null}
+        {viewList?.kind === "manual" ? (
+          <ListSuggestions key={viewList.id} list={viewList} />
+        ) : null}
         <div className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
             {rows.isPending || (searchPending && contacts.length === 0) ? (
@@ -410,7 +414,7 @@ export function ContactsWorkspace({
               />
             ) : workspaceEmpty ? (
               <ContactsEmptyState
-                offers={connectOffers}
+                sync={sync}
                 onAdd={() => setDialog({ kind: "add" })}
                 onImport={() => setDialog({ kind: "import" })}
               />

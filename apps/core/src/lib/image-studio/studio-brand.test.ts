@@ -28,10 +28,18 @@ const DESIGN_MD_URL =
 describe("applyStudioBrandPrompt", () => {
   it("leaves the brief alone when Design and Memory are empty", () => {
     expect(
-      applyStudioBrandPrompt("a red fox", { designMd: null, memory: null }),
+      applyStudioBrandPrompt("a red fox", {
+        designMd: null,
+        memory: null,
+        brandBrain: null,
+      }),
     ).toBe("a red fox");
     expect(
-      applyStudioBrandPrompt("a red fox", { designMd: "  ", memory: "\n" }),
+      applyStudioBrandPrompt("a red fox", {
+        designMd: "  ",
+        memory: "\n",
+        brandBrain: null,
+      }),
     ).toBe("a red fox");
   });
 
@@ -40,6 +48,7 @@ describe("applyStudioBrandPrompt", () => {
       applyStudioBrandPrompt("a red fox", {
         designMd: "# Brand\nUse crimson.",
         memory: "We never use serif.",
+        brandBrain: null,
       }),
     ).toBe(
       [
@@ -56,19 +65,42 @@ describe("applyStudioBrandPrompt", () => {
       applyStudioBrandPrompt("a red fox", {
         designMd: "# Brand",
         memory: null,
+        brandBrain: null,
       }),
     ).toContain("Design:\n# Brand");
     expect(
       applyStudioBrandPrompt("a red fox", {
         designMd: "# Brand",
         memory: null,
+        brandBrain: null,
       }),
     ).not.toContain("Memory:");
   });
 
+  it("puts the Brand Brain first", () => {
+    expect(
+      applyStudioBrandPrompt("a red fox", {
+        designMd: "# Brand",
+        memory: null,
+        brandBrain: "Acme sells rockets.",
+      }),
+    ).toBe(
+      [
+        "Follow this project's brand.",
+        "Brand Brain:\nAcme sells rockets.",
+        "Design:\n# Brand",
+        "Brief:\na red fox",
+      ].join("\n\n"),
+    );
+  });
+
   it("clips a long brand block", () => {
     const designMd = "x".repeat(2000);
-    const prompt = applyStudioBrandPrompt("brief", { designMd, memory: null });
+    const prompt = applyStudioBrandPrompt("brief", {
+      designMd,
+      memory: null,
+      brandBrain: null,
+    });
     expect(prompt).toContain("x".repeat(1600));
     expect(prompt).not.toContain("x".repeat(1601));
   });
@@ -91,6 +123,7 @@ describe("loadStudioBrand", () => {
     await expect(loadStudioBrand("project-1")).resolves.toEqual({
       designMd: "# Brand\nUse crimson.",
       memory: "We never use serif.",
+      brandBrain: null,
     });
     expect(ssrfSafeFetchMock).toHaveBeenCalledWith(DESIGN_MD_URL, {
       maxResponseBytes: LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
@@ -106,6 +139,7 @@ describe("loadStudioBrand", () => {
     await expect(loadStudioBrand("project-1")).resolves.toEqual({
       designMd: null,
       memory: "Keep the fox.",
+      brandBrain: null,
     });
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });
@@ -115,6 +149,7 @@ describe("loadStudioBrand", () => {
     await expect(loadStudioBrand("project-1")).resolves.toEqual({
       designMd: null,
       memory: null,
+      brandBrain: null,
     });
 
     projectFindUniqueMock.mockResolvedValue({
@@ -125,6 +160,35 @@ describe("loadStudioBrand", () => {
     await expect(loadStudioBrand("project-1")).resolves.toEqual({
       designMd: null,
       memory: "Keep the fox.",
+      brandBrain: null,
+    });
+  });
+
+  it("reads the Project's Brand Brain: who the business is and sounds like", async () => {
+    projectFindUniqueMock.mockResolvedValue({
+      designMdUrl: null,
+      contextMd: null,
+      brandBrain: {
+        body: {
+          summary: "Acme sells rockets to founders.",
+          voice: { tone: "Direct and warm", do: [], dont: [], examples: [] },
+          audience: ["Founders", "Engineers"],
+          products: ["Rockets"],
+          competitors: [],
+          channels: [],
+        },
+      },
+    });
+
+    await expect(loadStudioBrand("project-1")).resolves.toEqual({
+      designMd: null,
+      memory: null,
+      brandBrain: [
+        "Acme sells rockets to founders.",
+        "Voice: Direct and warm",
+        "Audience: Founders; Engineers",
+        "Products: Rockets",
+      ].join("\n"),
     });
   });
 });

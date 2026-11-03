@@ -54,11 +54,18 @@ const STATUS_MARKERS: Record<SocialPostStatus, StatusMarkerSpec> = {
   },
 };
 
+/** The status's hue and weight, for a mark drawn outside the badge. */
+export function socialPostStatusTone(status: SocialPostStatus) {
+  return STATUS_MARKERS[status].tone;
+}
+
 interface SocialPostStatusBadgeProps {
   label: string;
   status: SocialPostStatus;
   showLabel?: boolean;
   className?: string;
+  partiallyPublished?: boolean;
+  waitingForQuotedPost?: boolean;
 }
 
 /** A post's status, drawn the way the Task board draws a task's. */
@@ -67,8 +74,17 @@ export function SocialPostStatusBadge({
   status,
   showLabel = true,
   className,
+  partiallyPublished = false,
+  waitingForQuotedPost = false,
 }: SocialPostStatusBadgeProps) {
-  const marker = STATUS_MARKERS[status];
+  const marker: StatusMarkerSpec = partiallyPublished
+    ? { tone: { hue: "blocked", weight: "filled" }, icon: MARKER_ICONS.warning }
+    : waitingForQuotedPost
+      ? {
+          tone: { hue: "staged", weight: "outline" },
+          icon: MARKER_ICONS.awaiting,
+        }
+      : STATUS_MARKERS[status];
   const style = getToneStyle(marker.tone);
   return (
     <span

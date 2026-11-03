@@ -988,7 +988,7 @@ describe("GET /workspaces/calendar", () => {
     );
   });
   it.each([false, true])(
-    "requires Social beta membership for an interactive opt-in: %s",
+    "allows Social outside the Ads beta for an interactive opt-in: %s",
     async (allowed) => {
       memberFindFirstMock.mockResolvedValue(
         allowed ? { id: "member_123" } : null,
@@ -999,14 +999,9 @@ describe("GET /workspaces/calendar", () => {
       }).request(
         `/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true&status=READY`,
       );
-      expect(response.status).toBe(allowed ? 200 : 403);
-      expect(memberFindFirstMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { userId: "user_123", organization: { slug: "utxo" } },
-        }),
-      );
-      if (!allowed)
-        expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
+      expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalled();
     },
   );
   it("rejects automation opt-in to Social post calendar data", async () => {

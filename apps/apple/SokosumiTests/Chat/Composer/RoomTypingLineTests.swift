@@ -39,7 +39,7 @@
       state.typing.channelChanged(roomId: Self.roomId, canPublish: true)
       let uploads = ComposeUploads(savedDraft: saved)
       host = NSHostingView(rootView: AnyView(FixtureActivityHost(activity: activity) {
-        ChatComposerView(userId: userId, organizationId: nil, roomId: Self.roomId, parentMessageId: parentMessageId)
+        ChatComposerView(userId: userId, draftScope: .init(organizationId: nil), roomId: Self.roomId, parentMessageId: parentMessageId)
           .environmentObject(state).environmentObject(AuthState())
           .environmentObject(uploads).environmentObject(ComposerAttachmentIngress())
           .frame(width: width)

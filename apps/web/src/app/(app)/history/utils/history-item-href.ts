@@ -35,6 +35,11 @@ export function getHistoryItemHref(
     // the viewer's own personal bot on to their assistant page.
     case "sokoBot":
       return sokoBotConsoleRoute(item.sokoBotId);
+    // The list the people were found for, while it exists.
+    case "contacts":
+      return item.contactListId
+        ? `/contacts?list=${encodeURIComponent(item.contactListId)}`
+        : null;
     // A refund opens what it refunded, the same page as the spend it undid.
     // Other top ups have no page behind them. Legacy studio refunds carry
     // projectId from the refunded image job (no job/task id).

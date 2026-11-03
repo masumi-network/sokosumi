@@ -8,6 +8,8 @@ const ROOM_MESSAGE_REQUEST_TIMEOUT_MS = 30_000;
 export interface RoomMessagesPage {
   messages: ChatRoomMessage[];
   nextCursor: string | null;
+  /** Where the Unread divider belongs; absent on older pages (SOK-1481). */
+  firstUnreadMessageId?: string | null;
 }
 
 /**
@@ -18,7 +20,14 @@ export interface RoomMessagesPage {
 export async function fetchRoomMessages(
   roomId: string,
   parentMessageId?: string | null,
-  options?: { cursor?: string; around?: string; limit?: number },
+  options?: {
+    cursor?: string;
+    around?: string;
+    limit?: number;
+    openAtUnread?: boolean;
+    /** Aborts the request, e.g. when the view that asked unmounts. */
+    signal?: AbortSignal;
+  },
   onAccessDenied?: (status: number) => void,
 ): Promise<RoomMessagesPage | null> {
   const params = new URLSearchParams();
@@ -26,6 +35,7 @@ export async function fetchRoomMessages(
   if (options?.cursor) params.set("cursor", options.cursor);
   if (options?.around) params.set("around", options.around);
   if (options?.limit) params.set("limit", String(options.limit));
+  if (options?.openAtUnread) params.set("openAtUnread", "true");
   const query = params.size ? `?${params}` : "";
   const data = await fetchBackgroundJson(
     `/api/chat/${encodeURIComponent(roomId)}/messages${query}`,
@@ -41,6 +51,7 @@ export async function fetchRoomMessages(
       )
         onAccessDenied?.(status);
     },
+    options?.signal,
   );
   if (data == null) return null;
   try {
@@ -48,6 +59,7 @@ export async function fetchRoomMessages(
     return {
       messages: page.data,
       nextCursor: page.meta.pagination.nextCursor,
+      firstUnreadMessageId: page.meta.pagination.firstUnreadMessageId,
     };
   } catch {
     return null;

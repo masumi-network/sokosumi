@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CoreApiRequestError } from "@/lib/clients/core.request";
@@ -22,8 +21,6 @@ const {
 }));
 
 vi.mock("server-only", () => ({}));
-
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -141,7 +138,6 @@ describe("starting image generation", () => {
       sessionId: null,
       idempotencyKey: "ui:request-1",
     });
-    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/studio");
   });
 
   it("reports a lost Core response as uncertain even when returned as data", async () => {
@@ -155,7 +151,6 @@ describe("starting image generation", () => {
       message: "Connection lost",
       uncertain: true,
     });
-    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it.each([500, 502, 503, 504])(
@@ -176,7 +171,6 @@ describe("starting image generation", () => {
         message: "Core could not finish the response",
         uncertain: true,
       });
-      expect(revalidatePath).not.toHaveBeenCalled();
     },
   );
 
@@ -198,7 +192,6 @@ describe("starting image generation", () => {
         message: "Choose different settings",
         uncertain: false,
       });
-      expect(revalidatePath).not.toHaveBeenCalled();
     },
   );
 
@@ -207,18 +200,6 @@ describe("starting image generation", () => {
     createJob.mockRejectedValue(error);
 
     await expect(startImageGeneration(REQUEST)).rejects.toBe(error);
-    expect(revalidatePath).not.toHaveBeenCalled();
-  });
-
-  it("does not describe a failed revalidation as a rejected generation", async () => {
-    createJob.mockResolvedValue({ id: "job-1" });
-    const error = new Error("Revalidation failed after acceptance");
-    vi.mocked(revalidatePath).mockImplementation(() => {
-      throw error;
-    });
-
-    await expect(startImageGeneration(REQUEST)).rejects.toBe(error);
-    expect(createJob).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -5,7 +5,6 @@ import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-bi
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -49,7 +48,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const includeSocialPosts = query.includeSocialPosts === "true";
     if (includeSocialPosts) {
       requireInteractiveUserAuthContext(c.var.authContext);
-      await requireSocialBetaAccess(userContext.userId, prisma);
     }
     const workspaceId = workspaceContext.workspaceId;
     const isSchedulable = await canCreateTaskSchedules(c.var);

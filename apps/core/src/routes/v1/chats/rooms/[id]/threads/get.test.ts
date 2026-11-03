@@ -42,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $queryRawUnsafe: queryRawUnsafeMock,
     chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
       findMany: messageFindManyMock,
     },
   },
@@ -132,7 +133,6 @@ function parentMessage() {
     reactions: [],
     replies: [],
     pins: [],
-    _count: { replies: 2 },
   };
 }
 

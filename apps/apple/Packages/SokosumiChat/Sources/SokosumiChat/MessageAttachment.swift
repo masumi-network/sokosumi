@@ -9,6 +9,8 @@ enum MessageAttachmentKindAttribute: AttributedStringKey {
 public struct MessageAttachment: Hashable, Sendable {
   public enum Kind: Hashable, Sendable { case image, audio, video, file }
   public enum DocumentPreviewKind: Sendable { case pdf, text, office }
+  /// What a click on a composer quote's tile opens, like web's `FileChipMiniPreview`.
+  public enum Opening: Sendable { case imageViewer, documentViewer, link }
   public let url: URL
   public let filename: String
   public let kind: Kind
@@ -27,6 +29,14 @@ public struct MessageAttachment: Hashable, Sendable {
     case "doc", "docx", "ppt", "pptx", "xls", "xlsx": .office
     default: nil
     }
+  }
+
+  /// Web has no viewer for an archive, a video or a sound, so its compact tile is a link.
+  public var opening: Opening {
+    if kind == .image {
+      return .imageViewer
+    }
+    return documentPreviewKind == nil ? .link : .documentViewer
   }
 
   public init?(url: URL, label: String, kindHint: Kind? = nil) {
@@ -97,34 +107,14 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
 }
 
 extension MessageMarkdown {
-  /// The media embedded in the text, in document order, grouped where only whitespace separates them. File links
-  /// in the text are links, not attachments (row 15c).
-  static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
-    var rows: [[MessageAttachment]] = []
-    var open = false
-    func walk(_ block: MessageMarkdownBlock) {
-      guard block.children.isEmpty else {
-        block.children.forEach(walk)
-        return
-      }
+  /// The media embedded in the text, in document order. File links in the text are links, not attachments (row 15c).
+  static func embeddedAttachments(in blocks: [MessageMarkdownBlock]) -> [MessageAttachment] {
+    blocks.flatMap { block -> [MessageAttachment] in
+      guard block.children.isEmpty else { return embeddedAttachments(in: block.children) }
       if case .codeBlock = block.kind {
-        open = false
-        return
+        return []
       }
-      for segment in MessageAttachmentSegment.split(block.text) {
-        if let attachment = segment.attachment {
-          if open {
-            rows[rows.count - 1].append(attachment)
-          } else {
-            rows.append([attachment])
-            open = true
-          }
-        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-          open = false
-        }
-      }
+      return MessageAttachmentSegment.split(block.text).compactMap(\.attachment)
     }
-    blocks.forEach(walk)
-    return rows
   }
 }

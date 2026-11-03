@@ -5,6 +5,7 @@ import type {
   AddChatRoomMembersRequest,
   ChannelSlugAvailability,
   ChatEarlierThread,
+  ChatPerson,
   ChatRoom,
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
@@ -41,6 +42,8 @@ const ROOM_LIST_MAX_PAGES = 50;
 export interface ChatRoomMessagesPage {
   messages: ChatRoomMessage[];
   nextCursor: string | null;
+  /** Where the Unread divider belongs; absent on older pages (SOK-1481). */
+  firstUnreadMessageId?: string | null;
 }
 
 export interface ChatRoomsPage {
@@ -137,6 +140,12 @@ export const chatRoomService = (() => {
       return listRooms("channel", "archived");
     },
   );
+
+  /** Unread rooms of the reader's other workspaces, in Core's order (ADR-0061). */
+  async function listElsewhereRooms(): Promise<ChatRoom[]> {
+    const response = await coreClient.getElsewhereChatRooms();
+    return response.data;
+  }
 
   /** Pending room invitations for the signed-in invitee (External sidebar). */
   const listPendingInvitations = cache(
@@ -241,6 +250,18 @@ export const chatRoomService = (() => {
   ): Promise<AcceptChatRoomGuestInviteLink> {
     const response = await coreClient.acceptChatRoomGuestInviteLink(token);
     return response.data;
+  }
+
+  /** Everyone the user may start a Personal Direct with, in any workspace. */
+  async function listPeople(): Promise<ChatPerson[]> {
+    const people: ChatPerson[] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await coreClient.listChatPeople({ cursor, limit: 100 });
+      people.push(...response.data);
+      cursor = response.meta?.pagination?.nextCursor ?? undefined;
+    } while (cursor);
+    return people;
   }
 
   const getRoom = cache(async function getRoom(
@@ -426,16 +447,23 @@ export const chatRoomService = (() => {
 
   const listMessages = cache(async function listMessages(
     roomId: string,
-    options?: { cursor?: string; limit?: number; around?: string },
+    options?: {
+      cursor?: string;
+      limit?: number;
+      around?: string;
+      openAtUnread?: boolean;
+    },
   ): Promise<ChatRoomMessagesPage> {
     const response = await coreClient.getChatRoomMessages(roomId, {
       limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
       cursor: options?.around ? undefined : options?.cursor,
       around: options?.around,
+      openAtUnread: options?.openAtUnread ? "true" : undefined,
     });
     return {
       messages: response.data,
       nextCursor: response.meta?.pagination?.nextCursor ?? null,
+      firstUnreadMessageId: response.meta?.pagination?.firstUnreadMessageId,
     };
   });
 
@@ -685,6 +713,7 @@ export const chatRoomService = (() => {
   }
 
   return {
+    listPeople,
     acceptInvitation,
     acceptRoomGuestInviteLink,
     archiveRoom,
@@ -701,6 +730,7 @@ export const chatRoomService = (() => {
     joinRoom,
     listArchivedRooms,
     listDiscoverableChannels,
+    listElsewhereRooms,
     listMessages,
     listPendingInvitations,
     listRoomGuestInviteLinks,

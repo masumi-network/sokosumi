@@ -37,7 +37,7 @@
           ingress.cancel()
           release.continuation.yield()
         }
-        let content = ChatComposerView(userId: userId, organizationId: nil, roomId: "room")
+        let content = ChatComposerView(userId: userId, draftScope: .init(organizationId: nil), roomId: "room")
           .environmentObject(workspaces)
           .environmentObject(AuthState())
           .environmentObject(uploads)

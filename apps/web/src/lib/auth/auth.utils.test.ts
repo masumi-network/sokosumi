@@ -16,6 +16,7 @@ import {
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
   oauthRequestAsksForNewAccount,
+  oauthRequestBrand,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
   oauthRequestSignsUpOnWebsite,
@@ -68,6 +69,35 @@ describe("oauthRequestAsksForNewAccount", () => {
 
   it("finds no request for a new account without a prompt", () => {
     expect(oauthRequestAsksForNewAccount("client_id=cmo")).toBe(false);
+  });
+});
+
+describe("oauthRequestBrand", () => {
+  const query = (redirectUri: string) =>
+    new URLSearchParams({
+      client_id: "cmo",
+      redirect_uri: redirectUri,
+    }).toString();
+
+  it.each([
+    "https://app.cmo.xyz/api/auth/callback/sokosumi",
+    "https://sokosumi-cmo-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi",
+    "http://localhost:3110/api/auth/callback/sokosumi",
+  ])("gives CMO.xyz its look for %s", (redirectUri) => {
+    expect(oauthRequestBrand(query(redirectUri))).toBe("cmo");
+  });
+
+  it.each([
+    "https://cmo.xyz.evil.com/api/auth/callback/sokosumi",
+    "https://app.cmo.xyz/other",
+    "http://127.0.0.1:5173/callback",
+    "not a url",
+  ])("keeps Sokosumi's look for %s", (redirectUri) => {
+    expect(oauthRequestBrand(query(redirectUri))).toBeUndefined();
+  });
+
+  it("keeps Sokosumi's look without a redirect", () => {
+    expect(oauthRequestBrand("client_id=cmo")).toBeUndefined();
   });
 });
 

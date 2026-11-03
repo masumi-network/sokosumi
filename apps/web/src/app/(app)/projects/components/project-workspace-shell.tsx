@@ -1,4 +1,3 @@
-import { Mail } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import {
@@ -14,7 +13,6 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
-import { newsletterService } from "@/lib/services/newsletter.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
@@ -25,7 +23,6 @@ export interface ProjectWorkspaceLabels {
   bots?: string;
   design: string;
   memory: string;
-  newsletter?: string;
   overview: string;
   properties: ProjectPropertiesLabels;
 }
@@ -44,18 +41,16 @@ export interface ProjectWorkspaceLabels {
  * shared bots exist only in an organization.
  */
 export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabels> {
-  const [t, sharedBots, organizationId, newsletterEnabled] = await Promise.all([
+  const [t, sharedBots, organizationId] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     sokoBotService.listShared().catch(() => null),
     userService.getActiveOrganizationId(),
-    newsletterService.isEnabled().catch(() => false),
   ]);
   return {
     ariaLabel: t("tabs.ariaLabel"),
     ...(sharedBots && organizationId ? { bots: t("tabs.bots") } : {}),
     design: t("tabs.design"),
     memory: t("tabs.memory"),
-    ...(newsletterEnabled ? { newsletter: t("tabs.newsletter") } : {}),
     overview: t("tabs.overview"),
     properties: {
       title: t("header.properties"),
@@ -79,6 +74,11 @@ interface ProjectWorkspaceShellProps {
   projectName: string;
   identifier?: string | null;
   websiteUrl?: string | null;
+  /**
+   * More of the right column, under Properties from `xl` up and after the
+   * tab's content below it: Overview's Needs you and Recent activity.
+   */
+  panels?: React.ReactNode;
 }
 
 /**
@@ -105,6 +105,7 @@ export function ProjectWorkspaceShell({
   projectName,
   identifier,
   websiteUrl,
+  panels,
 }: ProjectWorkspaceShellProps) {
   /**
    * What a project *is*, in three views.
@@ -143,16 +144,6 @@ export function ProjectWorkspaceShell({
           },
         ]
       : []),
-    ...(labels.newsletter
-      ? [
-          {
-            id: "newsletter",
-            href: `/projects/${projectId}/newsletter`,
-            label: labels.newsletter,
-            icon: <Mail className="size-4" />,
-          },
-        ]
-      : []),
   ];
 
   return (
@@ -164,7 +155,19 @@ export function ProjectWorkspaceShell({
           tabs block adds 16px in one column, so the Properties close their
           group before the tabs start. The 56px column gap keeps the header's
           actions clear of the rail. */}
-      <div className={cn(TASK_DETAIL_GRID_CLASS, "gap-y-4 xl:gap-x-14")}>
+      {/* With panels, from `xl` up, three rows: the name and the Properties
+          share the first, the tab block spans the other two, and the panels
+          sit in the last, under the Properties. The last row is `1fr` so a
+          tall tab block grows that row and never the second, which would
+          push the panels away from the Properties. Without panels the grid
+          keeps its two rows. */}
+      <div
+        className={cn(
+          TASK_DETAIL_GRID_CLASS,
+          "gap-y-4 xl:gap-x-14",
+          panels && "xl:grid-rows-[auto_auto_1fr]",
+        )}
+      >
         <ProjectDetailHeader
           actions={actions}
           projectLogo={projectLogo}
@@ -172,8 +175,16 @@ export function ProjectWorkspaceShell({
         />
 
         {/* Capped so a row's qualifier stays near its value while the rail
-            runs the full width of a single column. */}
-        <aside className={cn(TASK_DETAIL_SIDEBAR_CLASS, "max-w-sm")}>
+            runs the full width of a single column. With panels, from `xl`
+            up, the column is narrower than the cap anyway, so the rows end
+            where the panels under them do. */}
+        <aside
+          className={cn(
+            TASK_DETAIL_SIDEBAR_CLASS,
+            "max-w-sm",
+            panels && "xl:max-w-none",
+          )}
+        >
           <ProjectProperties
             createdAt={createdAt}
             identifier={identifier}
@@ -186,10 +197,23 @@ export function ProjectWorkspaceShell({
         {/* The tabs open the block they switch, so nothing (not the rail,
             which comes before this on a phone) sits between a tab and its
             content. */}
-        <div className="min-w-0 space-y-8 max-xl:mt-4">
+        <div
+          className={cn(
+            "min-w-0 space-y-8 max-xl:mt-4",
+            panels && "xl:col-start-1 xl:row-span-2 xl:row-start-2",
+          )}
+        >
           <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
           {children}
         </div>
+
+        {/* After the content in one column, so a phone reaches the tab's
+            content first; 32px from what comes before it either way. */}
+        {panels ? (
+          <div className="mt-4 min-w-0 xl:col-start-2 xl:row-start-3">
+            {panels}
+          </div>
+        ) : null}
       </div>
     </div>
   );

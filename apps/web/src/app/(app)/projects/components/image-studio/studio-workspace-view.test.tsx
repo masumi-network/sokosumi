@@ -1,7 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
@@ -17,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
   stateOptions: vi.fn(),
   replace: vi.fn(),
+  openProjectScope: vi.fn(),
   onAccepted: null as null | ((accepted: { remaining: number }) => void),
 }));
 
@@ -37,63 +36,25 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   writeStudioAssetCaption: vi.fn(),
 }));
 
-vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
-  ProjectScopeMenu: ({
-    includeWorkspace,
-    onSelect,
-    onDone,
-    onCreate,
-  }: {
-    includeWorkspace?: boolean;
-    onSelect: (projectId: string | null) => void;
-    onDone?: () => void;
-    onCreate: (opener: HTMLElement | null) => void;
-  }) => (
-    <div data-include-workspace={String(includeWorkspace)}>
-      <button
-        onClick={() => {
-          onSelect("project-picked");
-          onDone?.();
-        }}
-        type="button"
-      >
-        Picked project
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          onDone?.();
-          onCreate(null);
-        }}
-      >
-        Create project
-      </button>
-    </div>
-  ),
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: mocks.openProjectScope,
 }));
 
-vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
-  InlineCreateProjectModal: ({
-    open,
-    onCreated,
-    onOpenChange,
-  }: ComponentProps<typeof InlineCreateProjectModal>) =>
-    open ? (
-      <div>
-        <button
-          type="button"
-          onClick={() =>
-            onCreated({ projectId: "project-created", name: "Created" })
-          }
-        >
-          Finish creating project
-        </button>
-        <button type="button" onClick={() => onOpenChange(false)}>
-          Cancel creation
-        </button>
-      </div>
-    ) : null,
-}));
+/** What the studio asked the header's project selector for, most recently. */
+function lastRequest(): {
+  required?: boolean;
+  reason?: string;
+  onSelect?: (projectId: string) => void;
+} {
+  const request = mocks.openProjectScope.mock.lastCall?.[0];
+  if (!request) throw new Error("The project selector was not opened");
+  return request;
+}
+
+/** A choice in the header's selector, or a project made from its Create row. */
+function pick(projectId: string) {
+  act(() => lastRequest().onSelect?.(projectId));
+}
 
 vi.mock("./use-studio-state", () => ({
   useStudioState: (options: {
@@ -189,7 +150,7 @@ describe("the workspace view", () => {
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText("pickForGeneration")).not.toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
@@ -248,7 +209,7 @@ describe("the workspace view", () => {
     expect(box).toHaveValue("keep my draft");
   });
 
-  it("preserves the selected style and frame after cancelling the project picker", async () => {
+  it("preserves the selected style and frame after closing the project selector", () => {
     mount(null, []);
     fireEvent.click(screen.getByRole("button", { name: "headshot" }));
     const template = STUDIO_TEMPLATES.find(
@@ -257,16 +218,15 @@ describe("the workspace view", () => {
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(box).toHaveValue(template.prompt);
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
-    fireEvent.keyDown(screen.getByText("Picked project"), { key: "Escape" });
-    await waitFor(() =>
-      expect(screen.queryByText("pickForGeneration")).not.toBeInTheDocument(),
-    );
+    // Closed without a choice: the selector's request is simply never answered.
+    expect(mocks.openProjectScope).toHaveBeenCalledTimes(1);
     expect(box).toHaveValue(template.prompt);
     expect(screen.getByText("4:5 · 1K · png")).toBeInTheDocument();
     expect(mocks.enqueue).not.toHaveBeenCalled();
 
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
-    fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
+    expect(mocks.openProjectScope).toHaveBeenCalledTimes(2);
+    pick("project-picked");
     expect(mocks.enqueue).toHaveBeenCalledTimes(1);
     const [[requests]] = mocks.enqueue.mock.calls;
     expect(requests).toHaveLength(2);
@@ -301,11 +261,10 @@ describe("the workspace view", () => {
     generate("a fox");
 
     expect(mocks.enqueue).not.toHaveBeenCalled();
-    expect(screen.getByText("pickForGeneration")).toBeInTheDocument();
-    // A project is required here, so the workspace itself is not a choice.
-    expect(
-      screen.getByText("Picked project").closest("[data-include-workspace]"),
-    ).toHaveAttribute("data-include-workspace", "false");
+    expect(lastRequest()).toMatchObject({
+      required: true,
+      reason: "pickForGeneration",
+    });
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toHaveValue("a fox");
@@ -314,7 +273,7 @@ describe("the workspace view", () => {
   it("sends the batch to the picked project and clears the brief", () => {
     mount(null);
     generate("a fox");
-    fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
+    pick("project-picked");
 
     expect(mocks.stateOptions).toHaveBeenLastCalledWith(
       expect.objectContaining({ projectId: "project-picked" }),
@@ -335,7 +294,7 @@ describe("the workspace view", () => {
   it("moves the global scope to the picked project once its batch is in", () => {
     mount(null);
     generate("a fox");
-    fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
+    pick("project-picked");
 
     // Still sending: a remount now would drop what is queued.
     mocks.onAccepted?.({ remaining: 1 });
@@ -360,11 +319,8 @@ describe("the workspace view", () => {
     );
     const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.keyDown(box, { key: "Enter", metaKey: true });
-    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
     expect(mocks.enqueue).not.toHaveBeenCalled();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Finish creating project" }),
-    );
+    pick("project-created");
     expect(mocks.enqueue).toHaveBeenCalledTimes(1);
     const [[requests]] = mocks.enqueue.mock.calls;
     for (const request of requests) {
@@ -380,11 +336,10 @@ describe("the workspace view", () => {
     expect(box).toHaveValue("");
   });
 
-  it("retains the draft and style when project creation is cancelled", () => {
+  it("retains the draft while the project selector is open", () => {
     mount(null, []);
     generate("a fox");
-    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel creation" }));
+    expect(mocks.openProjectScope).toHaveBeenCalledTimes(1);
     expect(mocks.enqueue).not.toHaveBeenCalled();
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
@@ -397,7 +352,7 @@ describe("the workspace view", () => {
 
     const [[requests]] = mocks.enqueue.mock.calls;
     expect(requests[0]).toMatchObject({ projectId: LAUNCH.projectId });
-    expect(screen.queryByText("pickForGeneration")).not.toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
   });
 
   it("aims a batch with references at their project", () => {

@@ -126,7 +126,7 @@ export function MessageEditComposer({
     <div className="pt-0.5">
       <div
         className={cn(
-          "border-input focus-within:border-ring focus-within:ring-ring-halo dark:bg-quinary rounded-md border bg-transparent focus-within:ring-[3px]",
+          "border-input focus-within:border-ring dark:bg-quinary rounded-md border bg-transparent",
           isSaving && "pointer-events-none opacity-50",
         )}
       >

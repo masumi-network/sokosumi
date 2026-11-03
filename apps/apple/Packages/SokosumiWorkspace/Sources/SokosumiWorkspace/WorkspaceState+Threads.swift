@@ -21,9 +21,10 @@ public extension WorkspaceState {
 
   /// A Look, a mute or Mark all moved this room's thread unread: re-count the Threads trigger and let Core's
   /// room read answer with the sidebar row's attention (web `bumpThreadUnread` + `syncRoomAttentionAfterThreadLook`).
+  /// The room is read only at the end of its transcript, like every automatic read (SOK-1481).
   internal func syncRoomAttentionAfterThreadChange(client: Client) async throws {
     openRoom.threadAttentionChanged()
-    guard roomHistoryReadable, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
+    guard roomHistoryReadable, openRoom.isAtEnd, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
     try await readAttention.readAfterThreadLook(
       room: room, client: client, organizationSlug: selection?.workspace.organizationSlug
     )

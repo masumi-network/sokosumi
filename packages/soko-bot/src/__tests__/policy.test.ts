@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
+  isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
+  SOKO_BOT_ROUTES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "../policy.js";
@@ -15,34 +18,45 @@ import {
   getSokoBotVersion,
 } from "../versions/index.js";
 
+const ADS_WRITES = [
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+  "delete_ad_campaign",
+] as const;
+
 describe("Soko Bot route capability ceilings", () => {
-  it.each(["MEMORY", "SCHEDULE", "CHAT", "FILE", "INTEGRATION"] as const)(
-    "does not grant task writes to %s requests",
-    (writeScope) => {
-      const capabilities = capabilitiesForClassification({
-        schemaVersion: 1,
-        route: "MANAGE_WORK",
-        writeScope,
-        confidence: 1,
-        rationaleSummary: "explicit",
-        requestedOutcome: "change",
-        candidateProjectIds: [],
-        candidateCoworkerIds: [],
-        candidateAgentIds: [],
-        requiresApproval: false,
-        requiresClarification: false,
-      });
-      for (const capability of [
-        "create_task",
-        "update_task",
-        "archive_task",
-        "assign_task",
-        "hire_agent",
-      ])
-        expect(capabilities).not.toContain(capability);
-      expect(capabilities).toContain("get_task_status");
-    },
-  );
+  it.each([
+    "MEMORY",
+    "SCHEDULE",
+    "CHAT",
+    "FILE",
+    "INTEGRATION",
+    "ADS",
+  ] as const)("does not grant task writes to %s requests", (writeScope) => {
+    const capabilities = capabilitiesForClassification({
+      schemaVersion: 1,
+      route: "MANAGE_WORK",
+      writeScope,
+      confidence: 1,
+      rationaleSummary: "explicit",
+      requestedOutcome: "change",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresApproval: false,
+      requiresClarification: false,
+    });
+    for (const capability of [
+      "create_task",
+      "update_task",
+      "archive_task",
+      "assign_task",
+      "hire_agent",
+    ])
+      expect(capabilities).not.toContain(capability);
+    expect(capabilities).toContain("get_task_status");
+  });
   it("lets a file request make a Files table, not only a text file", () => {
     const capabilities = capabilitiesForClassification({
       schemaVersion: 1,
@@ -97,6 +111,55 @@ describe("Soko Bot route capability ceilings", () => {
     }
   });
 
+  it("reads the Project's ad accounts, campaigns, targeting and Market keywords on every owner route", () => {
+    for (const route of SOKO_BOT_ROUTES)
+      for (const read of [
+        "list_ad_accounts",
+        "list_ad_campaigns",
+        "find_ad_targeting",
+        "get_market_keywords",
+        "get_ad_campaign",
+      ] as const) {
+        expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain(read);
+        expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).not.toContain(read);
+        expect(
+          SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
+        ).not.toContain(read);
+      }
+  });
+
+  it("creates and changes ad campaigns only on MANAGE_WORK, and never from a page's instructions", () => {
+    for (const write of ADS_WRITES) {
+      for (const route of SOKO_BOT_ROUTES)
+        expect(SOKO_BOT_ROUTE_CAPABILITIES[route].includes(write)).toBe(
+          route === "MANAGE_WORK",
+        );
+      expect(SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES).toContain(write);
+      expect(SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES).toContain(write);
+    }
+  });
+
+  it("lets an ADS change manage campaigns and make their images, nothing else", () => {
+    const granted = capabilitiesForClassification({
+      schemaVersion: 1,
+      route: "MANAGE_WORK",
+      writeScope: "ADS",
+      confidence: 1,
+      rationaleSummary: "explicit",
+      requestedOutcome: "manage a campaign",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresApproval: false,
+      requiresClarification: false,
+    });
+    expect(granted).toEqual(
+      expect.arrayContaining([...ADS_WRITES, "generate_image", "upload_file"]),
+    );
+    expect(granted).not.toContain("create_social_post");
+    expect(granted).not.toContain("create_task");
+  });
+
   it("does not leak agent hiring into task delegation", () => {
     expect(SOKO_BOT_ROUTE_CAPABILITIES.DELEGATE_TASK).toContain("create_task");
     expect(SOKO_BOT_ROUTE_CAPABILITIES.DELEGATE_TASK).not.toContain(
@@ -133,6 +196,83 @@ describe("Soko Bot route capability ceilings", () => {
         expect(allowed).not.toContain(write);
       }
     }
+  });
+
+  const subscriberWrites = [
+    "add_newsletter_subscriber",
+    "import_newsletter_subscribers",
+    "add_newsletter_subscribers_from_contacts",
+    "update_newsletter_subscriber",
+    "remove_newsletter_subscriber",
+  ];
+
+  it("reads newsletters on every owner route and writes them only on write routes", () => {
+    const writes = [
+      "newsletter_draft_issue",
+      "create_newsletter_issue",
+      "update_newsletter_issue",
+      "delete_newsletter_issue",
+      "submit_newsletter_issue",
+      "update_newsletter_settings",
+      ...subscriberWrites,
+    ];
+    const reads = SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
+      (capability) => !writes.includes(capability),
+    );
+    expect(reads).toEqual([
+      "get_newsletter",
+      "list_newsletter_issues",
+      "get_newsletter_issue",
+      "get_newsletter_analytics",
+      "list_newsletter_subscribers",
+      "preview_newsletter_issue",
+    ]);
+    for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
+      for (const read of reads)
+        expect(capabilities as readonly string[]).toContain(read);
+    for (const write of writes) {
+      for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const)
+        expect(
+          SOKO_BOT_ROUTE_CAPABILITIES[route] as readonly string[],
+        ).not.toContain(write);
+      for (const route of [
+        "DELEGATE_TASK",
+        "HIRE_AGENT",
+        "MANAGE_WORK",
+      ] as const)
+        expect(
+          SOKO_BOT_ROUTE_CAPABILITIES[route] as readonly string[],
+        ).toContain(write);
+      // A page the bot read must not be able to write or delete an issue.
+      expect(
+        SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[],
+      ).toContain(write);
+      expect(isSokoBotNewsletterCapability(write)).toBe(true);
+    }
+    for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES) {
+      expect(isSokoBotNewsletterCapability(capability)).toBe(true);
+      expect(
+        SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
+      ).not.toContain(capability);
+    }
+    expect(isSokoBotNewsletterCapability("list_social_posts")).toBe(false);
+    // Reading the open web must not stop a bot from reading its newsletter.
+    for (const read of reads)
+      expect(
+        SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[],
+      ).not.toContain(read);
+  });
+
+  it("refuses subscriber changes after any web read, even on the owner's own work", () => {
+    for (const write of subscriberWrites)
+      expect(
+        SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly string[],
+      ).toContain(write);
+  });
+
+  it("has no newsletter tool that approves, schedules or sends", () => {
+    for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES)
+      expect(capability).not.toMatch(/approve|schedule|send|publish/);
   });
 
   it("lets every owner route ask Jev, and keeps it off bot-to-bot turns", () => {

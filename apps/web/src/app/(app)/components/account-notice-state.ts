@@ -1,5 +1,3 @@
-export type AccountNoticeTone = "warning" | "destructive";
-
 export type AccountNotice =
   | { type: "emailVerification"; email: string; tone: "warning" }
   | { type: "lowCredits"; path: string; tone: "warning" }

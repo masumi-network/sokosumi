@@ -11,14 +11,26 @@ import {
 
 export const SOCIAL_PROVIDERS = [
   { id: "x", name: "X", Icon: SiX },
-  { id: "tiktok", name: "TikTok", Icon: TikTokIcon, comingSoon: true },
+  { id: "tiktok", name: "TikTok", Icon: TikTokIcon },
   { id: "instagram", name: "Instagram", Icon: InstagramIcon },
   { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-  { id: "facebook", name: "Facebook", Icon: FacebookIcon, comingSoon: true },
+  { id: "facebook", name: "Facebook", Icon: FacebookIcon },
   { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
 ] as const satisfies readonly {
   id: ProjectSocialConnection["provider"];
   name: string;
   Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  comingSoon?: boolean;
 }[];
+
+/** Connectable platforms first, then Coming soon; each group keeps `SOCIAL_PROVIDERS` order. */
+export function socialProvidersEnabledFirst(
+  enabledProviders: readonly string[],
+): (typeof SOCIAL_PROVIDERS)[number][] {
+  const enabled = SOCIAL_PROVIDERS.filter(({ id }) =>
+    enabledProviders.includes(id),
+  );
+  const comingSoon = SOCIAL_PROVIDERS.filter(
+    ({ id }) => !enabledProviders.includes(id),
+  );
+  return [...enabled, ...comingSoon];
+}

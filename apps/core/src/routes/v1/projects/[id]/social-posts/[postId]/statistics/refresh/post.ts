@@ -1,9 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { requireSocialPostActor } from "@/helpers/social-post-access";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -45,7 +43,7 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const actor = await requireSocialPostActor(c.var.authContext);
-    await requireSocialBetaAccess(actor.userId, prisma);
+
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, postId } = c.req.valid("param");
     try {
