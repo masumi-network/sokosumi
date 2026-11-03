@@ -408,7 +408,12 @@ describe("advanceCmoProduction", () => {
         ],
         {
           calendar: [article],
-          files: new Map([["seo-1", { fileId: "file-1", media: [] }]]),
+          files: new Map([
+            [
+              "seo-1",
+              { fileId: "file-1", media: [], searchAd: null, adCampaign: null },
+            ],
+          ]),
         },
       ),
       NOW,

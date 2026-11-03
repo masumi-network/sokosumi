@@ -1,3 +1,4 @@
+import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -18,6 +19,7 @@ import {
   cmoOverview as overview,
   cmoStrategy as strategy,
 } from "../test-fixtures/cmo";
+import { SearchAdControl } from "./ads";
 import {
   LearningCard,
   learningSteps,
@@ -363,6 +365,11 @@ describe("pages", () => {
         compose={() => {}}
         openUpdate={() => {}}
         connectMeasurement={async () => ({ url: null, error: null })}
+        ads={{
+          loadAdCampaigns: async () => [],
+          setAdCampaignStatus: async () => ({ overview: null, error: null }),
+        }}
+        onChange={() => {}}
       />,
     );
     expect(html).toContain("Drafts");
@@ -387,11 +394,83 @@ describe("pages", () => {
         })}
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
+        connectAds={async () => ({ url: null, error: null })}
       />,
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
     expect(html).toContain("Meta ads");
+    expect(html).not.toContain("Ad accounts");
+  });
+
+  it("offers ad accounts to the Ads beta", () => {
+    const html = renderToStaticMarkup(
+      <ChannelsPage
+        overview={overview({ adsAvailable: true, adProviders: ["google_ads"] })}
+        compose={() => {}}
+        connect={async () => ({ url: null, error: null })}
+        connectAds={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("Ad accounts");
+    expect(html).toContain("Google Ads");
+    expect(html).toMatch(/Meta ads[\s\S]*Connect/);
+  });
+});
+
+describe("search ads", () => {
+  type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+  const entry: Entry = {
+    id: "ad-1",
+    date: "2026-10-05",
+    channel: "google_ads",
+    format: "search",
+    title: "Address check",
+    status: "draft" as const,
+    searchAd: {
+      keywords: ["fixed wireless internet"],
+      headlines: ["Fast internet", "No cable", "Check your address"],
+      descriptions: ["Internet over the air.", "Check in a minute."],
+      finalUrl: "https://rst.de/check",
+    },
+  };
+  const actions = {
+    launchAd: async () => ({ overview: null, error: null }),
+    setAdCampaignStatus: async () => ({ overview: null, error: null }),
+  };
+  const render = (patch: Partial<CmoOverview>, piece: Entry = entry) =>
+    renderToStaticMarkup(
+      <SearchAdControl
+        entry={piece}
+        overview={overview({ viewerCanApprove: true, ...patch })}
+        actions={actions}
+        onChange={() => {}}
+      />,
+    );
+
+  it("lets an owner in the Ads beta launch once Google Ads is connected", () => {
+    expect(
+      render({ adsAvailable: true, adProviders: ["google_ads"] }),
+    ).toContain("Launch ad");
+    expect(render({ adsAvailable: true, adProviders: [] })).toContain(
+      "Connect Google Ads in Channels",
+    );
+    expect(render({ adsAvailable: false })).not.toContain("Launch ad");
+  });
+
+  it("offers pause once launched", () => {
+    const html = render(
+      { adsAvailable: true, adProviders: ["google_ads"] },
+      {
+        ...entry,
+        adCampaign: {
+          accountId: "00000000-0000-4000-8000-000000000001",
+          campaignId: "1",
+        },
+      },
+    );
+    expect(html).toContain("Launched in Google Ads");
+    expect(html).toContain("Pause");
   });
 });
 

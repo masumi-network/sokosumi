@@ -1,7 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ArrowUpRight, Check, FileUp, Loader2, Lock } from "lucide-react";
+import { Check, FileUp, Loader2, Lock } from "lucide-react";
 import { motion } from "motion/react";
 import {
   type ReactNode,
@@ -19,6 +19,7 @@ import {
   channelKey,
   SOON_CHANNELS,
 } from "../../lib/channels";
+import { type AdActions, adsReturnError, ConnectAdsButton } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { StepHead } from "./step-head";
 
@@ -83,6 +84,7 @@ interface ConnectStepProps {
   onConnect: (
     provider: Provider,
   ) => Promise<{ url: string | null; error: string | null }>;
+  onConnectAds: AdActions["connectAds"];
   onMailingList: (text: string) => Promise<string | null>;
   onContinue: () => Promise<void>;
 }
@@ -100,6 +102,7 @@ const MAX_LIST_BYTES = 900_000;
 export function ConnectStep({
   overview,
   onConnect,
+  onConnectAds,
   onMailingList,
   onContinue,
 }: ConnectStepProps) {
@@ -127,6 +130,8 @@ export function ConnectStep({
     ) {
       setError("That connection didn't finish. Try again.");
     }
+    const adsError = adsReturnError();
+    if (adsError) setError(adsError);
   }, []);
 
   function connect(provider: Provider) {
@@ -214,17 +219,14 @@ export function ConnectStep({
                 ) : null}
                 Connect
               </button>
-            ) : (
-              <a
-                className="ob-button ob-button-quiet"
-                href={overview.connectAdsUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Connect
-                <ArrowUpRight size={14} aria-hidden="true" />
-              </a>
-            )}
+            ) : overview.adsAvailable &&
+              (key === "google_ads" || key === "meta_ads") ? (
+              <ConnectAdsButton
+                provider={key}
+                from="onboarding"
+                connectAds={onConnectAds}
+              />
+            ) : null}
           </>
         )}
       </motion.li>

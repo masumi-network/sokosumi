@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Clock, Lightbulb, Loader2, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 
 import { channelLabel, formatDay } from "../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
@@ -24,6 +24,7 @@ export function EntrySheet({
   onClose,
   onAsk,
   loadText,
+  extra,
 }: {
   entry: Entry;
   /** The image or video Cuso made for this piece, once he has. */
@@ -33,6 +34,8 @@ export function EntrySheet({
   onAsk?: (text: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files (an article, a newsletter). */
   loadText?: (entryId: string) => Promise<string | null>;
+  /** What the owner can do with this piece beyond reading it (launch an ad). */
+  extra?: ReactNode;
 }) {
   const filed = Boolean(entry.fileId && !entry.draft);
   const [filedText, setFiledText] = useState<string | null>(null);
@@ -153,6 +156,7 @@ export function EntrySheet({
             </p>
           </>
         )}
+        {extra}
         {entry.why ? (
           <div className="sheet-why">
             <Lightbulb size={15} aria-hidden="true" />
