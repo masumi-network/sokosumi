@@ -23,7 +23,6 @@ export function scheduledSocialPostWhere(
   };
 }
 
-/** Upcoming Newsletter issues that can push the Calendar browse horizon. */
 export function scheduledNewsletterIssueWhere(
   workspaceId: string,
   userId: string,

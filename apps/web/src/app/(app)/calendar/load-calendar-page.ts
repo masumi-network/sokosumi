@@ -212,13 +212,14 @@ export async function loadWorkspaceCalendarPage({
     requested.view === "agenda" && isSocialOnly(selectedTypes)
       ? { ...requested, view: undefined }
       : requested;
-  // Task-only filters drop Social and Newsletter from Core's browse horizon.
-  const featureHorizonVisible =
-    !params.assigneeId &&
-    !params.assigneeUserId &&
-    !Object.values(TaskStatus).some((status) => status === params.status);
-  const latestScheduledFeatureAt = featureHorizonVisible
-    ? laterScheduledAt(
+  const hasTaskOnlyFilter = Boolean(
+    params.assigneeId ||
+      params.assigneeUserId ||
+      Object.values(TaskStatus).some((status) => status === params.status),
+  );
+  const latestScheduledFeatureAt = hasTaskOnlyFilter
+    ? null
+    : laterScheduledAt(
         selectedTypes.includes("social")
           ? latestSourceScheduledAt(
               sources,
@@ -233,8 +234,7 @@ export async function loadWorkspaceCalendarPage({
               "latestScheduledNewsletterIssueAt",
             )
           : null,
-      )
-    : null;
+      );
   const {
     calendarStatus,
     calendarTimezone,
