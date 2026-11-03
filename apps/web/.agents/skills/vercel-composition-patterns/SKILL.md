@@ -65,7 +65,6 @@ Reference these guidelines when:
 ### 4. React 19 APIs (MEDIUM)
 
 > **⚠️ React 19+ only.** Skip this section if using React 18 or earlier.
-
 - `react19-no-forwardref` - Don't use `forwardRef`; use `use()` instead of `useContext()`
 
 ## How to Use

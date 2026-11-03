@@ -2,8 +2,17 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
 } from "@sokosumi/utils";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
+import * as socialProviders from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
 
 const {
@@ -181,6 +190,10 @@ async function loadService() {
 describe("social posts service", () => {
   beforeAll(async () => {
     await loadService();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   beforeEach(() => {
@@ -1546,6 +1559,7 @@ describe("social posts service", () => {
       connectionNeedsReconnect: false,
     });
     expect(posts[2]).toMatchObject({
+      canEdit: true,
       canPublishNow: true,
       canDuplicate: true,
       connectionNeedsReconnect: false,
@@ -2147,6 +2161,151 @@ describe("social posts service", () => {
       });
     },
   );
+
+  it("requires text for a linkedin post", async () => {
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...activeConnection,
+      provider: "linkedin",
+    });
+    const { createSocialPost } = await loadService();
+
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        text: "   ",
+        media: [JPEG_REF],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "LinkedIn requires text",
+    });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["DRAFT", "NEEDS_APPROVAL"] as const)(
+    "moves a %s post onto Instagram without media",
+    async (status) => {
+      // Exercise media validation independently of the coming-soon gate.
+      vi.spyOn(socialProviders, "requireSocialProviderEnabled").mockReturnValue(
+        undefined,
+      );
+      socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+      const instagramConnection = {
+        ...activeConnection,
+        provider: "instagram",
+      };
+      socialConnectionFindFirstMock.mockResolvedValue(instagramConnection);
+      const { updateSocialPost } = await loadService();
+
+      await updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        revision: 0,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider: "instagram",
+            socialConnectionId: SOCIAL_CONNECTION_ID,
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each(["SCHEDULED", "FAILED", "MISSED"] as const)(
+    "refuses to strip media from a %s Instagram post",
+    async (status) => {
+      vi.spyOn(socialProviders, "requireSocialProviderEnabled").mockReturnValue(
+        undefined,
+      );
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status,
+        provider: "instagram",
+        media: [JPEG_REF],
+      });
+      const { updateSocialPost } = await loadService();
+
+      await expect(
+        updateSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          postId: POST_ID,
+          media: [],
+          revision: 1,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "Instagram requires at least one image or video",
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("re-derives the provider when the connection moves to another platform", async () => {
+    const linkedinConnection = { ...activeConnection, provider: "linkedin" };
+    socialConnectionFindFirstMock.mockResolvedValue(linkedinConnection);
+    const { updateSocialPost } = await loadService();
+
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      revision: 0,
+    });
+
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provider: "linkedin",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        }),
+      }),
+    );
+  });
+
+  it("refuses to schedule a post that no longer meets its provider rules", async () => {
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...activeConnection,
+      provider: "youtube",
+    });
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      provider: "youtube",
+    });
+    const { scheduleSocialPost } = await loadService();
+
+    await expect(
+      scheduleSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 0,
+        scheduledAt: FUTURE,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "YouTube requires a video",
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+  });
 
   it("creates a draft attributed to the interactive user", async () => {
     const { createSocialPost } = await loadService();
@@ -2861,8 +3020,8 @@ describe("social posts service", () => {
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
 
-  it.each(["PUBLISHED", "FAILED", "MISSED"])(
-    "refuses to edit a %s X post",
+  it.each(["PUBLISHED", "CANCELED", "PUBLISHING"] as const)(
+    "refuses to edit a %s post",
     async (status) => {
       socialPostFindFirstMock.mockResolvedValue({
         ...draftPost,
@@ -2880,8 +3039,82 @@ describe("social posts service", () => {
           text: "Edited",
           revision: 0,
         }),
-      ).rejects.toMatchObject({ status: 409 });
+      ).rejects.toMatchObject({
+        status: 409,
+        message:
+          "Only a draft, scheduled, or needs-approval post can be edited",
+      });
       expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["FAILED", "MISSED"] as const)(
+    "edits a %s post, clears its error, and preserves its reconnect request without rescheduling",
+    async (status) => {
+      const failed = {
+        ...scheduledPost,
+        status,
+        scheduledAt: new Date(NOW.getTime() - 60_000),
+        socialConnection: {
+          ...scheduledPost.socialConnection,
+          status: "reauthorization_required",
+        },
+        lastError: "Social connection needs reconnecting",
+        attemptCount: 2,
+        nextAttemptAt: FUTURE,
+        revision: 3,
+      };
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        status: "reauthorization_required",
+      });
+      socialPostFindFirstMock
+        .mockResolvedValueOnce(failed)
+        .mockResolvedValueOnce({
+          ...failed,
+          text: "Fixed copy",
+          media: [JPEG_REF],
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          revision: 4,
+        });
+      const { updateSocialPost } = await loadService();
+
+      const post = await updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+        text: "Fixed copy",
+        media: [JPEG_REF],
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        revision: 3,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 3 },
+        data: {
+          text: "Fixed copy",
+          media: [JPEG_REF],
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          lastError: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+          revision: { increment: 1 },
+        },
+      });
+      expect(post).toMatchObject({
+        status,
+        scheduledAt: failed.scheduledAt,
+        lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
+        revision: 4,
+        canEdit: true,
+        connectionNeedsReconnect: true,
+      });
     },
   );
 

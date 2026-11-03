@@ -63,7 +63,6 @@ import {
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
 import { NewsletterBrandPreview } from "./newsletter-brand-preview";
-import { NewsletterSignupCard } from "./newsletter-signup-card";
 
 const FONTS = [
   { value: "Arial", label: "arial" },
@@ -218,9 +217,6 @@ export function NewsletterSettingsForm({
                   </p>
                 </div>
               </section>
-            ) : null}
-            {publicSlug ? (
-              <NewsletterSignupCard publicSlug={publicSlug} />
             ) : null}
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-3">
               <section aria-labelledby="newsletter-general">

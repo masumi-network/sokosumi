@@ -89,6 +89,19 @@ function pageQueryOptions(scope: RecentProjectsScope | null, query: string) {
   };
 }
 
+export function useHasAnyScopeProject() {
+  const scope = useWorkspaceScope();
+  const firstPage = useQuery(pageQueryOptions(scope, ""));
+  const pinned = usePinnedProjects(scope);
+  const hasProjects =
+    (firstPage.data?.projects ?? []).some(isOpen) ||
+    (pinned.data ?? []).some(isOpen);
+  const isPending =
+    scope == null || firstPage.isPending || (!hasProjects && pinned.isPending);
+
+  return { isPending, hasProjects: !isPending && hasProjects };
+}
+
 /**
  * Starts the menu's reads before it opens, from a hover or focus on the
  * trigger, so the list is there when it does.

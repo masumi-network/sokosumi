@@ -134,6 +134,21 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
   ),
 }));
 
+vi.mock("@/app/projects/components/project-posting-instructions", () => ({
+  ProjectPostingInstructions: (props: {
+    projectId: string;
+    postingInstructionsMd: string | null;
+    disabled?: boolean;
+  }) => (
+    <div
+      data-testid="posting-instructions"
+      data-project={props.projectId}
+      data-value={props.postingInstructionsMd ?? ""}
+      data-disabled={String(Boolean(props.disabled))}
+    />
+  ),
+}));
+
 // The all-projects tab row reads the URL; it is tested on its own. Here it
 // only has to show what the page hands it.
 vi.mock("./components/social-all-projects-tabs", () => ({
@@ -429,6 +444,15 @@ describe("SocialPage", () => {
     );
     expect(screen.getByTestId("social-accounts")).toHaveAttribute(
       "data-connect-disabled",
+      "false",
+    );
+    // Posting instructions sit beside the accounts on the Accounts tab.
+    expect(screen.getByTestId("posting-instructions")).toHaveAttribute(
+      "data-project",
+      "project-1",
+    );
+    expect(screen.getByTestId("posting-instructions")).toHaveAttribute(
+      "data-disabled",
       "false",
     );
     // Scheduled posts also supply the affected-post count for reconnection.
