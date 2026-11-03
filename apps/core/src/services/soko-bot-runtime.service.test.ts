@@ -264,6 +264,7 @@ const social = vi.hoisted(() => ({
   beta: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
+  postingInstructions: vi.fn(),
 }));
 const ads = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -398,6 +399,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
+    project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
@@ -6411,6 +6413,7 @@ describe("Soko Bot project social tools", () => {
   };
   const capabilities = [
     "list_project_social_accounts",
+    "get_posting_instructions",
     "list_ad_accounts",
     "list_ad_campaigns",
     "find_ad_targeting",
@@ -6642,6 +6645,41 @@ describe("Soko Bot project social tools", () => {
       );
     },
   );
+
+  it("reads the Project's posting instructions in the turn's workspace", async () => {
+    social.postingInstructions.mockResolvedValue({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_posting_instructions",
+      toolCallId: "instructions",
+      input: { projectId },
+    });
+
+    expect(social.postingInstructions).toHaveBeenCalledWith({
+      where: { id: projectId, workspaceId: SCOPE.workspaceId },
+      select: { postingInstructionsMd: true },
+    });
+    expect(result).toEqual({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+    expect(social.owner).toHaveBeenCalled();
+  });
+
+  it("refuses posting instructions for a Project outside the workspace", async () => {
+    social.postingInstructions.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_posting_instructions",
+        toolCallId: "instructions-missing",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("That Project is not one your owner can open.");
+  });
 
   it("states each account's text limit from its current X tier", async () => {
     const account = {

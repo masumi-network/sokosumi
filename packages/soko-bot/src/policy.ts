@@ -81,6 +81,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_integration_tool",
   "run_integration_tool",
   "list_project_social_accounts",
+  "get_posting_instructions",
   "list_ad_accounts",
   "list_ad_campaigns",
   "find_ad_targeting",
@@ -338,6 +339,7 @@ const DIRECT_READ_CAPABILITIES = [
   // Only tools Composio marks read-only; Core refuses the rest.
   "read_integration_tool",
   "list_project_social_accounts",
+  "get_posting_instructions",
   "list_ad_accounts",
   "list_ad_campaigns",
   "find_ad_targeting",

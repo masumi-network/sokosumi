@@ -40,15 +40,35 @@ Stop on a history error or repeated cursor. Prior data survives failures and val
 
 The same delegated-user, capability, workspace, and Project guards apply to both endpoints. Synchronization updates caches only; connecting accounts and granting additional analytics scopes remain human actions. Avoid unbounded work in one request or bot turn: continue page by page and state any remaining coverage.
 
+## Posting instructions
+
+Each Project can carry `postingInstructionsMd`: markdown the team writes on the Social Accounts tab that says how to write the Project's social posts — tone, always/never rules, hashtags, calls to action, and optional `##` sections per platform (`## X`, `## LinkedIn`, …). It only guides social drafts. It is separate from project memory (`CONTEXT.md`, `GET /v1/projects/{id}/context-md`) and from `DESIGN.md`.
+
+Read it before drafting a post and follow it, including the section for the chosen platform:
+
+```http
+GET /v1/projects/{id}/posting-instructions
+```
+
+```json
+{ "data": { "postingInstructionsMd": "# Posting instructions\nTone: warm…" } }
+```
+
+`postingInstructionsMd` is `null` when none are set. Access matches the other project reads: an interactive session user, or a Coworker key with `X-Context-User-Id` that passes the user-context binding (`requireAuthorizedUserContext`); the Project must belong to the context workspace, otherwise `404`. The field also appears on `GET /v1/projects/{id}`.
+
+Only interactive session users edit it, through `PATCH /v1/projects/{id}` with `{ "postingInstructionsMd": "…" }` (at most 20,000 characters). `null` or a blank string clears it. Coworker keys cannot write it.
+
 ## Soko Bot runtime tools
 
-Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), read cached performance and provider summaries (`list_social_post_statistics`), refresh published-post metrics (`refresh_social_post_statistics`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Before creating, editing, scheduling, or publishing, choose an active account whose provider appears in `enabledProviders` returned by `list_project_social_accounts` for the Project's workspace. The account's platform decides the content rules (see Provider publishing rules).
+Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), read cached performance and provider summaries (`list_social_post_statistics`), refresh published-post metrics (`refresh_social_post_statistics`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Before drafting, it reads the Project's posting instructions (`get_posting_instructions`) and follows them. Before creating, editing, scheduling, or publishing, choose an active account whose provider appears in `enabledProviders` returned by `list_project_social_accounts` for the Project's workspace. The account's platform decides the content rules (see Provider publishing rules).
 
 Core derives the user and workspace from the active turn and rechecks owner activity, workspace membership, organization seat, and provider availability. Teammate and bot-to-bot turns do not receive these tools. Mutations use revisions and action receipts; uncertain publication requires reconciliation rather than automatic retry. Social mutations after web or shell use require a fresh owner message. Account OAuth remains in Project → Social.
 
 Version `v23` keeps v22's model and base behavior and replaces the managed-post performance skill with `social-account-performance`. Use `list_social_account_statistics` for general account performance and external publications, then `refresh_social_account_statistics` when fresh or missing results matter. Continue provider history with `continueHistory: true`, up to ten pages per turn, and report freshness, metric periods, and incomplete coverage. Existing managed-post statistics tools remain available for specific Sokosumi posts. Existing version selections retain their workflows while provider availability follows the owning workspace. Account refresh and history synchronization are read capabilities under the existing Social access rules and never authorize publication.
 
 Bot-created posts identify the bot as creator and land as Needs approval. They never publish until a person approves them in Project Social. Scheduling under the owner's identity only stores a planned time while approval is still pending. `publish_social_post` refuses a post that still needs approval.
+
+Version `v32` keeps v31's model and base behavior and swaps the `social` skill for `social-posting-instructions`, which tells the bot to call `get_posting_instructions` before drafting or rewriting post text. The tool itself is a read under the same Social access rules for every version, and the `create_social_post` description names it too.
 
 ## Provider publishing rules
 

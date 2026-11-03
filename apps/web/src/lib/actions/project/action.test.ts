@@ -238,6 +238,55 @@ describe("project actions", () => {
     });
   });
 
+  it("saves posting instructions and clears blank ones", async () => {
+    const { updateProjectPostingInstructions } = await import("./action");
+    projectServiceMock.patchProject.mockResolvedValueOnce({
+      ...buildProject(),
+      postingInstructionsMd: "Tone: warm",
+    });
+
+    const saved = await updateProjectPostingInstructions({
+      projectId: "project-1",
+      postingInstructionsMd: "  Tone: warm\n",
+    });
+
+    expect(saved).toEqual({
+      ok: true,
+      value: { postingInstructionsMd: "Tone: warm" },
+    });
+    expect(projectServiceMock.patchProject).toHaveBeenLastCalledWith(
+      "project-1",
+      { postingInstructionsMd: "Tone: warm" },
+    );
+
+    projectServiceMock.patchProject.mockResolvedValueOnce({
+      ...buildProject(),
+      postingInstructionsMd: null,
+    });
+    await updateProjectPostingInstructions({
+      projectId: "project-1",
+      postingInstructionsMd: "   ",
+    });
+    expect(projectServiceMock.patchProject).toHaveBeenLastCalledWith(
+      "project-1",
+      { postingInstructionsMd: null },
+    );
+  });
+
+  it("returns a Core error when saving posting instructions fails", async () => {
+    const { updateProjectPostingInstructions } = await import("./action");
+    projectServiceMock.patchProject.mockRejectedValueOnce(
+      new CoreApiRequestError("forbidden", { status: 403 }),
+    );
+
+    const result = await updateProjectPostingInstructions({
+      projectId: "project-1",
+      postingInstructionsMd: "Tone: warm",
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
   it("rejects a non-uuid projectId for site-icon resolution", async () => {
     const { resolveProjectSiteIcon } = await import("./action");
     const result = await resolveProjectSiteIcon({
