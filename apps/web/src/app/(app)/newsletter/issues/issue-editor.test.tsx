@@ -40,6 +40,12 @@ vi.mock("./issue-preview", () => ({
 
 import { NewsletterIssueEditor } from "./issue-editor";
 
+function blockList() {
+  return within(
+    screen.getByRole("region", { name: "Content blocks" }),
+  ).getByRole("list");
+}
+
 function renderEditor(
   issue = NEWSLETTER_ISSUE,
   locale: "en" | "de" | "es" = "en",
@@ -91,6 +97,90 @@ describe("newsletter issue editor", () => {
     ).toBeEnabled();
   });
 
+  it("heads the page with the subject, status, and next step, and shows Save only with changes", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const header = screen.getByRole("banner");
+    expect(
+      within(header).getByRole("heading", { name: NEWSLETTER_ISSUE.subject }),
+    ).toBeInTheDocument();
+    expect(within(header).getByText("Draft")).toBeInTheDocument();
+    expect(
+      within(header).getByRole("link", { name: "Back to issues" }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/issues?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
+    expect(
+      within(header).getByRole("button", { name: "Submit for approval" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save issue" }),
+    ).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Subject"));
+    expect(
+      within(header).getByRole("heading", { name: "Untitled issue" }),
+    ).toBeInTheDocument();
+    expect(
+      within(header).getByRole("button", { name: "Save issue" }),
+    ).toBeInTheDocument();
+    expect(
+      within(header).getByRole("button", { name: "Submit for approval" }),
+    ).toBeDisabled();
+  });
+
+  it("shows the approver and approval Task beside the status, and links blocked prerequisites to their fix", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <NewsletterIssueEditor
+          projectId={NEWSLETTER_PROJECT_ID}
+          issue={{
+            ...NEWSLETTER_ISSUE,
+            status: "NEEDS_APPROVAL",
+            approvedAt: new Date("2026-10-23T10:00:00Z"),
+            approvedByUserId: "user_1",
+            approvedByName: "Ada",
+            taskId: "task_1",
+          }}
+          activeSubscribers={0}
+          senderName="Ada"
+          sendingDomain={{
+            ...NEWSLETTER_SENDING_DOMAIN_STATE,
+            fallbackAvailable: false,
+          }}
+          newsletterSlug={PUBLIC_NEWSLETTER_SLUG}
+        />
+      </NextIntlClientProvider>,
+    );
+    const header = screen.getByRole("banner");
+    expect(within(header).getByText("Approved")).toBeInTheDocument();
+    expect(within(header).getByText(/Approved by Ada on/)).toBeInTheDocument();
+    expect(
+      within(header).getByRole("link", { name: "View approval task" }),
+    ).toHaveAttribute("href", "/tasks/task_1");
+    expect(
+      within(header).getByText(
+        en.App.Projects.Newsletter.Issues.Lifecycle.needsSubscribers,
+      ),
+    ).toBeInTheDocument();
+    const readiness = screen.getByRole("region", { name: "Before sending" });
+    const copy = en.App.Projects.Newsletter.Issues.Readiness;
+    expect(within(readiness).getByText(copy.noSender)).toBeInTheDocument();
+    expect(within(readiness).getByText(copy.noSubscribers)).toBeInTheDocument();
+    expect(
+      within(readiness).getByRole("link", { name: copy.manageSubscribers }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`,
+    );
+    expect(
+      within(readiness).getByRole("link", { name: copy.senderSettings }),
+    ).toHaveAttribute(
+      "href",
+      `/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}#newsletter-sending-domain`,
+    );
+  });
+
   it("restores edited blocks in reverse removal order, even after saving", async () => {
     const user = userEvent.setup();
     renderEditor();
@@ -111,7 +201,7 @@ describe("newsletter issue editor", () => {
     await user.click(screen.getByRole("button", { name: "Undo removal" }));
     expect(screen.getByText("1 block removed")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Undo removal" }));
-    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    const items = within(blockList()).getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(within(items[1]).getByLabelText("Text")).toHaveValue(
       "Our latest update with new writing",
@@ -235,7 +325,7 @@ describe("newsletter issue editor", () => {
     const user = userEvent.setup();
     renderEditor();
     await user.click(screen.getByRole("button", { name: "Move block 2 up" }));
-    let items = within(screen.getByRole("list")).getAllByRole("listitem");
+    let items = within(blockList()).getAllByRole("listitem");
     expect(within(items[0]).getByLabelText("Text")).toHaveValue(
       "Our latest update",
     );
@@ -245,7 +335,7 @@ describe("newsletter issue editor", () => {
       await user.click(screen.getByRole("button", { name: "Add block" }));
       await user.click(await screen.findByRole("menuitem", { name: type }));
     }
-    items = within(screen.getByRole("list")).getAllByRole("listitem");
+    items = within(blockList()).getAllByRole("listitem");
     expect(items).toHaveLength(7);
     expect(screen.getByLabelText("Image URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Alt text")).toBeInTheDocument();

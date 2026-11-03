@@ -76,7 +76,7 @@ describe("newsletter issue actions", () => {
     { audience: 0, fallback: true },
     { audience: 3, fallback: false },
   ])(
-    "links to missing prerequisites and blocks sending and scheduling: %j",
+    "says beside the buttons why sending and scheduling are blocked: %j",
     async ({ audience, fallback }) => {
       const user = userEvent.setup();
       show(APPROVED, false, "en", {
@@ -90,22 +90,9 @@ describe("newsletter issue actions", () => {
       expect(
         screen.getByRole("button", { name: COPY.schedule }),
       ).toBeDisabled();
-      const readiness = en.App.Projects.Newsletter.Issues.Readiness;
-      expect(
-        screen.getByRole("link", { name: readiness.manageSubscribers }),
-      ).toHaveAttribute(
-        "href",
-        `/newsletter/subscribers?projectId=${NEWSLETTER_PROJECT_ID}`,
-      );
-      expect(
-        screen.getByRole("link", { name: readiness.senderSettings }),
-      ).toHaveAttribute(
-        "href",
-        `/newsletter/settings?projectId=${NEWSLETTER_PROJECT_ID}#newsletter-sending-domain`,
-      );
       expect(
         screen.getByText(
-          audience === 0 ? readiness.noSubscribers : readiness.noSender,
+          audience === 0 ? COPY.needsSubscribers : COPY.needsSender,
         ),
       ).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: COPY.sendNow }));
@@ -171,6 +158,7 @@ describe("newsletter issue actions", () => {
     view.unmount();
     show(NEWSLETTER_ISSUE, true);
     expect(screen.getByRole("button", { name: COPY.submit })).toBeDisabled();
+    expect(screen.queryByText(COPY.needsSender)).not.toBeInTheDocument();
   });
   it("shows approval only while awaiting a person's decision", async () => {
     const user = userEvent.setup();
@@ -182,17 +170,6 @@ describe("newsletter issue actions", () => {
     expect(m.change).toHaveBeenCalledWith(
       expect.objectContaining({ action: "approve" }),
     );
-  });
-  it("shows the approver, time, and linked approval Task", () => {
-    show(APPROVED);
-    expect(screen.getByText(/Approved by Ada on/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: COPY.task })).toHaveAttribute(
-      "href",
-      "/tasks/task_1",
-    );
-    expect(
-      screen.queryByRole("button", { name: COPY.approve }),
-    ).not.toBeInTheDocument();
   });
   it("confirms the active subscriber count before sending and keeps a failed dialog open", async () => {
     const user = userEvent.setup();

@@ -4,10 +4,9 @@ import type {
   NewsletterIssue,
   NewsletterSendingDomainState,
 } from "@sokosumi/core-client";
-import { CalendarClock, Check, Send } from "lucide-react";
-import Link from "next/link";
+import { CalendarClock, Check, CircleAlert, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { SocialPostSchedulePicker } from "@/app/projects/components/social-posts/social-post-schedule-picker";
 import {
@@ -41,6 +40,8 @@ interface IssueActionsProps {
   senderName: string;
   sendingDomain: NewsletterSendingDomainState;
   disabled?: boolean;
+  /** Why the actions are disabled, shown beside them. */
+  disabledReason?: string | null;
   onChanged?: (issue: NewsletterIssue) => void;
   onBusyChange?: (busy: boolean) => void;
 }
@@ -53,11 +54,11 @@ export function IssueActions({
   senderName,
   sendingDomain,
   disabled,
+  disabledReason,
   onChanged,
   onBusyChange,
 }: IssueActionsProps) {
   const t = useTranslations("App.Projects.Newsletter.Issues.Lifecycle");
-  const format = useFormatter();
   const router = useRouter();
   const [pending, setPending] = useState<IssueAction | null>(null);
   const [dialog, setDialog] = useState<
@@ -151,50 +152,25 @@ export function IssueActions({
   const locked = disabled || pending !== null;
   const deliveryBlocked =
     locked || activeSubscribers === 0 || !hasNewsletterSender(sendingDomain);
+  const lead = locked ? "outline" : "primary";
+  // Say why next to the buttons, so nobody has to hunt for the reason.
+  const blockedReason =
+    disabledReason ??
+    (issue.status === "NEEDS_APPROVAL" && approved
+      ? activeSubscribers === 0
+        ? t("needsSubscribers")
+        : !hasNewsletterSender(sendingDomain)
+          ? t("needsSender")
+          : null
+      : null);
   const confirmation =
     dialog === "sendNow" || dialog === "cancel" ? dialog : null;
   return (
-    <div ref={actionContainer} className="min-w-0 space-y-2">
-      {["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(issue.status) ? (
-        <IssueReadiness
-          issue={issue}
-          projectId={projectId}
-          activeSubscribers={activeSubscribers}
-          senderName={senderName}
-          sendingDomain={sendingDomain}
-          linksDisabled={Boolean(locked)}
-        />
-      ) : null}
-      {issue.approvedAt && issue.approvedByUserId ? (
-        <p className="text-muted-foreground text-sm">
-          {t("approvedBy", {
-            user: issue.approvedByName ?? t("formerMember"),
-            date: format.dateTime(issue.approvedAt, "dateTime"),
-          })}
-        </p>
-      ) : null}
-      {issue.scheduledAt && issue.status === "SENDING" ? (
-        <p className="text-muted-foreground text-sm">
-          {t("scheduled", {
-            date: format.dateTime(issue.scheduledAt, "dateTime", {
-              timeZone: issue.timezone ?? "UTC",
-            }),
-            timezone: issue.timezone ?? "UTC",
-          })}
-        </p>
-      ) : null}
-      {issue.taskId ? (
-        <Link
-          className="text-sm underline underline-offset-4"
-          href={`/tasks/${issue.taskId}`}
-        >
-          {t("task")}
-        </Link>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
+    <div ref={actionContainer} className="min-w-0 space-y-1">
+      <div className="flex flex-wrap gap-2 md:justify-end">
         {issue.status === "DRAFT" ? (
           <Button
-            variant="outline"
+            variant={lead}
             disabled={locked}
             loading={pending === "submit"}
             onClick={() => void handleChange("submit")}
@@ -205,7 +181,7 @@ export function IssueActions({
         ) : null}
         {issue.status === "NEEDS_APPROVAL" && !approved ? (
           <Button
-            variant="outline"
+            variant={lead}
             disabled={locked}
             loading={pending === "approve"}
             onClick={() => void handleChange("approve")}
@@ -225,7 +201,7 @@ export function IssueActions({
               {t("schedule")}
             </Button>
             <Button
-              variant="outline"
+              variant={deliveryBlocked ? "outline" : "primary"}
               disabled={deliveryBlocked}
               onClick={(event) => handleDialog("sendNow", event.currentTarget)}
             >
@@ -245,8 +221,13 @@ export function IssueActions({
         ) : null}
       </div>
       {error && !dialog ? (
-        <p role="alert" className="text-foreground text-sm">
+        <p role="alert" className="text-foreground text-sm md:text-right">
           {error}
+        </p>
+      ) : blockedReason ? (
+        <p className="text-muted-foreground flex items-start gap-1.5 text-sm md:justify-end">
+          <CircleAlert className="mt-0.5 size-3.5 shrink-0" />
+          <span className="min-w-0">{blockedReason}</span>
         </p>
       ) : null}
       <Dialog

@@ -8,10 +8,17 @@ import {
   type NewsletterSendingDomainState,
 } from "@sokosumi/core-client";
 import type { NewsletterBlock } from "@sokosumi/utils";
-import { ArrowDown, ArrowUp, Plus, Trash2, Undo2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Plus,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/newsletter/analytics/issue-analytics-summary";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
@@ -48,8 +55,10 @@ import { IssueBlockFields } from "./issue-block-fields";
 import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
+  IssueStatusDetails,
 } from "./issue-delivery-status";
 import { NewsletterIssuePreview } from "./issue-preview";
+import { IssueReadiness } from "./issue-readiness";
 
 const BLOCK_TYPES = ["heading", "text", "image", "button", "divider"] as const;
 
@@ -80,6 +89,7 @@ export function NewsletterIssueEditor({
   >([]);
   const undoButton = useRef<HTMLButtonElement>(null);
   const blockList = useRef<HTMLOListElement>(null);
+  const formId = useId();
   const { revision, status } = currentIssue;
   const editable =
     status === NewsletterIssueStatus.DRAFT ||
@@ -189,68 +199,157 @@ export function NewsletterIssueEditor({
 
   return (
     <div className="min-w-0 space-y-4">
+      {/* The page header holds everything that says where the issue stands and
+          what to do next. It sticks, so Save stays in reach without covering
+          the form the way a bottom bar did. */}
+      <header className="bg-background sticky top-0 z-10 -mx-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b px-4 py-3">
+        <div className="flex min-w-0 flex-1 basis-72 items-start gap-2">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="-ml-2 shrink-0"
+          >
+            <Link
+              href={newsletterHref("/newsletter/issues", projectId)}
+              aria-label={t("back")}
+              title={t("back")}
+            >
+              <ArrowLeft />
+            </Link>
+          </Button>
+          <div className="min-w-0 space-y-1 pt-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <h3 className="min-w-0 text-lg font-semibold tracking-tight wrap-anywhere">
+                {subject.trim() || t("untitled")}
+              </h3>
+              <IssueStatusBadge issue={currentIssue} />
+            </div>
+            <IssueStatusDetails issue={currentIssue} />
+            {editable ? (
+              <p
+                role="status"
+                className="text-muted-foreground flex flex-wrap gap-x-3 text-sm"
+              >
+                <span>
+                  {isSubmitting
+                    ? t("saving")
+                    : isDirty
+                      ? t("unsaved")
+                      : t("saved")}
+                </span>
+                {removedBlocks.length ? (
+                  <span>
+                    {t("removedBlocks", { count: removedBlocks.length })}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1 md:items-end">
+          <div className="flex flex-wrap gap-2 md:justify-end">
+            {editable && !blocks.fields.length ? (
+              <DraftIssueButton projectId={projectId} template={template} />
+            ) : null}
+            {status === NewsletterIssueStatus.SENT ? (
+              <Button asChild variant="outline">
+                <Link
+                  href={`/n/${encodeURIComponent(newsletterSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
+                >
+                  {t("viewOnWeb")}
+                </Link>
+              </Button>
+            ) : null}
+            {removedBlocks.length ? (
+              <Button
+                ref={undoButton}
+                type="button"
+                variant="outline"
+                onClick={handleUndo}
+                disabled={
+                  isSubmitting ||
+                  lifecyclePending ||
+                  blocks.fields.length >= 200
+                }
+              >
+                <Undo2 />
+                {t("undo")}
+              </Button>
+            ) : null}
+            {editable && (isDirty || isSubmitting) ? (
+              <Button
+                type="submit"
+                form={formId}
+                variant="primary"
+                loading={isSubmitting}
+                disabled={lifecyclePending}
+              >
+                {t("save")}
+              </Button>
+            ) : null}
+          </div>
+          <IssueActions
+            issue={currentIssue}
+            projectId={projectId}
+            activeSubscribers={activeSubscribers}
+            senderName={senderName}
+            sendingDomain={sendingDomain}
+            disabled={isDirty || isSubmitting}
+            disabledReason={
+              isDirty && !isSubmitting ? t("Lifecycle.saveFirst") : null
+            }
+            onChanged={setCurrentIssue}
+            onBusyChange={setLifecyclePending}
+          />
+          {errors.root?.message ? (
+            <p role="alert" className="text-foreground text-sm md:text-right">
+              {errors.root.message}
+            </p>
+          ) : null}
+          {removedBlocks.length && blocks.fields.length >= 200 ? (
+            <p className="text-muted-foreground text-sm md:text-right">
+              {t("undoLimit")}
+            </p>
+          ) : null}
+        </div>
+      </header>
       {draftedBySokoBot && status === NewsletterIssueStatus.DRAFT ? (
         <Alert role="note">
           <AlertDescription>{t("Ai.notice")}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button asChild variant="outline">
-          <Link href={newsletterHref("/newsletter/issues", projectId)}>
-            {t("back")}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          {editable && !blocks.fields.length ? (
-            <DraftIssueButton projectId={projectId} template={template} />
-          ) : null}
-          {status === NewsletterIssueStatus.SENT ? (
-            <Button asChild variant="outline">
-              <Link
-                href={`/n/${encodeURIComponent(newsletterSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
-              >
-                {t("viewOnWeb")}
-              </Link>
-            </Button>
-          ) : null}
-          <IssueStatusBadge issue={currentIssue} />
-        </div>
-      </div>
-      <IssueActions
-        issue={currentIssue}
-        projectId={projectId}
-        activeSubscribers={activeSubscribers}
-        senderName={senderName}
-        sendingDomain={sendingDomain}
-        disabled={isDirty || isSubmitting}
-        onChanged={setCurrentIssue}
-        onBusyChange={setLifecyclePending}
-      />
       <IssueDeliveryOutcome issue={currentIssue} projectId={projectId} />
-      {isDirty ? (
-        <p className="text-muted-foreground text-sm">
-          {t("Lifecycle.saveFirst")}
-        </p>
-      ) : null}
-      {!editable ? (
-        <p className="text-muted-foreground text-sm" role="note">
-          {t("readOnly")}
-        </p>
-      ) : null}
       {status === NewsletterIssueStatus.SENT && analytics ? (
         <IssueAnalyticsSummary analytics={analytics} />
+      ) : null}
+      {["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(status) ? (
+        <IssueReadiness
+          issue={currentIssue}
+          projectId={projectId}
+          activeSubscribers={activeSubscribers}
+          senderName={senderName}
+          sendingDomain={sendingDomain}
+          linksDisabled={isDirty || isSubmitting || lifecyclePending}
+        />
       ) : null}
       <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
         <div className={cn(HOLDER_CLASS, "min-w-0 p-3")}>
           <Form {...form}>
             <form
+              id={formId}
               noValidate
               onSubmit={form.handleSubmit(handleSave)}
               className="min-w-0 space-y-4"
             >
+              {!editable ? (
+                <p className="text-muted-foreground px-1 text-sm" role="note">
+                  {t("readOnly")}
+                </p>
+              ) : null}
               <fieldset
                 disabled={!editable || isSubmitting || lifecyclePending}
-                className="min-w-0 space-y-4 [&_button]:scroll-mb-40 [&_input]:scroll-mb-40 [&_textarea]:scroll-mb-40"
+                className="min-w-0 space-y-4 [&_button]:scroll-mt-40 [&_input]:scroll-mt-40 [&_textarea]:scroll-mt-40"
               >
                 <section
                   aria-label={t("details")}
@@ -407,63 +506,6 @@ export function NewsletterIssueEditor({
                   ) : null}
                 </section>
               </fieldset>
-              {errors.root?.message ? (
-                <p role="alert" className="text-foreground text-sm">
-                  {errors.root.message}
-                </p>
-              ) : null}
-              {editable ? (
-                <div className="bg-background sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-                  <div
-                    role="status"
-                    className="text-muted-foreground min-w-0 space-y-1 text-sm"
-                  >
-                    <p>
-                      {isSubmitting
-                        ? t("saving")
-                        : isDirty
-                          ? t("unsaved")
-                          : t("saved")}
-                    </p>
-                    {removedBlocks.length ? (
-                      <p>
-                        {t("removedBlocks", { count: removedBlocks.length })}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {removedBlocks.length ? (
-                      <Button
-                        ref={undoButton}
-                        type="button"
-                        variant="outline"
-                        onClick={handleUndo}
-                        disabled={
-                          isSubmitting ||
-                          lifecyclePending ||
-                          blocks.fields.length >= 200
-                        }
-                      >
-                        <Undo2 />
-                        {t("undo")}
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      loading={isSubmitting}
-                      disabled={lifecyclePending}
-                    >
-                      {t("save")}
-                    </Button>
-                  </div>
-                  {removedBlocks.length && blocks.fields.length >= 200 ? (
-                    <p className="text-muted-foreground w-full text-sm">
-                      {t("undoLimit")}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
             </form>
           </Form>
         </div>

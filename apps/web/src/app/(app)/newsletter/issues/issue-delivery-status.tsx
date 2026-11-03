@@ -1,7 +1,7 @@
 import type { NewsletterIssue } from "@sokosumi/core-client";
 import { CircleAlert } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,44 @@ export function IssueStatusBadge({ issue }: { issue: NewsletterIssue }) {
           ? t("Lifecycle.approved")
           : t(`statuses.${issue.status}`)}
     </Badge>
+  );
+}
+
+/** Who approved the issue, when a sending issue was scheduled, and its approval Task: the facts behind the status badge. */
+export function IssueStatusDetails({ issue }: { issue: NewsletterIssue }) {
+  const t = useTranslations("App.Projects.Newsletter.Issues.Lifecycle");
+  const format = useFormatter();
+  const details = [
+    issue.approvedAt && issue.approvedByUserId
+      ? t("approvedBy", {
+          user: issue.approvedByName ?? t("formerMember"),
+          date: format.dateTime(issue.approvedAt, "dateTime"),
+        })
+      : null,
+    issue.scheduledAt && issue.status === "SENDING"
+      ? t("scheduled", {
+          date: format.dateTime(issue.scheduledAt, "dateTime", {
+            timeZone: issue.timezone ?? "UTC",
+          }),
+          timezone: issue.timezone ?? "UTC",
+        })
+      : null,
+  ].filter(Boolean);
+  if (!details.length && !issue.taskId) return null;
+  return (
+    <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-sm">
+      {details.map((detail) => (
+        <span key={detail}>{detail}</span>
+      ))}
+      {issue.taskId ? (
+        <Link
+          className="text-foreground underline underline-offset-4"
+          href={`/tasks/${issue.taskId}`}
+        >
+          {t("task")}
+        </Link>
+      ) : null}
+    </p>
   );
 }
 
