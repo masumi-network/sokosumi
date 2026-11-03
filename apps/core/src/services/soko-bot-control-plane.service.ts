@@ -3621,6 +3621,16 @@ export class SokoBotControlPlane {
                 { name: { contains: term, mode: "insensitive" } },
                 { user: { name: { contains: term, mode: "insensitive" } } },
                 { user: { email: { contains: term, mode: "insensitive" } } },
+                {
+                  createdByUser: {
+                    name: { contains: term, mode: "insensitive" },
+                  },
+                },
+                {
+                  createdByUser: {
+                    email: { contains: term, mode: "insensitive" },
+                  },
+                },
               ],
             }
           : {},
@@ -3636,6 +3646,7 @@ export class SokoBotControlPlane {
           : undefined),
         include: {
           user: { select: { id: true, name: true, email: true } },
+          createdByUser: { select: { id: true, name: true, email: true } },
           workspace: { select: { organizationId: true } },
           _count: {
             select: {
