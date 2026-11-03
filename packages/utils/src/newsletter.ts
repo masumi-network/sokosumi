@@ -13,6 +13,30 @@ export const NEWSLETTER_SOCIAL_NETWORKS = [
   "tiktok",
 ] as const;
 
+export const newsletterImageBlockSchema = z.object({
+  type: z.literal("image"),
+  url: httpsUrl,
+  alt: z.string().max(1000),
+  href: httpsUrl.optional(),
+  /** Percent of the content width; full width when unset. */
+  width: z.int().min(10).max(100).optional(),
+  align: z.enum(["left", "center", "right"]).optional(),
+});
+
+export const newsletterColumnsBlockSchema = z.object({
+  type: z.literal("columns"),
+  columns: z
+    .array(
+      z.object({
+        text: z.string().max(20_000),
+        imageUrl: httpsUrl.optional(),
+        alt: z.string().max(1000).optional(),
+      }),
+    )
+    .min(2)
+    .max(3),
+});
+
 /** Shared editor blocks; raw HTML is never part of newsletter content. */
 export const newsletterBlockSchema = z.discriminatedUnion("type", [
   z.object({
@@ -21,34 +45,14 @@ export const newsletterBlockSchema = z.discriminatedUnion("type", [
     level: z.union([z.literal(1), z.literal(2)]),
   }),
   z.object({ type: z.literal("text"), text: z.string().max(100_000) }),
-  z.object({
-    type: z.literal("image"),
-    url: httpsUrl,
-    alt: z.string().max(1000),
-    href: httpsUrl.optional(),
-    /** Percent of the content width; full width when unset. */
-    width: z.int().min(10).max(100).optional(),
-    align: z.enum(["left", "center", "right"]).optional(),
-  }),
+  newsletterImageBlockSchema,
   z.object({
     type: z.literal("button"),
     label: z.string().min(1).max(200),
     url: httpsUrl,
   }),
   z.object({ type: z.literal("divider") }),
-  z.object({
-    type: z.literal("columns"),
-    columns: z
-      .array(
-        z.object({
-          text: z.string().max(20_000),
-          imageUrl: httpsUrl.optional(),
-          alt: z.string().max(1000).optional(),
-        }),
-      )
-      .min(2)
-      .max(3),
-  }),
+  newsletterColumnsBlockSchema,
   z.object({ type: z.literal("spacer"), size: z.enum(["sm", "md", "lg"]) }),
   z.object({
     type: z.literal("social"),

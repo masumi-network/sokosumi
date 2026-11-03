@@ -333,8 +333,10 @@ export {
   type NewsletterBrand,
   newsletterBlockSchema,
   newsletterBrandSchema,
+  newsletterColumnsBlockSchema,
   newsletterContentSchema,
   newsletterDraftInputSchema,
+  newsletterImageBlockSchema,
   newsletterSignupLinks,
 } from "./newsletter.js";
 export {

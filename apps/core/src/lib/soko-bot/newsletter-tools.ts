@@ -4,7 +4,12 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
-import { type NewsletterBlock, newsletterSignupLinks } from "@sokosumi/utils";
+import {
+  type NewsletterBlock,
+  newsletterContentSchema,
+  newsletterSignupLinks,
+} from "@sokosumi/utils";
+import type { z } from "zod";
 
 import { getWebAppBaseUrl } from "@/config/env";
 import { conflict } from "@/helpers/error";
@@ -66,6 +71,7 @@ type NewsletterReadCapability = Extract<
   | "get_newsletter_analytics"
   | "list_newsletter_subscribers"
   | "preview_newsletter_issue"
+  | "preview_newsletter_signup_form"
 >;
 
 type NewsletterWriteCapability = Extract<
@@ -383,6 +389,50 @@ function issueUrl(issue: Pick<NewsletterIssue, "id" | "projectId">) {
 const PREVIEW_TEXT_MAX_CHARS = 8_000;
 /** Gmail hides the rest of a message behind "View entire message" past this. */
 const GMAIL_CLIP_BYTES = 102 * 1024;
+const PREVIEW_HTML_MAX_CHARS = 150_000;
+
+/** Use the existing Files upload flow; only URLs reach the stored issue. */
+export async function resolveNewsletterContentImages(
+  content:
+    | z.infer<
+        typeof SOKO_BOT_TOOL_INPUT_SCHEMAS.create_newsletter_issue
+      >["content"]
+    | undefined,
+  resolveImageFile: (fileId: string) => Promise<string>,
+): Promise<NewsletterBlock[] | undefined> {
+  if (!content) return undefined;
+  const images = new Map<string, Promise<string>>();
+  function imageUrl(fileId: string) {
+    let url = images.get(fileId);
+    if (!url) {
+      url = resolveImageFile(fileId);
+      images.set(fileId, url);
+    }
+    return url;
+  }
+  return newsletterContentSchema.parse(
+    await Promise.all(
+      content.map(async (block) => {
+        if (block.type === "image" && "fileId" in block && block.fileId) {
+          const { fileId, ...image } = block;
+          return { ...image, url: await imageUrl(fileId) };
+        }
+        if (block.type === "columns")
+          return {
+            ...block,
+            columns: await Promise.all(
+              block.columns.map(async (column) => {
+                if (!("fileId" in column) || !column.fileId) return column;
+                const { fileId, ...rest } = column;
+                return { ...rest, imageUrl: await imageUrl(fileId) };
+              }),
+            ),
+          };
+        return block;
+      }),
+    ),
+  );
+}
 
 /** Cheap checks on what the renderer would quietly drop or degrade. */
 function previewWarnings(
@@ -557,9 +607,20 @@ export async function updateNewsletterSettings(
     Object.entries(settings).filter(([, field]) => field !== undefined),
   );
   const current = await getNewsletter(scope, client);
+  const currentBrand = newsletterBrandSchema.parse(current.brand);
   const mergedBrand = {
-    ...newsletterBrandSchema.parse(current.brand),
+    ...currentBrand,
     ...brand,
+    ...(brand.signupForm !== undefined && brand.signupForm !== null
+      ? {
+          signupForm: Object.fromEntries(
+            Object.entries({
+              ...currentBrand.signupForm,
+              ...brand.signupForm,
+            }).filter(([, field]) => field != null),
+          ),
+        }
+      : {}),
   };
   const saved = await putNewsletter(
     scope,
@@ -608,6 +669,28 @@ export async function runNewsletterReadTool(
           "Newsletter signup",
         ),
         subscriberCounts: await countNewsletterSubscribers(newsletter.id),
+      };
+    }
+    case "preview_newsletter_signup_form": {
+      SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_signup_form.parse(
+        rawInput,
+      );
+      const newsletter = await getNewsletter(scope);
+      const brand = newsletterBrandSchema.parse(newsletter.brand);
+      const { signupForm, ...sharedDesign } = brand;
+      const links = newsletterSignupLinks(
+        newsletter.publicSlug,
+        getWebAppBaseUrl(),
+        "Newsletter signup",
+      );
+      return {
+        name: newsletter.name,
+        senderName: newsletter.senderName,
+        brand,
+        design: { ...sharedDesign, ...signupForm },
+        ...links,
+        embedUrl: `${links.signupUrl}/embed`,
+        url: `/newsletter/signup-form?projectId=${encodeURIComponent(scope.projectId)}`,
       };
     }
     case "list_newsletter_issues": {
@@ -666,6 +749,8 @@ export async function runNewsletterReadTool(
       const {
         projectId: _projectId,
         issueId,
+        brand,
+        includeHtml,
         ...unsaved
       } = SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue.parse(rawInput);
       const saved = issueId ? await getNewsletterIssue(scope, issueId) : null;
@@ -679,7 +764,11 @@ export async function runNewsletterReadTool(
             }
           : unsaved,
       );
-      const { html, text } = await renderNewsletterIssuePreview(scope, issue);
+      const { html, text } = await renderNewsletterIssuePreview(
+        scope,
+        issue,
+        brand,
+      );
       const htmlBytes = Buffer.byteLength(html);
       return {
         ...(saved
@@ -694,6 +783,12 @@ export async function runNewsletterReadTool(
         text: text.slice(0, PREVIEW_TEXT_MAX_CHARS),
         textTruncated: text.length > PREVIEW_TEXT_MAX_CHARS,
         htmlBytes,
+        ...(includeHtml
+          ? {
+              html: html.slice(0, PREVIEW_HTML_MAX_CHARS),
+              htmlTruncated: html.length > PREVIEW_HTML_MAX_CHARS,
+            }
+          : {}),
         warnings: previewWarnings(issue, htmlBytes),
         // Unsaved content has no editor page yet; the issue list is where it would land.
         url: saved

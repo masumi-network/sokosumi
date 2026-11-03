@@ -76,13 +76,14 @@ import {
 
 const BOT_ID = "77777777-7777-4777-8777-777777777777";
 const SAVED_AT = new Date("2026-10-26T12:00:00Z");
+const CURRENT_BRAND = {
+  logoUrl: "https://example.com/logo.png",
+  primaryColor: "#000000",
+  footerText: "Old footer",
+};
 const CURRENT: Newsletter = {
   ...NEWSLETTER,
-  brand: {
-    logoUrl: "https://example.com/logo.png",
-    primaryColor: "#000000",
-    footerText: "Old footer",
-  },
+  brand: CURRENT_BRAND,
   welcomeSubject: "Welcome",
   welcomeBody: "Thanks for joining",
 };
@@ -240,6 +241,69 @@ describe("Soko Bot newsletter settings", () => {
     });
   });
 
+  it("merges signup overrides without changing shared design or other overrides", async () => {
+    scheduledTurn();
+    m.newsletter.current = {
+      ...CURRENT,
+      brand: {
+        ...CURRENT_BRAND,
+        buttonShape: "rounded",
+        headerAlign: "center",
+        signupForm: {
+          accentColor: "#abc",
+          buttonShape: "square",
+          spacing: "compact",
+        },
+      },
+    };
+    await execute({
+      brand: {
+        backgroundColor: "#fff",
+        signupForm: { accentColor: null, spacing: "roomy" },
+      },
+    });
+    expect(m.upsert.mock.calls[0]?.[0].update.brand).toEqual({
+      ...CURRENT_BRAND,
+      buttonShape: "rounded",
+      headerAlign: "center",
+      backgroundColor: "#fff",
+      signupForm: { buttonShape: "square", spacing: "roomy" },
+    });
+  });
+
+  it("clears every signup override with null and preserves the shared brand", async () => {
+    m.newsletter.current = {
+      ...CURRENT,
+      brand: { ...CURRENT_BRAND, signupForm: { buttonShape: "pill" } },
+    };
+    await execute({ brand: { signupForm: null } });
+    expect(m.upsert.mock.calls[0]?.[0].update.brand).toEqual(CURRENT.brand);
+  });
+
+  it("keeps signup overrides when editing only shared Studio fields", async () => {
+    const signupForm = {
+      buttonTextColor: "#fff",
+      headerAlign: "left",
+      spacing: "compact",
+    };
+    m.newsletter.current = {
+      ...CURRENT,
+      brand: { signupForm },
+    };
+    const design = {
+      headerImageUrl: "https://example.com/banner.png",
+      buttonShape: "pill",
+      buttonTextColor: "#000",
+      headerAlign: "center",
+      spacing: "roomy",
+    };
+    await execute({ brand: design });
+    expect(m.upsert.mock.calls[0]?.[0].update.brand).toEqual({
+      signupForm,
+      ...design,
+    });
+  });
+
   it.each([
     { senderName: "Grace" },
     { replyTo: "grace@example.com" },
@@ -274,6 +338,8 @@ describe("Soko Bot newsletter settings", () => {
     { brand: { primaryColor: "red" } },
     { brand: { logoUrl: "not a url" } },
     { brand: { logoUrl: "http://example.com/logo.png" } },
+    { brand: { signupForm: { accentColor: "blue" } } },
+    { brand: { signupForm: { headerAlign: "right" } } },
   ])("rejects %j before saving", async (change) => {
     await expect(execute(change)).rejects.toThrow();
     expect(m.upsert).not.toHaveBeenCalled();

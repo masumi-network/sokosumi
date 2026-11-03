@@ -255,6 +255,7 @@ import {
   isNewsletterSubscriberCapability,
   newsletterConsentClaim,
   newsletterSettingsNeedOwner,
+  resolveNewsletterContentImages,
   runNewsletterReadTool,
   runNewsletterSubscriberTool,
   runNewsletterWriteTool,
@@ -3136,6 +3137,21 @@ export class SokoBotRuntimeService {
         "File not found; use an id from list_files",
       );
     return file;
+  }
+
+  private async newsletterImageFileUrl(
+    authorized: AuthorizedSokoBotRuntime,
+    fileId: string,
+  ) {
+    const file = await this.ownerFile(authorized, fileId);
+    if (
+      file.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
+      socialPostMediaKindForMime(file.mimeType ?? "") !== "image"
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Use an image from Files; upload a chat image with upload_file first",
+      );
+    return (await head(file.sourceId)).url;
   }
 
   /** A CSV as uploaded; extracted search text may not keep its rows intact. */
@@ -7075,16 +7091,30 @@ export class SokoBotRuntimeService {
       case "get_newsletter_issue":
       case "get_newsletter_analytics":
       case "list_newsletter_subscribers":
-      case "preview_newsletter_issue": {
-        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[
-          input.capability
-        ].parse(input.input);
+      case "preview_newsletter_issue":
+      case "preview_newsletter_signup_form": {
+        const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+          input.input,
+        );
+        const { projectId } = parsed;
         const scope = await this.requireNewsletterScope(
           authorized,
           input.capability,
           projectId,
         );
-        return runNewsletterReadTool(input.capability, input.input, {
+        const resolved =
+          input.capability === "preview_newsletter_issue"
+            ? {
+                ...parsed,
+                content: await resolveNewsletterContentImages(
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue.parse(
+                    parsed,
+                  ).content,
+                  (fileId) => this.newsletterImageFileUrl(authorized, fileId),
+                ),
+              }
+            : parsed;
+        return runNewsletterReadTool(input.capability, resolved, {
           projectId,
           workspaceId: scope.workspaceId,
         });
@@ -7094,9 +7124,10 @@ export class SokoBotRuntimeService {
       case "delete_newsletter_issue":
       case "submit_newsletter_issue": {
         const { capability } = input;
-        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
+        const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
           input.input,
         );
+        const { projectId } = parsed;
         const scope = await this.requireNewsletterScope(
           authorized,
           capability,
@@ -7111,6 +7142,16 @@ export class SokoBotRuntimeService {
           throw new SokoBotRuntimeValidationError(
             "Newsletter issues are only deleted when the owner asks in chat; ask them first",
           );
+        const resolved =
+          "content" in parsed
+            ? {
+                ...parsed,
+                content: await resolveNewsletterContentImages(
+                  parsed.content,
+                  (fileId) => this.newsletterImageFileUrl(authorized, fileId),
+                ),
+              }
+            : parsed;
         try {
           return await serializableTransaction(async (tx) => {
             await this.requireMutationAuthority(
@@ -7122,7 +7163,7 @@ export class SokoBotRuntimeService {
             );
             const result = await runNewsletterWriteTool(
               capability,
-              input.input,
+              resolved,
               { projectId, workspaceId: scope.workspaceId },
               {
                 client: tx,
