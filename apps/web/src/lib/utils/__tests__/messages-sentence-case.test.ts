@@ -45,6 +45,7 @@ const PROPER_PHRASES = [
   "Serviceplan Group",
   "Acme Inc.",
   "Times New Roman",
+  "Google Domains",
   // Example organization name in a placeholder.
   "My Organization",
   // Example brands in the Ads and Newsletter no-project backdrops.
