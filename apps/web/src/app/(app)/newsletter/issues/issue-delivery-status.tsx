@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { Badge } from "@/components/ui/badge";
+import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
 export function IssueStatusBadge({ issue }: { issue: NewsletterIssue }) {
@@ -38,7 +39,7 @@ export function IssueDeliveryOutcome({
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues.Delivery");
   if (issue.status === "SENDING") {
-    return <p className="text-muted-foreground text-sm">{t("sending")}</p>;
+    return <p className="text-muted-foreground px-1 text-sm">{t("sending")}</p>;
   }
   const partial = issue.status === "SENT" && Boolean(issue.lastError);
   if (issue.status !== "FAILED" && !partial) return null;
@@ -46,7 +47,10 @@ export function IssueDeliveryOutcome({
   return (
     <div
       role="note"
-      className="bg-card-background flex min-w-0 items-start gap-2 rounded-lg p-3 text-sm"
+      className={cn(
+        HOLDER_ITEM_CLASS,
+        "flex min-w-0 items-start gap-2 p-4 text-sm",
+      )}
     >
       <CircleAlert className="mt-0.5 size-4 shrink-0" />
       <div className="min-w-0 space-y-2">

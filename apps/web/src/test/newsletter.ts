@@ -1,4 +1,5 @@
 import type {
+  Newsletter,
   NewsletterAnalytics,
   NewsletterIssue,
   NewsletterSendingDomainState,
@@ -93,6 +94,22 @@ export const NEWSLETTER_ISSUE: NewsletterIssue = {
 };
 
 export const PUBLIC_NEWSLETTER_SLUG = "project-news-1234abcd";
+export const NEWSLETTER: Newsletter = {
+  id: "33333333-3333-4333-8333-333333333333",
+  projectId: NEWSLETTER_PROJECT_ID,
+  workspaceId: "22222222-2222-4222-8222-222222222222",
+  contactListId: null,
+  name: "Project news",
+  senderName: "Ada",
+  replyTo: "ada@example.com",
+  brand: { fontFamily: "Georgia", footerText: "", spacing: "roomy" },
+  welcomeEmailEnabled: false,
+  welcomeSubject: null,
+  welcomeBody: null,
+  publicSlug: PUBLIC_NEWSLETTER_SLUG,
+  createdAt: new Date("2026-10-20T10:00:00Z"),
+  updatedAt: new Date("2026-10-20T10:00:00Z"),
+};
 export const PUBLIC_NEWSLETTER: PublicNewsletter = {
   name: "Project news",
   senderName: "Ada",

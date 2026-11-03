@@ -283,6 +283,31 @@ function approvalRunPrefix(sokoBotId: string, approvedAt: Date): string {
   return `${CMO_PRODUCTION_TURN_PREFIX}${sokoBotId}:${approvedAt.getTime()}:`;
 }
 
+/**
+ * When the owner first approved a plan, so hiring ended. A later approval
+ * clears the earlier one, but each approval's first production run keeps
+ * its approval time in its id, and turns stay as long as the bot.
+ */
+export async function cmoHiredAt(
+  sokoBotId: string,
+  approvedAt: Date | null,
+): Promise<Date | null> {
+  const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${sokoBotId}:`;
+  const first = await prisma.sokoBotTurn.findFirst({
+    where: { sokoBotId, clientTurnId: { startsWith: prefix } },
+    orderBy: { createdAt: "asc" },
+    select: { clientTurnId: true },
+  });
+  const firstApproval = Number(
+    first?.clientTurnId?.slice(prefix.length).split(":")[0],
+  );
+  const times = [
+    Number.isFinite(firstApproval) ? firstApproval : null,
+    approvedAt?.getTime() ?? null,
+  ].filter((time): time is number => time !== null);
+  return times.length > 0 ? new Date(Math.min(...times)) : null;
+}
+
 async function startProductionRun(
   cuso: Cuso,
   message: string,

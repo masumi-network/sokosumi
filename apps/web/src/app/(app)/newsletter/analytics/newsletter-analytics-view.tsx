@@ -9,7 +9,6 @@ import { useState, useTransition } from "react";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { EmptyState } from "@/components/common/empty-state";
 import { DailyBarChart } from "@/components/performance/daily-bar-chart";
-import { PerformanceDateRange } from "@/components/performance/performance-date-range";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -32,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { NewsletterAnalyticsDateFilter } from "./newsletter-analytics-date-filter";
 import {
   NewsletterAnalyticsNotes,
   NewsletterMetrics,
@@ -99,61 +99,20 @@ export function NewsletterAnalyticsView({
             ),
     })),
   }));
-  function handlePreset(days: number) {
-    const end = new Date();
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - days + 1);
-    void setRange({
-      from: start.toISOString().slice(0, 10),
-      to: end.toISOString().slice(0, 10),
-      cursor: null,
-    });
-  }
   return (
     <div className="min-w-0 space-y-6">
-      <div className={cn(HOLDER_CLASS, "min-w-0 space-y-3 p-3")}>
-        <div className="flex flex-wrap gap-2">
-          {[7, 30, 90].map((days) => (
-            <Button
-              key={days}
-              size="sm"
-              variant="outline"
-              className="h-11 md:h-8"
-              onClick={() => handlePreset(days)}
-            >
-              {t("lastDays", { days })}
-            </Button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <PerformanceDateRange
-            idPrefix="newsletter-analytics"
-            from={from}
-            until={to}
-            minUntil={from || undefined}
-            fromLabel={t("from")}
-            untilLabel={t("to")}
-            invalid={!analytics}
-            onFromChange={(value) =>
-              void setRange({ from: value || null, cursor: null })
-            }
-            onUntilChange={(value) =>
-              void setRange({ to: value || null, cursor: null })
-            }
-          />
-          <Button
-            variant="outline"
-            onClick={() =>
-              void setRange({ from: null, to: null, cursor: null })
-            }
-          >
-            {t("resetRange")}
-          </Button>
-        </div>
-        <p className="text-muted-foreground px-1 text-sm">{t("periodNote")}</p>
-      </div>
+      <NewsletterAnalyticsDateFilter
+        from={from}
+        to={to}
+        invalid={!analytics}
+        onChange={(nextRange) => void setRange({ ...nextRange, cursor: null })}
+      />
       {!analytics ? (
-        <p role="alert" className="text-semantic-destructive text-sm">
+        <p
+          id="newsletter-analytics-invalid-range"
+          role="alert"
+          className="text-semantic-destructive text-sm"
+        >
           {t("invalidRange")}
         </p>
       ) : (

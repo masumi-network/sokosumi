@@ -1,5 +1,8 @@
 import { NewsletterTemplate } from "@sokosumi/core-client";
-import { newsletterContentSchema } from "@sokosumi/utils";
+import {
+  newsletterBrandSchema,
+  newsletterContentSchema,
+} from "@sokosumi/utils";
 import { z } from "zod";
 
 export function newsletterIssueInputSchema(
@@ -18,6 +21,15 @@ export function newsletterIssueInputSchema(
       .optional(),
     template: z.enum(NewsletterTemplate),
     content: newsletterContentSchema,
+  });
+}
+
+/** Issue content plus the studio's unsaved design, as the preview sends it. */
+export function newsletterIssuePreviewSchema(
+  t: IntlTranslation<"App.Projects.Newsletter.Issues">,
+) {
+  return newsletterIssueInputSchema(t).extend({
+    brand: newsletterBrandSchema.optional(),
   });
 }
 

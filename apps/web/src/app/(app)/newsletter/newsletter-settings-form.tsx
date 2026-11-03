@@ -2,18 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Newsletter } from "@sokosumi/core-client";
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-} from "@sokosumi/utils";
-import { ImageIcon, Mail, X } from "lucide-react";
+import { Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,7 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ColorPicker } from "@/components/ui/color-picker";
 import {
   Form,
   FormControl,
@@ -37,39 +31,19 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { saveNewsletterSettings } from "@/lib/actions/newsletter/action";
-import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   type NewsletterSettingsValues,
   newsletterSettingsSchema,
 } from "@/lib/schemas/newsletter";
 import { cn } from "@/lib/utils";
-import { formatBytes } from "@/lib/utils/format-bytes";
-import {
-  ClientTimeoutError,
-  raceWithTimeout,
-} from "@/lib/utils/race-with-timeout";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 import { NewsletterBrandPreview } from "./newsletter-brand-preview";
-
-const FONTS = [
-  { value: "Arial", label: "arial" },
-  { value: "Georgia", label: "georgia" },
-  { value: "Verdana", label: "verdana" },
-  { value: "Times New Roman", label: "timesNewRoman" },
-] as const;
+import {
+  NewsletterDesignFields,
+  newsletterDesignDefaults,
+} from "./newsletter-design-fields";
 
 interface NewsletterSettingsFormProps {
   projectId: string;
@@ -97,13 +71,7 @@ export function NewsletterSettingsForm({
       name: newsletter?.name ?? projectName,
       senderName: newsletter?.senderName ?? projectName,
       replyTo: newsletter?.replyTo ?? "",
-      logoUrl: newsletter
-        ? (newsletter.brand.logoUrl ?? "")
-        : (projectLogo ?? ""),
-      primaryColor: newsletter?.brand.primaryColor ?? "",
-      accentColor: newsletter?.brand.accentColor ?? "",
-      fontFamily: newsletter?.brand.fontFamily ?? "Arial",
-      footerText: newsletter?.brand.footerText ?? "",
+      ...newsletterDesignDefaults(newsletter, projectLogo),
       welcomeEmailEnabled: newsletter?.welcomeEmailEnabled ?? false,
       welcomeSubject: newsletter?.welcomeSubject ?? "",
       welcomeBody: newsletter?.welcomeBody ?? "",
@@ -113,52 +81,8 @@ export function NewsletterSettingsForm({
     control: form.control,
     name: "welcomeEmailEnabled",
   });
-  const selectedFont = useWatch({ control: form.control, name: "fontFamily" });
-  const logoUrl = useWatch({ control: form.control, name: "logoUrl" });
-  const [pendingLogoFiles, setPendingLogoFiles] = useState<File[]>([]);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const { isDirty, isSubmitting } = form.formState;
-  const logoT = useTranslations("App.Projects.Newsletter.Logo");
-  const logoLabels = {
-    fileTooLarge: logoT("fileTooLarge"),
-    fileTypeNotAccepted: logoT("fileTypeNotAccepted"),
-    maxFilesExceeded: logoT("maxFilesExceeded"),
-    previewAlt: logoT("previewAlt"),
-    remove: logoT("remove"),
-    replace: logoT("replace"),
-    upload: logoT("upload"),
-    uploadError: logoT("uploadError"),
-  };
-
-  // The upload only stores the file; Save still writes `logoUrl`, like every field.
-  async function handleLogoUpload(files: File[]) {
-    const file = files[0];
-    if (!file) return;
-    setIsUploadingLogo(true);
-    try {
-      const uploaded = await raceWithTimeout(
-        uploadUserFileDirect(file, {
-          allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-          maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-        }),
-        ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
-      );
-      form.setValue("logoUrl", uploaded.publicUrl, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    } catch (error) {
-      toast.error(
-        error instanceof ClientTimeoutError
-          ? logoT("uploadError")
-          : getUserFileUploadErrorMessage(error, logoT("uploadError")),
-      );
-    } finally {
-      setPendingLogoFiles([]);
-      setIsUploadingLogo(false);
-    }
-  }
-
   async function handleSubmit(values: NewsletterSettingsValues) {
     form.clearErrors("root");
     try {
@@ -268,146 +192,10 @@ export function NewsletterSettingsForm({
                     </CardTitle>
                     <CardDescription>{t("brandDescription")}</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="logoUrl"
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>{t("fields.logoUrl")}</FormLabel>
-                          <div className="flex min-w-0 flex-wrap items-center gap-4">
-                            <FormControl>
-                              <OrganizationLogoUploadField
-                                disabled={isSubmitting || isUploadingLogo}
-                                fallbackIcon={<ImageIcon className="size-8" />}
-                                isUploading={isUploadingLogo}
-                                labels={logoLabels}
-                                logoValue={logoUrl}
-                                onPendingLogoFilesChange={setPendingLogoFiles}
-                                onRemove={() =>
-                                  form.setValue("logoUrl", "", {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  })
-                                }
-                                onUpload={handleLogoUpload}
-                                pendingLogoFiles={pendingLogoFiles}
-                              />
-                            </FormControl>
-                            <FormDescription className="min-w-0 flex-1 basis-48">
-                              {logoT("description", {
-                                maxSize: formatBytes(
-                                  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-                                ),
-                              })}
-                            </FormDescription>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {(["primaryColor", "accentColor"] as const).map(
-                        (name) => (
-                          <FormField
-                            key={name}
-                            control={form.control}
-                            name={name}
-                            render={({ field }) => (
-                              <FormItem className="min-w-0">
-                                <FormLabel>{t(`fields.${name}`)}</FormLabel>
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <FormControl>
-                                    <ColorPicker
-                                      ref={field.ref}
-                                      value={field.value}
-                                      onChange={field.onChange}
-                                      onBlur={field.onBlur}
-                                      disabled={isSubmitting}
-                                      placeholder={t("colorPlaceholder")}
-                                      presetsLabel={t("presetColors")}
-                                      className="min-w-0 flex-1"
-                                    />
-                                  </FormControl>
-                                  {field.value ? (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      aria-label={t(`clearColor.${name}`)}
-                                      onClick={() =>
-                                        form.setValue(name, "", {
-                                          shouldDirty: true,
-                                          shouldValidate: true,
-                                        })
-                                      }
-                                    >
-                                      <X />
-                                    </Button>
-                                  ) : null}
-                                </div>
-                                <FormDescription>
-                                  {t("colorHint")}
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        ),
-                      )}
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="fontFamily"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("fields.fontFamily")}</FormLabel>
-                          <Select
-                            name={field.name}
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            disabled={isSubmitting}
-                          >
-                            <FormControl>
-                              <SelectTrigger
-                                ref={field.ref}
-                                onBlur={field.onBlur}
-                                className="w-full"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {FONTS.map((font) => (
-                                <SelectItem key={font.value} value={font.value}>
-                                  {t(`fonts.${font.label}`)}
-                                </SelectItem>
-                              ))}
-                              {!FONTS.some(
-                                (font) => font.value === selectedFont,
-                              ) ? (
-                                <SelectItem value={selectedFont}>
-                                  {selectedFont}
-                                </SelectItem>
-                              ) : null}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="footerText"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("fields.footerText")}</FormLabel>
-                          <FormControl>
-                            <Textarea {...field} rows={3} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  <CardContent>
+                    <NewsletterDesignFields
+                      disabled={isSubmitting}
+                      onUploadingChange={setIsUploadingLogo}
                     />
                   </CardContent>
                 </Card>

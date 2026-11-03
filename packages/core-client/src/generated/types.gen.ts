@@ -8118,6 +8118,19 @@ export type NewsletterBrand = {
     accentColor?: string;
     fontFamily?: string;
     footerText?: string;
+    backgroundColor?: string;
+    buttonTextColor?: string;
+    buttonShape?: 'square' | 'rounded' | 'pill';
+    headerImageUrl?: string;
+    headerAlign?: 'left' | 'center';
+    spacing?: 'compact' | 'normal' | 'roomy';
+    signupForm?: {
+        accentColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+    };
 };
 
 export type NewsletterAnalytics = {
@@ -8228,12 +8241,33 @@ export type NewsletterContent = Array<{
     url: string;
     alt: string;
     href?: string;
+    width?: number;
+    align?: 'left' | 'center' | 'right';
 } | {
     type: 'button';
     label: string;
     url: string;
 } | {
     type: 'divider';
+} | {
+    type: 'columns';
+    columns: Array<{
+        text: string;
+        imageUrl?: string;
+        alt?: string;
+    }>;
+} | {
+    type: 'spacer';
+    size: 'sm' | 'md' | 'lg';
+} | {
+    type: 'social';
+    links: Array<{
+        network: 'website' | 'x' | 'linkedin' | 'instagram' | 'facebook' | 'youtube' | 'tiktok';
+        url: string;
+    }>;
+} | {
+    type: 'footer';
+    text: string;
 }>;
 
 export const NewsletterIssueStatus = {
@@ -8270,6 +8304,32 @@ export type CreateNewsletterIssueRequest = {
     previewText?: string | null;
     template: NewsletterTemplate;
     content: NewsletterContent;
+};
+
+export type PreviewNewsletterIssueRequest = CreateNewsletterIssueRequest & {
+    /**
+     * Unsaved newsletter design to preview with; the saved brand otherwise.
+     */
+    brand?: {
+        logoUrl?: string;
+        primaryColor?: string;
+        accentColor?: string;
+        fontFamily?: string;
+        footerText?: string;
+        backgroundColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerImageUrl?: string;
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+        signupForm?: {
+            accentColor?: string;
+            buttonTextColor?: string;
+            buttonShape?: 'square' | 'rounded' | 'pill';
+            headerAlign?: 'left' | 'center';
+            spacing?: 'compact' | 'normal' | 'roomy';
+        };
+    };
 };
 
 export type PatchNewsletterIssueRequest = {
@@ -10793,6 +10853,10 @@ export type CmoOverview = {
      * Every version, newest first. At most one is approved; approving an older one reverts to it.
      */
     strategyVersions: Array<MarketingStrategyVersion>;
+    /**
+     * When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.
+     */
+    hiredAt: Date | null;
     updates: Array<CmoUpdate>;
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
@@ -54710,7 +54774,7 @@ export type PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses = {
 export type PostProjectsByIdNewsletterIssuesByIssueIdCancelResponse = PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses[keyof PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses];
 
 export type PostProjectsByIdNewsletterIssuesPreviewData = {
-    body: CreateNewsletterIssueRequest;
+    body: PreviewNewsletterIssueRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -69391,7 +69455,7 @@ export type ConnectCmoAdsErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69512,7 +69576,7 @@ export type FinalizeCmoAdsErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69632,7 +69696,7 @@ export type ListCmoAdChoicesErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69755,7 +69819,7 @@ export type ChooseCmoAdAccountErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69875,7 +69939,7 @@ export type ListCmoAdCampaignsErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -69995,7 +70059,7 @@ export type LaunchCmoSearchAdErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;
@@ -70117,7 +70181,7 @@ export type SetCmoAdCampaignStatusErrors = {
         };
     };
     /**
-     * Not in the Ads beta, or not an owner or admin
+     * Not an owner or admin
      */
     403: {
         error: string;

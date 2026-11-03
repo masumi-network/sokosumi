@@ -245,6 +245,11 @@ export const cmoOverviewSchema = z
       .describe(
         "Every version, newest first. At most one is approved; approving an older one reverts to it.",
       ),
+    hiredAt: z
+      .union([dateTimeSchema, z.null()])
+      .describe(
+        "When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.",
+      ),
     updates: z.array(cmoUpdateSchema),
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),

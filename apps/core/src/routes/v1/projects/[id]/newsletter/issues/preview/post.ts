@@ -7,8 +7,8 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
-  createNewsletterIssueRequestSchema,
   newsletterProjectParamsSchema,
+  previewNewsletterIssueRequestSchema,
 } from "@/schemas/newsletter.schema";
 import { renderNewsletterIssuePreview } from "@/services/newsletter-issues.service";
 
@@ -20,13 +20,13 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/issues/preview",
     tags: ["Projects"],
     description:
-      "Render unsaved newsletter content using the sending renderer. Never sends email or saves an issue.",
+      "Render unsaved newsletter content using the sending renderer, with the saved brand or an unsaved design. Never sends email or saves an issue or settings.",
     request: {
       params: newsletterProjectParamsSchema,
       body: {
         required: true,
         content: {
-          "application/json": { schema: createNewsletterIssueRequestSchema },
+          "application/json": { schema: previewNewsletterIssueRequestSchema },
         },
       },
     },
@@ -47,10 +47,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const scope = await newsletterIssueScope(c, id);
-    const { html } = await renderNewsletterIssuePreview(
-      scope,
-      c.req.valid("json"),
-    );
+    const { brand, ...issue } = c.req.valid("json");
+    const { html } = await renderNewsletterIssuePreview(scope, issue, brand);
     return ok(c, { html });
   });
 }

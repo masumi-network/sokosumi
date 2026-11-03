@@ -6,7 +6,7 @@ import {
   readRouteSession,
 } from "@/lib/auth/route-session";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import { newsletterIssueInputSchema } from "@/lib/schemas/newsletter-issues";
+import { newsletterIssuePreviewSchema } from "@/lib/schemas/newsletter-issues";
 import { newsletterService } from "@/lib/services/newsletter.service";
 
 export async function POST(
@@ -20,7 +20,7 @@ export async function POST(
   if (session.status === "signedOut")
     return NextResponse.json({ error: t("Preview.error") }, { status: 401 });
   const { projectId } = await params;
-  const input = newsletterIssueInputSchema(t).safeParse(
+  const input = newsletterIssuePreviewSchema(t).safeParse(
     await request.json().catch(() => null),
   );
   if (!z.uuid().safeParse(projectId).success || !input.success)

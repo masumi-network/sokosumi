@@ -254,6 +254,7 @@ import {
   isNewsletterSubscriberCapability,
   newsletterConsentClaim,
   newsletterSettingsNeedOwner,
+  resolveNewsletterContentImages,
   runNewsletterReadTool,
   runNewsletterSubscriberTool,
   runNewsletterWriteTool,
@@ -834,6 +835,32 @@ function actsForOwner(authorized: AuthorizedSokoBotRuntime): boolean {
     authorized.askedByKind === "TEAMMATE" &&
     getSokoBotVersion(authorized.turn.versionId).profile === "cmo"
   );
+}
+
+/**
+ * A personal bot reads its owner's Directs on the owner's own turns and its
+ * rhythms; never for a teammate, another bot, or on a shared bot.
+ */
+function ownerDirectReader(authorized: AuthorizedSokoBotRuntime): boolean {
+  return (
+    authorized.askedByKind !== "TEAMMATE" &&
+    authorized.askedByKind !== "ASSISTANT" &&
+    authorized.turn.actingUserId !== null &&
+    !authorized.reader?.sharedScope
+  );
+}
+
+/** The owner's Directs: this organization's and the org-free personal ones. */
+function ownerDirectWhere(
+  authorized: AuthorizedSokoBotRuntime,
+  scope: Prisma.ChatRoomWhereInput,
+): Prisma.ChatRoomWhereInput {
+  return {
+    kind: "direct",
+    archivedAt: null,
+    OR: [{ organizationId: scope.organizationId }, { organizationId: null }],
+    userMembers: { some: { userId: authorized.turn.actingUserId ?? "" } },
+  };
 }
 
 /** A Drive folder a tool may write into, normalized; "" is the top level. */
@@ -1448,7 +1475,28 @@ export class SokoBotRuntimeService {
       ...(authorized.askedByKind === "OWNER"
         ? { ownerUnread: await this.ownerUnreadRooms(authorized, scope) }
         : {}),
+      ...(ownerDirectReader(authorized)
+        ? { ownerDirects: await this.ownerDirectRooms(authorized, scope) }
+        : {}),
     };
+  }
+
+  /** The owner's Directs, newest first; read_chat reads them, nothing writes. */
+  private async ownerDirectRooms(
+    authorized: AuthorizedSokoBotRuntime,
+    scope: Prisma.ChatRoomWhereInput,
+  ) {
+    const rooms = await prisma.chatRoom.findMany({
+      where: ownerDirectWhere(authorized, scope),
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      select: { id: true, name: true, groupName: true, updatedAt: true },
+    });
+    return rooms.map((room) => ({
+      roomId: room.id,
+      name: room.groupName ?? room.name,
+      lastActivityAt: room.updatedAt.toISOString(),
+    }));
   }
 
   /**
@@ -1531,6 +1579,28 @@ export class SokoBotRuntimeService {
       archivedAt: null,
       sokoBotMembers: { some: { sokoBotId: sokoBotId } },
       organizationId: workspace?.organizationId ?? null,
+    };
+  }
+
+  /** One of the owner's Directs the bot may read, or null. */
+  private async ownerDirectRoom(
+    authorized: AuthorizedSokoBotRuntime,
+    roomId: string,
+  ) {
+    if (!ownerDirectReader(authorized)) return null;
+    const scope = await this.chatRoomScope(
+      authorized,
+      authorized.turn.sokoBotId,
+    );
+    const room = await prisma.chatRoom.findFirst({
+      where: { ...ownerDirectWhere(authorized, scope), id: roomId },
+      select: { id: true, name: true, groupName: true },
+    });
+    if (!room) return null;
+    return {
+      id: room.id,
+      name: room.groupName ?? room.name,
+      sokoBotId: authorized.turn.sokoBotId,
     };
   }
 
@@ -3068,6 +3138,21 @@ export class SokoBotRuntimeService {
     return file;
   }
 
+  private async newsletterImageFileUrl(
+    authorized: AuthorizedSokoBotRuntime,
+    fileId: string,
+  ) {
+    const file = await this.ownerFile(authorized, fileId);
+    if (
+      file.sourceKind !== FileSourceKind.DRIVE_UPLOAD ||
+      socialPostMediaKindForMime(file.mimeType ?? "") !== "image"
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Use an image from Files; upload a chat image with upload_file first",
+      );
+    return (await head(file.sourceId)).url;
+  }
+
   /** A CSV as uploaded; extracted search text may not keep its rows intact. */
   private async readCsvFile(
     authorized: AuthorizedSokoBotRuntime,
@@ -3757,7 +3842,9 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: { roomId: string; limit?: number; before?: string },
   ) {
-    const room = await this.requireChatMembership(authorized, input.roomId);
+    const room =
+      (await this.ownerDirectRoom(authorized, input.roomId)) ??
+      (await this.requireChatMembership(authorized, input.roomId));
     const messages = await prisma.chatRoomMessage.findMany({
       where: {
         roomId: room.id,
@@ -7001,16 +7088,30 @@ export class SokoBotRuntimeService {
       case "get_newsletter_issue":
       case "get_newsletter_analytics":
       case "list_newsletter_subscribers":
-      case "preview_newsletter_issue": {
-        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[
-          input.capability
-        ].parse(input.input);
+      case "preview_newsletter_issue":
+      case "preview_newsletter_signup_form": {
+        const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+          input.input,
+        );
+        const { projectId } = parsed;
         const scope = await this.requireNewsletterScope(
           authorized,
           input.capability,
           projectId,
         );
-        return runNewsletterReadTool(input.capability, input.input, {
+        const resolved =
+          input.capability === "preview_newsletter_issue"
+            ? {
+                ...parsed,
+                content: await resolveNewsletterContentImages(
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_issue.parse(
+                    parsed,
+                  ).content,
+                  (fileId) => this.newsletterImageFileUrl(authorized, fileId),
+                ),
+              }
+            : parsed;
+        return runNewsletterReadTool(input.capability, resolved, {
           projectId,
           workspaceId: scope.workspaceId,
         });
@@ -7020,9 +7121,10 @@ export class SokoBotRuntimeService {
       case "delete_newsletter_issue":
       case "submit_newsletter_issue": {
         const { capability } = input;
-        const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
+        const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(
           input.input,
         );
+        const { projectId } = parsed;
         const scope = await this.requireNewsletterScope(
           authorized,
           capability,
@@ -7037,6 +7139,16 @@ export class SokoBotRuntimeService {
           throw new SokoBotRuntimeValidationError(
             "Newsletter issues are only deleted when the owner asks in chat; ask them first",
           );
+        const resolved =
+          "content" in parsed
+            ? {
+                ...parsed,
+                content: await resolveNewsletterContentImages(
+                  parsed.content,
+                  (fileId) => this.newsletterImageFileUrl(authorized, fileId),
+                ),
+              }
+            : parsed;
         try {
           return await serializableTransaction(async (tx) => {
             await this.requireMutationAuthority(
@@ -7048,7 +7160,7 @@ export class SokoBotRuntimeService {
             );
             const result = await runNewsletterWriteTool(
               capability,
-              input.input,
+              resolved,
               { projectId, workspaceId: scope.workspaceId },
               {
                 client: tx,
