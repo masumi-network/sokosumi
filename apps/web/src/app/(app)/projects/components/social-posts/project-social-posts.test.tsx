@@ -5633,6 +5633,9 @@ describe("ProjectSocialPosts", () => {
         expect(updateProjectSocialPost).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           postId: post.id,
+          ...(status === "disconnected"
+            ? { socialConnectionId: restored.id }
+            : {}),
           text,
           firstComment: text,
           media: [],
