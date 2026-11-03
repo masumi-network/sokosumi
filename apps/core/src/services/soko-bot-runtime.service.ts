@@ -837,6 +837,32 @@ function actsForOwner(authorized: AuthorizedSokoBotRuntime): boolean {
   );
 }
 
+/**
+ * A personal bot reads its owner's Directs on the owner's own turns and its
+ * rhythms; never for a teammate, another bot, or on a shared bot.
+ */
+function ownerDirectReader(authorized: AuthorizedSokoBotRuntime): boolean {
+  return (
+    authorized.askedByKind !== "TEAMMATE" &&
+    authorized.askedByKind !== "ASSISTANT" &&
+    authorized.turn.actingUserId !== null &&
+    !authorized.reader?.sharedScope
+  );
+}
+
+/** The owner's Directs: this organization's and the org-free personal ones. */
+function ownerDirectWhere(
+  authorized: AuthorizedSokoBotRuntime,
+  scope: Prisma.ChatRoomWhereInput,
+): Prisma.ChatRoomWhereInput {
+  return {
+    kind: "direct",
+    archivedAt: null,
+    OR: [{ organizationId: scope.organizationId }, { organizationId: null }],
+    userMembers: { some: { userId: authorized.turn.actingUserId ?? "" } },
+  };
+}
+
 /** A Drive folder a tool may write into, normalized; "" is the top level. */
 function driveFolderFor(folder: string | undefined): string {
   const result = sokoBotDriveFolder(folder);
@@ -1449,7 +1475,28 @@ export class SokoBotRuntimeService {
       ...(authorized.askedByKind === "OWNER"
         ? { ownerUnread: await this.ownerUnreadRooms(authorized, scope) }
         : {}),
+      ...(ownerDirectReader(authorized)
+        ? { ownerDirects: await this.ownerDirectRooms(authorized, scope) }
+        : {}),
     };
+  }
+
+  /** The owner's Directs, newest first; read_chat reads them, nothing writes. */
+  private async ownerDirectRooms(
+    authorized: AuthorizedSokoBotRuntime,
+    scope: Prisma.ChatRoomWhereInput,
+  ) {
+    const rooms = await prisma.chatRoom.findMany({
+      where: ownerDirectWhere(authorized, scope),
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      select: { id: true, name: true, groupName: true, updatedAt: true },
+    });
+    return rooms.map((room) => ({
+      roomId: room.id,
+      name: room.groupName ?? room.name,
+      lastActivityAt: room.updatedAt.toISOString(),
+    }));
   }
 
   /**
@@ -1532,6 +1579,28 @@ export class SokoBotRuntimeService {
       archivedAt: null,
       sokoBotMembers: { some: { sokoBotId: sokoBotId } },
       organizationId: workspace?.organizationId ?? null,
+    };
+  }
+
+  /** One of the owner's Directs the bot may read, or null. */
+  private async ownerDirectRoom(
+    authorized: AuthorizedSokoBotRuntime,
+    roomId: string,
+  ) {
+    if (!ownerDirectReader(authorized)) return null;
+    const scope = await this.chatRoomScope(
+      authorized,
+      authorized.turn.sokoBotId,
+    );
+    const room = await prisma.chatRoom.findFirst({
+      where: { ...ownerDirectWhere(authorized, scope), id: roomId },
+      select: { id: true, name: true, groupName: true },
+    });
+    if (!room) return null;
+    return {
+      id: room.id,
+      name: room.groupName ?? room.name,
+      sokoBotId: authorized.turn.sokoBotId,
     };
   }
 
@@ -3758,7 +3827,9 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: { roomId: string; limit?: number; before?: string },
   ) {
-    const room = await this.requireChatMembership(authorized, input.roomId);
+    const room =
+      (await this.ownerDirectRoom(authorized, input.roomId)) ??
+      (await this.requireChatMembership(authorized, input.roomId));
     const messages = await prisma.chatRoomMessage.findMany({
       where: {
         roomId: room.id,
