@@ -49,15 +49,16 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 - [Sign in](./sign-in.md) — email/password session, Welcome `/` landing, persist on `/agents`.
 - [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
-- [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (coworker greeting, or Soko Bot home when the user has a personal bot).
+- [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (coworker greeting and **Needs you**, or Soko Bot home when the user has a personal bot). **Catch up** is `/chat/catch-up`, not the Welcome page.
 - [Soko Bots](./soko-bots.md) — `/soko-bots` team assistants (top sidebar **Soko Bots**).
 - [Tasks board](./tasks-board.md) — `/tasks` task manager (Board / Calendar tabs; kanban or list).
 - [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
 - [Contacts](./contacts.md) — `/contacts` team contacts (All / My / Recently added), including the empty state.
 - [Calendar](./calendar.md) — Calendar tab on `/tasks` (`/calendar` redirects); Month / Week / Agenda. Not a sidebar row.
 - [Content Studio](./studio.md) — `/studio` image studio (named styles with no `?projectId=`; picker only for a missing project).
-- [Social Scheduling](./social.md) — `/social` post calendar (always in the desktop sidebar).
-- [Projects](./projects.md) — `/projects` list or empty state (not a desktop sidebar row).
+- [Social posts](./social.md) — `/social` post calendar (Marketing group; sidebar label **Social posts**).
+- [Newsletter](./newsletter.md) — `/newsletter` only in the newsletter beta organization. Elsewhere the sidebar row is absent and the URL is a 404.
+- [Projects](./projects.md) — `/projects` card grid or empty state (desktop **Work** row under **Home**).
 - [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
 - [History](./history.md) — `/history` credit history ledger (account menu / You; not a sidebar row).
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

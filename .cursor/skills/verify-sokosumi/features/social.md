@@ -1,6 +1,6 @@
-# Social Scheduling
+# Social posts
 
-Social Scheduling lets a signed-in user open `/social` and see scheduled posts across projects, including an empty calendar. The desktop sidebar always includes this row.
+Social posts lets a signed-in user open `/social` and see scheduled posts across projects, including an empty calendar. The desktop sidebar always includes this row, labeled **Social posts**.
 
 ## Sub-features
 
@@ -11,7 +11,7 @@ Social Scheduling lets a signed-in user open `/social` and see scheduled posts a
 
 ## How to get to it (user POV)
 
-- Choose **Social Scheduling** in app navigation (desktop sidebar after **Content Studio**, before **Files**).
+- Choose **Social posts** in the desktop sidebar **Marketing** group (after **Content Studio**). **Files** is in **Records**, above Marketing, not under this row.
 - Open `/social` directly.
 - **Ads** is a separate sidebar row and appears only when social beta is on. It is not this page.
 
@@ -28,6 +28,6 @@ Preconditions:
 
 ## Gotchas
 
-- Social Scheduling is public. Social beta gates **Ads** (`/ads`) only.
+- Social posts is public. Social beta gates **Ads** (`/ads`) only. The sidebar label is **Social posts**, not “Social Scheduling”.
 - With no project selected, Calendar and Performance span projects. **Drafts**, **Needs attention**, and **Accounts** ask to **Choose a project**. That prompt is the all-projects state, not a missing tab.
 - Creating or publishing a post is out of scope. The workspace [Calendar](./calendar.md) tab is a different grid (`/tasks?tab=calendar`).
