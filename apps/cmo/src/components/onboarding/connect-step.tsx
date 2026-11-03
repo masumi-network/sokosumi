@@ -17,7 +17,6 @@ import {
   COMMENT_REPLY_CHANNELS,
   channelInfo,
   channelKey,
-  GROUP_NAMES,
   SOON_CHANNELS,
 } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
@@ -53,6 +52,32 @@ export function strategySocialChannels(overview: CmoOverview): Provider[] {
   return strategyChannels(overview).filter(isProvider);
 }
 
+/**
+ * What the founder may add but need not: the plan's ads and newsletter, and
+ * the channels Cuso proposed adding, with how much each would bring a month.
+ */
+export function optionalChannels(
+  overview: CmoOverview,
+): { key: string; perMonth: number | null }[] {
+  const planned = strategyChannels(overview);
+  const own = planned
+    .filter((key) => !isProvider(key) && key !== "seo")
+    .map((key) => ({ key, perMonth: null }));
+  const proposed = (overview.strategy?.proposals ?? []).flatMap((proposal) => {
+    const key = channelKey(proposal.channel);
+    return key &&
+      channelInfo(key)?.status === "live" &&
+      !planned.includes(key) &&
+      key !== "seo"
+      ? [{ key, perMonth: proposal.perMonth }]
+      : [];
+  });
+  return [...own, ...proposed].filter(
+    (channel, index, all) =>
+      all.findIndex((other) => other.key === channel.key) === index,
+  );
+}
+
 interface ConnectStepProps {
   overview: CmoOverview;
   onConnect: (
@@ -78,7 +103,9 @@ export function ConnectStep({
   onMailingList,
   onContinue,
 }: ConnectStepProps) {
-  const keys = strategyChannels(overview);
+  const required = strategySocialChannels(overview);
+  const optional = optionalChannels(overview);
+  const searchOnly = strategyChannels(overview).includes("seo");
   const calendar = overview.strategy?.calendar ?? [];
   const connected = new Set(
     overview.channels
@@ -90,12 +117,7 @@ export function ConnectStep({
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [continuing, startContinuing] = useTransition();
-  const ready = (key: string) =>
-    connected.has(key) ||
-    ads.has(key) ||
-    (key === "newsletter" && overview.mailingListSize > 0) ||
-    key === "seo";
-  const allReady = keys.every(ready);
+  const missing = required.filter((key) => !connected.has(key));
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
 
@@ -126,10 +148,88 @@ export function ConnectStep({
     });
   }
 
-  const groups = GROUP_ORDER.map((group) => ({
-    group,
-    keys: keys.filter((key) => channelInfo(key)?.group === group),
-  })).filter((entry) => entry.keys.length > 0);
+  const byGroup = (keys: string[]) =>
+    [...keys].sort(
+      (a, b) =>
+        GROUP_ORDER.indexOf(channelInfo(a)?.group ?? "search") -
+        GROUP_ORDER.indexOf(channelInfo(b)?.group ?? "search"),
+    );
+  const needed = [...required, ...(searchOnly ? ["seo"] : [])];
+  const sections = [
+    { label: "Needed", keys: needed },
+    { label: "Optional", keys: byGroup(optional.map(({ key }) => key)) },
+  ].filter((section) => section.keys.length > 0);
+  const perMonth = (key: string) =>
+    optional.find((channel) => channel.key === key)?.perMonth ?? null;
+
+  function row(key: string, delay: number) {
+    const done = connected.has(key) || ads.has(key);
+    return (
+      <motion.li
+        key={key}
+        className="ob-connect-row"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 * delay }}
+      >
+        <ChannelIcon channel={key} size={22} />
+        {key === "newsletter" ? (
+          <MailingList
+            size={overview.mailingListSize}
+            issues={pieces(key)}
+            onAdd={onMailingList}
+          />
+        ) : (
+          <>
+            <div className="ob-connect-text">
+              <p className="ob-connect-name">{channelLabel(key)}</p>
+              <p className="ob-note">
+                {rowNote(key, {
+                  connected: done,
+                  handle: overview.channels.find(
+                    (channel) => channel.provider.toLowerCase() === key,
+                  )?.handle,
+                  pieces: pieces(key),
+                  perMonth: perMonth(key),
+                })}
+              </p>
+            </div>
+            {key === "seo" ? (
+              <Done>Nothing to connect</Done>
+            ) : done ? (
+              <Done>Connected</Done>
+            ) : isProvider(key) ? (
+              <button
+                type="button"
+                className={
+                  required.includes(key)
+                    ? "ob-button"
+                    : "ob-button ob-button-quiet"
+                }
+                disabled={pending !== null}
+                onClick={() => connect(key)}
+              >
+                {pending === key ? (
+                  <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+                ) : null}
+                Connect
+              </button>
+            ) : (
+              <a
+                className="ob-button ob-button-quiet"
+                href={overview.connectAdsUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Connect
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </a>
+            )}
+          </>
+        )}
+      </motion.li>
+    );
+  }
 
   return (
     <section className="ob-narrow">
@@ -137,13 +237,21 @@ export function ConnectStep({
         step={7}
         title="Accounts"
         mood="point"
-        say="Connect the accounts I post to. Ads, newsletters and website changes come ready for you to launch, send or paste. Skip anything; it stays a draft."
-        note={allReady ? undefined : "You can connect accounts later."}
+        say={
+          required.length > 0
+            ? "Connect the accounts I post to. Ads and the rest are optional: add them now or later."
+            : "Nothing here is needed to start. Add any of these now or later."
+        }
+        note={
+          missing.length > 0
+            ? `Connect ${listNames(missing.map(channelLabel))} to continue.`
+            : undefined
+        }
         action={
           <button
             type="button"
             className="ob-button ob-button-lg"
-            disabled={continuing}
+            disabled={continuing || missing.length > 0}
             onClick={() =>
               startContinuing(async () => {
                 try {
@@ -160,76 +268,13 @@ export function ConnectStep({
         }
       />
 
-      {groups.map(({ group, keys: groupKeys }, groupIndex) => (
-        <div key={group} className="ob-connect-group">
-          {group === "social" || group === "ads" ? (
-            <p className="ob-label">{GROUP_NAMES[group]}</p>
-          ) : null}
+      {sections.map((section, sectionIndex) => (
+        <div key={section.label} className="ob-connect-group">
+          <p className="ob-label">{section.label}</p>
           <ul className="ob-connect-list">
-            {groupKeys.map((key, index) => (
-              <motion.li
-                key={key}
-                className="ob-connect-row"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 * (groupIndex * 3 + index) }}
-              >
-                <ChannelIcon channel={key} size={22} />
-                {key === "newsletter" ? (
-                  <MailingList
-                    size={overview.mailingListSize}
-                    issues={pieces(key)}
-                    onAdd={onMailingList}
-                  />
-                ) : (
-                  <>
-                    <div className="ob-connect-text">
-                      <p className="ob-connect-name">{channelLabel(key)}</p>
-                      <p className="ob-note">
-                        {rowNote(key, {
-                          connected: connected.has(key) || ads.has(key),
-                          handle: overview.channels.find(
-                            (channel) => channel.provider.toLowerCase() === key,
-                          )?.handle,
-                          pieces: pieces(key),
-                        })}
-                      </p>
-                    </div>
-                    {key === "seo" ? (
-                      <Done>Nothing to connect</Done>
-                    ) : connected.has(key) || ads.has(key) ? (
-                      <Done>Connected</Done>
-                    ) : isProvider(key) ? (
-                      <button
-                        type="button"
-                        className="ob-button"
-                        disabled={pending !== null}
-                        onClick={() => connect(key)}
-                      >
-                        {pending === key ? (
-                          <Loader2
-                            size={14}
-                            className="ob-spin"
-                            aria-hidden="true"
-                          />
-                        ) : null}
-                        Connect
-                      </button>
-                    ) : (
-                      <a
-                        className="ob-button ob-button-quiet"
-                        href={overview.connectAdsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Connect
-                        <ArrowUpRight size={14} aria-hidden="true" />
-                      </a>
-                    )}
-                  </>
-                )}
-              </motion.li>
-            ))}
+            {section.keys.map((key, index) =>
+              row(key, sectionIndex * 3 + index),
+            )}
           </ul>
         </div>
       ))}
@@ -244,7 +289,7 @@ export function ConnectStep({
       {error ? (
         <p className="ob-alert" role="alert">
           {/configured|unavailable|set up/i.test(error)
-            ? "Connecting accounts isn't available here yet. Skip for now; you can connect later in Settings."
+            ? "Connecting accounts isn't available here yet."
             : error}
         </p>
       ) : null}
@@ -265,9 +310,22 @@ function Done({ children }: { children: ReactNode }) {
   );
 }
 
+/** Names as one phrase: "X", "X and LinkedIn", "X, LinkedIn and Facebook". */
+function listNames(names: string[]): string {
+  return names.length < 2
+    ? (names[0] ?? "")
+    : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
 function rowNote(
   key: string,
-  state: { connected: boolean; handle?: string | null; pieces: number },
+  state: {
+    connected: boolean;
+    handle?: string | null;
+    pieces: number;
+    /** A channel Cuso proposed adding: what it would bring a month. */
+    perMonth: number | null;
+  },
 ): string {
   const group = channelInfo(key)?.group;
   if (group === "search") {
@@ -281,6 +339,10 @@ function rowNote(
     return group === "ads"
       ? `Connected. You set the budget and launch the ads in ${platform}.`
       : `Connected${state.handle ? ` as @${state.handle}` : ""}.${replies}`;
+  }
+  if (state.perMonth !== null) {
+    const what = group === "ads" ? "ad" : key === "youtube" ? "video" : "post";
+    return `Adds ${state.perMonth} ${what}${state.perMonth === 1 ? "" : "s"} a month.`;
   }
   if (group === "ads") {
     return `${state.pieces} ${state.pieces === 1 ? "ad" : "ads"}, written and designed. You set the budget and launch ${state.pieces === 1 ? "it" : "them"} in ${platform}.`;
@@ -342,7 +404,7 @@ function MailingList({
         {open ? null : (
           <button
             type="button"
-            className={size > 0 ? "ob-button ob-button-quiet" : "ob-button"}
+            className="ob-button ob-button-quiet"
             onClick={() => setOpen(true)}
           >
             {size > 0 ? "Add more" : "Add your list"}
