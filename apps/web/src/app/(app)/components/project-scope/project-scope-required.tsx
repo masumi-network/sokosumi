@@ -10,8 +10,11 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 
 import {
   openProjectScope,
+  openScopeCreate,
   type ProjectScopeRequest,
+  setScopeCreateOpen,
 } from "./sidebar-project-scope-state";
+import { useHasAnyScopeProject } from "./use-scope-projects";
 
 /**
  * Opens the main project selector, as required, when it mounts: an explicit
@@ -33,10 +36,11 @@ export function RequireProjectScope(
 /**
  * What a project-only page (Newsletter, Social, Ads, the studio) shows before
  * it knows which project it is working in: its own backdrop (`children`), its
- * copy, and a Select project button. The button opens the header's project
- * selector in required mode. Choosing there writes the scope back into the
- * URL the way every other scoped page does. Navigation leaves the selector
- * closed; explicit actions can opt into opening it on mount.
+ * copy, and a Create project button for an empty workspace. The button seeds
+ * a required request before opening Create. Choosing or creating writes the
+ * scope back into the URL the way every other scoped page does. Navigation
+ * opens the header's required selector once an open project is known; explicit
+ * actions can opt into opening it on mount before that query has settled.
  */
 export function ProjectScopeRequired({
   autoOpen = false,
@@ -48,7 +52,8 @@ export function ProjectScopeRequired({
 }: {
   /**
    * Opt into opening the header's project selector on mount for an explicit
-   * action that needs a project. Page navigation keeps it closed by default.
+   * action that needs a project, even before project availability is known.
+   * Page navigation opens it once the workspace has an open project.
    */
   autoOpen?: boolean;
   body: string;
@@ -60,18 +65,26 @@ export function ProjectScopeRequired({
 }) {
   const headingId = useId();
   const t = useTranslations("App.ProjectScope");
+  const { isPending, hasProjects } = useHasAnyScopeProject();
+  const shouldAutoOpen = autoOpen === true || (!isPending && hasProjects);
   const cancelRequest = useRef<ReturnType<typeof openProjectScope> | null>(
     null,
   );
 
-  useMountEffect(() => () => cancelRequest.current?.());
+  useMountEffect(() => () => {
+    if (cancelRequest.current) {
+      cancelRequest.current();
+      setScopeCreateOpen(false);
+    }
+  });
 
-  function handleSelectProject() {
+  function handleCreateProject(event: React.MouseEvent<HTMLButtonElement>) {
     cancelRequest.current = openProjectScope({
       required: true,
       reason: body,
       onSelect,
     });
+    openScopeCreate(event.currentTarget);
   }
 
   return (
@@ -80,7 +93,7 @@ export function ProjectScopeRequired({
       className="flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
       data-testid={testId}
     >
-      {autoOpen ? (
+      {shouldAutoOpen ? (
         <RequireProjectScope reason={body} onSelect={onSelect} />
       ) : null}
       {children ?? (
@@ -102,15 +115,18 @@ export function ProjectScopeRequired({
       <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
         {body}
       </p>
-      <Button
-        className="mt-6"
-        data-testid="project-scope-select-button"
-        onClick={handleSelectProject}
-        type="button"
-        variant="primary"
-      >
-        {t("selectProject")}
-      </Button>
+      {/* Empty workspaces offer Create in the switcher, so go straight to create. */}
+      {!shouldAutoOpen && !isPending && !hasProjects ? (
+        <Button
+          className="mt-6"
+          data-testid="project-scope-select-button"
+          onClick={handleCreateProject}
+          type="button"
+          variant="primary"
+        >
+          {t("create")}
+        </Button>
+      ) : null}
     </section>
   );
 }

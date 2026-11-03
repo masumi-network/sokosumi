@@ -47,9 +47,12 @@ vi.mock("./subscribers", () => ({
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: () => undefined,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 import SubscribersPage from "./page";
@@ -92,6 +95,9 @@ describe("newsletter subscribers page", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create project" }),
+    ).toBeInTheDocument();
     expect(mocks.settings).not.toHaveBeenCalled();
   });
   it("returns to settings until a newsletter exists", async () => {

@@ -6,9 +6,13 @@ const {
   imageStudioServiceMock,
   projectServiceMock,
   openProjectScopeMock,
+  openScopeCreateMock,
+  setScopeCreateOpenMock,
 } = vi.hoisted(() => ({
   hasSocialBetaAccessMock: vi.fn(),
   openProjectScopeMock: vi.fn(),
+  openScopeCreateMock: vi.fn(),
+  setScopeCreateOpenMock: vi.fn(),
   imageStudioServiceMock: {
     getCatalog: vi.fn(),
     getState: vi.fn(),
@@ -65,6 +69,12 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
 // through react-query. This file is about which state the page chooses.
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: openProjectScopeMock,
+  openScopeCreate: openScopeCreateMock,
+  setScopeCreateOpen: setScopeCreateOpenMock,
+}));
+
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 const PROJECT = {
@@ -94,7 +104,7 @@ describe("StudioPage", () => {
     hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
-  it("shows curated styles and a project selection button without opening the selector", async () => {
+  it("shows curated styles and project creation without opening the selector in an empty workspace", async () => {
     const { default: StudioPage } = await import("./page");
 
     render(await StudioPage({ searchParams: Promise.resolve({}) }));
@@ -113,14 +123,16 @@ describe("StudioPage", () => {
     // The selector opens over the curated gallery, asking for a project.
     // Arrival leaves it closed; the button is the explicit request.
     expect(openProjectScopeMock).not.toHaveBeenCalled();
-    fireEvent.click(
-      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
-    );
+    const button = screen.getByRole("button", {
+      name: "App.ProjectScope.create",
+    });
+    fireEvent.click(button);
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
       onSelect: undefined,
     });
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
     // Nothing is loaded for a project nobody named.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
@@ -138,9 +150,9 @@ describe("StudioPage", () => {
       "data-project",
       "workspace",
     );
-    expect(
-      screen.getByTestId("project-scope-select-button"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("project-scope-select-button")).toHaveTextContent(
+      "App.ProjectScope.create",
+    );
     expect(openProjectScopeMock).not.toHaveBeenCalled();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
@@ -166,14 +178,16 @@ describe("StudioPage", () => {
       "workspace",
     );
     expect(openProjectScopeMock).not.toHaveBeenCalled();
-    fireEvent.click(
-      screen.getByRole("button", { name: "App.ProjectScope.selectProject" }),
-    );
+    const button = screen.getByRole("button", {
+      name: "App.ProjectScope.create",
+    });
+    fireEvent.click(button);
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickUnavailable",
       onSelect: undefined,
     });
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
   });
 

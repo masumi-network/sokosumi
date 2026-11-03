@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
   requireScope: vi.fn(),
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -46,9 +48,12 @@ vi.mock("@/lib/services/project.service", () => ({
 }));
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: (request: object) => mocks.requireScope(request),
+  openScopeCreate: mocks.openScopeCreate,
+  setScopeCreateOpen: mocks.setScopeCreateOpen,
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 vi.mock("../newsletter-settings-form", () => ({
   NewsletterSettingsForm: (props: object) => {
@@ -191,7 +196,7 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("without a project", () => {
-    it("offers a button to select a project without opening on arrival", async () => {
+    it("offers project creation without opening the selector in an empty workspace", async () => {
       const user = userEvent.setup();
       render(
         <NextIntlClientProvider locale="en" messages={messages}>
@@ -208,10 +213,12 @@ describe("NewsletterSettingsPage", () => {
       expect(mocks.requireScope).not.toHaveBeenCalled();
       // The page's button opens the selector over its stack of sample issues.
       expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: "Select project" }));
+      const button = screen.getByRole("button", { name: "Create project" });
+      await user.click(button);
       expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ reason: PAGE.description, required: true }),
       );
+      expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
       expect(mocks.getProject).not.toHaveBeenCalled();
       expect(mocks.listProjects).not.toHaveBeenCalled();
       expect(screen.queryByText(PAGE.pickUnavailable)).toBeNull();
@@ -226,7 +233,7 @@ describe("NewsletterSettingsPage", () => {
 
       expect(mocks.requireScope).not.toHaveBeenCalled();
       expect(
-        screen.getByRole("button", { name: "Select project" }),
+        screen.getByRole("button", { name: "Create project" }),
       ).toBeInTheDocument();
       expect(mocks.getProject).not.toHaveBeenCalled();
     });
@@ -244,13 +251,15 @@ describe("NewsletterSettingsPage", () => {
 
       expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
       expect(mocks.requireScope).not.toHaveBeenCalled();
-      await user.click(screen.getByRole("button", { name: "Select project" }));
+      const button = screen.getByRole("button", { name: "Create project" });
+      await user.click(button);
       expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           reason: PAGE.pickUnavailable,
           required: true,
         }),
       );
+      expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
       expect(mocks.getSettings).not.toHaveBeenCalled();
     });
 

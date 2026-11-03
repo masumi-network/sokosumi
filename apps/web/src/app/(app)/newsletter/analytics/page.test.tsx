@@ -48,9 +48,12 @@ vi.mock("./newsletter-analytics-view", () => ({
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: () => undefined,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 import NewsletterAnalyticsPage from "./page";
@@ -95,6 +98,9 @@ describe("newsletter analytics page", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create project" }),
+    ).toBeInTheDocument();
     expect(m.analytics).not.toHaveBeenCalled();
   });
   it("returns to settings until a newsletter is configured", async () => {

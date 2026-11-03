@@ -10,10 +10,19 @@ import es from "@/../messages/es.json";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   openProjectScope: vi.fn(),
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
+  useHasAnyScopeProject: vi.fn(),
 }));
 
 vi.mock("./sidebar-project-scope-state", () => ({
   openProjectScope: mocks.openProjectScope,
+  openScopeCreate: mocks.openScopeCreate,
+  setScopeCreateOpen: mocks.setScopeCreateOpen,
+}));
+
+vi.mock("./use-scope-projects", () => ({
+  useHasAnyScopeProject: mocks.useHasAnyScopeProject,
 }));
 
 import {
@@ -24,15 +33,19 @@ import {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.openProjectScope.mockReturnValue(mocks.cancel);
+  mocks.useHasAnyScopeProject.mockReturnValue({
+    isPending: false,
+    hasProjects: false,
+  });
 });
 
 describe("ProjectScopeRequired", () => {
   it.each([
-    { locale: "en", messages: en, label: "Select project" },
-    { locale: "de", messages: de, label: "Projekt auswählen" },
-    { locale: "es", messages: es, label: "Seleccionar proyecto" },
+    { locale: "en", messages: en, label: "Create project" },
+    { locale: "de", messages: de, label: "Projekt erstellen" },
+    { locale: "es", messages: es, label: "Crear proyecto" },
   ])(
-    "offers a translated primary action in $locale without opening on arrival",
+    "offers a translated Create action in $locale for an empty workspace without opening on arrival",
     ({ locale, messages, label }) => {
       render(
         <NextIntlClientProvider locale={locale} messages={messages}>
@@ -46,6 +59,7 @@ describe("ProjectScopeRequired", () => {
       );
 
       expect(mocks.openProjectScope).not.toHaveBeenCalled();
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
       expect(screen.getByTestId("creative-backdrop")).toBeVisible();
       expect(screen.getByRole("button", { name: label })).toHaveClass(
         "bg-primary",
@@ -54,7 +68,7 @@ describe("ProjectScopeRequired", () => {
     },
   );
 
-  it("opens required scope on click and cancels its request when the page unmounts", async () => {
+  it("seeds required scope before opening Create on click and cleans up on unmount", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const { unmount } = render(
@@ -66,38 +80,149 @@ describe("ProjectScopeRequired", () => {
       </NextIntlClientProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Select project" }));
+    const button = screen.getByRole("button", { name: "Create project" });
+    expect(button).toHaveAttribute(
+      "data-testid",
+      "project-scope-select-button",
+    );
+    await user.click(button);
 
     expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
       required: true,
       reason: "Choose a project to continue.",
       onSelect,
     });
+    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
+    expect(mocks.openProjectScope).toHaveBeenCalledBefore(
+      mocks.openScopeCreate,
+    );
     expect(mocks.cancel).not.toHaveBeenCalled();
+    expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
 
     unmount();
     expect(mocks.cancel).toHaveBeenCalledOnce();
+    expect(mocks.setScopeCreateOpen).toHaveBeenCalledExactlyOnceWith(false);
   });
 
-  it("opens on mount only when explicitly opted in and cancels on unmount", () => {
+  it("auto-opens for a workspace with projects while keeping the backdrop and copy without a button", () => {
+    const onSelect = vi.fn();
+    mocks.useHasAnyScopeProject.mockReturnValue({
+      isPending: false,
+      hasProjects: true,
+    });
     const { unmount } = render(
       <NextIntlClientProvider locale="en" messages={en}>
         <ProjectScopeRequired
-          autoOpen
-          body="An explicit action needs a project."
-        />
+          autoOpen={false}
+          body="Choose a project to continue."
+          onSelect={onSelect}
+          title="Choose a project"
+        >
+          <div data-testid="creative-backdrop" />
+        </ProjectScopeRequired>
       </NextIntlClientProvider>,
     );
 
     expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
       required: true,
-      reason: "An explicit action needs a project.",
-      onSelect: undefined,
+      reason: "Choose a project to continue.",
+      onSelect,
     });
+    expect(screen.getByTestId("creative-backdrop")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Choose a project" }),
+    ).toBeVisible();
+    expect(screen.getByText("Choose a project to continue.")).toBeVisible();
+    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
 
     unmount();
     expect(mocks.cancel).toHaveBeenCalledOnce();
+    expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
   });
+
+  it("waits for project availability without opening or flashing a button", () => {
+    mocks.useHasAnyScopeProject.mockReturnValue({
+      isPending: true,
+      hasProjects: false,
+    });
+    const content = () => (
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ProjectScopeRequired
+          body="Choose a project to continue."
+          title="Choose a project"
+        >
+          <div data-testid="creative-backdrop" />
+        </ProjectScopeRequired>
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(content());
+
+    expect(screen.getByTestId("creative-backdrop")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Choose a project" }),
+    ).toBeVisible();
+    expect(screen.getByText("Choose a project to continue.")).toBeVisible();
+    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+
+    mocks.useHasAnyScopeProject.mockReturnValue({
+      isPending: false,
+      hasProjects: true,
+    });
+    rerender(content());
+
+    expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
+      required: true,
+      reason: "Choose a project to continue.",
+      onSelect: undefined,
+    });
+    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
+  });
+
+  it("leaves other create dialogs alone when the prompt unmounts without a click", () => {
+    const { unmount } = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ProjectScopeRequired body="Choose a project to continue." />
+      </NextIntlClientProvider>,
+    );
+
+    unmount();
+
+    expect(mocks.cancel).not.toHaveBeenCalled();
+    expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "keeps autoOpen working when isPending is %s and no projects are known",
+    (isPending) => {
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending,
+        hasProjects: false,
+      });
+      const { unmount } = render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <ProjectScopeRequired
+            autoOpen
+            body="An explicit action needs a project."
+          />
+        </NextIntlClientProvider>,
+      );
+
+      expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
+        required: true,
+        reason: "An explicit action needs a project.",
+        onSelect: undefined,
+      });
+      expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+
+      unmount();
+      expect(mocks.cancel).toHaveBeenCalledOnce();
+      expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
+    },
+  );
 });
 
 it("keeps RequireProjectScope opening required scope for explicit actions", () => {

@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
   subscribers: vi.fn(),
   requireScope: vi.fn(),
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -50,9 +52,12 @@ vi.mock("./issues", () => ({ Issues: () => <p>Issue list</p> }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: (request: object) => mocks.requireScope(request),
+  openScopeCreate: mocks.openScopeCreate,
+  setScopeCreateOpen: mocks.setScopeCreateOpen,
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 import NewsletterIssuesPage from "./page";
@@ -121,7 +126,7 @@ describe("newsletter issues page", () => {
     );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
-  it("offers project selection without opening the selector on arrival", async () => {
+  it("offers project creation without opening the selector in an empty workspace", async () => {
     const user = userEvent.setup();
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -133,10 +138,12 @@ describe("newsletter issues page", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
     expect(mocks.requireScope).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Select project" }));
+    const button = screen.getByRole("button", { name: "Create project" });
+    await user.click(button);
     expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ reason: "description", required: true }),
     );
+    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });

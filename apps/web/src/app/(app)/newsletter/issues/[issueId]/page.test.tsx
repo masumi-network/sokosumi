@@ -67,9 +67,12 @@ vi.mock("../issue-editor", () => ({
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: () => undefined,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 import NewsletterIssuePage from "./page";
@@ -163,6 +166,9 @@ describe("newsletter issue page", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create project" }),
+    ).toBeInTheDocument();
     expect(mocks.get).not.toHaveBeenCalled();
   });
   it("loads lifetime analytics only for sent issues", async () => {

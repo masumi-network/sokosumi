@@ -47,9 +47,12 @@ vi.mock("./calendar", () => ({
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: () => undefined,
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 import NewsletterCalendarPage from "./page";
@@ -91,6 +94,9 @@ describe("newsletter calendar page", () => {
       </NextIntlClientProvider>,
     );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create project" }),
+    ).toBeInTheDocument();
     expect(mocks.list).not.toHaveBeenCalled();
   });
 

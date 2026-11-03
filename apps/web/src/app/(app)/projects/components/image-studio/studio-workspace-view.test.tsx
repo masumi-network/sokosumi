@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   stateOptions: vi.fn(),
   replace: vi.fn(),
   openProjectScope: vi.fn(),
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
   onAccepted: null as null | ((accepted: { remaining: number }) => void),
 }));
 
@@ -39,6 +41,12 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   openProjectScope: mocks.openProjectScope,
+  openScopeCreate: mocks.openScopeCreate,
+  setScopeCreateOpen: mocks.setScopeCreateOpen,
+}));
+
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
 }));
 
 /** What the studio asked the header's project selector for, most recently. */
@@ -155,7 +163,7 @@ describe("the workspace view", () => {
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
-  it("keeps the shared project selection prompt beside curated styles and the composer", () => {
+  it("keeps the shared project creation prompt beside curated styles and the composer", () => {
     render(
       <ImageStudio
         catalog={TEST_CATALOG}
@@ -178,12 +186,14 @@ describe("the workspace view", () => {
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toBeInTheDocument();
     expect(mocks.openProjectScope).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "selectProject" }));
+    const button = screen.getByRole("button", { name: "create" });
+    fireEvent.click(button);
     expect(mocks.openProjectScope).toHaveBeenCalledWith({
       required: true,
       reason: "Pick a project",
       onSelect: undefined,
     });
+    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
@@ -298,6 +308,7 @@ describe("the workspace view", () => {
       required: true,
       reason: "pickForGeneration",
     });
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toHaveValue("a fox");
