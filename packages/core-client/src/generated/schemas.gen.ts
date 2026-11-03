@@ -27938,6 +27938,87 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -29195,6 +29276,87 @@ export const MarketingStrategyRequestSchema = {
                             fileId: {
                                 type: 'string',
                                 maxLength: 100
+                            },
+                            searchAd: {
+                                type: 'object',
+                                properties: {
+                                    keywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 20
+                                    },
+                                    headlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 30
+                                        },
+                                        minItems: 3,
+                                        maxItems: 15
+                                    },
+                                    descriptions: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 90
+                                        },
+                                        minItems: 2,
+                                        maxItems: 4
+                                    },
+                                    finalUrl: {
+                                        type: 'string',
+                                        maxLength: 2048,
+                                        format: 'uri'
+                                    },
+                                    location: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 80
+                                    },
+                                    language: {
+                                        type: 'string',
+                                        pattern: '^[a-z]{2}$'
+                                    },
+                                    callouts: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 25
+                                        },
+                                        maxItems: 10
+                                    }
+                                },
+                                required: [
+                                    'keywords',
+                                    'headlines',
+                                    'descriptions',
+                                    'finalUrl'
+                                ]
+                            },
+                            adCampaign: {
+                                type: 'object',
+                                properties: {
+                                    accountId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'accountId',
+                                    'campaignId'
+                                ]
                             },
                             taskId: {
                                 type: 'string',
@@ -40729,6 +40891,87 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -40929,6 +41172,10 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
+        adsAvailable: {
+            type: 'boolean',
+            description: 'This person is in Sokosumi\'s Ads beta: CMO offers to connect Google Ads and Meta Ads and to launch Cuso\'s search ads.'
+        },
         subscribeUrl: {
             type: 'string'
         },
@@ -41029,6 +41276,7 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
+        'adsAvailable',
         'subscribeUrl',
         'billing',
         'posts',
@@ -41679,6 +41927,98 @@ export const CmoMeasurementConnectSchema = {
     },
     required: [
         'redirectUrl'
+    ]
+} as const;
+
+export const CmoAdsConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const CmoAdsFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'none',
+                'choose'
+            ]
+        },
+        adConnectionId: {
+            type: 'string'
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'state'
+    ]
+} as const;
+
+export const CmoAdCampaignsSchema = {
+    type: 'object',
+    properties: {
+        accounts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    account: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: 'string'
+                            },
+                            provider: {
+                                type: 'string'
+                            },
+                            currency: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name',
+                            'provider',
+                            'currency'
+                        ]
+                    },
+                    campaigns: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/AdCampaign'
+                        }
+                    },
+                    failed: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'account',
+                    'campaigns',
+                    'failed'
+                ]
+            }
+        }
+    },
+    required: [
+        'accounts'
     ]
 } as const;
 
