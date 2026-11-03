@@ -407,7 +407,7 @@ describe("sidebar project scope when a page asks for a project", () => {
       renderHarness({ prompt: true, onSelect });
 
       const button = await screen.findByTestId("project-scope-select-button");
-      expect(button).toHaveAccessibleName("create");
+      await waitFor(() => expect(button).toHaveAccessibleName("create"));
       await user.click(button);
 
       expect(modal().open).toBe(true);
@@ -435,6 +435,7 @@ describe("sidebar project scope when a page asks for a project", () => {
     const onSelect = vi.fn();
     const view = renderHarness({ prompt: true, onSelect });
     const button = await screen.findByTestId("project-scope-select-button");
+    await waitFor(() => expect(button).toHaveAccessibleName("create"));
     await user.click(button);
 
     cancelCreate();
