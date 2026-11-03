@@ -264,6 +264,14 @@ describe("Soko Bot newsletter preview", () => {
         { type: "heading", level: 1, text: " " },
         { type: "image", url: "https://example.com/a.png", alt: "" },
         { type: "text", text: "See [our site](http://example.com)" },
+        {
+          type: "columns",
+          columns: [
+            { text: "A", imageUrl: "https://example.com/b.png" },
+            { text: "B" },
+          ],
+        },
+        { type: "footer", text: "" },
       ],
     });
     expect(result).toMatchObject({
@@ -275,6 +283,8 @@ describe("Soko Bot newsletter preview", () => {
         "Block 1 (heading) is empty",
         "Block 2 (image) has no alt text",
         "Block 3 (text) has a link that is not https and will show as text",
+        "Block 4 (columns) has no alt text",
+        "Block 5 (footer) is empty",
         "The email is 110 KB; Gmail clips messages over 102 KB",
       ],
     });

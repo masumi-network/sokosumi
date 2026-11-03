@@ -3234,7 +3234,6 @@
         "brand": "Marca",
         "welcome": "Correo de bienvenida",
         "welcomeDescription": "Envía un correo de bienvenida cuando un suscriptor confirme su dirección de correo electrónico.",
-        "colorHint": "Usa un color hexadecimal, como #1a2b3c, o deja el campo vacío.",
         "save": "Guardar ajustes",
         "success": "Ajustes del boletín guardados",
         "error": "No se han podido guardar los ajustes del boletín. Inténtalo de nuevo.",
@@ -3251,13 +3250,21 @@
           "footerText": "Texto del pie de página",
           "welcomeEmailEnabled": "Enviar un correo de bienvenida",
           "welcomeSubject": "Asunto del correo de bienvenida",
-          "welcomeBody": "Texto del correo de bienvenida"
+          "welcomeBody": "Texto del correo de bienvenida",
+          "headerImageUrl": "Imagen de cabecera",
+          "backgroundColor": "Color de fondo",
+          "buttonTextColor": "Color del texto del botón",
+          "buttonShape": "Forma del botón",
+          "headerAlign": "Alineación de la cabecera",
+          "spacing": "Espaciado"
         },
         "fonts": {
           "arial": "Arial",
           "georgia": "Georgia",
           "verdana": "Verdana",
-          "timesNewRoman": "Times New Roman"
+          "timesNewRoman": "Times New Roman",
+          "helvetica": "Helvetica",
+          "trebuchet": "Trebuchet MS"
         },
         "Validation": {
           "required": "Introduce un valor.",
@@ -3484,7 +3491,11 @@
             "text": "Texto",
             "image": "Imagen",
             "button": "Botón",
-            "divider": "Separador"
+            "divider": "Separador",
+            "columns": "Columnas",
+            "spacer": "Espacio",
+            "social": "Enlaces sociales",
+            "footer": "Pie"
           },
           "Validation": {
             "subject": "Introduce un asunto de entre 1 y 200 caracteres.",
@@ -3609,7 +3620,59 @@
           "saving": "Guardando edición…",
           "undo": "Deshacer eliminación",
           "removedBlocks": "{count, plural, one {# bloque eliminado} other {# bloques eliminados}}",
-          "undoLimit": "Esta edición tiene 200 bloques. Elimina un bloque para dejar espacio antes de restaurar otro."
+          "undoLimit": "Esta edición tiene 200 bloques. Elimina un bloque para dejar espacio antes de restaurar otro.",
+          "duplicateBlock": "Duplicar bloque {number}",
+          "footerText": "Texto de cierre",
+          "Image": {
+            "width": "Ancho",
+            "widths": {
+              "100": "Ancho completo",
+              "75": "Tres cuartos",
+              "50": "Mitad",
+              "25": "Un cuarto"
+            },
+            "align": "Alineación",
+            "aligns": {
+              "left": "Izquierda",
+              "center": "Centro",
+              "right": "Derecha"
+            }
+          },
+          "Columns": {
+            "column": "Columna {number}",
+            "remove": "Quitar columna {number}",
+            "add": "Añadir columna"
+          },
+          "Spacer": {
+            "size": "Altura",
+            "sizes": {
+              "sm": "Pequeño",
+              "md": "Mediano",
+              "lg": "Grande"
+            }
+          },
+          "Social": {
+            "network": "Red {number}",
+            "url": "URL del enlace {number}",
+            "remove": "Quitar enlace {number}",
+            "add": "Añadir enlace",
+            "networks": {
+              "website": "Sitio web",
+              "x": "X",
+              "linkedin": "LinkedIn",
+              "instagram": "Instagram",
+              "facebook": "Facebook",
+              "youtube": "YouTube",
+              "tiktok": "TikTok"
+            }
+          },
+          "Studio": {
+            "label": "Estudio",
+            "content": "Contenido",
+            "design": "Diseño",
+            "designUnsaved": "Cambios de diseño sin guardar",
+            "saveDesignFirst": "Guarda o descarta los cambios de diseño antes de enviar."
+          }
         },
         "publicArchive": "Archivo público",
         "SignupForm": {
@@ -3679,7 +3742,9 @@
         "presetColors": "Colores predefinidos",
         "clearColor": {
           "primaryColor": "Quitar color principal",
-          "accentColor": "Quitar color de acento"
+          "accentColor": "Quitar color de acento",
+          "backgroundColor": "Quitar color de fondo",
+          "buttonTextColor": "Quitar color del texto del botón"
         },
         "Logo": {
           "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
@@ -3805,6 +3870,48 @@
             "pausedDescription": "Los destinatarios siguen en cola hasta que un miembro del proyecto reanude el envío. Revisa antes la lista de suscriptores.",
             "resume": "Reanudar envío",
             "resumed": "Envío reanudado. Los destinatarios en cola recibirán el boletín dentro del límite diario."
+          }
+        },
+        "colorHints": {
+          "primaryColor": "Títulos y texto. Déjalo en blanco para usar el predeterminado.",
+          "accentColor": "Relleno de los botones. Déjalo en blanco para usar el predeterminado.",
+          "backgroundColor": "Detrás de la tarjeta del correo. Déjalo en blanco para gris claro.",
+          "buttonTextColor": "Texto de los botones. Que se lea bien sobre el color de acento."
+        },
+        "Image": {
+          "upload": "Subir imagen",
+          "replace": "Reemplazar imagen",
+          "remove": "Quitar imagen",
+          "previewAlt": "Vista previa de la imagen",
+          "uploadError": "No se pudo subir la imagen. Inténtalo de nuevo.",
+          "fileTooLarge": "El archivo es demasiado grande",
+          "fileTypeNotAccepted": "Usa una imagen PNG, JPEG, WebP o GIF",
+          "maxFilesExceeded": "Sube una imagen cada vez",
+          "headerDescription": "Un banner sobre tu logotipo, de hasta {maxSize}. Las imágenes anchas funcionan mejor."
+        },
+        "Design": {
+          "title": "Diseño del correo",
+          "description": "Se aplica a todos los números aún no enviados. La vista previa se actualiza al cambiarlo.",
+          "header": "Cabecera",
+          "colors": "Colores",
+          "layout": "Tipografía y diseño",
+          "footer": "Pie",
+          "save": "Guardar diseño",
+          "reset": "Descartar cambios",
+          "saved": "Diseño guardado",
+          "headerAlign": {
+            "left": "Izquierda",
+            "center": "Centrada"
+          },
+          "spacing": {
+            "compact": "Compacto",
+            "normal": "Normal",
+            "roomy": "Amplio"
+          },
+          "buttonShape": {
+            "square": "Cuadrado",
+            "rounded": "Redondeado",
+            "pill": "Píldora"
           }
         }
       }

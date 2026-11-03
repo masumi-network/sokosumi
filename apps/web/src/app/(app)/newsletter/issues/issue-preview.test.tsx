@@ -1,4 +1,5 @@
 import type { CreateNewsletterIssueRequest } from "@sokosumi/core-client";
+import type { NewsletterBrand } from "@sokosumi/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -25,12 +26,13 @@ function previewView() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return (values = VALUES) => (
+  return (values = VALUES, brand?: NewsletterBrand) => (
     <NextIntlClientProvider locale="en" messages={en}>
       <QueryClientProvider client={client}>
         <NewsletterIssuePreview
           projectId={NEWSLETTER_PROJECT_ID}
           values={values}
+          brand={brand}
         />
       </QueryClientProvider>
     </NextIntlClientProvider>
@@ -73,6 +75,34 @@ describe("newsletter issue preview", () => {
     expect(frame).toHaveStyle({ width: "375px" });
     await user.click(screen.getByText("Desktop"));
     expect(frame).toHaveStyle({ width: "720px" });
+  });
+
+  it("renders with the studio's unsaved design and refetches when it changes", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ html: "<p>News</p>" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const view = previewView();
+    const { rerender } = render(view(VALUES, { spacing: "compact" }));
+    await screen.findByTitle("Newsletter email preview");
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({ ...VALUES, brand: { spacing: "compact" } }),
+      }),
+    );
+    rerender(view(VALUES, { spacing: "roomy" }));
+    await waitFor(
+      () =>
+        expect(fetchMock).toHaveBeenLastCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            body: JSON.stringify({ ...VALUES, brand: { spacing: "roomy" } }),
+          }),
+        ),
+      { timeout: 2000 },
+    );
   });
 
   it("fits distinct device viewports into a narrow panel and responds to resizing", async () => {

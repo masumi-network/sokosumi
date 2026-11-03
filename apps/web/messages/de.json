@@ -3234,7 +3234,6 @@
         "brand": "Erscheinungsbild",
         "welcome": "Begrüßungs-E-Mail",
         "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
-        "colorHint": "Verwende eine Hex-Farbe wie #1a2b3c oder lass das Feld leer.",
         "save": "Einstellungen speichern",
         "success": "Newsletter-Einstellungen gespeichert",
         "error": "Die Newsletter-Einstellungen konnten nicht gespeichert werden. Versuche es erneut.",
@@ -3251,13 +3250,21 @@
           "footerText": "Fußzeilentext",
           "welcomeEmailEnabled": "Begrüßungs-E-Mail senden",
           "welcomeSubject": "Betreff der Begrüßungs-E-Mail",
-          "welcomeBody": "Text der Begrüßungs-E-Mail"
+          "welcomeBody": "Text der Begrüßungs-E-Mail",
+          "headerImageUrl": "Kopfbild",
+          "backgroundColor": "Hintergrundfarbe",
+          "buttonTextColor": "Button-Textfarbe",
+          "buttonShape": "Button-Form",
+          "headerAlign": "Ausrichtung des Kopfbereichs",
+          "spacing": "Abstände"
         },
         "fonts": {
           "arial": "Arial",
           "georgia": "Georgia",
           "verdana": "Verdana",
-          "timesNewRoman": "Times New Roman"
+          "timesNewRoman": "Times New Roman",
+          "helvetica": "Helvetica",
+          "trebuchet": "Trebuchet MS"
         },
         "Validation": {
           "required": "Gib einen Wert ein.",
@@ -3484,7 +3491,11 @@
             "text": "Text",
             "image": "Bild",
             "button": "Schaltfläche",
-            "divider": "Trennlinie"
+            "divider": "Trennlinie",
+            "columns": "Spalten",
+            "spacer": "Abstand",
+            "social": "Social-Links",
+            "footer": "Fußzeile"
           },
           "Validation": {
             "subject": "Gib einen Betreff mit 1 bis 200 Zeichen ein.",
@@ -3609,7 +3620,59 @@
           "saving": "Ausgabe wird gespeichert…",
           "undo": "Entfernen rückgängig machen",
           "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
-          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen."
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen.",
+          "duplicateBlock": "Block {number} duplizieren",
+          "footerText": "Abschlusstext",
+          "Image": {
+            "width": "Breite",
+            "widths": {
+              "100": "Volle Breite",
+              "75": "Drei Viertel",
+              "50": "Halb",
+              "25": "Viertel"
+            },
+            "align": "Ausrichtung",
+            "aligns": {
+              "left": "Links",
+              "center": "Zentriert",
+              "right": "Rechts"
+            }
+          },
+          "Columns": {
+            "column": "Spalte {number}",
+            "remove": "Spalte {number} entfernen",
+            "add": "Spalte hinzufügen"
+          },
+          "Spacer": {
+            "size": "Höhe",
+            "sizes": {
+              "sm": "Klein",
+              "md": "Mittel",
+              "lg": "Groß"
+            }
+          },
+          "Social": {
+            "network": "Netzwerk {number}",
+            "url": "URL von Link {number}",
+            "remove": "Link {number} entfernen",
+            "add": "Link hinzufügen",
+            "networks": {
+              "website": "Website",
+              "x": "X",
+              "linkedin": "LinkedIn",
+              "instagram": "Instagram",
+              "facebook": "Facebook",
+              "youtube": "YouTube",
+              "tiktok": "TikTok"
+            }
+          },
+          "Studio": {
+            "label": "Studio",
+            "content": "Inhalt",
+            "design": "Design",
+            "designUnsaved": "Ungespeicherte Designänderungen",
+            "saveDesignFirst": "Speichere oder verwirf die Designänderungen vor dem Versenden."
+          }
         },
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
@@ -3679,7 +3742,9 @@
         "presetColors": "Vorgegebene Farben",
         "clearColor": {
           "primaryColor": "Primärfarbe entfernen",
-          "accentColor": "Akzentfarbe entfernen"
+          "accentColor": "Akzentfarbe entfernen",
+          "backgroundColor": "Hintergrundfarbe entfernen",
+          "buttonTextColor": "Button-Textfarbe entfernen"
         },
         "Logo": {
           "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
@@ -3805,6 +3870,48 @@
             "pausedDescription": "Empfänger bleiben in der Warteschlange, bis ein Projektmitglied den Versand fortsetzt. Prüfe vorher die Abonnentenliste.",
             "resume": "Versand fortsetzen",
             "resumed": "Versand fortgesetzt. Empfänger in der Warteschlange werden innerhalb des Tageslimits angeschrieben."
+          }
+        },
+        "colorHints": {
+          "primaryColor": "Überschriften und Text. Leer lassen für den Standard.",
+          "accentColor": "Button-Füllung. Leer lassen für den Standard.",
+          "backgroundColor": "Hinter der E-Mail-Karte. Leer lassen für Hellgrau.",
+          "buttonTextColor": "Button-Beschriftung. Sie muss auf der Akzentfarbe gut lesbar sein."
+        },
+        "Image": {
+          "upload": "Bild hochladen",
+          "replace": "Bild ersetzen",
+          "remove": "Bild entfernen",
+          "previewAlt": "Bildvorschau",
+          "uploadError": "Das Bild konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Verwende ein PNG-, JPEG-, WebP- oder GIF-Bild",
+          "maxFilesExceeded": "Lade jeweils nur ein Bild hoch",
+          "headerDescription": "Ein Banner über deinem Logo, bis zu {maxSize}. Breite Bilder wirken am besten."
+        },
+        "Design": {
+          "title": "E-Mail-Design",
+          "description": "Gilt für jede noch nicht versendete Ausgabe. Die Vorschau aktualisiert sich bei jeder Änderung.",
+          "header": "Kopfbereich",
+          "colors": "Farben",
+          "layout": "Schrift und Layout",
+          "footer": "Fußzeile",
+          "save": "Design speichern",
+          "reset": "Änderungen verwerfen",
+          "saved": "Design gespeichert",
+          "headerAlign": {
+            "left": "Links",
+            "center": "Zentriert"
+          },
+          "spacing": {
+            "compact": "Kompakt",
+            "normal": "Normal",
+            "roomy": "Großzügig"
+          },
+          "buttonShape": {
+            "square": "Eckig",
+            "rounded": "Abgerundet",
+            "pill": "Pille"
           }
         }
       }

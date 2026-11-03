@@ -195,6 +195,90 @@ describe("newsletter rendering", () => {
     expect(email.text).toContain("https://example.com/read");
   });
 
+  it("renders the studio blocks and the saved design", async () => {
+    const { html, text } = await renderNewsletterEmail({
+      newsletter: {
+        name: "News",
+        brand: {
+          accentColor: "#ffcc00",
+          backgroundColor: "#eeeeee",
+          buttonTextColor: "#111111",
+          buttonShape: "pill",
+          headerImageUrl: "https://example.com/banner.png",
+          headerAlign: "center",
+          logoUrl: "https://example.com/logo.png",
+          spacing: "roomy",
+        },
+      },
+      issue: {
+        subject: "Studio",
+        template: "TEXT",
+        content: [
+          {
+            type: "image",
+            url: "https://example.com/half.png",
+            alt: "Half",
+            width: 50,
+            align: "right",
+          },
+          { type: "button", label: "Go", url: "https://example.com/go" },
+          {
+            type: "columns",
+            columns: [
+              {
+                text: "Left <b>col</b>",
+                imageUrl: "https://example.com/left.png",
+                alt: "Left image",
+              },
+              { text: "Right col" },
+            ],
+          },
+          { type: "spacer", size: "lg" },
+          {
+            type: "social",
+            links: [
+              { network: "linkedin", url: "https://linkedin.com/company/news" },
+              { network: "website", url: "https://example.com" },
+            ],
+          },
+          { type: "footer", text: "Sent from **Berlin**" },
+        ],
+      },
+      unsubscribeUrl: UNSUBSCRIBE_URL,
+      locale: "es",
+    });
+    expect(html).toContain("background-color:#eeeeee");
+    expect(html).toContain('src="https://example.com/banner.png"');
+    expect(html).toContain('width="268"');
+    expect(html).toContain("width:50%");
+    expect(html).toContain("margin:0 0 0 auto");
+    expect(html).toContain("border-radius:999px");
+    expect(html).toContain("color:#111111");
+    expect(html).toContain('alt="Left image"');
+    expect(html).toContain("Left &lt;b&gt;col&lt;/b&gt;");
+    expect(html).toContain("height:56px");
+    expect(html).toContain('href="https://linkedin.com/company/news"');
+    expect(html).toContain("Sitio web");
+    expect(html).toContain("<strong>Berlin</strong>");
+    expect(html).toContain("padding:44px");
+    expect(text).toContain("Right col");
+  });
+
+  it("keeps the earlier look when a design leaves the studio fields unset", async () => {
+    const { html } = await renderNewsletterEmail({
+      newsletter: { name: "News", brand: {} },
+      issue: {
+        subject: "Plain",
+        template: "BUTTONS",
+        content: [{ type: "button", label: "Go", url: "https://example.com" }],
+      },
+      unsubscribeUrl: "#",
+    });
+    expect(html).toContain("padding:32px");
+    expect(html).toContain("border-radius:4px");
+    expect(html).toContain("background-color:#f5f5f5");
+  });
+
   it.each([
     ["[" + "[\\".repeat(50_000), "[\\[\\[\\"],
     ["[\\](https://" + "[!](https://".repeat(20_000), "[!](https://[!]"],

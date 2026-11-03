@@ -396,11 +396,17 @@ function previewWarnings(
   issue.content.forEach((block, index) => {
     const at = `Block ${index + 1} (${block.type})`;
     if (
-      (block.type === "heading" || block.type === "text") &&
+      (block.type === "heading" ||
+        block.type === "text" ||
+        block.type === "footer") &&
       !block.text.trim()
     )
       warnings.push(`${at} is empty`);
-    if (block.type === "image" && !block.alt.trim())
+    if (
+      (block.type === "image" && !block.alt.trim()) ||
+      (block.type === "columns" &&
+        block.columns.some((column) => column.imageUrl && !column.alt?.trim()))
+    )
       warnings.push(`${at} has no alt text`);
     // Inline links render only for https; anything else stays literal text.
     if (block.type === "text" && /\]\((?!https:\/\/)[^)\s]*\)/.test(block.text))

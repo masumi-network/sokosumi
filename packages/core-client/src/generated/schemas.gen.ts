@@ -30215,6 +30215,42 @@ export const NewsletterBrandSchema = {
         footerText: {
             type: 'string',
             maxLength: 5000
+        },
+        backgroundColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        buttonTextColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        buttonShape: {
+            type: 'string',
+            enum: [
+                'square',
+                'rounded',
+                'pill'
+            ]
+        },
+        headerImageUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        headerAlign: {
+            type: 'string',
+            enum: [
+                'left',
+                'center'
+            ]
+        },
+        spacing: {
+            type: 'string',
+            enum: [
+                'compact',
+                'normal',
+                'roomy'
+            ]
         }
     }
 } as const;
@@ -30693,6 +30729,19 @@ export const NewsletterContentSchema = {
                         type: 'string',
                         maxLength: 2048,
                         format: 'uri'
+                    },
+                    width: {
+                        type: 'integer',
+                        minimum: 10,
+                        maximum: 100
+                    },
+                    align: {
+                        type: 'string',
+                        enum: [
+                            'left',
+                            'center',
+                            'right'
+                        ]
                     }
                 },
                 required: [
@@ -30739,6 +30788,135 @@ export const NewsletterContentSchema = {
                 },
                 required: [
                     'type'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'columns'
+                        ]
+                    },
+                    columns: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                text: {
+                                    type: 'string',
+                                    maxLength: 20000
+                                },
+                                imageUrl: {
+                                    type: 'string',
+                                    maxLength: 2048,
+                                    format: 'uri'
+                                },
+                                alt: {
+                                    type: 'string',
+                                    maxLength: 1000
+                                }
+                            },
+                            required: [
+                                'text'
+                            ]
+                        },
+                        minItems: 2,
+                        maxItems: 3
+                    }
+                },
+                required: [
+                    'type',
+                    'columns'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'spacer'
+                        ]
+                    },
+                    size: {
+                        type: 'string',
+                        enum: [
+                            'sm',
+                            'md',
+                            'lg'
+                        ]
+                    }
+                },
+                required: [
+                    'type',
+                    'size'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'social'
+                        ]
+                    },
+                    links: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                network: {
+                                    type: 'string',
+                                    enum: [
+                                        'website',
+                                        'x',
+                                        'linkedin',
+                                        'instagram',
+                                        'facebook',
+                                        'youtube',
+                                        'tiktok'
+                                    ]
+                                },
+                                url: {
+                                    type: 'string',
+                                    maxLength: 2048,
+                                    format: 'uri'
+                                }
+                            },
+                            required: [
+                                'network',
+                                'url'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 8
+                    }
+                },
+                required: [
+                    'type',
+                    'links'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'footer'
+                        ]
+                    },
+                    text: {
+                        type: 'string',
+                        maxLength: 5000
+                    }
+                },
+                required: [
+                    'type',
+                    'text'
                 ]
             }
         ]
@@ -30865,6 +31043,83 @@ export const CreateNewsletterIssueRequestSchema = {
         'subject',
         'template',
         'content'
+    ]
+} as const;
+
+export const PreviewNewsletterIssueRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CreateNewsletterIssueRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                brand: {
+                    type: 'object',
+                    properties: {
+                        logoUrl: {
+                            type: 'string',
+                            maxLength: 2048,
+                            format: 'uri'
+                        },
+                        primaryColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        accentColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        fontFamily: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        footerText: {
+                            type: 'string',
+                            maxLength: 5000
+                        },
+                        backgroundColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        buttonTextColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        buttonShape: {
+                            type: 'string',
+                            enum: [
+                                'square',
+                                'rounded',
+                                'pill'
+                            ]
+                        },
+                        headerImageUrl: {
+                            type: 'string',
+                            maxLength: 2048,
+                            format: 'uri'
+                        },
+                        headerAlign: {
+                            type: 'string',
+                            enum: [
+                                'left',
+                                'center'
+                            ]
+                        },
+                        spacing: {
+                            type: 'string',
+                            enum: [
+                                'compact',
+                                'normal',
+                                'roomy'
+                            ]
+                        }
+                    },
+                    description: 'Unsaved newsletter design to preview with; the saved brand otherwise.'
+                }
+            }
+        }
     ]
 } as const;
 

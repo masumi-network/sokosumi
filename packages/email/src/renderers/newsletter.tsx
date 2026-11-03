@@ -1,9 +1,10 @@
 import { render, toPlainText } from "@react-email/render";
-import type { NewsletterBlock } from "@sokosumi/utils";
+import type { NewsletterBlock, NewsletterBrand } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import {
   Body,
   Button,
+  Column,
   Container,
   Head,
   Heading,
@@ -12,20 +13,13 @@ import {
   Img,
   Link,
   Preview,
+  Row,
   Section,
   Text,
 } from "react-email";
 
 import { createEmailTranslator } from "../i18n/translate.js";
 import { FONT_STACK, LIGHT_PALETTE } from "../theme/index.js";
-
-interface NewsletterBrand {
-  logoUrl?: string;
-  primaryColor?: string;
-  accentColor?: string;
-  fontFamily?: string;
-  footerText?: string;
-}
 
 interface NewsletterEmailProps {
   newsletter: { name: string; brand: NewsletterBrand };
@@ -97,30 +91,75 @@ function inlineText(text: string): ReactNode[] {
   return result;
 }
 
-function renderBlock(block: NewsletterBlock, accent: string): ReactNode {
+/** Content width inside the 600px card at the default 32px padding. */
+const CONTENT_WIDTH = 536;
+
+const SPACING = {
+  compact: { padding: 20, gap: 0 },
+  normal: { padding: 32, gap: 0 },
+  roomy: { padding: 44, gap: 12 },
+} as const;
+
+const SPACER_HEIGHT = { sm: 16, md: 32, lg: 56 } as const;
+
+const BUTTON_RADIUS = { square: 0, rounded: 4, pill: 999 } as const;
+
+const IMAGE_MARGIN = {
+  left: "0 auto 0 0",
+  center: "0 auto",
+  right: "0 0 0 auto",
+} as const;
+
+const SOCIAL_LABELS = {
+  x: "X",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+} as const;
+
+interface BlockStyle {
+  accent: string;
+  buttonText: string;
+  buttonRadius: number;
+  websiteLabel: string;
+}
+
+function paragraphs(text: string) {
+  return text.split(/\r?\n\s*\r?\n/).map((paragraph, index) => (
+    <Text
+      key={`${index}:${paragraph}`}
+      style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}
+    >
+      {inlineText(paragraph)}
+    </Text>
+  ));
+}
+
+function renderBlock(block: NewsletterBlock, style: BlockStyle): ReactNode {
   switch (block.type) {
     case "heading":
       return (
         <Heading as={block.level === 1 ? "h1" : "h2"}>{block.text}</Heading>
       );
     case "text":
-      return block.text.split(/\r?\n\s*\r?\n/).map((paragraph, index) => (
-        <Text
-          key={`${index}:${paragraph}`}
-          style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}
-        >
-          {inlineText(paragraph)}
-        </Text>
-      ));
+      return paragraphs(block.text);
     case "image": {
       const src = safeUrl(block.url);
       if (!src) return <Text>{block.alt}</Text>;
+      const percent = block.width ?? 100;
       const image = (
         <Img
           src={src}
           alt={block.alt}
-          width="536"
-          style={{ width: "100%", maxWidth: 536, height: "auto" }}
+          width={String(Math.round((CONTENT_WIDTH * percent) / 100))}
+          style={{
+            width: `${percent}%`,
+            maxWidth: CONTENT_WIDTH,
+            height: "auto",
+            margin: IMAGE_MARGIN[block.align ?? "center"],
+          }}
         />
       );
       const href = safeUrl(block.href);
@@ -133,10 +172,10 @@ function renderBlock(block: NewsletterBlock, accent: string): ReactNode {
           <Button
             href={href}
             style={{
-              backgroundColor: accent,
-              color: LIGHT_PALETTE.accentForeground,
+              backgroundColor: style.accent,
+              color: style.buttonText,
               padding: "12px 24px",
-              borderRadius: 4,
+              borderRadius: style.buttonRadius,
             }}
           >
             {block.label}
@@ -148,6 +187,71 @@ function renderBlock(block: NewsletterBlock, accent: string): ReactNode {
     }
     case "divider":
       return <Hr style={{ borderColor: LIGHT_PALETTE.hairline }} />;
+    // shortcut: columns stay side by side on phones (no media query); stack them if readers complain.
+    case "columns":
+      return (
+        <Row>
+          {block.columns.map((column, index) => {
+            const src = safeUrl(column.imageUrl);
+            return (
+              <Column
+                key={`${index}:${column.text}`}
+                style={{
+                  width: `${Math.floor(100 / block.columns.length)}%`,
+                  verticalAlign: "top",
+                  paddingLeft: index ? 8 : 0,
+                  paddingRight: index < block.columns.length - 1 ? 8 : 0,
+                }}
+              >
+                {src ? (
+                  <Img
+                    src={src}
+                    alt={column.alt ?? ""}
+                    width={String(
+                      Math.floor(CONTENT_WIDTH / block.columns.length) - 16,
+                    )}
+                    style={{ width: "100%", height: "auto" }}
+                  />
+                ) : null}
+                {paragraphs(column.text)}
+              </Column>
+            );
+          })}
+        </Row>
+      );
+    case "spacer":
+      return <Section style={{ height: SPACER_HEIGHT[block.size] }} />;
+    case "social":
+      return (
+        <Text style={{ textAlign: "center" }}>
+          {block.links.flatMap((link, index) => {
+            const href = safeUrl(link.url);
+            const label =
+              link.network === "website"
+                ? style.websiteLabel
+                : SOCIAL_LABELS[link.network];
+            const item = href ? (
+              <Link key={`${index}:${link.url}`} href={href}>
+                {label}
+              </Link>
+            ) : null;
+            return index && item ? [" · ", item] : [item];
+          })}
+        </Text>
+      );
+    case "footer":
+      return (
+        <Text
+          style={{
+            whiteSpace: "pre-line",
+            textAlign: "center",
+            fontSize: 12,
+            color: LIGHT_PALETTE.textMuted,
+          }}
+        >
+          {inlineText(block.text)}
+        </Text>
+      );
   }
 }
 
@@ -162,6 +266,18 @@ export async function renderNewsletterEmail(props: NewsletterRenderProps) {
       ? brand.fontFamily
       : FONT_STACK;
   const logoUrl = safeUrl(brand.logoUrl);
+  const headerImageUrl = safeUrl(brand.headerImageUrl);
+  const headerAlign = brand.headerAlign ?? "left";
+  const spacing = SPACING[brand.spacing ?? "normal"];
+  const blockStyle: BlockStyle = {
+    accent,
+    buttonText: brandColor(
+      brand.buttonTextColor,
+      LIGHT_PALETTE.accentForeground,
+    ),
+    buttonRadius: BUTTON_RADIUS[brand.buttonShape ?? "rounded"],
+    websiteLabel: t("newsletter.website"),
+  };
   const html = await render(
     <Html lang={lang}>
       <Head>
@@ -172,7 +288,10 @@ export async function renderNewsletterEmail(props: NewsletterRenderProps) {
       ) : null}
       <Body
         style={{
-          backgroundColor: LIGHT_PALETTE.pageBackground,
+          backgroundColor: brandColor(
+            brand.backgroundColor,
+            LIGHT_PALETTE.pageBackground,
+          ),
           fontFamily,
           color: primary,
           margin: 0,
@@ -182,15 +301,31 @@ export async function renderNewsletterEmail(props: NewsletterRenderProps) {
           style={{
             maxWidth: 600,
             backgroundColor: LIGHT_PALETTE.surface,
-            padding: 32,
+            padding: spacing.padding,
           }}
         >
+          {headerImageUrl ? (
+            <Img
+              src={headerImageUrl}
+              alt=""
+              width={String(CONTENT_WIDTH)}
+              style={{ width: "100%", height: "auto", marginBottom: 16 }}
+            />
+          ) : null}
           {logoUrl ? (
-            <Img src={logoUrl} alt={newsletter.name} width="160" />
+            <Img
+              src={logoUrl}
+              alt={newsletter.name}
+              width="160"
+              style={{ margin: IMAGE_MARGIN[headerAlign] }}
+            />
           ) : null}
           {issue.content.map((block, index) => (
-            <Section key={`${index}:${block.type}`}>
-              {renderBlock(block, accent)}
+            <Section
+              key={`${index}:${block.type}`}
+              style={spacing.gap ? { paddingTop: spacing.gap } : undefined}
+            >
+              {renderBlock(block, blockStyle)}
             </Section>
           ))}
           <Hr style={{ borderColor: LIGHT_PALETTE.hairline }} />

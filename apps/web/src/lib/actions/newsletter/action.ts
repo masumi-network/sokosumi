@@ -13,6 +13,7 @@ import {
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import {
   type NewsletterSettingsError,
+  newsletterBrandFromValues,
   newsletterSettingsSchema,
 } from "@/lib/schemas/newsletter";
 import { newsletterService } from "@/lib/services/newsletter.service";
@@ -48,22 +49,21 @@ export const saveNewsletterSettings = withSession<
   }
 
   const {
-    logoUrl,
-    primaryColor,
-    accentColor,
-    fontFamily,
-    footerText,
-    ...settings
+    name,
+    senderName,
+    replyTo,
+    welcomeEmailEnabled,
+    welcomeSubject,
+    welcomeBody,
   } = parsed.data;
   const input: PutNewsletterRequest = {
-    ...settings,
-    brand: {
-      ...(logoUrl ? { logoUrl } : {}),
-      ...(primaryColor ? { primaryColor } : {}),
-      ...(accentColor ? { accentColor } : {}),
-      fontFamily,
-      footerText,
-    },
+    name,
+    senderName,
+    replyTo,
+    brand: newsletterBrandFromValues(parsed.data),
+    welcomeEmailEnabled,
+    welcomeSubject,
+    welcomeBody,
   };
 
   try {

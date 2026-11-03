@@ -328,8 +328,11 @@ export {
   serializeMetadataRecord,
 } from "./metadata-record.js";
 export {
+  NEWSLETTER_SOCIAL_NETWORKS,
   type NewsletterBlock,
+  type NewsletterBrand,
   newsletterBlockSchema,
+  newsletterBrandSchema,
   newsletterContentSchema,
   newsletterDraftInputSchema,
   newsletterSignupLinks,

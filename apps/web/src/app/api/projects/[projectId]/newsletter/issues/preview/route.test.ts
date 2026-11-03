@@ -55,6 +55,18 @@ describe("newsletter preview proxy", () => {
     expect(await response.json()).toEqual({ html: "<p>News</p>" });
     expect(mocks.preview).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID, VALUES);
   });
+  it("passes a draft studio design through and rejects an invalid one", async () => {
+    const brand = { spacing: "roomy", buttonShape: "pill" };
+    expect((await preview({ ...VALUES, brand })).status).toBe(200);
+    expect(mocks.preview).toHaveBeenCalledWith(NEWSLETTER_PROJECT_ID, {
+      ...VALUES,
+      brand,
+    });
+    expect(
+      (await preview({ ...VALUES, brand: { headerImageUrl: "http://a.b/c" } }))
+        .status,
+    ).toBe(422);
+  });
   it("requires a session and preserves unavailable authentication as 503", async () => {
     mocks.session.mockResolvedValue({ status: "signedOut" });
     expect((await preview()).status).toBe(401);

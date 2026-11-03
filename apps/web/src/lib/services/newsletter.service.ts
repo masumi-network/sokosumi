@@ -16,6 +16,7 @@ import type {
   NewsletterSendingDomainState,
   PatchNewsletterIssueRequest,
   PatchNewsletterSubscriberRequest,
+  PreviewNewsletterIssueRequest,
   PutNewsletterRequest,
   ScheduleNewsletterIssueRequest,
   SubscribeNewsletterRequest,
@@ -237,7 +238,7 @@ export const newsletterService = {
     return response.data;
   },
 
-  async previewIssue(projectId: string, input: CreateNewsletterIssueRequest) {
+  async previewIssue(projectId: string, input: PreviewNewsletterIssueRequest) {
     const response = await coreClient.postProjectsByIdNewsletterIssuesPreview(
       projectId,
       input,

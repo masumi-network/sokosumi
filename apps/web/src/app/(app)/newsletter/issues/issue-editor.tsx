@@ -2,27 +2,35 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  type Newsletter,
   type NewsletterIssue,
   type NewsletterIssueAnalytics,
   NewsletterIssueStatus,
   type NewsletterSendingDomainState,
 } from "@sokosumi/core-client";
-import type { NewsletterBlock } from "@sokosumi/utils";
-import { ArrowDown, ArrowUp, Plus, Trash2, Undo2 } from "lucide-react";
+import {
+  type NewsletterBlock,
+  type NewsletterBrand,
+  newsletterBrandSchema,
+} from "@sokosumi/utils";
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  LayoutList,
+  Palette,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/newsletter/analytics/issue-analytics-summary";
+import { newsletterDesignDefaults } from "@/app/newsletter/newsletter-design-fields";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Form,
   FormControl,
@@ -36,7 +44,13 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { saveNewsletterIssue } from "@/lib/actions/newsletter/issues";
+import {
+  type NewsletterSettingsValues,
+  newsletterBrandFromValues,
+  newsletterSettingsSchema,
+} from "@/lib/schemas/newsletter";
 import {
   type NewsletterIssueValues,
   newsletterIssueInputSchema,
@@ -45,34 +59,60 @@ import { cn } from "@/lib/utils";
 import { DraftIssueButton } from "./draft-issue-dialog";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
+import { BlockIcon, IssueBlockLibrary, newBlock } from "./issue-block-library";
 import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
 } from "./issue-delivery-status";
+import { IssueDesignPanel } from "./issue-design-panel";
 import { NewsletterIssuePreview } from "./issue-preview";
 
-const BLOCK_TYPES = ["heading", "text", "image", "button", "divider"] as const;
+/** The design as typed so far, minus fields not yet valid, so the preview never stalls mid-edit. */
+function previewBrand(values: NewsletterSettingsValues): NewsletterBrand {
+  return Object.fromEntries(
+    Object.entries(newsletterBrandFromValues(values)).filter(
+      ([key, value]) =>
+        newsletterBrandSchema.shape[key as keyof NewsletterBrand].safeParse(
+          value,
+        ).success,
+    ),
+  );
+}
+
+function newsletterSettingsValues(
+  newsletter: Newsletter,
+): NewsletterSettingsValues {
+  return {
+    name: newsletter.name,
+    senderName: newsletter.senderName,
+    replyTo: newsletter.replyTo,
+    welcomeEmailEnabled: newsletter.welcomeEmailEnabled,
+    welcomeSubject: newsletter.welcomeSubject ?? "",
+    welcomeBody: newsletter.welcomeBody ?? "",
+    ...newsletterDesignDefaults(newsletter),
+  };
+}
 
 export function NewsletterIssueEditor({
   projectId,
   issue,
   activeSubscribers,
-  senderName,
+  newsletter,
   sendingDomain,
-  newsletterSlug,
   analytics,
   draftedBySokoBot = false,
 }: {
   projectId: string;
   issue: NewsletterIssue;
   activeSubscribers: number;
-  senderName: string;
+  newsletter: Newsletter;
   sendingDomain: NewsletterSendingDomainState;
-  newsletterSlug: string;
   analytics?: NewsletterIssueAnalytics | null;
   draftedBySokoBot?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
+  const validationT = useTranslations("App.Projects.Newsletter.Validation");
+  const [tab, setTab] = useState("content");
   const [currentIssue, setCurrentIssue] = useState(issue);
   const [lifecyclePending, setLifecyclePending] = useState(false);
   const [removedBlocks, setRemovedBlocks] = useState<
@@ -102,15 +142,22 @@ export function NewsletterIssueEditor({
     name: ["subject", "previewText", "template", "content"],
   });
   const { isDirty, isSubmitting, errors } = form.formState;
+  const designForm = useForm<NewsletterSettingsValues>({
+    resolver: zodResolver(newsletterSettingsSchema(validationT)),
+    defaultValues: newsletterSettingsValues(newsletter),
+  });
+  const design = useWatch({ control: designForm.control });
+  const designDirty = designForm.formState.isDirty;
+  const unsaved = isDirty || designDirty;
 
   useEffect(() => {
-    if (!isDirty) return;
+    if (!unsaved) return;
     function handleBeforeUnload(event: BeforeUnloadEvent) {
       event.preventDefault();
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
+  }, [unsaved]);
 
   async function handleSave(values: NewsletterIssueValues) {
     form.clearErrors("root");
@@ -169,23 +216,14 @@ export function NewsletterIssueEditor({
   }
 
   function handleAdd(type: NewsletterBlock["type"]) {
-    switch (type) {
-      case "heading":
-        blocks.append({ type, text: "", level: 2 });
-        break;
-      case "text":
-        blocks.append({ type, text: "" });
-        break;
-      case "image":
-        blocks.append({ type, url: "", alt: "" });
-        break;
-      case "button":
-        blocks.append({ type, label: t("Templates.button"), url: "" });
-        break;
-      case "divider":
-        blocks.append({ type });
-        break;
-    }
+    blocks.append(newBlock(type, t("Templates.button")));
+  }
+
+  function handleDuplicate(index: number) {
+    blocks.insert(
+      index + 1,
+      structuredClone(form.getValues(`content.${index}`)),
+    );
   }
 
   return (
@@ -208,7 +246,7 @@ export function NewsletterIssueEditor({
           {status === NewsletterIssueStatus.SENT ? (
             <Button asChild variant="outline">
               <Link
-                href={`/n/${encodeURIComponent(newsletterSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
+                href={`/n/${encodeURIComponent(newsletter.publicSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
               >
                 {t("viewOnWeb")}
               </Link>
@@ -228,174 +266,217 @@ export function NewsletterIssueEditor({
             "min-w-0 p-3 lg:col-start-1 lg:row-start-1",
           )}
         >
-          <Form {...form}>
-            <form
-              id={formId}
-              noValidate
-              onSubmit={form.handleSubmit(handleSave)}
-              className="min-w-0 space-y-4"
+          <Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-3">
+            <TabsList aria-label={t("Studio.label")} className="w-full">
+              <TabsTrigger value="content">
+                <LayoutList />
+                {t("Studio.content")}
+              </TabsTrigger>
+              <TabsTrigger value="design">
+                <Palette />
+                {t("Studio.design")}
+                {designDirty ? (
+                  <span
+                    aria-hidden
+                    className="bg-semantic-warning size-2 rounded-full"
+                  />
+                ) : null}
+              </TabsTrigger>
+            </TabsList>
+            {/* Both stay mounted, so switching tabs keeps unsaved edits and the field arrays. */}
+            <TabsContent
+              value="content"
+              forceMount
+              hidden={tab !== "content"}
+              className="min-w-0"
             >
-              <fieldset
-                disabled={!editable || isSubmitting || lifecyclePending}
-                className="min-w-0 space-y-4"
-              >
-                <section
-                  aria-label={t("details")}
-                  className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}
+              <Form {...form}>
+                <form
+                  id={formId}
+                  noValidate
+                  onSubmit={form.handleSubmit(handleSave)}
+                  className="min-w-0 space-y-4"
                 >
-                  <h3 className="text-base font-semibold">{t("details")}</h3>
-                  <FormField
-                    control={form.control}
-                    name="subject"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("subject")}</FormLabel>
-                        <FormControl>
-                          <Input {...field} maxLength={200} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="previewText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("previewText")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ""}
-                            maxLength={500}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </section>
-                <section className="space-y-4" aria-label={t("blocks")}>
-                  <h3 className="px-1 text-base font-semibold">
-                    {t("blocks")}
-                  </h3>
-                  {errors.content?.message || errors.content?.root?.message ? (
-                    <p role="alert" className="text-foreground text-sm">
-                      {errors.content.message ?? errors.content.root?.message}
-                    </p>
-                  ) : null}
-                  {!blocks.fields.length ? (
-                    <p
-                      className={cn(
-                        HOLDER_ITEM_CLASS,
-                        "text-muted-foreground p-4 text-sm",
-                      )}
+                  <fieldset
+                    disabled={!editable || isSubmitting || lifecyclePending}
+                    className="min-w-0 space-y-4"
+                  >
+                    <section
+                      aria-label={t("details")}
+                      className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}
                     >
-                      {t("emptyBlocks")}
-                    </p>
-                  ) : null}
-                  <ol ref={blockList} className="space-y-4">
-                    {blocks.fields.map((block, index) => (
-                      <li
-                        key={block.id}
-                        className={cn(
-                          HOLDER_ITEM_CLASS,
-                          "min-w-0 space-y-4 p-4",
+                      <h3 className="text-base font-semibold">
+                        {t("details")}
+                      </h3>
+                      <FormField
+                        control={form.control}
+                        name="subject"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("subject")}</FormLabel>
+                            <FormControl>
+                              <Input {...field} maxLength={200} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <h4 className="min-w-0 text-sm font-medium wrap-anywhere">
-                            {t("blockNumber", {
-                              number: index + 1,
-                              type: t(`blockTypes.${block.type}`),
-                            })}
-                          </h4>
-                          {editable ? (
-                            <div className="flex gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-10 md:size-8"
-                                disabled={index === 0}
-                                aria-label={t("moveUp", { number: index + 1 })}
-                                onClick={() => blocks.move(index, index - 1)}
-                              >
-                                <ArrowUp />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-10 md:size-8"
-                                disabled={index === blocks.fields.length - 1}
-                                aria-label={t("moveDown", {
-                                  number: index + 1,
-                                })}
-                                onClick={() => blocks.move(index, index + 1)}
-                              >
-                                <ArrowDown />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-10 md:size-8"
-                                aria-label={t("removeBlock", {
-                                  number: index + 1,
-                                })}
-                                onClick={() => handleRemove(index)}
-                              >
-                                <Trash2 />
-                              </Button>
-                            </div>
-                          ) : null}
-                        </div>
-                        <IssueBlockFields
-                          index={index}
-                          block={block}
-                          disabled={
-                            !editable || isSubmitting || lifecyclePending
-                          }
-                        />
-                      </li>
-                    ))}
-                  </ol>
-                  {editable ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        asChild
-                        disabled={
-                          isSubmitting ||
-                          lifecyclePending ||
-                          blocks.fields.length >= 200
-                        }
-                      >
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
+                      />
+                      <FormField
+                        control={form.control}
+                        name="previewText"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("previewText")}</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ""}
+                                maxLength={500}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </section>
+                    <section className="space-y-4" aria-label={t("blocks")}>
+                      <h3 className="px-1 text-base font-semibold">
+                        {t("blocks")}
+                      </h3>
+                      {errors.content?.message ||
+                      errors.content?.root?.message ? (
+                        <p role="alert" className="text-foreground text-sm">
+                          {errors.content.message ??
+                            errors.content.root?.message}
+                        </p>
+                      ) : null}
+                      {!blocks.fields.length ? (
+                        <p
+                          className={cn(
+                            HOLDER_ITEM_CLASS,
+                            "text-muted-foreground p-4 text-sm",
+                          )}
                         >
-                          <Plus />
-                          {t("addBlock")}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {BLOCK_TYPES.map((type) => (
-                          <DropdownMenuItem
-                            key={type}
-                            onSelect={() => handleAdd(type)}
+                          {t("emptyBlocks")}
+                        </p>
+                      ) : null}
+                      <ol
+                        ref={blockList}
+                        aria-label={t("blocks")}
+                        className="space-y-4"
+                      >
+                        {blocks.fields.map((block, index) => (
+                          <li
+                            key={block.id}
+                            className={cn(
+                              HOLDER_ITEM_CLASS,
+                              "@container min-w-0 space-y-4 p-4",
+                            )}
                           >
-                            {t(`blockTypes.${type}`)}
-                          </DropdownMenuItem>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h4 className="flex min-w-0 items-center gap-2 text-sm font-medium wrap-anywhere">
+                                <BlockIcon type={block.type} />
+                                {t("blockNumber", {
+                                  number: index + 1,
+                                  type: t(`blockTypes.${block.type}`),
+                                })}
+                              </h4>
+                              {editable ? (
+                                <div className="flex gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-10 md:size-8"
+                                    disabled={index === 0}
+                                    aria-label={t("moveUp", {
+                                      number: index + 1,
+                                    })}
+                                    onClick={() =>
+                                      blocks.move(index, index - 1)
+                                    }
+                                  >
+                                    <ArrowUp />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-10 md:size-8"
+                                    disabled={
+                                      index === blocks.fields.length - 1
+                                    }
+                                    aria-label={t("moveDown", {
+                                      number: index + 1,
+                                    })}
+                                    onClick={() =>
+                                      blocks.move(index, index + 1)
+                                    }
+                                  >
+                                    <ArrowDown />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-10 md:size-8"
+                                    disabled={blocks.fields.length >= 200}
+                                    aria-label={t("duplicateBlock", {
+                                      number: index + 1,
+                                    })}
+                                    onClick={() => handleDuplicate(index)}
+                                  >
+                                    <Copy />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-10 md:size-8"
+                                    aria-label={t("removeBlock", {
+                                      number: index + 1,
+                                    })}
+                                    onClick={() => handleRemove(index)}
+                                  >
+                                    <Trash2 />
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </div>
+                            <IssueBlockFields
+                              index={index}
+                              block={block}
+                              disabled={
+                                !editable || isSubmitting || lifecyclePending
+                              }
+                            />
+                          </li>
                         ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : null}
-                </section>
-              </fieldset>
-            </form>
-          </Form>
+                      </ol>
+                      {editable ? (
+                        <IssueBlockLibrary
+                          disabled={
+                            isSubmitting ||
+                            lifecyclePending ||
+                            blocks.fields.length >= 200
+                          }
+                          onAdd={handleAdd}
+                        />
+                      ) : null}
+                    </section>
+                  </fieldset>
+                </form>
+              </Form>
+            </TabsContent>
+            <TabsContent
+              value="design"
+              forceMount
+              hidden={tab !== "design"}
+              className="min-w-0"
+            >
+              <IssueDesignPanel form={designForm} projectId={projectId} />
+            </TabsContent>
+          </Tabs>
         </div>
         <aside
           aria-label={t("sendPanel")}
@@ -434,6 +515,7 @@ export function NewsletterIssueEditor({
                   {removedBlocks.length ? (
                     <p>{t("removedBlocks", { count: removedBlocks.length })}</p>
                   ) : null}
+                  {designDirty ? <p>{t("Studio.designUnsaved")}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2 [&>button]:min-w-0 [&>button]:flex-1">
                   {removedBlocks.length ? (
@@ -484,10 +566,16 @@ export function NewsletterIssueEditor({
             issue={currentIssue}
             projectId={projectId}
             activeSubscribers={activeSubscribers}
-            senderName={senderName}
+            senderName={newsletter.senderName}
             sendingDomain={sendingDomain}
-            disabled={isDirty || isSubmitting}
-            disabledHint={isDirty ? t("Lifecycle.saveFirst") : undefined}
+            disabled={unsaved || isSubmitting}
+            disabledHint={
+              isDirty
+                ? t("Lifecycle.saveFirst")
+                : designDirty
+                  ? t("Studio.saveDesignFirst")
+                  : undefined
+            }
             onChanged={setCurrentIssue}
             onBusyChange={setLifecyclePending}
           />
@@ -496,6 +584,10 @@ export function NewsletterIssueEditor({
           <NewsletterIssuePreview
             projectId={projectId}
             values={{ subject, previewText, template, content }}
+            brand={previewBrand({
+              ...newsletterSettingsValues(newsletter),
+              ...design,
+            })}
           />
         </div>
       </div>

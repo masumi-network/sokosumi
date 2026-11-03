@@ -3234,7 +3234,6 @@
         "brand": "Brand",
         "welcome": "Welcome email",
         "welcomeDescription": "Send a welcome email after a subscriber confirms their email address.",
-        "colorHint": "Use a hex color, such as #1a2b3c, or leave blank.",
         "save": "Save settings",
         "success": "Newsletter settings saved",
         "error": "Failed to save newsletter settings. Try again.",
@@ -3251,13 +3250,21 @@
           "footerText": "Footer text",
           "welcomeEmailEnabled": "Send a welcome email",
           "welcomeSubject": "Welcome email subject",
-          "welcomeBody": "Welcome email body"
+          "welcomeBody": "Welcome email body",
+          "headerImageUrl": "Header image",
+          "backgroundColor": "Background color",
+          "buttonTextColor": "Button text color",
+          "buttonShape": "Button shape",
+          "headerAlign": "Header alignment",
+          "spacing": "Spacing"
         },
         "fonts": {
           "arial": "Arial",
           "georgia": "Georgia",
           "verdana": "Verdana",
-          "timesNewRoman": "Times New Roman"
+          "timesNewRoman": "Times New Roman",
+          "helvetica": "Helvetica",
+          "trebuchet": "Trebuchet MS"
         },
         "Validation": {
           "required": "Enter a value.",
@@ -3484,7 +3491,11 @@
             "text": "Text",
             "image": "Image",
             "button": "Button",
-            "divider": "Divider"
+            "divider": "Divider",
+            "columns": "Columns",
+            "spacer": "Spacer",
+            "social": "Social links",
+            "footer": "Footer"
           },
           "Validation": {
             "subject": "Enter a subject between 1 and 200 characters.",
@@ -3609,7 +3620,59 @@
           "saving": "Saving issue…",
           "undo": "Undo removal",
           "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",
-          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another."
+          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another.",
+          "duplicateBlock": "Duplicate block {number}",
+          "footerText": "Closing text",
+          "Image": {
+            "width": "Width",
+            "widths": {
+              "100": "Full width",
+              "75": "Three quarters",
+              "50": "Half",
+              "25": "Quarter"
+            },
+            "align": "Alignment",
+            "aligns": {
+              "left": "Left",
+              "center": "Center",
+              "right": "Right"
+            }
+          },
+          "Columns": {
+            "column": "Column {number}",
+            "remove": "Remove column {number}",
+            "add": "Add column"
+          },
+          "Spacer": {
+            "size": "Height",
+            "sizes": {
+              "sm": "Small",
+              "md": "Medium",
+              "lg": "Large"
+            }
+          },
+          "Social": {
+            "network": "Network {number}",
+            "url": "Link {number} URL",
+            "remove": "Remove link {number}",
+            "add": "Add link",
+            "networks": {
+              "website": "Website",
+              "x": "X",
+              "linkedin": "LinkedIn",
+              "instagram": "Instagram",
+              "facebook": "Facebook",
+              "youtube": "YouTube",
+              "tiktok": "TikTok"
+            }
+          },
+          "Studio": {
+            "label": "Studio",
+            "content": "Content",
+            "design": "Design",
+            "designUnsaved": "Unsaved design changes",
+            "saveDesignFirst": "Save or discard the design changes before sending."
+          }
         },
         "publicArchive": "Public archive",
         "SignupForm": {
@@ -3679,7 +3742,9 @@
         "presetColors": "Preset colors",
         "clearColor": {
           "primaryColor": "Clear primary color",
-          "accentColor": "Clear accent color"
+          "accentColor": "Clear accent color",
+          "backgroundColor": "Clear background color",
+          "buttonTextColor": "Clear button text color"
         },
         "Logo": {
           "description": "Upload an image up to {maxSize}. Save settings to use it in your issues.",
@@ -3805,6 +3870,48 @@
             "pausedDescription": "Queued recipients stay queued until a project member resumes sending. Review the subscriber list before resuming.",
             "resume": "Resume sending",
             "resumed": "Sending resumed. Queued recipients continue within the daily limit."
+          }
+        },
+        "colorHints": {
+          "primaryColor": "Headings and text. Leave blank for the default.",
+          "accentColor": "Button fill. Leave blank for the default.",
+          "backgroundColor": "Behind the email card. Leave blank for light gray.",
+          "buttonTextColor": "Button labels. Keep them readable on the accent color."
+        },
+        "Image": {
+          "upload": "Upload image",
+          "replace": "Replace image",
+          "remove": "Remove image",
+          "previewAlt": "Image preview",
+          "uploadError": "Failed to upload the image. Try again.",
+          "fileTooLarge": "File is too large",
+          "fileTypeNotAccepted": "Use a PNG, JPEG, WebP or GIF image",
+          "maxFilesExceeded": "Upload one image at a time",
+          "headerDescription": "A banner above your logo, up to {maxSize}. Wide images work best."
+        },
+        "Design": {
+          "title": "Email design",
+          "description": "Applies to every issue not yet sent. The preview updates as you change it.",
+          "header": "Header",
+          "colors": "Colors",
+          "layout": "Type and layout",
+          "footer": "Footer",
+          "save": "Save design",
+          "reset": "Discard changes",
+          "saved": "Design saved",
+          "headerAlign": {
+            "left": "Left",
+            "center": "Center"
+          },
+          "spacing": {
+            "compact": "Compact",
+            "normal": "Normal",
+            "roomy": "Roomy"
+          },
+          "buttonShape": {
+            "square": "Square",
+            "rounded": "Rounded",
+            "pill": "Pill"
           }
         }
       }
