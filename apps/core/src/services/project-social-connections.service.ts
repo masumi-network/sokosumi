@@ -1,5 +1,4 @@
 import type { Prisma } from "@sokosumi/database";
-
 import {
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
@@ -17,6 +16,7 @@ import {
   socialProviderProjectSelect,
 } from "@/config/social-providers";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
+import { composioHandoffUrl } from "@/helpers/composio-handoff";
 import { conflict, notFound } from "@/helpers/error";
 import { linkedInPersonId, linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -386,7 +386,14 @@ export async function initiateProjectSocialConnection(
     throw error;
   }
 
-  return connection;
+  return {
+    connectionId: connection.connectionId,
+    redirectUrl: composioHandoffUrl({
+      redirectUrl: connection.redirectUrl,
+      returnUrl: input.callbackUrl,
+      connectionId: connection.connectionId,
+    }),
+  };
 }
 
 export async function finalizeProjectSocialConnection(

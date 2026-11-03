@@ -11,6 +11,7 @@ import {
   type CmoMeasurement,
   type CmoOverview,
   chooseCmoAdAccount,
+  completeSokoBotIntegrationAuth,
   confirmProjectBrandBrain,
   connectCmoAds,
   connectCmoMeasurement,
@@ -672,7 +673,19 @@ export async function connectMeasurement(
 /** Finishes a measurement connection after the founder signed in. */
 export async function finalizeMeasurement(
   provider: CmoMeasurement["provider"],
+  sessionUri: string | null,
 ): Promise<boolean> {
+  // Back from Composio's verifier: redeeming the session for Cuso's bot also
+  // keeps the connection.
+  if (sessionUri) {
+    const overview = await requireOverview();
+    const { error } = await completeSokoBotIntegrationAuth({
+      ...(await inCusoWorkspace(overview)),
+      path: { sokoBotId: overview.sokoBotId },
+      body: { sessionUri },
+    });
+    return !error;
+  }
   const core = await requireCore();
   const { error } = await finalizeCmoMeasurement({
     ...core,

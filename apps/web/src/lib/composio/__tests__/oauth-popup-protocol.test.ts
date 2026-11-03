@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildComposioCallbackInlineScript,
+  buildComposioHandoffInlineScript,
   COMPOSIO_BOT_ID_STORAGE_KEY,
+  COMPOSIO_HANDOFF_STORAGE_KEY,
   COMPOSIO_OAUTH_ACK_TYPE,
   COMPOSIO_OAUTH_BROADCAST_CHANNEL,
   COMPOSIO_OAUTH_MESSAGE_TYPE,
@@ -12,6 +14,7 @@ import {
   isComposioOAuthAckPayload,
   isComposioOAuthCallbackPayload,
   parseComposioCallbackSearchParams,
+  readComposioHandoff,
   rememberComposioBotId,
 } from "@/lib/composio/oauth-popup-protocol";
 
@@ -299,5 +302,82 @@ describe("same-tab verification for a shared Soko Bot", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("hand-off from another first-party app", () => {
+  it("accepts only Composio's pages out and first-party pages back", () => {
+    const read = (to: string, back: string) =>
+      readComposioHandoff(
+        new URLSearchParams({ to, return: back, connection: "ca_1" }),
+      );
+    expect(
+      read(
+        "https://connect.composio.dev/link/abc",
+        "https://app.cmo.xyz/connect/callback",
+      ),
+    ).toEqual({
+      to: "https://connect.composio.dev/link/abc",
+      returnUrl: "https://app.cmo.xyz/connect/callback",
+      connectionId: "ca_1",
+    });
+    expect(
+      read("https://evil.example/link", "https://app.cmo.xyz/connect/callback"),
+    ).toBeNull();
+    expect(
+      read("https://connect.composio.dev/link/abc", "https://evil.example/"),
+    ).toBeNull();
+  });
+
+  it("remembers the return address, then leaves for Composio", () => {
+    const setItem = vi.fn();
+    const replace = vi.fn();
+    runInNewContext(
+      buildComposioHandoffInlineScript({
+        to: "https://connect.composio.dev/link/abc",
+        returnUrl: "https://app.cmo.xyz/connect/callback",
+        connectionId: "ca_1",
+      }),
+      { window: { sessionStorage: { setItem }, location: { replace } } },
+    );
+    expect(setItem.mock.calls[0]?.[0]).toBe(COMPOSIO_HANDOFF_STORAGE_KEY);
+    expect(JSON.parse(setItem.mock.calls[0]?.[1])).toMatchObject({
+      returnUrl: "https://app.cmo.xyz/connect/callback",
+      connectionId: "ca_1",
+    });
+    expect(replace).toHaveBeenCalledWith(
+      "https://connect.composio.dev/link/abc",
+    );
+  });
+
+  it("sends Composio's callback back to that app with the connection", () => {
+    const replace = vi.fn();
+    const removeItem = vi.fn();
+    const stored = JSON.stringify({
+      returnUrl: "https://app.cmo.xyz/connect/callback",
+      connectionId: "ca_1",
+      at: Date.now(),
+    });
+    runInNewContext(buildComposioCallbackInlineScript(), {
+      URL,
+      URLSearchParams,
+      window: {
+        sessionStorage: {
+          getItem: (key: string) =>
+            key === COMPOSIO_HANDOFF_STORAGE_KEY ? stored : null,
+          removeItem,
+        },
+        name: "",
+        location: {
+          origin: "https://app.sokosumi.com",
+          search: "?session_uri=one-use",
+          replace,
+        },
+      },
+    });
+    expect(replace).toHaveBeenCalledExactlyOnceWith(
+      "https://app.cmo.xyz/connect/callback?session_uri=one-use&connected_account_id=ca_1",
+    );
+    expect(removeItem).toHaveBeenCalledWith(COMPOSIO_HANDOFF_STORAGE_KEY);
   });
 });
