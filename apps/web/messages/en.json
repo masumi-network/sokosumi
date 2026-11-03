@@ -9623,7 +9623,7 @@
         "dayEmpty": "Nothing scheduled on this day.",
         "dayCount": "{count, plural, =0 {no posts} one {# post} other {# posts}}",
         "statusFilter": "Show posts by status",
-        "postCount": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
+        "postCount": "{count, plural, =0 {No posts in this period} one {# post} other {# posts}}",
         "dayAttention": "{count, plural, one {# needs attention} other {# need attention}}",
         "reschedule": "Reschedule",
         "rescheduleNamed": "Reschedule the {time} post: {text}"

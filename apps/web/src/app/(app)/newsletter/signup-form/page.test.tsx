@@ -129,6 +129,9 @@ describe("newsletter signup form page", () => {
     );
     expect(screen.getByTestId("newsletter-no-project")).toBeInTheDocument();
     expect(
+      screen.getByRole("button", { name: "Select project" }),
+    ).toBeVisible();
+    expect(
       screen.queryByText(messages.App.Newsletter.pickUnavailable),
     ).toBeNull();
     expect(mocks.project).not.toHaveBeenCalled();
@@ -144,6 +147,9 @@ describe("newsletter signup form page", () => {
     );
     expect(
       screen.getByText(messages.App.Newsletter.pickUnavailable),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Select project" }),
     ).toBeVisible();
     expect(mocks.settings).not.toHaveBeenCalled();
   });

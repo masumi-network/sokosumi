@@ -9623,7 +9623,7 @@
         "dayEmpty": "No hay nada programado este día.",
         "dayCount": "{count, plural, =0 {sin publicaciones} one {# publicación} other {# publicaciones}}",
         "statusFilter": "Mostrar publicaciones por estado",
-        "postCount": "{count, plural, =0 {Sin publicaciones} one {# publicación} other {# publicaciones}}",
+        "postCount": "{count, plural, =0 {Sin publicaciones en este período} one {# publicación} other {# publicaciones}}",
         "dayAttention": "{count, plural, one {# requiere atención} other {# requieren atención}}",
         "reschedule": "Reprogramar",
         "rescheduleNamed": "Reprogramar la publicación de las {time}: {text}"

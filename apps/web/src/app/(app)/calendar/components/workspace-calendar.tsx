@@ -1012,7 +1012,18 @@ export function WorkspaceCalendar({
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
-  const [state, setState] = useQueryStates(calendarParsers);
+  const [queryState, setState] = useQueryStates(calendarParsers);
+  // Social hides these workspace task filters, so they cannot narrow its posts
+  // or leak into subsequent calendar pages through a retained URL.
+  const state = socialPostsOnly
+    ? {
+        ...queryState,
+        assigneeId: null,
+        assigneeUserId: null,
+        sourceId: null,
+        status: null,
+      }
+    : queryState;
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
