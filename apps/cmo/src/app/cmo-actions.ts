@@ -1,21 +1,31 @@
 "use server";
 
 import {
+  type AvailableAdAccount,
   answerProjectBrandBrainQuestion,
   answerProjectMarketingStrategyQuestion,
   applyCmoPlanAnswers,
   approveProjectMarketingStrategy,
+  type CmoAdCampaigns,
+  type CmoAdsFinalized,
   type CmoMeasurement,
   type CmoOverview,
+  chooseCmoAdAccount,
   confirmProjectBrandBrain,
+  connectCmoAds,
   connectCmoMeasurement,
+  finalizeCmoAds,
   finalizeCmoMeasurement,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryText,
   getCmoOverview,
   getContactLists,
+  launchCmoSearchAd,
+  listCmoAdCampaigns,
+  listCmoAdChoices,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
+  postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
   postProjectsByIdSocialConnectionsFinalize,
@@ -24,12 +34,15 @@ import {
   retryCmoOnboarding,
   revertCmoUpdate,
   setCmoAdBudget,
+  setCmoAdCampaignStatus,
   startCmoOnboarding,
+  startCmoOver,
   updateProjectBrandBrain,
 } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
@@ -391,6 +404,22 @@ export async function finishAccounts(): Promise<CmoOverview> {
   return overview;
 }
 
+/**
+ * Archives the Cuso this person works with and opens the hiring form, to hire
+ * him for another website. A refusal (not an owner or admin) comes back as text.
+ */
+export async function startOver(): Promise<string | null> {
+  const core = await requireCore();
+  const { error } = await startCmoOver(core);
+  if (error) {
+    return error && typeof error === "object" && "message" in error
+      ? String((error as { message: unknown }).message)
+      : "Could not start over";
+  }
+  revalidatePath("/");
+  redirect("/");
+}
+
 /** The contact list Cuso writes the newsletter for; Core counts it by this name. */
 const NEWSLETTER_LIST = "Newsletter";
 
@@ -493,14 +522,133 @@ export async function connectChannel(
   return { url: data.data.redirectUrl, error: null };
 }
 
+/**
+ * Redeems the provider's one-use callback session, which Core needs before
+ * it keeps a connection. Without a session there is nothing to redeem.
+ */
+async function redeemCallback(
+  connectionId: string,
+  sessionUri: string | null,
+): Promise<void> {
+  if (!sessionUri) return;
+  const overview = await requireOverview();
+  await postComposioCallbackComplete({
+    ...(await inCusoWorkspace(overview)),
+    body: { connectionId, sessionUri },
+  });
+}
+
 /** Finishes a connection after the provider sent the founder back. */
-export async function finalizeChannel(connectionId: string): Promise<boolean> {
+export async function finalizeChannel(
+  connectionId: string,
+  sessionUri: string | null = null,
+): Promise<boolean> {
+  await redeemCallback(connectionId, sessionUri);
   const { overview: _overview, ...options } = await cusoProject();
   const { error } = await postProjectsByIdSocialConnectionsFinalize({
     ...options,
     body: { connectionId },
   });
   return !error;
+}
+
+/** Starts connecting Google Ads or Meta Ads; the browser goes to the returned URL. */
+export async function connectAds(
+  provider: "google_ads" | "meta_ads",
+  from: "onboarding" | "app",
+): Promise<{ url: string | null; error: string | null }> {
+  const core = await requireCore();
+  const query = new URLSearchParams({ from });
+  const { data, error } = await connectCmoAds({
+    ...core,
+    path: { provider },
+    body: { returnUrl: await callbackUrl(`/ads/callback?${query}`) },
+  });
+  if (!data) {
+    return { url: null, error: errorText(error, "Could not start connecting") };
+  }
+  return { url: data.data.redirectUrl, error: null };
+}
+
+/** Finishes an ad connection after the founder signed in. */
+export async function finalizeAds(
+  connectionId: string,
+  sessionUri: string | null,
+): Promise<CmoAdsFinalized | null> {
+  const core = await requireCore();
+  const { data } = await finalizeCmoAds({
+    ...core,
+    body: { connectionId, sessionUri },
+  });
+  return data?.data ?? null;
+}
+
+/** The ad accounts a connection reaches, for the founder to pick one. */
+export async function loadAdChoices(
+  adConnectionId: string,
+): Promise<AvailableAdAccount[]> {
+  const core = await requireCore();
+  const { data } = await listCmoAdChoices({
+    ...core,
+    path: { adConnectionId },
+  });
+  return data?.data.accounts ?? [];
+}
+
+/** Attaches the ad account the founder picked. */
+export async function chooseAdAccount(
+  adConnectionId: string,
+  externalAccountId: string,
+): Promise<boolean> {
+  const core = await requireCore();
+  const { error } = await chooseCmoAdAccount({
+    ...core,
+    body: { adConnectionId, externalAccountId },
+  });
+  return !error;
+}
+
+/** Every ad account with its campaigns and numbers. */
+export async function loadAdCampaigns(
+  range: "LAST_7_DAYS" | "LAST_30_DAYS",
+): Promise<CmoAdCampaigns["accounts"]> {
+  const core = await requireCore();
+  const { data } = await listCmoAdCampaigns({ ...core, query: { range } });
+  return data?.data.accounts ?? [];
+}
+
+/** Launches a search ad Cuso wrote; a refusal comes back as text. */
+export async function launchAd(
+  entryId: string,
+): Promise<{ overview: CmoOverview | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await launchCmoSearchAd({
+    ...core,
+    body: { entryId },
+  });
+  if (!data) {
+    return { overview: null, error: errorText(error, "Could not launch it") };
+  }
+  revalidatePath("/");
+  return { overview: await withSkipped(data.data), error: null };
+}
+
+/** Pauses or starts a campaign; a refusal comes back as text. */
+export async function setAdCampaignStatus(input: {
+  accountId: string;
+  campaignId: string;
+  status: "ACTIVE" | "PAUSED";
+}): Promise<{ overview: CmoOverview | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await setCmoAdCampaignStatus({
+    ...core,
+    body: input,
+  });
+  if (!data) {
+    return { overview: null, error: errorText(error, "Could not change it") };
+  }
+  revalidatePath("/");
+  return { overview: await withSkipped(data.data), error: null };
 }
 
 /** Starts connecting a measurement source to Cuso; the browser goes to the returned URL. */

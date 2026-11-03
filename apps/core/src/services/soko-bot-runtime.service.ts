@@ -50,6 +50,7 @@ import {
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotSearchInputSchema as searchInputSchema,
   sokoBotAskCoworkerInputSchema,
+  sokoBotDeleteFileInputSchema,
   sokoBotDraftEmailInputSchema,
   sokoBotEvaluateWithJevInputSchema,
   sokoBotInstallSkillInputSchema,
@@ -104,7 +105,7 @@ import {
   tableMutationSchema,
   tableQuerySchema,
 } from "@sokosumi/utils";
-import { head, list, put } from "@vercel/blob";
+import { del, head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
@@ -334,6 +335,7 @@ import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
+  tombstoneDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { downloadBlob } from "@/services/file-index.service";
 import {
@@ -426,6 +428,7 @@ import {
   INBOX_ATTACHMENT_MAX_BYTES,
   listIntegrationTools,
   modifyInboxMessages,
+  readIntegrationTool,
   runIntegrationTool,
   searchSokoBotIntegrationCatalog,
   sendInboxDraft,
@@ -3443,16 +3446,15 @@ export class SokoBotRuntimeService {
   }
 
   /** Moves one of the owner's Drive files into a folder of the same Drive. */
-  private async moveFile(
+  /** A file in the owner's Files, by id; Task files stay with their Task. */
+  private async ownerDriveFile(
     authorized: AuthorizedSokoBotRuntime,
-    input: { fileId: string; folder: string },
-    toolCallId: string,
+    fileId: string,
   ) {
-    const folder = driveFolderFor(input.folder);
     const drive = await this.ownerDrive(authorized);
     const resource = await prisma.fileResource.findFirst({
       where: {
-        id: input.fileId,
+        id: fileId,
         workspaceId: drive.key.workspaceId,
         sourceKind: FileSourceKind.DRIVE_UPLOAD,
         sourceScope:
@@ -3473,6 +3475,19 @@ export class SokoBotRuntimeService {
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token)
       throw new SokoBotRuntimeValidationError("File storage is not configured");
+    return { drive, resource, token };
+  }
+
+  private async moveFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; folder: string },
+    toolCallId: string,
+  ) {
+    const folder = driveFolderFor(input.folder);
+    const { drive, resource, token } = await this.ownerDriveFile(
+      authorized,
+      input.fileId,
+    );
     try {
       await moveDriveFile({
         sourcePathname: resource.sourceId,
@@ -3492,6 +3507,39 @@ export class SokoBotRuntimeService {
       filename: resource.displayName,
       folder: folder || null,
       link: `/drive/files/${resource.id}`,
+    });
+  }
+
+  /** Deleting is for good, so only on the owner's own word in their chat. */
+  private async deleteFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string },
+    toolCallId: string,
+  ) {
+    const turn = authorized.turn;
+    if (
+      authorized.reader.sharedScope ||
+      turn.source !== "CHAT" ||
+      turn.chainDepth > 0 ||
+      authorized.askedByKind === "ASSISTANT"
+    )
+      throw new SokoBotRefusedUnsentError(
+        "Files are deleted only when your owner asks in their chat with you. Ask them, or move it with move_file.",
+      );
+    const { drive, resource, token } = await this.ownerDriveFile(
+      authorized,
+      input.fileId,
+    );
+    await del(resource.sourceId, { token });
+    await tombstoneDriveUploadResource({
+      workspaceId: drive.key.workspaceId,
+      scope: drive.key.scope,
+      pathname: resource.sourceId,
+    });
+    return this.commitReceipt(authorized, toolCallId, resource.id, {
+      id: resource.id,
+      filename: resource.displayName,
+      deleted: true,
     });
   }
 
@@ -7770,6 +7818,12 @@ export class SokoBotRuntimeService {
           sokoBotMoveFileInputSchema.parse(input.input),
           input.toolCallId,
         );
+      case "delete_file":
+        return this.deleteFile(
+          authorized,
+          sokoBotDeleteFileInputSchema.parse(input.input),
+          input.toolCallId,
+        );
       case "list_skills":
         return this.listSkills(
           authorized,
@@ -8008,6 +8062,7 @@ export class SokoBotRuntimeService {
           }),
         };
       }
+      case "read_integration_tool":
       case "run_integration_tool": {
         const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
         // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
@@ -8023,11 +8078,11 @@ export class SokoBotRuntimeService {
             `No connected account for provider ${parsed.provider}`,
           );
         }
-        return runIntegrationTool(
-          integration,
-          parsed.tool,
-          parsed.arguments ?? {},
-        );
+        return (
+          input.capability === "read_integration_tool"
+            ? readIntegrationTool
+            : runIntegrationTool
+        )(integration, parsed.tool, parsed.arguments ?? {});
       }
       case "list_calendar_events": {
         const parsed = sokoBotListCalendarEventsInputSchema.parse(input.input);

@@ -164,6 +164,10 @@ button.ob-step {
   cursor: pointer;
 }
 
+.ob-who-menu .start-over {
+  padding: 8px 10px;
+}
+
 .ob-who-item:hover {
   background: var(--surface);
 }
@@ -711,6 +715,22 @@ button.ob-step {
 
 .ob-changed .ob-label {
   color: var(--accent);
+}
+
+.ob-replanning {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 64px 24px;
+  border: 1px solid var(--ob-line);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.ob-replanning-title {
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .ob-weeks {

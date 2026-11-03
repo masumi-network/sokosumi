@@ -27,9 +27,10 @@ import { cn } from "@/lib/utils";
 import { ContactAvatar } from "./contact-visuals";
 import { CONTACT_LISTS_KEY, refreshContacts } from "./use-contacts-data";
 
-/** What each run size costs; Core charges the same. */
-const SIZES = { 10: 5, 25: 10 } as const;
-type Size = keyof typeof SIZES;
+const SIZES = [1, 10, 25] as const;
+type Size = (typeof SIZES)[number];
+/** Core charges this per person found; finding nobody is free. */
+const CREDITS_PER_PERSON = 0.5;
 const SHOWN = 5;
 
 const suggestionsKey = (listId: string) =>
@@ -229,8 +230,13 @@ function FindPeopleDialog({
   onFound: (found: ContactSuggestion[]) => void;
 }) {
   const t = useTranslations("App.Contacts.suggestions");
-  const [brief, setBrief] = useState(list.description ?? "");
+  const [description, setDescription] = useState(list.description ?? "");
+  const [person, setPerson] = useState("");
   const [size, setSize] = useState<Size>(10);
+  // One person is described on its own; the list's description stays.
+  const one = size === 1;
+  const brief = one ? person : description;
+  const setBrief = one ? setPerson : setDescription;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -267,13 +273,15 @@ function FindPeopleDialog({
             <DialogDescription>{t("dialogDescription")}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="find-people-brief">{t("briefLabel")}</Label>
+            <Label htmlFor="find-people-brief">
+              {one ? t("personLabel") : t("briefLabel")}
+            </Label>
             <Textarea
               id="find-people-brief"
               value={brief}
               onChange={(event) => setBrief(event.target.value)}
-              placeholder={t("briefPlaceholder")}
-              rows={4}
+              placeholder={one ? t("personPlaceholder") : t("briefPlaceholder")}
+              rows={one ? 2 : 4}
               maxLength={1000}
               autoFocus
             />
@@ -289,18 +297,24 @@ function FindPeopleDialog({
               type="single"
               value={String(size)}
               onValueChange={(value) => {
-                if (value === "10" || value === "25")
-                  setSize(Number(value) as Size);
+                const option = SIZES.find((item) => String(item) === value);
+                if (option) {
+                  setSize(option);
+                  setError("");
+                }
               }}
               aria-labelledby="find-people-size"
               className="self-start"
             >
-              {([10, 25] as const).map((option) => (
+              {SIZES.map((option) => (
                 <ToggleGroupItem key={option} value={String(option)}>
                   {t("sizeOption", { count: option })}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
+            <p className="text-muted-foreground text-xs">
+              {t("pricing", { credits: CREDITS_PER_PERSON })}
+            </p>
           </div>
           <DialogFooter>
             <Button
@@ -314,7 +328,10 @@ function FindPeopleDialog({
             <Button type="submit" variant="primary" loading={pending}>
               {pending
                 ? t("searching")
-                : t("submit", { count: size, credits: SIZES[size] })}
+                : t("submit", {
+                    count: size,
+                    credits: size * CREDITS_PER_PERSON,
+                  })}
             </Button>
           </DialogFooter>
         </form>

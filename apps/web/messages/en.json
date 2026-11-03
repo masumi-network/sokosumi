@@ -9828,7 +9828,8 @@
         "SLACK": "From Slack",
         "WEB_RESEARCH": "From web research",
         "IMPORT": "Imported",
-        "OTHER": "Other source"
+        "OTHER": "Other source",
+        "X": "From X"
       },
       "presets": {
         "all": "All contacts",
@@ -10047,13 +10048,17 @@
       },
       "empty": {
         "title": "Your team's contacts live here",
-        "description": "People are added automatically from the mail, calendar and Slack your Soko Bots are connected to, with who on the team knows them. No newsletters or automated senders.",
+        "description": "Contacts sync through your Soko Bot: it adds the people from the mail, calendar and Slack connected to it, with who on the team knows them. No newsletters or automated senders.",
         "connect": "Connect {name}",
         "connected": "{name} connected",
         "connectFailed": "That connection didn't start. Try again.",
         "manageConnections": "Manage connections",
         "addByHand": "Add someone",
-        "import": "Import from a table"
+        "import": "Import from a table",
+        "needsBot": "Contacts sync through a Soko Bot. Set yours up and connect your mail and calendar to it, and it adds the people you deal with, with who on the team knows them.",
+        "needsConnections": "Your Soko Bot adds the people you deal with once your mail and calendar are connected to it. No newsletters or automated senders.",
+        "syncing": "{bot} is reading your connected mail and calendar. The first contacts appear within about 15 minutes.",
+        "setUpBot": "Set up your Soko Bot"
       },
       "panel": {
         "loading": "Loading contact",
@@ -10094,7 +10099,7 @@
         "channelSource": "{type}, {source}",
         "verified": "verified",
         "primary": "Primary",
-        "openSource": "Open where this was found",
+        "openSource": "Open source",
         "copyChannel": "Copy {value}",
         "removeChannel": "Remove {value}",
         "noChannels": "No way to reach them yet.",
@@ -10111,7 +10116,8 @@
           "SLACK": "Slack",
           "CALL": "Call",
           "MANUAL": "Note",
-          "OTHER": "Other"
+          "OTHER": "Other",
+          "X": "X"
         },
         "source": "Source",
         "showMore": "Show more",
@@ -10123,7 +10129,8 @@
           "CHANNEL_REMOVED": "{who} removed a channel",
           "MERGED": "{who} merged {names} into this contact",
           "ARCHIVED": "{who} archived this contact",
-          "UNARCHIVED": "{who} restored this contact"
+          "UNARCHIVED": "{who} restored this contact",
+          "WEB": "{who} filled {fields} from the web"
         },
         "fields": {
           "name": "name",
@@ -10138,14 +10145,21 @@
           "followUpAt": "follow-up",
           "avatarUrl": "photo",
           "customFields": "custom fields",
-          "kind": "type"
+          "kind": "type",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Mark as organization",
         "markPerson": "Mark as person",
         "waitingSince": "Since {date}, no answer yet",
         "heardFrom": "Last heard from them {when}",
         "automatic": "Automatic",
-        "classifier": "Automatic classification"
+        "classifier": "Automatic classification",
+        "enrich": "Enrich",
+        "enrichHint": "Look them up on the web and fill empty fields · 1 credit",
+        "enriched": "Filled {fields} from the web · 1 credit",
+        "enrichedNone": "Nothing new found on the web. No credits used.",
+        "enrichFailed": "Could not look them up. Try again.",
+        "connectedVia": "Connected via"
       },
       "stageGroups": {
         "general": "General",
@@ -10205,13 +10219,16 @@
         "briefPlaceholder": "e.g. Partners at seed funds investing in AI agents, Europe or US",
         "briefRequired": "Describe who you are looking for.",
         "sizeLabel": "How many",
-        "sizeOption": "{count} people",
-        "submit": "Find {count} people · {credits} credits",
+        "sizeOption": "{count, plural, one {# person} other {# people}}",
+        "submit": "Find {count, plural, one {# person} other {# people}} · up to {credits, number} credits",
         "searching": "Searching the web…",
         "found": "Found {count, plural, one {# person} other {# people}}",
-        "foundNone": "No new people found. Try describing them differently.",
+        "foundNone": "Nobody new found. Try describing them differently. No credits used.",
         "findFailed": "The search did not work. Try again.",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "pricing": "{credits, number} credits per person found. Finding nobody is free.",
+        "personLabel": "Who are you looking for?",
+        "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
       }
     }
   },

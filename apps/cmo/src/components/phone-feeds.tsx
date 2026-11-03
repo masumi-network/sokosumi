@@ -87,7 +87,15 @@ function screenKey(entry: Entry): string {
   return channelInfo(channel)?.group === "ads" ? "ads" : channel;
 }
 
-/** The busiest places first, up to four phones. */
+/** An ads platform by name, so "if you add" says which one. */
+function adsName(channel: string): string {
+  return channelKey(channel) === "google_ads" ? "Google Ads" : "Meta ads";
+}
+
+/**
+ * The busiest places first, up to four phones. Ads cost the owner money, so
+ * they are always optional, like a proposed channel.
+ */
 export function feedScreens(calendar: Entry[]): Screen[] {
   const pieces = planPieces(calendar);
   return SCREENS.map((screen) => ({
@@ -96,7 +104,18 @@ export function feedScreens(calendar: Entry[]): Screen[] {
   }))
     .filter((screen) => screen.entries.length > 0)
     .sort((a, b) => b.entries.length - a.entries.length)
-    .slice(0, 4);
+    .slice(0, 4)
+    .map((screen) => {
+      if (screen.key !== "ads") return screen;
+      const channel = screen.entries[0]?.channel ?? "meta_ads";
+      return {
+        ...screen,
+        name: adsName(channel),
+        icon: channelKey(channel) ?? channel,
+        optional: true,
+        perMonth: screen.entries.length,
+      };
+    });
 }
 
 /**
@@ -123,6 +142,7 @@ export function proposalScreens(strategy: Strategy): Screen[] {
     return [
       {
         ...base,
+        ...(base.key === "ads" ? { name: adsName(proposal.channel) } : {}),
         key: `optional-${proposal.channel}`,
         icon: proposal.channel,
         entries,

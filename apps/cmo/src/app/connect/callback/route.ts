@@ -9,10 +9,11 @@ export async function GET(request: NextRequest) {
     params.get("connectedAccountId") ??
     params.get("connected_account_id") ??
     params.get("connectionId");
+  const sessionUri = params.get("session_uri") ?? params.get("sessionUri");
   const failed = /fail|error|cancel/i.test(params.get("status") ?? "");
   const connected =
     connectionId && !failed
-      ? await finalizeChannel(connectionId).catch(() => false)
+      ? await finalizeChannel(connectionId, sessionUri).catch(() => false)
       : false;
   const back = new URL("/", request.nextUrl);
   back.searchParams.set("step", "connect");

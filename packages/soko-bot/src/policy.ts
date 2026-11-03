@@ -45,6 +45,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_table",
   "upload_file",
   "move_file",
+  "delete_file",
   "update_emails",
   "draft_email",
   "send_email_draft",
@@ -77,6 +78,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  "read_integration_tool",
   "run_integration_tool",
   "list_project_social_accounts",
   "get_posting_instructions",
@@ -237,6 +239,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
+  // Deleting is for good; a page the bot read must not pick what goes.
+  "delete_file",
   // Spends credits, and its prompt is the kind of thing a page can inject.
   "generate_image",
   "newsletter_draft_issue",
@@ -332,6 +336,8 @@ const DIRECT_READ_CAPABILITIES = [
   "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  // Only tools Composio marks read-only; Core refuses the rest.
+  "read_integration_tool",
   "list_project_social_accounts",
   "get_posting_instructions",
   "list_ad_accounts",
@@ -439,6 +445,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "ask_coworker",
   "upload_file",
   "move_file",
+  "delete_file",
   // The owner's mailbox: read state, archive, drafts. Sending is its own
   // tool, which Core allows only on the owner's word in their chat.
   "update_emails",
@@ -616,6 +623,7 @@ export function capabilitiesForClassification(
     FILE: [
       "upload_file",
       "move_file",
+      "delete_file",
       "save_email_attachment",
       "generate_image",
       "generate_video",

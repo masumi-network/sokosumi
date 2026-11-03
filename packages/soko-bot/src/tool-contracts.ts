@@ -386,6 +386,13 @@ export const sokoBotMoveFileInputSchema = z
   })
   .strict();
 
+export const sokoBotDeleteFileInputSchema = z
+  .object({
+    /** Drive file id from list_files or upload_file. */
+    fileId: z.string().min(1),
+  })
+  .strict();
+
 export const sokoBotListSkillsInputSchema = z
   .object({
     /** Words to search the skills.sh catalog for; omit to list only installed skills. */
@@ -1318,6 +1325,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   create_project: sokoBotCreateProjectInputSchema,
   update_project: sokoBotUpdateProjectInputSchema,
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
+  read_integration_tool: sokoBotRunIntegrationToolInputSchema,
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_chats: emptyInputSchema,
   read_chat: sokoBotReadChatInputSchema,
@@ -1333,6 +1341,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   get_video: sokoBotGetVideoInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
   move_file: sokoBotMoveFileInputSchema,
+  delete_file: sokoBotDeleteFileInputSchema,
   update_emails: sokoBotUpdateEmailsInputSchema,
   draft_email: sokoBotDraftEmailInputSchema,
   send_email_draft: sokoBotSendEmailDraftInputSchema,
@@ -1479,15 +1488,17 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   save_brand_brain:
     "Save the owner's Brand Brain. `sections` holds profile sections (company, offer, problems, customers, buyers, value, pricing, positioning, competition, sales, marketing, content, proof, reputation, momentum, opportunities), each a headline, an answer, findings with evidence, confidence, source, date and implication, and open questions; send them as you finish them. `brandBrain` holds the essentials (summary, voice with do/don't and example lines, audience, products, offers, competitors, channels), the reveal (positioning line, three insights, competitor map, buyers) and up to six yes/no questions for the owner; send it last. Each save merges: a section you send replaces that section, the rest stay. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
   save_strategy:
-    "Save the marketing strategy for a month: the idea (who, position, how they are attracted, the offer, and the sentence joining them), the alternatives you weighed, the offer ladder, summary, goals, the objective as an outcome, the buying barrier, the content mix, the focus segment, the offer, channels with cadence, the pace, the ad budget, the funnel (each stage with its owner, what each channel does there and how often, and its measure), before and after per channel, improvements only the owner can make, campaigns, the weekly plan, measurement, questions (two to five yes/no checks of your biggest assumptions, which the owner answers after reading the plan), the content calendar (keep entry ids stable; link imageFileId, slideFileIds, taskId when they exist), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter in the brand's voice. part says what the call replaces: plan (every field but the calendar), calendar (the whole calendar), pieces (only the entries you send, matched by id; a new id adds an entry and none is dropped) or all; fields outside the part stay as saved, so a long plan goes in two short calls, plan then calendar. While you make or change pieces, save them with part pieces. Each turn that saves plan or calendar writes one new version of the Project's Marketing strategy; an owner or admin approves it before it runs, and the approved version keeps running until then. Pieces fill in the approved version: there each social entry is a Social post (its id is the post's), so pieces change its plan, date and draft words, a new social entry becomes a draft post and status skipped cancels it; its media and schedule go on the post with update_social_post and schedule_social_post.",
+    "Save the marketing strategy for a month: the idea (who, position, how they are attracted, the offer, and the sentence joining them), the alternatives you weighed, the offer ladder, summary, goals, the objective as an outcome, the buying barrier, the content mix, the focus segment, the offer, channels with cadence, the pace, the ad budget, the funnel (each stage with its owner, what each channel does there and how often, and its measure), before and after per channel, improvements only the owner can make, campaigns, the weekly plan, measurement, questions (two to five yes/no checks of your biggest assumptions, which the owner answers after reading the plan), the content calendar (keep entry ids stable; link imageFileId, slideFileIds, taskId when they exist; a google_ads search ad also carries searchAd: keywords, 3 to 15 headlines of at most 30 characters, 2 to 4 descriptions of at most 90, the finalUrl it sends people to, the location and language it targets, so the owner can launch it), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter in the brand's voice. part says what the call replaces: plan (every field but the calendar), calendar (the whole calendar), pieces (only the entries you send, matched by id; a new id adds an entry and none is dropped) or all; fields outside the part stay as saved, so a long plan goes in two short calls, plan then calendar. While you make or change pieces, save them with part pieces. Each turn that saves plan or calendar writes one new version of the Project's Marketing strategy; an owner or admin approves it before it runs, and the approved version keeps running until then. Pieces fill in the approved version: there each social entry is a Social post (its id is the post's), so pieces change its plan, date and draft words, a new social entry becomes a draft post and status skipped cancels it; its media and schedule go on the post with update_social_post and schedule_social_post.",
   report_update:
     "Report to the owner as a card in their CMO chat: kind daily (done today, up next), weekly (results and the strategy changes you made; the owner can revert them), monthly (next month's strategy: results and what changes from this month; revertible), brand (what changed in the Brand Brain) or request (what you did for something they asked). Results must use only real numbers; say plainly when there are none. upNext lists concrete next actions only (a post, a draft, a review), never status notes such as 'the strategy awaits approval'.",
   manage_reminder:
     "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. It cannot create reminders; for a reminder at a time, use create_schedule with runAt. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:
-    "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead. Google Ads and Meta Ads are never used this way: use the ad tools (list_ad_accounts, create_ad_campaign, …).",
+    "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, X, …): tool slugs with descriptions and input schemas; `readOnly` tools only look things up. Mailboxes are read through search_inbox/read_email instead. Google Ads and Meta Ads are never used this way: use the ad tools (list_ad_accounts, create_ad_campaign, …).",
+  read_integration_tool:
+    "Run one readOnly tool of a connected account (look up, list, read: followers, messages, records) with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Core refuses a tool that changes anything: that is run_integration_tool. Not available for mailboxes, Google Ads or Meta Ads.",
   run_integration_tool:
-    "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes, Google Ads or Meta Ads (use the ad tools).",
+    "Run one tool of a connected account that changes something (send, create, update) with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. For a readOnly tool use read_integration_tool. Not available for mailboxes, Google Ads or Meta Ads (use the ad tools).",
   list_chats:
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat. When your owner asks, `ownerUnread` lists every chat of theirs with unread messages, as their sidebar counts them, including rooms you are not in (`youAreMember: false`: you see the name and count, but can only read rooms you belong to).",
   read_chat:
@@ -1554,6 +1565,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Send a draft you wrote with draft_email in an earlier turn. Only when the owner, in their chat with you, has seen that draft and now explicitly tells you to send it (\u201csend it\u201d, \u201cyes, send the reply to Anna\u201d). Never from a scheduled, mail-triggered or task turn, never on your own judgement, and never without the owner having seen the draft. Core refuses it otherwise.",
   move_file:
     'Move a file in the owner\u2019s Files into a folder, by id from list_files or upload_file. Subfolders are paths like "Clients/Acme"; a folder that does not exist yet is created; "" moves it to the top level. Refuses when a file of that name is already there.',
+  delete_file:
+    "Delete a file from the owner\u2019s Files for good, by id from list_files or upload_file. Only when the owner asked for it in their chat with you; Core refuses it from any other turn. To tidy up without losing anything, use move_file instead.",
   list_skills:
     "Your installed skills, and with a query the matching skills from the skills.sh catalog (name and source to install it with).",
   install_skill:

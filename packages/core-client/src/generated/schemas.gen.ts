@@ -14363,10 +14363,16 @@ export const ContactPeopleSearchInputSchema = {
             type: 'string',
             minLength: 3,
             maxLength: 1000,
-            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used.'
+            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used. With size 1, the one person to find (a name, and where they work); the description stays.'
         },
         size: {
             anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
                 {
                     type: 'number',
                     enum: [
@@ -14381,7 +14387,7 @@ export const ContactPeopleSearchInputSchema = {
                 }
             ],
             default: 10,
-            description: 'How many people to find: 10 costs 5 credits, 25 costs 10.'
+            description: 'How many people to find; 1 looks for one particular person. Costs 0.5 credits per person found.'
         }
     }
 } as const;
@@ -14784,7 +14790,8 @@ export const ContactChannelSourceSchema = {
         'SLACK',
         'WEB_RESEARCH',
         'IMPORT',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15118,7 +15125,8 @@ export const ContactInteractionChannelSchema = {
         'SLACK',
         'CALL',
         'MANUAL',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15164,6 +15172,35 @@ export const ContactInteractionResultSchema = {
     required: [
         'interaction',
         'created'
+    ]
+} as const;
+
+export const ContactWebEnrichmentSchema = {
+    type: 'object',
+    properties: {
+        filled: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Fields it filled: role, organization, location, summary, linkedin. Empty when the web did not say more.'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The page it read them from.'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken; 0 when nothing was filled.'
+        }
+    },
+    required: [
+        'filled',
+        'sourceUrl',
+        'credits'
     ]
 } as const;
 
@@ -22460,6 +22497,15 @@ export const ProjectSchema = {
             description: 'Project-owned brand DESIGN.md, or null when none exists.',
             example: null
         },
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        },
         memoryEnabled: {
             type: 'boolean',
             description: 'Whether Core has both AI Gateway and Blob storage credentials and can update project memory.',
@@ -22540,6 +22586,7 @@ export const ProjectSchema = {
         'websiteUrl',
         'logo',
         'designMd',
+        'postingInstructionsMd',
         'memoryEnabled',
         'memoryModel',
         'contextMd',
@@ -22969,6 +23016,24 @@ export const ProjectContextMdSchema = {
                 'content'
             ]
         }
+    ]
+} as const;
+
+export const ProjectPostingInstructionsSchema = {
+    type: 'object',
+    properties: {
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        }
+    },
+    required: [
+        'postingInstructionsMd'
     ]
 } as const;
 
@@ -27901,6 +27966,87 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -29158,6 +29304,87 @@ export const MarketingStrategyRequestSchema = {
                             fileId: {
                                 type: 'string',
                                 maxLength: 100
+                            },
+                            searchAd: {
+                                type: 'object',
+                                properties: {
+                                    keywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 20
+                                    },
+                                    headlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 30
+                                        },
+                                        minItems: 3,
+                                        maxItems: 15
+                                    },
+                                    descriptions: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 90
+                                        },
+                                        minItems: 2,
+                                        maxItems: 4
+                                    },
+                                    finalUrl: {
+                                        type: 'string',
+                                        maxLength: 2048,
+                                        format: 'uri'
+                                    },
+                                    location: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 80
+                                    },
+                                    language: {
+                                        type: 'string',
+                                        pattern: '^[a-z]{2}$'
+                                    },
+                                    callouts: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 25
+                                        },
+                                        maxItems: 10
+                                    }
+                                },
+                                required: [
+                                    'keywords',
+                                    'headlines',
+                                    'descriptions',
+                                    'finalUrl'
+                                ]
+                            },
+                            adCampaign: {
+                                type: 'object',
+                                properties: {
+                                    accountId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'accountId',
+                                    'campaignId'
+                                ]
                             },
                             taskId: {
                                 type: 'string',
@@ -35658,6 +35885,15 @@ export const PatchProjectRequestSchema = {
             pattern: '^[A-Z][A-Z0-9]{1,6}$',
             description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
             example: 'SOK'
+        },
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts. Null or blank clears it.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
         }
     }
 } as const;
@@ -40678,6 +40914,87 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -40878,6 +41195,10 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
+        adsAvailable: {
+            type: 'boolean',
+            description: 'This person is in Sokosumi\'s Ads beta: CMO offers to connect Google Ads and Meta Ads and to launch Cuso\'s search ads.'
+        },
         subscribeUrl: {
             type: 'string'
         },
@@ -40978,6 +41299,7 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
+        'adsAvailable',
         'subscribeUrl',
         'billing',
         'posts',
@@ -41628,6 +41950,98 @@ export const CmoMeasurementConnectSchema = {
     },
     required: [
         'redirectUrl'
+    ]
+} as const;
+
+export const CmoAdsConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const CmoAdsFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'none',
+                'choose'
+            ]
+        },
+        adConnectionId: {
+            type: 'string'
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'state'
+    ]
+} as const;
+
+export const CmoAdCampaignsSchema = {
+    type: 'object',
+    properties: {
+        accounts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    account: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: 'string'
+                            },
+                            provider: {
+                                type: 'string'
+                            },
+                            currency: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name',
+                            'provider',
+                            'currency'
+                        ]
+                    },
+                    campaigns: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/AdCampaign'
+                        }
+                    },
+                    failed: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'account',
+                    'campaigns',
+                    'failed'
+                ]
+            }
+        }
+    },
+    required: [
+        'accounts'
     ]
 } as const;
 
@@ -47525,24 +47939,5 @@ export const WorkspaceOrganizationSchema = {
     },
     required: [
         'organizationId'
-    ]
-} as const;
-
-
-export const ProjectPostingInstructionsSchema = {
-    type: 'object',
-    properties: {
-        postingInstructionsMd: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 20000,
-            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
-            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
-        }
-    },
-    required: [
-        'postingInstructionsMd'
     ]
 } as const;

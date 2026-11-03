@@ -91,6 +91,7 @@ export const ACTION_CAPABILITIES = new Set([
   "schedule_social_post",
   "cancel_social_post",
   "move_file",
+  "delete_file",
   "update_emails",
   "install_skill",
   "remove_skill",

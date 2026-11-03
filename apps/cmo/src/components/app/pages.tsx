@@ -3,13 +3,20 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
+import {
+  type AdActions,
+  AdsPanel,
+  adsReturnError,
+  ConnectAdsButton,
+} from "../ads";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import type { ConnectMeasurement } from "../onboarding/results-step";
+import { StartOver } from "../start-over";
 import { MeasureFunnel } from "../strategy-core";
 
 interface PageProps {
@@ -30,9 +37,13 @@ export function ResultsPage({
   overview,
   openUpdate,
   connectMeasurement,
+  ads,
+  onChange,
 }: PageProps & {
   openUpdate: (id: string) => void;
   connectMeasurement: ConnectMeasurement;
+  ads: Pick<AdActions, "loadAdCampaigns" | "setAdCampaignStatus">;
+  onChange: (overview: CmoOverview) => void;
 }) {
   const weekly = overview.updates.filter((update) => update.kind === "weekly");
   const { posts } = overview;
@@ -66,6 +77,7 @@ export function ResultsPage({
           onConnect={connectMeasurement}
         />
       </section>
+      <AdsPanel overview={overview} actions={ads} onChange={onChange} />
       <section className="panel">
         <h3>Reach and clicks</h3>
         <p className="muted">
@@ -152,14 +164,31 @@ const COMING_SOON = [
   ["Newsletter", "Email"],
 ] as const;
 
+const AD_PROVIDERS = [
+  ["google_ads", "Google Ads"],
+  ["meta_ads", "Meta ads"],
+] as const;
+
 export function ChannelsPage({
   overview,
   connect,
+  connectAds,
   connectFailed = false,
-}: PageProps & { connect: ConnectChannel; connectFailed?: boolean }) {
+}: PageProps & {
+  connect: ConnectChannel;
+  connectAds: AdActions["connectAds"];
+  connectFailed?: boolean;
+}) {
   const [pending, setPending] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(
     connectFailed ? "That connection didn't finish. Try again." : null,
+  );
+  useEffect(() => {
+    const adsError = adsReturnError();
+    if (adsError) setError(adsError);
+  }, []);
+  const soon = COMING_SOON.filter(
+    ([label]) => !overview.adsAvailable || !label.endsWith("ads"),
   );
   const [, startTransition] = useTransition();
 
@@ -228,10 +257,38 @@ export function ChannelsPage({
           })}
         </ul>
       </section>
+      {overview.adsAvailable ? (
+        <section className="panel">
+          <h3>Ad accounts</h3>
+          <p className="muted">
+            Optional. Cuso writes the ads; you launch each one, and they never
+            spend more than your plan's ad budget.
+          </p>
+          <ul className="list">
+            {AD_PROVIDERS.map(([provider, label]) => (
+              <li key={provider} className="crow">
+                <ChannelIcon channel={provider} size={20} />
+                <span className="grow">
+                  <b>{label}</b>
+                </span>
+                {overview.adProviders.includes(provider) ? (
+                  <span className="tag ok">Connected</span>
+                ) : (
+                  <ConnectAdsButton
+                    provider={provider}
+                    from="app"
+                    connectAds={connectAds}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section className="panel">
         <h3>Coming soon</h3>
         <ul className="list">
-          {COMING_SOON.map(([label, kind]) => (
+          {soon.map(([label, kind]) => (
             <li key={label} className="crow">
               <span className="grow">
                 <b>{label}</b>
@@ -255,10 +312,12 @@ export function SettingsPage({
   overview,
   name,
   email,
+  startOver,
   signOut,
 }: PageProps & {
   name: string;
   email: string;
+  startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }) {
   return (
@@ -320,6 +379,14 @@ export function SettingsPage({
             </li>
           ))}
         </ul>
+      </section>
+      <section className="panel">
+        <h3>Another website</h3>
+        <p className="muted">Hire Cuso again for a different website.</p>
+        <StartOver
+          className="button button-secondary button-small"
+          startOver={startOver}
+        />
       </section>
       <section className="panel">
         <h3>Account</h3>

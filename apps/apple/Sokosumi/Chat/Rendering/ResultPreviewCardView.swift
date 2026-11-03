@@ -236,7 +236,7 @@ struct ProjectMarkView: View {
 
 extension ResultPreviewCard.Kind {
   /// Web's lucide icons as SF Symbols: ListTodo, CalendarClock, MessageSquare, ImageIcon, UserRound, FileText,
-  /// FolderKanban.
+  /// FolderKanban, ClipboardList.
   var systemImage: String {
     switch self {
     case .task: "checklist"
@@ -246,6 +246,7 @@ extension ResultPreviewCard.Kind {
     case .job: "person"
     case .file: "doc.text"
     case .projectSelection: "folder"
+    case .cmoReport: "list.clipboard"
     }
   }
 
@@ -260,6 +261,7 @@ extension ResultPreviewCard.Kind {
     case .job: Text("Agent result", tableName: chatResultsTable, comment: "The kind of a result card (job).")
     case .file: Text("File", tableName: chatResultsTable, comment: "The kind of a result card (file).")
     case .decision: Text("Approval", tableName: chatResultsTable, comment: "The kind of a result card (decision).")
+    case .cmoReport: Text("Report", tableName: chatResultsTable, comment: "The kind of a result card (cmo_report).")
     case .projectSelection: nil
     }
   }

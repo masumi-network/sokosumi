@@ -4,9 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { planWeeks } from "../../lib/calendar";
 import { cmoStrategyVersion } from "../../test-fixtures/cmo";
+import { feedScreens } from "../phone-feeds";
 import { showcaseEntries } from "../showcases";
 import { CheckStep } from "./check-step";
-import { strategySocialChannels } from "./connect-step";
+import {
+  ConnectStep,
+  optionalChannels,
+  strategySocialChannels,
+} from "./connect-step";
 import { onboardingStep } from "./flow";
 import { QuestionsStep } from "./questions-step";
 import { ResearchStep } from "./research-step";
@@ -125,6 +130,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
       },
     ],
     mailingListSize: 0,
+    adsAvailable: false,
     subscribeUrl: "http://web/billing",
     billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
     posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
@@ -259,6 +265,82 @@ describe("onboarding steps", () => {
 
   it("offers to connect only the social networks in the plan", () => {
     expect(strategySocialChannels(overview())).toEqual(["linkedin", "x"]);
+  });
+});
+
+describe("accounts", () => {
+  const plan = (patch: Partial<CmoOverview> = {}) =>
+    overview({
+      ...cmoStrategyVersion(new Date()),
+      onboardingStep: "accounts",
+      strategy: {
+        ...strategy,
+        channels: [
+          ...strategy.channels,
+          { channel: "meta_ads", cadence: "2 a month" },
+        ],
+        proposals: [
+          { channel: "google_ads", why: "Search", what: "Ads", perMonth: 4 },
+          { channel: "instagram", why: "Feed", what: "Posts", perMonth: 4 },
+        ],
+      },
+      ...patch,
+    });
+  const render = (value: CmoOverview) =>
+    renderToStaticMarkup(
+      <ConnectStep
+        overview={value}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onMailingList={async () => null}
+        onContinue={async () => {}}
+      />,
+    );
+  const continueOff = (html: string) =>
+    /<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Continue/.test(html);
+
+  it("shows the plan's own ads as optional too", () => {
+    const ad = {
+      id: "ad-1",
+      date: "2026-10-05",
+      channel: "meta_ads",
+      format: "ad",
+      title: "Launch ad",
+      status: "idea" as const,
+    };
+    const ads = feedScreens([ad]).find((screen) => screen.key === "ads");
+    expect(ads).toMatchObject({
+      optional: true,
+      perMonth: 1,
+      name: "Meta ads",
+    });
+  });
+
+  it("makes ads, the newsletter and proposed channels optional", () => {
+    expect(optionalChannels(plan()).map((channel) => channel.key)).toEqual([
+      "newsletter",
+      "meta_ads",
+      "google_ads",
+      "instagram",
+    ]);
+  });
+
+  it("continues only once the plan's networks are connected", () => {
+    const before = render(plan());
+    expect(before).toContain("Connect LinkedIn and X to continue.");
+    expect(continueOff(before)).toBe(true);
+
+    const active = (provider: string) => ({
+      id: provider,
+      provider,
+      handle: "acme",
+      displayName: "Acme",
+      status: "ACTIVE",
+    });
+    const after = render(plan({ channels: [active("linkedin"), active("x")] }));
+    expect(after).not.toContain("to continue.");
+    expect(continueOff(after)).toBe(false);
+    expect(after).toContain("Optional");
   });
 });
 

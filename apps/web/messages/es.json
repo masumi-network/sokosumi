@@ -9828,7 +9828,8 @@
         "SLACK": "De Slack",
         "WEB_RESEARCH": "De una búsqueda web",
         "IMPORT": "Importado",
-        "OTHER": "Otra fuente"
+        "OTHER": "Otra fuente",
+        "X": "De X"
       },
       "presets": {
         "all": "Todos los contactos",
@@ -10047,13 +10048,17 @@
       },
       "empty": {
         "title": "Aquí viven los contactos de tu equipo",
-        "description": "Las personas se añaden solas desde el correo, el calendario y Slack conectados a vuestros Soko Bots, junto con quién del equipo las conoce. Sin boletines ni remitentes automáticos.",
+        "description": "Los contactos se sincronizan a través de tu Soko Bot: añade a las personas del correo, el calendario y Slack conectados a él, con quién del equipo las conoce. Sin boletines ni remitentes automáticos.",
         "connect": "Conectar {name}",
         "connected": "{name} conectado",
         "connectFailed": "La conexión no se inició. Inténtalo de nuevo.",
         "manageConnections": "Gestionar conexiones",
         "addByHand": "Añadir a alguien",
-        "import": "Importar desde una tabla"
+        "import": "Importar desde una tabla",
+        "needsBot": "Los contactos se sincronizan a través de un Soko Bot. Configura el tuyo y conéctale tu correo y calendario, y añadirá a las personas con las que tratas, con quién del equipo las conoce.",
+        "needsConnections": "Tu Soko Bot añade a las personas con las que tratas en cuanto tu correo y calendario están conectados a él. Sin boletines ni remitentes automáticos.",
+        "syncing": "{bot} está leyendo tu correo y calendario conectados. Los primeros contactos aparecen en unos 15 minutos.",
+        "setUpBot": "Configurar tu Soko Bot"
       },
       "panel": {
         "loading": "Cargando contacto",
@@ -10094,7 +10099,7 @@
         "channelSource": "{type}, {source}",
         "verified": "verificado",
         "primary": "Principal",
-        "openSource": "Abrir dónde se encontró",
+        "openSource": "Abrir fuente",
         "copyChannel": "Copiar {value}",
         "removeChannel": "Quitar {value}",
         "noChannels": "Todavía no hay forma de contactar.",
@@ -10111,7 +10116,8 @@
           "SLACK": "Slack",
           "CALL": "Llamada",
           "MANUAL": "Nota",
-          "OTHER": "Otro"
+          "OTHER": "Otro",
+          "X": "X"
         },
         "source": "Fuente",
         "showMore": "Mostrar más",
@@ -10123,7 +10129,8 @@
           "CHANNEL_REMOVED": "{who} quitó un canal",
           "MERGED": "{who} fusionó {names} en este contacto",
           "ARCHIVED": "{who} archivó este contacto",
-          "UNARCHIVED": "{who} restauró este contacto"
+          "UNARCHIVED": "{who} restauró este contacto",
+          "WEB": "{who} completó {fields} desde la web"
         },
         "fields": {
           "name": "el nombre",
@@ -10138,14 +10145,21 @@
           "followUpAt": "el seguimiento",
           "avatarUrl": "la foto",
           "customFields": "los campos propios",
-          "kind": "tipo"
+          "kind": "tipo",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Marcar como organización",
         "markPerson": "Marcar como persona",
         "waitingSince": "Desde el {date}, sin respuesta",
         "heardFrom": "Última noticia suya {when}",
         "automatic": "Automático",
-        "classifier": "Clasificación automática"
+        "classifier": "Clasificación automática",
+        "enrich": "Enriquecer",
+        "enrichHint": "Buscar en la web y rellenar los campos vacíos · 1 crédito",
+        "enriched": "{fields} completado desde la web · 1 crédito",
+        "enrichedNone": "No se encontró nada nuevo en la web. No se usaron créditos.",
+        "enrichFailed": "No se pudo buscar. Inténtalo de nuevo.",
+        "connectedVia": "Conectado por"
       },
       "stageGroups": {
         "general": "General",
@@ -10205,13 +10219,16 @@
         "briefPlaceholder": "p. ej. socios de fondos seed que invierten en agentes de IA, Europa o EE. UU.",
         "briefRequired": "Describe a quién buscas.",
         "sizeLabel": "Cuántas",
-        "sizeOption": "{count} personas",
-        "submit": "Buscar {count} personas · {credits} créditos",
+        "sizeOption": "{count, plural, one {# persona} other {# personas}}",
+        "submit": "Buscar {count, plural, one {# persona} other {# personas}} · hasta {credits, number} créditos",
         "searching": "Buscando en la web…",
         "found": "{count, plural, one {# persona encontrada} other {# personas encontradas}}",
-        "foundNone": "No se encontraron personas nuevas. Prueba a describirlas de otra forma.",
+        "foundNone": "No se encontró a nadie nuevo. Prueba a describirlos de otra forma. No se usaron créditos.",
         "findFailed": "La búsqueda no funcionó. Inténtalo de nuevo.",
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "pricing": "{credits, number} créditos por persona encontrada. Si no encuentra a nadie, es gratis.",
+        "personLabel": "¿A quién buscas?",
+        "personPlaceholder": "p. ej. Jane Doe, socia de XYZ Ventures"
       }
     }
   },
