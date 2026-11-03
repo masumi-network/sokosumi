@@ -722,13 +722,11 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <>
-              <StudioTemplateCarousel
-                labels={labels}
-                onApplyTemplate={applyTemplate}
-              />
-              {projectScopePrompt}
-            </>
+            <StudioTemplateCarousel
+              labels={labels}
+              onApplyTemplate={applyTemplate}
+              projectAction={projectScopePrompt}
+            />
           ) : (
             <StudioGallery
               activeJobs={activeJobs}

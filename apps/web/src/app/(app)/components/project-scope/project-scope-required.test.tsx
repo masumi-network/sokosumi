@@ -68,40 +68,106 @@ describe("ProjectScopeRequired", () => {
     },
   );
 
-  it("seeds required scope before opening Create on click and cleans up on unmount", async () => {
-    const user = userEvent.setup();
+  it("renders only the Create button in action mode without prompt chrome", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ProjectScopeRequired
+          body="Choose a project to continue."
+          testId="compact-project-action"
+          title="Choose a project"
+          variant="action"
+        >
+          <div data-testid="creative-backdrop" />
+        </ProjectScopeRequired>
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Create project" })).toHaveClass(
+      "bg-primary",
+    );
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.queryByText("Choose a project to continue.")).toBeNull();
+    expect(screen.queryByTestId("creative-backdrop")).toBeNull();
+    expect(container.querySelector("svg")).toBeNull();
+    const wrapper = screen.getByTestId("compact-project-action");
+    expect(wrapper.tagName).toBe("DIV");
+    expect(wrapper).toHaveClass("flex", "justify-center");
+    expect(wrapper).not.toHaveClass("py-10", "sm:py-16");
+    expect(wrapper).not.toHaveAttribute("aria-labelledby");
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+  });
+
+  it.each(["prompt", "action"] as const)(
+    "seeds required scope before opening Create in %s mode on click and cleans up on unmount",
+    async (variant) => {
+      const user = userEvent.setup();
+      const onSelect = vi.fn();
+      const { unmount } = render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <ProjectScopeRequired
+            body="Choose a project to continue."
+            onSelect={onSelect}
+            variant={variant}
+          />
+        </NextIntlClientProvider>,
+      );
+
+      const button = screen.getByRole("button", { name: "Create project" });
+      expect(button).toHaveAttribute(
+        "data-testid",
+        "project-scope-select-button",
+      );
+      await user.click(button);
+
+      expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
+        required: true,
+        reason: "Choose a project to continue.",
+        onSelect,
+      });
+      expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
+      expect(mocks.openProjectScope).toHaveBeenCalledBefore(
+        mocks.openScopeCreate,
+      );
+      expect(mocks.cancel).not.toHaveBeenCalled();
+      expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
+
+      unmount();
+      expect(mocks.cancel).toHaveBeenCalledOnce();
+      expect(mocks.setScopeCreateOpen).toHaveBeenCalledExactlyOnceWith(false);
+    },
+  );
+
+  it("auto-opens in action mode when projects exist without rendering prompt chrome or a button", () => {
     const onSelect = vi.fn();
+    mocks.useHasAnyScopeProject.mockReturnValue({
+      isPending: false,
+      hasProjects: true,
+    });
     const { unmount } = render(
       <NextIntlClientProvider locale="en" messages={en}>
         <ProjectScopeRequired
           body="Choose a project to continue."
           onSelect={onSelect}
+          testId="compact-project-action"
+          title="Choose a project"
+          variant="action"
         />
       </NextIntlClientProvider>,
     );
-
-    const button = screen.getByRole("button", { name: "Create project" });
-    expect(button).toHaveAttribute(
-      "data-testid",
-      "project-scope-select-button",
-    );
-    await user.click(button);
 
     expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
       required: true,
       reason: "Choose a project to continue.",
       onSelect,
     });
-    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
-    expect(mocks.openProjectScope).toHaveBeenCalledBefore(
-      mocks.openScopeCreate,
-    );
-    expect(mocks.cancel).not.toHaveBeenCalled();
-    expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
+    expect(screen.getByTestId("compact-project-action")).toBeEmptyDOMElement();
+    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
 
     unmount();
     expect(mocks.cancel).toHaveBeenCalledOnce();
-    expect(mocks.setScopeCreateOpen).toHaveBeenCalledExactlyOnceWith(false);
+    expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
   });
 
   it("auto-opens for a workspace with projects while keeping the backdrop and copy without a button", () => {

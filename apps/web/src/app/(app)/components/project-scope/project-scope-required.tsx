@@ -49,6 +49,7 @@ export function ProjectScopeRequired({
   onSelect,
   testId,
   title,
+  variant = "prompt",
 }: {
   /**
    * Opt into opening the header's project selector on mount for an explicit
@@ -62,6 +63,7 @@ export function ProjectScopeRequired({
   onSelect?: ProjectScopeRequest["onSelect"];
   testId?: string;
   title?: string;
+  variant?: "prompt" | "action";
 }) {
   const headingId = useId();
   const t = useTranslations("App.ProjectScope");
@@ -87,38 +89,48 @@ export function ProjectScopeRequired({
     openScopeCreate(event.currentTarget);
   }
 
+  const Wrapper = variant === "action" ? "div" : "section";
+
   return (
-    <section
-      aria-labelledby={title ? headingId : undefined}
-      className="flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
+    <Wrapper
+      aria-labelledby={variant === "prompt" && title ? headingId : undefined}
+      className={
+        variant === "action"
+          ? "flex justify-center"
+          : "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
+      }
       data-testid={testId}
     >
       {shouldAutoOpen ? (
         <RequireProjectScope reason={body} onSelect={onSelect} />
       ) : null}
-      {children ?? (
-        <span
-          aria-hidden
-          className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
-        >
-          <FolderKanban className="size-5" />
-        </span>
-      )}
-      {title ? (
-        <h2
-          id={headingId}
-          className="mt-8 text-2xl font-light tracking-tight text-balance"
-        >
-          {title}
-        </h2>
+      {variant === "prompt" ? (
+        <>
+          {children ?? (
+            <span
+              aria-hidden
+              className="bg-background border-border text-muted-foreground flex size-10 items-center justify-center rounded-lg border"
+            >
+              <FolderKanban className="size-5" />
+            </span>
+          )}
+          {title ? (
+            <h2
+              id={headingId}
+              className="mt-8 text-2xl font-light tracking-tight text-balance"
+            >
+              {title}
+            </h2>
+          ) : null}
+          <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
+            {body}
+          </p>
+        </>
       ) : null}
-      <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed text-pretty">
-        {body}
-      </p>
       {/* Empty workspaces offer Create in the switcher, so go straight to create. */}
       {!shouldAutoOpen && !isPending && !hasProjects ? (
         <Button
-          className="mt-6"
+          className={variant === "prompt" ? "mt-6" : undefined}
           data-testid="project-scope-select-button"
           onClick={handleCreateProject}
           type="button"
@@ -127,7 +139,7 @@ export function ProjectScopeRequired({
           {t("create")}
         </Button>
       ) : null}
-    </section>
+    </Wrapper>
   );
 }
 

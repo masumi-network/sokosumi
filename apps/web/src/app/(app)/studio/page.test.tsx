@@ -118,8 +118,12 @@ describe("StudioPage", () => {
       "0",
     );
     expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
-      "App.Studio.pickBody",
+      "App.ProjectScope.create",
     );
+    expect(screen.queryByText("App.Studio.pickBody")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "App.Studio.pickTitle" }),
+    ).not.toBeInTheDocument();
     // The selector opens over the curated gallery, asking for a project.
     // Arrival leaves it closed; the button is the explicit request.
     expect(openProjectScopeMock).not.toHaveBeenCalled();
@@ -170,9 +174,12 @@ describe("StudioPage", () => {
 
     // The id came from a switchable scope, not from the path: the repair is to
     // pick another project, not to leave the page.
-    expect(screen.getByTestId("studio-no-project")).toHaveTextContent(
-      "App.Studio.pickUnavailable",
-    );
+    expect(
+      screen.queryByText("App.Studio.pickUnavailable"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "App.Studio.pickTitle" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("image-studio")).toHaveAttribute(
       "data-project",
       "workspace",

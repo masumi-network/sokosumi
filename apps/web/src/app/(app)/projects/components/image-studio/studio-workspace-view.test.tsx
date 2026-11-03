@@ -163,7 +163,7 @@ describe("the workspace view", () => {
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
-  it("keeps the shared project creation prompt beside curated styles and the composer", () => {
+  it("keeps project creation in the empty-state header above curated styles", () => {
     render(
       <ImageStudio
         catalog={TEST_CATALOG}
@@ -172,9 +172,7 @@ describe("the workspace view", () => {
         labels={TEST_LABELS}
         projectId={null}
         projectScopePrompt={
-          <ProjectScopeRequired body="Pick a project" title="Create images">
-            <></>
-          </ProjectScopeRequired>
+          <ProjectScopeRequired body="Pick a project" variant="action" />
         }
       />,
     );
@@ -187,6 +185,23 @@ describe("the workspace view", () => {
     ).toBeInTheDocument();
     expect(mocks.openProjectScope).not.toHaveBeenCalled();
     const button = screen.getByRole("button", { name: "create" });
+    const heading = screen.getByRole("heading", { name: "emptyTitle" });
+    const subtitle = screen.getByText("emptyBody");
+    const templates = screen.getByRole("region", { name: "templates" });
+    expect(heading.parentElement).toContainElement(subtitle);
+    expect(heading.parentElement).toContainElement(button);
+    expect(
+      subtitle.compareDocumentPosition(button) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      button.compareDocumentPosition(templates) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByText("Pick a project")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Pick a project|pickTitle/i }),
+    ).not.toBeInTheDocument();
     fireEvent.click(button);
     expect(mocks.openProjectScope).toHaveBeenCalledWith({
       required: true,

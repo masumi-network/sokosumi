@@ -88,10 +88,8 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
             <ProjectScopeRequired
               body={projectId ? t("pickUnavailable") : t("pickBody")}
               testId="studio-no-project"
-              title={t("pickTitle")}
-            >
-              <></>
-            </ProjectScopeRequired>
+              variant="action"
+            />
           )
         }
       />
