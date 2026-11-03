@@ -249,7 +249,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             accountCount={managedAccountCount}
             managedConnections={connections}
             affectedPosts={affectedPosts}
-            accountsFailed={accountsFailed || queueSlots === null}
+            accountsFailed={accountsFailed}
             calendarFailed={calendarFailed}
             connections={activeConnections}
             failedSections={SECTION_ORDER.filter(
