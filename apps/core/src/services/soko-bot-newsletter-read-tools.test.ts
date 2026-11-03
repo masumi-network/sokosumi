@@ -126,6 +126,7 @@ const AUTHORIZED: AuthorizedSokoBotRuntime = {
       "get_newsletter_issue",
       "get_newsletter_analytics",
       "list_newsletter_subscribers",
+      "preview_newsletter_signup_form",
     ],
     issuedAt: 0,
     expiresAt: Date.now() + 60_000,
@@ -239,6 +240,66 @@ describe("Soko Bot newsletter read tools", () => {
         },
       ],
       pagination: PAGINATION,
+    });
+  });
+
+  it("reads the complete Studio brand and previews signup overrides on the shared design", async () => {
+    const brand = {
+      logoUrl: "https://example.com/logo.png",
+      headerImageUrl: "https://example.com/banner.png",
+      primaryColor: "#123456",
+      accentColor: "#abc",
+      fontFamily: "Arial",
+      backgroundColor: "#fff",
+      footerText: "Thanks",
+      buttonTextColor: "#000",
+      buttonShape: "rounded",
+      spacing: "roomy",
+      headerAlign: "center",
+      signupForm: {
+        accentColor: "#def",
+        buttonTextColor: "#fff",
+        buttonShape: "pill",
+        spacing: "compact",
+      },
+    };
+    m.newsletter.mockResolvedValue({ ...NEWSLETTER, brand });
+    expect(await execute("get_newsletter")).toMatchObject({ brand });
+    const result = await execute("preview_newsletter_signup_form");
+    expect(result).toMatchObject({
+      name: NEWSLETTER.name,
+      senderName: NEWSLETTER.senderName,
+      brand,
+      design: {
+        logoUrl: brand.logoUrl,
+        headerImageUrl: brand.headerImageUrl,
+        primaryColor: brand.primaryColor,
+        fontFamily: "Arial",
+        backgroundColor: "#fff",
+        footerText: "Thanks",
+        accentColor: "#def",
+        buttonTextColor: "#fff",
+        buttonShape: "pill",
+        spacing: "compact",
+        headerAlign: "center",
+      },
+      signupUrl: `https://app.example.com/n/${NEWSLETTER.publicSlug}`,
+      embedUrl: `https://app.example.com/n/${NEWSLETTER.publicSlug}/embed`,
+      embedHtml: expect.stringContaining(`/n/${NEWSLETTER.publicSlug}/embed`),
+      url: `/newsletter/signup-form?projectId=${NEWSLETTER_PROJECT_ID}`,
+    });
+    expect(m.approve).not.toHaveBeenCalled();
+    expect(m.schedule).not.toHaveBeenCalled();
+    expect(ACTION_CAPABILITIES.has("preview_newsletter_signup_form")).toBe(
+      false,
+    );
+  });
+
+  it("previews signup using shared design when there are no overrides", async () => {
+    const brand = { accentColor: "#abc", spacing: "roomy" };
+    m.newsletter.mockResolvedValue({ ...NEWSLETTER, brand });
+    expect(await execute("preview_newsletter_signup_form")).toMatchObject({
+      design: brand,
     });
   });
 
@@ -373,6 +434,7 @@ describe("Soko Bot newsletter read tools", () => {
       "get_newsletter_issue",
       "get_newsletter_analytics",
       "list_newsletter_subscribers",
+      "preview_newsletter_signup_form",
     ])
       expect(ACTION_CAPABILITIES.has(capability)).toBe(false);
   });
@@ -382,6 +444,7 @@ describe("Soko Bot newsletter read tools", () => {
     "list_newsletter_issues",
     "get_newsletter_analytics",
     "list_newsletter_subscribers",
+    "preview_newsletter_signup_form",
   ] as const)(
     "refuses %s outside a project bot's own Project",
     async (capability) => {

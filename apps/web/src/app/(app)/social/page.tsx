@@ -34,8 +34,16 @@ export const instant = false;
  * calendar's phone default) can still carry `view=agenda`; loading that
  * range would leave the month grid missing posts.
  */
-function withoutAgendaView<T extends { view?: string }>(query: T): T {
-  return query.view === "agenda" ? { ...query, view: undefined } : query;
+function socialCalendarQuery(query: CalendarPageSearchParams) {
+  return {
+    ...query,
+    // Social hides task filters; carrying them over disables post reads.
+    assigneeId: undefined,
+    assigneeUserId: undefined,
+    sourceId: undefined,
+    status: undefined,
+    view: query.view === "agenda" ? undefined : query.view,
+  };
 }
 
 interface SocialPageProps {
@@ -78,7 +86,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       // to a project that is not there.
       loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({
-          ...withoutAgendaView(query),
+          ...socialCalendarQuery(query),
           projectId: undefined,
         }),
       }),
@@ -148,7 +156,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       : Promise.resolve({ failed: false as const, post: null }),
     loadWorkspaceCalendarPage({
       projectId: project.id,
-      searchParams: Promise.resolve(withoutAgendaView(query)),
+      searchParams: Promise.resolve(socialCalendarQuery(query)),
     })
       .then((calendar) => ({ failed: false as const, calendar }))
       .catch((error: unknown) => {

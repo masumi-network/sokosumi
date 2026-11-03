@@ -4975,6 +4975,48 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(chatMessageFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("reads the owner's Directs on the owner's turns, never for a teammate", async () => {
+    chatRoomFindFirstMock.mockResolvedValueOnce({
+      id: "room_dm",
+      name: "Ada",
+      groupName: null,
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const owner = (await new SokoBotRuntimeService()["readChat"](
+      {
+        turn: SCOPE_TURN,
+        askedByKind: "OWNER",
+        reader: { sharedScope: null },
+      } as never,
+      { roomId: "room_dm" },
+    )) as { roomId: string };
+    expect(owner.roomId).toBe("room_dm");
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toEqual({
+      kind: "direct",
+      archivedAt: null,
+      OR: [{ organizationId: "org_1" }, { organizationId: null }],
+      userMembers: { some: { userId: SCOPE.userId } },
+      id: "room_dm",
+    });
+
+    chatRoomFindFirstMock.mockReset().mockResolvedValue(null);
+    await expect(
+      new SokoBotRuntimeService()["readChat"](
+        {
+          turn: SCOPE_TURN,
+          askedByKind: "TEAMMATE",
+          reader: { sharedScope: null },
+        } as never,
+        { roomId: "room_dm" },
+      ),
+    ).rejects.toThrow(/not a member/);
+    expect(chatRoomFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toMatchObject({
+      sokoBotMembers: { some: { sokoBotId: SCOPE.sokoBotId } },
+    });
+  });
+
   it("returns messages newest first and marks the bot's own", async () => {
     chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
     chatMessageFindManyMock.mockResolvedValue([

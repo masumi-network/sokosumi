@@ -105,9 +105,16 @@ describe("newsletter issue actions", () => {
       );
       expect(
         screen.getByText(
-          audience === 0 ? readiness.noSubscribers : readiness.noSender,
+          audience === 0 ? "0 active subscribers" : readiness.noSender,
         ),
       ).toBeInTheDocument();
+      // The reason sits beside the disabled buttons, not only in the checklist.
+      const reason = screen.getByText(
+        audience === 0 ? COPY.noSubscribers : COPY.noSender,
+      );
+      expect(
+        screen.getByRole("button", { name: COPY.sendNow }),
+      ).toHaveAttribute("aria-describedby", reason.parentElement?.id);
       await user.click(screen.getByRole("button", { name: COPY.sendNow }));
       expect(m.change).not.toHaveBeenCalled();
     },

@@ -125,8 +125,10 @@ describe("newsletter issue page", () => {
       expect.objectContaining({
         issue: NEWSLETTER_ISSUE,
         projectId: NEWSLETTER_PROJECT_ID,
-        newsletterSlug: PUBLIC_NEWSLETTER_SLUG,
-        senderName: "Ada",
+        newsletter: expect.objectContaining({
+          publicSlug: PUBLIC_NEWSLETTER_SLUG,
+          senderName: "Ada",
+        }),
         sendingDomain: NEWSLETTER_SENDING_DOMAIN_STATE,
       }),
     );

@@ -133,6 +133,27 @@ describe("POST newsletter issue preview", () => {
     });
   });
 
+  it("previews an unsaved studio design instead of the saved brand", async () => {
+    const design = {
+      accentColor: "#ffcc00",
+      backgroundColor: "#eeeeee",
+      buttonShape: "pill",
+      footerText: "Draft footer",
+    } as const;
+    const response = await preview({ ...INPUT, brand: design });
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    const rendered = await renderNewsletterEmail({
+      newsletter: { name: NEWSLETTER.name, brand: design },
+      issue: { ...INPUT, content: [...INPUT.content] },
+      unsubscribeUrl: "#",
+    });
+    expect(data).toEqual({ html: rendered.html });
+    expect(data.html).toContain("Draft footer");
+    expect(data.html).not.toContain("Our footer");
+    expect(data.html).not.toContain(BRAND.logoUrl);
+  });
+
   it.each([
     { organization: { slug: "another-workspace" } },
     { organization: null },
@@ -169,6 +190,8 @@ describe("POST newsletter issue preview", () => {
       content: [{ type: "button", label: "Read", url: "javascript:alert(1)" }],
     },
     { ...INPUT, content: [{ type: "html", html: "<script>bad</script>" }] },
+    { ...INPUT, brand: { backgroundColor: "red" } },
+    { ...INPUT, brand: { headerImageUrl: "javascript:alert(1)" } },
   ])("rejects invalid content before accessing data", async (input) => {
     expect((await preview(input)).status).toBe(422);
     expect(m.project).not.toHaveBeenCalled();

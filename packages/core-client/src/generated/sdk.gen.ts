@@ -3899,7 +3899,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdCancel = <ThrowOnError ext
 });
 
 /**
- * Render unsaved newsletter content using the sending renderer. Never sends email or saves an issue.
+ * Render unsaved newsletter content using the sending renderer, with the saved brand or an unsaved design. Never sends email or saves an issue or settings.
  */
 export const postProjectsByIdNewsletterIssuesPreview = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesPreviewData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesPreviewResponses, PostProjectsByIdNewsletterIssuesPreviewErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesPreviewResponses, PostProjectsByIdNewsletterIssuesPreviewErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesPreviewResponseTransformer,

@@ -108,6 +108,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_newsletter_issue",
   "delete_newsletter_issue",
   "preview_newsletter_issue",
+  "preview_newsletter_signup_form",
   "submit_newsletter_issue",
   "update_newsletter_settings",
   "add_newsletter_subscriber",
@@ -180,6 +181,7 @@ export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
   "update_newsletter_issue",
   "delete_newsletter_issue",
   "preview_newsletter_issue",
+  "preview_newsletter_signup_form",
   "submit_newsletter_issue",
   "update_newsletter_settings",
   "add_newsletter_subscriber",
@@ -358,6 +360,7 @@ const DIRECT_READ_CAPABILITIES = [
   "list_newsletter_subscribers",
   // Renders an issue for review; it never saves or sends one.
   "preview_newsletter_issue",
+  "preview_newsletter_signup_form",
   "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
