@@ -1671,7 +1671,8 @@ export function ProjectSocialPosts({
 
       {composerMode ? (
         <SocialPostComposerDialog
-          connections={connections}
+          connections={managed}
+          connectDisabled={connectDisabled}
           mode={composerMode}
           onConnectAccount={() => {
             setComposer(null);
