@@ -2449,6 +2449,14 @@
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
+      "PostingInstructions": {
+        "title": "Posting-Anweisungen",
+        "description": "Sag Soko Bot, Coworkern und Agents, wie die Social-Posts dieses Projekts geschrieben werden: Tonalität, Hashtags, Calls to Action und Regeln pro Plattform. Das gilt nur für Social-Entwürfe und ist getrennt vom Projektgedächtnis und von DESIGN.md.",
+        "placeholder": "# Posting-Anweisungen\nTonalität: …\nImmer / nie: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Anweisungen speichern",
+        "saved": "Posting-Anweisungen gespeichert",
+        "saveFailed": "Posting-Anweisungen konnten nicht gespeichert werden. Versuch es erneut."
+      },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
         "account": "{provider}-Konto",
@@ -2667,6 +2675,7 @@
           "rescheduleFor": "Neu planen für {date}",
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
+          "reconnectAccount": "Verbinde das Konto erneut, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "dismiss": "Abbrechen",
           "discardTitle": "Änderungen verwerfen?",
           "discardDescription": "Deine Änderungen gehen verloren.",
@@ -2674,7 +2683,9 @@
           "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
-          "tooLong": "Die Textlänge überschreitet das Limit."
+          "tooLong": "Die Textlänge überschreitet das Limit.",
+          "addToQueue": "Zur Warteschlange",
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2705,6 +2716,7 @@
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
           "duplicated": "Entwurf erstellt.",
+          "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}",
           "approved": "Beitrag genehmigt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
@@ -2973,6 +2985,33 @@
           "later": "Später"
         },
         "moreActions": "Beitragsaktionen",
+        "queue": {
+          "title": "Beitragswarteschlange",
+          "hint": "Benannte wöchentliche Zeiten. „Zur Warteschlange“ nimmt die nächste freie.",
+          "empty": "Noch keine Warteschlangenzeiten.",
+          "emptyHint": "Füge eine wöchentliche Zeit hinzu. Danach kannst du Beiträge in die Warteschlange legen.",
+          "add": "Zeit hinzufügen",
+          "save": "Warteschlange speichern",
+          "name": "Name",
+          "weekday": "Tag",
+          "time": "Uhrzeit",
+          "timezone": "Zeitzone",
+          "remove": "{name} entfernen",
+          "toasts": {
+            "saved": "Warteschlange gespeichert.",
+            "empty": "Warteschlange geleert.",
+            "failed": "Warteschlangenzeiten konnten nicht gespeichert werden. Versuche es erneut."
+          },
+          "weekdays": {
+            "0": "Sonntag",
+            "1": "Montag",
+            "2": "Dienstag",
+            "3": "Mittwoch",
+            "4": "Donnerstag",
+            "5": "Freitag",
+            "6": "Samstag"
+          }
+        },
         "thread": {
           "add": "Zum Thread hinzufügen",
           "limit": "Threads können bis zu {max} Teile enthalten.",
@@ -3575,7 +3614,10 @@
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
           "title": "Anmeldeformular",
+          "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
           "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "previewTitle": "Vorschau des Anmeldeformulars",
+          "previewDescription": "Sieh dir das Anmeldeformular an, das Leser auf deiner Website nutzen können.",
           "hostedPage": "Gehostete Anmeldeseite",
           "open": "Anmeldeseite öffnen",
           "embedCode": "Einbettungscode",
@@ -3778,6 +3820,14 @@
       "regenerate": "Neue Variante",
       "schedule": "Dieses Bild planen",
       "scheduleFailed": "Dieses Bild konnte nicht angehängt werden",
+      "writeCaption": "Bildunterschrift schreiben",
+      "writeCaptionFailed": "Bildunterschrift konnte nicht geschrieben werden",
+      "writingCaption": "Bildunterschrift wird geschrieben…",
+      "captionLabel": "Bildunterschrift",
+      "captionSuggestionLabel": "Neue Bildunterschrift",
+      "useCaption": "Neue Bildunterschrift verwenden",
+      "keepCaption": "Aktuelle Bildunterschrift behalten",
+      "undoCaption": "Änderung rückgängig machen",
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
@@ -3851,7 +3901,6 @@
       "moreOptions": "Optionen",
       "modelCount": "{count, plural, one {# Modell} other {# Modelle}}",
       "copyCount": "{count, plural, one {# Kopie} other {# Kopien}}",
-      "pickTitle": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
@@ -9769,6 +9818,7 @@
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
+      "selectProject": "Projekt auswählen",
       "pinned": "Angepinnt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",

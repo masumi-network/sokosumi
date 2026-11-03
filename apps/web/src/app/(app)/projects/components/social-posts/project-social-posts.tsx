@@ -5,6 +5,7 @@ import {
   type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPost,
   type SocialPostStatus,
+  type SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
@@ -121,6 +122,7 @@ import {
 } from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
+  queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
   /** The project's Social accounts, shown as the last tab when given. */
@@ -302,6 +304,7 @@ export function ProjectSocialPosts({
   calendarFailed = false,
   connections,
   posts: initialPosts,
+  queueSlots,
   failedSections = [],
   nextCursors,
   projectId,
@@ -356,6 +359,9 @@ export function ProjectSocialPosts({
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
   const compose = useSocialCompose();
+  const studioPrefill = compose?.open
+    ? peekSocialComposePrefill(projectId)
+    : null;
   const composerMode: SocialPostComposerMode | null =
     composer ??
     (compose?.open
@@ -363,6 +369,8 @@ export function ProjectSocialPosts({
           kind: "create",
           ...peekSocialComposePrefill(projectId),
           scheduledAt: compose.scheduledAt ?? undefined,
+          ...studioPrefill,
+          source: studioPrefill ? "studio" : undefined,
         } satisfies SocialPostComposerMode)
       : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
@@ -1671,7 +1679,9 @@ export function ProjectSocialPosts({
 
       {composerMode ? (
         <SocialPostComposerDialog
-          connections={connections}
+          connections={managed}
+          connectDisabled={connectDisabled}
+          queueSlots={queueSlots}
           mode={composerMode}
           onConnectAccount={() => {
             setComposer(null);

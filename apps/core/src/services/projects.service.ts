@@ -25,6 +25,7 @@ export interface UpdateProjectInput {
   websiteUrl?: string | null;
   logo?: string | null;
   identifier?: string;
+  postingInstructionsMd?: string | null;
 }
 
 function identifierTaken(error: unknown): never {
@@ -91,6 +92,9 @@ export async function updateProject(
       );
     }
     data.logo = input.logo ?? null;
+  }
+  if (input.postingInstructionsMd !== undefined) {
+    data.postingInstructionsMd = input.postingInstructionsMd?.trim() || null;
   }
   const existing = await prisma.project.findFirst({
     where: { id, workspaceId },

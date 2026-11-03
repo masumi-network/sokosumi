@@ -30,6 +30,7 @@ vi.mock("next-intl", () => ({
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
+  writeStudioAssetCaption: vi.fn(),
 }));
 
 const mocks = vi.hoisted(() => ({ assets: [] as unknown[] }));

@@ -9,6 +9,7 @@ import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
+import { cmoAdsAvailable } from "@/services/cmo-ads.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { cmoBrandMedia } from "@/services/cmo-brand-media.service";
 import {
@@ -142,6 +143,8 @@ export interface CmoOverview {
   production: import("@/services/cmo-production.service").CmoProductionStatus;
   /** People on the newsletter list. */
   mailingListSize: number;
+  /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
+  adsAvailable: boolean;
   subscribeUrl: string;
   billing: {
     plan: string | null;
@@ -224,14 +227,17 @@ export async function getCmoOverview(
     }),
     listCmoChannels(cuso.projectId),
   ]);
-  const [adConnections, mailingListSize, measurement] = await Promise.all([
-    prisma.projectAdConnection.findMany({
-      where: { projectId: cuso.projectId, status: "active" },
-      select: { provider: true },
-    }),
-    cmoMailingListSize(cuso),
-    listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
-  ]);
+  const [adConnections, mailingListSize, measurement, adsAvailable] =
+    await Promise.all([
+      // An ad connection counts once an ad account is attached to it.
+      prisma.projectAdAccount.findMany({
+        where: { projectId: cuso.projectId, connection: { status: "active" } },
+        select: { provider: true },
+      }),
+      cmoMailingListSize(cuso),
+      listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
+      cmoAdsAvailable(userId),
+    ]);
   if (project && project.sitePlatform === null) {
     waitUntil(learnCmoSitePlatform(cuso));
   }
@@ -384,6 +390,7 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
+    adsAvailable,
     // Sokosumi's billing page on Cuso's organization: its credits pay for him.
     subscribeUrl: `${web}/billing?organizationId=${payer.organizationId}`,
     billing: {

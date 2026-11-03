@@ -73,6 +73,7 @@ const CREATED_PROJECT = {
   websiteUrl: null,
   logo: null,
   designMd: null,
+  postingInstructionsMd: null,
   contextMd: null,
   contextMdUpdating: false,
   latestUpdate: null,

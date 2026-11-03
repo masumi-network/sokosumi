@@ -70,13 +70,14 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-row items-center justify-between gap-3">
+      <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
         <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
           <TabsList
             aria-label={t("title")}
             className={cn(
               SEGMENTED_TABS_LIST_CLASS_NAME,
               SOCIAL_TABS_LIST_CLASS_NAME,
+              "max-md:h-auto max-md:flex-wrap max-md:justify-start",
             )}
           >
             {SOCIAL_TABS.map((candidate) => (

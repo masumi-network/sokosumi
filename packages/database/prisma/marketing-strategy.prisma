@@ -57,6 +57,15 @@ model MarketingStrategyFile {
   /// carousel ad's cards); they stay Content Studio files.
   mediaFileIds   String[]     @default([])
 
+  /// A Google search ad's parts as Cuso wrote them (keywords, headlines,
+  /// descriptions, landing page), validated by `cmoSearchAdSchema` in
+  /// `@sokosumi/soko-bot`; Core builds the campaign from it on launch.
+  searchAd     Json?
+  /// The paused-then-launched Google Ads campaign made from `searchAd`: the
+  /// Project ad account and the provider's campaign id.
+  adAccountId  String? @db.Uuid
+  adCampaignId String?
+
   @@unique([marketingStrategyId, entryId])
   @@index([fileResourceId])
   @@map("marketing_strategy_file")
