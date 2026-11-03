@@ -29,7 +29,7 @@ export function calendarCardClassName(interactive: boolean): string {
 }
 
 /** What each kind shows and where it opens: the one place to add a feature. */
-function describe(item: FeatureCalendarEntry): {
+function featureEventView(item: FeatureCalendarEntry): {
   Icon: LucideIcon;
   title: string;
   detail: string | null;
@@ -79,7 +79,7 @@ function describe(item: FeatureCalendarEntry): {
 
 /** What FullCalendar needs to place an entry. */
 export function featureEntryPlacement(item: FeatureCalendarEntry) {
-  const { title, allDay, start } = describe(item);
+  const { title, allDay, start } = featureEventView(item);
   return { title, allDay, start };
 }
 
@@ -94,7 +94,7 @@ export function FeatureCalendarEvent({
   timeText: string | undefined;
 }) {
   const t = useTranslations("App.Calendar");
-  const { Icon, title, detail, href, project, allDay } = describe(item);
+  const { Icon, title, detail, href, project, allDay } = featureEventView(item);
   const content = (
     <>
       <span className="flex w-full min-w-0 items-center gap-1">

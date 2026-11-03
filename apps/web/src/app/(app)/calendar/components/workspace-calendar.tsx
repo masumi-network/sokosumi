@@ -1121,7 +1121,11 @@ export function WorkspaceCalendar({
     ? state.timezone
     : getDefaultTimezone();
   const isMobile = useIsMobile();
-  const availableTypes = availableCalendarTypes(newsletterEnabled);
+  // Match Core: no Follow-ups under a Project, no Marketing under owned.
+  const availableTypes = availableCalendarTypes(newsletterEnabled, {
+    projectId: lockedProjectId ?? state.projectId,
+    scope: state.scope === "owned" ? "owned" : "workspace",
+  });
   // Absent from the URL, or nothing the workspace offers: every feature. The
   // page asked Core for just these, so they are what `items` holds.
   const shownTypes: readonly CalendarType[] =

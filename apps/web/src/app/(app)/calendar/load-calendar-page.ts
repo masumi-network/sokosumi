@@ -171,18 +171,21 @@ export async function loadWorkspaceCalendarPage({
   if (routeProjectId && !project) {
     notFound();
   }
+  // Resolve the Project before Show availability: Core drops Follow-ups under
+  // a Project and Marketing under scope=owned, so the page must not ask for them.
+  const selectedProjectId = routeProjectId ?? requested.projectId ?? null;
+  const availableTypes = availableCalendarTypes(newsletterEnabled, {
+    projectId: selectedProjectId,
+    scope,
+  });
   const selectedTypes: readonly CalendarType[] =
     types ??
-    selectedCalendarTypes(
-      parseCalendarTypes(requested.types),
-      availableCalendarTypes(newsletterEnabled),
-    );
+    selectedCalendarTypes(parseCalendarTypes(requested.types), availableTypes);
   // Social posts alone have no agenda list; a month grid is shown instead.
   const params =
     requested.view === "agenda" && isSocialOnly(selectedTypes)
       ? { ...requested, view: undefined }
       : requested;
-  const selectedProjectId = routeProjectId ?? params.projectId;
   const socialPostsVisible =
     !params.assigneeId &&
     !params.assigneeUserId &&
