@@ -204,9 +204,11 @@ describe("newsletter analytics", () => {
           }),
         ),
       );
-      expect(
-        screen.getByRole("button", { name: /^Date range/ }),
-      ).toHaveTextContent(`Last ${days} days`);
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /^Date range/ }),
+        ).toHaveTextContent(`Last ${days} days`),
+      );
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     },
   );
