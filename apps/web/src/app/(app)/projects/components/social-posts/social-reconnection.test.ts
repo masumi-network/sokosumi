@@ -13,6 +13,7 @@ const connection: ProjectSocialConnection = {
   displayName: null,
   avatarUrl: null,
   subscriptionType: null,
+  accountType: null,
   connectedAt: new Date("2026-09-01"),
   disconnectedAt: null,
 };

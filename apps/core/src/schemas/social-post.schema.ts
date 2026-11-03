@@ -159,6 +159,7 @@ export const socialPostSocialConnectionSchema = z
     displayName: projectSocialConnectionSchema.shape.displayName,
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     subscriptionType: projectSocialConnectionSchema.shape.subscriptionType,
+    accountType: projectSocialConnectionSchema.shape.accountType.optional(),
     status: projectSocialConnectionSchema.shape.status,
   })
   .openapi("SocialPostSocialConnection");

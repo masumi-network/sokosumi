@@ -84,6 +84,7 @@ const activeConnection = {
   id: SOCIAL_CONNECTION_ID,
   projectId: PROJECT_ID,
   provider: "x",
+  externalAccountId: "x-account",
   externalHandle: "sokosumi",
   subscriptionType: null,
   status: "active",
@@ -1625,6 +1626,33 @@ describe("social posts service", () => {
     });
     expect(last.pagination.nextCursor).toBeNull();
   });
+
+  it.each([
+    ["person-id", "personal"],
+    ["urn:li:organization:123", "organization"],
+  ])(
+    "returns the LinkedIn account type for %s",
+    async (externalAccountId, accountType) => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        provider: "linkedin",
+        socialConnection: {
+          ...activeConnection,
+          provider: "linkedin",
+          externalAccountId,
+        },
+      });
+      const { getSocialPost } = await loadService();
+
+      const post = await getSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        postId: POST_ID,
+      });
+
+      expect(post.socialConnection?.accountType).toBe(accountType);
+    },
+  );
 
   it("loads the latest attempt with the post", async () => {
     const { getSocialPost } = await loadService();

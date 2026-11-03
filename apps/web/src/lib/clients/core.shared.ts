@@ -125,6 +125,7 @@ import type {
   PostProjectsByIdImageStudioVideoJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
+  PostProjectsByIdSocialConnectionsByConnectionIdPagesData,
   PostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefreshData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -320,6 +321,7 @@ import {
   getProjectsByIdNewsletterSendingDomainDomainConnect as coreGetProjectsByIdNewsletterSendingDomainDomainConnect,
   getProjectsByIdNewsletterSubscribers as coreGetProjectsByIdNewsletterSubscribers,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
+  getProjectsByIdSocialConnectionsByConnectionIdPages as coreGetProjectsByIdSocialConnectionsByConnectionIdPages,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
@@ -481,6 +483,7 @@ import {
   postProjectsByIdNewsletterSubscribersFromContacts as corePostProjectsByIdNewsletterSubscribersFromContacts,
   postProjectsByIdNewsletterSubscribersImport as corePostProjectsByIdNewsletterSubscribersImport,
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle as corePostProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
+  postProjectsByIdSocialConnectionsByConnectionIdPages as corePostProjectsByIdSocialConnectionsByConnectionIdPages,
   postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh as corePostProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
@@ -4209,6 +4212,39 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdSocialConnectionsByConnectionIdPages(
+    id: string,
+    connectionId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdPages({
+          client,
+          path: { id, connectionId },
+          cache: "no-store",
+        }),
+      "Failed to fetch LinkedIn pages",
+    );
+  }
+
+  async function postProjectsByIdSocialConnectionsByConnectionIdPages(
+    id: string,
+    connectionId: string,
+    body: PostProjectsByIdSocialConnectionsByConnectionIdPagesData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialConnectionsByConnectionIdPages({
+          client,
+          path: { id, connectionId },
+          body,
+        }),
+      "Failed to add LinkedIn page",
+    );
+  }
+
   async function getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes(
     id: string,
     connectionId: string,
@@ -6920,6 +6956,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
     getProjectsByIdSocialConnectionsByConnectionIdSubscription,
+    getProjectsByIdSocialConnectionsByConnectionIdPages,
+    postProjectsByIdSocialConnectionsByConnectionIdPages,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
     postProjectsByIdSocialPostsByPostIdStatisticsRefresh,

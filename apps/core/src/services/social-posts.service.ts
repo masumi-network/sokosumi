@@ -28,6 +28,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
+import { socialConnectionAccountType } from "@/clients/social-post-providers/linkedin-author";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -129,6 +130,7 @@ const socialPostInclude = {
     select: {
       id: true,
       provider: true,
+      externalAccountId: true,
       externalHandle: true,
       displayName: true,
       avatarUrl: true,
@@ -199,6 +201,7 @@ export interface SocialPostSummary {
     displayName: string | null;
     avatarUrl: string | null;
     subscriptionType: string | null;
+    accountType: ReturnType<typeof socialConnectionAccountType>;
     status: string;
   } | null;
   creator: SocialPostCreator;
@@ -432,7 +435,20 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
-    socialConnection: record.socialConnection,
+    socialConnection: record.socialConnection
+      ? {
+          id: record.socialConnection.id,
+          externalHandle: record.socialConnection.externalHandle,
+          displayName: record.socialConnection.displayName,
+          avatarUrl: record.socialConnection.avatarUrl,
+          subscriptionType: record.socialConnection.subscriptionType,
+          accountType: socialConnectionAccountType(
+            record.socialConnection.provider,
+            record.socialConnection.externalAccountId,
+          ),
+          status: record.socialConnection.status,
+        }
+      : null,
     creator: mapCreator(record),
     scheduledByUserId: record.scheduledByUserId,
     scheduledByCoworkerId: record.scheduledByCoworkerId,

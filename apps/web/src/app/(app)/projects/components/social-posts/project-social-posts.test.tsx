@@ -226,6 +226,7 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  "linkedInPages.companyPage": "Company page",
   "composer.addToQueue": "Add to queue",
   "composer.queueEmptyHint": "Add queue times in accounts.",
   "toasts.queued": "Added to the queue.",
@@ -477,6 +478,7 @@ function buildConnection(
     displayName: null,
     avatarUrl: null,
     subscriptionType: null,
+    accountType: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -8605,5 +8607,67 @@ describe("ProjectSocialPosts", () => {
       vi.mocked(updateProjectSocialPost).mock.invocationCallOrder[0],
     );
     expect(scheduleProjectSocialPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a company page label from an edited post when its connection is absent", async () => {
+    const user = userEvent.setup();
+    const post = buildPost({
+      provider: "linkedin",
+      socialConnection: buildConnection({
+        provider: "linkedin",
+        externalHandle: null,
+        displayName: "Example Company",
+        accountType: "organization",
+      }),
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, post.id);
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+
+    const account = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "LinkedIn Example Company (Company page)",
+    });
+    expect(within(account).getByText("Company page")).toBeVisible();
+  });
+
+  it("marks a LinkedIn company page in the composer's accounts", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "page-connection",
+            provider: "linkedin",
+            externalHandle: null,
+            displayName: "Example Company",
+            accountType: "organization",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const accounts = within(screen.getByRole("dialog")).getByRole("group", {
+      name: "Post to",
+    });
+    const page = within(accounts).getByRole("button", {
+      name: "LinkedIn Example Company (Company page)",
+    });
+    expect(within(page).getByText("Company page")).toBeVisible();
+    expect(
+      within(
+        within(accounts).getByRole("button", { name: "X @sokosumi" }),
+      ).queryByText("Company page"),
+    ).toBeNull();
   });
 });

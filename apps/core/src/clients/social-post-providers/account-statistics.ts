@@ -12,6 +12,7 @@ import {
   record,
 } from "@/clients/composio.client";
 import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
+import { isLinkedInOrganization } from "@/clients/social-post-providers/linkedin-author";
 import {
   ComposioToolError,
   createComposioToolSession,
@@ -1177,6 +1178,18 @@ export async function fetchSocialAccountStatisticsPage(
     metricWarning: null,
   };
   const label = socialPostProviderLabel(context.provider);
+  // The LinkedIn tools read the member, never a company page.
+  if (
+    context.provider === "linkedin" &&
+    isLinkedInOrganization(context.externalAccountId)
+  ) {
+    if (context.includeProfile)
+      result.accountError =
+        "LinkedIn company page statistics are not available through this connection.";
+    result.historyError =
+      "LinkedIn company page published history is not available through this connection.";
+    return result;
+  }
   let sessionId: string | undefined;
   try {
     sessionId = await createComposioToolSession({

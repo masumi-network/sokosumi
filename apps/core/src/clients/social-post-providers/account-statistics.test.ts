@@ -543,6 +543,19 @@ describe("connected account statistics", () => {
       "LINKEDIN_GET_MY_INFO",
     ]);
   });
+  it("never calls member-only LinkedIn tools for a company page", async () => {
+    const { requests, fetchMock } = stub(() => ({}));
+    const result = await fetchSocialAccountStatisticsPage({
+      ...input,
+      provider: "linkedin",
+      externalAccountId: "urn:li:organization:123",
+    });
+    expect(result.accountError).toContain("company page");
+    expect(result.historyError).toContain("company page");
+    expect(result.posts).toEqual([]);
+    expect(requests).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("rejects a non-array published list as an error", async () => {
     stub(() => ({
       status: 200,

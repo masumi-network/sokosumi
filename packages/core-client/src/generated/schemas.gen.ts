@@ -20319,6 +20319,11 @@ export const UserWorkspaceSchema = {
             },
             description: 'Social providers enabled for projects owned by this workspace'
         },
+        linkedInCompanyPagesEnabled: {
+            type: 'boolean',
+            description: 'Whether LinkedIn accounts can add the company pages they administer',
+            example: false
+        },
         preferred: {
             type: 'boolean',
             description: 'Whether a new session opens this workspace',
@@ -20336,6 +20341,7 @@ export const UserWorkspaceSchema = {
         'role',
         'memberCount',
         'enabledSocialProviders',
+        'linkedInCompanyPagesEnabled',
         'preferred'
     ]
 } as const;
@@ -31656,6 +31662,19 @@ export const ProjectSocialConnectionSchema = {
             description: 'Profile picture copy in Sokosumi storage',
             example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
         },
+        accountType: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'personal',
+                'organization',
+                null
+            ],
+            description: 'LinkedIn: a personal profile or a company page. Null for other providers.',
+            example: 'personal'
+        },
         status: {
             type: 'string',
             enum: [
@@ -31690,6 +31709,7 @@ export const ProjectSocialConnectionSchema = {
         'displayName',
         'subscriptionType',
         'avatarUrl',
+        'accountType',
         'status',
         'connectedAt',
         'disconnectedAt'
@@ -31713,6 +31733,95 @@ export const ProjectSocialConnectionSubscriptionSchema = {
     required: [
         'subscriptionType',
         'textLimit'
+    ]
+} as const;
+
+export const ProjectSocialConnectionPagesSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'available',
+                'permission_missing'
+            ],
+            description: '`permission_missing`: the connection was authorized without the provider permission to manage pages. Personal posting still works.',
+            example: 'available'
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSocialConnectionPage'
+            }
+        }
+    },
+    required: [
+        'status',
+        'pages'
+    ]
+} as const;
+
+export const ProjectSocialConnectionPageSchema = {
+    type: 'object',
+    properties: {
+        externalAccountId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Provider id of the page; send it back to add the page',
+            example: 'urn:li:organization:123456'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Example Company'
+        },
+        handle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'example-company'
+        },
+        logoUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Provider CDN logo URL; it expires, so do not store it'
+        },
+        socialConnectionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'The Project account for this page, when already added'
+        }
+    },
+    required: [
+        'externalAccountId',
+        'name',
+        'handle',
+        'logoUrl',
+        'socialConnectionId'
+    ]
+} as const;
+
+export const AddProjectSocialConnectionPageRequestSchema = {
+    type: 'object',
+    properties: {
+        externalAccountId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200,
+            example: 'urn:li:organization:123456'
+        }
+    },
+    required: [
+        'externalAccountId'
     ]
 } as const;
 
@@ -35058,6 +35167,19 @@ export const SocialPostSocialConnectionSchema = {
             ],
             description: 'X subscription tier; null when unknown or not X',
             example: 'Premium'
+        },
+        accountType: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'personal',
+                'organization',
+                null
+            ],
+            description: 'LinkedIn: a personal profile or a company page. Null for other providers.',
+            example: 'personal'
         },
         status: {
             type: 'string',

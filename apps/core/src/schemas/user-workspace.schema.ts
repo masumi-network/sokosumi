@@ -53,6 +53,11 @@ export const userWorkspaceSchema = z
       description:
         "Social providers enabled for projects owned by this workspace",
     }),
+    linkedInCompanyPagesEnabled: z.boolean().openapi({
+      description:
+        "Whether LinkedIn accounts can add the company pages they administer",
+      example: false,
+    }),
     preferred: z.boolean().openapi({
       description: "Whether a new session opens this workspace",
       example: true,

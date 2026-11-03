@@ -55,6 +55,11 @@ export const projectSocialConnectionSchema = z
       example:
         "https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg",
     }),
+    accountType: z.enum(["personal", "organization"]).nullable().openapi({
+      description:
+        "LinkedIn: a personal profile or a company page. Null for other providers.",
+      example: "personal",
+    }),
     status: z
       .enum(["pending", "active", "reauthorization_required", "disconnected"])
       .openapi({ example: "active" }),
@@ -62,6 +67,42 @@ export const projectSocialConnectionSchema = z
     disconnectedAt: dateTimeSchema.nullable(),
   })
   .openapi("ProjectSocialConnection");
+
+export const projectSocialConnectionPageSchema = z
+  .object({
+    externalAccountId: z.string().min(1).openapi({
+      description: "Provider id of the page; send it back to add the page",
+      example: "urn:li:organization:123456",
+    }),
+    name: z.string().nullable().openapi({ example: "Example Company" }),
+    handle: z.string().nullable().openapi({ example: "example-company" }),
+    logoUrl: z.string().url().nullable().openapi({
+      description: "Provider CDN logo URL; it expires, so do not store it",
+    }),
+    socialConnectionId: z.string().uuid().nullable().openapi({
+      description: "The Project account for this page, when already added",
+    }),
+  })
+  .openapi("ProjectSocialConnectionPage");
+
+export const projectSocialConnectionPagesSchema = z
+  .object({
+    status: z.enum(["available", "permission_missing"]).openapi({
+      description:
+        "`permission_missing`: the connection was authorized without the provider permission to manage pages. Personal posting still works.",
+      example: "available",
+    }),
+    pages: z.array(projectSocialConnectionPageSchema),
+  })
+  .openapi("ProjectSocialConnectionPages");
+
+export const addProjectSocialConnectionPageRequestSchema = z
+  .object({
+    externalAccountId: z.string().min(1).max(200).openapi({
+      example: "urn:li:organization:123456",
+    }),
+  })
+  .openapi("AddProjectSocialConnectionPageRequest");
 
 export const disconnectProjectSocialConnectionResponseSchema =
   projectSocialConnectionSchema

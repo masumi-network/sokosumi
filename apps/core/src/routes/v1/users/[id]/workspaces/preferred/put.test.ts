@@ -92,6 +92,7 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       logo: null,
       websiteUrl: null,
       enabledSocialProviders: ["x", "youtube", "linkedin"],
+      linkedInCompanyPagesEnabled: false,
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -118,6 +119,7 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       logo: null,
       websiteUrl: null,
       enabledSocialProviders: ["x", "youtube", "linkedin"],
+      linkedInCompanyPagesEnabled: false,
       preferred: true,
     });
 

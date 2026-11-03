@@ -631,24 +631,26 @@ describe("SocialPage", () => {
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 
-  it("keeps Social up when queue times fail to load", async () => {
+  it("keeps empty accounts available when queue times fail to load", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     projectServiceMock.listSocialQueueSlots.mockRejectedValue(
-      new Error("core down"),
+      new Error("Ads is only available to utxo AG workspace members"),
     );
-    projectServiceMock.listSocialConnections.mockResolvedValue([
-      { id: "conn-x", status: "active", provider: "x" },
-    ]);
+    projectServiceMock.listSocialConnections.mockResolvedValue([]);
 
-    await visit({ projectId: "project-1" });
+    await visit({ projectId: "project-1", tab: "accounts" });
 
     expect(screen.getByTestId("social-posts")).toHaveAttribute(
       "data-accounts-failed",
-      "true",
+      "false",
     );
-    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+    expect(screen.getByTestId("social-accounts")).toHaveAttribute(
       "data-connections",
-      "conn-x",
+      "0",
+    );
+    expect(screen.getByTestId("social-accounts")).toHaveAttribute(
+      "data-connect-disabled",
+      "false",
     );
     expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
