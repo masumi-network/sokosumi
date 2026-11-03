@@ -1,4 +1,4 @@
-# Seat reductions apply at renewal
+# ADR 0063: Seat reductions apply at renewal
 
 - Status: Accepted
 - Date: 2026-10-30
