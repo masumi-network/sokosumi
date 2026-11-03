@@ -1,7 +1,6 @@
 import type { CmoSearchAd } from "@sokosumi/soko-bot";
 import { isProjectAdProvider } from "@/config/ads-providers";
 import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
-import { hasSocialBetaAccess } from "@/helpers/social-beta-access";
 import type { AdCampaign, AdRange } from "@/lib/ads/campaigns";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
 import prisma from "@/lib/db/prisma";
@@ -36,22 +35,14 @@ import {
 /**
  * Sokosumi Ads in CMO (the owner's Project ad accounts, ADR 0062): connect
  * Google Ads or Meta Ads, read the campaigns, and launch the search ads Cuso
- * wrote. Ads stay in Sokosumi's Ads beta, so only its members get them. Cuso
- * never starts spending: the owner launches, and Core keeps the daily total
+ * wrote. Cuso never starts
+ * spending: the owner launches, and Core keeps the daily total
  * inside the approved plan's ad budget.
  */
 
-/** Whether this person may use ads in CMO: Sokosumi's Ads beta. */
-export function cmoAdsAvailable(userId: string): Promise<boolean> {
-  return hasSocialBetaAccess(userId, prisma);
-}
-
-/** Cuso, for an owner or admin in the Ads beta: only they connect or spend. */
+/** Cuso, for an owner or admin: only they connect or spend. */
 async function requireAdsOwner(userId: string): Promise<Cuso> {
   const cuso = await requireCuso({ userId });
-  if (!(await cmoAdsAvailable(userId))) {
-    throw new CmoForbiddenError("Ads are not open to you yet");
-  }
   const { organizationId } = await cmoPayer(cuso);
   const mayApprove = await mayApproveMarketingStrategy(userId, {
     id: cuso.workspaceId,
@@ -185,7 +176,6 @@ export async function listCmoAdCampaigns(input: {
   range: AdRange;
 }): Promise<CmoAdAccountCampaigns[]> {
   const cuso = await requireCuso({ userId: input.userId });
-  if (!(await cmoAdsAvailable(input.userId))) return [];
   const scope = scopeOf(cuso);
   const accounts = await listProjectAdAccounts(scope);
   return Promise.all(

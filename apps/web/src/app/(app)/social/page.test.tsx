@@ -3,14 +3,12 @@ import { type ReactNode, Suspense, use } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  hasSocialBetaAccessMock,
   loadWorkspaceCalendarPageMock,
   notFoundMock,
   projectServiceMock,
   sokoBotGetMineMock,
 } = vi.hoisted(() => ({
   sokoBotGetMineMock: vi.fn(),
-  hasSocialBetaAccessMock: vi.fn(),
   loadWorkspaceCalendarPageMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -55,10 +53,6 @@ vi.mock("next-intl/server", () => ({
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
-}));
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
 
 vi.mock("@/app/calendar/load-calendar-page", () => ({
@@ -254,7 +248,6 @@ function StreamedPage({ page }: { page: Promise<ReactNode> }) {
 describe("SocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockRejectedValue(new Error("Beta lookup failed"));
     projectServiceMock.listSocialPosts.mockResolvedValue(page());
     projectServiceMock.listSocialConnections.mockResolvedValue([]);
     projectServiceMock.listSocialQueueSlots.mockResolvedValue({
@@ -345,9 +338,8 @@ describe("SocialPage", () => {
   });
 
   it.each([undefined, PROJECT.id])(
-    "shows Social outside the beta for project %s",
+    "shows Social for project %s",
     async (projectId) => {
-      hasSocialBetaAccessMock.mockResolvedValue(false);
       projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
       await visit({ projectId });
@@ -362,7 +354,6 @@ describe("SocialPage", () => {
         ),
       ).toBeInTheDocument();
       expect(notFoundMock).not.toHaveBeenCalled();
-      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
       if (projectId) {
         expect(projectServiceMock.getProjectById).toHaveBeenCalledWith(
           projectId,

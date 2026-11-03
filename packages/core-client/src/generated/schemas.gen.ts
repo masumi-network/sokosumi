@@ -41335,10 +41335,6 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
-        adsAvailable: {
-            type: 'boolean',
-            description: 'This person is in Sokosumi\'s Ads beta: CMO offers to connect Google Ads and Meta Ads and to launch Cuso\'s search ads.'
-        },
         subscribeUrl: {
             type: 'string'
         },
@@ -41439,7 +41435,6 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
-        'adsAvailable',
         'subscribeUrl',
         'billing',
         'posts',

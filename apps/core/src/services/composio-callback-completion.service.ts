@@ -13,7 +13,6 @@ import {
   socialProviderProjectSelect,
 } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import { projectConnectorUserId } from "@/services/project-social-connections.service";
 
@@ -68,9 +67,6 @@ export async function completeComposioCallback(input: {
 
     if (isProjectSocialProvider(intent.provider)) {
       requireSocialProviderEnabled(intent.provider, intent.project);
-    } else {
-      // The shared callback also completes Ads OAuth, which remains in beta.
-      await requireSocialBetaAccess(input.userId, prisma);
     }
 
     const completion = await completeComposioAuth({

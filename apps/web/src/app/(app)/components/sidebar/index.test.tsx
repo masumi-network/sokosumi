@@ -63,7 +63,6 @@ function renderSidebar() {
         workspaceSwitcher={<button type="button">Acme</button>}
         accountFooter={<div>account</div>}
         chatList={<nav aria-label="chatList" />}
-        socialBetaEnabled={false}
         newsletterEnabled={false}
       />
     </SidebarProvider>,

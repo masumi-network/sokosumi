@@ -158,8 +158,6 @@ export type ConnectChannel = (
 ) => Promise<{ url: string | null; error: string | null }>;
 
 const COMING_SOON = [
-  ["Meta ads", "Ads"],
-  ["Google ads", "Ads"],
   ["Website / SEO", "Articles"],
   ["Newsletter", "Email"],
 ] as const;
@@ -187,9 +185,6 @@ export function ChannelsPage({
     const adsError = adsReturnError();
     if (adsError) setError(adsError);
   }, []);
-  const soon = COMING_SOON.filter(
-    ([label]) => !overview.adsAvailable || !label.endsWith("ads"),
-  );
   const [, startTransition] = useTransition();
 
   function start(provider: Provider) {
@@ -257,38 +252,36 @@ export function ChannelsPage({
           })}
         </ul>
       </section>
-      {overview.adsAvailable ? (
-        <section className="panel">
-          <h3>Ad accounts</h3>
-          <p className="muted">
-            Optional. Cuso writes the ads; you launch each one, and they never
-            spend more than your plan's ad budget.
-          </p>
-          <ul className="list">
-            {AD_PROVIDERS.map(([provider, label]) => (
-              <li key={provider} className="crow">
-                <ChannelIcon channel={provider} size={20} />
-                <span className="grow">
-                  <b>{label}</b>
-                </span>
-                {overview.adProviders.includes(provider) ? (
-                  <span className="tag ok">Connected</span>
-                ) : (
-                  <ConnectAdsButton
-                    provider={provider}
-                    from="app"
-                    connectAds={connectAds}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <section className="panel">
+        <h3>Ad accounts</h3>
+        <p className="muted">
+          Optional. Cuso writes the ads; you launch each one, and they never
+          spend more than your plan's ad budget.
+        </p>
+        <ul className="list">
+          {AD_PROVIDERS.map(([provider, label]) => (
+            <li key={provider} className="crow">
+              <ChannelIcon channel={provider} size={20} />
+              <span className="grow">
+                <b>{label}</b>
+              </span>
+              {overview.adProviders.includes(provider) ? (
+                <span className="tag ok">Connected</span>
+              ) : (
+                <ConnectAdsButton
+                  provider={provider}
+                  from="app"
+                  connectAds={connectAds}
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
       <section className="panel">
         <h3>Coming soon</h3>
         <ul className="list">
-          {soon.map(([label, kind]) => (
+          {COMING_SOON.map(([label, kind]) => (
             <li key={label} className="crow">
               <span className="grow">
                 <b>{label}</b>

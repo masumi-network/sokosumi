@@ -399,14 +399,12 @@ describe("pages", () => {
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
-    expect(html).toContain("Meta ads");
-    expect(html).not.toContain("Ad accounts");
   });
 
-  it("offers ad accounts to the Ads beta", () => {
+  it("offers ad accounts to everyone", () => {
     const html = renderToStaticMarkup(
       <ChannelsPage
-        overview={overview({ adsAvailable: true, adProviders: ["google_ads"] })}
+        overview={overview({ adProviders: ["google_ads"] })}
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
@@ -448,19 +446,16 @@ describe("search ads", () => {
       />,
     );
 
-  it("lets an owner in the Ads beta launch once Google Ads is connected", () => {
-    expect(
-      render({ adsAvailable: true, adProviders: ["google_ads"] }),
-    ).toContain("Launch ad");
-    expect(render({ adsAvailable: true, adProviders: [] })).toContain(
+  it("lets an owner launch once Google Ads is connected", () => {
+    expect(render({ adProviders: ["google_ads"] })).toContain("Launch ad");
+    expect(render({ adProviders: [] })).toContain(
       "Connect Google Ads in Channels",
     );
-    expect(render({ adsAvailable: false })).not.toContain("Launch ad");
   });
 
   it("offers pause once launched", () => {
     const html = render(
-      { adsAvailable: true, adProviders: ["google_ads"] },
+      { adProviders: ["google_ads"] },
       {
         ...entry,
         adCampaign: {

@@ -6,7 +6,7 @@ import {
   ComposioConfigError,
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -16,16 +16,12 @@ import mountListKeywords from "./keywords/get.js";
 import mountPutMarket from "./put.js";
 
 const m = vi.hoisted(() => ({
-  requireSocialBetaAccess: vi.fn(),
   getProfile: vi.fn(),
   setProfile: vi.fn(),
   listKeywords: vi.fn(),
   listAds: vi.fn(),
 }));
 
-vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: m.requireSocialBetaAccess,
-}));
 vi.mock("@/services/project-ad-market.service", () => ({
   getProjectAdMarketProfile: m.getProfile,
   setProjectAdMarketProfile: m.setProfile,
@@ -156,7 +152,6 @@ const validBody = {
 describe("Project ads market routes", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    m.requireSocialBetaAccess.mockResolvedValue(undefined);
     m.getProfile.mockResolvedValue(profile);
     m.setProfile.mockResolvedValue(profile);
     m.listKeywords.mockResolvedValue(keywordsResult);
@@ -372,26 +367,6 @@ describe("Project ads market routes", () => {
   });
 
   describe("access", () => {
-    it("denies users outside the beta before any work", async () => {
-      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
-      const app = createApp();
-      const responses = await Promise.all([
-        app.request(BASE),
-        put(app, validBody),
-        app.request(`${BASE}/keywords`),
-        app.request(`${BASE}/ads`),
-      ]);
-      expect(responses.map((r) => r.status)).toEqual([403, 403, 403, 403]);
-      for (const mock of [
-        m.getProfile,
-        m.setProfile,
-        m.listKeywords,
-        m.listAds,
-      ]) {
-        expect(mock).not.toHaveBeenCalled();
-      }
-    });
-
     it("rejects a user API key", async () => {
       const app = createApp({
         ...SESSION_AUTH,

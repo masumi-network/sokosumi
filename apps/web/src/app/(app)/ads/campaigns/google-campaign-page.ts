@@ -5,7 +5,6 @@ import type { SearchParams } from "nuqs/server";
 import { loadCampaignDetailsSearchParams } from "@/app/ads/ads-query";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 /**
  * What a Google campaign's page (details or edit) starts from, behind the
@@ -18,9 +17,6 @@ export async function loadGoogleCampaignPage(
   searchParams: Promise<SearchParams>,
 ) {
   await connection();
-  if (!(await hasCurrentUserSocialBetaAccess())) {
-    notFound();
-  }
 
   const { campaignId } = await params;
   const query = await loadCampaignDetailsSearchParams(searchParams);

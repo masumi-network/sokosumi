@@ -27,5 +27,5 @@ Preconditions:
 ## Gotchas
 
 - Cloud-agent fixture Alice (`alice-fixture`) is not the `utxo` organization. The enabled editor is `verified-unreachable` there. Prerequisite: active workspace organization slug `utxo`.
-- **Ads** is a different beta row (social beta). Do not treat a missing **Newsletter** row as a missing **Ads** row.
+- **Ads** is a different row and is always listed. Do not treat a missing **Newsletter** row as a missing **Ads** row.
 - Issue editing, subscribers, and sending are out of scope for this landing check.

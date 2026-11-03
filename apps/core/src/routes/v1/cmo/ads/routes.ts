@@ -42,7 +42,7 @@ function rethrowAds(error: unknown): never {
 
 const errors = {
   401: jsonErrorResponse("Unauthorized"),
-  403: jsonErrorResponse("Not in the Ads beta, or not an owner or admin"),
+  403: jsonErrorResponse("Not an owner or admin"),
   404: jsonErrorResponse("Cuso is not hired, or the ad is unknown"),
   409: jsonErrorResponse("Refused: over the plan's ad budget, or not ready"),
   502: jsonErrorResponse("The ads provider failed"),
@@ -155,7 +155,7 @@ const campaignsRoute = createRoute({
   operationId: "listCmoAdCampaigns",
   tags: ["CMO"],
   description:
-    "Every ad account on Cuso's Project with its campaigns and their numbers over the range. Empty outside the Ads beta.",
+    "Every ad account on Cuso's Project with its campaigns and their numbers over the range.",
   request: {
     query: z.object({ range: z.enum(AD_RANGES).default("LAST_7_DAYS") }),
   },

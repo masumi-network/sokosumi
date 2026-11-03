@@ -95,17 +95,13 @@ let sidebarIsMobile = true;
 function renderMenu(
   hasAssignedSeat = true,
   isMobile = true,
-  socialBetaEnabled = false,
   newsletterEnabled = false,
 ) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems
-          socialBetaEnabled={socialBetaEnabled}
-          newsletterEnabled={newsletterEnabled}
-        />
+        <MenuItems newsletterEnabled={newsletterEnabled} />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
@@ -187,7 +183,7 @@ describe("MenuItems", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  it("shows Social before the Ads beta is resolved", () => {
+  it("shows Social by default", () => {
     renderMenu();
     expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
@@ -204,7 +200,7 @@ describe("MenuItems", () => {
   it("shows public Social scoped like the rows above it", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
-    renderMenu(true, true, true);
+    renderMenu(true, true);
     pathnameRef.current = "/";
     searchRef.current = "";
 
@@ -216,17 +212,10 @@ describe("MenuItems", () => {
     );
   });
 
-  /** The retained beta flag gates Ads only. */
-  it("leaves Ads out until the frame resolves the beta", () => {
-    renderMenu();
-
-    expect(screen.queryByRole("link", { name: /ads/i })).toBeNull();
-  });
-
-  it("shows Ads inside the beta, scoped to the reader's project", () => {
+  it("shows Ads by default, scoped to the reader's project", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
-    renderMenu(true, true, true);
+    renderMenu(true, true);
     pathnameRef.current = "/";
     searchRef.current = "";
 
@@ -271,7 +260,7 @@ describe("MenuItems groups", () => {
   });
 
   it("files each destination under its Work, Records or Marketing heading", () => {
-    renderMenu(true, false, true);
+    renderMenu(true, false);
 
     expect(destinationsUnder("groups.work")).toEqual([
       "home",
@@ -350,6 +339,7 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "social",
+      "ads",
     ]);
   });
 });
@@ -371,20 +361,20 @@ describe("MenuItems newsletter", () => {
     expect(screen.queryByRole("link", { name: "newsletter" })).toBeNull();
   });
 
-  it("shows Newsletter when enabled independently of the Ads beta", () => {
-    renderMenu(true, false, false, true);
+  it("shows Newsletter when enabled, alongside Ads", () => {
+    renderMenu(true, false, true);
 
     expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
       "href",
       "/newsletter",
     );
-    expect(screen.queryByRole("link", { name: "ads" })).toBeNull();
+    expect(screen.getByRole("link", { name: "ads" })).toBeInTheDocument();
   });
 
   it("carries the selected project to Newsletter", () => {
     pathnameRef.current = "/studio";
     searchRef.current = "projectId=project-1";
-    renderMenu(true, true, false, true);
+    renderMenu(true, true, true);
 
     expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
       "href",
@@ -393,7 +383,7 @@ describe("MenuItems newsletter", () => {
   });
 
   it("files Newsletter under Marketing, after Social and Ads", () => {
-    renderMenu(true, false, true, true);
+    renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
@@ -412,7 +402,7 @@ describe("MenuItems newsletter", () => {
     "/newsletter/settings",
   ])("marks Newsletter current on %s", (pathname) => {
     pathnameRef.current = pathname;
-    renderMenu(true, false, false, true);
+    renderMenu(true, false, true);
 
     expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
       "aria-current",
@@ -424,7 +414,7 @@ describe("MenuItems newsletter", () => {
     "does not mark Newsletter current on %s",
     (pathname) => {
       pathnameRef.current = pathname;
-      renderMenu(true, false, false, true);
+      renderMenu(true, false, true);
 
       expect(
         screen.getByRole("link", { name: "newsletter" }),

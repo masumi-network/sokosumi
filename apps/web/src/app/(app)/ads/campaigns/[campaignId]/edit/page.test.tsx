@@ -7,7 +7,6 @@ const {
   adsServiceMock,
   errorMock,
   modalMock,
-  hasSocialBetaAccessMock,
   notFoundMock,
   projectServiceMock,
   setupMock,
@@ -15,7 +14,6 @@ const {
   adsServiceMock: { listAccounts: vi.fn(), getCampaignDetails: vi.fn() },
   errorMock: vi.fn(),
   modalMock: vi.fn(),
-  hasSocialBetaAccessMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
@@ -33,9 +31,6 @@ vi.mock("next-intl/server", () => ({
 vi.mock("@/lib/services/ads.service", () => ({ adsService: adsServiceMock }));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
-}));
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
 vi.mock("@/lib/ads/google-setup", () => ({
   loadGoogleSetup: setupMock,
@@ -118,18 +113,10 @@ describe.each([
   beforeEach(() => {
     route = path;
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockResolvedValue(true);
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     adsServiceMock.listAccounts.mockResolvedValue([GOOGLE, META]);
     adsServiceMock.getCampaignDetails.mockResolvedValue(DETAILS);
     setupMock.mockResolvedValue(SETUP);
-  });
-
-  it("stays hidden outside the beta, reading nothing", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(false);
-
-    await expect(visit()).rejects.toThrow("NEXT_NOT_FOUND");
-    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
   it.each([

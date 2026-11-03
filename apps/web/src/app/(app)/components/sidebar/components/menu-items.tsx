@@ -83,34 +83,26 @@ interface NavDestination extends MenuItemConfig {
 }
 
 /**
- * `socialBetaEnabled` now gates Ads only; Social scheduling is public. It is off by default so
- * the Instant Nav shell, which has not resolved the reader's beta membership
- * yet, leaves the rows out rather than guessing them: a row that appears once
- * is cheaper than one that appears and then goes away.
- * Newsletter follows the same rule until workspace availability is resolved.
+ * `newsletterEnabled` is off by default so the Instant Nav shell, which has
+ * not resolved workspace availability yet, leaves the row out rather than
+ * guessing it: a row that appears once is cheaper than one that appears and
+ * then goes away.
  */
 export default function MenuItems({
-  socialBetaEnabled = false,
   newsletterEnabled = false,
 }: {
-  socialBetaEnabled?: boolean;
   newsletterEnabled?: boolean;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <ScopedMenuItems
-        socialBetaEnabled={socialBetaEnabled}
-        newsletterEnabled={newsletterEnabled}
-      />
+      <ScopedMenuItems newsletterEnabled={newsletterEnabled} />
     </Suspense>
   );
 }
 
 function ScopedMenuItems({
-  socialBetaEnabled,
   newsletterEnabled,
 }: {
-  socialBetaEnabled: boolean;
   newsletterEnabled: boolean;
 }) {
   const { projectId, hrefFor } = useProjectScope();
@@ -209,19 +201,14 @@ function ScopedMenuItems({
       feature: AnnouncedFeature.SOCIAL,
       group: "marketing",
     },
-    ...(socialBetaEnabled
-      ? [
-          // Ads remains in the utxo beta.
-          {
-            key: "ads",
-            href: "/ads",
-            label: t("ads"),
-            Icon: Megaphone,
-            feature: AnnouncedFeature.SOCIAL,
-            group: "marketing",
-          } satisfies NavDestination,
-        ]
-      : []),
+    {
+      key: "ads",
+      href: "/ads",
+      label: t("ads"),
+      Icon: Megaphone,
+      feature: AnnouncedFeature.SOCIAL,
+      group: "marketing",
+    },
     ...(newsletterEnabled
       ? [
           {

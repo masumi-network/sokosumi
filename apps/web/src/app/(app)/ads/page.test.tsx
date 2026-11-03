@@ -7,7 +7,6 @@ import messages from "@/messages/en.json";
 
 const {
   adsServiceMock,
-  hasSocialBetaAccessMock,
   hasAnyScopeProjectMock,
   notFoundMock,
   projectServiceMock,
@@ -16,7 +15,6 @@ const {
   setScopeCreateOpenMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn() },
-  hasSocialBetaAccessMock: vi.fn(),
   hasAnyScopeProjectMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -42,10 +40,6 @@ vi.mock("@/lib/services/ads.service", () => ({
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
-}));
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
 }));
 
 // The selector itself lives in the header; this file only sees what the page
@@ -137,20 +131,7 @@ describe("AdsPage", () => {
       isPending: false,
       hasProjects: true,
     });
-    hasSocialBetaAccessMock.mockResolvedValue(true);
     adsServiceMock.listAccounts.mockResolvedValue([]);
-  });
-
-  it("stays hidden outside the beta, reading nothing", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(false);
-    const { default: AdsPage } = await import("./page");
-
-    await expect(
-      AdsPage({ searchParams: Promise.resolve({ projectId: "project-1" }) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-    expect(notFoundMock).toHaveBeenCalled();
-    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
-    expect(adsServiceMock.listAccounts).not.toHaveBeenCalled();
   });
 
   it("offers project selection without opening the selector on navigation", async () => {

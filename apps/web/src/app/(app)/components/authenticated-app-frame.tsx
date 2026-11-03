@@ -19,7 +19,6 @@ import { coreClient } from "@/lib/clients/core.client";
 import { isNewsletterEnabled } from "@/lib/newsletter-access.server";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, workspaceGatePath } from "@/lib/workspace-gate";
 import { AccountNoticeToast } from "./account-notice-toast.client";
@@ -94,20 +93,18 @@ export default async function AuthenticatedAppFrame({
     workspaces.find(
       (workspace) => workspace.organizationId === activeOrganizationId,
     )?.enabledSocialProviders ?? [];
-  // In parallel: the sidebar's Ads row and the seat gate are both single
-  // reads the frame already has to finish before it paints nav.
+  // In parallel: the seat gate is a single read the frame already has to
+  // finish before it paints nav.
   // Newsletter's workspace availability resolves alongside them.
-  const [hasAssignedSeat, socialBetaEnabled, newsletterEnabled] =
-    await Promise.all([
-      organizationSeatService
-        .hasAssignedSeat(activeOrganizationId)
-        .catch((error) => {
-          console.error("Failed to resolve assigned organization seat", error);
-          return activeOrganizationId == null;
-        }),
-      hasCurrentUserSocialBetaAccess(),
-      isNewsletterEnabled(),
-    ]);
+  const [hasAssignedSeat, newsletterEnabled] = await Promise.all([
+    organizationSeatService
+      .hasAssignedSeat(activeOrganizationId)
+      .catch((error) => {
+        console.error("Failed to resolve assigned organization seat", error);
+        return activeOrganizationId == null;
+      }),
+    isNewsletterEnabled(),
+  ]);
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
   // Wrapping chrome would flush Header/Drive layout effects first.
@@ -155,7 +152,6 @@ export default async function AuthenticatedAppFrame({
                             sessionUser={session.user}
                             activeOrganizationId={activeOrganizationId}
                             adminMenuEnabled={adminMenuEnabled}
-                            socialBetaEnabled={socialBetaEnabled}
                             newsletterEnabled={newsletterEnabled}
                           />
                         </FeatureBadgesProvider>

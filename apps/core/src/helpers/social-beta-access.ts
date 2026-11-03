@@ -5,7 +5,7 @@ import { forbidden } from "@/helpers/error";
 
 type SocialBetaAccessClient = Pick<Prisma.TransactionClient, "member">;
 
-/** Ads-only beta check. Social scheduling is public; names retained for compatibility. */
+/** The social queue beta (queue slots, queued posts): utxo AG members only. */
 export async function hasSocialBetaAccess(
   userId: string,
   tx: SocialBetaAccessClient,
@@ -26,6 +26,8 @@ export async function requireSocialBetaAccess(
   tx: SocialBetaAccessClient,
 ): Promise<void> {
   if (!(await hasSocialBetaAccess(userId, tx))) {
-    throw forbidden("Ads is only available to utxo AG workspace members");
+    throw forbidden(
+      "The social queue is only available to utxo AG workspace members",
+    );
   }
 }

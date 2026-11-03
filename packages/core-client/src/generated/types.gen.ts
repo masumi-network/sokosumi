@@ -10805,10 +10805,6 @@ export type CmoOverview = {
     measurement: Array<CmoMeasurement>;
     production: CmoProduction;
     mailingListSize: number;
-    /**
-     * This person is in Sokosumi's Ads beta: CMO offers to connect Google Ads and Meta Ads and to launch Cuso's search ads.
-     */
-    adsAvailable: boolean;
     subscribeUrl: string;
     billing: {
         plan: string | null;

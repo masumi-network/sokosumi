@@ -136,7 +136,6 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { digestJob } from "@/helpers/job-digest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import {
@@ -6257,8 +6256,7 @@ export class SokoBotRuntimeService {
   }
 
   /**
-   * Ads share the social gate and its beta: an owner chat turn, then the Ads
-   * page's membership check. A Project bot also stays in its own Project, like
+   * Ads share the social gate: an owner chat turn. A Project bot also stays in its own Project, like
    * the studio tools; that refusal comes before anything is read or sent.
    * Schedules and other non-chat turns cannot spend or change campaigns.
    */
@@ -6280,7 +6278,6 @@ export class SokoBotRuntimeService {
       prisma,
       "Project ads tools are only available for the owner",
     );
-    await requireSocialBetaAccess(actingMemberOf(authorized), prisma);
     return workspace;
   }
 

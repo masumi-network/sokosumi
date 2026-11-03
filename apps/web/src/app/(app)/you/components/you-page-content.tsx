@@ -9,7 +9,6 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
 import { isNewsletterEnabled } from "@/lib/newsletter-access.server";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import { YouPageClient } from "./you-page.client";
@@ -29,7 +28,6 @@ export async function YouPageContent() {
     { showVendors: showDeveloperVendors },
     creditsResult,
     { members },
-    socialBetaEnabled,
     newsletterEnabled,
   ] = await Promise.all([
     getTranslations("App.Header.Plan"),
@@ -39,7 +37,6 @@ export async function YouPageContent() {
       userId: session.user.id,
       activeOrganizationId,
     }),
-    hasCurrentUserSocialBetaAccess(),
     isNewsletterEnabled(),
   ]);
 
@@ -67,7 +64,6 @@ export async function YouPageContent() {
         activeOrganizationId,
         showDeveloperVendors,
       }}
-      socialBetaEnabled={socialBetaEnabled}
       newsletterEnabled={newsletterEnabled}
     />
   );
