@@ -20,9 +20,12 @@ import {
   applyPlanAnswers,
   approveBrandBrain,
   approveStrategy,
+  connectAds,
   connectChannel,
   connectMeasurement,
   finishAccounts,
+  launchAd,
+  loadAdCampaigns,
   loadMessages,
   loadOverview,
   loadPieceText,
@@ -35,6 +38,7 @@ import {
   saveBrandBrain,
   sendMessage,
   setAdBudget,
+  setAdCampaignStatus,
   startOver,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
@@ -168,6 +172,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           addMailingList,
           connectChannel,
           connectMeasurement,
+          connectAds,
           startOver,
           signOut,
         }}
@@ -194,6 +199,10 @@ export async function Home({ searchParams, view }: HomeProps) {
         pauseEntry,
         connectChannel,
         connectMeasurement,
+        connectAds,
+        launchAd,
+        setAdCampaignStatus,
+        loadAdCampaigns,
         startOver,
         signOut,
       }}
