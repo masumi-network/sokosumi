@@ -74,6 +74,25 @@ beforeEach(() => {
 });
 
 describe("NewsletterSettingsForm", () => {
+  it("preserves signup overrides when shared settings are saved", async () => {
+    const signupForm = {
+      accentColor: "#123456",
+      buttonShape: "pill" as const,
+      spacing: "compact" as const,
+    };
+    renderForm({ ...NEWSLETTER, brand: { ...NEWSLETTER.brand, signupForm } });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        values: expect.objectContaining({
+          signupForm: expect.objectContaining(signupForm),
+        }),
+      }),
+    );
+  });
+
   it("prefills the project name and logo and validates before saving", async () => {
     const user = userEvent.setup();
     renderForm();

@@ -1,4 +1,5 @@
 import type { PutNewsletterRequest } from "@sokosumi/core-client";
+import { type NewsletterBrand, newsletterBrandSchema } from "@sokosumi/utils";
 import { z } from "zod";
 
 export function newsletterSettingsSchema(
@@ -41,6 +42,15 @@ export function newsletterSettingsSchema(
         headerImageUrl: imageUrl,
         headerAlign: z.enum(["left", "center"]),
         spacing: z.enum(["compact", "normal", "roomy"]),
+        signupForm: z
+          .object({
+            accentColor: color.optional(),
+            buttonTextColor: color.optional(),
+            buttonShape: z.enum(["", "square", "rounded", "pill"]).optional(),
+            headerAlign: z.enum(["", "left", "center"]).optional(),
+            spacing: z.enum(["", "compact", "normal", "roomy"]).optional(),
+          })
+          .optional(),
         welcomeEmailEnabled: z.boolean({ error: t("required") }),
         welcomeSubject: text.max(200, maxLength(200)),
         welcomeBody: text.max(100_000, maxLength(100_000)),
@@ -78,6 +88,7 @@ type NewsletterBrandValues = Pick<
   | "headerImageUrl"
   | "headerAlign"
   | "spacing"
+  | "signupForm"
 >;
 
 /** The design fields as Core stores them: blank optional fields are left out. */
@@ -93,7 +104,17 @@ export function newsletterBrandFromValues({
   headerImageUrl,
   headerAlign,
   spacing,
+  signupForm,
 }: NewsletterBrandValues): PutNewsletterRequest["brand"] {
+  const overrides = {
+    ...(signupForm?.accentColor ? { accentColor: signupForm.accentColor } : {}),
+    ...(signupForm?.buttonTextColor
+      ? { buttonTextColor: signupForm.buttonTextColor }
+      : {}),
+    ...(signupForm?.buttonShape ? { buttonShape: signupForm.buttonShape } : {}),
+    ...(signupForm?.headerAlign ? { headerAlign: signupForm.headerAlign } : {}),
+    ...(signupForm?.spacing ? { spacing: signupForm.spacing } : {}),
+  };
   return {
     ...(logoUrl ? { logoUrl } : {}),
     ...(primaryColor ? { primaryColor } : {}),
@@ -106,6 +127,38 @@ export function newsletterBrandFromValues({
     buttonShape,
     headerAlign,
     spacing,
+    ...(Object.keys(overrides).length ? { signupForm: overrides } : {}),
+  };
+}
+
+/** The design as typed so far, minus fields not yet valid, so the preview never stalls mid-edit. */
+export function newsletterBrandForPreview(
+  values: NewsletterSettingsValues,
+): NewsletterBrand {
+  const { signupForm, ...brand } = newsletterBrandFromValues(values);
+  return {
+    ...Object.fromEntries(
+      Object.entries(brand).filter(
+        ([key, value]) =>
+          newsletterBrandSchema.shape[key as keyof NewsletterBrand].safeParse(
+            value,
+          ).success,
+      ),
+    ),
+    ...(signupForm
+      ? {
+          signupForm: Object.fromEntries(
+            Object.entries(signupForm).filter(
+              ([key, value]) =>
+                newsletterBrandSchema.shape.signupForm
+                  .unwrap()
+                  .shape[
+                    key as keyof NonNullable<NewsletterBrand["signupForm"]>
+                  ].safeParse(value).success,
+            ),
+          ),
+        }
+      : {}),
   };
 }
 

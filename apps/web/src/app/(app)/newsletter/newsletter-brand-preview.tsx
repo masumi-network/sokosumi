@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { type Control, useWatch } from "react-hook-form";
 
+import { NEWSLETTER_BUTTON_SHAPE } from "@/components/newsletter/design";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import {
   HOLDER_CLASS,
@@ -12,12 +13,6 @@ import type { NewsletterSettingsValues } from "@/lib/schemas/newsletter";
 import { cn } from "@/lib/utils";
 
 const HEX = /^#(?:[\da-f]{3}|[\da-f]{6})$/i;
-
-const BUTTON_SHAPE = {
-  square: "rounded-none",
-  rounded: "rounded-sm",
-  pill: "rounded-full",
-} as const;
 
 /** A color the schema would accept, or nothing so the preview keeps its default. */
 function brandColor(value: string): string | undefined {
@@ -124,7 +119,7 @@ export function NewsletterBrandPreview({
           <span
             className={cn(
               "bg-primary text-primary-foreground inline-flex px-4 py-2 text-sm font-medium",
-              BUTTON_SHAPE[buttonShape],
+              NEWSLETTER_BUTTON_SHAPE[buttonShape],
             )}
             style={{ backgroundColor: accent, color: buttonText }}
           >

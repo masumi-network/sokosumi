@@ -4,6 +4,7 @@ import en from "@/messages/en.json";
 
 import {
   type NewsletterSettingsValues,
+  newsletterBrandForPreview,
   newsletterBrandFromValues,
   newsletterSettingsSchema,
 } from "./newsletter";
@@ -106,6 +107,50 @@ describe("newsletterSettingsSchema", () => {
 });
 
 describe("newsletterBrandFromValues", () => {
+  it("omits unset overrides so they keep following the shared brand", () => {
+    expect(
+      newsletterBrandFromValues({
+        ...VALUES,
+        signupForm: {
+          accentColor: "",
+          buttonTextColor: "",
+          buttonShape: "",
+          headerAlign: "",
+          spacing: "",
+        },
+      }),
+    ).not.toHaveProperty("signupForm");
+    expect(
+      newsletterBrandFromValues({
+        ...VALUES,
+        signupForm: { accentColor: "#abc", buttonShape: "pill", spacing: "" },
+      }),
+    ).toMatchObject({
+      signupForm: { accentColor: "#abc", buttonShape: "pill" },
+    });
+  });
+
+  it("previews valid shared and signup fields while a color is incomplete", () => {
+    expect(
+      newsletterBrandForPreview({
+        ...VALUES,
+        primaryColor: "#12",
+        accentColor: "#abc",
+        signupForm: {
+          accentColor: "#a",
+          buttonShape: "square",
+          spacing: "compact",
+        },
+      }),
+    ).toMatchObject({
+      accentColor: "#abc",
+      signupForm: { buttonShape: "square", spacing: "compact" },
+    });
+    expect(
+      newsletterBrandForPreview({ ...VALUES, primaryColor: "red" }),
+    ).not.toHaveProperty("primaryColor");
+  });
+
   it("keeps the chosen design and leaves blank optional fields out", () => {
     expect(
       newsletterBrandFromValues({
@@ -123,5 +168,17 @@ describe("newsletterBrandFromValues", () => {
       headerAlign: "left",
       spacing: "normal",
     });
+  });
+});
+
+describe("signup override validation", () => {
+  it.each([
+    { accentColor: "red" },
+    { buttonTextColor: "#12" },
+    { buttonShape: "circle" },
+    { headerAlign: "right" },
+    { spacing: "wide" },
+  ])("rejects invalid signup fields: %j", (signupForm) => {
+    expect(schema.safeParse({ ...VALUES, signupForm }).success).toBe(false);
   });
 });

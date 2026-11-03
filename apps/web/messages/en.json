@@ -3680,11 +3680,25 @@
           "pageDescription": "Grow your newsletter audience with a hosted signup page or an embedded form.",
           "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
           "previewTitle": "Signup form preview",
-          "previewDescription": "See the signup form readers can use on your website.",
+          "previewDescription": "Changes appear here immediately. Save design to update the public page and embed.",
           "hostedPage": "Hosted signup page",
           "open": "Open signup page",
           "embedCode": "Embed code",
-          "embedTitle": "Newsletter signup"
+          "embedTitle": "Newsletter signup",
+          "sharedDesign": "Shared newsletter design",
+          "sharedDescription": "Used by issue emails, the signup page, and embeds. Signup overrides below stay in place.",
+          "customize": "Customize signup form",
+          "customizeDescription": "Optional. Use shared design to match your newsletter. Overrides affect only the signup page and embed.",
+          "useShared": "Use shared design",
+          "resetOverrides": "Reset to shared design",
+          "accentColor": "Button color",
+          "buttonTextColor": "Button label color",
+          "clear": {
+            "accentColor": "Use shared button color",
+            "buttonTextColor": "Use shared button label color"
+          },
+          "previewMode": "Preview format",
+          "previewNote": "Preview only. Subscriptions are disabled."
         },
         "Analytics": {
           "title": "Analytics",
@@ -3735,7 +3749,7 @@
           }
         },
         "generalDescription": "Who the newsletter comes from and where replies go.",
-        "brandDescription": "The logo, colors, and font your issues use.",
+        "brandDescription": "Logo, colors, type, and layout shared by issue emails and signup forms.",
         "welcomeCardDescription": "An optional first email for new subscribers.",
         "unsavedChanges": "You have unsaved changes.",
         "colorPlaceholder": "No color",
@@ -3890,8 +3904,8 @@
           "headerDescription": "A banner above your logo, up to {maxSize}. Wide images work best."
         },
         "Design": {
-          "title": "Email design",
-          "description": "Applies to every issue not yet sent. The preview updates as you change it.",
+          "title": "Newsletter design",
+          "description": "Applies to every issue not yet sent and to signup forms. The preview updates as you change it.",
           "header": "Header",
           "colors": "Colors",
           "layout": "Type and layout",

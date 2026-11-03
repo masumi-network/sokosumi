@@ -63,6 +63,7 @@ type DesignFieldValues = Pick<
   | "headerImageUrl"
   | "headerAlign"
   | "spacing"
+  | "signupForm"
 >;
 
 /** The form's design fields from a saved newsletter, or a new one's defaults. */
@@ -83,6 +84,13 @@ export function newsletterDesignDefaults(
     headerImageUrl: brand?.headerImageUrl ?? "",
     headerAlign: brand?.headerAlign ?? "left",
     spacing: brand?.spacing ?? "normal",
+    signupForm: {
+      accentColor: brand?.signupForm?.accentColor ?? "",
+      buttonTextColor: brand?.signupForm?.buttonTextColor ?? "",
+      buttonShape: brand?.signupForm?.buttonShape ?? "",
+      headerAlign: brand?.signupForm?.headerAlign ?? "",
+      spacing: brand?.signupForm?.spacing ?? "",
+    },
   };
 }
 

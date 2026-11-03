@@ -3680,11 +3680,25 @@
           "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
           "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
           "previewTitle": "Vista previa del formulario de suscripción",
-          "previewDescription": "Consulta el formulario de suscripción que los lectores pueden usar en tu sitio web.",
+          "previewDescription": "Los cambios aparecen aquí al instante. Guarda el diseño para actualizar la página pública y el formulario integrado.",
           "hostedPage": "Página de suscripción alojada",
           "open": "Abrir página de suscripción",
           "embedCode": "Código de inserción",
-          "embedTitle": "Suscripción al boletín"
+          "embedTitle": "Suscripción al boletín",
+          "sharedDesign": "Diseño compartido del boletín",
+          "sharedDescription": "Se usa en los correos del boletín, la página de suscripción y los formularios integrados. Las personalizaciones de abajo se mantienen.",
+          "customize": "Personalizar formulario de suscripción",
+          "customizeDescription": "Opcional. Usa el diseño compartido para mantener el estilo del boletín. Los ajustes solo afectan a la página de suscripción y al formulario integrado.",
+          "useShared": "Usar diseño compartido",
+          "resetOverrides": "Restablecer diseño compartido",
+          "accentColor": "Color del botón",
+          "buttonTextColor": "Color del texto del botón",
+          "clear": {
+            "accentColor": "Usar color compartido del botón",
+            "buttonTextColor": "Usar color compartido del texto del botón"
+          },
+          "previewMode": "Formato de vista previa",
+          "previewNote": "Solo vista previa. Las suscripciones están desactivadas."
         },
         "Analytics": {
           "title": "Estadísticas",
@@ -3735,7 +3749,7 @@
           }
         },
         "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
-        "brandDescription": "El logotipo, los colores y la fuente de tus números.",
+        "brandDescription": "Logotipo, colores, tipografía y distribución compartidos por los correos y los formularios de suscripción.",
         "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
         "unsavedChanges": "Tienes cambios sin guardar.",
         "colorPlaceholder": "Sin color",
@@ -3890,8 +3904,8 @@
           "headerDescription": "Un banner sobre tu logotipo, de hasta {maxSize}. Las imágenes anchas funcionan mejor."
         },
         "Design": {
-          "title": "Diseño del correo",
-          "description": "Se aplica a todos los números aún no enviados. La vista previa se actualiza al cambiarlo.",
+          "title": "Diseño del boletín",
+          "description": "Se aplica a las ediciones aún no enviadas y a los formularios de suscripción. La vista previa se actualiza con los cambios.",
           "header": "Cabecera",
           "colors": "Colores",
           "layout": "Tipografía y diseño",

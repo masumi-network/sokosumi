@@ -3680,11 +3680,25 @@
           "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
           "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
           "previewTitle": "Vorschau des Anmeldeformulars",
-          "previewDescription": "Sieh dir das Anmeldeformular an, das Leser auf deiner Website nutzen können.",
+          "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
           "hostedPage": "Gehostete Anmeldeseite",
           "open": "Anmeldeseite öffnen",
           "embedCode": "Einbettungscode",
-          "embedTitle": "Newsletter-Anmeldung"
+          "embedTitle": "Newsletter-Anmeldung",
+          "sharedDesign": "Gemeinsames Newsletter-Design",
+          "sharedDescription": "Wird für Newsletter-Ausgaben, die Anmeldeseite und eingebettete Formulare verwendet. Die Anpassungen unten bleiben erhalten.",
+          "customize": "Anmeldeformular anpassen",
+          "customizeDescription": "Optional. Verwende das gemeinsame Design für ein einheitliches Erscheinungsbild. Anpassungen gelten nur für die Anmeldeseite und das eingebettete Formular.",
+          "useShared": "Gemeinsames Design verwenden",
+          "resetOverrides": "Auf gemeinsames Design zurücksetzen",
+          "accentColor": "Buttonfarbe",
+          "buttonTextColor": "Textfarbe des Buttons",
+          "clear": {
+            "accentColor": "Gemeinsame Buttonfarbe verwenden",
+            "buttonTextColor": "Gemeinsame Button-Textfarbe verwenden"
+          },
+          "previewMode": "Vorschauformat",
+          "previewNote": "Nur eine Vorschau. Anmeldungen sind deaktiviert."
         },
         "Analytics": {
           "title": "Statistiken",
@@ -3735,7 +3749,7 @@
           }
         },
         "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
-        "brandDescription": "Logo, Farben und Schrift deiner Ausgaben.",
+        "brandDescription": "Logo, Farben, Schrift und Layout für Newsletter-Ausgaben und Anmeldeformulare.",
         "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
         "unsavedChanges": "Du hast ungespeicherte Änderungen.",
         "colorPlaceholder": "Keine Farbe",
@@ -3890,8 +3904,8 @@
           "headerDescription": "Ein Banner über deinem Logo, bis zu {maxSize}. Breite Bilder wirken am besten."
         },
         "Design": {
-          "title": "E-Mail-Design",
-          "description": "Gilt für jede noch nicht versendete Ausgabe. Die Vorschau aktualisiert sich bei jeder Änderung.",
+          "title": "Newsletter-Design",
+          "description": "Gilt für alle noch nicht versendeten Ausgaben und für Anmeldeformulare. Die Vorschau wird bei Änderungen aktualisiert.",
           "header": "Kopfbereich",
           "colors": "Farben",
           "layout": "Schrift und Layout",

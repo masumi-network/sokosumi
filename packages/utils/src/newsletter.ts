@@ -72,7 +72,7 @@ export type NewsletterBlock = z.infer<typeof newsletterBlockSchema>;
  * A project's email design, stored as the newsletter's `brand`. Every field is
  * optional so designs saved before a field existed keep parsing.
  */
-export const newsletterBrandSchema = z.object({
+const newsletterDesignSchema = z.object({
   logoUrl: z
     .url({ protocol: /^https?$/ })
     .max(2048)
@@ -90,6 +90,18 @@ export const newsletterBrandSchema = z.object({
   headerImageUrl: httpsUrl.optional(),
   headerAlign: z.enum(["left", "center"]).optional(),
   spacing: z.enum(["compact", "normal", "roomy"]).optional(),
+});
+export const newsletterBrandSchema = newsletterDesignSchema.extend({
+  /** Signup-only choices; omitted fields always follow the shared design. */
+  signupForm: newsletterDesignSchema
+    .pick({
+      accentColor: true,
+      buttonTextColor: true,
+      buttonShape: true,
+      headerAlign: true,
+      spacing: true,
+    })
+    .optional(),
 });
 export type NewsletterBrand = z.infer<typeof newsletterBrandSchema>;
 

@@ -30251,6 +30251,42 @@ export const NewsletterBrandSchema = {
                 'normal',
                 'roomy'
             ]
+        },
+        signupForm: {
+            type: 'object',
+            properties: {
+                accentColor: {
+                    type: 'string',
+                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                },
+                buttonTextColor: {
+                    type: 'string',
+                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                },
+                buttonShape: {
+                    type: 'string',
+                    enum: [
+                        'square',
+                        'rounded',
+                        'pill'
+                    ]
+                },
+                headerAlign: {
+                    type: 'string',
+                    enum: [
+                        'left',
+                        'center'
+                    ]
+                },
+                spacing: {
+                    type: 'string',
+                    enum: [
+                        'compact',
+                        'normal',
+                        'roomy'
+                    ]
+                }
+            }
         }
     }
 } as const;
@@ -31114,6 +31150,42 @@ export const PreviewNewsletterIssueRequestSchema = {
                                 'normal',
                                 'roomy'
                             ]
+                        },
+                        signupForm: {
+                            type: 'object',
+                            properties: {
+                                accentColor: {
+                                    type: 'string',
+                                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                                },
+                                buttonTextColor: {
+                                    type: 'string',
+                                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                                },
+                                buttonShape: {
+                                    type: 'string',
+                                    enum: [
+                                        'square',
+                                        'rounded',
+                                        'pill'
+                                    ]
+                                },
+                                headerAlign: {
+                                    type: 'string',
+                                    enum: [
+                                        'left',
+                                        'center'
+                                    ]
+                                },
+                                spacing: {
+                                    type: 'string',
+                                    enum: [
+                                        'compact',
+                                        'normal',
+                                        'roomy'
+                                    ]
+                                }
+                            }
                         }
                     },
                     description: 'Unsaved newsletter design to preview with; the saved brand otherwise.'

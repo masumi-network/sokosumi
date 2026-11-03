@@ -95,11 +95,34 @@ describe("newsletter brand", () => {
     expect(newsletterBrandSchema.parse(brand)).toEqual(brand);
   });
 
+  it("keeps optional signup overrides separate from the shared design", () => {
+    const brand = {
+      accentColor: "#123456",
+      buttonShape: "rounded",
+      signupForm: {
+        accentColor: "#abcdef",
+        buttonTextColor: "#000",
+        buttonShape: "pill",
+        headerAlign: "center",
+        spacing: "compact",
+      },
+    };
+    expect(newsletterBrandSchema.parse(brand)).toEqual(brand);
+    expect(newsletterBrandSchema.parse({ signupForm: {} })).toEqual({
+      signupForm: {},
+    });
+  });
+
   it.each([
     { backgroundColor: "red" },
     { buttonShape: "circle" },
     { headerImageUrl: "http://example.com/banner.png" },
     { spacing: "huge" },
+    { signupForm: { accentColor: "red" } },
+    { signupForm: { buttonTextColor: "url(https://example.com)" } },
+    { signupForm: { buttonShape: "circle" } },
+    { signupForm: { headerAlign: "right" } },
+    { signupForm: { spacing: "huge" } },
   ])("rejects an invalid design field: %j", (brand) => {
     expect(newsletterBrandSchema.safeParse(brand).success).toBe(false);
   });

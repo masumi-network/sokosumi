@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { PublicNewsletterHeader } from "@/components/newsletter/public-newsletter-header";
 import { siteConfig } from "@/config/site";
 import { newsletterService } from "@/lib/services/newsletter.service";
-import { PublicNewsletterHeader } from "../public-newsletter-header";
 import { ArchiveIssues } from "./archive-issues";
 
 export const instant = false;

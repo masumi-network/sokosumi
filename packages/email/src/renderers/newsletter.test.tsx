@@ -195,7 +195,7 @@ describe("newsletter rendering", () => {
     expect(email.text).toContain("https://example.com/read");
   });
 
-  it("renders the studio blocks and the saved design", async () => {
+  it("renders the studio blocks and shared design while ignoring signup overrides", async () => {
     const { html, text } = await renderNewsletterEmail({
       newsletter: {
         name: "News",
@@ -208,6 +208,13 @@ describe("newsletter rendering", () => {
           headerAlign: "center",
           logoUrl: "https://example.com/logo.png",
           spacing: "roomy",
+          signupForm: {
+            accentColor: "#123456",
+            buttonTextColor: "#654321",
+            buttonShape: "square",
+            headerAlign: "left",
+            spacing: "compact",
+          },
         },
       },
       issue: {
@@ -261,6 +268,8 @@ describe("newsletter rendering", () => {
     expect(html).toContain("Sitio web");
     expect(html).toContain("<strong>Berlin</strong>");
     expect(html).toContain("padding:44px");
+    expect(html).not.toContain("#123456");
+    expect(html).not.toContain("#654321");
     expect(text).toContain("Right col");
   });
 

@@ -8124,6 +8124,13 @@ export type NewsletterBrand = {
     headerImageUrl?: string;
     headerAlign?: 'left' | 'center';
     spacing?: 'compact' | 'normal' | 'roomy';
+    signupForm?: {
+        accentColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+    };
 };
 
 export type NewsletterAnalytics = {
@@ -8315,6 +8322,13 @@ export type PreviewNewsletterIssueRequest = CreateNewsletterIssueRequest & {
         headerImageUrl?: string;
         headerAlign?: 'left' | 'center';
         spacing?: 'compact' | 'normal' | 'roomy';
+        signupForm?: {
+            accentColor?: string;
+            buttonTextColor?: string;
+            buttonShape?: 'square' | 'rounded' | 'pill';
+            headerAlign?: 'left' | 'center';
+            spacing?: 'compact' | 'normal' | 'roomy';
+        };
     };
 };
 

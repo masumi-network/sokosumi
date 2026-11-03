@@ -517,7 +517,7 @@ describe("newsletter issue editor", () => {
       }),
     );
     await user.click(screen.getByRole("tab", { name: "Design" }));
-    const design = screen.getByRole("form", { name: "Email design" });
+    const design = screen.getByRole("form", { name: "Newsletter design" });
     expect(
       screen.queryByRole("region", { name: "Issue details" }),
     ).not.toBeInTheDocument();

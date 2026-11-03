@@ -1,10 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import type { Window } from "happy-dom";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/messages/en.json";
 import {
+  NEWSLETTER,
   NEWSLETTER_PROJECT_ID,
   PUBLIC_NEWSLETTER_SLUG,
 } from "@/test/newsletter";
@@ -13,6 +15,21 @@ const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
   project: vi.fn(),
   settings: vi.fn(),
+}));
+
+vi.mock("@/i18n/client-message-boundary", () => ({
+  ClientMessageBoundary: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock("@/lib/actions/newsletter/action", () => ({
+  saveNewsletterSettings: vi.fn(),
+}));
+vi.mock("@/lib/actions/newsletter/signup", () => ({
+  subscribeToNewsletter: vi.fn(),
+}));
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: vi.fn(),
+  getUserFileUploadErrorMessage: (_error: unknown, fallback: string) =>
+    fallback,
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -71,7 +88,7 @@ beforeEach(() => {
     id: NEWSLETTER_PROJECT_ID,
     name: "Launch",
   });
-  mocks.settings.mockResolvedValue({ publicSlug: PUBLIC_NEWSLETTER_SLUG });
+  mocks.settings.mockResolvedValue(NEWSLETTER);
 });
 
 describe("newsletter signup form page", () => {
@@ -108,10 +125,15 @@ describe("newsletter signup form page", () => {
     expect(
       screen.getByRole("link", { name: "Open signup page" }),
     ).toHaveAttribute("href", SIGNUP_URL);
-    expect(screen.getByTitle("Signup form preview")).toHaveAttribute(
-      "src",
-      `${SIGNUP_URL}/embed`,
-    );
+    expect(
+      screen.getByRole("heading", { name: "Signup form preview" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Customize signup form" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("tab", { name: "Newsletter signup" }),
+    ).toBeVisible();
   });
 
   it("hides disabled newsletters before reading the project or settings", async () => {
@@ -162,16 +184,17 @@ describe("newsletter signup form page", () => {
   });
 
   it("preserves slug encoding in the preview and hosted page link", async () => {
-    mocks.settings.mockResolvedValue({ publicSlug: 'news/"&' });
+    mocks.settings.mockResolvedValue({ ...NEWSLETTER, publicSlug: 'news/"&' });
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
         {await NewsletterSignupFormPage(PROPS)}
       </NextIntlClientProvider>,
     );
-    expect(screen.getByTitle("Signup form preview")).toHaveAttribute(
-      "src",
-      "https://preview.example.com/n/news%2F%22%26/embed",
-    );
+    expect(
+      screen.getByText(
+        /<iframe src="https:\/\/preview.example.com\/n\/news%2F%22%26\/embed"/,
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open signup page" }),
     ).toHaveAttribute("href", "https://preview.example.com/n/news%2F%22%26");

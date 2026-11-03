@@ -40,6 +40,20 @@ beforeEach(() => {
 });
 
 describe("public newsletter info", () => {
+  it("exposes the shared design and signup overrides to the hosted page and embed", async () => {
+    const brand = {
+      primaryColor: "#123456",
+      fontFamily: "Georgia",
+      headerImageUrl: "https://example.com/header.png",
+      signupForm: { accentColor: "#abcdef", buttonShape: "pill" },
+    };
+    m.newsletter.mockResolvedValue({ ...NEWSLETTER, brand });
+    const response = await app().request(URL);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: { brand } });
+    expect(m.subscriber).not.toHaveBeenCalled();
+  });
+
   it("returns only name, senderName and brand without authentication or subscriber data", async () => {
     const response = await app().request(URL);
     expect(response.status).toBe(200);

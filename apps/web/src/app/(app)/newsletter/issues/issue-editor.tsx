@@ -8,11 +8,7 @@ import {
   NewsletterIssueStatus,
   type NewsletterSendingDomainState,
 } from "@sokosumi/core-client";
-import {
-  type NewsletterBlock,
-  type NewsletterBrand,
-  newsletterBrandSchema,
-} from "@sokosumi/utils";
+import type { NewsletterBlock } from "@sokosumi/utils";
 import {
   ArrowDown,
   ArrowUp,
@@ -28,6 +24,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/newsletter/analytics/issue-analytics-summary";
 import { newsletterDesignDefaults } from "@/app/newsletter/newsletter-design-fields";
+import { NewsletterDesignPanel } from "@/app/newsletter/newsletter-design-panel";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -48,7 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { saveNewsletterIssue } from "@/lib/actions/newsletter/issues";
 import {
   type NewsletterSettingsValues,
-  newsletterBrandFromValues,
+  newsletterBrandForPreview,
   newsletterSettingsSchema,
 } from "@/lib/schemas/newsletter";
 import {
@@ -64,20 +61,7 @@ import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
 } from "./issue-delivery-status";
-import { IssueDesignPanel } from "./issue-design-panel";
 import { NewsletterIssuePreview } from "./issue-preview";
-
-/** The design as typed so far, minus fields not yet valid, so the preview never stalls mid-edit. */
-function previewBrand(values: NewsletterSettingsValues): NewsletterBrand {
-  return Object.fromEntries(
-    Object.entries(newsletterBrandFromValues(values)).filter(
-      ([key, value]) =>
-        newsletterBrandSchema.shape[key as keyof NewsletterBrand].safeParse(
-          value,
-        ).success,
-    ),
-  );
-}
 
 function newsletterSettingsValues(
   newsletter: Newsletter,
@@ -474,7 +458,7 @@ export function NewsletterIssueEditor({
               hidden={tab !== "design"}
               className="min-w-0"
             >
-              <IssueDesignPanel form={designForm} projectId={projectId} />
+              <NewsletterDesignPanel form={designForm} projectId={projectId} />
             </TabsContent>
           </Tabs>
         </div>
@@ -584,7 +568,7 @@ export function NewsletterIssueEditor({
           <NewsletterIssuePreview
             projectId={projectId}
             values={{ subject, previewText, template, content }}
-            brand={previewBrand({
+            brand={newsletterBrandForPreview({
               ...newsletterSettingsValues(newsletter),
               ...design,
             })}
