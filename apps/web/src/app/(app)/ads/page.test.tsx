@@ -8,6 +8,7 @@ import messages from "@/messages/en.json";
 const {
   adsServiceMock,
   hasSocialBetaAccessMock,
+  hasAnyScopeProjectMock,
   notFoundMock,
   projectServiceMock,
   requireScopeMock,
@@ -16,6 +17,7 @@ const {
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn() },
   hasSocialBetaAccessMock: vi.fn(),
+  hasAnyScopeProjectMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
@@ -56,7 +58,7 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
+  useHasAnyScopeProject: hasAnyScopeProjectMock,
 }));
 
 vi.mock("./components/ads-no-project-backdrop", () => ({
@@ -131,6 +133,10 @@ async function visit(searchParams: Record<string, string | undefined> = {}) {
 describe("AdsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasAnyScopeProjectMock.mockReturnValue({
+      isPending: false,
+      hasProjects: true,
+    });
     hasSocialBetaAccessMock.mockResolvedValue(true);
     adsServiceMock.listAccounts.mockResolvedValue([]);
   });
@@ -147,7 +153,7 @@ describe("AdsPage", () => {
     expect(adsServiceMock.listAccounts).not.toHaveBeenCalled();
   });
 
-  it("offers project creation without opening the selector in an empty workspace", async () => {
+  it("offers project selection without opening the selector on navigation", async () => {
     const user = userEvent.setup();
     await visit();
 
@@ -159,14 +165,33 @@ describe("AdsPage", () => {
     expect(screen.getByTestId("ads-no-project")).toContainElement(
       screen.getByTestId("ads-backdrop"),
     );
-    const button = screen.getByRole("button", { name: "Create project" });
+    const button = screen.getByRole("button", { name: "Select project" });
     await user.click(button);
     expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
     );
-    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
+    expect(openScopeCreateMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId("ads-tabs")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
+  });
+
+  it("offers project creation in an empty workspace", async () => {
+    const user = userEvent.setup();
+    hasAnyScopeProjectMock.mockReturnValue({
+      isPending: false,
+      hasProjects: false,
+    });
+    await visit();
+
+    expect(screen.getByTestId("ads-backdrop")).toBeInTheDocument();
+    expect(requireScopeMock).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", { name: "Create project" });
+    await user.click(button);
+
+    expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
+    );
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
@@ -187,7 +212,7 @@ describe("AdsPage", () => {
     );
     expect(requireScopeMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("ads-backdrop")).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: "Create project" });
+    const button = screen.getByRole("button", { name: "Select project" });
     await user.click(button);
     expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
@@ -195,7 +220,7 @@ describe("AdsPage", () => {
         required: true,
       }),
     );
-    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
+    expect(openScopeCreateMock).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 

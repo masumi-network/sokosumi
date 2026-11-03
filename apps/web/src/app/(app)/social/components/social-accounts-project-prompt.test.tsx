@@ -74,7 +74,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.hasAnyScopeProject.mockReturnValue({
     isPending: false,
-    hasProjects: false,
+    hasProjects: true,
   });
 });
 
@@ -110,6 +110,10 @@ describe("SocialAccountsProjectPrompt", () => {
 
   it("keeps the selector closed in an empty workspace and seeds a required create request", async () => {
     const user = userEvent.setup();
+    mocks.hasAnyScopeProject.mockReturnValue({
+      isPending: false,
+      hasProjects: false,
+    });
     setup();
     expect(mocks.openProjectScope).not.toHaveBeenCalled();
 
@@ -127,40 +131,34 @@ describe("SocialAccountsProjectPrompt", () => {
     );
   });
 
-  it("keeps the selector closed in an empty workspace with autoOpen disabled", async () => {
+  it("opens only the selector when Select project is clicked with autoOpen disabled", async () => {
     const user = userEvent.setup();
     setup({ autoOpen: false });
     expect(mocks.openProjectScope).not.toHaveBeenCalled();
 
-    const button = screen.getByRole("button", { name: "Create project" });
+    const button = screen.getByRole("button", { name: "Select project" });
     await user.click(button);
 
     expect(lastRequest()).toMatchObject({
       required: true,
       reason: "Then connect accounts.",
     });
-    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
-  });
-
-  it("opens the selector on arrival when the workspace has projects", () => {
-    mocks.hasAnyScopeProject.mockReturnValue({
-      isPending: false,
-      hasProjects: true,
-    });
-
-    setup({ autoOpen: false });
-
     expect(mocks.openProjectScope).toHaveBeenCalledOnce();
-    expect(lastRequest()).toMatchObject({
-      required: true,
-      reason: "Then connect accounts.",
-    });
-    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
-    expect(
-      screen.getByRole("region", { name: "Social platforms" }),
-    ).toBeVisible();
     expect(mocks.openScopeCreate).not.toHaveBeenCalled();
   });
+
+  it.each(["accounts", "drafts", "attention"] as const)(
+    "shows Select project on %s without opening the selector on navigation",
+    (kind) => {
+      setup({ kind });
+
+      expect(
+        screen.getByRole("button", { name: "Select project" }),
+      ).toBeVisible();
+      expect(mocks.openProjectScope).not.toHaveBeenCalled();
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+    },
+  );
 
   it("opens the selector on arrival when explicitly requested", () => {
     setup({ autoOpen: true });
@@ -175,6 +173,10 @@ describe("SocialAccountsProjectPrompt", () => {
   it.each(["accounts", "drafts", "attention"] as const)(
     "shows a Create project button on %s in an empty workspace without opening the selector",
     (kind) => {
+      mocks.hasAnyScopeProject.mockReturnValue({
+        isPending: false,
+        hasProjects: false,
+      });
       setup({ kind });
       expect(
         screen.getByRole("button", { name: "Create project" }),
@@ -183,11 +185,11 @@ describe("SocialAccountsProjectPrompt", () => {
     },
   );
 
-  it("uses the created project to open its Accounts tab", async () => {
+  it("uses the selected project to open its Accounts tab", async () => {
     const user = userEvent.setup();
     setup();
 
-    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(screen.getByRole("button", { name: "Select project" }));
 
     expect(lastRequest().required).toBe(true);
     lastRequest().onSelect?.("marketing");
@@ -298,7 +300,7 @@ describe("SocialAccountsProjectPrompt", () => {
       "aria-hidden",
       "true",
     );
-    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(screen.getByRole("button", { name: "Select project" }));
     expect(lastRequest()).toMatchObject({
       required: true,
       reason: "Choose a project to see and finish its drafts.",
@@ -324,7 +326,7 @@ describe("SocialAccountsProjectPrompt", () => {
       screen.queryByRole("region", { name: "Social platforms" }),
     ).toBeNull();
     expect(screen.getByTestId("social-post-fan")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(screen.getByRole("button", { name: "Select project" }));
     expect(lastRequest()).toMatchObject({
       required: true,
       reason: "Choose a project to see posts that failed or were missed.",
@@ -335,7 +337,7 @@ describe("SocialAccountsProjectPrompt", () => {
     );
   });
 
-  it("keeps an unavailable-project notice as the reason when creating a project", async () => {
+  it("keeps an unavailable-project notice as the reason when selecting a project", async () => {
     const user = userEvent.setup();
     setup({
       notice: "That project is no longer available. Choose another project.",
@@ -345,7 +347,7 @@ describe("SocialAccountsProjectPrompt", () => {
     ).toBeVisible();
     expect(mocks.openProjectScope).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(screen.getByRole("button", { name: "Select project" }));
 
     expect(lastRequest().reason).toBe(
       "That project is no longer available. Choose another project.",

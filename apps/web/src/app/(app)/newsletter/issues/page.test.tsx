@@ -57,7 +57,7 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
-  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import NewsletterIssuesPage from "./page";
@@ -126,7 +126,7 @@ describe("newsletter issues page", () => {
     );
     expect(screen.getByText("Issue list")).toBeInTheDocument();
   });
-  it("offers project creation without opening the selector in an empty workspace", async () => {
+  it("offers project selection without opening the selector on navigation", async () => {
     const user = userEvent.setup();
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -138,12 +138,12 @@ describe("newsletter issues page", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
     expect(mocks.requireScope).not.toHaveBeenCalled();
-    const button = screen.getByRole("button", { name: "Create project" });
+    const button = screen.getByRole("button", { name: "Select project" });
     await user.click(button);
     expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ reason: "description", required: true }),
     );
-    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });

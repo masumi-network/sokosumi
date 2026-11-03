@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   subscribers: vi.fn(),
   analytics: vi.fn(),
   sendingDomain: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -66,13 +67,13 @@ vi.mock("../issue-editor", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
-  openProjectScope: () => undefined,
+  openProjectScope: mocks.openProjectScope,
   openScopeCreate: vi.fn(),
   setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
-  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import NewsletterIssuePage from "./page";
@@ -167,8 +168,9 @@ describe("newsletter issue page", () => {
     );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create project" }),
+      screen.getByRole("button", { name: "Select project" }),
     ).toBeInTheDocument();
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(mocks.get).not.toHaveBeenCalled();
   });
   it("loads lifetime analytics only for sent issues", async () => {

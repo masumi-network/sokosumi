@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   listProjects: vi.fn(),
   settings: vi.fn(),
   analytics: vi.fn(),
+  openProjectScope: vi.fn(),
 }));
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
@@ -47,13 +48,13 @@ vi.mock("./newsletter-analytics-view", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
-  openProjectScope: () => undefined,
+  openProjectScope: m.openProjectScope,
   openScopeCreate: vi.fn(),
   setScopeCreateOpen: vi.fn(),
 }));
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   usePrefetchScopeProjects: () => () => undefined,
-  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
+  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
 import NewsletterAnalyticsPage from "./page";
@@ -99,8 +100,9 @@ describe("newsletter analytics page", () => {
     );
     expect(screen.getByText("pickUnavailable")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create project" }),
+      screen.getByRole("button", { name: "Select project" }),
     ).toBeInTheDocument();
+    expect(m.openProjectScope).not.toHaveBeenCalled();
     expect(m.analytics).not.toHaveBeenCalled();
   });
   it("returns to settings until a newsletter is configured", async () => {

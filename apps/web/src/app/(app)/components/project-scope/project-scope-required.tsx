@@ -36,11 +36,13 @@ export function RequireProjectScope(
 /**
  * What a project-only page (Newsletter, Social, Ads, the studio) shows before
  * it knows which project it is working in: its own backdrop (`children`), its
- * copy, and a Create project button for an empty workspace. The button seeds
- * a required request before opening Create. Choosing or creating writes the
- * scope back into the URL the way every other scoped page does. Navigation
- * opens the header's required selector once an open project is known; explicit
- * actions can opt into opening it on mount before that query has settled.
+ * copy, and a primary button. Navigation never opens the selector: project
+ * availability only changes the button from Select project (also while pending)
+ * to Create project for an empty workspace. The Create button seeds a required
+ * request before opening Create. Choosing or creating writes the scope back
+ * into the URL the way every other scoped page does. Explicit user-initiated
+ * actions can use autoOpen or RequireProjectScope to open it on mount before
+ * that query has settled.
  */
 export function ProjectScopeRequired({
   autoOpen = false,
@@ -54,7 +56,7 @@ export function ProjectScopeRequired({
   /**
    * Opt into opening the header's project selector on mount for an explicit
    * action that needs a project, even before project availability is known.
-   * Page navigation opens it once the workspace has an open project.
+   * Page navigation never opens it, regardless of project availability.
    */
   autoOpen?: boolean;
   body: string;
@@ -68,7 +70,8 @@ export function ProjectScopeRequired({
   const headingId = useId();
   const t = useTranslations("App.ProjectScope");
   const { isPending, hasProjects } = useHasAnyScopeProject();
-  const shouldAutoOpen = autoOpen === true || (!isPending && hasProjects);
+  const shouldAutoOpen = autoOpen === true;
+  const shouldCreateProject = !isPending && !hasProjects;
   const cancelRequest = useRef<ReturnType<typeof openProjectScope> | null>(
     null,
   );
@@ -80,13 +83,15 @@ export function ProjectScopeRequired({
     }
   });
 
-  function handleCreateProject(event: React.MouseEvent<HTMLButtonElement>) {
+  function handleSelectProject(event: React.MouseEvent<HTMLButtonElement>) {
     cancelRequest.current = openProjectScope({
       required: true,
       reason: body,
       onSelect,
     });
-    openScopeCreate(event.currentTarget);
+    if (shouldCreateProject) {
+      openScopeCreate(event.currentTarget);
+    }
   }
 
   const Wrapper = variant === "action" ? "div" : "section";
@@ -128,15 +133,15 @@ export function ProjectScopeRequired({
         </>
       ) : null}
       {/* Empty workspaces offer Create in the switcher, so go straight to create. */}
-      {!shouldAutoOpen && !isPending && !hasProjects ? (
+      {!shouldAutoOpen ? (
         <Button
           className={variant === "prompt" ? "mt-6" : undefined}
           data-testid="project-scope-select-button"
-          onClick={handleCreateProject}
+          onClick={handleSelectProject}
           type="button"
           variant="primary"
         >
-          {t("create")}
+          {shouldCreateProject ? t("create") : t("selectProject")}
         </Button>
       ) : null}
     </Wrapper>

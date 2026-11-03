@@ -35,18 +35,40 @@ beforeEach(() => {
   mocks.openProjectScope.mockReturnValue(mocks.cancel);
   mocks.useHasAnyScopeProject.mockReturnValue({
     isPending: false,
-    hasProjects: false,
+    hasProjects: true,
   });
 });
 
 describe("ProjectScopeRequired", () => {
   it.each([
-    { locale: "en", messages: en, label: "Create project" },
-    { locale: "de", messages: de, label: "Projekt erstellen" },
-    { locale: "es", messages: es, label: "Crear proyecto" },
+    { locale: "en", messages: en, hasProjects: true, label: "Select project" },
+    {
+      locale: "de",
+      messages: de,
+      hasProjects: true,
+      label: "Projekt auswählen",
+    },
+    {
+      locale: "es",
+      messages: es,
+      hasProjects: true,
+      label: "Seleccionar proyecto",
+    },
+    { locale: "en", messages: en, hasProjects: false, label: "Create project" },
+    {
+      locale: "de",
+      messages: de,
+      hasProjects: false,
+      label: "Projekt erstellen",
+    },
+    { locale: "es", messages: es, hasProjects: false, label: "Crear proyecto" },
   ])(
-    "offers a translated Create action in $locale for an empty workspace without opening on arrival",
-    ({ locale, messages, label }) => {
+    "offers $label in $locale without opening on arrival",
+    ({ locale, messages, hasProjects, label }) => {
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending: false,
+        hasProjects,
+      });
       render(
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ProjectScopeRequired
@@ -68,41 +90,55 @@ describe("ProjectScopeRequired", () => {
     },
   );
 
-  it("renders only the Create button in action mode without prompt chrome", () => {
-    const { container } = render(
-      <NextIntlClientProvider locale="en" messages={en}>
-        <ProjectScopeRequired
-          body="Choose a project to continue."
-          testId="compact-project-action"
-          title="Choose a project"
-          variant="action"
-        >
-          <div data-testid="creative-backdrop" />
-        </ProjectScopeRequired>
-      </NextIntlClientProvider>,
-    );
+  it.each([
+    { hasProjects: true, label: "Select project" },
+    { hasProjects: false, label: "Create project" },
+  ])(
+    "renders only $label in action mode without prompt chrome",
+    ({ hasProjects, label }) => {
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending: false,
+        hasProjects,
+      });
+      const { container } = render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <ProjectScopeRequired
+            body="Choose a project to continue."
+            testId="compact-project-action"
+            title="Choose a project"
+            variant="action"
+          >
+            <div data-testid="creative-backdrop" />
+          </ProjectScopeRequired>
+        </NextIntlClientProvider>,
+      );
 
-    expect(screen.getByRole("button", { name: "Create project" })).toHaveClass(
-      "bg-primary",
-    );
-    expect(screen.queryByRole("heading")).toBeNull();
-    expect(screen.queryByText("Choose a project to continue.")).toBeNull();
-    expect(screen.queryByTestId("creative-backdrop")).toBeNull();
-    expect(container.querySelector("svg")).toBeNull();
-    const wrapper = screen.getByTestId("compact-project-action");
-    expect(wrapper.tagName).toBe("DIV");
-    expect(wrapper).toHaveClass("flex", "justify-center");
-    expect(wrapper).not.toHaveClass("py-10", "sm:py-16");
-    expect(wrapper).not.toHaveAttribute("aria-labelledby");
-    expect(mocks.openProjectScope).not.toHaveBeenCalled();
-    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
-  });
+      expect(screen.getByRole("button", { name: label })).toHaveClass(
+        "bg-primary",
+      );
+      expect(screen.queryByRole("heading")).toBeNull();
+      expect(screen.queryByText("Choose a project to continue.")).toBeNull();
+      expect(screen.queryByTestId("creative-backdrop")).toBeNull();
+      expect(container.querySelector("svg")).toBeNull();
+      const wrapper = screen.getByTestId("compact-project-action");
+      expect(wrapper.tagName).toBe("DIV");
+      expect(wrapper).toHaveClass("flex", "justify-center");
+      expect(wrapper).not.toHaveClass("py-10", "sm:py-16");
+      expect(wrapper).not.toHaveAttribute("aria-labelledby");
+      expect(mocks.openProjectScope).not.toHaveBeenCalled();
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+    },
+  );
 
   it.each(["prompt", "action"] as const)(
     "seeds required scope before opening Create in %s mode on click and cleans up on unmount",
     async (variant) => {
       const user = userEvent.setup();
       const onSelect = vi.fn();
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending: false,
+        hasProjects: false,
+      });
       const { unmount } = render(
         <NextIntlClientProvider locale="en" messages={en}>
           <ProjectScopeRequired
@@ -138,39 +174,7 @@ describe("ProjectScopeRequired", () => {
     },
   );
 
-  it("auto-opens in action mode when projects exist without rendering prompt chrome or a button", () => {
-    const onSelect = vi.fn();
-    mocks.useHasAnyScopeProject.mockReturnValue({
-      isPending: false,
-      hasProjects: true,
-    });
-    const { unmount } = render(
-      <NextIntlClientProvider locale="en" messages={en}>
-        <ProjectScopeRequired
-          body="Choose a project to continue."
-          onSelect={onSelect}
-          testId="compact-project-action"
-          title="Choose a project"
-          variant="action"
-        />
-      </NextIntlClientProvider>,
-    );
-
-    expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
-      required: true,
-      reason: "Choose a project to continue.",
-      onSelect,
-    });
-    expect(screen.getByTestId("compact-project-action")).toBeEmptyDOMElement();
-    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
-    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
-
-    unmount();
-    expect(mocks.cancel).toHaveBeenCalledOnce();
-    expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
-  });
-
-  it("auto-opens for a workspace with projects while keeping the backdrop and copy without a button", () => {
+  it("keeps the backdrop, copy and Select button when projects exist and autoOpen is false", () => {
     const onSelect = vi.fn();
     mocks.useHasAnyScopeProject.mockReturnValue({
       isPending: false,
@@ -189,62 +193,110 @@ describe("ProjectScopeRequired", () => {
       </NextIntlClientProvider>,
     );
 
-    expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
-      required: true,
-      reason: "Choose a project to continue.",
-      onSelect,
-    });
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
     expect(screen.getByTestId("creative-backdrop")).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Choose a project" }),
     ).toBeVisible();
     expect(screen.getByText("Choose a project to continue.")).toBeVisible();
-    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Select project" }),
+    ).toBeVisible();
     expect(mocks.openScopeCreate).not.toHaveBeenCalled();
 
     unmount();
-    expect(mocks.cancel).toHaveBeenCalledOnce();
+    expect(mocks.cancel).not.toHaveBeenCalled();
     expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
   });
 
-  it("waits for project availability without opening or flashing a button", () => {
-    mocks.useHasAnyScopeProject.mockReturnValue({
-      isPending: true,
-      hasProjects: false,
-    });
-    const content = () => (
-      <NextIntlClientProvider locale="en" messages={en}>
-        <ProjectScopeRequired
-          body="Choose a project to continue."
-          title="Choose a project"
-        >
-          <div data-testid="creative-backdrop" />
-        </ProjectScopeRequired>
-      </NextIntlClientProvider>
+  it.each([false, true])(
+    "keeps a button while pending and after availability resolves to hasProjects=%s without opening",
+    (hasProjects) => {
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending: true,
+        hasProjects: false,
+      });
+      const content = () => (
+        <NextIntlClientProvider locale="en" messages={en}>
+          <ProjectScopeRequired
+            body="Choose a project to continue."
+            title="Choose a project"
+          >
+            <div data-testid="creative-backdrop" />
+          </ProjectScopeRequired>
+        </NextIntlClientProvider>
+      );
+      const { rerender } = render(content());
+
+      expect(screen.getByTestId("creative-backdrop")).toBeVisible();
+      expect(
+        screen.getByRole("heading", { name: "Choose a project" }),
+      ).toBeVisible();
+      expect(screen.getByText("Choose a project to continue.")).toBeVisible();
+      const button = screen.getByRole("button", { name: "Select project" });
+      expect(button).toBeVisible();
+      expect(mocks.openProjectScope).not.toHaveBeenCalled();
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending: false,
+        hasProjects,
+      });
+      rerender(content());
+
+      expect(
+        screen.getByRole("button", {
+          name: hasProjects ? "Select project" : "Create project",
+        }),
+      ).toBe(button);
+      expect(mocks.openProjectScope).not.toHaveBeenCalled();
+      expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  describe.each(["prompt", "action"] as const)("%s mode", (variant) => {
+    it.each([
+      { isPending: false, hasProjects: true },
+      { isPending: true, hasProjects: false },
+      { isPending: true, hasProjects: true },
+    ])(
+      "opens only the required selector on click when availability is $isPending/$hasProjects",
+      async (availability) => {
+        const user = userEvent.setup();
+        const onSelect = vi.fn();
+        mocks.useHasAnyScopeProject.mockReturnValue(availability);
+        const { unmount } = render(
+          <NextIntlClientProvider locale="en" messages={en}>
+            <ProjectScopeRequired
+              body="Choose a project to continue."
+              onSelect={onSelect}
+              variant={variant}
+            />
+          </NextIntlClientProvider>,
+        );
+
+        const button = screen.getByRole("button", { name: "Select project" });
+        expect(button).toHaveAttribute(
+          "data-testid",
+          "project-scope-select-button",
+        );
+        expect(mocks.openProjectScope).not.toHaveBeenCalled();
+        expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+
+        await user.click(button);
+
+        expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
+          required: true,
+          reason: "Choose a project to continue.",
+          onSelect,
+        });
+        expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+        expect(mocks.cancel).not.toHaveBeenCalled();
+
+        unmount();
+        expect(mocks.cancel).toHaveBeenCalledOnce();
+      },
     );
-    const { rerender } = render(content());
-
-    expect(screen.getByTestId("creative-backdrop")).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "Choose a project" }),
-    ).toBeVisible();
-    expect(screen.getByText("Choose a project to continue.")).toBeVisible();
-    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
-    expect(mocks.openProjectScope).not.toHaveBeenCalled();
-    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
-
-    mocks.useHasAnyScopeProject.mockReturnValue({
-      isPending: false,
-      hasProjects: true,
-    });
-    rerender(content());
-
-    expect(mocks.openProjectScope).toHaveBeenCalledExactlyOnceWith({
-      required: true,
-      reason: "Choose a project to continue.",
-      onSelect: undefined,
-    });
-    expect(screen.queryByTestId("project-scope-select-button")).toBeNull();
   });
 
   it("leaves other create dialogs alone when the prompt unmounts without a click", () => {
@@ -260,13 +312,15 @@ describe("ProjectScopeRequired", () => {
     expect(mocks.setScopeCreateOpen).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])(
-    "keeps autoOpen working when isPending is %s and no projects are known",
-    (isPending) => {
-      mocks.useHasAnyScopeProject.mockReturnValue({
-        isPending,
-        hasProjects: false,
-      });
+  it.each([
+    { isPending: false, hasProjects: false },
+    { isPending: false, hasProjects: true },
+    { isPending: true, hasProjects: false },
+    { isPending: true, hasProjects: true },
+  ])(
+    "keeps explicit autoOpen working with availability $isPending/$hasProjects",
+    (availability) => {
+      mocks.useHasAnyScopeProject.mockReturnValue(availability);
       const { unmount } = render(
         <NextIntlClientProvider locale="en" messages={en}>
           <ProjectScopeRequired

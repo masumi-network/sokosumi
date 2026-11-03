@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   openProjectScope: vi.fn(),
   openScopeCreate: vi.fn(),
   setScopeCreateOpen: vi.fn(),
+  useHasAnyScopeProject: vi.fn(),
   onAccepted: null as null | ((accepted: { remaining: number }) => void),
 }));
 
@@ -46,7 +47,7 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
 }));
 
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useHasAnyScopeProject: () => ({ isPending: false, hasProjects: false }),
+  useHasAnyScopeProject: mocks.useHasAnyScopeProject,
 }));
 
 /** What the studio asked the header's project selector for, most recently. */
@@ -147,7 +148,13 @@ function generate(prompt = "a fox") {
   fireEvent.keyDown(box, { key: "Enter", metaKey: true });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.useHasAnyScopeProject.mockReturnValue({
+    isPending: false,
+    hasProjects: true,
+  });
+});
 
 describe("the workspace view", () => {
   it("opens the same empty studio without requiring a project", () => {
@@ -163,54 +170,68 @@ describe("the workspace view", () => {
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 
-  it("keeps project creation in the empty-state header above curated styles", () => {
-    render(
-      <ImageStudio
-        catalog={TEST_CATALOG}
-        initialSelectedAssetId={null}
-        initialState={{ assets: [], jobs: [], nextCursor: null }}
-        labels={TEST_LABELS}
-        projectId={null}
-        projectScopePrompt={
-          <ProjectScopeRequired body="Pick a project" variant="action" />
-        }
-      />,
-    );
+  it.each([
+    { hasProjects: true, label: "selectProject" },
+    { hasProjects: false, label: "create" },
+  ])(
+    "keeps $label in the empty-state header above curated styles",
+    ({ hasProjects, label }) => {
+      mocks.useHasAnyScopeProject.mockReturnValue({
+        isPending: false,
+        hasProjects,
+      });
+      render(
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [], jobs: [], nextCursor: null }}
+          labels={TEST_LABELS}
+          projectId={null}
+          projectScopePrompt={
+            <ProjectScopeRequired body="Pick a project" variant="action" />
+          }
+        />,
+      );
 
-    expect(
-      screen.getByRole("region", { name: "templates" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", { name: "promptPlaceholder" }),
-    ).toBeInTheDocument();
-    expect(mocks.openProjectScope).not.toHaveBeenCalled();
-    const button = screen.getByRole("button", { name: "create" });
-    const heading = screen.getByRole("heading", { name: "emptyTitle" });
-    const subtitle = screen.getByText("emptyBody");
-    const templates = screen.getByRole("region", { name: "templates" });
-    expect(heading.parentElement).toContainElement(subtitle);
-    expect(heading.parentElement).toContainElement(button);
-    expect(
-      subtitle.compareDocumentPosition(button) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      button.compareDocumentPosition(templates) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.queryByText("Pick a project")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: /Pick a project|pickTitle/i }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(button);
-    expect(mocks.openProjectScope).toHaveBeenCalledWith({
-      required: true,
-      reason: "Pick a project",
-      onSelect: undefined,
-    });
-    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
-    expect(mocks.enqueue).not.toHaveBeenCalled();
-  });
+      expect(
+        screen.getByRole("region", { name: "templates" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("textbox", { name: "promptPlaceholder" }),
+      ).toBeInTheDocument();
+      expect(mocks.openProjectScope).not.toHaveBeenCalled();
+      const button = screen.getByRole("button", { name: label });
+      const heading = screen.getByRole("heading", { name: "emptyTitle" });
+      const subtitle = screen.getByText("emptyBody");
+      const templates = screen.getByRole("region", { name: "templates" });
+      expect(heading.parentElement).toContainElement(subtitle);
+      expect(heading.parentElement).toContainElement(button);
+      expect(
+        subtitle.compareDocumentPosition(button) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        button.compareDocumentPosition(templates) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(screen.queryByText("Pick a project")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /Pick a project|pickTitle/i }),
+      ).not.toBeInTheDocument();
+      fireEvent.click(button);
+      expect(mocks.openProjectScope).toHaveBeenCalledWith({
+        required: true,
+        reason: "Pick a project",
+        onSelect: undefined,
+      });
+      if (hasProjects) {
+        expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+      } else {
+        expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
+      }
+      expect(mocks.enqueue).not.toHaveBeenCalled();
+    },
+  );
 
   it("moves the styles into the composer's toolbar as images appear, then returns them when empty", () => {
     const props = {
