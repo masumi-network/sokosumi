@@ -65,6 +65,20 @@ async function canFundFirstTurn(input: {
   return credits.spendable >= getEnv().SOKO_BOT_MIN_TURN_CREDITS;
 }
 
+/**
+ * A retry after a turn that saved sections but not the essentials: the
+ * research is done, so Cuso only writes what is missing.
+ */
+function finishBrandBrainMessage(input: { businessName: string }): string {
+  return [
+    `Your research on ${input.businessName} stopped before the Brand Brain essentials were saved. The profile sections you saved are kept.`,
+    "",
+    "Read the saved sections, then save the essentials with save_brand_brain (summary, voice, audience, products, offers, competitors, alternatives and channels), following your Brand Brain skill. Research again only what the essentials still need.",
+    "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
+    "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
+  ].join("\n");
+}
+
 function onboardingMessage(input: {
   businessName: string;
   websiteUrl: string;
@@ -286,18 +300,20 @@ export async function cmoWork(
   };
 }
 
-/** Starts learning again after a failed or stuck first look. */
+/**
+ * Starts learning again after a failed or stuck first look, or after one that
+ * ended without the Brand Brain's essentials and asked nothing.
+ */
 export async function retryCmoOnboarding(
   userId: string,
 ): Promise<{ turnId: string }> {
   const cuso = await requireCuso({ userId });
   const state = await cmoLearningState(cuso);
-  if (state !== "failed") {
-    throw new CmoConflictError(
-      state === "running"
-        ? "Cuso is still learning the business"
-        : "Cuso already learned the business",
-    );
+  if (state === "running") {
+    throw new CmoConflictError("Cuso is still learning the business");
+  }
+  if (parseBrandBrain(cuso.brandBrain)) {
+    throw new CmoConflictError("Cuso already learned the business");
   }
   const project = await prisma.project.findUnique({
     where: { id: cuso.projectId },
@@ -361,7 +377,10 @@ export function startCmoResearch(
 ): Promise<{ turnId: string }> {
   return startCmoTurn(cuso, userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
-    message: onboardingMessage(cuso),
+    message:
+      brandBrainSectionsSaved(cuso.brandBrain).length > 0
+        ? finishBrandBrainMessage(cuso)
+        : onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,
   });
 }

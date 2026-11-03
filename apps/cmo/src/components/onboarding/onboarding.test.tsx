@@ -375,6 +375,23 @@ describe("research", () => {
     expect(html).not.toContain("ob-elapsed");
   });
 
+  it("offers a retry when research ended without a Brand Brain or a question", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({
+          brandBrain: null,
+          work: { ...running("research"), status: "done", sectionsSaved: 16 },
+        })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("Research stopped");
+    expect(html).toContain("Cuso finishes your Brand Brain");
+    expect(html).toContain("Try again");
+  });
+
   it("counts the Brand Brain sections as Cuso writes them", () => {
     const html = renderToStaticMarkup(
       <ResearchStep
