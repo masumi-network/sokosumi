@@ -32,20 +32,11 @@ export async function handleStripeAuthWebhookOnEvent(
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    try {
-      await handleCheckoutSessionCompletedEvent(session);
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          stripeEventType: "checkout.session.completed",
-        },
-        extra: {
-          eventId: event.id,
-          sessionId: session.id,
-        },
-      });
-      throw error;
-    }
+    await runReportedStripeHandler(
+      event,
+      () => ({ extra: { sessionId: session.id } }),
+      () => handleCheckoutSessionCompletedEvent(session),
+    );
     return;
   }
 
@@ -55,48 +46,38 @@ export async function handleStripeAuthWebhookOnEvent(
   // plugin skips creating a subscription row that already exists.
   if (event.type === "customer.subscription.created") {
     const subscription = event.data.object;
-    try {
-      await handleSubscriptionCreatedEvent(subscription);
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          stripeEventType: "customer.subscription.created",
-          stripeSubscriptionId: subscription.id,
-        },
+    await runReportedStripeHandler(
+      event,
+      () => ({
+        tags: { stripeSubscriptionId: subscription.id },
         extra: {
           customer:
             typeof subscription.customer === "string"
               ? subscription.customer
               : subscription.customer.id,
-          eventId: event.id,
         },
-      });
-      throw error;
-    }
+      }),
+      () => handleSubscriptionCreatedEvent(subscription),
+    );
     return;
   }
 
   if (event.type === "customer.subscription.deleted") {
     const subscription = event.data.object;
-    try {
-      await handleSubscriptionDeletedEvent(subscription);
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          stripeEventType: "customer.subscription.deleted",
-          stripeSubscriptionId: subscription.id,
-        },
+    await runReportedStripeHandler(
+      event,
+      () => ({
+        tags: { stripeSubscriptionId: subscription.id },
         extra: {
           customer:
             typeof subscription.customer === "string"
               ? subscription.customer
               : subscription.customer.id,
-          eventId: event.id,
           subscription: subscription.id,
         },
-      });
-      throw error;
-    }
+      }),
+      () => handleSubscriptionDeletedEvent(subscription),
+    );
     return;
   }
 
@@ -149,21 +130,55 @@ export async function handleStripeAuthWebhookOnEvent(
       }
     }
 
-    try {
-      await releaseAppliedSeatReduction(subscription);
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: {
-          stripeEventType: event.type,
-          stripeSubscriptionId: subscription.id,
-        },
-        extra: { eventId: event.id },
-      });
-    }
+    await runReportedStripeHandler(
+      event,
+      () => ({
+        tags: { stripeSubscriptionId: subscription.id },
+        rethrow: false,
+      }),
+      () => releaseAppliedSeatReduction(subscription),
+    );
     return;
   }
 
   console.info(`Unhandled Stripe event type: ${event.type}`);
+}
+
+interface StripeHandlerFailureReport {
+  tags?: Record<string, string>;
+  extra?: Record<string, string>;
+  /** False only for best-effort work that must not make Stripe redeliver. */
+  rethrow?: boolean;
+}
+
+/**
+ * Capture a handler failure on the Stripe event. Rethrows unless `rethrow`
+ * is false. `report` runs only after the handler throws.
+ */
+async function runReportedStripeHandler(
+  event: Stripe.Event,
+  report: () => StripeHandlerFailureReport,
+  run: () => Promise<unknown>,
+): Promise<void> {
+  try {
+    await run();
+  } catch (error) {
+    const failure = report();
+    Sentry.captureException(error, {
+      tags: {
+        stripeEventType: event.type,
+        ...failure.tags,
+      },
+      extra: {
+        eventId: event.id,
+        ...failure.extra,
+      },
+    });
+    if (failure.rethrow === false) {
+      return;
+    }
+    throw error;
+  }
 }
 
 /** The wallet behind a Stripe customer field, or null with the miss reported. */
