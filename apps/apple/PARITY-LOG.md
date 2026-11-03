@@ -691,7 +691,7 @@ Validation: 323 Chat tests cover formats, precedence, download errors, extension
 
 Room and thread rows expose Quote beside Reply and in the native context menu. Quoting focuses the matching composer and shows a removable author/snippet/attachment preview. Classic and streamed sends transmit only `quote.messageId`; Core remains the snapshot authority. Pending shells retain the preview across classic retries; pre-stream failures restore the quote with the draft. Deleted and local pending/stream rows cannot be quoted. Switching rooms/threads clears the pending quote.
 
-Received quotes render their author, expandable four-line snippet and first attachment cue. Clicking the author scrolls to the source when loaded in that transcript, matching web's loaded-DOM jump. Loading missing sources and cross-thread deep-link routing remain in row 25. Quote-only drafts required message text or an attachment until row 17a, which lets a quote be the whole message outside the coworker 1:1 stream, matching web.
+Received quotes render their author, expandable four-line snippet and first attachment cue (every attachment since row 17b). Clicking the author scrolls to the source when loaded in that transcript, matching web's loaded-DOM jump. Loading missing sources and cross-thread deep-link routing remain in row 25. Quote-only drafts required message text or an attachment until row 17a, which lets a quote be the whole message outside the coworker 1:1 stream, matching web.
 
 Verification: all 446 package tests pass (Chat 329, Workspace 55, Auth 34, Realtime 27, CoreAPI 1); Xcode app tests, pinned SwiftFormat/strict SwiftLint and the Workspace iOS 17 cross-build pass. Xcode still emits the existing AppIntents metadata and cmark module-map build warnings. A native fixture preview was rendered and inspected; it is not a live send/scroll test. Package tests cover request bodies in room/thread classic and streaming sends, source eligibility, preview attachment choice, retry retention and streamed failure restoration. No live messages were sent during verification.
 
@@ -4726,7 +4726,7 @@ None. ⌘K and the Link control share one function on web and on Apple; the reve
 ### What changed
 
 - SokosumiChat: `ComposerToolbarVisibility` (new): one composer's bar, read from `ComposerPreferences` once; `toggle()` stores, `reveal()` does not.
-- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`. `docs/rich-composing.md` names the type.
+- App: `MacComposerCommands.toolbar` holds it and `beginLink` reveals it; `ComposerTextInput` reads and toggles it in place of its own `@State`.
 
 ### Deviations from web (recorded)
 
@@ -5276,4 +5276,63 @@ Unverified: the app was not launched. Not seen: the sidebar through a real focus
 
 How to test: open the app in light, click a room, then click the sidebar again so it has keyboard focus: the selected row is dark grey with white text. Send, Accept and any sheet's main button are Iris with dark text.
 
-Last updated: 2026-10-30
+## Every attachment of a quoted message (17b), 2026-11-02
+
+[#6799](https://github.com/masumi-network/sokosumi/pull/6799). Follows web and Core [#6788](https://github.com/masumi-network/sokosumi/pull/6788) (`43413e45f`).
+
+### Behaviour
+
+- `MessageQuoteView` draws `quote.attachments` as a `WrappingRow` of 40 pt tiles, in the transcript and the composer preview. A missing list is empty. An image crops to the square, a file shows `AttachmentFileIcon`. Web's tiles carry no name; here the name stays on hover and for VoiceOver.
+- `messageQuote(from:)` lifts every file link out of the snippet into `attachments`, a file linked twice once, like `buildRoomQuoteSnippetParts`. It no longer fills the deprecated `attachment`, and nothing in the app reads that field.
+- The Mac app builds no quote text for an AI reader, so `chatRoomQuotePromptLine` has no counterpart here.
+- A pin whose body is only a quote prints the author and snippet and no tiles, as web's pinned panel does. A quote of images alone therefore prints only the author there.
+
+### Where it differs from web
+
+- Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)) follow web, with these differences:
+  - Web's whole quote is one jump button. Here the author name and each tile are separate buttons, and the snippet stays selectable and does not jump.
+  - Web's jump button and composer tile tint on hover. A tile here does not, like the other attachment tiles on the Mac.
+  - A composer tile that is not a web address does nothing here. Web classifies it by extension, so it opens a viewer or a link. Core stores only http(s) file links, so this barely occurs.
+  - A composer tile whose `mediaKind` is `image` opens the image viewer here even with no image extension. Web reads only the URL and the name: a document extension opens its document viewer, and anything else is a link.
+  - `.heic` and `.heif` open the image viewer here. Web's image list has neither, so its tile is a link.
+  - A URL with a non-image extension and a file name with an image one is a file here and an image on web.
+  - A URL with a document extension and a file name with a video or sound one opens the document viewer here and a link on web.
+- A draft's tile and a quote's tile on the Mac differ for a file with no viewer: a draft's opens the document sheet with Open and Save, a quote's opens its link, as web's does for both. Draft tiles are out of scope here.
+- The composer's local preview reads parsed Markdown and web reads the raw text, so they differ on less ordinary input until Core's snapshot replaces the preview after sending:
+  - A bare file URL in a sentence is lifted here, named by its URL. Web keeps it in the text.
+  - A file link inside a code fence or inline code stays in place here. Web lifts it.
+  - A `.markdown` link and a `![alt](url)` image with no file extension are lifted here. Web leaves them.
+  - A link labelled `chart.png` to a URL with no extension is an image here and a file on web.
+  - The same link twice in a row is one tile named `a.pnga.png` here. Web names it `a.png`.
+  - A blank line, a list marker and table text survive differently in the snippet. This predates the row.
+
+### API snapshot
+
+`python3 scripts/update-core-api.py` against the Core OpenAPI document written by `write-openapi-snapshot` at `43413e45f`. Structural diff: paths 66 → 66, operations 81 → 81, none added or removed. Schemas 104 → 110, none removed: added `ChatMessageSignal`, `ChatSignalTag`, `ProjectSocialProvider`, `SokoBotAvatarState`, `SokoBotAvatarStateAssets`, `SokoBotAvatarView`; changed `ChatResultAvailable`, `ChatRoom`, `ChatRoomMessage`, `ChatRoomMessageQuote`, `ChatRoomMessageQuoteAttachment`, `ChatRoomPinnedMessageListItem`, `ChatRoomSokoBotParticipant`, `SharedSokoBotSummary`, `SokoBotState`, `TaskTagId`, `UserWorkspace`. Operations changed: `get /projects/{id}/image-studio/assets/{assetId}/content`, `get` and `patch /users/{id}/preferences`, `get /users/{id}/workspaces`, `put /users/{id}/workspaces/preferred`, `post /chats/rooms/{id}/members`, `put /chats/rooms/starred`.
+
+The refresh brought in everything Core added since the last one. Two of the additions needed code: result kind `cmo_report` (web's `ClipboardList` as `list.clipboard`, web's "Report") and seven Task tags (web's labels, with web's de and es strings in the catalogs). The rest is decoded and unused.
+
+Four fields are newly required: `UserWorkspace.role`, `memberCount` and `enabledSocialProviders`, and `ChatRoomSokoBotParticipant.sharedRoomId`. `helpers/user-workspaces.ts` and `soko-bot-participant.ts` in Core send them, so only the test fixtures needed the `UserWorkspace` fields. A fixture without them fails to decode, and `lateLoadCannotRestoreSignedOutAccount` then waits forever for a rooms request that never comes, which hangs the run rather than failing it.
+
+### Verification
+
+- Workspace scheme on this Mac: 2158 tests, 2155 passed, 3 failed. `swift test`: `SokosumiChat` 1348 passed, `SokosumiWorkspace` 210 passed. The iOS 17 Workspace build succeeded. SwiftFormat and strict SwiftLint clean.
+- Two failures are not this change: `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` and `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` fail the same way on an unmodified `43413e45f`, where Vision OCR reads "You" as "YoU" and the chosen chip as "MY Message yourself •". They failed on every run here, so they are not added to the known-flaky list.
+- The third, `MessageImageViewerActionsTests/printAndCopyAreForImagesOnly`, counted 0 of 1 print jobs. This change does not touch it, and reruns of its suite on the same code failed once and passed once, so it joins the known-flaky list.
+- `messageQuote` and web's built `buildRoomQuoteSnippetParts` ran side by side on 27 inputs. 11 match; the rest are the differences listed above, or web keeping Markdown syntax it does not parse.
+- `MessageQuoteAttachmentTests` hosts the real `MessageRowView` and `ChatComposerView` with a quote of four images and counts four drawn tiles, light and dark; a narrow quote wraps to a second row; file tiles show their type and keep their names. The recorded renders were inspected.
+
+Not run: the app against a live Core. No message was sent; the renders are the real `MessageRowView` and `ChatComposerView` hosted over a fixture server.
+
+Tile clicks ([#6804](https://github.com/masumi-network/sokosumi/pull/6804)):
+
+- `MessageAttachment.opening` and `ChatRoomMessageQuoteAttachment.preview` in `SokosumiChat` decide what a tile opens, with UI-free tests in `MessageQuoteTests`.
+- `MessageQuoteAttachmentTests` sends real mouse events to tiles in the hosted `MessageRowView` and `ChatComposerView`: the source's id reaches `.jumpToQuote`, a quote from another room opens its message link, an image attaches its viewer, a Markdown file attaches its viewer and loads over a fixture server, and a zip, a video and a sound open their links. A click on a non-web address does nothing, proved by a following click on a second tile. VoiceOver finds image, document and link tiles by their file names, reads each hint and presses them.
+- The first version of the suite failed against the old `MessageQuoteView` on every action test. The final version was not rerun against it.
+- Workspace scheme on this Mac: 2170 tests, 2167 passed, 3 failed. `StartDirectViewTests/messageYourselfIsListedAndChosenAlone(dark:)` and `SelfDirectRoomTests/theRowIsYouAndTheEmptyTranscriptSaysWhatItIsFor(dark:)` also fail on an unmodified `efe693407`. `MessageHoverDelayTests/theTranscriptHidesHoverChromeWhileScrolling(thread:phased:)` is flaky: its suite and `SokoBotFeedbackToolbarTests` failed 5 of 10 tests twice on this commit and then passed all 10 with no change. Both suites passed all 10 on an unmodified `efe693407` in one run.
+- The iOS 17 Workspace build succeeded. SwiftFormat and strict SwiftLint are clean on the whole tree.
+- The recorded renders were inspected: tiles look as before in light and dark, the image viewer shows the image and the document viewer shows the loaded file.
+
+Not checked: the signed app against a live Core, a loaded PDF or Office file in the viewer, and the tooltip on hover, which needs a real pointer.
+
+Last updated: 2026-11-02

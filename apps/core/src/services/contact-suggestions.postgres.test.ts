@@ -1,8 +1,8 @@
 /**
  * Find people against a real database: suggestions land on the list, the
- * run is charged once and labelled in credit history, people already on the
- * list or suggested before are skipped, and adding makes a Prospect contact
- * on the list. Exa and the model are scripted.
+ * run is charged per person found, people already on the list or suggested
+ * before are skipped, and adding makes a Prospect contact on the list. Enrich
+ * fills a contact's empty fields from the web. Exa and the model are scripted.
  */
 import { randomUUID } from "node:crypto";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
@@ -12,11 +12,16 @@ import { createContactList } from "./contact-lists.service";
 import {
   addContactSuggestions,
   dismissContactSuggestions,
+  enrichContactFromWeb,
   findPeopleForList,
   listContactSuggestions,
   type PeopleSearchDeps,
 } from "./contact-suggestions.service";
-import { type ContactActor, inContactTransaction } from "./contacts.service";
+import {
+  type ContactActor,
+  inContactTransaction,
+  upsertContact,
+} from "./contacts.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -46,7 +51,10 @@ const hits = [
   },
 ];
 
-/** Exa returns the hits; the model keeps every person it is shown. */
+/**
+ * Exa returns the hits; the model keeps every person it is shown, and
+ * identifies the first LinkedIn profile as the contact.
+ */
 function scripted(found = hits): PeopleSearchDeps & { searched: string[] } {
   const searched: string[] = [];
   return {
@@ -72,6 +80,22 @@ function scripted(found = hits): PeopleSearchDeps & { searched: string[] } {
               ]
             : [],
         ),
+      };
+    },
+    async identify({ hits: shown }) {
+      const index = shown.findIndex((hit) => hit.title.includes("LinkedIn"));
+      return {
+        costUsd: 0.001,
+        identity:
+          index < 0
+            ? null
+            : {
+                index,
+                role: "Partner",
+                organization: "Northwind Ventures",
+                location: "Berlin",
+                summary: "Invests in pre-seed AI infrastructure.",
+              },
       };
     },
   };
@@ -143,7 +167,7 @@ describe.runIf(enabled)("Find people on PostgreSQL", () => {
     ).rejects.toThrow("Describe who belongs in this list");
   });
 
-  it("suggests the people who fit, saves the brief and charges once", async () => {
+  it("suggests the people who fit, saves the brief and charges per person", async () => {
     const deps = scripted();
     const result = await findPeopleForList(
       asAlice,
@@ -153,12 +177,12 @@ describe.runIf(enabled)("Find people on PostgreSQL", () => {
     );
 
     expect(deps.searched).toEqual(["Pre-seed investors in AI infrastructure"]);
-    expect(result.credits).toBe(5);
+    expect(result.credits).toBe(1);
     expect(result.suggestions.map((s) => s.name).sort()).toEqual([
       "Jonas Berg",
       "Mara Lind",
     ]);
-    expect(await balance()).toBe(15n * CREDIT);
+    expect(await balance()).toBe(19n * CREDIT);
     const list = await prisma.contactList.findUniqueOrThrow({
       where: { id: listId },
     });
@@ -178,7 +202,105 @@ describe.runIf(enabled)("Find people on PostgreSQL", () => {
       scripted(),
     );
     expect(result).toMatchObject({ found: 0, credits: 0 });
-    expect(await balance()).toBe(15n * CREDIT);
+    expect(await balance()).toBe(19n * CREDIT);
+  });
+
+  it("finds one particular person for half a credit, and keeps the list's description", async () => {
+    const deps = scripted([
+      {
+        title: "Lea Kurz - GP at Fjord Capital | LinkedIn",
+        url: "https://linkedin.com/in/leakurz",
+        passages: ["General partner at Fjord Capital."],
+      },
+      {
+        title: "Lea Kurz - Designer | LinkedIn",
+        url: "https://linkedin.com/in/leakurz-design",
+        passages: ["Product designer."],
+      },
+    ]);
+    const result = await findPeopleForList(
+      asAlice,
+      listId,
+      { brief: "Lea Kurz, GP at Fjord Capital", size: 1 },
+      deps,
+    );
+    expect(result).toMatchObject({ found: 1, credits: 0.5 });
+    expect(result.suggestions.map((s) => s.name)).toEqual(["Lea Kurz"]);
+    expect(await balance()).toBe(185n * (CREDIT / 10n));
+    const list = await prisma.contactList.findUniqueOrThrow({
+      where: { id: listId },
+    });
+    expect(list.description).toBe("Pre-seed investors in AI infrastructure");
+    await dismissContactSuggestions(
+      asAlice,
+      listId,
+      result.suggestions.map((s) => s.id),
+    );
+  });
+
+  it("enriches a contact's empty fields from the web for one credit, keeping what is there", async () => {
+    const { contact } = await inContactTransaction((tx) =>
+      upsertContact(tx, asAlice, {
+        name: "Mara Lindqvist",
+        role: "Managing Partner",
+        channels: [{ type: "EMAIL", value: "mara@northwind.vc" }],
+        upsert: false,
+      }),
+    );
+    const deps = scripted([
+      {
+        title: "Mara Lindqvist - Managing Partner | LinkedIn",
+        url: "https://www.linkedin.com/in/maralindqvist/",
+        passages: ["Managing Partner at Northwind Ventures, Berlin."],
+      },
+    ]);
+    const result = await enrichContactFromWeb(asAlice, contact.id, deps);
+
+    expect(deps.searched).toEqual([
+      "Mara Lindqvist, northwind.vc, Managing Partner",
+    ]);
+    expect(result).toEqual({
+      filled: ["organization", "location", "summary", "linkedin"],
+      sourceUrl: "https://www.linkedin.com/in/maralindqvist/",
+      credits: 1,
+    });
+    const enriched = await prisma.contact.findUniqueOrThrow({
+      where: { id: contact.id },
+      include: { channels: true },
+    });
+    expect(enriched).toMatchObject({
+      role: "Managing Partner",
+      organization: "Northwind Ventures",
+      location: "Berlin",
+    });
+    expect(enriched.channels.map((c) => c.type).sort()).toEqual([
+      "EMAIL",
+      "LINKEDIN",
+    ]);
+    const history = await prisma.contactActivity.findFirstOrThrow({
+      where: { contactId: contact.id, kind: "UPDATED" },
+    });
+    expect(history.changes).toMatchObject({
+      location: { sourceUrls: ["https://www.linkedin.com/in/maralindqvist/"] },
+    });
+    expect(await balance()).toBe(175n * (CREDIT / 10n));
+  });
+
+  it("charges nothing when the web has no match", async () => {
+    const { contact } = await inContactTransaction((tx) =>
+      upsertContact(tx, asAlice, {
+        name: "Nobody Known",
+        channels: [],
+        upsert: false,
+      }),
+    );
+    const result = await enrichContactFromWeb(
+      asAlice,
+      contact.id,
+      scripted([hits[1] as (typeof hits)[number]]),
+    );
+    expect(result).toEqual({ filled: [], sourceUrl: null, credits: 0 });
+    expect(await balance()).toBe(175n * (CREDIT / 10n));
   });
 
   it("adds a suggestion as a Prospect on the list, and dismisses another", async () => {

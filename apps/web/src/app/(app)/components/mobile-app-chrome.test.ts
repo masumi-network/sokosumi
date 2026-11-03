@@ -11,6 +11,7 @@ describe("mobile-app-chrome", () => {
     "/newsletter",
     "/newsletter/issues",
     "/newsletter/subscribers",
+    "/newsletter/signup-form",
     "/newsletter/analytics",
     "/newsletter/settings",
   ])("uses Social-style list chrome on %s", (pathname) => {

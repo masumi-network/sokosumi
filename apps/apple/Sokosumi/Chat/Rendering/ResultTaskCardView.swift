@@ -449,6 +449,13 @@ extension ResultTaskCard.Tag {
     case .social: LocalizedStringResource("taskTag.social", defaultValue: "Social media", table: chatTasksTable)
     case .seo: LocalizedStringResource("taskTag.seo", defaultValue: "SEO", table: chatTasksTable)
     case .operations: LocalizedStringResource("taskTag.operations", defaultValue: "Operations", table: chatTasksTable)
+    case .presentations: LocalizedStringResource("taskTag.presentations", defaultValue: "Presentations", table: chatTasksTable)
+    case .dashboards: LocalizedStringResource("taskTag.dashboards", defaultValue: "Dashboards", table: chatTasksTable)
+    case .monitoring: LocalizedStringResource("taskTag.monitoring", defaultValue: "Monitoring", table: chatTasksTable)
+    case .media: LocalizedStringResource("taskTag.media", defaultValue: "Media editing", table: chatTasksTable)
+    case .communication: LocalizedStringResource("taskTag.communication", defaultValue: "Communication", table: chatTasksTable)
+    case .finance: LocalizedStringResource("taskTag.finance", defaultValue: "Finance", table: chatTasksTable)
+    case .qa: LocalizedStringResource("taskTag.qa", defaultValue: "Review & QA", table: chatTasksTable)
     }
   }
 }

@@ -1,4 +1,7 @@
-import type { NewsletterIssue } from "@sokosumi/core-client";
+import type {
+  NewsletterIssue,
+  NewsletterSendingDomainState,
+} from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -10,10 +13,12 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
 import {
+  NEWSLETTER,
   NEWSLETTER_ISSUE,
   NEWSLETTER_PROJECT_ID,
   NEWSLETTER_SENDING_DOMAIN_STATE,
@@ -24,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   change: vi.fn(),
   refresh: vi.fn(),
+  saveSettings: vi.fn(),
+  preview: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
@@ -34,8 +41,14 @@ vi.mock("@/lib/actions/newsletter/issue-lifecycle", () => ({
 vi.mock("@/lib/actions/newsletter/issues", () => ({
   saveNewsletterIssue: mocks.save,
 }));
+vi.mock("@/lib/actions/newsletter/action", () => ({
+  saveNewsletterSettings: mocks.saveSettings,
+}));
 vi.mock("./issue-preview", () => ({
-  NewsletterIssuePreview: () => <aside>Preview</aside>,
+  NewsletterIssuePreview: (props: unknown) => {
+    mocks.preview(props);
+    return <aside>Preview</aside>;
+  },
 }));
 
 import { NewsletterIssueEditor } from "./issue-editor";
@@ -44,16 +57,27 @@ function renderEditor(
   issue = NEWSLETTER_ISSUE,
   locale: "en" | "de" | "es" = "en",
   draftedBySokoBot = false,
+  {
+    activeSubscribers = 3,
+    sendingDomain = NEWSLETTER_SENDING_DOMAIN_STATE,
+  }: {
+    activeSubscribers?: number;
+    sendingDomain?: NewsletterSendingDomainState;
+  } = {},
 ) {
   return render(
-    <NextIntlClientProvider locale={locale} messages={{ en, de, es }[locale]}>
+    <NextIntlClientProvider
+      locale={locale}
+      messages={{ en, de, es }[locale]}
+      formats={createFormats()}
+      timeZone="UTC"
+    >
       <NewsletterIssueEditor
         projectId={NEWSLETTER_PROJECT_ID}
         issue={issue}
-        activeSubscribers={3}
-        senderName="Ada"
-        sendingDomain={NEWSLETTER_SENDING_DOMAIN_STATE}
-        newsletterSlug={PUBLIC_NEWSLETTER_SLUG}
+        activeSubscribers={activeSubscribers}
+        newsletter={NEWSLETTER}
+        sendingDomain={sendingDomain}
         draftedBySokoBot={draftedBySokoBot}
       />
     </NextIntlClientProvider>,
@@ -74,21 +98,116 @@ beforeEach(() => {
 });
 
 describe("newsletter issue editor", () => {
-  it("keeps campaign readiness before the writing surface", () => {
+  it("puts the writing surface first and readiness in the Send panel", () => {
     renderEditor();
-    const readiness = screen.getByRole("region", { name: "Before sending" });
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    expect(
+      within(panel).getByRole("tab", { name: "Checklist" }),
+    ).toHaveAttribute("aria-selected", "true");
+    const readiness = within(panel).getByRole("region", {
+      name: "Before sending",
+    });
     const details = screen.getByRole("region", { name: "Issue details" });
     expect(within(details).getByLabelText("Subject")).toBeInTheDocument();
     expect(
       within(readiness).getByText("3 active subscribers"),
     ).toBeInTheDocument();
     expect(
-      readiness.compareDocumentPosition(details) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      details.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(within(panel).getByText("Draft")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Submit for approval" }),
+      within(panel).getByRole("button", { name: "Save issue" }),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: "Submit for approval" }),
     ).toBeEnabled();
+  });
+
+  it("switches between Checklist and a single Preview inside the Send panel", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    const tabs = within(panel).getByRole("tablist", {
+      name: "Send panel views",
+    });
+    await user.click(within(tabs).getByRole("tab", { name: "Preview" }));
+    expect(
+      within(panel).getByRole("tabpanel", { name: "Preview" }),
+    ).toContainElement(
+      within(panel).getByText("Preview", { selector: "aside" }),
+    );
+    expect(screen.getAllByText("Preview", { selector: "aside" })).toHaveLength(
+      1,
+    );
+    expect(
+      within(panel).queryByRole("region", { name: "Before sending" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: "Save issue" }),
+    ).toBeVisible();
+
+    await user.click(within(tabs).getByRole("tab", { name: "Checklist" }));
+    expect(
+      within(panel).getByRole("region", { name: "Before sending" }),
+    ).toBeVisible();
+    expect(
+      within(panel).getByRole("button", { name: "Submit for approval" }),
+    ).toBeEnabled();
+    expect(
+      within(panel).getByText("Preview", { selector: "aside" }),
+    ).not.toBeVisible();
+  });
+
+  it("opens Preview when approval, sender and subscribers are ready", async () => {
+    const user = userEvent.setup();
+    renderEditor({
+      ...NEWSLETTER_ISSUE,
+      status: "NEEDS_APPROVAL",
+      approvedAt: new Date("2026-10-23T12:00:00Z"),
+      approvedByUserId: "reviewer",
+    });
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    expect(within(panel).getByRole("tab", { name: "Preview" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(within(panel).getByRole("tab", { name: "Checklist" }));
+    expect(
+      within(panel).getByRole("button", { name: "Schedule" }),
+    ).toBeEnabled();
+    expect(
+      within(panel).getByRole("button", { name: "Send now" }),
+    ).toBeEnabled();
+  });
+
+  it.each([
+    { activeSubscribers: 0 },
+    {
+      sendingDomain: {
+        ...NEWSLETTER_SENDING_DOMAIN_STATE,
+        fallbackAvailable: false,
+      },
+    },
+  ])("opens Checklist when delivery is blocked: %j", (readiness) => {
+    renderEditor(
+      {
+        ...NEWSLETTER_ISSUE,
+        status: "NEEDS_APPROVAL",
+        approvedAt: new Date("2026-10-23T12:00:00Z"),
+        approvedByUserId: "reviewer",
+      },
+      "en",
+      false,
+      readiness,
+    );
+    const panel = screen.getByRole("complementary", { name: "Send" });
+    expect(
+      within(panel).getByRole("tab", { name: "Checklist" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      within(panel).getByRole("button", { name: "Send now" }),
+    ).toBeDisabled();
   });
 
   it("restores edited blocks in reverse removal order, even after saving", async () => {
@@ -111,7 +230,9 @@ describe("newsletter issue editor", () => {
     await user.click(screen.getByRole("button", { name: "Undo removal" }));
     expect(screen.getByText("1 block removed")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Undo removal" }));
-    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    const items = within(
+      screen.getByRole("list", { name: "Content blocks" }),
+    ).getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(within(items[1]).getByLabelText("Text")).toHaveValue(
       "Our latest update with new writing",
@@ -235,17 +356,21 @@ describe("newsletter issue editor", () => {
     const user = userEvent.setup();
     renderEditor();
     await user.click(screen.getByRole("button", { name: "Move block 2 up" }));
-    let items = within(screen.getByRole("list")).getAllByRole("listitem");
+    let items = within(
+      screen.getByRole("list", { name: "Content blocks" }),
+    ).getAllByRole("listitem");
     expect(within(items[0]).getByLabelText("Text")).toHaveValue(
       "Our latest update",
     );
     await user.click(screen.getByRole("button", { name: "Move block 1 down" }));
     await user.click(screen.getByRole("button", { name: "Remove block 3" }));
+    const library = screen.getByRole("region", { name: "Add block" });
     for (const type of ["Heading", "Text", "Image", "Button", "Divider"]) {
-      await user.click(screen.getByRole("button", { name: "Add block" }));
-      await user.click(await screen.findByRole("menuitem", { name: type }));
+      await user.click(within(library).getByRole("button", { name: type }));
     }
-    items = within(screen.getByRole("list")).getAllByRole("listitem");
+    items = within(
+      screen.getByRole("list", { name: "Content blocks" }),
+    ).getAllByRole("listitem");
     expect(items).toHaveLength(7);
     expect(screen.getByLabelText("Image URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Alt text")).toBeInTheDocument();
@@ -344,7 +469,7 @@ describe("newsletter issue editor", () => {
       screen.queryByRole("button", { name: "Save issue" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Add block" }),
+      screen.queryByRole("region", { name: "Add block" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Remove block 1" }),
@@ -358,6 +483,22 @@ describe("newsletter issue editor", () => {
     const user = userEvent.setup();
     renderEditor(NEWSLETTER_ISSUE, locale);
     const copy = messages.App.Projects.Newsletter.Issues;
+    const panel = screen.getByRole("complementary", { name: copy.sendPanel });
+    const tabs = within(panel).getByRole("tablist", {
+      name: copy.SendPanel.views,
+    });
+    expect(
+      within(tabs).getByRole("tab", { name: copy.SendPanel.checklist }),
+    ).toHaveAttribute("aria-selected", "true");
+    await user.click(
+      within(tabs).getByRole("tab", { name: copy.Preview.title }),
+    );
+    expect(
+      within(panel).getByRole("tabpanel", { name: copy.Preview.title }),
+    ).toBeVisible();
+    await user.click(
+      within(tabs).getByRole("tab", { name: copy.SendPanel.checklist }),
+    );
     await user.clear(screen.getByLabelText(copy.subject));
     await user.click(screen.getByRole("button", { name: copy.save }));
     expect(
@@ -407,5 +548,191 @@ describe("newsletter issue editor", () => {
     expect(
       screen.getByText(en.App.Projects.Newsletter.Issues.Lifecycle.saveFirst),
     ).toBeInTheDocument();
+  });
+
+  it("duplicates a block right after itself", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole("button", { name: "Duplicate block 2" }));
+    const items = within(
+      screen.getByRole("list", { name: "Content blocks" }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(4);
+    expect(within(items[2]).getByLabelText("Text")).toHaveValue(
+      "Our latest update",
+    );
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          values: expect.objectContaining({
+            content: [
+              NEWSLETTER_ISSUE.content[0],
+              NEWSLETTER_ISSUE.content[1],
+              NEWSLETTER_ISSUE.content[1],
+              NEWSLETTER_ISSUE.content[2],
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("adds the studio blocks with fields to fill in and saves them", async () => {
+    const user = userEvent.setup();
+    renderEditor({ ...NEWSLETTER_ISSUE, content: [] });
+    const library = screen.getByRole("region", { name: "Add block" });
+    for (const type of ["Columns", "Social links", "Spacer", "Footer"]) {
+      await user.click(within(library).getByRole("button", { name: type }));
+    }
+    expect(screen.getByRole("group", { name: "Column 1" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove column 1" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Add column" }));
+    expect(screen.getByRole("group", { name: "Column 3" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add column" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Remove column 3" }));
+    const [left, right] = screen.getAllByRole("group", { name: /Column/ });
+    await user.type(within(left).getByLabelText("Text"), "Left");
+    await user.type(within(right).getByLabelText("Text"), "Right");
+    await user.type(screen.getByLabelText("Link 1 URL"), "https://example.com");
+    await user.type(screen.getByLabelText("Closing text"), "Bye");
+    await user.type(screen.getByLabelText("Subject"), "!");
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          values: expect.objectContaining({
+            content: [
+              {
+                type: "columns",
+                columns: [{ text: "Left" }, { text: "Right" }],
+              },
+              {
+                type: "social",
+                links: [{ network: "website", url: "https://example.com" }],
+              },
+              { type: "spacer", size: "md" },
+              { type: "footer", text: "Bye" },
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("edits the design in its own tab, previews it live and blocks sending until saved", async () => {
+    mocks.saveSettings.mockImplementation(async ({ values }) => ({
+      ok: true,
+      value: { ...NEWSLETTER, ...values },
+    }));
+    const user = userEvent.setup();
+    renderEditor();
+    expect(mocks.preview).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        brand: expect.objectContaining({
+          fontFamily: "Georgia",
+          spacing: "roomy",
+        }),
+      }),
+    );
+    await user.click(screen.getByRole("tab", { name: "Design" }));
+    const design = screen.getByRole("form", { name: "Newsletter design" });
+    expect(
+      screen.queryByRole("region", { name: "Issue details" }),
+    ).not.toBeInTheDocument();
+    await user.type(within(design).getByLabelText("Footer text"), "See you");
+    expect(mocks.preview).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        brand: expect.objectContaining({ footerText: "See you" }),
+      }),
+    );
+    expect(screen.getByText("Unsaved design changes")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        en.App.Projects.Newsletter.Issues.Studio.saveDesignFirst,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Submit for approval" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Save design" }));
+    await waitFor(() =>
+      expect(mocks.saveSettings).toHaveBeenCalledWith({
+        projectId: NEWSLETTER_PROJECT_ID,
+        values: expect.objectContaining({
+          name: NEWSLETTER.name,
+          senderName: NEWSLETTER.senderName,
+          replyTo: NEWSLETTER.replyTo,
+          fontFamily: "Georgia",
+          footerText: "See you",
+          spacing: "roomy",
+        }),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Unsaved design changes"),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Submit for approval" }),
+    ).toBeEnabled();
+    await user.click(screen.getByRole("tab", { name: "Content" }));
+    expect(
+      screen.getByRole("region", { name: "Issue details" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps an unsaved design when the save fails", async () => {
+    mocks.saveSettings.mockResolvedValue({
+      ok: false,
+      error: { message: en.App.Projects.Newsletter.error },
+    });
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole("tab", { name: "Design" }));
+    await user.type(screen.getByLabelText("Footer text"), "Draft");
+    await user.click(screen.getByRole("button", { name: "Save design" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      en.App.Projects.Newsletter.error,
+    );
+    expect(screen.getByLabelText("Footer text")).toHaveValue("Draft");
+    expect(screen.getByText("Unsaved design changes")).toBeInTheDocument();
+  });
+
+  it("sizes and aligns an image block", async () => {
+    const user = userEvent.setup();
+    renderEditor({
+      ...NEWSLETTER_ISSUE,
+      content: [{ type: "image", url: "https://example.com/a.png", alt: "A" }],
+    });
+    expect(screen.getByRole("button", { name: "Replace image" })).toBeEnabled();
+    for (const [field, option] of [
+      ["Width", "Half"],
+      ["Alignment", "Right"],
+    ]) {
+      fireEvent.click(screen.getByRole("combobox", { name: field }));
+      fireEvent.click(await screen.findByRole("option", { name: option }));
+    }
+    await user.click(screen.getByRole("button", { name: "Save issue" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          values: expect.objectContaining({
+            content: [
+              {
+                type: "image",
+                url: "https://example.com/a.png",
+                alt: "A",
+                width: 50,
+                align: "right",
+              },
+            ],
+          }),
+        }),
+      ),
+    );
   });
 });

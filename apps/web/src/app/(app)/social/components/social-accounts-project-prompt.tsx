@@ -24,8 +24,9 @@ interface SocialAccountsProjectPromptProps {
   kind?: keyof typeof NEED_PROJECT_COPY;
   notice?: string;
   /**
-   * Open the header's project selector on arrival. Off where the prompt sits
-   * above a view that works without a project, as the calendar does.
+   * Opt in to opening the header's project selector on arrival. Off by default
+   * so navigation leaves the creative backdrop and project choice visible,
+   * including above views that work without a project, as the calendar does.
    */
   autoOpen?: boolean;
 }
@@ -38,7 +39,7 @@ interface SocialAccountsProjectPromptProps {
 export function SocialAccountsProjectPrompt({
   kind = "accounts",
   notice,
-  autoOpen = true,
+  autoOpen = false,
 }: SocialAccountsProjectPromptProps) {
   const copy = NEED_PROJECT_COPY[kind];
   const t = useTranslations("App.Social");

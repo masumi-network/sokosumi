@@ -59,10 +59,12 @@ it("keeps Schedule and Refine available when the original model cannot vary", as
       elapsedByAssetId={{}}
       labels={TEST_LABELS}
       onClose={vi.fn()}
+      onCaptionChange={vi.fn()}
       onRegenerate={vi.fn()}
       onSchedule={onSchedule}
       onSelect={vi.fn()}
       onUseAsReference={onRefine}
+      onWriteCaption={vi.fn().mockResolvedValue(undefined)}
       siblings={[ASSET]}
     />,
   );
@@ -111,9 +113,11 @@ function mount(
         elapsedByAssetId={{}}
         labels={TEST_LABELS}
         onClose={vi.fn()}
+        onCaptionChange={vi.fn()}
         onRegenerate={onVariation}
         onSelect={vi.fn()}
         onUseAsReference={vi.fn()}
+        onWriteCaption={vi.fn().mockResolvedValue(undefined)}
         siblings={[asset]}
       />,
     );

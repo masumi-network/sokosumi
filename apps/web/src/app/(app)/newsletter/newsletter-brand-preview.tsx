@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { type Control, useWatch } from "react-hook-form";
 
+import { NEWSLETTER_BUTTON_SHAPE } from "@/components/newsletter/design";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import {
   HOLDER_CLASS,
@@ -41,6 +42,10 @@ export function NewsletterBrandPreview({
     welcomeEmailEnabled,
     welcomeSubject,
     welcomeBody,
+    backgroundColor,
+    buttonTextColor,
+    buttonShape,
+    headerImageUrl,
   ] = useWatch({
     control,
     name: [
@@ -54,8 +59,15 @@ export function NewsletterBrandPreview({
       "welcomeEmailEnabled",
       "welcomeSubject",
       "welcomeBody",
+      "backgroundColor",
+      "buttonTextColor",
+      "buttonShape",
+      "headerImageUrl",
     ],
   });
+  const background = brandColor(backgroundColor);
+  const buttonText = brandColor(buttonTextColor);
+  const header = headerImageUrl.trim();
   const primary = brandColor(primaryColor);
   const accent = brandColor(accentColor);
   const logo = logoUrl.trim();
@@ -79,13 +91,16 @@ export function NewsletterBrandPreview({
 
       <div
         className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}
-        style={{ fontFamily }}
+        style={{ fontFamily, backgroundColor: background }}
       >
         {/* The renderer sets the primary color on all text, as here. */}
         <div
           className="min-w-0 space-y-4 p-5"
           style={primary ? { color: primary } : undefined}
         >
+          {header ? (
+            <img src={header} alt="" className="w-full rounded-sm" />
+          ) : null}
           {logo ? (
             <Avatar className="size-12 rounded-none">
               <AvatarImage src={logo} alt="" className="object-contain" />
@@ -102,8 +117,11 @@ export function NewsletterBrandPreview({
             <p className="text-sm">{t("sampleBody")}</p>
           </div>
           <span
-            className="bg-primary text-primary-foreground inline-flex rounded px-4 py-2 text-sm font-medium"
-            style={accent ? { backgroundColor: accent } : undefined}
+            className={cn(
+              "bg-primary text-primary-foreground inline-flex px-4 py-2 text-sm font-medium",
+              NEWSLETTER_BUTTON_SHAPE[buttonShape],
+            )}
+            style={{ backgroundColor: accent, color: buttonText }}
           >
             {t("button")}
           </span>

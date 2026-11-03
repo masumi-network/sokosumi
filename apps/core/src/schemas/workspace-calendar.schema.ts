@@ -28,8 +28,12 @@ export const CALENDAR_TYPES = [
 ] as const;
 export type CalendarType = (typeof CALENDAR_TYPES)[number];
 
-const isCalendarType = (value: string): value is CalendarType =>
+export const isCalendarType = (value: string): value is CalendarType =>
   (CALENDAR_TYPES as readonly string[]).includes(value);
+
+export const calendarTypeSchema = z.enum(CALENDAR_TYPES).openapi({
+  description: "A Calendar feature the Show filter can include",
+});
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -49,22 +53,14 @@ const workspaceCalendarQueryObjectSchema = z.object({
   }),
   types: z
     .string()
-    .transform((value, ctx) => {
-      const types = value.split(",").map((entry) => entry.trim());
-      if (!types.every(isCalendarType)) {
-        ctx.addIssue({
-          code: "custom",
-          message: `types must be a comma-separated list of ${CALENDAR_TYPES.join(", ")}`,
-        });
-        return z.NEVER;
-      }
-      return [...new Set(types)];
-    })
+    .transform((value) => [
+      ...new Set(value.split(",").map((entry) => entry.trim())),
+    ])
     .optional()
     .openapi({
       param: { name: "types", in: "query" },
       description:
-        "Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session.",
+        "Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.",
       example: "tasks,social,newsletter",
     }),
   timeZone: z
@@ -254,6 +250,16 @@ export const workspaceCalendarSourceSchema = z
     }),
   })
   .openapi("WorkspaceCalendarSource");
+
+export const workspaceCalendarSourcesResponseSchema = z
+  .object({
+    sources: z.array(workspaceCalendarSourceSchema),
+    features: z.array(calendarTypeSchema).openapi({
+      description:
+        "Calendar features this viewer may show. Web offers only these in the Show filter.",
+    }),
+  })
+  .openapi("WorkspaceCalendarSourcesResponse");
 
 export const calendarIdentityLabelsRequestSchema = z
   .object({

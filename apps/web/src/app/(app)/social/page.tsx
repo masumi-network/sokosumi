@@ -11,6 +11,7 @@ import {
   type LoadedWorkspaceCalendarPage,
   loadWorkspaceCalendarPage,
 } from "@/app/calendar/load-calendar-page";
+import { ProjectPostingInstructions } from "@/app/projects/components/project-posting-instructions";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import {
   SECTION_ORDER,
@@ -31,6 +32,24 @@ export const instant = false;
 
 /** Social's calendar shows Social posts and asks Core for nothing else. */
 const SOCIAL_CALENDAR_TYPES: readonly CalendarType[] = ["social"];
+
+/**
+ * Social's calendar has no agenda list, but older links (and the workspace
+ * calendar's phone default) can still carry `view=agenda`; loading that
+ * range would leave the month grid missing posts. Task filters would also
+ * hide Social posts on the Core read, so drop them here.
+ */
+function socialCalendarQuery(query: CalendarPageSearchParams) {
+  return {
+    ...query,
+    assigneeId: undefined,
+    assigneeUserId: undefined,
+    // Older links may still carry a Tasks source filter; Social has none.
+    sourceId: undefined,
+    status: undefined,
+    view: query.view === "agenda" ? undefined : query.view,
+  };
+}
 
 interface SocialPageProps {
   searchParams: Promise<CalendarPageSearchParams & { postId?: string }>;
@@ -72,7 +91,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       // to a project that is not there.
       loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({
-          ...query,
+          ...socialCalendarQuery(query),
           projectId: undefined,
         }),
         types: SOCIAL_CALENDAR_TYPES,
@@ -111,6 +130,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     selectedPostResult,
     calendarResult,
     sokoBot,
+    queueSlots,
   ] = await Promise.all([
     Promise.all(
       SECTION_ORDER.map(async (section) => {
@@ -142,7 +162,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       : Promise.resolve({ failed: false as const, post: null }),
     loadWorkspaceCalendarPage({
       projectId: project.id,
-      searchParams: Promise.resolve(query),
+      searchParams: Promise.resolve(socialCalendarQuery(query)),
       types: SOCIAL_CALENDAR_TYPES,
     })
       .then((calendar) => ({ failed: false as const, calendar }))
@@ -151,6 +171,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         return { failed: true as const, calendar: null };
       }),
     sokoBotService.getMine().catch(() => null),
+    projectService.listSocialQueueSlots(project.id).catch(() => null),
   ]);
   const { connections, failed: accountsFailed } = connectionsResult;
   const { calendar, failed: calendarFailed } = calendarResult;
@@ -202,11 +223,21 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           <ProjectSocialPosts
             connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
-              <ProjectSocialAccounts
-                projectId={project.id}
-                connections={connections}
-                connectDisabled={Boolean(project.closingAt || project.closedAt)}
-              />
+              <div className="space-y-6">
+                <ProjectSocialAccounts
+                  projectId={project.id}
+                  connections={connections}
+                  queueSlots={queueSlots ?? undefined}
+                  connectDisabled={Boolean(
+                    project.closingAt || project.closedAt,
+                  )}
+                />
+                <ProjectPostingInstructions
+                  projectId={project.id}
+                  postingInstructionsMd={project.postingInstructionsMd}
+                  disabled={Boolean(project.closingAt || project.closedAt)}
+                />
+              </div>
             }
             actions={
               <SocialNewPostMenu
@@ -225,7 +256,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             accountCount={managedAccountCount}
             managedConnections={connections}
             affectedPosts={affectedPosts}
-            accountsFailed={accountsFailed}
+            accountsFailed={accountsFailed || queueSlots === null}
             calendarFailed={calendarFailed}
             connections={activeConnections}
             failedSections={SECTION_ORDER.filter(
@@ -237,6 +268,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 pages[index].nextCursor,
               ]),
             )}
+            queueSlots={queueSlots?.slots}
             posts={posts}
             projectId={project.id}
             requestedPostId={query.postId}

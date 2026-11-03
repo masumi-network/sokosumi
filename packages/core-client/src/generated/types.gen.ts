@@ -4011,13 +4011,13 @@ export type ContactPeopleSearchResult = {
 
 export type ContactPeopleSearchInput = {
     /**
-     * Who belongs in the list, in plain words. Saved as the list's description; without it the description is used.
+     * Who belongs in the list, in plain words. Saved as the list's description; without it the description is used. With size 1, the one person to find (a name, and where they work); the description stays.
      */
     brief?: string;
     /**
-     * How many people to find: 10 costs 5 credits, 25 costs 10.
+     * How many people to find; 1 looks for one particular person. Costs 0.5 credits per person found.
      */
-    size?: 10 | 25;
+    size?: 1 | 10 | 25;
 };
 
 export type ContactSuggestionIds = {
@@ -4143,7 +4143,8 @@ export const ContactChannelSource = {
     SLACK: 'SLACK',
     WEB_RESEARCH: 'WEB_RESEARCH',
     IMPORT: 'IMPORT',
-    OTHER: 'OTHER'
+    OTHER: 'OTHER',
+    X: 'X'
 } as const;
 
 export type ContactChannelSource = typeof ContactChannelSource[keyof typeof ContactChannelSource];
@@ -4226,7 +4227,8 @@ export const ContactInteractionChannel = {
     SLACK: 'SLACK',
     CALL: 'CALL',
     MANUAL: 'MANUAL',
-    OTHER: 'OTHER'
+    OTHER: 'OTHER',
+    X: 'X'
 } as const;
 
 export type ContactInteractionChannel = typeof ContactInteractionChannel[keyof typeof ContactInteractionChannel];
@@ -4247,6 +4249,21 @@ export type ContactSokoBot = {
 export type ContactInteractionResult = {
     interaction: ContactInteraction;
     created: boolean;
+};
+
+export type ContactWebEnrichment = {
+    /**
+     * Fields it filled: role, organization, location, summary, linkedin. Empty when the web did not say more.
+     */
+    filled: Array<string>;
+    /**
+     * The page it read them from.
+     */
+    sourceUrl: string | null;
+    /**
+     * Credits taken; 0 when nothing was filled.
+     */
+    credits: number;
 };
 
 export type ContactActivity = {
@@ -6598,6 +6615,10 @@ export type Project = {
      */
     designMd: ProjectDesignMd | null;
     /**
+     * Markdown guidance for drafting this Project's social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.
+     */
+    postingInstructionsMd: string | null;
+    /**
      * Whether Core has both AI Gateway and Blob storage credentials and can update project memory.
      */
     memoryEnabled: boolean;
@@ -6768,6 +6789,13 @@ export type AddProjectTaskRequest = {
 
 export type ProjectContextMd = ProjectContextMdMetadata & {
     content: string;
+};
+
+export type ProjectPostingInstructions = {
+    /**
+     * Markdown guidance for drafting this Project's social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.
+     */
+    postingInstructionsMd: string | null;
 };
 
 export type BrandBrain = {
@@ -7622,6 +7650,19 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
+            searchAd?: {
+                keywords: Array<string>;
+                headlines: Array<string>;
+                descriptions: Array<string>;
+                finalUrl: string;
+                location?: string;
+                language?: string;
+                callouts?: Array<string>;
+            };
+            adCampaign?: {
+                accountId: string;
+                campaignId: string;
+            };
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -7839,6 +7880,19 @@ export type MarketingStrategyRequest = {
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
+            searchAd?: {
+                keywords: Array<string>;
+                headlines: Array<string>;
+                descriptions: Array<string>;
+                finalUrl: string;
+                location?: string;
+                language?: string;
+                callouts?: Array<string>;
+            };
+            adCampaign?: {
+                accountId: string;
+                campaignId: string;
+            };
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -8116,6 +8170,19 @@ export type NewsletterBrand = {
     accentColor?: string;
     fontFamily?: string;
     footerText?: string;
+    backgroundColor?: string;
+    buttonTextColor?: string;
+    buttonShape?: 'square' | 'rounded' | 'pill';
+    headerImageUrl?: string;
+    headerAlign?: 'left' | 'center';
+    spacing?: 'compact' | 'normal' | 'roomy';
+    signupForm?: {
+        accentColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+    };
 };
 
 export type NewsletterAnalytics = {
@@ -8226,12 +8293,33 @@ export type NewsletterContent = Array<{
     url: string;
     alt: string;
     href?: string;
+    width?: number;
+    align?: 'left' | 'center' | 'right';
 } | {
     type: 'button';
     label: string;
     url: string;
 } | {
     type: 'divider';
+} | {
+    type: 'columns';
+    columns: Array<{
+        text: string;
+        imageUrl?: string;
+        alt?: string;
+    }>;
+} | {
+    type: 'spacer';
+    size: 'sm' | 'md' | 'lg';
+} | {
+    type: 'social';
+    links: Array<{
+        network: 'website' | 'x' | 'linkedin' | 'instagram' | 'facebook' | 'youtube' | 'tiktok';
+        url: string;
+    }>;
+} | {
+    type: 'footer';
+    text: string;
 }>;
 
 export const NewsletterIssueStatus = {
@@ -8268,6 +8356,32 @@ export type CreateNewsletterIssueRequest = {
     previewText?: string | null;
     template: NewsletterTemplate;
     content: NewsletterContent;
+};
+
+export type PreviewNewsletterIssueRequest = CreateNewsletterIssueRequest & {
+    /**
+     * Unsaved newsletter design to preview with; the saved brand otherwise.
+     */
+    brand?: {
+        logoUrl?: string;
+        primaryColor?: string;
+        accentColor?: string;
+        fontFamily?: string;
+        footerText?: string;
+        backgroundColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerImageUrl?: string;
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+        signupForm?: {
+            accentColor?: string;
+            buttonTextColor?: string;
+            buttonShape?: 'square' | 'rounded' | 'pill';
+            headerAlign?: 'left' | 'center';
+            spacing?: 'compact' | 'normal' | 'roomy';
+        };
+    };
 };
 
 export type PatchNewsletterIssueRequest = {
@@ -9591,6 +9705,35 @@ export type ScheduleSocialPostRequest = {
     revision: number;
 };
 
+export type QueueSocialPostRequest = {
+    revision: number;
+    socialConnectionId?: string;
+};
+
+export type SocialQueueSlots = {
+    timezone: string | null;
+    slots: Array<SocialQueueSlot>;
+};
+
+export type SocialQueueSlot = {
+    id: string;
+    name: string;
+    weekday: number;
+    minutesFromMidnight: number;
+    timezone: string;
+};
+
+export type ReplaceSocialQueueSlotsRequest = {
+    timezone: string;
+    slots: Array<SocialQueueSlotWrite>;
+};
+
+export type SocialQueueSlotWrite = {
+    name: string;
+    weekday: number;
+    minutesFromMidnight: number;
+};
+
 export type ApproveSocialPostRequest = {
     /**
      * Revision the client last observed; mismatches return 409
@@ -9671,6 +9814,10 @@ export type CancelProjectImageJobResponse = {
     accepted: boolean;
 };
 
+export type ProjectImageStudioCaption = {
+    text: string;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -9686,6 +9833,10 @@ export type PatchProjectRequest = {
      * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
      */
     identifier?: string;
+    /**
+     * Markdown guidance for drafting this Project's social posts. Null or blank clears it.
+     */
+    postingInstructionsMd?: string | null;
 };
 
 export type PublicNewsletter = {
@@ -10711,6 +10862,19 @@ export type CmoOverview = {
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
+            searchAd?: {
+                keywords: Array<string>;
+                headlines: Array<string>;
+                descriptions: Array<string>;
+                finalUrl: string;
+                location?: string;
+                language?: string;
+                callouts?: Array<string>;
+            };
+            adCampaign?: {
+                accountId: string;
+                campaignId: string;
+            };
             taskId?: string;
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
@@ -10741,6 +10905,10 @@ export type CmoOverview = {
      * Every version, newest first. At most one is approved; approving an older one reverts to it.
      */
     strategyVersions: Array<MarketingStrategyVersion>;
+    /**
+     * When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.
+     */
+    hiredAt: Date | null;
     updates: Array<CmoUpdate>;
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
@@ -10916,6 +11084,29 @@ export type CmoPieceText = {
 
 export type CmoMeasurementConnect = {
     redirectUrl: string;
+};
+
+export type CmoAdsConnect = {
+    redirectUrl: string;
+};
+
+export type CmoAdsFinalized = {
+    state: 'connected' | 'none' | 'choose';
+    adConnectionId?: string;
+    accounts?: Array<AvailableAdAccount>;
+};
+
+export type CmoAdCampaigns = {
+    accounts: Array<{
+        account: {
+            id: string;
+            name: string;
+            provider: string;
+            currency: string;
+        };
+        campaigns: Array<AdCampaign>;
+        failed: boolean;
+    }>;
 };
 
 export type SokoBotApiKey = {
@@ -12678,6 +12869,14 @@ export type DesignMdOwnerInfo = {
     logo: string | null;
 } | {
     type: 'user';
+};
+
+export type WorkspaceCalendarSourcesResponse = {
+    sources: Array<WorkspaceCalendarSource>;
+    /**
+     * Calendar features this viewer may show. Web offers only these in the Show filter.
+     */
+    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing'>;
 };
 
 export type WorkspaceCalendarSource = {
@@ -31990,7 +32189,7 @@ export type PostContactsData = {
             value: string;
             label?: string | null;
             isPrimary?: boolean;
-            source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+            source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
             sourceUrl?: string | null;
             verified?: boolean;
         }>;
@@ -33301,7 +33500,7 @@ export type PostContactsByIdChannelsData = {
         value: string;
         label?: string | null;
         isPrimary?: boolean;
-        source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER';
+        source?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
         sourceUrl?: string | null;
         verified?: boolean;
     };
@@ -33700,7 +33899,7 @@ export type GetContactsByIdInteractionsResponse = GetContactsByIdInteractionsRes
 export type PostContactsByIdInteractionsData = {
     body?: {
         occurredAt: Date;
-        channel: 'EMAIL' | 'MEETING' | 'SLACK' | 'CALL' | 'MANUAL' | 'OTHER';
+        channel: 'EMAIL' | 'MEETING' | 'SLACK' | 'CALL' | 'MANUAL' | 'OTHER' | 'X';
         direction?: 'IN' | 'OUT' | 'BOTH' | null;
         summary: string;
         sourceRef?: string | null;
@@ -34104,6 +34303,140 @@ export type PutContactsByIdImportanceResponses = {
 };
 
 export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
+
+export type PostContactsByIdEnrichData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/enrich';
+};
+
+export type PostContactsByIdEnrichErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a person, or not enough credits
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Web search is unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsByIdEnrichError = PostContactsByIdEnrichErrors[keyof PostContactsByIdEnrichErrors];
+
+export type PostContactsByIdEnrichResponses = {
+    /**
+     * Enriched
+     */
+    200: {
+        data: ContactWebEnrichment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsByIdEnrichResponse = PostContactsByIdEnrichResponses[keyof PostContactsByIdEnrichResponses];
 
 export type GetContactsByIdActivityData = {
     body?: never;
@@ -51031,6 +51364,110 @@ export type GetProjectsByIdContextMdResponses = {
 
 export type GetProjectsByIdContextMdResponse = GetProjectsByIdContextMdResponses[keyof GetProjectsByIdContextMdResponses];
 
+export type GetProjectsByIdPostingInstructionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/posting-instructions';
+};
+
+export type GetProjectsByIdPostingInstructionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdPostingInstructionsError = GetProjectsByIdPostingInstructionsErrors[keyof GetProjectsByIdPostingInstructionsErrors];
+
+export type GetProjectsByIdPostingInstructionsResponses = {
+    /**
+     * Project posting instructions
+     */
+    200: {
+        data: ProjectPostingInstructions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdPostingInstructionsResponse = GetProjectsByIdPostingInstructionsResponses[keyof GetProjectsByIdPostingInstructionsResponses];
+
 export type GetProjectBrandBrainData = {
     body?: never;
     headers?: {
@@ -52132,7 +52569,7 @@ export type GetProjectsByIdCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session.
+         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.
          */
         types?: string;
         /**
@@ -54405,7 +54842,7 @@ export type PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses = {
 export type PostProjectsByIdNewsletterIssuesByIssueIdCancelResponse = PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses[keyof PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses];
 
 export type PostProjectsByIdNewsletterIssuesPreviewData = {
-    body: CreateNewsletterIssueRequest;
+    body: PreviewNewsletterIssueRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -62166,6 +62603,454 @@ export type PostProjectsByIdSocialPostsByPostIdScheduleResponses = {
 
 export type PostProjectsByIdSocialPostsByPostIdScheduleResponse = PostProjectsByIdSocialPostsByPostIdScheduleResponses[keyof PostProjectsByIdSocialPostsByPostIdScheduleResponses];
 
+export type PostProjectsByIdSocialPostsByPostIdQueueData = {
+    body: QueueSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/queue';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdQueueErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdQueueError = PostProjectsByIdSocialPostsByPostIdQueueErrors[keyof PostProjectsByIdSocialPostsByPostIdQueueErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdQueueResponses = {
+    /**
+     * Social post queued
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdQueueResponse = PostProjectsByIdSocialPostsByPostIdQueueResponses[keyof PostProjectsByIdSocialPostsByPostIdQueueResponses];
+
+export type GetProjectsByIdSocialQueueSlotsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-queue-slots';
+};
+
+export type GetProjectsByIdSocialQueueSlotsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialQueueSlotsError = GetProjectsByIdSocialQueueSlotsErrors[keyof GetProjectsByIdSocialQueueSlotsErrors];
+
+export type GetProjectsByIdSocialQueueSlotsResponses = {
+    /**
+     * Project posting-queue slots
+     */
+    200: {
+        data: SocialQueueSlots;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialQueueSlotsResponse = GetProjectsByIdSocialQueueSlotsResponses[keyof GetProjectsByIdSocialQueueSlotsResponses];
+
+export type PutProjectsByIdSocialQueueSlotsData = {
+    body: ReplaceSocialQueueSlotsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-queue-slots';
+};
+
+export type PutProjectsByIdSocialQueueSlotsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdSocialQueueSlotsError = PutProjectsByIdSocialQueueSlotsErrors[keyof PutProjectsByIdSocialQueueSlotsErrors];
+
+export type PutProjectsByIdSocialQueueSlotsResponses = {
+    /**
+     * Project posting-queue slots
+     */
+    200: {
+        data: SocialQueueSlots;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdSocialQueueSlotsResponse = PutProjectsByIdSocialQueueSlotsResponses[keyof PutProjectsByIdSocialQueueSlotsResponses];
+
 export type PostProjectsByIdSocialPostsByPostIdApproveData = {
     body: ApproveSocialPostRequest;
     headers?: {
@@ -63696,6 +64581,103 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponse = GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdSocialMediaResponses];
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/caption';
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionError = PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors[keyof PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors];
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponses = {
+    /**
+     * Caption written
+     */
+    200: {
+        data: ProjectImageStudioCaption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponse = PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponses[keyof PostProjectsByIdImageStudioAssetsByAssetIdCaptionResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;
@@ -67722,6 +68704,81 @@ export type RetryCmoOnboardingResponses = {
 
 export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
 
+export type StartCmoOverData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/start-over';
+};
+
+export type StartCmoOverErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Only an organization owner or admin can
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartCmoOverError = StartCmoOverErrors[keyof StartCmoOverErrors];
+
+export type StartCmoOverResponses = {
+    /**
+     * Cuso is archived
+     */
+    200: {
+        data: {
+            startedOver: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartCmoOverResponse = StartCmoOverResponses[keyof StartCmoOverResponses];
+
 export type RequestCmoStrategyData = {
     body?: CmoStrategyRequest;
     path?: never;
@@ -68437,6 +69494,854 @@ export type FinalizeCmoMeasurementResponses = {
 };
 
 export type FinalizeCmoMeasurementResponse = FinalizeCmoMeasurementResponses[keyof FinalizeCmoMeasurementResponses];
+
+export type ConnectCmoAdsData = {
+    body?: {
+        returnUrl: string;
+    };
+    path: {
+        provider: 'google_ads' | 'meta_ads';
+    };
+    query?: never;
+    url: '/cmo/ads/{provider}/connect';
+};
+
+export type ConnectCmoAdsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConnectCmoAdsError = ConnectCmoAdsErrors[keyof ConnectCmoAdsErrors];
+
+export type ConnectCmoAdsResponses = {
+    /**
+     * Sign-in started
+     */
+    200: {
+        data: CmoAdsConnect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConnectCmoAdsResponse = ConnectCmoAdsResponses[keyof ConnectCmoAdsResponses];
+
+export type FinalizeCmoAdsData = {
+    body?: {
+        connectionId: string;
+        sessionUri: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/ads/finalize';
+};
+
+export type FinalizeCmoAdsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinalizeCmoAdsError = FinalizeCmoAdsErrors[keyof FinalizeCmoAdsErrors];
+
+export type FinalizeCmoAdsResponses = {
+    /**
+     * Connection finished
+     */
+    200: {
+        data: CmoAdsFinalized;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinalizeCmoAdsResponse = FinalizeCmoAdsResponses[keyof FinalizeCmoAdsResponses];
+
+export type ListCmoAdChoicesData = {
+    body?: never;
+    path: {
+        adConnectionId: string;
+    };
+    query?: never;
+    url: '/cmo/ads/connections/{adConnectionId}/choices';
+};
+
+export type ListCmoAdChoicesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCmoAdChoicesError = ListCmoAdChoicesErrors[keyof ListCmoAdChoicesErrors];
+
+export type ListCmoAdChoicesResponses = {
+    /**
+     * Ad accounts
+     */
+    200: {
+        data: {
+            accounts: Array<AvailableAdAccount>;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCmoAdChoicesResponse = ListCmoAdChoicesResponses[keyof ListCmoAdChoicesResponses];
+
+export type ChooseCmoAdAccountData = {
+    body?: {
+        adConnectionId: string;
+        externalAccountId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/ads/accounts';
+};
+
+export type ChooseCmoAdAccountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ChooseCmoAdAccountError = ChooseCmoAdAccountErrors[keyof ChooseCmoAdAccountErrors];
+
+export type ChooseCmoAdAccountResponses = {
+    /**
+     * Attached
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ChooseCmoAdAccountResponse = ChooseCmoAdAccountResponses[keyof ChooseCmoAdAccountResponses];
+
+export type ListCmoAdCampaignsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        range?: 'LAST_7_DAYS' | 'LAST_30_DAYS';
+    };
+    url: '/cmo/ads/campaigns';
+};
+
+export type ListCmoAdCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCmoAdCampaignsError = ListCmoAdCampaignsErrors[keyof ListCmoAdCampaignsErrors];
+
+export type ListCmoAdCampaignsResponses = {
+    /**
+     * Campaigns
+     */
+    200: {
+        data: CmoAdCampaigns;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCmoAdCampaignsResponse = ListCmoAdCampaignsResponses[keyof ListCmoAdCampaignsResponses];
+
+export type LaunchCmoSearchAdData = {
+    body?: {
+        entryId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/ads/launch';
+};
+
+export type LaunchCmoSearchAdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type LaunchCmoSearchAdError = LaunchCmoSearchAdErrors[keyof LaunchCmoSearchAdErrors];
+
+export type LaunchCmoSearchAdResponses = {
+    /**
+     * Launched
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type LaunchCmoSearchAdResponse = LaunchCmoSearchAdResponses[keyof LaunchCmoSearchAdResponses];
+
+export type SetCmoAdCampaignStatusData = {
+    body?: {
+        accountId: string;
+        campaignId: string;
+        status: 'ACTIVE' | 'PAUSED';
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/ads/campaigns/status';
+};
+
+export type SetCmoAdCampaignStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not an owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired, or the ad is unknown
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Refused: over the plan's ad budget, or not ready
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The ads provider failed
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Ads are not set up here
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoAdCampaignStatusError = SetCmoAdCampaignStatusErrors[keyof SetCmoAdCampaignStatusErrors];
+
+export type SetCmoAdCampaignStatusResponses = {
+    /**
+     * Changed
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoAdCampaignStatusResponse = SetCmoAdCampaignStatusResponses[keyof SetCmoAdCampaignStatusResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;
@@ -84679,7 +86584,7 @@ export type GetWorkspacesCalendarData = {
          */
         includeSocialPosts?: 'true' | 'false';
         /**
-         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session.
+         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.
          */
         types?: string;
         /**
@@ -84934,10 +86839,10 @@ export type GetWorkspacesCalendarSourcesError = GetWorkspacesCalendarSourcesErro
 
 export type GetWorkspacesCalendarSourcesResponses = {
     /**
-     * Workspace Calendar sources with scheduling availability
+     * Workspace Calendar sources with scheduling availability and feature list
      */
     200: {
-        data: Array<WorkspaceCalendarSource>;
+        data: WorkspaceCalendarSourcesResponse;
         meta: {
             timestamp: Date;
             requestId: string;

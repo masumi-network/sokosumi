@@ -61,6 +61,7 @@ vi.mock("@/lib/site-capture", () => ({
 
 import {
   captureCmoBrandMedia,
+  captureCmoHomepage,
   cmoBrandMedia,
   cmoCompetitorPages,
   cmoOwnPages,
@@ -231,6 +232,35 @@ describe("captureCmoBrandMedia", () => {
     db.fileProjectLink.findFirst.mockResolvedValue({ id: "link-1" });
     await captureCmoBrandMedia("bot-1");
     expect(files.put).not.toHaveBeenCalled();
+  });
+
+  it("does not count the homepage shots hiring took as a recent capture", async () => {
+    await captureCmoBrandMedia("bot-1");
+    expect(db.fileProjectLink.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          resource: expect.objectContaining({
+            NOT: [
+              { sourceId: { endsWith: "/Brand research/home.jpg" } },
+              { sourceId: { endsWith: "/Brand research/home-mobile.jpg" } },
+            ],
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("captures the homepage on a desktop and a phone at hire, without research", async () => {
+    await captureCmoHomepage({
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io/start",
+    });
+    expect(files.put.mock.calls.map(([pathname]) => pathname).sort()).toEqual([
+      `${ORG}/home-mobile.jpg`,
+      `${ORG}/home.jpg`,
+    ]);
   });
 });
 

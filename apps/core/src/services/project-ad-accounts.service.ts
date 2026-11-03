@@ -149,7 +149,12 @@ function requireAdAuthConfigId(provider: ProjectAdProvider): string {
 
 // OAuth intents live in ProjectSocialConnectionIntent, shared with social.
 export async function initiateProjectAdConnection(
-  input: ProjectScope & { userId: string; provider: ProjectAdProvider },
+  input: ProjectScope & {
+    userId: string;
+    provider: ProjectAdProvider;
+    /** A first-party app's own page (CMO); defaults to Web's popup callback. */
+    callbackUrl?: string;
+  },
 ): Promise<{ connectionId: string; redirectUrl: string }> {
   await requireScopedProject(input, { requireOpen: true });
   const authConfigId = requireAdAuthConfigId(input.provider);
@@ -157,7 +162,7 @@ export async function initiateProjectAdConnection(
     authConfigId,
     connectorUserId: projectConnectorUserId(input.userId),
     executorUserId: projectExecutorUserId(input.projectId),
-    callbackUrl: `${getWebAppBaseUrl()}/composio/callback`,
+    callbackUrl: input.callbackUrl ?? `${getWebAppBaseUrl()}/composio/callback`,
   });
   try {
     await serializableTransaction(async (tx) => {
@@ -361,6 +366,18 @@ export async function attachProjectAdAccounts(
     }
     return accounts;
   }, "Ad connection changed. Please retry.");
+}
+
+/** The ad accounts one of the Project's connections can reach, to choose from. */
+export async function listProjectAdConnectionChoices(
+  input: ProjectScope & { adConnectionId: string },
+): Promise<AvailableAdAccount[]> {
+  await requireScopedProject(input);
+  const connection = await prisma.projectAdConnection.findFirst({
+    where: { id: input.adConnectionId, projectId: input.projectId },
+  });
+  if (!connection) throw notFound("Ad connection not found");
+  return listAvailableAccounts(connection);
 }
 
 export async function listProjectAdAccounts(

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
@@ -9,7 +8,6 @@ import { ProjectScopeRequired } from "@/app/components/project-scope/project-sco
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
@@ -43,9 +41,6 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function AdsPage({ searchParams }: AdsPageProps) {
   await connection();
-  if (!(await hasCurrentUserSocialBetaAccess())) {
-    notFound();
-  }
 
   const query = await loadAdsSearchParams(searchParams);
   const t = await getTranslations("App.Ads");

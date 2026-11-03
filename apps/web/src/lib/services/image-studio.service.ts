@@ -98,4 +98,16 @@ export const imageStudioService = {
       );
     return result.data;
   },
+
+  async writeCaption(
+    projectId: string,
+    assetId: string,
+  ): Promise<{ text: string }> {
+    const result =
+      await coreClient.postProjectsByIdImageStudioAssetsByAssetIdCaption(
+        projectId,
+        assetId,
+      );
+    return result.data;
+  },
 };

@@ -1579,6 +1579,7 @@ describe("SokoBotControlPlane lifecycle", () => {
           AND: [{}, expect.objectContaining({ OR: expect.any(Array) })],
         }),
         include: expect.objectContaining({
+          createdByUser: { select: { id: true, name: true, email: true } },
           _count: {
             select: expect.objectContaining({
               // Auto-accepted actions leave rows behind; only PENDING waits.

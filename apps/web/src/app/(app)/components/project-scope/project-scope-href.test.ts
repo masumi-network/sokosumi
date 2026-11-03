@@ -142,6 +142,7 @@ describe("switchScopeHref", () => {
     for (const tab of [
       "/newsletter/issues",
       "/newsletter/subscribers",
+      "/newsletter/signup-form",
       "/newsletter/analytics",
       "/newsletter/settings",
     ]) {
@@ -194,5 +195,6 @@ describe("detailPageOf", () => {
     expect(detailPageOf("/projects/p1")).toBeNull();
     expect(detailPageOf("/newsletter/issues")).toBeNull();
     expect(detailPageOf("/newsletter/subscribers")).toBeNull();
+    expect(detailPageOf("/newsletter/signup-form")).toBeNull();
   });
 });

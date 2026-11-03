@@ -19,7 +19,9 @@ import {
   resolveUserContext,
 } from "@/middleware/auth";
 import {
+  CALENDAR_TYPES,
   type CalendarType,
+  isCalendarType,
   workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
@@ -169,9 +171,18 @@ export function parseWorkspaceCalendarQuery(
   query: z.infer<typeof workspaceCalendarQuerySchema>,
 ): WorkspaceCalendarReadQuery {
   const { from, to } = validateRange(query.from, query.to);
+  let types: CalendarType[] | undefined;
+  if (query.types) {
+    if (query.types.length === 0 || !query.types.every(isCalendarType)) {
+      throw badRequest(
+        `types must be a comma-separated list of ${CALENDAR_TYPES.join(", ")}`,
+      );
+    }
+    types = query.types;
+  }
   return {
     includeSocialPosts: query.includeSocialPosts === "true",
-    types: query.types,
+    types,
     timeZone: query.timeZone,
     agendaOnly: query.agendaOnly === "true",
     assigneeId: query.assigneeId,

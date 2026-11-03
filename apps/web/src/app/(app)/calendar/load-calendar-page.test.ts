@@ -7,15 +7,11 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
-const hasSocialBetaAccessMock = vi.fn();
 const isNewsletterEnabledMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 // Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
 vi.mock("temporal-polyfill", () => import("temporal-polyfill/implementation"));
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
-}));
 
 vi.mock("@/lib/newsletter-access.server", () => ({
   isNewsletterEnabled: () => isNewsletterEnabledMock(),
@@ -146,7 +142,6 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockRejectedValue(new Error("Beta lookup failed"));
     isNewsletterEnabledMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
@@ -203,7 +198,6 @@ describe("loadWorkspaceCalendarPage", () => {
       scope: "workspace",
     });
     expect(result).not.toHaveProperty("includeSocialPosts");
-    expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
   });
 
   it("drops Follow-ups from the Core query under a Project, as Core does", async () => {
@@ -533,15 +527,13 @@ describe("loadWorkspaceCalendarPage", () => {
       expect(result.initialDate).toBe("2026-03-01");
     });
 
-    it("includes the full Social horizon without beta membership", async () => {
-      hasSocialBetaAccessMock.mockResolvedValue(false);
+    it("includes the full Social horizon", async () => {
       const result = await loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({ date: "2027-03-15" }),
       });
 
       expect(result.latestDate).toBe("2027-02-01");
       expect(result.initialDate).toBe("2027-02-01");
-      expect(hasSocialBetaAccessMock).not.toHaveBeenCalled();
     });
 
     it("propagates a project horizon load failure", async () => {

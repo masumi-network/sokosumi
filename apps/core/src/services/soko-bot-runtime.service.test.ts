@@ -155,6 +155,9 @@ const {
   files: {
     taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
+    resourceFindFirst: vi.fn(),
+    del: vi.fn(),
+    tombstone: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -258,9 +261,9 @@ const social = vi.hoisted(() => ({
   cancel: vi.fn(),
   publish: vi.fn(),
   xTiers: vi.fn(),
-  beta: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
+  postingInstructions: vi.fn(),
 }));
 const ads = vi.hoisted(() => ({
   accounts: vi.fn(),
@@ -316,14 +319,12 @@ vi.mock("@/services/social-post-publisher.service", () => ({
 vi.mock("@/services/x-subscription-tier.service", () => ({
   resolveProjectXSubscriptionTypes: social.xTiers,
 }));
-vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: social.beta,
-}));
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
 }));
 
 vi.mock("@vercel/blob", () => ({
+  del: files.del,
   head: files.head,
   list: files.list,
   put: files.put,
@@ -372,6 +373,7 @@ vi.mock("@/services/file-backfill.service", () => ({
 vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: files.reserve,
   activateDriveUploadResource: files.activate,
+  tombstoneDriveUploadResource: files.tombstone,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
@@ -387,9 +389,13 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
-    fileResource: { findUnique: files.resourceFindUnique },
+    fileResource: {
+      findUnique: files.resourceFindUnique,
+      findFirst: files.resourceFindFirst,
+    },
     taskFile: { upsert: files.taskFileUpsert },
     projectImageAsset: { findFirst: images.assetFindFirst },
+    project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
@@ -4965,6 +4971,48 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(chatMessageFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("reads the owner's Directs on the owner's turns, never for a teammate", async () => {
+    chatRoomFindFirstMock.mockResolvedValueOnce({
+      id: "room_dm",
+      name: "Ada",
+      groupName: null,
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const owner = (await new SokoBotRuntimeService()["readChat"](
+      {
+        turn: SCOPE_TURN,
+        askedByKind: "OWNER",
+        reader: { sharedScope: null },
+      } as never,
+      { roomId: "room_dm" },
+    )) as { roomId: string };
+    expect(owner.roomId).toBe("room_dm");
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toEqual({
+      kind: "direct",
+      archivedAt: null,
+      OR: [{ organizationId: "org_1" }, { organizationId: null }],
+      userMembers: { some: { userId: SCOPE.userId } },
+      id: "room_dm",
+    });
+
+    chatRoomFindFirstMock.mockReset().mockResolvedValue(null);
+    await expect(
+      new SokoBotRuntimeService()["readChat"](
+        {
+          turn: SCOPE_TURN,
+          askedByKind: "TEAMMATE",
+          reader: { sharedScope: null },
+        } as never,
+        { roomId: "room_dm" },
+      ),
+    ).rejects.toThrow(/not a member/);
+    expect(chatRoomFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toMatchObject({
+      sokoBotMembers: { some: { sokoBotId: SCOPE.sokoBotId } },
+    });
+  });
+
   it("returns messages newest first and marks the bot's own", async () => {
     chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
     chatMessageFindManyMock.mockResolvedValue([
@@ -6403,6 +6451,7 @@ describe("Soko Bot project social tools", () => {
   };
   const capabilities = [
     "list_project_social_accounts",
+    "get_posting_instructions",
     "list_ad_accounts",
     "list_ad_campaigns",
     "find_ad_targeting",
@@ -6500,7 +6549,6 @@ describe("Soko Bot project social tools", () => {
     availabilityMock.mockResolvedValue({ disabled: false });
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
-    social.beta.mockRejectedValue(new Error("Beta access required"));
     social.seat.mockResolvedValue(undefined);
     social.project.mockResolvedValue({ workspace: { organization: null } });
     social.xTiers.mockResolvedValue(new Map());
@@ -6626,7 +6674,6 @@ describe("Soko Bot project social tools", () => {
           }),
         ],
       });
-      expect(social.beta).not.toHaveBeenCalled();
       expect(social.seat).toHaveBeenCalledWith(
         SCOPE.userId,
         "organization-one",
@@ -6634,6 +6681,41 @@ describe("Soko Bot project social tools", () => {
       );
     },
   );
+
+  it("reads the Project's posting instructions in the turn's workspace", async () => {
+    social.postingInstructions.mockResolvedValue({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_posting_instructions",
+      toolCallId: "instructions",
+      input: { projectId },
+    });
+
+    expect(social.postingInstructions).toHaveBeenCalledWith({
+      where: { id: projectId, workspaceId: SCOPE.workspaceId },
+      select: { postingInstructionsMd: true },
+    });
+    expect(result).toEqual({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+    expect(social.owner).toHaveBeenCalled();
+  });
+
+  it("refuses posting instructions for a Project outside the workspace", async () => {
+    social.postingInstructions.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_posting_instructions",
+        toolCallId: "instructions-missing",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("That Project is not one your owner can open.");
+  });
 
   it("states each account's text limit from its current X tier", async () => {
     const account = {
@@ -7070,7 +7152,6 @@ describe("Soko Bot project social tools", () => {
 
     beforeEach(() => {
       for (const mock of Object.values(ads)) mock.mockReset();
-      social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([
         adAccount,
         { ...adAccount, id: metaAccountId, provider: "meta_ads" },
@@ -7107,7 +7188,6 @@ describe("Soko Bot project social tools", () => {
         projectId,
         workspaceId: SCOPE.workspaceId,
       });
-      expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
       expect(result).toEqual({
         accounts: [
           {
@@ -7238,22 +7318,8 @@ describe("Soko Bot project social tools", () => {
           }),
         ).rejects.toThrow("only available when a person asks in chat");
         expect(ads.accounts).not.toHaveBeenCalled();
-        expect(social.beta).not.toHaveBeenCalled();
       },
     );
-
-    it("refuses ad reads without the ads beta", async () => {
-      social.beta.mockRejectedValue(new Error("Ads is beta only"));
-      await expect(
-        new SokoBotRuntimeService().executeTool({
-          ...SCOPE,
-          capability: "find_ad_targeting",
-          toolCallId: "ads-no-beta",
-          input: { projectId, accountId: adAccountId },
-        }),
-      ).rejects.toThrow("Ads is beta only");
-      expect(ads.languages).not.toHaveBeenCalled();
-    });
 
     it("hands the model a service 404 as a readable refusal", async () => {
       const { HTTPException } = await import("hono/http-exception");
@@ -7314,10 +7380,6 @@ describe("Soko Bot project social tools", () => {
         const scope = { projectId, workspaceId: SCOPE.workspaceId };
         expect(ads.marketProfile).toHaveBeenCalledWith(scope);
         expect(ads.marketKeywords).toHaveBeenCalledWith(scope);
-        expect(social.beta).toHaveBeenCalledWith(
-          SCOPE.userId,
-          expect.anything(),
-        );
         expect(result).toEqual({
           market: {
             countryCode: "DE",
@@ -7515,7 +7577,6 @@ describe("Soko Bot project social tools", () => {
 
     beforeEach(() => {
       for (const mock of Object.values(ads)) mock.mockReset();
-      social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([]);
     });
 
@@ -7559,7 +7620,6 @@ describe("Soko Bot project social tools", () => {
         await expect(call).rejects.toThrow("works only in its own Project");
         for (const mock of Object.values(ads))
           expect(mock).not.toHaveBeenCalled();
-        expect(social.beta).not.toHaveBeenCalled();
       },
     );
 
@@ -7665,7 +7725,6 @@ describe("Soko Bot project social tools", () => {
       files.put.mockImplementation(async (pathname: string) => ({
         url: `https://x.public.blob.vercel-storage.com/${pathname}`,
       }));
-      social.beta.mockResolvedValue(undefined);
       ads.accounts.mockResolvedValue([
         account,
         { ...account, id: metaAccountId, provider: "meta_ads" },
@@ -7938,8 +7997,8 @@ describe("Soko Bot project social tools", () => {
         disposition: "APPLIED",
         result: { campaignId: "23850000000000000", status: "PAUSED" },
       });
-      social.beta.mockRejectedValue(new Error("Ads is beta only"));
-      await expect(run(search)).rejects.toThrow("Ads is beta only");
+      social.seat.mockRejectedValue(new Error("Seat required"));
+      await expect(run(search)).rejects.toThrow("Seat required");
       expect(ads.create).not.toHaveBeenCalled();
     });
 
@@ -8137,9 +8196,9 @@ describe("Soko Bot project social tools", () => {
             disposition: "APPLIED",
             result: { campaignId, deleted: true },
           });
-          social.beta.mockRejectedValue(new Error("Ads is beta only"));
+          social.seat.mockRejectedValue(new Error("Seat required"));
           await expect(runTool("delete_ad_campaign", {})).rejects.toThrow(
-            "Ads is beta only",
+            "Seat required",
           );
           expect(ads.delete).not.toHaveBeenCalled();
         });
@@ -8259,10 +8318,10 @@ describe("Soko Bot project social tools", () => {
             disposition: "APPLIED",
             result: { campaignId, edited: true },
           });
-          social.beta.mockRejectedValue(new Error("Ads is beta only"));
+          social.seat.mockRejectedValue(new Error("Seat required"));
           await expect(
             runTool("edit_ad_campaign", { ...edit, google: search }),
-          ).rejects.toThrow("Ads is beta only");
+          ).rejects.toThrow("Seat required");
           expect(ads.edit).not.toHaveBeenCalled();
         });
       });
@@ -8387,7 +8446,6 @@ describe("Soko Bot project social tools", () => {
         }),
       }),
     );
-    expect(social.beta).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -8484,7 +8542,6 @@ describe("Soko Bot project social tools", () => {
           data: expect.objectContaining({ status: "FAILED" }),
         }),
       );
-      expect(social.beta).not.toHaveBeenCalled();
     },
   );
 
@@ -8808,6 +8865,67 @@ describe("Drive file tools", () => {
     expect(files.loadLive).toHaveBeenCalledWith(
       expect.objectContaining({ actor }),
     );
+  });
+
+  describe("delete_file", () => {
+    const asked = {
+      ...authorized,
+      turn: { ...authorized.turn, source: "CHAT", chainDepth: 0 },
+      askedByKind: "USER",
+    };
+    beforeEach(() => {
+      getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+      files.resourceFindFirst.mockResolvedValue({
+        id: "file-1",
+        sourceId: "drive/u/meta.pdf",
+        displayName: "meta.pdf",
+      });
+    });
+
+    it("deletes the file for good when the owner asks in their chat", async () => {
+      const commit = vi
+        .spyOn(
+          service as unknown as {
+            commitReceipt: (...args: unknown[]) => unknown;
+          },
+          "commitReceipt",
+        )
+        .mockImplementation((...args) => args[3]);
+      await expect(
+        service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
+      ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
+      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+        token: "token",
+      });
+      expect(files.tombstone).toHaveBeenCalledWith({
+        workspaceId: "personal-workspace",
+        scope: "user",
+        pathname: "drive/u/meta.pdf",
+      });
+      commit.mockRestore();
+    });
+
+    it.each([
+      [
+        "a mail or scheduled turn",
+        { turn: { ...asked.turn, source: "EVENT" } },
+      ],
+      ["a chained turn", { turn: { ...asked.turn, chainDepth: 1 } }],
+      ["another assistant asking", { askedByKind: "ASSISTANT" }],
+      [
+        "a shared bot",
+        { reader: { ...asked.reader, sharedScope: { projectId: "p" } } },
+      ],
+    ])("refuses from %s", async (_, override) => {
+      await expect(
+        service["deleteFile"](
+          { ...asked, ...override } as never,
+          { fileId: "file-1" },
+          "call-1",
+        ),
+      ).rejects.toThrow("only when your owner asks");
+      expect(files.del).not.toHaveBeenCalled();
+    });
   });
 
   it("reads a file's extracted text, and explains when there is none", async () => {
@@ -9903,6 +10021,7 @@ describe("find_agents", () => {
     } as never);
 
   beforeEach(() => {
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     marketplace.list.mockResolvedValue({
       count: 2,
       agents: [listing("a", "Company Researcher"), listing("b", "SEO Auditor")],

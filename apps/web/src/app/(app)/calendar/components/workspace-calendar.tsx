@@ -1044,7 +1044,18 @@ export function WorkspaceCalendar({
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
-  const [state, setState] = useQueryStates(calendarParsers);
+  const [queryState, setState] = useQueryStates(calendarParsers);
+  // Social's own page locks `types` to Social posts. Task filters in the URL
+  // would empty that grid and leak into later calendar pages, so hide them.
+  const state =
+    types != null && isSocialOnly(types)
+      ? {
+          ...queryState,
+          assigneeId: null,
+          assigneeUserId: null,
+          status: null,
+        }
+      : queryState;
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
@@ -1187,6 +1198,10 @@ export function WorkspaceCalendar({
   }, [isMobile, state.view, setState, socialOnly]);
 
   function isVisible(item: WorkspaceCalendarEntry, anyPostStatus = false) {
+    // Only Social posts survive a Social-only Show / embed lock. Grid views
+    // drain every page in range before they paint, so filtering here matches
+    // what a Social-only Core request would have returned.
+    if (socialOnly && item.kind !== "socialPost") return false;
     if (item.kind === "socialPost")
       return (
         (view !== "agenda" ||

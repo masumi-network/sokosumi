@@ -1,6 +1,8 @@
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  archiveBot,
+  cancelSocialPost,
   chatRoomDelete,
   createBot,
   createOrganizationWorkspace,
@@ -10,6 +12,7 @@ import {
   funding,
   getUserWorkspace,
   organizationFindFirst,
+  postFindMany,
   projectCreate,
   projectDelete,
   resetCmoServiceMocks,
@@ -82,6 +85,7 @@ import {
   describeCmoStep,
   retryCmoOnboarding,
   startCmoOnboarding,
+  startCmoOver,
 } from "./cmo-hiring.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -157,6 +161,34 @@ describe("learning state", () => {
       "out of credits",
     );
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("starting over", () => {
+  it("archives the Cuso and cancels his unsent posts", async () => {
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
+    postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
+    cancelSocialPost.mockResolvedValue({});
+    await startCmoOver("user-1");
+    expect(archiveBot).toHaveBeenCalledWith("user-1", "ws-1", {
+      kind: "id",
+      sokoBotId: "bot-1",
+    });
+    expect(postFindMany.mock.calls[0]?.[0].where.status.in).toEqual([
+      "DRAFT",
+      "NEEDS_APPROVAL",
+      "SCHEDULED",
+    ]);
+    expect(cancelSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "post-1", revision: 3 }),
+    );
+  });
+
+  it("leaves posts alone when the person may not archive him", async () => {
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
+    archiveBot.mockRejectedValueOnce(new Error("Only an organization owner"));
+    await expect(startCmoOver("user-1")).rejects.toThrow("owner");
+    expect(cancelSocialPost).not.toHaveBeenCalled();
   });
 });
 

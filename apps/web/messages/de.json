@@ -2445,6 +2445,14 @@
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
+      "PostingInstructions": {
+        "title": "Posting-Anweisungen",
+        "description": "Sag Soko Bot, Coworkern und Agents, wie die Social-Posts dieses Projekts geschrieben werden: Tonalität, Hashtags, Calls to Action und Regeln pro Plattform. Das gilt nur für Social-Entwürfe und ist getrennt vom Projektgedächtnis und von DESIGN.md.",
+        "placeholder": "# Posting-Anweisungen\nTonalität: …\nImmer / nie: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Anweisungen speichern",
+        "saved": "Posting-Anweisungen gespeichert",
+        "saveFailed": "Posting-Anweisungen konnten nicht gespeichert werden. Versuch es erneut."
+      },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
         "account": "{provider}-Konto",
@@ -2663,6 +2671,7 @@
           "rescheduleFor": "Neu planen für {date}",
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
+          "reconnectAccount": "Verbinde das Konto erneut, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "dismiss": "Abbrechen",
           "discardTitle": "Änderungen verwerfen?",
           "discardDescription": "Deine Änderungen gehen verloren.",
@@ -2670,7 +2679,9 @@
           "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
-          "tooLong": "Die Textlänge überschreitet das Limit."
+          "tooLong": "Die Textlänge überschreitet das Limit.",
+          "addToQueue": "Zur Warteschlange",
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2701,6 +2712,7 @@
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
           "duplicated": "Entwurf erstellt.",
+          "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}",
           "approved": "Beitrag genehmigt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
@@ -2969,6 +2981,33 @@
           "later": "Später"
         },
         "moreActions": "Beitragsaktionen",
+        "queue": {
+          "title": "Beitragswarteschlange",
+          "hint": "Benannte wöchentliche Zeiten. „Zur Warteschlange“ nimmt die nächste freie.",
+          "empty": "Noch keine Warteschlangenzeiten.",
+          "emptyHint": "Füge eine wöchentliche Zeit hinzu. Danach kannst du Beiträge in die Warteschlange legen.",
+          "add": "Zeit hinzufügen",
+          "save": "Warteschlange speichern",
+          "name": "Name",
+          "weekday": "Tag",
+          "time": "Uhrzeit",
+          "timezone": "Zeitzone",
+          "remove": "{name} entfernen",
+          "toasts": {
+            "saved": "Warteschlange gespeichert.",
+            "empty": "Warteschlange geleert.",
+            "failed": "Warteschlangenzeiten konnten nicht gespeichert werden. Versuche es erneut."
+          },
+          "weekdays": {
+            "0": "Sonntag",
+            "1": "Montag",
+            "2": "Dienstag",
+            "3": "Mittwoch",
+            "4": "Donnerstag",
+            "5": "Freitag",
+            "6": "Samstag"
+          }
+        },
         "thread": {
           "add": "Zum Thread hinzufügen",
           "limit": "Threads können bis zu {max} Teile enthalten.",
@@ -3191,7 +3230,6 @@
         "brand": "Erscheinungsbild",
         "welcome": "Begrüßungs-E-Mail",
         "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
-        "colorHint": "Verwende eine Hex-Farbe wie #1a2b3c oder lass das Feld leer.",
         "save": "Einstellungen speichern",
         "success": "Newsletter-Einstellungen gespeichert",
         "error": "Die Newsletter-Einstellungen konnten nicht gespeichert werden. Versuche es erneut.",
@@ -3208,13 +3246,21 @@
           "footerText": "Fußzeilentext",
           "welcomeEmailEnabled": "Begrüßungs-E-Mail senden",
           "welcomeSubject": "Betreff der Begrüßungs-E-Mail",
-          "welcomeBody": "Text der Begrüßungs-E-Mail"
+          "welcomeBody": "Text der Begrüßungs-E-Mail",
+          "headerImageUrl": "Kopfbild",
+          "backgroundColor": "Hintergrundfarbe",
+          "buttonTextColor": "Button-Textfarbe",
+          "buttonShape": "Button-Form",
+          "headerAlign": "Ausrichtung des Kopfbereichs",
+          "spacing": "Abstände"
         },
         "fonts": {
           "arial": "Arial",
           "georgia": "Georgia",
           "verdana": "Verdana",
-          "timesNewRoman": "Times New Roman"
+          "timesNewRoman": "Times New Roman",
+          "helvetica": "Helvetica",
+          "trebuchet": "Trebuchet MS"
         },
         "Validation": {
           "required": "Gib einen Wert ein.",
@@ -3433,7 +3479,11 @@
             "text": "Text",
             "image": "Bild",
             "button": "Schaltfläche",
-            "divider": "Trennlinie"
+            "divider": "Trennlinie",
+            "columns": "Spalten",
+            "spacer": "Abstand",
+            "social": "Social-Links",
+            "footer": "Fußzeile"
           },
           "Validation": {
             "subject": "Gib einen Betreff mit 1 bis 200 Zeichen ein.",
@@ -3534,7 +3584,6 @@
             "senderSettings": "Absendereinstellungen prüfen",
             "audience": "Aktuelle Zielgruppe",
             "audienceCount": "{count, plural, one {# aktiver Abonnent} other {# aktive Abonnenten}}",
-            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
             "manageSubscribers": "Abonnenten verwalten",
             "approval": "Freigabe",
             "approved": "Freigegeben",
@@ -3555,29 +3604,105 @@
             "sending": "Der Versand läuft. Die Aufwärmphase der Domain kann den Versand zeitlich verteilen. Schau später nach dem Ergebnis."
           },
           "details": "Details der Ausgabe",
+          "sendPanel": "Versand",
+          "SendPanel": {
+            "checklist": "Checkliste",
+            "views": "Ansichten im Sendebereich"
+          },
           "saving": "Ausgabe wird gespeichert…",
           "undo": "Entfernen rückgängig machen",
           "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
-          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen."
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen.",
+          "duplicateBlock": "Block {number} duplizieren",
+          "footerText": "Abschlusstext",
+          "Image": {
+            "width": "Breite",
+            "widths": {
+              "100": "Volle Breite",
+              "75": "Drei Viertel",
+              "50": "Halb",
+              "25": "Viertel"
+            },
+            "align": "Ausrichtung",
+            "aligns": {
+              "left": "Links",
+              "center": "Zentriert",
+              "right": "Rechts"
+            }
+          },
+          "Columns": {
+            "column": "Spalte {number}",
+            "remove": "Spalte {number} entfernen",
+            "add": "Spalte hinzufügen"
+          },
+          "Spacer": {
+            "size": "Höhe",
+            "sizes": {
+              "sm": "Klein",
+              "md": "Mittel",
+              "lg": "Groß"
+            }
+          },
+          "Social": {
+            "network": "Netzwerk {number}",
+            "url": "URL von Link {number}",
+            "remove": "Link {number} entfernen",
+            "add": "Link hinzufügen",
+            "networks": {
+              "website": "Website",
+              "x": "X",
+              "linkedin": "LinkedIn",
+              "instagram": "Instagram",
+              "facebook": "Facebook",
+              "youtube": "YouTube",
+              "tiktok": "TikTok"
+            }
+          },
+          "Studio": {
+            "label": "Studio",
+            "content": "Inhalt",
+            "design": "Design",
+            "designUnsaved": "Ungespeicherte Designänderungen",
+            "saveDesignFirst": "Speichere oder verwirf die Designänderungen vor dem Versenden."
+          }
         },
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
           "title": "Anmeldeformular",
+          "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
           "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "previewTitle": "Vorschau des Anmeldeformulars",
+          "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
           "hostedPage": "Gehostete Anmeldeseite",
           "open": "Anmeldeseite öffnen",
           "embedCode": "Einbettungscode",
-          "embedTitle": "Newsletter-Anmeldung"
+          "embedTitle": "Newsletter-Anmeldung",
+          "sharedDesign": "Gemeinsames Newsletter-Design",
+          "sharedDescription": "Wird für Newsletter-Ausgaben, die Anmeldeseite und eingebettete Formulare verwendet. Die Anpassungen unten bleiben erhalten.",
+          "customize": "Anmeldeformular anpassen",
+          "customizeDescription": "Optional. Verwende das gemeinsame Design für ein einheitliches Erscheinungsbild. Anpassungen gelten nur für die Anmeldeseite und das eingebettete Formular.",
+          "useShared": "Gemeinsames Design verwenden",
+          "resetOverrides": "Auf gemeinsames Design zurücksetzen",
+          "accentColor": "Buttonfarbe",
+          "buttonTextColor": "Textfarbe des Buttons",
+          "clear": {
+            "accentColor": "Gemeinsame Buttonfarbe verwenden",
+            "buttonTextColor": "Gemeinsame Button-Textfarbe verwenden"
+          },
+          "previewMode": "Vorschauformat",
+          "previewNote": "Nur eine Vorschau. Anmeldungen sind deaktiviert."
         },
         "Analytics": {
           "title": "Statistiken",
           "description": "Verfolge Abonnentenwachstum und Interaktionen mit deinem Newsletter.",
           "keyMetrics": "Newsletter-Kennzahlen",
-          "from": "Von",
-          "to": "Bis",
+          "rangeLabel": "Zeitraum",
+          "rangeSelected": "Zeitraum: {range}",
           "lastDays": "Letzte {days} Tage",
-          "resetRange": "Zeitraum zurücksetzen",
-          "invalidRange": "Wähle gültige Daten für 1 bis 366 Tage, mit dem Beginn vor dem Ende, oder setze den Zeitraum zurück.",
+          "presetDays": "{days} Tage",
+          "clearRange": "Zeitraum löschen",
+          "periodNoteAria": "Informationen zu Statistikzeiträumen",
+          "invalidRange": "Wähle einen gültigen Zeitraum von 1 bis 366 Tagen oder lösche den Zeitraum.",
           "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
           "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
           "opensNote": "Öffnungen können zu niedrig erfasst werden, da manche E-Mail-Apps Bilder blockieren.",
@@ -3618,14 +3743,16 @@
           }
         },
         "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
-        "brandDescription": "Logo, Farben und Schrift deiner Ausgaben.",
+        "brandDescription": "Logo, Farben, Schrift und Layout für Newsletter-Ausgaben und Anmeldeformulare.",
         "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
         "unsavedChanges": "Du hast ungespeicherte Änderungen.",
         "colorPlaceholder": "Keine Farbe",
         "presetColors": "Vorgegebene Farben",
         "clearColor": {
           "primaryColor": "Primärfarbe entfernen",
-          "accentColor": "Akzentfarbe entfernen"
+          "accentColor": "Akzentfarbe entfernen",
+          "backgroundColor": "Hintergrundfarbe entfernen",
+          "buttonTextColor": "Button-Textfarbe entfernen"
         },
         "Logo": {
           "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
@@ -3752,6 +3879,48 @@
             "resume": "Versand fortsetzen",
             "resumed": "Versand fortgesetzt. Empfänger in der Warteschlange werden innerhalb des Tageslimits angeschrieben."
           }
+        },
+        "colorHints": {
+          "primaryColor": "Überschriften und Text. Leer lassen für den Standard.",
+          "accentColor": "Button-Füllung. Leer lassen für den Standard.",
+          "backgroundColor": "Hinter der E-Mail-Karte. Leer lassen für Hellgrau.",
+          "buttonTextColor": "Button-Beschriftung. Sie muss auf der Akzentfarbe gut lesbar sein."
+        },
+        "Image": {
+          "upload": "Bild hochladen",
+          "replace": "Bild ersetzen",
+          "remove": "Bild entfernen",
+          "previewAlt": "Bildvorschau",
+          "uploadError": "Das Bild konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Verwende ein PNG-, JPEG-, WebP- oder GIF-Bild",
+          "maxFilesExceeded": "Lade jeweils nur ein Bild hoch",
+          "headerDescription": "Ein Banner über deinem Logo, bis zu {maxSize}. Breite Bilder wirken am besten."
+        },
+        "Design": {
+          "title": "Newsletter-Design",
+          "description": "Gilt für alle noch nicht versendeten Ausgaben und für Anmeldeformulare. Die Vorschau wird bei Änderungen aktualisiert.",
+          "header": "Kopfbereich",
+          "colors": "Farben",
+          "layout": "Schrift und Layout",
+          "footer": "Fußzeile",
+          "save": "Design speichern",
+          "reset": "Änderungen verwerfen",
+          "saved": "Design gespeichert",
+          "headerAlign": {
+            "left": "Links",
+            "center": "Zentriert"
+          },
+          "spacing": {
+            "compact": "Kompakt",
+            "normal": "Normal",
+            "roomy": "Großzügig"
+          },
+          "buttonShape": {
+            "square": "Eckig",
+            "rounded": "Abgerundet",
+            "pill": "Pille"
+          }
         }
       }
     },
@@ -3766,6 +3935,14 @@
       "regenerate": "Neue Variante",
       "schedule": "Dieses Bild planen",
       "scheduleFailed": "Dieses Bild konnte nicht angehängt werden",
+      "writeCaption": "Bildunterschrift schreiben",
+      "writeCaptionFailed": "Bildunterschrift konnte nicht geschrieben werden",
+      "writingCaption": "Bildunterschrift wird geschrieben…",
+      "captionLabel": "Bildunterschrift",
+      "captionSuggestionLabel": "Neue Bildunterschrift",
+      "useCaption": "Neue Bildunterschrift verwenden",
+      "keepCaption": "Aktuelle Bildunterschrift behalten",
+      "undoCaption": "Änderung rückgängig machen",
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
@@ -3839,7 +4016,6 @@
       "moreOptions": "Optionen",
       "modelCount": "{count, plural, one {# Modell} other {# Modelle}}",
       "copyCount": "{count, plural, one {# Kopie} other {# Kopien}}",
-      "pickTitle": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
@@ -9569,7 +9745,7 @@
         "dayEmpty": "An diesem Tag ist nichts geplant.",
         "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
         "statusFilter": "Beiträge nach Status anzeigen",
-        "postCount": "{count, plural, =0 {Keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "postCount": "{count, plural, =0 {Keine Beiträge in diesem Zeitraum} one {# Beitrag} other {# Beiträge}}",
         "dayAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
         "reschedule": "Neu planen",
         "rescheduleNamed": "Beitrag um {time} neu planen: {text}"
@@ -9761,6 +9937,7 @@
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
+      "selectProject": "Projekt auswählen",
       "pinned": "Angepinnt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",
@@ -9812,7 +9989,8 @@
         "SLACK": "Aus Slack",
         "WEB_RESEARCH": "Aus Webrecherche",
         "IMPORT": "Importiert",
-        "OTHER": "Andere Quelle"
+        "OTHER": "Andere Quelle",
+        "X": "Von X"
       },
       "presets": {
         "all": "Alle Kontakte",
@@ -10031,13 +10209,17 @@
       },
       "empty": {
         "title": "Hier leben die Kontakte deines Teams",
-        "description": "Menschen kommen automatisch aus den E-Mails, Kalendern und Slack-Konten dazu, mit denen eure Soko Bots verbunden sind, samt der Info, wer im Team sie kennt. Keine Newsletter, keine automatischen Absender.",
+        "description": "Kontakte werden über deinen Soko Bot synchronisiert: Er fügt die Personen aus den mit ihm verbundenen Mails, Kalendern und Slack hinzu, samt wer im Team sie kennt. Keine Newsletter oder automatischen Absender.",
         "connect": "{name} verbinden",
         "connected": "{name} verbunden",
         "connectFailed": "Die Verbindung wurde nicht gestartet. Versuch es noch einmal.",
         "manageConnections": "Verbindungen verwalten",
         "addByHand": "Jemanden hinzufügen",
-        "import": "Aus einer Tabelle importieren"
+        "import": "Aus einer Tabelle importieren",
+        "needsBot": "Kontakte werden über einen Soko Bot synchronisiert. Richte deinen ein und verbinde Mail und Kalender, dann fügt er die Personen hinzu, mit denen du zu tun hast, samt wer im Team sie kennt.",
+        "needsConnections": "Dein Soko Bot fügt die Personen hinzu, mit denen du zu tun hast, sobald Mail und Kalender mit ihm verbunden sind. Keine Newsletter oder automatischen Absender.",
+        "syncing": "{bot} liest deine verbundenen Mails und Kalender. Die ersten Kontakte erscheinen in etwa 15 Minuten.",
+        "setUpBot": "Soko Bot einrichten"
       },
       "panel": {
         "loading": "Kontakt wird geladen",
@@ -10078,7 +10260,7 @@
         "channelSource": "{type}, {source}",
         "verified": "bestätigt",
         "primary": "Hauptkanal",
-        "openSource": "Fundstelle öffnen",
+        "openSource": "Quelle öffnen",
         "copyChannel": "{value} kopieren",
         "removeChannel": "{value} entfernen",
         "noChannels": "Noch kein Weg, die Person zu erreichen.",
@@ -10095,7 +10277,8 @@
           "SLACK": "Slack",
           "CALL": "Anruf",
           "MANUAL": "Notiz",
-          "OTHER": "Sonstiges"
+          "OTHER": "Sonstiges",
+          "X": "X"
         },
         "source": "Quelle",
         "showMore": "Mehr anzeigen",
@@ -10107,7 +10290,8 @@
           "CHANNEL_REMOVED": "{who} hat einen Kanal entfernt",
           "MERGED": "{who} hat {names} in diesen Kontakt zusammengeführt",
           "ARCHIVED": "{who} hat diesen Kontakt archiviert",
-          "UNARCHIVED": "{who} hat diesen Kontakt wiederhergestellt"
+          "UNARCHIVED": "{who} hat diesen Kontakt wiederhergestellt",
+          "WEB": "{who} hat {fields} aus dem Web ergänzt"
         },
         "fields": {
           "name": "Name",
@@ -10122,14 +10306,21 @@
           "followUpAt": "Follow-up",
           "avatarUrl": "Foto",
           "customFields": "eigene Felder",
-          "kind": "Art"
+          "kind": "Art",
+          "linkedin": "LinkedIn"
         },
         "markOrganization": "Als Organisation markieren",
         "markPerson": "Als Person markieren",
         "waitingSince": "Seit {date} noch keine Antwort",
         "heardFrom": "Zuletzt von ihnen gehört: {when}",
         "automatic": "Automatisch",
-        "classifier": "Automatische Einordnung"
+        "classifier": "Automatische Einordnung",
+        "enrich": "Anreichern",
+        "enrichHint": "Im Web nachschlagen und leere Felder füllen · 1 Credit",
+        "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
+        "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
+        "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
+        "connectedVia": "Verbunden über"
       },
       "stageGroups": {
         "general": "Allgemein",
@@ -10189,13 +10380,16 @@
         "briefPlaceholder": "z. B. Partner bei Seed-Fonds, die in KI-Agenten investieren, Europa oder USA",
         "briefRequired": "Beschreibe, wen du suchst.",
         "sizeLabel": "Wie viele",
-        "sizeOption": "{count} Personen",
-        "submit": "{count} Personen finden · {credits} Credits",
+        "sizeOption": "{count, plural, one {# Person} other {# Personen}}",
+        "submit": "{count, plural, one {# Person} other {# Personen}} finden · bis zu {credits, number} Credits",
         "searching": "Suche im Web…",
         "found": "{count, plural, one {# Person} other {# Personen}} gefunden",
-        "foundNone": "Keine neuen Personen gefunden. Beschreibe sie anders.",
+        "foundNone": "Niemand Neues gefunden. Beschreibe sie anders. Es wurden keine Credits verbraucht.",
         "findFailed": "Die Suche hat nicht geklappt. Versuch es noch einmal.",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
+        "personLabel": "Wen suchst du?",
+        "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
       }
     }
   },

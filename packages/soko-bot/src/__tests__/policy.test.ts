@@ -226,6 +226,7 @@ describe("Soko Bot route capability ceilings", () => {
       "get_newsletter_analytics",
       "list_newsletter_subscribers",
       "preview_newsletter_issue",
+      "preview_newsletter_signup_form",
     ]);
     for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
       for (const read of reads)

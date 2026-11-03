@@ -165,9 +165,10 @@ describe("completeComposioCallback", () => {
   );
 
   it.each(Object.keys(PROJECT_AD_PROVIDERS) as ProjectAdProvider[])(
-    "redeems the pinned %s ads callback",
+    "redeems the pinned %s ads callback for anyone, beta or not",
     async (provider) => {
       const { toolkitSlug } = PROJECT_AD_PROVIDERS[provider];
+      memberFindFirstMock.mockResolvedValue(null);
       socialConnectionIntentFindUniqueMock.mockResolvedValue({
         initiatingUserId: "user_123",
         provider,
@@ -204,46 +205,6 @@ describe("completeComposioCallback", () => {
         where: expect.objectContaining({ provider }),
         data: { callbackRedeemedAt: expect.any(Date) },
       });
-    },
-  );
-
-  it.each(Object.keys(PROJECT_AD_PROVIDERS) as ProjectAdProvider[])(
-    "keeps %s ads callback redemption restricted to utxo members",
-    async (provider) => {
-      memberFindFirstMock.mockResolvedValue(null);
-      socialConnectionIntentFindUniqueMock.mockResolvedValue({
-        initiatingUserId: "user_123",
-        provider,
-        authConfigId: `ac_${provider}`,
-        callbackRedeemedAt: null,
-        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
-        project: {
-          closingAt: null,
-          closedAt: null,
-          workspace: { organization: null },
-        },
-      });
-      const { completeComposioCallback } = await import(
-        "./composio-callback-completion.service"
-      );
-
-      await expect(
-        completeComposioCallback({
-          connectionId: "ca_123",
-          sessionUri: "single-use",
-          userId: "user_123",
-        }),
-      ).rejects.toMatchObject({
-        status: 403,
-        message: "Ads is only available to utxo AG workspace members",
-      });
-      expect(memberFindFirstMock).toHaveBeenCalledWith({
-        where: { userId: "user_123", organization: { slug: "utxo" } },
-        select: { id: true },
-      });
-      expect(completeComposioAuthMock).not.toHaveBeenCalled();
-      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
-      expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
     },
   );
 

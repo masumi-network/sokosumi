@@ -46,6 +46,8 @@ export interface TransactionHistoryRow {
   contactListId: string | null;
   contactListName: string | null;
   contactFound: number | null;
+  /** The contact an Enrich looked up; null for a list's Find people. */
+  contactName: string | null;
   bucketSource: string | null;
   topUpSource: string | null;
   topUpNote: string | null;
@@ -198,6 +200,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       cps."listId"::TEXT AS "contactListId",
       cl."name" AS "contactListName",
       cps."found" AS "contactFound",
+      ct."name" AS "contactName",
       bucket."referenceType" AS "bucketSource",
       topup."referenceType"::TEXT AS "topUpSource",
       topup."referenceNote" AS "topUpNote",
@@ -257,6 +260,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "soko_bot_schedule" AS sbs ON sbs."id" = sbr."scheduleId"
     LEFT JOIN "contact_people_search" AS cps ON cps."transactionId" = t."id"
     LEFT JOIN "contact_list" AS cl ON cl."id" = cps."listId"
+    LEFT JOIN "contact" AS ct ON ct."id" = cps."contactId"
     -- A spend can draw from several buckets. One is enough to name a source.
     LEFT JOIN LATERAL (
       SELECT b."referenceType"::TEXT AS "referenceType"
@@ -345,6 +349,7 @@ export async function findTransactionHistoryPage(
       ledger."contactListId",
       ledger."contactListName",
       ledger."contactFound",
+      ledger."contactName",
       ledger."bucketSource",
       ledger."topUpSource",
       ledger."topUpNote",
@@ -614,9 +619,11 @@ export function mapTransactionHistoryRow(
       return {
         ...base,
         kind: "contacts",
-        title: `Find people · ${row.contactListName ?? "Deleted list"}`,
+        title: row.contactName
+          ? `Enrich · ${row.contactName}`
+          : `Find people · ${row.contactListName ?? "Deleted list"}`,
         description:
-          row.contactFound === null
+          row.contactFound === null || row.contactName
             ? null
             : `${row.contactFound} ${row.contactFound === 1 ? "person" : "people"} found`,
         contactListId: row.contactListId,

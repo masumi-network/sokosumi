@@ -1,6 +1,6 @@
 /**
- * Turns raw provider payloads (Composio's Gmail, Outlook, Google Calendar and
- * Slack responses) into capture candidates: a person, their channels, and
+ * Turns raw provider payloads (Composio's Gmail, Outlook, Google Calendar,
+ * Slack and X responses) into capture candidates: a person, their channels, and
  * one interaction with the teammate who had it. Pure, so every extractor is
  * tested on recorded fixtures.
  */
@@ -18,7 +18,7 @@ import {
 } from "./capture-filters";
 
 export interface CaptureChannel {
-  type: "EMAIL" | "PHONE" | "LINKEDIN" | "SLACK";
+  type: "EMAIL" | "PHONE" | "LINKEDIN" | "SLACK" | "X";
   value: string;
   verified?: boolean;
 }
@@ -30,7 +30,7 @@ export interface CaptureCandidate {
   channels: CaptureChannel[];
   interaction: {
     occurredAt: string;
-    channel: "EMAIL" | "MEETING" | "SLACK";
+    channel: "EMAIL" | "MEETING" | "SLACK" | "X";
     direction: "IN" | "OUT" | "BOTH";
     summary: string;
     sourceRef: string;
@@ -769,6 +769,148 @@ export function slackCandidate(input: {
         ? "Slack direct message"
         : `Slack in #${input.conversation.name ?? "channel"}`,
       sourceRef: `slack:${input.teammateUserId}:${input.conversation.id}:${input.day}:${profile.id}`,
+    },
+    borderline: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// X: direct messages, and who follows the owner back.
+// ---------------------------------------------------------------------------
+
+export interface XUser {
+  id: string;
+  name: string | null;
+  username: string;
+}
+
+export interface XDmEvent {
+  conversationId: string;
+  senderId: string;
+  participantIds: string[];
+  createdAt: string;
+}
+
+/** A group DM with more people than this is not a conversation. */
+export const X_SMALL_GROUP = 8;
+
+/**
+ * One page of an X API v2 response as Composio returns it: the list in
+ * `data` (sometimes wrapped in another `data`), expanded users in
+ * `includes.users`, and `meta.next_token`.
+ */
+export function parseXPage(raw: unknown): {
+  items: unknown[];
+  users: XUser[];
+  nextToken: string | null;
+} {
+  const inner = field(raw, "data");
+  const body =
+    inner && !Array.isArray(inner) && typeof inner === "object" ? inner : raw;
+  return {
+    items: list(field(body, "data")),
+    users: list(field(field(body, "includes"), "users")).flatMap(
+      (user) => parseXUser(user) ?? [],
+    ),
+    nextToken: text(field(field(body, "meta"), "next_token")) || null,
+  };
+}
+
+export function parseXUser(raw: unknown): XUser | null {
+  const user = field(raw, "data") ?? raw;
+  const id = text(field(user, "id"));
+  const username = text(field(user, "username"));
+  if (!id || !username) return null;
+  return { id, username, name: text(field(user, "name")) || null };
+}
+
+/** A sent message; joins, leaves and other events are not conversation. */
+export function parseXDmEvent(raw: unknown): XDmEvent | null {
+  if (text(field(raw, "event_type")) !== "MessageCreate") return null;
+  const conversationId = text(field(raw, "dm_conversation_id"));
+  const senderId = text(field(raw, "sender_id"));
+  const createdAt = isoDate(field(raw, "created_at"));
+  if (!conversationId || !senderId || !createdAt) return null;
+  return {
+    conversationId,
+    senderId,
+    participantIds: list(field(raw, "participant_ids")).map(text),
+    createdAt,
+  };
+}
+
+/**
+ * One interaction per person per day the owner wrote in a conversation, like
+ * Slack. A one-to-one conversation id is the two user ids joined by a dash.
+ */
+export function extractXDms(input: {
+  events: readonly XDmEvent[];
+  ownerId: string;
+}): {
+  day: string;
+  conversationId: string;
+  userId: string;
+  group: boolean;
+  direction: "OUT" | "BOTH";
+}[] {
+  const conversations = new Map<
+    string,
+    { members: Set<string>; days: Map<string, Set<string>> }
+  >();
+  for (const event of input.events) {
+    const conversation = conversations.get(event.conversationId) ?? {
+      members: new Set<string>(),
+      days: new Map<string, Set<string>>(),
+    };
+    for (const id of event.participantIds) conversation.members.add(id);
+    const pair = event.conversationId.split("-");
+    if (pair.length === 2) for (const id of pair) conversation.members.add(id);
+    conversation.members.add(event.senderId);
+    const day = event.createdAt.slice(0, 10);
+    const posters = conversation.days.get(day) ?? new Set<string>();
+    posters.add(event.senderId);
+    conversation.days.set(day, posters);
+    conversations.set(event.conversationId, conversation);
+  }
+  const result: ReturnType<typeof extractXDms> = [];
+  for (const [conversationId, conversation] of conversations) {
+    const others = [...conversation.members].filter(
+      (id) => id !== input.ownerId,
+    );
+    if (others.length === 0 || others.length > X_SMALL_GROUP) continue;
+    for (const [day, posters] of conversation.days) {
+      if (!posters.has(input.ownerId)) continue;
+      for (const userId of others)
+        result.push({
+          day,
+          conversationId,
+          userId,
+          group: others.length > 1,
+          direction: posters.has(userId) ? "BOTH" : "OUT",
+        });
+    }
+  }
+  return result;
+}
+
+export function xCandidate(input: {
+  user: XUser;
+  conversationId: string;
+  day: string;
+  group: boolean;
+  direction: "OUT" | "BOTH";
+  teammateUserId: string;
+}): CaptureCandidate {
+  const { user } = input;
+  return {
+    name: user.name ?? undefined,
+    channels: [{ type: "X", value: user.username, verified: true }],
+    interaction: {
+      occurredAt: `${input.day}T12:00:00.000Z`,
+      channel: "X",
+      direction: input.direction,
+      summary: input.group ? "X group message" : "X direct message",
+      sourceRef: `x:${input.teammateUserId}:${input.conversationId}:${input.day}:${user.id}`,
     },
     borderline: false,
   };

@@ -69,7 +69,9 @@ export async function writeMarketingStrategyFiles(input: {
     (entry) =>
       isMarketingFilePiece(entry) &&
       entry.status !== "skipped" &&
-      (Boolean(entry.draft?.trim()) || entryMedia(entry).length > 0),
+      (Boolean(entry.draft?.trim()) ||
+        entryMedia(entry).length > 0 ||
+        Boolean(entry.searchAd)),
   );
   if (pieces.length === 0) return 0;
   const links = await prisma.marketingStrategyFile.findMany({
@@ -86,8 +88,10 @@ export async function writeMarketingStrategyFiles(input: {
   for (const entry of pieces) {
     const link = links.find((item) => item.entryId === entry.id);
     const media = entryMedia(entry);
+    // A search ad's parts ride along with its words; Core launches from them.
+    const searchAd = entry.searchAd ? { searchAd: entry.searchAd } : {};
     if (!entry.draft?.trim()) {
-      // Only pictures: they join a piece already written.
+      // Only pictures or ad parts: they join a piece already written.
       if (!link) continue;
       await prisma.marketingStrategyFile.update({
         where: {
@@ -96,7 +100,10 @@ export async function writeMarketingStrategyFiles(input: {
             entryId: entry.id,
           },
         },
-        data: { mediaFileIds: media },
+        data: {
+          ...(media.length > 0 ? { mediaFileIds: media } : {}),
+          ...searchAd,
+        },
       });
       written += 1;
       continue;
@@ -125,10 +132,12 @@ export async function writeMarketingStrategyFiles(input: {
         entryId: entry.id,
         fileResourceId: fileId,
         mediaFileIds: media,
+        ...searchAd,
       },
       update: {
         fileResourceId: fileId,
         ...(media.length > 0 ? { mediaFileIds: media } : {}),
+        ...searchAd,
       },
     });
     written += 1;

@@ -4,7 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
-import { type Answer, QuestionCard } from "./questions-step";
+import { type Answer, QuestionCard, useAnswers } from "./questions-step";
 import { Refusal } from "./refusal";
 import { StepHead } from "./step-head";
 
@@ -32,7 +32,10 @@ export function CheckStep({
   onUpdate,
   onApprove,
 }: CheckStepProps) {
-  const questions = (overview.strategy as Strategy).questions ?? [];
+  const [questions, answer] = useAnswers(
+    (overview.strategy as Strategy).questions ?? [],
+    onAnswer,
+  );
   const answered = questions.filter((question) => question.answer).length;
   const changes = questions.some((question) => question.answer === "no");
   const [going, startGoing] = useTransition();
@@ -95,7 +98,7 @@ export function CheckStep({
             question={question}
             label="Your plan"
             number={index + 1}
-            onAnswer={(answer, note) => onAnswer(question.id, answer, note)}
+            onAnswer={(value, note) => answer(question.id, value, note)}
           />
         ))}
       </ol>

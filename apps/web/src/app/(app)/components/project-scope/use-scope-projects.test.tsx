@@ -46,6 +46,7 @@ import { recordProjectVisit } from "@/hooks/use-recent-projects";
 
 import {
   SCOPE_SELECTED_QUERY_KEY,
+  useHasAnyScopeProject,
   useIsUnknownScopeProject,
   useScopeProjects,
   useSelectedScopeProject,
@@ -97,6 +98,121 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("useHasAnyScopeProject", () => {
+  it("stays pending without a workspace and asks Core nothing", () => {
+    mocks.signedOut.current = true;
+    const { result } = renderHook(() => useHasAnyScopeProject(), {
+      wrapper: wrapper(),
+    });
+
+    expect(result.current).toEqual({ isPending: true, hasProjects: false });
+    expect(mocks.load).not.toHaveBeenCalled();
+    expect(mocks.loadPinned).not.toHaveBeenCalled();
+  });
+
+  it("stays pending until the first page answers, even with an open Pin", async () => {
+    let resolvePage: (value: unknown) => void = () => {};
+    mocks.load.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePage = resolve;
+        }),
+    );
+    mocks.loadPinned.mockResolvedValue([project("p-1", "Pinned")]);
+    const { result } = renderHook(() => useHasAnyScopeProject(), {
+      wrapper: wrapper(),
+    });
+
+    await waitFor(() => expect(mocks.loadPinned).toHaveBeenCalledTimes(1));
+    expect(result.current).toEqual({ isPending: true, hasProjects: false });
+
+    resolvePage({ projects: [], nextCursor: null });
+    await waitFor(() =>
+      expect(result.current).toEqual({ isPending: false, hasProjects: true }),
+    );
+  });
+
+  it("waits for Pins before declaring an empty first page empty", async () => {
+    let resolvePinned: (value: unknown) => void = () => {};
+    mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
+    mocks.loadPinned.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePinned = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useHasAnyScopeProject(), {
+      wrapper: wrapper(),
+    });
+
+    await waitFor(() => expect(mocks.load).toHaveBeenCalledTimes(1));
+    expect(result.current).toEqual({ isPending: true, hasProjects: false });
+
+    resolvePinned([project("p-1", "Pinned")]);
+    await waitFor(() =>
+      expect(result.current).toEqual({ isPending: false, hasProjects: true }),
+    );
+  });
+
+  it.each([
+    { label: "an empty workspace", projects: [], pinned: [], expected: false },
+    {
+      label: "only Closed projects",
+      projects: [{ ...project("c-1", "Closed"), closedAt: "2026-09-01" }],
+      pinned: [{ ...project("p-1", "Closed Pin"), closedAt: "2026-09-01" }],
+      expected: false,
+    },
+    {
+      label: "an open first-page project",
+      projects: [project("a-1", "Alpha")],
+      pinned: [],
+      expected: true,
+    },
+    {
+      label: "an open Pin outside the first page",
+      projects: [],
+      pinned: [project("p-1", "Pinned")],
+      expected: true,
+    },
+  ])("reports $label", async ({ projects, pinned, expected }) => {
+    mocks.load.mockResolvedValue({ projects, nextCursor: null });
+    mocks.loadPinned.mockResolvedValue(pinned);
+    const { result } = renderHook(() => useHasAnyScopeProject(), {
+      wrapper: wrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current).toEqual({
+        isPending: false,
+        hasProjects: expected,
+      }),
+    );
+  });
+
+  it("reuses the menu's first-page and Pinned reads", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [project("a-1", "Alpha")],
+      nextCursor: null,
+    });
+    const { result } = renderHook(
+      () => ({
+        available: useHasAnyScopeProject(),
+        menu: useScopeProjects({ search: "", selectedProjectId: null }),
+      }),
+      { wrapper: wrapper() },
+    );
+
+    await waitFor(() =>
+      expect(result.current.available.hasProjects).toBe(true),
+    );
+    expect(result.current.menu.rows).toEqual([
+      { id: "a-1", name: "Alpha", logo: null },
+    ]);
+    expect(mocks.load).toHaveBeenCalledTimes(1);
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("useScopeProjects", () => {

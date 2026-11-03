@@ -127,6 +127,8 @@ export interface CmoOverview {
   strategy: MarketingStrategyPlan | null;
   /** Every version, newest first; the first is the one `strategy` shows. */
   strategyVersions: MarketingStrategyVersion[];
+  /** When a plan was first approved; a later approval does not move it. */
+  hiredAt: Date | null;
   botStatus: string;
   updates: CmoUpdateRecord[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
@@ -142,6 +144,7 @@ export interface CmoOverview {
   production: import("@/services/cmo-production.service").CmoProductionStatus;
   /** People on the newsletter list. */
   mailingListSize: number;
+  /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
   subscribeUrl: string;
   billing: {
     plan: string | null;
@@ -225,8 +228,9 @@ export async function getCmoOverview(
     listCmoChannels(cuso.projectId),
   ]);
   const [adConnections, mailingListSize, measurement] = await Promise.all([
-    prisma.projectAdConnection.findMany({
-      where: { projectId: cuso.projectId, status: "active" },
+    // An ad connection counts once an ad account is attached to it.
+    prisma.projectAdAccount.findMany({
+      where: { projectId: cuso.projectId, connection: { status: "active" } },
       select: { provider: true },
     }),
     cmoMailingListSize(cuso),
@@ -294,8 +298,12 @@ export async function getCmoOverview(
     })),
     ...cmoSocialPostMedia(posts),
   ];
-  const { readCmoProduction } = await import(
+  const { cmoHiredAt, readCmoProduction } = await import(
     "@/services/cmo-production.service"
+  );
+  const hiredAt = await cmoHiredAt(
+    cuso.sokoBotId,
+    approved?.approvedAt ?? null,
   );
   const production = await readCmoProduction(cuso, {
     connected: new Set(
@@ -367,6 +375,7 @@ export async function getCmoOverview(
     brandBrain,
     strategy,
     strategyVersions,
+    hiredAt,
     botStatus: bot.status,
     updates: await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN),
     channels,

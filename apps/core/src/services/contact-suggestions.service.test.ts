@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseMatches, profileKey } from "./contact-suggestions.service";
+import {
+  parseIdentity,
+  parseMatches,
+  profileKey,
+} from "./contact-suggestions.service";
 
 describe("profileKey", () => {
   it("treats one profile written differently as one person", () => {
@@ -36,5 +40,26 @@ describe("parseMatches", () => {
   it("finds nobody when the answer does not parse", () => {
     expect(parseMatches("sorry")).toEqual([]);
     expect(parseMatches('{"people": [{"i": "x"}]}')).toEqual([]);
+  });
+});
+
+describe("parseIdentity", () => {
+  it("reads the result that is the person", () => {
+    expect(
+      parseIdentity(
+        '{"i": 2, "role": "GP", "organization": "Fjord", "location": "", "summary": "Invests in seed SaaS."}',
+      ),
+    ).toEqual({
+      index: 2,
+      role: "GP",
+      organization: "Fjord",
+      location: null,
+      summary: "Invests in seed SaaS.",
+    });
+  });
+
+  it("finds nobody when none is them or the answer does not parse", () => {
+    expect(parseIdentity('{"i": null}')).toBeNull();
+    expect(parseIdentity("no idea")).toBeNull();
   });
 });

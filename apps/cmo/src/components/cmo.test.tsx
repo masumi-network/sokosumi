@@ -1,3 +1,4 @@
+import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -18,6 +19,7 @@ import {
   cmoOverview as overview,
   cmoStrategy as strategy,
 } from "../test-fixtures/cmo";
+import { SearchAdControl } from "./ads";
 import {
   LearningCard,
   learningSteps,
@@ -154,7 +156,50 @@ describe("thread", () => {
       overview(cmoStrategyVersion(new Date("2026-10-01T09:05:00Z"))),
       [],
     ).map((item) => item.kind);
-    expect(after.slice(-2)).toEqual(["strategy", "connect"]);
+    expect(after.slice(-2)).toEqual(["welcome", "connect"]);
+  });
+
+  it("leaves out a background run's empty follow-up", () => {
+    const messages = toCusoMessages([
+      cmoChatMessage({ id: "empty", content: "Nothing to add." }),
+    ]);
+    expect(messages).toEqual([]);
+  });
+
+  it("opens on one welcome once hired, not the hiring messages", () => {
+    const approvedAt = new Date("2026-10-01T09:05:00Z");
+    const messages = toCusoMessages([
+      cmoChatMessage({
+        id: "research",
+        createdAt: new Date("2026-10-01T09:01:00Z"),
+      }),
+      cmoChatMessage({
+        id: "later",
+        createdAt: new Date("2026-10-02T08:00:00Z"),
+      }),
+    ]);
+    const thread = buildThread(
+      overview(cmoStrategyVersion(approvedAt)),
+      messages,
+    );
+    expect(thread.map((item) => item.kind)).toEqual([
+      "welcome",
+      "connect",
+      "message",
+    ]);
+    expect(thread[2]).toMatchObject({ message: { id: "later" } });
+  });
+
+  it("shows a changed plan that waits for approval after hiring", () => {
+    // Approving a version clears the earlier approval; hiredAt stays.
+    const thread = buildThread(
+      overview({
+        ...cmoStrategyVersion(null, new Date("2026-10-03T10:00:00Z")),
+        hiredAt: new Date("2026-10-01T09:05:00Z"),
+      }),
+      [],
+    );
+    expect(thread.map((item) => item.kind)).toEqual(["welcome", "strategy"]);
   });
 
   it("says what Cuso is waiting for", () => {
@@ -363,6 +408,11 @@ describe("pages", () => {
         compose={() => {}}
         openUpdate={() => {}}
         connectMeasurement={async () => ({ url: null, error: null })}
+        ads={{
+          loadAdCampaigns: async () => [],
+          setAdCampaignStatus: async () => ({ overview: null, error: null }),
+        }}
+        onChange={() => {}}
       />,
     );
     expect(html).toContain("Drafts");
@@ -387,11 +437,78 @@ describe("pages", () => {
         })}
         compose={() => {}}
         connect={async () => ({ url: null, error: null })}
+        connectAds={async () => ({ url: null, error: null })}
       />,
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
-    expect(html).toContain("Meta ads");
+  });
+
+  it("offers ad accounts to everyone", () => {
+    const html = renderToStaticMarkup(
+      <ChannelsPage
+        overview={overview({ adProviders: ["google_ads"] })}
+        compose={() => {}}
+        connect={async () => ({ url: null, error: null })}
+        connectAds={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("Ad accounts");
+    expect(html).toContain("Google Ads");
+    expect(html).toMatch(/Meta ads[\s\S]*Connect/);
+  });
+});
+
+describe("search ads", () => {
+  type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+  const entry: Entry = {
+    id: "ad-1",
+    date: "2026-10-05",
+    channel: "google_ads",
+    format: "search",
+    title: "Address check",
+    status: "draft" as const,
+    searchAd: {
+      keywords: ["fixed wireless internet"],
+      headlines: ["Fast internet", "No cable", "Check your address"],
+      descriptions: ["Internet over the air.", "Check in a minute."],
+      finalUrl: "https://rst.de/check",
+    },
+  };
+  const actions = {
+    launchAd: async () => ({ overview: null, error: null }),
+    setAdCampaignStatus: async () => ({ overview: null, error: null }),
+  };
+  const render = (patch: Partial<CmoOverview>, piece: Entry = entry) =>
+    renderToStaticMarkup(
+      <SearchAdControl
+        entry={piece}
+        overview={overview({ viewerCanApprove: true, ...patch })}
+        actions={actions}
+        onChange={() => {}}
+      />,
+    );
+
+  it("lets an owner launch once Google Ads is connected", () => {
+    expect(render({ adProviders: ["google_ads"] })).toContain("Launch ad");
+    expect(render({ adProviders: [] })).toContain(
+      "Connect Google Ads in Channels",
+    );
+  });
+
+  it("offers pause once launched", () => {
+    const html = render(
+      { adProviders: ["google_ads"] },
+      {
+        ...entry,
+        adCampaign: {
+          accountId: "00000000-0000-4000-8000-000000000001",
+          campaignId: "1",
+        },
+      },
+    );
+    expect(html).toContain("Launched in Google Ads");
+    expect(html).toContain("Pause");
   });
 });
 

@@ -267,6 +267,7 @@
       "subject": "Confirm your subscription to {name}",
       "body": "Please confirm that you want to receive emails from {name}.",
       "expiry": "This link expires in 7 days. If you did not request this subscription, you can ignore this email."
-    }
+    },
+    "website": "Website"
   }
 }

@@ -103,7 +103,7 @@ import UniformTypeIdentifiers
     var body: some View {
       VStack(alignment: .leading, spacing: 6) {
         if let pendingQuote {
-          MessageQuoteView(quote: pendingQuote, room: workspaces.rooms.first { $0.id == roomId }, channels: workspaces.composerChannels, dismiss: dismissPendingQuote)
+          MessageQuoteView(quote: pendingQuote, room: workspaces.rooms.first { $0.id == roomId }, channels: workspaces.composerChannels, dismiss: dismissPendingQuote, opensAttachments: true)
         }
         ComposerAttachmentsView(uploads: uploads)
         editor

@@ -3,7 +3,6 @@ import "server-only";
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 export interface BotAdAccount {
   projectId: string;
@@ -26,8 +25,6 @@ export async function loadBotAdAccounts({
 }: {
   projectId: string | null;
 }): Promise<BotAdAccount[] | null> {
-  if (!(await hasCurrentUserSocialBetaAccess())) return null;
-
   const projects = projectId
     ? [await projectService.getProjectById(projectId)].filter(
         (project) => project !== null,

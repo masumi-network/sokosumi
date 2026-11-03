@@ -30,7 +30,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, identifier, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
+      "Update a project's name, identifier, briefing, website, logo, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

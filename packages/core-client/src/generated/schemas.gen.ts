@@ -14363,10 +14363,16 @@ export const ContactPeopleSearchInputSchema = {
             type: 'string',
             minLength: 3,
             maxLength: 1000,
-            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used.'
+            description: 'Who belongs in the list, in plain words. Saved as the list\'s description; without it the description is used. With size 1, the one person to find (a name, and where they work); the description stays.'
         },
         size: {
             anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
                 {
                     type: 'number',
                     enum: [
@@ -14381,7 +14387,7 @@ export const ContactPeopleSearchInputSchema = {
                 }
             ],
             default: 10,
-            description: 'How many people to find: 10 costs 5 credits, 25 costs 10.'
+            description: 'How many people to find; 1 looks for one particular person. Costs 0.5 credits per person found.'
         }
     }
 } as const;
@@ -14784,7 +14790,8 @@ export const ContactChannelSourceSchema = {
         'SLACK',
         'WEB_RESEARCH',
         'IMPORT',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15118,7 +15125,8 @@ export const ContactInteractionChannelSchema = {
         'SLACK',
         'CALL',
         'MANUAL',
-        'OTHER'
+        'OTHER',
+        'X'
     ]
 } as const;
 
@@ -15164,6 +15172,35 @@ export const ContactInteractionResultSchema = {
     required: [
         'interaction',
         'created'
+    ]
+} as const;
+
+export const ContactWebEnrichmentSchema = {
+    type: 'object',
+    properties: {
+        filled: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Fields it filled: role, organization, location, summary, linkedin. Empty when the web did not say more.'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The page it read them from.'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken; 0 when nothing was filled.'
+        }
+    },
+    required: [
+        'filled',
+        'sourceUrl',
+        'credits'
     ]
 } as const;
 
@@ -22460,6 +22497,15 @@ export const ProjectSchema = {
             description: 'Project-owned brand DESIGN.md, or null when none exists.',
             example: null
         },
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        },
         memoryEnabled: {
             type: 'boolean',
             description: 'Whether Core has both AI Gateway and Blob storage credentials and can update project memory.',
@@ -22540,6 +22586,7 @@ export const ProjectSchema = {
         'websiteUrl',
         'logo',
         'designMd',
+        'postingInstructionsMd',
         'memoryEnabled',
         'memoryModel',
         'contextMd',
@@ -22969,6 +23016,24 @@ export const ProjectContextMdSchema = {
                 'content'
             ]
         }
+    ]
+} as const;
+
+export const ProjectPostingInstructionsSchema = {
+    type: 'object',
+    properties: {
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
+        }
+    },
+    required: [
+        'postingInstructionsMd'
     ]
 } as const;
 
@@ -27901,6 +27966,87 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -29159,6 +29305,87 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 maxLength: 100
                             },
+                            searchAd: {
+                                type: 'object',
+                                properties: {
+                                    keywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        minItems: 1,
+                                        maxItems: 20
+                                    },
+                                    headlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 30
+                                        },
+                                        minItems: 3,
+                                        maxItems: 15
+                                    },
+                                    descriptions: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 90
+                                        },
+                                        minItems: 2,
+                                        maxItems: 4
+                                    },
+                                    finalUrl: {
+                                        type: 'string',
+                                        maxLength: 2048,
+                                        format: 'uri'
+                                    },
+                                    location: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 80
+                                    },
+                                    language: {
+                                        type: 'string',
+                                        pattern: '^[a-z]{2}$'
+                                    },
+                                    callouts: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 25
+                                        },
+                                        maxItems: 10
+                                    }
+                                },
+                                required: [
+                                    'keywords',
+                                    'headlines',
+                                    'descriptions',
+                                    'finalUrl'
+                                ]
+                            },
+                            adCampaign: {
+                                type: 'object',
+                                properties: {
+                                    accountId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    campaignId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'accountId',
+                                    'campaignId'
+                                ]
+                            },
                             taskId: {
                                 type: 'string',
                                 maxLength: 100
@@ -30246,6 +30473,78 @@ export const NewsletterBrandSchema = {
         footerText: {
             type: 'string',
             maxLength: 5000
+        },
+        backgroundColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        buttonTextColor: {
+            type: 'string',
+            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+        },
+        buttonShape: {
+            type: 'string',
+            enum: [
+                'square',
+                'rounded',
+                'pill'
+            ]
+        },
+        headerImageUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        headerAlign: {
+            type: 'string',
+            enum: [
+                'left',
+                'center'
+            ]
+        },
+        spacing: {
+            type: 'string',
+            enum: [
+                'compact',
+                'normal',
+                'roomy'
+            ]
+        },
+        signupForm: {
+            type: 'object',
+            properties: {
+                accentColor: {
+                    type: 'string',
+                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                },
+                buttonTextColor: {
+                    type: 'string',
+                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                },
+                buttonShape: {
+                    type: 'string',
+                    enum: [
+                        'square',
+                        'rounded',
+                        'pill'
+                    ]
+                },
+                headerAlign: {
+                    type: 'string',
+                    enum: [
+                        'left',
+                        'center'
+                    ]
+                },
+                spacing: {
+                    type: 'string',
+                    enum: [
+                        'compact',
+                        'normal',
+                        'roomy'
+                    ]
+                }
+            }
         }
     }
 } as const;
@@ -30724,6 +31023,19 @@ export const NewsletterContentSchema = {
                         type: 'string',
                         maxLength: 2048,
                         format: 'uri'
+                    },
+                    width: {
+                        type: 'integer',
+                        minimum: 10,
+                        maximum: 100
+                    },
+                    align: {
+                        type: 'string',
+                        enum: [
+                            'left',
+                            'center',
+                            'right'
+                        ]
                     }
                 },
                 required: [
@@ -30770,6 +31082,135 @@ export const NewsletterContentSchema = {
                 },
                 required: [
                     'type'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'columns'
+                        ]
+                    },
+                    columns: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                text: {
+                                    type: 'string',
+                                    maxLength: 20000
+                                },
+                                imageUrl: {
+                                    type: 'string',
+                                    maxLength: 2048,
+                                    format: 'uri'
+                                },
+                                alt: {
+                                    type: 'string',
+                                    maxLength: 1000
+                                }
+                            },
+                            required: [
+                                'text'
+                            ]
+                        },
+                        minItems: 2,
+                        maxItems: 3
+                    }
+                },
+                required: [
+                    'type',
+                    'columns'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'spacer'
+                        ]
+                    },
+                    size: {
+                        type: 'string',
+                        enum: [
+                            'sm',
+                            'md',
+                            'lg'
+                        ]
+                    }
+                },
+                required: [
+                    'type',
+                    'size'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'social'
+                        ]
+                    },
+                    links: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                network: {
+                                    type: 'string',
+                                    enum: [
+                                        'website',
+                                        'x',
+                                        'linkedin',
+                                        'instagram',
+                                        'facebook',
+                                        'youtube',
+                                        'tiktok'
+                                    ]
+                                },
+                                url: {
+                                    type: 'string',
+                                    maxLength: 2048,
+                                    format: 'uri'
+                                }
+                            },
+                            required: [
+                                'network',
+                                'url'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 8
+                    }
+                },
+                required: [
+                    'type',
+                    'links'
+                ]
+            },
+            {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'footer'
+                        ]
+                    },
+                    text: {
+                        type: 'string',
+                        maxLength: 5000
+                    }
+                },
+                required: [
+                    'type',
+                    'text'
                 ]
             }
         ]
@@ -30896,6 +31337,119 @@ export const CreateNewsletterIssueRequestSchema = {
         'subject',
         'template',
         'content'
+    ]
+} as const;
+
+export const PreviewNewsletterIssueRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CreateNewsletterIssueRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                brand: {
+                    type: 'object',
+                    properties: {
+                        logoUrl: {
+                            type: 'string',
+                            maxLength: 2048,
+                            format: 'uri'
+                        },
+                        primaryColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        accentColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        fontFamily: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        footerText: {
+                            type: 'string',
+                            maxLength: 5000
+                        },
+                        backgroundColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        buttonTextColor: {
+                            type: 'string',
+                            pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                        },
+                        buttonShape: {
+                            type: 'string',
+                            enum: [
+                                'square',
+                                'rounded',
+                                'pill'
+                            ]
+                        },
+                        headerImageUrl: {
+                            type: 'string',
+                            maxLength: 2048,
+                            format: 'uri'
+                        },
+                        headerAlign: {
+                            type: 'string',
+                            enum: [
+                                'left',
+                                'center'
+                            ]
+                        },
+                        spacing: {
+                            type: 'string',
+                            enum: [
+                                'compact',
+                                'normal',
+                                'roomy'
+                            ]
+                        },
+                        signupForm: {
+                            type: 'object',
+                            properties: {
+                                accentColor: {
+                                    type: 'string',
+                                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                                },
+                                buttonTextColor: {
+                                    type: 'string',
+                                    pattern: '^#(?:[\\da-f]{3}|[\\da-f]{6})$/i'
+                                },
+                                buttonShape: {
+                                    type: 'string',
+                                    enum: [
+                                        'square',
+                                        'rounded',
+                                        'pill'
+                                    ]
+                                },
+                                headerAlign: {
+                                    type: 'string',
+                                    enum: [
+                                        'left',
+                                        'center'
+                                    ]
+                                },
+                                spacing: {
+                                    type: 'string',
+                                    enum: [
+                                        'compact',
+                                        'normal',
+                                        'roomy'
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    description: 'Unsaved newsletter design to preview with; the saved brand otherwise.'
+                }
+            }
+        }
     ]
 } as const;
 
@@ -35550,6 +36104,132 @@ export const ScheduleSocialPostRequestSchema = {
     ]
 } as const;
 
+export const QueueSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        socialConnectionId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const SocialQueueSlotsSchema = {
+    type: 'object',
+    properties: {
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Zurich'
+        },
+        slots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialQueueSlot'
+            }
+        }
+    },
+    required: [
+        'timezone',
+        'slots'
+    ]
+} as const;
+
+export const SocialQueueSlotSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 40,
+            example: 'Tuesday morning'
+        },
+        weekday: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 6,
+            example: 2
+        },
+        minutesFromMidnight: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 1439,
+            example: 540
+        },
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'weekday',
+        'minutesFromMidnight',
+        'timezone'
+    ]
+} as const;
+
+export const ReplaceSocialQueueSlotsRequestSchema = {
+    type: 'object',
+    properties: {
+        timezone: {
+            type: 'string',
+            example: 'Europe/Zurich'
+        },
+        slots: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialQueueSlotWrite'
+            },
+            maxItems: 50
+        }
+    },
+    required: [
+        'timezone',
+        'slots'
+    ]
+} as const;
+
+export const SocialQueueSlotWriteSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 40
+        },
+        weekday: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 6
+        },
+        minutesFromMidnight: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 1439
+        }
+    },
+    required: [
+        'name',
+        'weekday',
+        'minutesFromMidnight'
+    ]
+} as const;
+
 export const ApproveSocialPostRequestSchema = {
     type: 'object',
     properties: {
@@ -35872,6 +36552,20 @@ export const CancelProjectImageJobResponseSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioCaptionSchema = {
+    type: 'object',
+    properties: {
+        text: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    },
+    required: [
+        'text'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -35916,6 +36610,15 @@ export const PatchProjectRequestSchema = {
             pattern: '^[A-Z][A-Z0-9]{1,6}$',
             description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
             example: 'SOK'
+        },
+        postingInstructionsMd: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 20000,
+            description: 'Markdown guidance for drafting this Project\'s social posts. Null or blank clears it.',
+            example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
         }
     }
 } as const;
@@ -40936,6 +41639,87 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         maxLength: 100
                                     },
+                                    searchAd: {
+                                        type: 'object',
+                                        properties: {
+                                            keywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                minItems: 1,
+                                                maxItems: 20
+                                            },
+                                            headlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 30
+                                                },
+                                                minItems: 3,
+                                                maxItems: 15
+                                            },
+                                            descriptions: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 90
+                                                },
+                                                minItems: 2,
+                                                maxItems: 4
+                                            },
+                                            finalUrl: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            location: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 80
+                                            },
+                                            language: {
+                                                type: 'string',
+                                                pattern: '^[a-z]{2}$'
+                                            },
+                                            callouts: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 25
+                                                },
+                                                maxItems: 10
+                                            }
+                                        },
+                                        required: [
+                                            'keywords',
+                                            'headlines',
+                                            'descriptions',
+                                            'finalUrl'
+                                        ]
+                                    },
+                                    adCampaign: {
+                                        type: 'object',
+                                        properties: {
+                                            accountId: {
+                                                type: 'string',
+                                                format: 'uuid'
+                                            },
+                                            campaignId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'accountId',
+                                            'campaignId'
+                                        ]
+                                    },
                                     taskId: {
                                         type: 'string',
                                         maxLength: 100
@@ -41093,6 +41877,19 @@ export const CmoOverviewSchema = {
             },
             description: 'Every version, newest first. At most one is approved; approving an older one reverts to it.'
         },
+        hiredAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When a plan was first approved, so hiring ended. Unlike the approved version\'s approvedAt, a later approval does not move it.'
+        },
         updates: {
             type: 'array',
             items: {
@@ -41227,6 +42024,7 @@ export const CmoOverviewSchema = {
         'media',
         'strategyVersion',
         'strategyVersions',
+        'hiredAt',
         'updates',
         'channels',
         'upNext',
@@ -41886,6 +42684,98 @@ export const CmoMeasurementConnectSchema = {
     },
     required: [
         'redirectUrl'
+    ]
+} as const;
+
+export const CmoAdsConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
+} as const;
+
+export const CmoAdsFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'none',
+                'choose'
+            ]
+        },
+        adConnectionId: {
+            type: 'string'
+        },
+        accounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'state'
+    ]
+} as const;
+
+export const CmoAdCampaignsSchema = {
+    type: 'object',
+    properties: {
+        accounts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    account: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: 'string'
+                            },
+                            provider: {
+                                type: 'string'
+                            },
+                            currency: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name',
+                            'provider',
+                            'currency'
+                        ]
+                    },
+                    campaigns: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/AdCampaign'
+                        }
+                    },
+                    failed: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'account',
+                    'campaigns',
+                    'failed'
+                ]
+            }
+        }
+    },
+    required: [
+        'accounts'
     ]
 } as const;
 
@@ -47655,6 +48545,37 @@ export const DesignMdOwnerInfoSchema = {
                 'type'
             ]
         }
+    ]
+} as const;
+
+export const WorkspaceCalendarSourcesResponseSchema = {
+    type: 'object',
+    properties: {
+        sources: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/WorkspaceCalendarSource'
+            }
+        },
+        features: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'tasks',
+                    'social',
+                    'newsletter',
+                    'contacts',
+                    'marketing'
+                ],
+                description: 'A Calendar feature the Show filter can include'
+            },
+            description: 'Calendar features this viewer may show. Web offers only these in the Show filter.'
+        }
+    },
+    required: [
+        'sources',
+        'features'
     ]
 } as const;
 

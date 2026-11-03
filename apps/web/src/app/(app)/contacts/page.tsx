@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { contactsSyncState } from "@/lib/soko-bot/connect-prompt";
 import { ContactsWorkspace } from "./components/contacts-workspace";
 
 // Workspace-scoped and authenticated: nothing here is shareable shell.
@@ -12,10 +13,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title"), description: t("description") };
 }
 
-/** Which mail and calendar connections the empty state can offer. */
-async function connectOffers() {
+/** Whether contacts can sync yet: they arrive only through a Soko Bot. */
+async function syncState() {
   try {
-    return (await sokoBotService.getConnectPromptState())?.offers ?? null;
+    const bot = await sokoBotService.getMine();
+    if (!bot) return contactsSyncState(null, []);
+    const { configured, integrations } =
+      await sokoBotService.listIntegrations();
+    return configured ? contactsSyncState(bot, integrations) : null;
   } catch {
     return null;
   }
@@ -23,5 +28,5 @@ async function connectOffers() {
 
 export default async function ContactsPage() {
   await connection();
-  return <ContactsWorkspace connectOffers={await connectOffers()} />;
+  return <ContactsWorkspace sync={await syncState()} />;
 }

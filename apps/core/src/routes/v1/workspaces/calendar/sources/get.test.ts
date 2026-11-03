@@ -1,3 +1,4 @@
+import { NEWSLETTER_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -153,32 +154,35 @@ describe("GET /workspaces/calendar/sources", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      data: [
-        {
-          sourceId: `workspace:${WORKSPACE_ID}`,
-          sourceType: "WORKSPACE",
-          displayName: "Ada Lovelace",
-          logoUrl: "https://example.com/ada.png",
-          paletteToken: "blue",
-          isSchedulable: true,
-        },
-        {
-          sourceId: "project:22222222-2222-7222-8222-222222222222",
-          sourceType: "PROJECT",
-          displayName: "Alpha",
-          logoUrl: "https://example.com/alpha.png",
-          paletteToken: "violet",
-          isSchedulable: true,
-        },
-        {
-          sourceId: "project:33333333-3333-7333-8333-333333333333",
-          sourceType: "PROJECT",
-          displayName: "Closing",
-          logoUrl: null,
-          paletteToken: "violet",
-          isSchedulable: false,
-        },
-      ],
+      data: {
+        sources: [
+          {
+            sourceId: `workspace:${WORKSPACE_ID}`,
+            sourceType: "WORKSPACE",
+            displayName: "Ada Lovelace",
+            logoUrl: "https://example.com/ada.png",
+            paletteToken: "blue",
+            isSchedulable: true,
+          },
+          {
+            sourceId: "project:22222222-2222-7222-8222-222222222222",
+            sourceType: "PROJECT",
+            displayName: "Alpha",
+            logoUrl: "https://example.com/alpha.png",
+            paletteToken: "violet",
+            isSchedulable: true,
+          },
+          {
+            sourceId: "project:33333333-3333-7333-8333-333333333333",
+            sourceType: "PROJECT",
+            displayName: "Closing",
+            logoUrl: null,
+            paletteToken: "violet",
+            isSchedulable: false,
+          },
+        ],
+        features: ["tasks", "social", "contacts", "marketing"],
+      },
       meta: expect.objectContaining({ requestId: "req_calendar_sources" }),
     });
     expect(projectFindManyMock).toHaveBeenCalledWith({
@@ -211,7 +215,7 @@ describe("GET /workspaces/calendar/sources", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data).toContainEqual({
+    expect(body.data.sources).toContainEqual({
       sourceId: "project:44444444-4444-7444-8444-444444444444",
       sourceType: "PROJECT",
       displayName: "Zeta",
@@ -228,7 +232,7 @@ describe("GET /workspaces/calendar/sources", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data).toEqual(
+    expect(body.data.sources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           sourceId: `workspace:${WORKSPACE_ID}`,
@@ -236,6 +240,32 @@ describe("GET /workspaces/calendar/sources", () => {
         }),
       ]),
     );
+    expect(body.data.features).toEqual(["tasks"]);
+  });
+
+  it("adds newsletter to features when the workspace org is on the beta", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({
+      organization: {
+        name: "UTXO",
+        logo: null,
+        slug: NEWSLETTER_BETA_ORGANIZATION_SLUG,
+      },
+      user: null,
+    });
+
+    const response = await createApp().request(
+      "http://localhost/calendar/sources",
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.features).toEqual([
+      "tasks",
+      "social",
+      "newsletter",
+      "contacts",
+      "marketing",
+    ]);
   });
 
   it.each([
@@ -281,7 +311,7 @@ describe("GET /workspaces/calendar/sources", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.data).toEqual(
+      expect(body.data.sources).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             sourceId: `workspace:${WORKSPACE_ID}`,
@@ -359,12 +389,14 @@ describe("GET /workspaces/calendar/sources", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.data[0]).not.toHaveProperty("latestScheduledSocialPostAt");
-      expect(body.data[1]).toMatchObject({
+      expect(body.data.sources[0]).not.toHaveProperty(
+        "latestScheduledSocialPostAt",
+      );
+      expect(body.data.sources[1]).toMatchObject({
         sourceId: `project:${projectId}`,
         latestScheduledSocialPostAt: "2027-01-20T12:00:00.000Z",
       });
-      expect(body.data[2]).toMatchObject({
+      expect(body.data.sources[2]).toMatchObject({
         sourceId: `project:${emptyProjectId}`,
         latestScheduledSocialPostAt: null,
       });

@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { useMemo, useState, useTransition } from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 
 import { formatDay, planWeeks } from "../../lib/calendar";
 import { ChannelIcon } from "../channel-icon";
@@ -78,9 +78,12 @@ export function StrategyPage({
   loadText,
   onSetAds,
   onApprove,
+  pieceExtra,
 }: {
   overview: CmoOverview;
   onAsk: (text: string) => Promise<void>;
+  /** What the owner can do with a piece beyond reading it (launch an ad). */
+  pieceExtra?: (entry: Entry) => ReactNode;
   /** The words of a piece kept in the owner's Files. */
   loadText?: (entryId: string) => Promise<string | null>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
@@ -182,6 +185,9 @@ export function StrategyPage({
             onClose={() => setOpen(null)}
             onAsk={onAsk}
             loadText={loadText}
+            extra={pieceExtra?.(
+              strategy.calendar.find((entry) => entry.id === open.id) ?? open,
+            )}
           />
         ) : null}
       </AnimatePresence>

@@ -71,6 +71,7 @@ const PROPER_WORDS = new Set([
   "WhatsApp",
   "WebP",
   "X",
+  "LinkedIn",
   "Claude",
   "Eve",
   "Jev",

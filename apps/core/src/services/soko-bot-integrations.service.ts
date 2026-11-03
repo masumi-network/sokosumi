@@ -296,7 +296,11 @@ export interface SokoBotIntegrationTool {
   name: string;
   description: string | null;
   inputSchema: unknown;
+  /** Composio marks it as only looking things up. */
+  readOnly: boolean;
 }
+
+const READ_ONLY_TAG = "readOnlyHint";
 
 /**
  * Why a bot may not use this toolkit (or tool) directly: ads go through the
@@ -335,6 +339,7 @@ export async function listIntegrationTools(
     name: tool.name,
     description: tool.description ?? null,
     inputSchema: tool.inputParameters ?? null,
+    readOnly: tool.tags?.includes(READ_ONLY_TAG) ?? false,
   }));
 }
 
@@ -344,6 +349,32 @@ export async function runIntegrationTool(
   tool: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  return execute(integration, integrationToolSlug(integration, tool), args);
+}
+
+/** Runs a tool only when Composio marks it read-only, so a read can never write. */
+export async function readIntegrationTool(
+  integration: ActiveIntegration,
+  tool: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const slug = integrationToolSlug(integration, tool);
+  const composio = requireComposio();
+  const described = await withComposio("describe tool", () =>
+    composio.tools.getRawComposioToolBySlug(slug),
+  );
+  if (!described.tags?.includes(READ_ONLY_TAG))
+    throw new SokoBotIntegrationError(
+      `${slug} is not marked read-only; a tool that changes something runs through run_integration_tool`,
+    );
+  return execute(integration, slug, args);
+}
+
+/** The tool's slug, after refusing mailboxes, ad toolkits and other toolkits' tools. */
+function integrationToolSlug(
+  integration: ActiveIntegration,
+  tool: string,
+): string {
   const refusal = adToolkitRefusal(integration.provider.id, tool);
   if (refusal) throw new SokoBotIntegrationError(refusal);
   if (isSokoBotEmailProvider(integration.provider.id)) {
@@ -358,7 +389,7 @@ export async function runIntegrationTool(
       `Tool ${tool} does not belong to ${integration.provider.name}`,
     );
   }
-  return execute(integration, slug, args);
+  return slug;
 }
 
 /** A Composio call the model is waiting on; well under the turn budget. */

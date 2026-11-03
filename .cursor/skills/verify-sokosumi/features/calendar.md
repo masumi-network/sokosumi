@@ -30,7 +30,7 @@ Preconditions:
 ## Gotchas
 
 - Calendar is not a Tasks tab any more; `TASKS_TAB_VALUES` is gone. Social embeds the same component locked to Social posts (`types={["social"]}`).
-- Social posts are included on this calendar. They are one feature of **Show**, not a beta gate. **Ads** (`/ads`) is the sidebar row that still needs social beta.
+- Social posts are included on this calendar. They are one feature of **Show**, not a beta gate. **Ads** (`/ads`) is always a Marketing sidebar row.
 - A Contact follow-up is an all-day item on its date; a Marketing piece opens its Project file only once the file exists.
 - Empty week/month is valid. Copy **No scheduled releases match these filters.** is the empty filter state, not a routing failure.
 - Creating tasks from the calendar is out of scope for this landing entry.

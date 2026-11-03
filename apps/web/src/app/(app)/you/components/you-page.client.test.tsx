@@ -136,7 +136,7 @@ describe("YouPageClient", () => {
   });
 
   it("links public Social next to Content Studio", () => {
-    renderYouPage({ socialBetaEnabled: true });
+    renderYouPage();
 
     const social = screen.getByTestId("you-social");
     expect(social).toHaveAttribute("href", "/social");
@@ -146,14 +146,14 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
-  it("shows Social outside the Ads beta", () => {
+  it("shows Social by default", () => {
     renderYouPage();
 
     expect(screen.getByTestId("you-social")).toBeInTheDocument();
   });
 
-  it("links Ads after Social for members of the Ads beta", () => {
-    renderYouPage({ socialBetaEnabled: true });
+  it("links Ads after Social", () => {
+    renderYouPage();
 
     const ads = screen.getByTestId("you-ads");
     expect(ads).toHaveAttribute("href", "/ads");
@@ -167,14 +167,14 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
-  it("leaves Ads out for everyone else", () => {
+  it("shows Ads by default", () => {
     renderYouPage();
 
-    expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
+    expect(screen.getByTestId("you-ads")).toBeInTheDocument();
   });
 
   it("links Newsletter between Ads and Files when available", () => {
-    renderYouPage({ socialBetaEnabled: true, newsletterEnabled: true });
+    renderYouPage({ newsletterEnabled: true });
 
     const newsletter = screen.getByTestId("you-newsletter");
     expect(newsletter).toHaveAttribute("href", "/newsletter");
@@ -194,14 +194,14 @@ describe("YouPageClient", () => {
     expect(screen.queryByTestId("you-newsletter")).not.toBeInTheDocument();
   });
 
-  it("shows Newsletter independently of the Ads beta", () => {
+  it("shows Newsletter alongside Ads when available", () => {
     renderYouPage({ newsletterEnabled: true });
 
     expect(screen.getByTestId("you-newsletter")).toHaveAttribute(
       "href",
       "/newsletter",
     );
-    expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
+    expect(screen.getByTestId("you-ads")).toBeInTheDocument();
   });
 
   it("groups Schedules, Studio and Files in the destinations section", () => {

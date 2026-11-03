@@ -62,6 +62,7 @@ function renderCard(
   overrides: Partial<SocialPostCalendarItem> = {},
   variant: "compact" | "preview" | "month" | "week" = "preview",
   enabledProviders: readonly ProjectSocialProvider[] = SOCIAL_PUBLIC_PROVIDERS,
+  showProject = true,
 ) {
   return render(
     <NextIntlClientProvider
@@ -75,6 +76,7 @@ function renderCard(
           timeZone="UTC"
           item={{ ...item, ...overrides }}
           variant={variant}
+          showProject={showProject}
         />
       </SocialProviderAvailabilityProvider>
     </NextIntlClientProvider>,
@@ -484,7 +486,7 @@ describe("Social post calendar event", () => {
       const chip = screen.getByTestId("calendar-social-post");
       expect(chip).toHaveAttribute("data-density", "month");
       expect(chip).toHaveTextContent("12:00 PMLaunch news");
-      expect(chip).not.toHaveTextContent("Launch project");
+      expect(within(chip).getByText("Launch project")).toBeVisible();
       // A bordered chip: a status rail and glyph lead.
       expect(chip).toHaveClass("border");
       expect(
@@ -500,6 +502,17 @@ describe("Social post calendar event", () => {
         "X · @team, 12:00 PM, Project: Launch project, Launch news, Scheduled, Scheduled by Albina, 2 attachments",
       );
     });
+
+    it.each(["month", "week"] as const)(
+      "omits the project on a %s chip when the calendar is locked to it",
+      (variant) => {
+        renderCard({}, variant, SOCIAL_PUBLIC_PROVIDERS, false);
+
+        const chip = screen.getByTestId("calendar-social-post");
+        expect(chip).not.toHaveTextContent("Launch project");
+        expect(chip).not.toHaveAccessibleName(/Project: Launch project/);
+      },
+    );
 
     it("adds the account, project and media on the week chip", () => {
       renderCard({ previewMedia: { fileUrl: "a.png", kind: "image" } }, "week");

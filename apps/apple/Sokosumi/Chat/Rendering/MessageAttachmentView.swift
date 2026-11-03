@@ -67,16 +67,26 @@ struct AttachmentDocumentButton: View {
     .help(help ?? attachment.filename)
     .accessibilityLabel("Preview \(attachment.filename)")
     .sheet(isPresented: $previewPresented) {
-      VStack(spacing: 16) {
-        AttachmentViewerToolbar(attachment: attachment) { previewPresented = false }
-        DocumentAttachmentPreview(attachment: attachment)
-          .frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
-      }
-      .padding()
-      #if os(macOS)
-        .frame(minWidth: 640, minHeight: 480)
-      #endif
+      AttachmentDocumentSheet(attachment: attachment) { previewPresented = false }
     }
+  }
+}
+
+/// The document viewer's sheet: the bar over the preview.
+struct AttachmentDocumentSheet: View {
+  let attachment: MessageAttachment
+  let close: () -> Void
+
+  var body: some View {
+    VStack(spacing: 16) {
+      AttachmentViewerToolbar(attachment: attachment, close: close)
+      DocumentAttachmentPreview(attachment: attachment)
+        .frame(minWidth: 300, idealWidth: 800, maxWidth: .infinity, minHeight: 200, idealHeight: 560, maxHeight: .infinity)
+    }
+    .padding()
+    #if os(macOS)
+      .frame(minWidth: 640, minHeight: 480)
+    #endif
   }
 }
 

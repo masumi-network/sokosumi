@@ -6,7 +6,11 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 import { renderNewsletterEmail } from "@sokosumi/email";
-import { CORE_API_ERROR_KINDS, canArchiveTaskStatus } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  canArchiveTaskStatus,
+  type NewsletterBrand,
+} from "@sokosumi/utils";
 import slugify from "slugify";
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -150,18 +154,20 @@ export async function getNewsletterIssue(
 }
 
 /**
- * Renders issue content with the sending renderer and the newsletter's brand.
- * Never saves or sends anything; the unsubscribe link is a placeholder.
+ * Renders issue content with the sending renderer and the newsletter's brand,
+ * or a draft design when the studio passes one. Never saves or sends
+ * anything; the unsubscribe link is a placeholder.
  */
 export async function renderNewsletterIssuePreview(
   scope: NewsletterScope,
   issue: CreateNewsletterIssueRequest,
+  brand?: NewsletterBrand,
 ) {
   const newsletter = await getNewsletter(scope);
   return renderNewsletterEmail({
     newsletter: {
       name: newsletter.name,
-      brand: newsletterBrandSchema.parse(newsletter.brand),
+      brand: brand ?? newsletterBrandSchema.parse(newsletter.brand),
     },
     issue,
     unsubscribeUrl: "#",
