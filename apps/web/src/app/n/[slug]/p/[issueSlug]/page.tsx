@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { PreviewFrame } from "@/components/common/preview-frame";
+import { PublicNewsletterHeader } from "@/components/newsletter/public-newsletter-header";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
 import { newsletterService } from "@/lib/services/newsletter.service";
-import { PublicNewsletterHeader } from "../../public-newsletter-header";
 
 export const instant = false;
 

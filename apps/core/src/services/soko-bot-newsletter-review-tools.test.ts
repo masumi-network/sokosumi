@@ -33,6 +33,9 @@ const m = vi.hoisted(() => ({
   query: vi.fn(),
   reserve: vi.fn(),
   count: vi.fn(),
+  files: vi.fn(),
+  head: vi.fn(),
+  workspaceRead: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
   getEnv: () => ({}),
@@ -48,7 +51,12 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },
     newsletterIssue: { findUnique: async () => m.issue.current },
     user: { findMany: async () => [] },
+    workspace: { findUnique: m.workspaceRead },
   },
+}));
+vi.mock("@vercel/blob", () => ({ head: m.head }));
+vi.mock("@/services/file-search.service", () => ({
+  loadLiveResources: m.files,
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: m.access,
@@ -214,6 +222,10 @@ beforeEach(() => {
     id: NEWSLETTER_WORKSPACE_ID,
     organizationId: null,
   });
+  m.workspaceRead.mockResolvedValue({
+    id: NEWSLETTER_WORKSPACE_ID,
+    organizationId: null,
+  });
 });
 
 describe("Soko Bot newsletter preview", () => {
@@ -264,6 +276,14 @@ describe("Soko Bot newsletter preview", () => {
         { type: "heading", level: 1, text: " " },
         { type: "image", url: "https://example.com/a.png", alt: "" },
         { type: "text", text: "See [our site](http://example.com)" },
+        {
+          type: "columns",
+          columns: [
+            { text: "A", imageUrl: "https://example.com/b.png" },
+            { text: "B" },
+          ],
+        },
+        { type: "footer", text: "" },
       ],
     });
     expect(result).toMatchObject({
@@ -275,11 +295,65 @@ describe("Soko Bot newsletter preview", () => {
         "Block 1 (heading) is empty",
         "Block 2 (image) has no alt text",
         "Block 3 (text) has a link that is not https and will show as text",
+        "Block 4 (columns) has no alt text",
+        "Block 5 (footer) is empty",
         "The email is 110 KB; Gmail clips messages over 102 KB",
       ],
     });
     expect((result as { text: string }).text).toHaveLength(8_000);
     expect(result).not.toHaveProperty("issueId");
+  });
+
+  it.each([true, false])(
+    "previews an unsaved Studio design without saving it (saved issue=%s)",
+    async (saved) => {
+      const brand = {
+        accentColor: "#abc",
+        headerImageUrl: "https://example.com/banner.png",
+        buttonShape: "pill",
+        spacing: "roomy",
+        signupForm: { buttonShape: "square" },
+      };
+      const result = await execute("preview_newsletter_issue", {
+        projectId: NEWSLETTER_PROJECT_ID,
+        ...(saved
+          ? { issueId: NEWSLETTER_ISSUE_ID }
+          : {
+              subject: "Preview",
+              template: "TEXT",
+              content: [{ type: "text", text: "News" }],
+            }),
+        brand,
+        includeHtml: true,
+      });
+      expect(m.render).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newsletter: { name: NEWSLETTER.name, brand },
+        }),
+      );
+      expect(result).toMatchObject({
+        html: "<html>rendered</html>",
+        htmlTruncated: false,
+      });
+      expect(m.issueUpdate).not.toHaveBeenCalled();
+      expect(m.receiptUpdate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("bounds requested HTML and warns about an empty unsaved issue", async () => {
+    m.render.mockResolvedValue({ html: "x".repeat(160_000), text: "" });
+    const result = await execute("preview_newsletter_issue", {
+      projectId: NEWSLETTER_PROJECT_ID,
+      subject: "Preview",
+      template: "TEXT",
+      content: [],
+      includeHtml: true,
+    });
+    expect(result).toMatchObject({
+      htmlTruncated: true,
+      warnings: expect.arrayContaining(["The issue has no content blocks"]),
+    });
+    expect((result as { html: string }).html).toHaveLength(150_000);
   });
 
   it("refuses a Project outside the member's access", async () => {
@@ -288,6 +362,63 @@ describe("Soko Bot newsletter preview", () => {
       "Project not found",
     );
     expect(m.render).not.toHaveBeenCalled();
+  });
+
+  it("previews an unsaved Files image with the sending renderer", async () => {
+    const fileId = "55555555-5555-4555-8555-555555555555";
+    m.files.mockResolvedValue([
+      {
+        id: fileId,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "users/user/drive/launch.png",
+        mimeType: "image/png",
+      },
+    ]);
+    m.head.mockResolvedValue({ url: "https://blob.example/launch.png" });
+    await execute("preview_newsletter_issue", {
+      projectId: NEWSLETTER_PROJECT_ID,
+      subject: "Preview",
+      template: "IMAGES",
+      content: [
+        { type: "image", fileId, alt: "Launch", width: 50, align: "center" },
+      ],
+    });
+    expect(m.render).toHaveBeenCalledWith(
+      expect.objectContaining({
+        issue: expect.objectContaining({
+          content: [
+            {
+              type: "image",
+              url: "https://blob.example/launch.png",
+              alt: "Launch",
+              width: 50,
+              align: "center",
+            },
+          ],
+        }),
+      }),
+    );
+    expect(m.issueUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not render an inaccessible Files image", async () => {
+    m.files.mockResolvedValue([]);
+    await expect(
+      execute("preview_newsletter_issue", {
+        projectId: NEWSLETTER_PROJECT_ID,
+        subject: "Preview",
+        template: "IMAGES",
+        content: [
+          {
+            type: "image",
+            fileId: "55555555-5555-4555-8555-555555555555",
+            alt: "Launch",
+          },
+        ],
+      }),
+    ).rejects.toThrow("File not found");
+    expect(m.render).not.toHaveBeenCalled();
+    expect(m.head).not.toHaveBeenCalled();
   });
 });
 

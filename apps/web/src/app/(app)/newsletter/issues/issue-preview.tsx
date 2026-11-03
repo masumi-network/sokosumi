@@ -1,6 +1,7 @@
 "use client";
 
 import type { CreateNewsletterIssueRequest } from "@sokosumi/core-client";
+import type { NewsletterBrand } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Monitor, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,14 +12,17 @@ import { PreviewFrame } from "@/components/common/preview-frame";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { newsletterIssueInputSchema } from "@/lib/schemas/newsletter-issues";
+import { newsletterIssuePreviewSchema } from "@/lib/schemas/newsletter-issues";
 
 export function NewsletterIssuePreview({
   projectId,
   values,
+  brand,
 }: {
   projectId: string;
   values: CreateNewsletterIssueRequest;
+  /** An unsaved design to render with; the saved brand otherwise. */
+  brand?: NewsletterBrand;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
   const [device, setDevice] = useState("desktop");
@@ -64,9 +68,9 @@ export function NewsletterIssuePreview({
   const viewportWidth = device === "mobile" ? 375 : 720;
   const scale =
     availableWidth > 0 ? Math.min(1, availableWidth / viewportWidth) : 1;
-  const current = JSON.stringify(values);
+  const current = JSON.stringify({ ...values, brand });
   const [body] = useDebounce(current, 600);
-  const parsed = newsletterIssueInputSchema(t).safeParse(JSON.parse(body));
+  const parsed = newsletterIssuePreviewSchema(t).safeParse(JSON.parse(body));
   const preview = useQuery({
     queryKey: ["newsletter-preview", projectId, body],
     enabled: parsed.success,

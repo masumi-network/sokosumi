@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { PublicNewsletter } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,11 +21,25 @@ import {
   type NewsletterSignupValues,
   newsletterSignupSchema,
 } from "@/lib/schemas/newsletter-signup";
+import { cn } from "@/lib/utils";
+import { NEWSLETTER_BUTTON_SHAPE, NEWSLETTER_FORM_SPACING } from "./design";
 
-export function NewsletterSignupForm({ slug }: { slug: string }) {
+interface NewsletterSignupFormProps {
+  slug: string;
+  brand?: PublicNewsletter["brand"];
+  preview?: boolean;
+}
+
+export function NewsletterSignupForm({
+  slug,
+  brand = {},
+  preview = false,
+}: NewsletterSignupFormProps) {
   const t = useTranslations("PublicNewsletter.Signup");
   const publicT = useTranslations("PublicNewsletter");
   const [subscribed, setSubscribed] = useState(false);
+  const websiteId = useId();
+  const spacing = NEWSLETTER_FORM_SPACING[brand.spacing ?? "normal"];
   const form = useForm<NewsletterSignupValues>({
     resolver: zodResolver(newsletterSignupSchema(t)),
     defaultValues: { email: "", name: "", consent: false, website: "" },
@@ -32,6 +47,7 @@ export function NewsletterSignupForm({ slug }: { slug: string }) {
   const { isSubmitting } = form.formState;
 
   async function handleSubmit(values: NewsletterSignupValues) {
+    if (preview) return;
     form.clearErrors("root");
     try {
       const result = await subscribeToNewsletter({ slug, values });
@@ -63,10 +79,18 @@ export function NewsletterSignupForm({ slug }: { slug: string }) {
         <Form {...form}>
           <form
             noValidate
-            onSubmit={form.handleSubmit(handleSubmit)}
-            className="space-y-4"
+            inert={preview}
+            onSubmit={
+              preview
+                ? (event) => event.preventDefault()
+                : form.handleSubmit(handleSubmit)
+            }
+            className={spacing}
           >
-            <fieldset disabled={isSubmitting} className="min-w-0 space-y-4">
+            <fieldset
+              disabled={isSubmitting}
+              className={cn("min-w-0", spacing)}
+            >
               {(["email", "name"] as const).map((name) => (
                 <FormField
                   key={name}
@@ -117,9 +141,9 @@ export function NewsletterSignupForm({ slug }: { slug: string }) {
                 )}
               />
               <div hidden>
-                <label htmlFor="newsletter-website">{t("website")}</label>
+                <label htmlFor={websiteId}>{t("website")}</label>
                 <Input
-                  id="newsletter-website"
+                  id={websiteId}
                   {...form.register("website")}
                   autoComplete="off"
                   tabIndex={-1}
@@ -136,7 +160,14 @@ export function NewsletterSignupForm({ slug }: { slug: string }) {
               type="submit"
               variant="primary"
               loading={isSubmitting}
-              className="w-full"
+              className={cn(
+                "w-full",
+                NEWSLETTER_BUTTON_SHAPE[brand.buttonShape ?? "rounded"],
+              )}
+              style={{
+                backgroundColor: brand.accentColor,
+                color: brand.buttonTextColor,
+              }}
             >
               {publicT("subscribe")}
             </Button>

@@ -37,6 +37,12 @@ const VALUES = {
   accentColor: "",
   fontFamily: "Georgia",
   footerText: "Thanks",
+  backgroundColor: "",
+  buttonTextColor: "",
+  buttonShape: "rounded",
+  headerImageUrl: "",
+  headerAlign: "left",
+  spacing: "normal",
   welcomeEmailEnabled: true,
   welcomeSubject: "Hello",
   welcomeBody: "Welcome!",
@@ -64,6 +70,28 @@ beforeEach(() => {
 });
 
 describe("saveNewsletterSettings", () => {
+  it("passes only chosen signup overrides to Core without changing the shared brand", async () => {
+    const signupForm = {
+      accentColor: "#123456",
+      buttonShape: "pill",
+      spacing: "compact",
+    };
+    const result = await saveNewsletterSettings({
+      projectId: PROJECT_ID,
+      values: {
+        ...VALUES,
+        signupForm: { ...signupForm, buttonTextColor: "", headerAlign: "" },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(mocks.save).toHaveBeenCalledWith(
+      PROJECT_ID,
+      expect.objectContaining({
+        brand: expect.objectContaining({ primaryColor: "#abc", signupForm }),
+      }),
+    );
+  });
+
   it("normalizes settings, drops blank optional brand fields, and revalidates the page", async () => {
     const result = await saveNewsletterSettings({
       projectId: PROJECT_ID,
@@ -77,6 +105,9 @@ describe("saveNewsletterSettings", () => {
         primaryColor: "#abc",
         fontFamily: "Georgia",
         footerText: "Thanks",
+        buttonShape: "rounded",
+        headerAlign: "left",
+        spacing: "normal",
       },
       welcomeEmailEnabled: true,
       welcomeSubject: "Hello",

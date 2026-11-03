@@ -234,6 +234,63 @@ describe("newsletter issue write tools", () => {
     ).toBe(true);
     expect(remove.safeParse(ref).success).toBe(true);
     expect(remove.safeParse({ projectId, issueId }).success).toBe(false);
+    expect(update.safeParse({ ...ref, content: [] }).success).toBe(true);
+  });
+
+  it("accepts every Studio block and Files images on create and update", () => {
+    const fileId = "55555555-5555-4555-8555-555555555555";
+    const blocks = [
+      ...content,
+      { type: "image", fileId, alt: "Launch", width: 40, align: "right" },
+      {
+        type: "columns",
+        columns: [{ text: "A", fileId, alt: "A" }, { text: "B" }],
+      },
+      { type: "spacer", size: "lg" },
+      {
+        type: "social",
+        links: [{ network: "website", url: "https://example.com" }],
+      },
+      { type: "footer", text: "Thanks for reading" },
+    ];
+    expect(create.parse({ ...created, content: blocks }).content).toEqual(
+      blocks,
+    );
+    expect(
+      update.parse({ projectId, issueId, revision: 1, content: blocks })
+        .content,
+    ).toEqual(blocks);
+  });
+
+  it.each([
+    { type: "image", alt: "A" },
+    { type: "image", fileId: "not-an-id", alt: "A" },
+    {
+      type: "image",
+      fileId: issueId,
+      url: "https://example.com/a.png",
+      alt: "A",
+    },
+    { type: "image", url: "https://example.com/a.png", alt: "A", width: 9 },
+    { type: "image", url: "https://example.com/a.png", alt: "A", width: 101 },
+    { type: "image", url: "https://example.com/a.png", alt: "A", align: "top" },
+    {
+      type: "columns",
+      columns: [
+        { text: "A", fileId: issueId, imageUrl: "https://example.com/a.png" },
+        { text: "B" },
+      ],
+    },
+    { type: "columns", columns: [{ text: "A" }] },
+    { type: "spacer", size: "xl" },
+    {
+      type: "social",
+      links: [{ network: "website", url: "http://example.com" }],
+    },
+  ])("rejects an invalid Studio block: %j", (block) => {
+    expect(create.safeParse({ ...created, content: [block] }).success).toBe(
+      false,
+    );
   });
 
   it.each([
@@ -286,6 +343,38 @@ describe("newsletter preview and submit tools", () => {
     ).toBe(false);
   });
 
+  it("previews an unsaved design on a saved or unsaved issue", () => {
+    const brand = {
+      spacing: "roomy",
+      buttonShape: "pill",
+      signupForm: { accentColor: "#abc" },
+    };
+    expect(
+      preview.parse({ projectId, issueId, brand, includeHtml: true }),
+    ).toMatchObject({ brand, includeHtml: true });
+    expect(preview.parse({ ...unsaved, brand }).brand).toEqual(brand);
+    expect(preview.safeParse({ ...unsaved, content: [] }).success).toBe(true);
+    expect(
+      preview.safeParse({
+        projectId,
+        issueId,
+        brand: { buttonShape: "circle" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("offers a read-only signup form preview with no delivery flags", () => {
+    const signup = SOKO_BOT_TOOL_INPUT_SCHEMAS.preview_newsletter_signup_form;
+    expect(signup.parse({ projectId })).toEqual({ projectId });
+    for (const field of ["sendNow", "approve", "scheduledAt", "brand"])
+      expect(signup.safeParse({ projectId, [field]: true }).success).toBe(
+        false,
+      );
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.preview_newsletter_signup_form).toMatch(
+      /effective design.*overrides/,
+    );
+  });
+
   it("submits with the read revision and takes no approval or send flag", () => {
     const ref = { projectId, issueId, revision: 0 };
     expect(submit.safeParse(ref).success).toBe(true);
@@ -335,12 +424,43 @@ describe("newsletter settings tool", () => {
     expect(settings.safeParse({ projectId, brand: {} }).success).toBe(false);
   });
 
+  it("patches Studio design and signup overrides, including inheritance resets", () => {
+    const brand = {
+      headerImageUrl: "https://example.com/header.png",
+      primaryColor: "#123456",
+      accentColor: "#abc",
+      backgroundColor: "#ffffff",
+      buttonTextColor: "#000",
+      fontFamily: "Arial",
+      footerText: "Thanks",
+      buttonShape: "pill",
+      headerAlign: "center",
+      spacing: "roomy",
+      signupForm: {
+        accentColor: "#def",
+        buttonTextColor: null,
+        buttonShape: "square",
+        headerAlign: "left",
+        spacing: "compact",
+      },
+    };
+    expect(settings.parse({ projectId, brand }).brand).toEqual(brand);
+    expect(
+      settings.parse({ projectId, brand: { signupForm: null } }).brand,
+    ).toEqual({ signupForm: null });
+  });
+
   it.each([
     { brand: { primaryColor: "blue" } },
     { brand: { accentColor: "#12345" } },
     { brand: { logoUrl: "http://example.com/logo.png" } },
     { brand: { logoUrl: "javascript:alert(1)" } },
     { brand: { css: "body{}" } },
+    { brand: { signupForm: {} } },
+    { brand: { signupForm: { accentColor: "blue" } } },
+    { brand: { signupForm: { spacing: "wide" } } },
+    { brand: { signupForm: { buttonShape: "circle" } } },
+    { brand: { signupForm: { logoUrl: "https://example.com/logo.png" } } },
     { replyTo: "not-an-email" },
     { name: "" },
   ])("rejects %j", (change) => {

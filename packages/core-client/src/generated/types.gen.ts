@@ -8118,6 +8118,19 @@ export type NewsletterBrand = {
     accentColor?: string;
     fontFamily?: string;
     footerText?: string;
+    backgroundColor?: string;
+    buttonTextColor?: string;
+    buttonShape?: 'square' | 'rounded' | 'pill';
+    headerImageUrl?: string;
+    headerAlign?: 'left' | 'center';
+    spacing?: 'compact' | 'normal' | 'roomy';
+    signupForm?: {
+        accentColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+    };
 };
 
 export type NewsletterAnalytics = {
@@ -8228,12 +8241,33 @@ export type NewsletterContent = Array<{
     url: string;
     alt: string;
     href?: string;
+    width?: number;
+    align?: 'left' | 'center' | 'right';
 } | {
     type: 'button';
     label: string;
     url: string;
 } | {
     type: 'divider';
+} | {
+    type: 'columns';
+    columns: Array<{
+        text: string;
+        imageUrl?: string;
+        alt?: string;
+    }>;
+} | {
+    type: 'spacer';
+    size: 'sm' | 'md' | 'lg';
+} | {
+    type: 'social';
+    links: Array<{
+        network: 'website' | 'x' | 'linkedin' | 'instagram' | 'facebook' | 'youtube' | 'tiktok';
+        url: string;
+    }>;
+} | {
+    type: 'footer';
+    text: string;
 }>;
 
 export const NewsletterIssueStatus = {
@@ -8270,6 +8304,32 @@ export type CreateNewsletterIssueRequest = {
     previewText?: string | null;
     template: NewsletterTemplate;
     content: NewsletterContent;
+};
+
+export type PreviewNewsletterIssueRequest = CreateNewsletterIssueRequest & {
+    /**
+     * Unsaved newsletter design to preview with; the saved brand otherwise.
+     */
+    brand?: {
+        logoUrl?: string;
+        primaryColor?: string;
+        accentColor?: string;
+        fontFamily?: string;
+        footerText?: string;
+        backgroundColor?: string;
+        buttonTextColor?: string;
+        buttonShape?: 'square' | 'rounded' | 'pill';
+        headerImageUrl?: string;
+        headerAlign?: 'left' | 'center';
+        spacing?: 'compact' | 'normal' | 'roomy';
+        signupForm?: {
+            accentColor?: string;
+            buttonTextColor?: string;
+            buttonShape?: 'square' | 'rounded' | 'pill';
+            headerAlign?: 'left' | 'center';
+            spacing?: 'compact' | 'normal' | 'roomy';
+        };
+    };
 };
 
 export type PatchNewsletterIssueRequest = {
@@ -54714,7 +54774,7 @@ export type PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses = {
 export type PostProjectsByIdNewsletterIssuesByIssueIdCancelResponse = PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses[keyof PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses];
 
 export type PostProjectsByIdNewsletterIssuesPreviewData = {
-    body: CreateNewsletterIssueRequest;
+    body: PreviewNewsletterIssueRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.

@@ -33,6 +33,9 @@ const m = vi.hoisted(() => ({
   query: vi.fn(),
   reserve: vi.fn(),
   count: vi.fn(),
+  files: vi.fn(),
+  head: vi.fn(),
+  workspaceRead: vi.fn(),
 }));
 vi.mock("@/config/env", () => ({
   getEnv: () => ({}),
@@ -42,7 +45,12 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },
     sokoBotTurn: { findUnique: m.ownerTurn },
+    workspace: { findUnique: m.workspaceRead },
   },
+}));
+vi.mock("@vercel/blob", () => ({ head: m.head }));
+vi.mock("@/services/file-search.service", () => ({
+  loadLiveResources: m.files,
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: m.access,
@@ -85,6 +93,14 @@ import {
 } from "./soko-bot-runtime.service";
 
 const BOT_ID = "77777777-7777-4777-8777-777777777777";
+const IMAGE_FILE_ID = "55555555-5555-4555-8555-555555555555";
+const IMAGE_URL = "https://blob.example/launch.png";
+const IMAGE_FILE = {
+  id: IMAGE_FILE_ID,
+  sourceKind: "DRIVE_UPLOAD",
+  sourceId: "users/user/drive/launch.png",
+  mimeType: "image/png",
+};
 const WRITES = [
   "create_newsletter_issue",
   "update_newsletter_issue",
@@ -216,6 +232,12 @@ beforeEach(() => {
     id: NEWSLETTER_WORKSPACE_ID,
     organizationId: null,
   });
+  m.workspaceRead.mockResolvedValue({
+    id: NEWSLETTER_WORKSPACE_ID,
+    organizationId: null,
+  });
+  m.files.mockResolvedValue([IMAGE_FILE]);
+  m.head.mockResolvedValue({ url: IMAGE_URL });
 });
 
 describe("Soko Bot newsletter issue writes", () => {
@@ -276,6 +298,159 @@ describe("Soko Bot newsletter issue writes", () => {
     expect(m.receiptUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ targetId: NEWSLETTER_ISSUE_ID }),
+      }),
+    );
+  });
+
+  it.each(["create_newsletter_issue", "update_newsletter_issue"] as const)(
+    "%s resolves Files images in blocks and columns through the owner's Files access",
+    async (capability) => {
+      const result = await execute(capability, {
+        ...INPUTS[capability],
+        content: [
+          {
+            type: "image",
+            fileId: IMAGE_FILE_ID,
+            alt: "Launch",
+            width: 45,
+            align: "right",
+          },
+          {
+            type: "columns",
+            columns: [
+              { text: "News", fileId: IMAGE_FILE_ID, alt: "Launch" },
+              { text: "More" },
+            ],
+          },
+        ],
+      });
+      const expected = [
+        {
+          type: "image",
+          url: IMAGE_URL,
+          alt: "Launch",
+          width: 45,
+          align: "right",
+        },
+        {
+          type: "columns",
+          columns: [
+            { text: "News", imageUrl: IMAGE_URL, alt: "Launch" },
+            { text: "More" },
+          ],
+        },
+      ];
+      expect(
+        capability === "create_newsletter_issue"
+          ? m.issueCreate.mock.calls[0]?.[0].data.content
+          : m.issue.current?.content,
+      ).toEqual(expected);
+      expect(result).toMatchObject({ status: "DRAFT" });
+      expect(m.files).toHaveBeenCalledWith({
+        workspaceId: NEWSLETTER_WORKSPACE_ID,
+        actor: {
+          userId: "user",
+          organizationId: null,
+          kind: "soko_bot",
+          sokoBotScope: null,
+        },
+        resourceIds: [IMAGE_FILE_ID],
+      });
+      expect(m.head).toHaveBeenCalledExactlyOnceWith(IMAGE_FILE.sourceId);
+      expect(m.receiptUpdate).toHaveBeenCalled();
+    },
+  );
+
+  it("adds, edits, reorders, duplicates and deletes Studio blocks with the full content list", async () => {
+    const footer = { type: "footer", text: "Thanks" };
+    const content = [
+      footer,
+      {
+        type: "image",
+        url: IMAGE_URL,
+        alt: "Launch",
+        width: 30,
+        align: "center",
+      },
+      { type: "spacer", size: "sm" },
+      {
+        type: "social",
+        links: [{ network: "linkedin", url: "https://example.com" }],
+      },
+      footer,
+    ];
+    await execute("update_newsletter_issue", {
+      ...INPUTS.update_newsletter_issue,
+      content,
+    });
+    expect(m.issue.current?.content).toEqual(content);
+    await execute("update_newsletter_issue", {
+      ...INPUTS.update_newsletter_issue,
+      revision: 4,
+      content: [],
+    });
+    expect(m.issue.current?.content).toEqual([]);
+  });
+
+  it.each([
+    { files: [], error: "File not found" },
+    {
+      files: [{ ...IMAGE_FILE, mimeType: "application/pdf" }],
+      error: "Use an image from Files",
+    },
+    {
+      files: [{ ...IMAGE_FILE, sourceKind: "DATA_TABLE" }],
+      error: "Use an image from Files",
+    },
+  ])(
+    "refuses inaccessible or non-image files before an issue write: $error",
+    async ({ files, error }) => {
+      m.files.mockResolvedValue(files);
+      await expect(
+        execute("update_newsletter_issue", {
+          ...INPUTS.update_newsletter_issue,
+          content: [{ type: "image", fileId: IMAGE_FILE_ID, alt: "Launch" }],
+        }),
+      ).rejects.toThrow(error);
+      expect(m.head).not.toHaveBeenCalled();
+      expect(m.issueUpdate).not.toHaveBeenCalled();
+      expect(m.receiptUpdate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("checks project access and the newsletter gate before resolving a Files image", async () => {
+    m.available.mockResolvedValue(false);
+    await expect(
+      execute("create_newsletter_issue", {
+        ...INPUTS.create_newsletter_issue,
+        content: [{ type: "image", fileId: IMAGE_FILE_ID, alt: "Launch" }],
+      }),
+    ).rejects.toThrow("Newsletter is not enabled");
+    expect(m.files).not.toHaveBeenCalled();
+    expect(m.head).not.toHaveBeenCalled();
+    expect(m.issueCreate).not.toHaveBeenCalled();
+  });
+
+  it("passes a shared bot's scope to Files when inserting an image", async () => {
+    const sharedScope = {
+      sokoBotId: BOT_ID,
+      workspaceId: NEWSLETTER_WORKSPACE_ID,
+      projectId: NEWSLETTER_PROJECT_ID,
+    };
+    await execute(
+      "update_newsletter_issue",
+      {
+        ...INPUTS.update_newsletter_issue,
+        content: [{ type: "image", fileId: IMAGE_FILE_ID, alt: "Launch" }],
+      },
+      {
+        ...AUTHORIZED,
+        reader: { userId: "user", audience: "TEAMMATE", sharedScope },
+      },
+    );
+    expect(m.files).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: expect.objectContaining({ sokoBotScope: sharedScope }),
       }),
     );
   });

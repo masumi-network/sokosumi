@@ -2,7 +2,12 @@ import { type AbstractIntlMessages, createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import en from "@/messages/en.json";
 
-import { newsletterSettingsSchema } from "./newsletter";
+import {
+  type NewsletterSettingsValues,
+  newsletterBrandForPreview,
+  newsletterBrandFromValues,
+  newsletterSettingsSchema,
+} from "./newsletter";
 
 const messages: AbstractIntlMessages = en;
 const schema = newsletterSettingsSchema(
@@ -12,7 +17,7 @@ const schema = newsletterSettingsSchema(
     namespace: "App.Projects.Newsletter.Validation",
   }),
 );
-const VALUES = {
+const VALUES: NewsletterSettingsValues = {
   name: "Weekly",
   senderName: "Team",
   replyTo: "team@example.com",
@@ -21,6 +26,12 @@ const VALUES = {
   accentColor: "",
   fontFamily: "Arial",
   footerText: "",
+  backgroundColor: "",
+  buttonTextColor: "",
+  buttonShape: "rounded",
+  headerImageUrl: "",
+  headerAlign: "left",
+  spacing: "normal",
   welcomeEmailEnabled: false,
   welcomeSubject: "",
   welcomeBody: "",
@@ -47,6 +58,12 @@ describe("newsletterSettingsSchema", () => {
     ["primaryColor", "red"],
     ["accentColor", "#12345"],
     ["fontFamily", ""],
+    ["backgroundColor", "blue"],
+    ["buttonTextColor", "#1"],
+    ["buttonShape", "circle"],
+    ["headerImageUrl", "http://example.com/banner.png"],
+    ["headerAlign", "right"],
+    ["spacing", ""],
     ["name", "a".repeat(201)],
     ["welcomeSubject", "a".repeat(201)],
     ["footerText", "a".repeat(5001)],
@@ -86,5 +103,82 @@ describe("newsletterSettingsSchema", () => {
         accentColor: "#A1B2C3",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("newsletterBrandFromValues", () => {
+  it("omits unset overrides so they keep following the shared brand", () => {
+    expect(
+      newsletterBrandFromValues({
+        ...VALUES,
+        signupForm: {
+          accentColor: "",
+          buttonTextColor: "",
+          buttonShape: "",
+          headerAlign: "",
+          spacing: "",
+        },
+      }),
+    ).not.toHaveProperty("signupForm");
+    expect(
+      newsletterBrandFromValues({
+        ...VALUES,
+        signupForm: { accentColor: "#abc", buttonShape: "pill", spacing: "" },
+      }),
+    ).toMatchObject({
+      signupForm: { accentColor: "#abc", buttonShape: "pill" },
+    });
+  });
+
+  it("previews valid shared and signup fields while a color is incomplete", () => {
+    expect(
+      newsletterBrandForPreview({
+        ...VALUES,
+        primaryColor: "#12",
+        accentColor: "#abc",
+        signupForm: {
+          accentColor: "#a",
+          buttonShape: "square",
+          spacing: "compact",
+        },
+      }),
+    ).toMatchObject({
+      accentColor: "#abc",
+      signupForm: { buttonShape: "square", spacing: "compact" },
+    });
+    expect(
+      newsletterBrandForPreview({ ...VALUES, primaryColor: "red" }),
+    ).not.toHaveProperty("primaryColor");
+  });
+
+  it("keeps the chosen design and leaves blank optional fields out", () => {
+    expect(
+      newsletterBrandFromValues({
+        ...VALUES,
+        accentColor: "#123456",
+        headerImageUrl: "https://example.com/banner.png",
+        buttonShape: "pill",
+      }),
+    ).toEqual({
+      accentColor: "#123456",
+      headerImageUrl: "https://example.com/banner.png",
+      fontFamily: "Arial",
+      footerText: "",
+      buttonShape: "pill",
+      headerAlign: "left",
+      spacing: "normal",
+    });
+  });
+});
+
+describe("signup override validation", () => {
+  it.each([
+    { accentColor: "red" },
+    { buttonTextColor: "#12" },
+    { buttonShape: "circle" },
+    { headerAlign: "right" },
+    { spacing: "wide" },
+  ])("rejects invalid signup fields: %j", (signupForm) => {
+    expect(schema.safeParse({ ...VALUES, signupForm }).success).toBe(false);
   });
 });
