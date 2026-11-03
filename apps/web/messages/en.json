@@ -3609,7 +3609,38 @@
           "saving": "Saving issue…",
           "undo": "Undo removal",
           "removedBlocks": "{count, plural, one {# block removed} other {# blocks removed}}",
-          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another."
+          "undoLimit": "This issue has 200 blocks. Remove a block to make room before restoring another.",
+          "Flow": {
+            "label": "Issue progress",
+            "done": "done",
+            "steps": {
+              "write": "Write",
+              "review": "Review",
+              "approve": "Approve",
+              "send": "Send"
+            },
+            "titles": {
+              "write": "Write the issue",
+              "review": "Review and submit",
+              "approve": "Waiting for approval",
+              "send": "Ready to send",
+              "scheduled": "Scheduled",
+              "sending": "Sending",
+              "sent": "Sent",
+              "failed": "Delivery failed",
+              "canceled": "Canceled"
+            },
+            "hints": {
+              "write": "Add a subject and content, then save.",
+              "review": "Check the preview and the list below, then submit it for a person to approve.",
+              "approve": "A person approves it here or in the approval task. You can still edit until then.",
+              "send": "Approved. Schedule it or send it now.",
+              "scheduled": "Sending starts at the scheduled time. Cancel the schedule to edit it again.",
+              "sent": "This issue went out to your subscribers."
+            },
+            "noSubscribers": "Add an active subscriber first.",
+            "noSender": "Connect a sending domain first."
+          }
         },
         "publicArchive": "Public archive",
         "SignupForm": {

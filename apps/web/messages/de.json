@@ -3609,7 +3609,38 @@
           "saving": "Ausgabe wird gespeichert…",
           "undo": "Entfernen rückgängig machen",
           "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
-          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen."
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen.",
+          "Flow": {
+            "label": "Fortschritt der Ausgabe",
+            "done": "erledigt",
+            "steps": {
+              "write": "Schreiben",
+              "review": "Prüfen",
+              "approve": "Freigeben",
+              "send": "Senden"
+            },
+            "titles": {
+              "write": "Ausgabe schreiben",
+              "review": "Prüfen und einreichen",
+              "approve": "Wartet auf Freigabe",
+              "send": "Bereit zum Senden",
+              "scheduled": "Geplant",
+              "sending": "Wird gesendet",
+              "sent": "Gesendet",
+              "failed": "Zustellung fehlgeschlagen",
+              "canceled": "Abgebrochen"
+            },
+            "hints": {
+              "write": "Füge einen Betreff und Inhalt hinzu und speichere dann.",
+              "review": "Prüfe die Vorschau und die Liste unten und reiche die Ausgabe dann zur Freigabe ein.",
+              "approve": "Eine Person gibt sie hier oder in der Freigabe-Aufgabe frei. Bis dahin kannst du noch bearbeiten.",
+              "send": "Freigegeben. Plane den Versand oder sende jetzt.",
+              "scheduled": "Der Versand startet zur geplanten Zeit. Brich die Planung ab, um wieder zu bearbeiten.",
+              "sent": "Diese Ausgabe wurde an deine Abonnenten verschickt."
+            },
+            "noSubscribers": "Füge zuerst einen aktiven Abonnenten hinzu.",
+            "noSender": "Verbinde zuerst eine Versanddomain."
+          }
         },
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {

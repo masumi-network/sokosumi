@@ -29,9 +29,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
+import {
+  MARKER_ICONS,
+  StatusMarker,
+  type StatusMarkerSpec,
+} from "@/components/ui/status-marker";
 import { changeNewsletterIssue } from "@/lib/actions/newsletter/issue-lifecycle";
+import { cn } from "@/lib/utils";
+import {
+  IssueDeliveryOutcome,
+  IssueStatusBadge,
+} from "./issue-delivery-status";
+import { getIssueStage, getStepIndex } from "./issue-flow";
 import { hasNewsletterSender, IssueReadiness } from "./issue-readiness";
+import { IssueSteps } from "./issue-steps";
+
+const BLOCKER: StatusMarkerSpec = {
+  tone: { hue: "blocked", weight: "filled" },
+  icon: MARKER_ICONS.warning,
+};
 
 type IssueAction = "submit" | "approve" | "schedule" | "sendNow" | "cancel";
 interface IssueActionsProps {
@@ -41,11 +62,13 @@ interface IssueActionsProps {
   senderName: string;
   sendingDomain: NewsletterSendingDomainState;
   disabled?: boolean;
+  /** The editor has changes that are not saved yet. */
+  unsaved?: boolean;
   onChanged?: (issue: NewsletterIssue) => void;
   onBusyChange?: (busy: boolean) => void;
 }
 
-/** The list opens this editor flow for review before approval, scheduling, or sending, keeping the same human confirmation steps. */
+/** The list opens this editor flow for review before approval, scheduling, or sending, keeping the same human confirmation steps. The panel names the current step, says what still blocks it, and puts that step's one action next to the reason. */
 export function IssueActions({
   issue,
   projectId,
@@ -53,10 +76,12 @@ export function IssueActions({
   senderName,
   sendingDomain,
   disabled,
+  unsaved = false,
   onChanged,
   onBusyChange,
 }: IssueActionsProps) {
   const t = useTranslations("App.Projects.Newsletter.Issues.Lifecycle");
+  const flow = useTranslations("App.Projects.Newsletter.Issues.Flow");
   const format = useFormatter();
   const router = useRouter();
   const [pending, setPending] = useState<IssueAction | null>(null);
@@ -82,6 +107,8 @@ export function IssueActions({
   }
   const whenId = useId();
   const errorId = useId();
+  const headingId = useId();
+  const blockersId = useId();
   const approved = Boolean(issue.approvedAt && issue.approvedByUserId);
 
   async function handleChange(action: IssueAction) {
@@ -153,102 +180,176 @@ export function IssueActions({
     locked || activeSubscribers === 0 || !hasNewsletterSender(sendingDomain);
   const confirmation =
     dialog === "sendNow" || dialog === "cancel" ? dialog : null;
+  const stage = getIssueStage(issue, unsaved);
+  const actionable = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(
+    issue.status,
+  );
+  const hint = `hints.${stage}` as const;
+  // The reasons an action is off, said beside it rather than further up.
+  const blockers = [
+    unsaved && t("saveFirst"),
+    stage === "send" && activeSubscribers === 0 && flow("noSubscribers"),
+    stage === "send" && !hasNewsletterSender(sendingDomain) && flow("noSender"),
+  ].filter((blocker) => typeof blocker === "string");
+  const describedBy = blockers.length ? blockersId : undefined;
+  const taskLink = issue.taskId ? (
+    <Link
+      className="text-sm underline underline-offset-4"
+      href={`/tasks/${issue.taskId}`}
+    >
+      {t("task")}
+    </Link>
+  ) : null;
   return (
-    <div ref={actionContainer} className="min-w-0 space-y-2">
-      {["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"].includes(issue.status) ? (
-        <IssueReadiness
-          issue={issue}
-          projectId={projectId}
-          activeSubscribers={activeSubscribers}
-          senderName={senderName}
-          sendingDomain={sendingDomain}
-          linksDisabled={Boolean(locked)}
-        />
+    <section
+      ref={actionContainer}
+      aria-labelledby={headingId}
+      className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}
+    >
+      {getStepIndex(stage) >= 0 ? (
+        <IssueSteps current={getStepIndex(stage)} failed={stage === "failed"} />
       ) : null}
-      {issue.approvedAt && issue.approvedByUserId ? (
-        <p className="text-muted-foreground text-sm">
-          {t("approvedBy", {
-            user: issue.approvedByName ?? t("formerMember"),
-            date: format.dateTime(issue.approvedAt, "dateTime"),
-          })}
-        </p>
-      ) : null}
-      {issue.scheduledAt && issue.status === "SENDING" ? (
-        <p className="text-muted-foreground text-sm">
-          {t("scheduled", {
-            date: format.dateTime(issue.scheduledAt, "dateTime", {
-              timeZone: issue.timezone ?? "UTC",
-            }),
-            timezone: issue.timezone ?? "UTC",
-          })}
-        </p>
-      ) : null}
-      {issue.taskId ? (
-        <Link
-          className="text-sm underline underline-offset-4"
-          href={`/tasks/${issue.taskId}`}
-        >
-          {t("task")}
-        </Link>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        {issue.status === "DRAFT" ? (
-          <Button
-            variant="outline"
-            disabled={locked}
-            loading={pending === "submit"}
-            onClick={() => void handleChange("submit")}
-          >
-            <Send />
-            {t("submit")}
-          </Button>
+      <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0 space-y-1">
+            <h2 id={headingId} className="text-lg font-semibold">
+              {flow(`titles.${stage}`)}
+            </h2>
+            {flow.has(hint) ? (
+              <p className="text-muted-foreground text-sm">{flow(hint)}</p>
+            ) : null}
+          </div>
+          <IssueStatusBadge issue={issue} />
+        </div>
+        {/* Under Approve the task is a button beside Approve instead. */}
+        {approved || (taskLink && stage !== "approve") ? (
+          <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-sm">
+            {issue.approvedAt && approved ? (
+              <span>
+                {t("approvedBy", {
+                  user: issue.approvedByName ?? t("formerMember"),
+                  date: format.dateTime(issue.approvedAt, "dateTime"),
+                })}
+              </span>
+            ) : null}
+            {taskLink}
+          </p>
         ) : null}
-        {issue.status === "NEEDS_APPROVAL" && !approved ? (
-          <Button
-            variant="outline"
-            disabled={locked}
-            loading={pending === "approve"}
-            onClick={() => void handleChange("approve")}
-          >
-            <Check />
-            {t("approve")}
-          </Button>
+        {issue.scheduledAt && issue.status === "SENDING" ? (
+          <p className="text-muted-foreground text-sm">
+            {t("scheduled", {
+              date: format.dateTime(issue.scheduledAt, "dateTime", {
+                timeZone: issue.timezone ?? "UTC",
+              }),
+              timezone: issue.timezone ?? "UTC",
+            })}
+          </p>
         ) : null}
-        {issue.status === "NEEDS_APPROVAL" && approved ? (
-          <>
-            <Button
-              variant="outline"
-              disabled={deliveryBlocked}
-              onClick={(event) => handleDialog("schedule", event.currentTarget)}
-            >
-              <CalendarClock />
-              {t("schedule")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={deliveryBlocked}
-              onClick={(event) => handleDialog("sendNow", event.currentTarget)}
-            >
-              <Send />
-              {t("sendNow")}
-            </Button>
-          </>
+        <IssueDeliveryOutcome issue={issue} projectId={projectId} />
+        {actionable ? (
+          <IssueReadiness
+            issue={issue}
+            projectId={projectId}
+            activeSubscribers={activeSubscribers}
+            senderName={senderName}
+            sendingDomain={sendingDomain}
+            linksDisabled={Boolean(locked)}
+            framed={false}
+          />
         ) : null}
-        {issue.status === "SCHEDULED" ? (
-          <Button
-            variant="outline"
-            disabled={locked}
-            onClick={(event) => handleDialog("cancel", event.currentTarget)}
-          >
-            {t("cancel")}
-          </Button>
+        {actionable ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-4">
+            <div className="flex flex-wrap gap-2">
+              {issue.status === "DRAFT" ? (
+                <Button
+                  variant={stage === "review" ? "primary" : "outline"}
+                  aria-describedby={describedBy}
+                  disabled={locked}
+                  loading={pending === "submit"}
+                  onClick={() => void handleChange("submit")}
+                >
+                  <Send />
+                  {t("submit")}
+                </Button>
+              ) : null}
+              {issue.status === "NEEDS_APPROVAL" && !approved ? (
+                <Button
+                  variant="primary"
+                  aria-describedby={describedBy}
+                  disabled={locked}
+                  loading={pending === "approve"}
+                  onClick={() => void handleChange("approve")}
+                >
+                  <Check />
+                  {t("approve")}
+                </Button>
+              ) : null}
+              {stage === "approve" && taskLink ? (
+                <Button asChild variant="outline">
+                  {taskLink}
+                </Button>
+              ) : null}
+              {issue.status === "NEEDS_APPROVAL" && approved ? (
+                <>
+                  <Button
+                    variant="primary"
+                    aria-describedby={describedBy}
+                    disabled={deliveryBlocked}
+                    onClick={(event) =>
+                      handleDialog("schedule", event.currentTarget)
+                    }
+                  >
+                    <CalendarClock />
+                    {t("schedule")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    aria-describedby={describedBy}
+                    disabled={deliveryBlocked}
+                    onClick={(event) =>
+                      handleDialog("sendNow", event.currentTarget)
+                    }
+                  >
+                    <Send />
+                    {t("sendNow")}
+                  </Button>
+                </>
+              ) : null}
+              {issue.status === "SCHEDULED" ? (
+                <Button
+                  variant="outline"
+                  disabled={locked}
+                  onClick={(event) =>
+                    handleDialog("cancel", event.currentTarget)
+                  }
+                >
+                  {t("cancel")}
+                </Button>
+              ) : null}
+            </div>
+            {blockers.length ? (
+              <ul
+                id={blockersId}
+                className="min-w-0 flex-1 basis-60 space-y-1 text-sm"
+              >
+                {blockers.map((blocker) => (
+                  <li key={blocker} className="flex items-start gap-2">
+                    <span className="flex h-5 items-center">
+                      <StatusMarker spec={BLOCKER} />
+                    </span>
+                    {blocker}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+        {error && !dialog ? (
+          <p role="alert" className="text-foreground text-sm">
+            {error}
+          </p>
         ) : null}
       </div>
-      {error && !dialog ? (
-        <p role="alert" className="text-foreground text-sm">
-          {error}
-        </p>
-      ) : null}
       <Dialog
         open={dialog === "schedule"}
         onOpenChange={(open) => {
@@ -366,6 +467,6 @@ export function IssueActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </section>
   );
 }

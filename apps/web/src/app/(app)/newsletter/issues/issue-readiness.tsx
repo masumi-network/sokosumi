@@ -4,12 +4,47 @@ import type {
 } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import {
+  MARKER_ICONS,
+  StatusMarker,
+  type StatusMarkerSpec,
+} from "@/components/ui/status-marker";
 import { cn } from "@/lib/utils";
+
+const READY: StatusMarkerSpec = {
+  tone: { hue: "resolved", weight: "filled" },
+  icon: MARKER_ICONS.completed,
+};
+const MISSING: StatusMarkerSpec = {
+  tone: { hue: "blocked", weight: "filled" },
+  icon: MARKER_ICONS.warning,
+};
+const PENDING: StatusMarkerSpec = {
+  tone: { hue: "dormant", weight: "filled" },
+  icon: MARKER_ICONS.queued,
+};
+
+/** One checklist row: the mark says ready, missing, or still to come; the text says what. */
+function ReadinessTerm({
+  spec,
+  children,
+}: {
+  spec: StatusMarkerSpec;
+  children: ReactNode;
+}) {
+  return (
+    <dt className="text-muted-foreground flex items-center gap-2">
+      <StatusMarker spec={spec} />
+      {children}
+    </dt>
+  );
+}
 
 export function hasNewsletterSender(state: NewsletterSendingDomainState) {
   return state.sendingDomain?.status === "VERIFIED" || state.fallbackAvailable;
@@ -23,6 +58,7 @@ export function IssueReadiness({
   sendingDomain,
   timing,
   linksDisabled = false,
+  framed = true,
 }: {
   issue: NewsletterIssue;
   projectId: string;
@@ -31,20 +67,33 @@ export function IssueReadiness({
   sendingDomain: NewsletterSendingDomainState;
   timing?: "sendNow" | "schedule";
   linksDisabled?: boolean;
+  /** Off inside the step panel, which is already the card it sits on. */
+  framed?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues.Readiness");
   const format = useFormatter();
   const verified = sendingDomain.sendingDomain?.status === "VERIFIED";
   const approved = Boolean(issue.approvedAt && issue.approvedByUserId);
+  const sender = hasNewsletterSender(sendingDomain);
 
   return (
-    <section aria-label={t("title")} className={cn(HOLDER_CLASS, "@container")}>
-      <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
+    <section
+      aria-label={t("title")}
+      className={cn(framed && HOLDER_CLASS, "@container")}
+    >
+      <div
+        className={cn(
+          framed && [HOLDER_ITEM_CLASS, "p-4"],
+          "min-w-0 space-y-3",
+        )}
+      >
         <h3 className="text-sm font-semibold">{t("title")}</h3>
         <dl className="grid min-w-0 gap-4 text-sm @sm:grid-cols-2 @3xl:grid-cols-4">
           <div className="min-w-0 space-y-1">
-            <dt className="text-muted-foreground">{t("sender")}</dt>
-            <dd className="space-y-1 wrap-anywhere">
+            <ReadinessTerm spec={sender ? READY : MISSING}>
+              {t("sender")}
+            </ReadinessTerm>
+            <dd className="space-y-1 ps-5.5 wrap-anywhere">
               <p className="font-medium">
                 {verified
                   ? senderName
@@ -68,8 +117,10 @@ export function IssueReadiness({
             </dd>
           </div>
           <div className="min-w-0 space-y-1">
-            <dt className="text-muted-foreground">{t("audience")}</dt>
-            <dd className="space-y-1 wrap-anywhere">
+            <ReadinessTerm spec={activeSubscribers > 0 ? READY : MISSING}>
+              {t("audience")}
+            </ReadinessTerm>
+            <dd className="space-y-1 ps-5.5 wrap-anywhere">
               <p className="font-medium tabular-nums">
                 {t("audienceCount", { count: activeSubscribers })}
               </p>
@@ -85,14 +136,18 @@ export function IssueReadiness({
             </dd>
           </div>
           <div className="min-w-0 space-y-1">
-            <dt className="text-muted-foreground">{t("approval")}</dt>
-            <dd className="font-medium wrap-anywhere">
+            <ReadinessTerm spec={approved ? READY : PENDING}>
+              {t("approval")}
+            </ReadinessTerm>
+            <dd className="ps-5.5 font-medium wrap-anywhere">
               {approved ? t("approved") : t("approvalRequired")}
             </dd>
           </div>
           <div className="min-w-0 space-y-1">
-            <dt className="text-muted-foreground">{t("timing")}</dt>
-            <dd className="font-medium wrap-anywhere">
+            <ReadinessTerm spec={issue.scheduledAt ? READY : PENDING}>
+              {t("timing")}
+            </ReadinessTerm>
+            <dd className="ps-5.5 font-medium wrap-anywhere">
               {timing === "sendNow"
                 ? t("afterConfirmation")
                 : timing === "schedule"

@@ -108,6 +108,12 @@ describe("newsletter issue actions", () => {
           audience === 0 ? readiness.noSubscribers : readiness.noSender,
         ),
       ).toBeInTheDocument();
+      const flow = en.App.Projects.Newsletter.Issues.Flow;
+      expect(
+        screen.getByRole("button", { name: COPY.schedule }),
+      ).toHaveAccessibleDescription(
+        audience === 0 ? flow.noSubscribers : flow.noSender,
+      );
       await user.click(screen.getByRole("button", { name: COPY.sendNow }));
       expect(m.change).not.toHaveBeenCalled();
     },

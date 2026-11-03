@@ -3609,7 +3609,38 @@
           "saving": "Guardando edición…",
           "undo": "Deshacer eliminación",
           "removedBlocks": "{count, plural, one {# bloque eliminado} other {# bloques eliminados}}",
-          "undoLimit": "Esta edición tiene 200 bloques. Elimina un bloque para dejar espacio antes de restaurar otro."
+          "undoLimit": "Esta edición tiene 200 bloques. Elimina un bloque para dejar espacio antes de restaurar otro.",
+          "Flow": {
+            "label": "Progreso de la edición",
+            "done": "completado",
+            "steps": {
+              "write": "Escribir",
+              "review": "Revisar",
+              "approve": "Aprobar",
+              "send": "Enviar"
+            },
+            "titles": {
+              "write": "Escribe la edición",
+              "review": "Revisa y envía para aprobación",
+              "approve": "Esperando aprobación",
+              "send": "Lista para enviar",
+              "scheduled": "Programada",
+              "sending": "Enviando",
+              "sent": "Enviada",
+              "failed": "Error en la entrega",
+              "canceled": "Cancelada"
+            },
+            "hints": {
+              "write": "Añade un asunto y contenido, y luego guarda.",
+              "review": "Revisa la vista previa y la lista de abajo, y luego envíala para que una persona la apruebe.",
+              "approve": "Una persona la aprueba aquí o en la tarea de aprobación. Hasta entonces puedes seguir editando.",
+              "send": "Aprobada. Prográmala o envíala ahora.",
+              "scheduled": "El envío empieza a la hora programada. Cancela la programación para volver a editarla.",
+              "sent": "Esta edición se envió a tus suscriptores."
+            },
+            "noSubscribers": "Añade primero un suscriptor activo.",
+            "noSender": "Conecta primero un dominio de envío."
+          }
         },
         "publicArchive": "Archivo público",
         "SignupForm": {

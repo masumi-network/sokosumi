@@ -60,6 +60,12 @@ function renderEditor(
   );
 }
 
+function blockList() {
+  return within(
+    screen.getByRole("region", { name: "Content blocks" }),
+  ).getByRole("list");
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.save.mockImplementation(async ({ values, revision }) => ({
@@ -91,6 +97,28 @@ describe("newsletter issue editor", () => {
     ).toBeEnabled();
   });
 
+  it("walks the steps from writing to review and says why an action waits", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const flow = en.App.Projects.Newsletter.Issues.Flow;
+    const steps = screen.getByRole("list", { name: flow.label });
+    expect(
+      within(steps).getByText(flow.steps.review).closest("li"),
+    ).toHaveAttribute("aria-current", "step");
+    expect(
+      screen.getByRole("heading", { name: flow.titles.review }),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Subject"), " changed");
+    expect(
+      screen.getByRole("heading", { name: flow.titles.write }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Submit for approval" }),
+    ).toHaveAccessibleDescription(
+      en.App.Projects.Newsletter.Issues.Lifecycle.saveFirst,
+    );
+  });
+
   it("restores edited blocks in reverse removal order, even after saving", async () => {
     const user = userEvent.setup();
     renderEditor();
@@ -111,7 +139,7 @@ describe("newsletter issue editor", () => {
     await user.click(screen.getByRole("button", { name: "Undo removal" }));
     expect(screen.getByText("1 block removed")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Undo removal" }));
-    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    const items = within(blockList()).getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(within(items[1]).getByLabelText("Text")).toHaveValue(
       "Our latest update with new writing",
@@ -235,7 +263,7 @@ describe("newsletter issue editor", () => {
     const user = userEvent.setup();
     renderEditor();
     await user.click(screen.getByRole("button", { name: "Move block 2 up" }));
-    let items = within(screen.getByRole("list")).getAllByRole("listitem");
+    let items = within(blockList()).getAllByRole("listitem");
     expect(within(items[0]).getByLabelText("Text")).toHaveValue(
       "Our latest update",
     );
@@ -245,7 +273,7 @@ describe("newsletter issue editor", () => {
       await user.click(screen.getByRole("button", { name: "Add block" }));
       await user.click(await screen.findByRole("menuitem", { name: type }));
     }
-    items = within(screen.getByRole("list")).getAllByRole("listitem");
+    items = within(blockList()).getAllByRole("listitem");
     expect(items).toHaveLength(7);
     expect(screen.getByLabelText("Image URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Alt text")).toBeInTheDocument();
