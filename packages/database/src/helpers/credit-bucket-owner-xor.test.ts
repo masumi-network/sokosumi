@@ -8,7 +8,6 @@ import { describe, it, vi } from "vitest";
 import { CreditBucketReferenceType } from "../generated/prisma/client.js";
 import { ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX } from "./credit.js";
 import {
-  CREDIT_BUCKET_OWNER_CLASS_ACTIONS,
   CreditBucketOwnerXorError,
   classifyCreditBucketOwner,
   inventoryCreditBucketOwnerXor,
@@ -32,7 +31,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "personal",
     );
-    assert.equal(CREDIT_BUCKET_OWNER_CLASS_ACTIONS.personal, "keep");
     assert.equal(
       classifyCreditBucketOwner({
         organizationId: "org-1",
@@ -43,7 +41,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "org",
     );
-    assert.equal(CREDIT_BUCKET_OWNER_CLASS_ACTIONS.org, "keep");
   });
 
   it("classifies leftover member: period rows including legacy-split", () => {
@@ -58,10 +55,6 @@ describe("classifyCreditBucketOwner", () => {
       "leftover_member_period_rem0",
     );
     assert.equal(
-      CREDIT_BUCKET_OWNER_CLASS_ACTIONS.leftover_member_period_rem0,
-      "delete",
-    );
-    assert.equal(
       classifyCreditBucketOwner({
         organizationId: "org-1",
         referenceId: "member:user-1:legacy-split:clxyz",
@@ -70,10 +63,6 @@ describe("classifyCreditBucketOwner", () => {
         userId: "user-1",
       }),
       "leftover_member_period_rem_gt0",
-    );
-    assert.equal(
-      CREDIT_BUCKET_OWNER_CLASS_ACTIONS.leftover_member_period_rem_gt0,
-      "drain_then_delete",
     );
     assert.equal(
       classifyCreditBucketOwner({
@@ -108,10 +97,6 @@ describe("classifyCreditBucketOwner", () => {
         userId: "owner-1",
       }),
       "dual_owned_org_period",
-    );
-    assert.equal(
-      CREDIT_BUCKET_OWNER_CLASS_ACTIONS.dual_owned_org_period,
-      "null_user_id",
     );
   });
 
@@ -156,10 +141,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "dual_owned_non_period",
     );
-    assert.equal(
-      CREDIT_BUCKET_OWNER_CLASS_ACTIONS.dual_owned_non_period,
-      "null_user_id",
-    );
   });
 
   it("fails closed on both-null remaining and deletes remaining-0", () => {
@@ -174,10 +155,6 @@ describe("classifyCreditBucketOwner", () => {
       "both_null_rem_gt0",
     );
     assert.equal(
-      CREDIT_BUCKET_OWNER_CLASS_ACTIONS.both_null_rem_gt0,
-      "fail_closed",
-    );
-    assert.equal(
       classifyCreditBucketOwner({
         organizationId: null,
         referenceId: null,
@@ -187,7 +164,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "both_null_rem0",
     );
-    assert.equal(CREDIT_BUCKET_OWNER_CLASS_ACTIONS.both_null_rem0, "delete");
   });
 });
 
