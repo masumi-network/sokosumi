@@ -539,6 +539,17 @@ export const sokoBotUpdateProjectInputSchema = z
     { message: "Give name, briefing or websiteUrl to change" },
   );
 
+export const sokoBotFindPeopleInputSchema = z.object({
+  listId: z.uuid(),
+  /** 1 looks for one particular person; 10 or 25 for people who fit the list. */
+  size: z.union([z.literal(1), z.literal(10), z.literal(25)]),
+  brief: z.string().trim().min(1).max(1_000).optional(),
+});
+
+export const sokoBotEnrichContactInputSchema = z.object({
+  contactId: z.uuid(),
+});
+
 export const sokoBotManageContactListsInputSchema = z
   .object({
     action: z.enum(["create", "update", "delete", "add", "remove"]),
@@ -1385,6 +1396,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
     .strict(),
   merge_contacts: mergeContactsSchema,
   manage_contact_lists: sokoBotManageContactListsInputSchema,
+  find_people: sokoBotFindPeopleInputSchema,
+  enrich_contact: sokoBotEnrichContactInputSchema,
   create_project: sokoBotCreateProjectInputSchema,
   update_project: sokoBotUpdateProjectInputSchema,
   list_integration_tools: sokoBotListIntegrationToolsInputSchema,
@@ -1602,6 +1615,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Fold duplicates into one contact: channels, interactions, lists and history move to winnerId, its empty fields are filled from the others in order, and the others stay as tombstones. Only merge when you are sure it is one person.",
   manage_contact_lists:
     "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
+  find_people:
+    "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. Found people wait on the list as suggestions for your owner to add; say who you found and why.",
+  enrich_contact:
+    "Look a person up on the web and fill their empty fields (role, organization, location, LinkedIn, summary), the Enrich button. Never overwrites what is there and records the source. Costs 1 credit, only when something was filled. Use it when your owner asks to complete a contact, not on every contact you touch.",
   create_project:
     "Create a Project in the workspace when someone asks for one: a name, and the briefing (what it is for, its goals and audience) and website when you know them. First check your context for a Project with that name and use it instead of making a second one.",
   update_project:

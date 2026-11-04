@@ -79,6 +79,8 @@ export const ACTION_CAPABILITIES = new Set([
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "find_people",
+  "enrich_contact",
   "create_project",
   "update_project",
   "create_schedule",
