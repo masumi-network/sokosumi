@@ -61,8 +61,15 @@ export function optionalChannels(
   overview: CmoOverview,
 ): { key: string; perMonth: number | null }[] {
   const planned = strategyChannels(overview);
+  const calendar = overview.strategy?.calendar ?? [];
+  // A channel the plan names but gives no pieces has nothing to offer here.
   const own = planned
-    .filter((key) => !isProvider(key) && key !== "seo")
+    .filter(
+      (key) =>
+        !isProvider(key) &&
+        key !== "seo" &&
+        calendar.some((entry) => channelKey(entry.channel) === key),
+    )
     .map((key) => ({ key, perMonth: null }));
   const proposed = (overview.strategy?.proposals ?? []).flatMap((proposal) => {
     const key = channelKey(proposal.channel);
@@ -184,6 +191,7 @@ export function ConnectStep({
           <MailingList
             size={overview.mailingListSize}
             issues={pieces(key)}
+            perMonth={perMonth(key)}
             onAdd={onMailingList}
           />
         ) : (
@@ -359,10 +367,13 @@ function rowNote(
 function MailingList({
   size,
   issues,
+  perMonth,
   onAdd,
 }: {
   size: number;
   issues: number;
+  /** A newsletter Cuso proposed adding: the issues it would bring a month. */
+  perMonth: number | null;
   onAdd: (text: string) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
@@ -370,6 +381,8 @@ function MailingList({
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   const file = useRef<HTMLInputElement>(null);
+  const count = issues > 0 ? issues : (perMonth ?? 0);
+  const written = `${count} ${count === 1 ? "issue" : "issues"}${issues > 0 ? "" : " a month"}`;
 
   const add = (value: string) =>
     startSaving(async () => {
@@ -401,8 +414,8 @@ function MailingList({
           <p className="ob-connect-name">Newsletter</p>
           <p className="ob-note">
             {size > 0
-              ? `${size} ${size === 1 ? "person" : "people"} on your list. Cuso writes ${issues} ${issues === 1 ? "issue" : "issues"} for them, ready to send with your email service.`
-              : `Cuso writes ${issues} ${issues === 1 ? "issue" : "issues"}, ready to send with your email service. Add your mailing list so he writes for the people on it.`}
+              ? `${size} ${size === 1 ? "person" : "people"} on your list. Cuso writes ${written} for them, ready to send with your email service.`
+              : `Cuso writes ${written}, ready to send with your email service. Add your mailing list so he writes for the people on it.`}
           </p>
         </div>
         {open ? null : (

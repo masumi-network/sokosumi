@@ -236,7 +236,12 @@ describe("thread", () => {
       }),
       [],
     );
-    expect(thread.map((item) => item.kind)).toEqual(["welcome", "strategy"]);
+    // The connect card stays: the month runs on the approved plan meanwhile.
+    expect(thread.map((item) => item.kind)).toEqual([
+      "welcome",
+      "connect",
+      "strategy",
+    ]);
   });
 
   it("says what Cuso is waiting for", () => {
@@ -575,6 +580,8 @@ describe("strategy versions", () => {
     expect(html).toContain("Version 1");
     expect(html).toContain("Approved");
     expect(html).not.toContain("Go back to this version");
+    // The newest, waiting, version is approved from here too.
+    expect(html).toContain("Approve this version");
 
     const older = renderToStaticMarkup(
       <StrategyVersions

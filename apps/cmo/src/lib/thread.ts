@@ -72,7 +72,9 @@ export function buildThread(
   ) {
     items.push({ kind: "strategy", at: strategyAt });
   }
-  const approvedAt = iso(overview.strategyVersion?.approvedAt);
+  // Hired, the month runs on the approved plan even while a newer version
+  // waits for approval: the connect and production cards stay.
+  const approvedAt = hired ?? iso(overview.strategyVersion?.approvedAt);
   if (approvedAt && overview.channels.length === 0) {
     items.push({ kind: "connect", at: approvedAt });
   }

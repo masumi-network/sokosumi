@@ -3,6 +3,10 @@ import {
   CMO_BRAND_SECTIONS,
   CMO_SOKO_BOT_VERSION_ID,
 } from "@sokosumi/soko-bot";
+import {
+  buildOrganizationMetadataWithUrl,
+  parseOrganizationMetadata,
+} from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -20,6 +24,7 @@ import {
   CMO_OUT_OF_CREDITS,
   CmoConflictError,
   type CmoLearningState,
+  CUSO_BOT_WHERE,
   type Cuso,
   cmoBusinessNameFromUrl,
   findCusoForBot,
@@ -344,6 +349,18 @@ export async function startCmoOver(userId: string): Promise<void> {
     kind: "id",
     sokoBotId: cuso.sokoBotId,
   });
+  // The next hire may land in this organization with a room of its own, so
+  // this one is named after its website to tell the two apart.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { sharedRoomId: true },
+  });
+  if (bot?.sharedRoomId) {
+    await prisma.chatRoom.update({
+      where: { id: bot.sharedRoomId },
+      data: { name: `${CUSO_NAME} · ${cuso.businessName}`.slice(0, 80) },
+    });
+  }
   const posts = await prisma.socialPost.findMany({
     where: {
       projectId: cuso.projectId,
@@ -387,10 +404,56 @@ export function startCmoResearch(
 }
 
 /**
+ * The organization of a Cuso this person let go with "Use another website"
+ * before approving any plan: hiring for the new website stays in it, so the
+ * chat with the earlier Cuso stays beside the new one. Only theirs alone.
+ */
+async function organizationLeftWhileHiring(userId: string) {
+  return prisma.organization.findFirst({
+    where: {
+      members: {
+        every: { userId },
+        some: { userId, role: "owner" },
+      },
+      workspace: {
+        is: {
+          projects: {
+            some: {
+              sokoBots: {
+                some: { ...CUSO_BOT_WHERE, archivedAt: { not: null } },
+              },
+            },
+            none: {
+              OR: [
+                {
+                  marketingStrategies: { some: { approvedAt: { not: null } } },
+                },
+                {
+                  sokoBots: {
+                    some: {
+                      ...CUSO_BOT_WHERE,
+                      archivedAt: null,
+                      deletedAt: null,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, metadata: true },
+  });
+}
+
+/**
  * Hires Cuso into a new organization named after the business (ADR 0060):
  * his marketing Project and Cuso as its shared bot (ADR 0061) go there, and
  * his first turn starts. A person who already works with a live Cuso gets
- * that one back; a Project that has one refuses a second (409).
+ * that one back; a Project that has one refuses a second (409). Hiring again
+ * after "Use another website" while hiring stays in that organization.
  */
 export async function startCmoOnboarding(input: {
   userId: string;
@@ -416,14 +479,29 @@ export async function startCmoOnboarding(input: {
       },
       workspace: { is: { projects: { none: {} } } },
     },
-    select: { id: true },
+    select: { id: true, metadata: true },
   });
   // Loaded here: Better Auth's module graph stays out of the CMO service's.
   const { createOrganizationWorkspace } = await import(
     "@/helpers/organization-workspace"
   );
-  const workspace = leftover
-    ? await getUserWorkspace(input.userId, { organizationId: leftover.id })
+  const reused = leftover ?? (await organizationLeftWhileHiring(input.userId));
+  if (reused && reused.id !== leftover?.id) {
+    await prisma.organization.update({
+      where: { id: reused.id },
+      data: {
+        name: businessName,
+        metadata: JSON.stringify(
+          buildOrganizationMetadataWithUrl(
+            parseOrganizationMetadata(reused.metadata),
+            input.websiteUrl,
+          ) ?? {},
+        ),
+      },
+    });
+  }
+  const workspace = reused
+    ? await getUserWorkspace(input.userId, { organizationId: reused.id })
     : await createOrganizationWorkspace(input.userId, {
         name: businessName,
         websiteUrl: input.websiteUrl,
