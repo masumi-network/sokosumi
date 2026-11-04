@@ -174,7 +174,19 @@ export function StrategyStep({
               type="button"
               className="ob-button ob-button-lg"
               disabled={approving || busy}
-              onClick={() => startApproving(onApprove)}
+              onClick={() =>
+                startApproving(async () => {
+                  // A refused approval (a new version on its way) stays here.
+                  try {
+                    setRefusal(null);
+                    await onApprove();
+                  } catch {
+                    setRefusal(
+                      "That didn't go through. Try again in a moment.",
+                    );
+                  }
+                })
+              }
             >
               {approving ? (
                 "Approving…"

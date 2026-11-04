@@ -21,7 +21,7 @@ describe("measure callback", () => {
     );
     expect(finalizeMeasurement).toHaveBeenCalledWith("shopify", null);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=results",
+      "http://localhost:3110/?step=results&from=onboarding",
     );
   });
 

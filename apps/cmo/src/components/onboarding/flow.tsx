@@ -111,15 +111,24 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
   if (!strategyApproved(overview)) {
     // Cuso saves a first plan in two parts, the calendar last: it waits on
     // the planning screen until there is a whole plan to approve.
-    const firstPlan = (overview.strategy.changes ?? []).length === 0;
+    // Answered checks mean Cuso is fitting a plan the founder has seen.
+    const firstPlan =
+      (overview.strategy.changes ?? []).length === 0 &&
+      !(overview.strategy.questions ?? []).some((question) => question.answer);
     const writing = work?.kind === "strategy" && work.status === "running";
     if (firstPlan && (writing || overview.strategy.calendar.length === 0)) {
       return "planning";
     }
-    // Part way through the plan's questions, a reload resumes on them.
+    // Part way through the plan's questions, a reload resumes on them; so
+    // does a no the plan was not fitted to yet, or Approve would ship it.
     const questions = overview.strategy.questions ?? [];
     const answered = questions.filter((question) => question.answer).length;
-    return answered > 0 && answered < questions.length ? "check" : "strategy";
+    const unfitted =
+      questions.some((question) => question.answer === "no") &&
+      (overview.strategy.changes ?? []).length === 0;
+    return (answered > 0 && answered < questions.length) || unfitted
+      ? "check"
+      : "strategy";
   }
   // Core reads it from a connection, and CMO's cookie from the person's skip,
   // so a reload after the Accounts step resumes on the plan.

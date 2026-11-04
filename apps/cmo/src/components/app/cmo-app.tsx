@@ -275,7 +275,13 @@ export function CmoApp({
     if (!content) return;
     setDraft("");
     startSending(async () => {
-      await actions.sendMessage(content);
+      // A message that did not send comes back to the box, not lost.
+      try {
+        await actions.sendMessage(content);
+      } catch {
+        setDraft(content);
+        return;
+      }
       await refresh();
     });
   }
@@ -713,10 +719,18 @@ function ProductionCard({
   return (
     <div className="production">
       <p className="production-head">
-        {ready ? null : <span className="dot live" aria-hidden="true" />}
-        <b>{ready ? "Your month is ready" : "Cuso is making your month"}</b>
+        {production.state === "running" ? (
+          <span className="dot live" aria-hidden="true" />
+        ) : null}
+        <b>
+          {ready
+            ? "Your month is ready"
+            : production.state === "stuck"
+              ? "Most of your month is ready"
+              : "Cuso is making your month"}
+        </b>
         <span className="note num">
-          {production.ready} of {production.total} pieces
+          {production.ready} of {production.total} ready
         </span>
       </p>
       <span

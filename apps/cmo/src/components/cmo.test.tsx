@@ -236,7 +236,12 @@ describe("thread", () => {
       }),
       [],
     );
-    expect(thread.map((item) => item.kind)).toEqual(["welcome", "strategy"]);
+    // The connect card stays: the month runs on the approved plan meanwhile.
+    expect(thread.map((item) => item.kind)).toEqual([
+      "welcome",
+      "connect",
+      "strategy",
+    ]);
   });
 
   it("says what Cuso is waiting for", () => {

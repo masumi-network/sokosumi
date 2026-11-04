@@ -222,6 +222,11 @@ export const cmoOverviewSchema = z
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
     strategy: z.union([marketingStrategyPlanSchema, z.null()]),
+    approvedStrategy: z
+      .union([marketingStrategyPlanSchema, z.null()])
+      .describe(
+        "The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.",
+      ),
     media: z
       .array(
         z.object({
