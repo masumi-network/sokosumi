@@ -61,7 +61,7 @@ export interface OnboardingActions {
     error: string | null;
   }>;
   /** Records that the founder connected or skipped the Accounts step. */
-  finishAccounts: () => Promise<CmoOverview>;
+  finishAccounts: () => Promise<never>;
   /** Adds the founder's mailing list for the newsletter. */
   addMailingList: (
     text: string,
@@ -523,7 +523,7 @@ export function OnboardingFlow({
               return result.error;
             }}
             onContinue={async () => {
-              setOverview(await actions.finishAccounts());
+              await actions.finishAccounts();
               setViewing(null);
             }}
           />

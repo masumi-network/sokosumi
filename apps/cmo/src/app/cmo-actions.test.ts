@@ -269,7 +269,8 @@ describe("skipped hiring steps", () => {
   });
 
   it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
-    expect((await finishAccounts()).onboardingStep).toBe("done");
+    await finishAccounts().catch(() => undefined);
+    expect(redirect).toHaveBeenCalledWith("/");
     expect(setCookie).toHaveBeenCalledWith(
       "cmo-skipped-project-1",
       "accounts",
