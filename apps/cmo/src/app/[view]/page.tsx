@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { viewFromPath } from "../../lib/views";
 import { Home, type HomeSearchParams } from "../home";
 
-/** Strategy, Results, Brand Brain, Channels and Settings, each at its own address. */
+/** Strategy, Calendar, Results, Brand Brain, Channels and Settings, each at its own address. */
 export default async function ViewPage({
   params,
   searchParams,
