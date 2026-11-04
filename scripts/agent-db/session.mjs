@@ -188,6 +188,9 @@ export function defaultSessionId(
 /** A takeover guard older than this belongs to a crashed taker. */
 const TAKEOVER_STALE_MS = 30 * 1000;
 
+/** A lock still without a pid this long after creation lost its writer. */
+const EMPTY_LOCK_STALE_MS = 10 * 1000;
+
 /**
  * @param {string} file
  */
@@ -196,13 +199,27 @@ async function readLock(file) {
 }
 
 /**
- * Lock contents are `<pid> <token>`; true when that pid is gone.
+ * @param {string} file
+ */
+async function ageMs(file) {
+  return stat(file).then(
+    (info) => Date.now() - info.mtimeMs,
+    () => 0,
+  );
+}
+
+/**
+ * Lock contents are `<pid> <token>`; stale when that pid is gone. Without a
+ * pid (empty or unparsable) the holder is between create and write, or
+ * crashed there: stale once the file is older than EMPTY_LOCK_STALE_MS.
+ * @param {string} file
  * @param {string} contents
  */
-function holderIsDead(contents) {
+async function lockIsStale(file, contents) {
   const pid = Number(contents.trim().split(/\s+/)[0]);
-  // Empty: the holder is between create and write.
-  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    return (await ageMs(file)) > EMPTY_LOCK_STALE_MS;
+  }
   try {
     process.kill(pid, 0);
     return false;
@@ -213,9 +230,9 @@ function holderIsDead(contents) {
 }
 
 /**
- * Remove `file` only if it still holds `contents`, under an O_EXCL guard so
- * two waiters that saw the same dead holder cannot both unlink: the second
- * one finds the first one's fresh lock and leaves it.
+ * Remove `file` only if it still holds `contents` and is still stale, under an
+ * O_EXCL guard so two waiters that saw the same dead holder cannot both
+ * unlink: the second one finds the first one's fresh lock and leaves it.
  * @param {string} file
  * @param {string} contents what the waiter read when it judged the holder dead
  */
@@ -228,15 +245,21 @@ async function takeOverDeadLock(file, contents) {
     if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EEXIST") {
       throw error;
     }
-    const age = await stat(guard).then(
-      (info) => Date.now() - info.mtimeMs,
-      () => 0,
-    );
-    if (age > TAKEOVER_STALE_MS) await rm(guard, { force: true });
+    // shortcut: two waiters clearing the same old guard at once can delete a
+    // fresh one and admit overlapping takeovers; needs a crash during takeover
+    // first. Upgrade to a heartbeat lock (e.g. proper-lockfile) if it shows up.
+    if ((await ageMs(guard)) > TAKEOVER_STALE_MS) {
+      await rm(guard, { force: true });
+    }
     return;
   }
   try {
-    if ((await readLock(file)) === contents) await rm(file, { force: true });
+    // Re-check staleness: a new holder's lock is empty until it writes, and
+    // its fresh mtime keeps it safe.
+    const current = await readLock(file);
+    if (current === contents && (await lockIsStale(file, current))) {
+      await rm(file, { force: true });
+    }
   } finally {
     if ((await readLock(guard)) === token) await rm(guard, { force: true });
   }
@@ -269,7 +292,7 @@ export async function withLock(
         throw error;
       }
       const contents = await readLock(file);
-      if (contents && holderIsDead(contents)) {
+      if (contents !== null && (await lockIsStale(file, contents))) {
         await takeOverDeadLock(file, contents);
         continue;
       }

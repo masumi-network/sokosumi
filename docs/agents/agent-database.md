@@ -59,9 +59,12 @@ pnpm db:down --force # delete the branch even while other sessions hold it
   Neon TTL.
 - **Lock:** `db:up` and `db:down` hold `.agent-db/lock` (pid and token
   inside; released only by its owner). A dead holder's lock is taken over
-  under `.agent-db/lock.takeover`, which counts as stale after 30 s. `db:up` writes its lease before provisioning
+  under `.agent-db/lock.takeover`, which counts as stale after 30 s; a lock
+  still empty after 10 s (writer crashed) counts as dead. `db:up` writes its lease before provisioning
   and `db:down` decides on teardown under the lock, so a session joining
-  during a teardown waits, then provisions a fresh branch.
+  during a teardown waits, then provisions a fresh branch. Known limit: if a
+  takeover crashes and two waiters then clear its old guard at the same
+  moment, both can take over; move to a heartbeat lock if that is ever seen.
 - **Env files:** `db:up` runs `pnpm env:bootstrap` when `apps/core/.env` is
   missing, then provision writes the URLs into `apps/core/.env`,
   `apps/web/.env` and `packages/database/.env` (Prisma's config loads `.env`

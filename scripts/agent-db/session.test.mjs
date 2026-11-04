@@ -218,6 +218,29 @@ describe("withLock", () => {
     assert.equal(await readFile(file, "utf8"), "12345 someone-else\n");
   });
 
+  it("recovers an empty lock left by a crash before the token was written", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
+    const file = path.join(dir, "lock");
+    await writeFile(file, "", "utf8");
+    const old = new Date(Date.now() - 60 * 1000);
+    await utimes(file, old, old);
+    assert.equal(
+      await withLock(file, async () => "ok", { pollMs: 1, timeoutMs: 1000 }),
+      "ok",
+    );
+    assert.deepEqual(await readdir(dir), []);
+  });
+
+  it("waits on a fresh empty lock: its holder is still writing", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
+    const file = path.join(dir, "lock");
+    await writeFile(file, "", "utf8");
+    await assert.rejects(
+      withLock(file, async () => "ok", { pollMs: 1, timeoutMs: 50 }),
+      /timed out/,
+    );
+  });
+
   it("clears a takeover guard left by a crashed taker", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
     const file = path.join(dir, "lock");
