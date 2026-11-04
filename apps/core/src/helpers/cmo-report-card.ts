@@ -49,19 +49,26 @@ const KIND_LABELS: Record<CmoReport["kind"], string> = {
   production: "Production",
 };
 
-/** The result card's fields, for every Sokosumi chat client. */
+/**
+ * The result card's fields, for every Sokosumi chat client. A production
+ * round is progress on the month, so its card is the headline alone; its
+ * lists stay in the Project's latest update.
+ */
 export function cmoReportCard(report: CmoReport, projectId: string) {
+  const production = report.kind === "production";
   return {
     title: report.headline,
     status: report.revertedAt ? "Reverted" : KIND_LABELS[report.kind],
-    summary: report.results ?? null,
+    summary: production ? null : (report.results ?? null),
     // The newest report is the Project's latest update.
     sourceHref: `/projects/${encodeURIComponent(projectId)}`,
-    details: [
-      ...report.changes.map((value) => ({ label: "Changed", value })),
-      ...report.done.map((value) => ({ label: "Done", value })),
-      ...report.upNext.map((value) => ({ label: "Up next", value })),
-    ].slice(0, 8),
+    details: production
+      ? []
+      : [
+          ...report.changes.map((value) => ({ label: "Changed", value })),
+          ...report.done.map((value) => ({ label: "Done", value })),
+          ...report.upNext.map((value) => ({ label: "Up next", value })),
+        ].slice(0, 8),
   };
 }
 

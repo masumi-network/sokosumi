@@ -3702,3 +3702,37 @@ a.rv-dot {
   opacity: 0.4;
   cursor: default;
 }
+
+/* Cuso making the month, one card in the chat. */
+.production {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 520px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+}
+
+.production-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+}
+
+.production-head .note {
+  margin-left: auto;
+}
+
+.production .uprogress {
+  width: 100%;
+  margin-top: 0;
+}
+
+.production > .note {
+  margin: 0;
+}

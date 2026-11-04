@@ -161,6 +161,41 @@ describe("thread", () => {
     expect(after.slice(-2)).toEqual(["welcome", "connect"]);
   });
 
+  it("shows making the month as one progress card, not Cuso's round reports", () => {
+    const approvedAt = new Date("2026-10-01T09:05:00Z");
+    const round = (id: string, at: string) => ({
+      id,
+      at: new Date(at),
+      kind: "production" as const,
+      headline: "Partly produced",
+      done: [],
+      upNext: [],
+      changes: [],
+      revertible: false,
+      revertedAt: null,
+    });
+    const thread = buildThread(
+      overview({
+        ...cmoStrategyVersion(approvedAt),
+        production: {
+          state: "running",
+          ready: 16,
+          total: 40,
+          finishedAt: null,
+        },
+        updates: [
+          round("r1", "2026-10-01T10:00:00Z"),
+          round("r2", "2026-10-01T10:20:00Z"),
+        ],
+      }),
+      [],
+    );
+    expect(thread.filter((item) => item.kind === "update")).toEqual([]);
+    expect(thread.filter((item) => item.kind === "production")).toEqual([
+      { kind: "production", at: "2026-10-01T10:20:00.000Z" },
+    ]);
+  });
+
   it("leaves out a background run's empty follow-up", () => {
     const messages = toCusoMessages([
       cmoChatMessage({ id: "empty", content: "Nothing to add." }),

@@ -75,6 +75,8 @@ export async function reportCmoUpdate(
     turnId: string;
     toolCallId: string;
     update: CmoReportUpdateInput;
+    /** The turn makes the month: its report is production, whatever its kind. */
+    production?: boolean;
   },
   db: Prisma.TransactionClient = prisma,
 ): Promise<CmoUpdateRecord> {
@@ -94,7 +96,11 @@ export async function reportCmoUpdate(
   if (!roomId || !projectId) {
     throw new CmoNotFoundError("Cuso has no shared room in a Project");
   }
-  const update = cmoReportUpdateInputSchema.parse(input.update);
+  const parsed = cmoReportUpdateInputSchema.parse(input.update);
+  // CMO shows a production run's reports as one progress card.
+  const update: CmoReportUpdateInput = input.production
+    ? { ...parsed, kind: "production" }
+    : parsed;
   const [wroteThisTurn, approved] =
     update.kind === "weekly" || update.kind === "monthly"
       ? await Promise.all([

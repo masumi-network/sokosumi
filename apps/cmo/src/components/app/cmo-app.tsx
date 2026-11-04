@@ -429,6 +429,7 @@ export function CmoApp({
                     overview={overview}
                     actions={cardActions}
                     name={name || email}
+                    openCalendar={() => go("calendar")}
                     highlighted={
                       item.kind === "update" && item.update.id === highlight
                     }
@@ -598,12 +599,14 @@ function ThreadEntry({
   overview,
   actions,
   name,
+  openCalendar,
   highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
+  openCalendar: () => void;
   highlighted: boolean;
 }) {
   if (item.kind === "message") {
@@ -633,8 +636,8 @@ function ThreadEntry({
       <CusoSays at={item.at}>
         <p className="txt">
           Your plan is ready. I'm making this month's posts now and publish each
-          one on its day; Up next shows what goes out first. Ask me anything
-          here, or tell me what to change.
+          one on its day; the Calendar shows every piece. Ask me anything here,
+          or tell me what to change.
         </p>
       </CusoSays>
     );
@@ -657,6 +660,13 @@ function ThreadEntry({
         return <StrategyCard overview={overview} actions={actions} />;
       case "connect":
         return <ConnectCard actions={actions} />;
+      case "production":
+        return (
+          <ProductionCard
+            production={overview.production}
+            openCalendar={openCalendar}
+          />
+        );
       case "update":
         return (
           <div
@@ -682,6 +692,60 @@ function ThreadEntry({
     }
   })();
   return card ? <CusoSays at={item.at}>{card}</CusoSays> : null;
+}
+
+/**
+ * Cuso making the month, as one card that fills up: his rounds report to
+ * Core, and the owner sees how far the month is and where to read it.
+ */
+function ProductionCard({
+  production,
+  openCalendar,
+}: {
+  production: CmoOverview["production"];
+  openCalendar: () => void;
+}) {
+  const ready = production.state === "ready";
+  const share =
+    production.total > 0
+      ? Math.round((production.ready / production.total) * 100)
+      : 0;
+  return (
+    <div className="production">
+      <p className="production-head">
+        {ready ? null : <span className="dot live" aria-hidden="true" />}
+        <b>{ready ? "Your month is ready" : "Cuso is making your month"}</b>
+        <span className="note num">
+          {production.ready} of {production.total} pieces
+        </span>
+      </p>
+      <span
+        className="uprogress"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={production.total}
+        aria-valuenow={production.ready}
+        aria-label="Pieces made"
+      >
+        <span style={{ width: `${share}%` }} />
+      </span>
+      <p className="note">
+        {ready
+          ? "Every post, picture, article and email is made. Each goes out on its day."
+          : production.state === "stuck"
+            ? "A few pieces didn't finish. Cuso tries them again on his next round."
+            : "Posts, pictures, articles and emails, in rounds. Read each one as it's made."}
+      </p>
+      <button
+        type="button"
+        className="button button-secondary button-small"
+        onClick={openCalendar}
+      >
+        <CalendarDays size={14} aria-hidden="true" />
+        See your calendar
+      </button>
+    </div>
+  );
 }
 
 function CusoSays({
