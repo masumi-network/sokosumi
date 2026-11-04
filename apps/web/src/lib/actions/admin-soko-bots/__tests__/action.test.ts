@@ -7,6 +7,7 @@ const { serviceMock, assertAdminSessionMock, revalidatePathMock } = vi.hoisted(
     serviceMock: {
       archiveVersion: vi.fn(),
       createVersion: vi.fn(),
+      deleteBot: vi.fn(),
       list: vi.fn(),
       performAction: vi.fn(),
       promoteVersion: vi.fn(),
@@ -42,6 +43,7 @@ import { AdminAccessRequiredError } from "@/lib/auth/errors";
 import {
   archiveAdminSokoBotVersionAction,
   createAdminSokoBotVersionAction,
+  deleteAllAdminCusosAction,
   listAdminSokoBotsAction,
   performAdminSokoBotAction,
   promoteAdminSokoBotVersionAction,
@@ -226,5 +228,43 @@ describe("admin soko-bot actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith(
       "/admin/soko-bots/versions",
     );
+  });
+});
+
+describe("deleteAllAdminCusosAction", () => {
+  const cuso = (id: string) => ({ id });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("deletes nothing when the typed count is not the fleet's", async () => {
+    serviceMock.list.mockResolvedValue({
+      total: 3,
+      items: [cuso("a"), cuso("b"), cuso("c")],
+    });
+    const result = await deleteAllAdminCusosAction({ input: { count: 2 } });
+    expect(result.ok).toBe(false);
+    expect(serviceMock.deleteBot).not.toHaveBeenCalled();
+  });
+
+  it("deletes every Cuso page by page and counts the ones it could not", async () => {
+    serviceMock.list
+      .mockResolvedValueOnce({ total: 3, items: [cuso("a"), cuso("b")] })
+      .mockResolvedValueOnce({ total: 2, items: [cuso("b"), cuso("c")] })
+      .mockResolvedValueOnce({ total: 1, items: [cuso("b")] });
+    serviceMock.deleteBot.mockImplementation(async (id: string) => {
+      if (id === "b") throw new Error("busy");
+      return { outcome: "deleted" };
+    });
+
+    const result = await deleteAllAdminCusosAction({ input: { count: 3 } });
+    expect(result).toEqual({ ok: true, value: { deleted: 2, failed: 1 } });
+    expect(serviceMock.list).toHaveBeenCalledWith({ kind: "cmo", limit: 100 });
+    expect(serviceMock.deleteBot.mock.calls.map(([id]) => id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 });
