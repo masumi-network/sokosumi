@@ -56,6 +56,8 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: vi.fn(),
   fetchCalendarEvents: vi.fn(),
   fetchInboxMessages: vi.fn(),
+  withOwnerReplies: async (_integration: unknown, messages: unknown) =>
+    messages,
 }));
 vi.mock("@/services/contacts-context.service", () => ({
   calendarPeopleBlock: vi.fn().mockResolvedValue([]),
