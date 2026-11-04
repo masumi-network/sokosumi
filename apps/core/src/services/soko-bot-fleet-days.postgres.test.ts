@@ -2,6 +2,7 @@
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter @sokosumi/core test src/services/soko-bot-fleet-days.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
+import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
@@ -18,6 +19,7 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
   const ben = randomUUID();
   let workspaceId: string;
   let botId: string;
+  let cmoBotId: string;
 
   async function turn(data: {
     requestedByUserId: string | null;
@@ -25,6 +27,7 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     chainDepth?: number;
     createdAt?: Date;
     costUsdMicros?: bigint;
+    sokoBotId?: string;
   }) {
     return prisma.sokoBotTurn.create({
       data: {
@@ -63,6 +66,11 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     botId = (
       await prisma.sokoBot.create({ data: { userId: ada, workspaceId } })
     ).id;
+    cmoBotId = (
+      await prisma.sokoBot.create({
+        data: { workspaceId, versionId: CMO_SOKO_BOT_VERSION_ID },
+      })
+    ).id;
 
     await turn({ requestedByUserId: ada, costUsdMicros: 10_000n });
     await turn({ requestedByUserId: ada, costUsdMicros: 10_000n });
@@ -70,6 +78,12 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     // A bot asking a bot and a schedule cost money but are nobody's message.
     await turn({ requestedByUserId: ben, chainDepth: 1 });
     await turn({ requestedByUserId: ada, source: "SCHEDULE" });
+    // A CMO.xyz bot counts only toward its own cost.
+    await turn({
+      requestedByUserId: ben,
+      sokoBotId: cmoBotId,
+      costUsdMicros: 100_000n,
+    });
     await turn({
       requestedByUserId: ben,
       createdAt: new Date(Date.now() - 86_400_000),
@@ -83,7 +97,7 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
     await prisma.$disconnect();
   });
 
-  it("counts people who wrote to a bot and what every turn cost, per UTC day", async () => {
+  it("counts people who wrote to a bot and what every turn cost, per UTC day, CMO.xyz apart", async () => {
     const days = await sokoBotFleetDays(3);
 
     expect(days).toHaveLength(3);
@@ -104,5 +118,7 @@ describe.skipIf(!enabled)("sokoBotFleetDays", () => {
       totalTokens: 600,
     });
     expect(today?.costUsd).toBeCloseTo(0.035);
+    expect(today?.cmoCostUsd).toBeCloseTo(0.101);
+    expect(yesterday?.cmoCostUsd).toBe(0);
   });
 });

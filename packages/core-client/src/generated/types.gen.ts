@@ -498,6 +498,7 @@ export type AdminSokoBotFleetDays = {
         turns: number;
         totalTokens: number;
         costUsd: number;
+        cmoCostUsd: number;
     }>;
 };
 
