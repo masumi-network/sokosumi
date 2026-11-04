@@ -29,6 +29,79 @@ export function rememberComposioBotId(botId?: string | null): void {
   }
 }
 
+/**
+ * Where a connect started in another first-party app (CMO) returns. Its tab
+ * passes Web's hand-off page on the way to Composio, so the fixed callback
+ * page can send the browser back to that app.
+ */
+export const COMPOSIO_HANDOFF_STORAGE_KEY = "sokosumi:composio:handoff";
+/** A hand-off older than this belongs to an abandoned connect. */
+const COMPOSIO_HANDOFF_TTL_MS = 15 * 60_000;
+
+/** Composio's hosted connect pages. */
+function isComposioUrl(url: URL): boolean {
+  return (
+    url.protocol === "https:" &&
+    (url.hostname === "composio.dev" || url.hostname.endsWith(".composio.dev"))
+  );
+}
+
+/** A page of a first-party app; local hosts only in development. */
+function isFirstPartyReturnUrl(url: URL): boolean {
+  const host = url.hostname;
+  if (url.protocol === "https:") {
+    return ["sokosumi.com", "cmo.xyz"].some(
+      (domain) => host === domain || host.endsWith(`.${domain}`),
+    );
+  }
+  return (
+    process.env.NODE_ENV === "development" &&
+    url.protocol === "http:" &&
+    (host === "localhost" || host === "127.0.0.1")
+  );
+}
+
+export interface ComposioHandoff {
+  to: string;
+  returnUrl: string;
+  connectionId: string | null;
+}
+
+/** The hand-off's addresses, or null when either is not one we send people to. */
+export function readComposioHandoff(
+  params: URLSearchParams,
+): ComposioHandoff | null {
+  const to = URL.parse(params.get("to") ?? "");
+  const back = URL.parse(params.get("return") ?? "");
+  if (!to || !back || !isComposioUrl(to) || !isFirstPartyReturnUrl(back)) {
+    return null;
+  }
+  return {
+    to: to.toString(),
+    returnUrl: back.toString(),
+    connectionId: params.get("connection"),
+  };
+}
+
+/** JSON for an inline script: no `</script>` can close it early. */
+function inlineJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+/** Remembers where to return in this tab, then leaves for Composio. */
+export function buildComposioHandoffInlineScript(
+  handoff: ComposioHandoff,
+): string {
+  const stored = {
+    returnUrl: handoff.returnUrl,
+    connectionId: handoff.connectionId,
+  };
+  return `(function(){
+try{window.sessionStorage.setItem(${inlineJson(COMPOSIO_HANDOFF_STORAGE_KEY)},JSON.stringify(Object.assign(${inlineJson(stored)},{at:Date.now()})));}catch(e){}
+window.location.replace(${inlineJson(handoff.to)});
+})();`;
+}
+
 export const COMPOSIO_OAUTH_BROADCAST_CHANNEL = "sokosumi:composio:oauth";
 export const COMPOSIO_OAUTH_POPUP_NAME_PREFIX =
   "sokosumi:composio:oauth:" as const;
@@ -150,6 +223,18 @@ window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
 if(!nonce&&popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0)nonce=popupName.slice(${JSON.stringify(popupNamePrefix)}.length);
 var sessionUri=p.get("session_uri")||p.get("sessionUri");
 if(!nonce){
+var handoff=null;
+try{
+handoff=JSON.parse(window.sessionStorage.getItem(${JSON.stringify(COMPOSIO_HANDOFF_STORAGE_KEY)})||"null");
+window.sessionStorage.removeItem(${JSON.stringify(COMPOSIO_HANDOFF_STORAGE_KEY)});
+}catch(e){}
+if(handoff&&handoff.returnUrl&&Date.now()-handoff.at<${COMPOSIO_HANDOFF_TTL_MS}){
+var back=new URL(handoff.returnUrl);
+p.forEach(function(v,k){back.searchParams.set(k,v)});
+if(handoff.connectionId&&!back.searchParams.get("connected_account_id"))back.searchParams.set("connected_account_id",handoff.connectionId);
+window.location.replace(back.toString());
+return;
+}
 var botId="";
 try{
 botId=window.sessionStorage.getItem(${JSON.stringify(botIdKey)})||"";
