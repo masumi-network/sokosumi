@@ -6371,6 +6371,23 @@
           "apply": "Set avatar",
           "done": "Avatar updated.",
           "error": "Could not set the avatar."
+        },
+        "Daily": {
+          "title": "Last {days} days, UTC",
+          "usersTitle": "People who wrote to a Soko Bot",
+          "usersSub": "peak {peak} in {days} days",
+          "usersBar": "{day}: {users} people, {messages} messages",
+          "costTitle": "Model cost",
+          "costSub": "{total} in {days} days",
+          "costBar": "{day}: {cost}",
+          "today": "today",
+          "table": "Show as table",
+          "day": "Day",
+          "users": "People",
+          "messages": "Messages",
+          "turns": "Turns",
+          "tokens": "Tokens",
+          "cost": "Cost"
         }
       },
       "MatchedChannels": {

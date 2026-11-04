@@ -490,6 +490,17 @@ export type AdminCmoSpend = {
     }>;
 };
 
+export type AdminSokoBotFleetDays = {
+    days: Array<{
+        day: string;
+        users: number;
+        messages: number;
+        turns: number;
+        totalTokens: number;
+        costUsd: number;
+    }>;
+};
+
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
@@ -1071,7 +1082,6 @@ export type SokoBotContextSnapshot = {
     id: string;
     schemaVersion: number;
     hash: string;
-    packet?: unknown;
     byteSize: number;
     tokenEstimate: number;
     counts?: unknown;
@@ -15139,6 +15149,66 @@ export type GetAdminCmoSpendResponses = {
 };
 
 export type GetAdminCmoSpendResponse = GetAdminCmoSpendResponses[keyof GetAdminCmoSpendResponses];
+
+export type GetAdminSokoBotFleetDaysData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+    };
+    url: '/admin/soko-bots/daily';
+};
+
+export type GetAdminSokoBotFleetDaysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotFleetDaysError = GetAdminSokoBotFleetDaysErrors[keyof GetAdminSokoBotFleetDaysErrors];
+
+export type GetAdminSokoBotFleetDaysResponses = {
+    /**
+     * Fleet per day
+     */
+    200: {
+        data: AdminSokoBotFleetDays;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotFleetDaysResponse = GetAdminSokoBotFleetDaysResponses[keyof GetAdminSokoBotFleetDaysResponses];
 
 export type MigrateAdminSokoBotVersionsData = {
     body?: AdminSokoBotVersionMigrationRequest;

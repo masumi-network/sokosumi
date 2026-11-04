@@ -459,7 +459,6 @@ export const sokoBotContextSnapshotSchema = z
     id: z.string().uuid(),
     schemaVersion: z.number().int(),
     hash: z.string(),
-    packet: z.unknown(),
     byteSize: z.number().int().nonnegative(),
     tokenEstimate: z.number().int().nonnegative(),
     counts: z.unknown(),
@@ -630,6 +629,25 @@ export const adminSokoBotVersionUsageSchema = z
     ),
   })
   .openapi("AdminSokoBotVersionUsage");
+
+export const adminSokoBotFleetDaysQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
+
+export const adminSokoBotFleetDaysSchema = z
+  .object({
+    days: z.array(
+      z.object({
+        day: z.string(),
+        users: z.number().int(),
+        messages: z.number().int(),
+        turns: z.number().int(),
+        totalTokens: z.number(),
+        costUsd: z.number(),
+      }),
+    ),
+  })
+  .openapi("AdminSokoBotFleetDays");
 
 export const adminCmoSpendQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),

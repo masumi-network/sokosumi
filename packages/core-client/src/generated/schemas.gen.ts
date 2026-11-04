@@ -2041,6 +2041,49 @@ export const AdminCmoSpendSchema = {
     ]
 } as const;
 
+export const AdminSokoBotFleetDaysSchema = {
+    type: 'object',
+    properties: {
+        days: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    day: {
+                        type: 'string'
+                    },
+                    users: {
+                        type: 'integer'
+                    },
+                    messages: {
+                        type: 'integer'
+                    },
+                    turns: {
+                        type: 'integer'
+                    },
+                    totalTokens: {
+                        type: 'number'
+                    },
+                    costUsd: {
+                        type: 'number'
+                    }
+                },
+                required: [
+                    'day',
+                    'users',
+                    'messages',
+                    'turns',
+                    'totalTokens',
+                    'costUsd'
+                ]
+            }
+        }
+    },
+    required: [
+        'days'
+    ]
+} as const;
+
 export const AdminSokoBotVersionMigrationResultSchema = {
     type: 'object',
     properties: {
@@ -4228,7 +4271,6 @@ export const SokoBotContextSnapshotSchema = {
         hash: {
             type: 'string'
         },
-        packet: {},
         byteSize: {
             type: 'integer',
             minimum: 0
