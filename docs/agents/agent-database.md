@@ -32,11 +32,11 @@ branch named `cloud-agent-<run-id>`.
 ## Provision (how agents get the URL)
 
 `.cursor/environment.json` runs provision after a Corepack-backed `pnpm install`
-(`scripts/cloud-agent-db/ensure-pnpm.sh` avoids a broken pnpm 12 `.tools`
+(`scripts/agent-db/ensure-pnpm.sh` avoids a broken pnpm 12 `.tools`
 placeholder that fails environment builds with `Syntax error: ")" unexpected`):
 
 ```bash
-bash scripts/cloud-agent-db/ensure-pnpm.sh install && node scripts/cloud-agent-db/provision.mjs
+bash scripts/agent-db/ensure-pnpm.sh install && node scripts/agent-db/provision.mjs
 ```
 
 When `CURSOR_AGENT=1` and Neon secrets are present, provision:
@@ -69,14 +69,14 @@ provision upserts disposable Better Auth credential accounts:
 | `bob@sokosumi.test`   | `Password123!` | Regular user + personal workspace + owner of `bob-fixture` org                                                                        |
 | `zero@sokosumi.test`  | `Password123!` | Regular user with credential account only — **no** personal workspace, **no** organization / membership (identity-onboarding fixture) |
 
-Fixtures opt into personal workspace + org by default. Set `createPersonalWorkspace: false` and omit / null `organization` in `scripts/cloud-agent-db/fixtures.mjs` to seed a zero-workspace user. Org fixtures still get an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
+Fixtures opt into personal workspace + org by default. Set `createPersonalWorkspace: false` and omit / null `organization` in `scripts/agent-db/fixtures.mjs` to seed a zero-workspace user. Org fixtures still get an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
 
 **Guards:** fixtures run only when provision state has a `cloud-agent-*` branch
 name (and a `DATABASE_URL`). They refuse `main` / other non-agent branches.
 Skip with `CLOUD_AGENT_DB_SKIP_FIXTURES=1`. Manual re-run:
 
 ```bash
-node scripts/cloud-agent-db/with-db.mjs -- pnpm cloud-agent-db:seed-auth
+node scripts/agent-db/with-db.mjs -- pnpm agent-db:seed-auth
 ```
 
 Manual / forced local dry-run:
@@ -85,7 +85,7 @@ Manual / forced local dry-run:
 CLOUD_AGENT_DB_FORCE=1 \
 CLOUD_AGENT_RUN_ID=bc-00000000-0000-0000-0000-000000000001 \
 NEON_API_KEY=… NEON_PROJECT_ID=… \
-node scripts/cloud-agent-db/provision.mjs
+node scripts/agent-db/provision.mjs
 ```
 
 ## Using the database in agent commands
@@ -93,8 +93,8 @@ node scripts/cloud-agent-db/provision.mjs
 Prefer the override wrapper so ambient/stale `DATABASE_URL` cannot win:
 
 ```bash
-node scripts/cloud-agent-db/with-db.mjs -- pnpm core:dev
-node scripts/cloud-agent-db/with-db.mjs -- pnpm prisma:migrate:deploy
+node scripts/agent-db/with-db.mjs -- pnpm core:dev
+node scripts/agent-db/with-db.mjs -- pnpm prisma:migrate:deploy
 ```
 
 `environment.json` `start` already uses `with-db.mjs` for `pnpm dev`.
@@ -106,20 +106,20 @@ Login shells also pick up `.cursor/cloud-agent-db.env` via bashrc/profile.
 Teardown **only** deletes branches named `cloud-agent-*`. It never deletes the
 production / `main` parent (or any non-agent branch).
 
-| Trigger                       | Mechanism                                                                                                                                                                                     |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PR merged                     | GitHub Action `cloud-agent-db-teardown.yml` on `workflow_run` of `PR closed`; extracts `bc-…` ids from same-repo PR bodies via the API. Privileged YAML always comes from the default branch. |
-| PR closed without merge       | Same workflow                                                                                                                                                                                 |
-| Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`)                                                                                           |
-| Agent archived                | Same explicit teardown when possible; otherwise Neon idle TTL                                                                                                                                 |
-| Idle **72h**                  | Neon `expires_at` on create/resume only (no scheduled Action backup)                                                                                                                          |
+| Trigger                       | Mechanism                                                                                                                                                                               |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PR merged                     | GitHub Action `agent-db-teardown.yml` on `workflow_run` of `PR closed`; extracts `bc-…` ids from same-repo PR bodies via the API. Privileged YAML always comes from the default branch. |
+| PR closed without merge       | Same workflow                                                                                                                                                                           |
+| Agent finishes with **no PR** | Agent runs `node scripts/agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`)                                                                                           |
+| Agent archived                | Same explicit teardown when possible; otherwise Neon idle TTL                                                                                                                           |
+| Idle **72h**                  | Neon `expires_at` on create/resume only (no scheduled Action backup)                                                                                                                    |
 
 Manual:
 
 ```bash
-node scripts/cloud-agent-db/teardown.mjs
-node scripts/cloud-agent-db/teardown.mjs --agent-id bc-…
-node scripts/cloud-agent-db/teardown.mjs --from-text "$(gh pr view 123 --json body -q .body)"
+node scripts/agent-db/teardown.mjs
+node scripts/agent-db/teardown.mjs --agent-id bc-…
+node scripts/agent-db/teardown.mjs --from-text "$(gh pr view 123 --json body -q .body)"
 ```
 
 ### PR body convention
@@ -149,5 +149,5 @@ Provision skips cleanly and prints a warning. See [`docs/agents/cloud-environmen
 ## Tests
 
 ```bash
-node --test scripts/cloud-agent-db/__tests__/cloud-agent-db.test.mjs
+node --test scripts/agent-db/__tests__/agent-db.test.mjs
 ```

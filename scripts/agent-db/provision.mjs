@@ -49,15 +49,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
 function log(message) {
-  console.log(`[cloud-agent-db] ${message}`);
+  console.log(`[agent-db] ${message}`);
 }
 
 function warn(message) {
-  console.warn(`[cloud-agent-db] ${message}`);
+  console.warn(`[agent-db] ${message}`);
 }
 
 function fail(message) {
-  console.error(`[cloud-agent-db] error: ${message}`);
+  console.error(`[agent-db] error: ${message}`);
   process.exitCode = 1;
 }
 
@@ -163,7 +163,7 @@ async function main() {
   if (!config) {
     warn(
       "NEON_API_KEY / NEON_PROJECT_ID unset — skip agent DB provision. " +
-        "Add them as Cursor Cloud secrets (see docs/agents/cloud-agent-database.md).",
+        "Add them as Cursor Cloud secrets (see docs/agents/agent-database.md).",
     );
     return;
   }
@@ -221,7 +221,7 @@ async function main() {
       `Ready: branch ${branchName} (${branchMeta.branchId})` +
         (branchMeta.reused ? " [reused]" : " [created]"),
     );
-    log("Use: node scripts/cloud-agent-db/with-db.mjs -- <command>");
+    log("Use: node scripts/agent-db/with-db.mjs -- <command>");
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
   }
@@ -245,7 +245,7 @@ async function runAuthFixtures(input) {
   });
   if (!result.skipped) {
     log(
-      `Auth fixtures ready (${result.seeded}); see docs/agents/cloud-agent-database.md`,
+      `Auth fixtures ready (${result.seeded}); see docs/agents/agent-database.md`,
     );
   }
 }

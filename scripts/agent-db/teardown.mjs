@@ -7,12 +7,12 @@
  * this script does not sweep expired branches.
  *
  * Usage:
- *   node scripts/cloud-agent-db/teardown.mjs
- *   node scripts/cloud-agent-db/teardown.mjs --agent-id bc-…
- *   node scripts/cloud-agent-db/teardown.mjs --branch-name cloud-agent-bc-…
- *   node scripts/cloud-agent-db/teardown.mjs --from-text "<pr body>"
- *   node scripts/cloud-agent-db/teardown.mjs --from-workflow-run
- *   node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env
+ *   node scripts/agent-db/teardown.mjs
+ *   node scripts/agent-db/teardown.mjs --agent-id bc-…
+ *   node scripts/agent-db/teardown.mjs --branch-name cloud-agent-bc-…
+ *   node scripts/agent-db/teardown.mjs --from-text "<pr body>"
+ *   node scripts/agent-db/teardown.mjs --from-workflow-run
+ *   node scripts/agent-db/teardown.mjs --from-agent-id-env
  */
 
 import path from "node:path";
@@ -30,15 +30,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
 function log(message) {
-  console.log(`[cloud-agent-db] ${message}`);
+  console.log(`[agent-db] ${message}`);
 }
 
 function warn(message) {
-  console.warn(`[cloud-agent-db] ${message}`);
+  console.warn(`[agent-db] ${message}`);
 }
 
 function fail(message) {
-  console.error(`[cloud-agent-db] error: ${message}`);
+  console.error(`[agent-db] error: ${message}`);
   process.exitCode = 1;
 }
 
@@ -82,12 +82,12 @@ export function parseArgs(argv, env = process.env) {
 
 function printHelp() {
   console.log(`Usage:
-  node scripts/cloud-agent-db/teardown.mjs
-  node scripts/cloud-agent-db/teardown.mjs --agent-id <bc-…>
-  node scripts/cloud-agent-db/teardown.mjs --branch-name cloud-agent-<bc-…>
-  node scripts/cloud-agent-db/teardown.mjs --from-text "<pr body>"
-  node scripts/cloud-agent-db/teardown.mjs --from-workflow-run
-  node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env
+  node scripts/agent-db/teardown.mjs
+  node scripts/agent-db/teardown.mjs --agent-id <bc-…>
+  node scripts/agent-db/teardown.mjs --branch-name cloud-agent-<bc-…>
+  node scripts/agent-db/teardown.mjs --from-text "<pr body>"
+  node scripts/agent-db/teardown.mjs --from-workflow-run
+  node scripts/agent-db/teardown.mjs --from-agent-id-env
 `);
 }
 
@@ -99,7 +99,7 @@ function githubHeaders(token) {
     Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "sokosumi-cloud-agent-db-teardown",
+    "User-Agent": "sokosumi-agent-db-teardown",
   };
 }
 

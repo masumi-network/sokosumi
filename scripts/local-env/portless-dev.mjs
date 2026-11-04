@@ -287,7 +287,7 @@ function spawnDev({ name, filter, env }) {
   )
     ? [
         process.execPath,
-        path.join(repoRoot, "scripts", "cloud-agent-db", "with-db.mjs"),
+        path.join(repoRoot, "scripts", "agent-db", "with-db.mjs"),
         "--",
         bin,
         ...portlessSpawnArgs(name, filter),
