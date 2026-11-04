@@ -253,7 +253,10 @@ describe("WorkspaceCalendar features", () => {
       const link = screen.getByRole("link", {
         name: "January roundup, show.newsletter",
       });
-      expect(link).toHaveAttribute("href", "/newsletter/issues/issue-1");
+      expect(link).toHaveAttribute(
+        "href",
+        "/newsletter/issues/issue-1?projectId=project-1",
+      );
       expect(link).toHaveTextContent("8:00 AM");
     });
 

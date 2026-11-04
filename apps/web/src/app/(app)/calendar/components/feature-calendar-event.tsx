@@ -10,6 +10,7 @@ import { FileText, type LucideIcon, Mail, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { calendarTypeOf } from "@/app/calendar/calendar-types";
+import { newsletterHref } from "@/app/newsletter/newsletter-tabs";
 import { cn } from "@/lib/utils";
 import { SourceMarker } from "./source-marker";
 
@@ -47,7 +48,10 @@ function featureEventView(item: FeatureCalendarEntry): {
         Icon: Mail,
         title: item.subject,
         detail: null,
-        href: `/newsletter/issues/${encodeURIComponent(item.issueId)}`,
+        href: newsletterHref(
+          `/newsletter/issues/${encodeURIComponent(item.issueId)}`,
+          item.sourceProjectId,
+        ),
         project: item.projectName,
         allDay: false,
         start: item.scheduledAt.toISOString(),
