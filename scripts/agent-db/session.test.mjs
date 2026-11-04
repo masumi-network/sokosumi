@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -174,6 +180,56 @@ describe("withLock", () => {
       /boom/,
     );
     assert.equal(await withLock(file, async () => "free"), "free");
+  });
+
+  it("admits one waiter at a time after a dead holder", async () => {
+    // pid_max on Linux is at most 2^22, so this pid cannot be alive.
+    let active = 0;
+    let overlaps = 0;
+    for (let trial = 0; trial < 60; trial += 1) {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
+      const file = path.join(dir, "lock");
+      await writeFile(file, "99999999\n", "utf8");
+      await Promise.all(
+        Array.from({ length: 6 }, () =>
+          withLock(
+            file,
+            async () => {
+              active += 1;
+              if (active > 1) overlaps += 1;
+              await new Promise((r) => setTimeout(r, 2));
+              active -= 1;
+            },
+            { pollMs: 1, timeoutMs: 5000 },
+          ),
+        ),
+      );
+    }
+    assert.equal(overlaps, 0);
+  });
+
+  it("releases only a lock it still owns", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
+    const file = path.join(dir, "lock");
+    await withLock(file, async () => {
+      // Another holder's lock replaced ours (e.g. a takeover gone wrong).
+      await writeFile(file, "12345 someone-else\n", "utf8");
+    });
+    assert.equal(await readFile(file, "utf8"), "12345 someone-else\n");
+  });
+
+  it("clears a takeover guard left by a crashed taker", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "agent-db-lock-"));
+    const file = path.join(dir, "lock");
+    await writeFile(file, "99999999\n", "utf8");
+    await writeFile(`${file}.takeover`, "99999998 crashed\n", "utf8");
+    const old = new Date(Date.now() - 60 * 1000);
+    await utimes(`${file}.takeover`, old, old);
+    assert.equal(
+      await withLock(file, async () => "ok", { pollMs: 1, timeoutMs: 1000 }),
+      "ok",
+    );
+    assert.deepEqual(await readdir(dir), []);
   });
 
   it("takes over a lock left by a dead process", async () => {

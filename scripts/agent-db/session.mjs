@@ -1,8 +1,15 @@
 /** Per-worktree agent DB sessions: run id, session id, leases, lock, Neon key lookup. */
 
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -178,11 +185,22 @@ export function defaultSessionId(
   return pid ? `pid-${pid}` : "shell";
 }
 
+/** A takeover guard older than this belongs to a crashed taker. */
+const TAKEOVER_STALE_MS = 30 * 1000;
+
 /**
  * @param {string} file
  */
-async function lockIsStale(file) {
-  const pid = Number((await readFile(file, "utf8").catch(() => "")).trim());
+async function readLock(file) {
+  return readFile(file, "utf8").catch(() => null);
+}
+
+/**
+ * Lock contents are `<pid> <token>`; true when that pid is gone.
+ * @param {string} contents
+ */
+function holderIsDead(contents) {
+  const pid = Number(contents.trim().split(/\s+/)[0]);
   // Empty: the holder is between create and write.
   if (!Number.isSafeInteger(pid) || pid <= 0) return false;
   try {
@@ -195,8 +213,39 @@ async function lockIsStale(file) {
 }
 
 /**
+ * Remove `file` only if it still holds `contents`, under an O_EXCL guard so
+ * two waiters that saw the same dead holder cannot both unlink: the second
+ * one finds the first one's fresh lock and leaves it.
+ * @param {string} file
+ * @param {string} contents what the waiter read when it judged the holder dead
+ */
+async function takeOverDeadLock(file, contents) {
+  const guard = `${file}.takeover`;
+  const token = `${process.pid} ${randomUUID()}\n`;
+  try {
+    await writeFile(guard, token, { flag: "wx" });
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EEXIST") {
+      throw error;
+    }
+    const age = await stat(guard).then(
+      (info) => Date.now() - info.mtimeMs,
+      () => 0,
+    );
+    if (age > TAKEOVER_STALE_MS) await rm(guard, { force: true });
+    return;
+  }
+  try {
+    if ((await readLock(file)) === contents) await rm(file, { force: true });
+  } finally {
+    if ((await readLock(guard)) === token) await rm(guard, { force: true });
+  }
+}
+
+/**
  * Run `fn` holding an exclusive lock file (created with O_EXCL, holding the
- * pid). A lock left by a dead process is taken over.
+ * pid and a random token). A lock left by a dead process is taken over; the
+ * lock is released only while it still holds this caller's token.
  * @template T
  * @param {string} file
  * @param {() => Promise<T>} fn
@@ -209,17 +258,19 @@ export async function withLock(
   { pollMs = 250, timeoutMs = 15 * 60 * 1000 } = {},
 ) {
   await mkdir(path.dirname(file), { recursive: true });
+  const token = `${process.pid} ${randomUUID()}\n`;
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     try {
-      await writeFile(file, `${process.pid}\n`, { flag: "wx" });
+      await writeFile(file, token, { flag: "wx" });
       break;
     } catch (error) {
       if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EEXIST") {
         throw error;
       }
-      if (await lockIsStale(file)) {
-        await rm(file, { force: true });
+      const contents = await readLock(file);
+      if (contents && holderIsDead(contents)) {
+        await takeOverDeadLock(file, contents);
         continue;
       }
       if (Date.now() > deadline) {
@@ -231,6 +282,6 @@ export async function withLock(
   try {
     return await fn();
   } finally {
-    await rm(file, { force: true });
+    if ((await readLock(file)) === token) await rm(file, { force: true });
   }
 }

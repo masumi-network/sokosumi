@@ -57,8 +57,9 @@ pnpm db:down --force # delete the branch even while other sessions hold it
   `db:down --force` deletes the branch but leaves other sessions' leases. A
   crashed session's lease stays; the branch then expires through the 72 h
   Neon TTL.
-- **Lock:** `db:up` and `db:down` hold `.agent-db/lock` (pid inside; a dead
-  holder's lock is taken over). `db:up` writes its lease before provisioning
+- **Lock:** `db:up` and `db:down` hold `.agent-db/lock` (pid and token
+  inside; released only by its owner). A dead holder's lock is taken over
+  under `.agent-db/lock.takeover`, which counts as stale after 30 s. `db:up` writes its lease before provisioning
   and `db:down` decides on teardown under the lock, so a session joining
   during a teardown waits, then provisions a fresh branch.
 - **Env files:** `db:up` runs `pnpm env:bootstrap` when `apps/core/.env` is
