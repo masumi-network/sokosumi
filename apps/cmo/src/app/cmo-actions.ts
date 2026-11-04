@@ -397,12 +397,14 @@ export async function setAdBudget(
 
 /**
  * The founder moved on from the Accounts step, the last one: CMO opens on the
- * chat. A connection already counts; skipping is kept in CMO's cookie.
+ * chat. A connection already counts; skipping is kept in CMO's cookie. It
+ * goes to the app's home, not back to the address it came from: back from a
+ * connection, that address keeps the Accounts step open.
  */
-export async function finishAccounts(): Promise<CmoOverview> {
-  const overview = await skipStep("accounts");
+export async function finishAccounts(): Promise<never> {
+  await skipStep("accounts");
   revalidatePath("/");
-  return overview;
+  redirect("/");
 }
 
 /**
