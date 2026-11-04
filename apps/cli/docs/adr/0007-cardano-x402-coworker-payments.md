@@ -64,3 +64,4 @@
 2. [OPEN] Whether a live Task passes the implemented receipt lookup and proves payout to the intended wallet. See the [receipt verification limits](../coworker-mps-receipt-plan.md).
 3. [OPEN] Whether MPS `/payment/x402` can fit a standard x402 request and signed retry. Its API requires an existing payment identifier and a buyer address.
 4. [OPEN] Which Sokosumi service should host the later x402 resource route and any facilitator role.
+5. [OPEN] Seller credential rotation and funded-payment recovery need implementation review. [REPORTED: user decisions, 2026-09-30] The first flow uses an existing developer-managed MPS seller, with self-service CLI setup and encrypted Core storage.

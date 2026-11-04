@@ -12,7 +12,7 @@ export default async function ChooseAdAccountPage({
   searchParams,
 }: ChoosePageProps) {
   const { connection, from } = await searchParams;
-  const back = from === "app" ? "/channels" : "/?step=connect";
+  const back = from === "app" ? "/channels" : "/?step=connect&from=onboarding";
   if (!connection) redirect(back);
   const accounts = await loadAdChoices(connection).catch(() => []);
   if (accounts.length === 0) redirect(back);
