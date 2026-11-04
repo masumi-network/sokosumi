@@ -128,14 +128,11 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
-  it("advisory jobs cover local env, CI config, and cloud-agent-db", async () => {
+  it("advisory jobs cover local env, CI config, and agent-db", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     assert.match(jobBlock(test, "local-env"), /run: pnpm local-env:test\n/);
     assert.match(jobBlock(test, "ci-config"), /run: pnpm ci:test\n/);
-    assert.match(
-      jobBlock(test, "cloud-agent-db"),
-      /run: pnpm cloud-agent-db:test(\n|$)/,
-    );
+    assert.match(jobBlock(test, "agent-db"), /run: pnpm agent-db:test(\n|$)/);
     // Pinned to an exact version, and warnings fail as well as errors: the
     // CLI exits 0 on warnings, so the job gates on the JSON summary.
     const designMd = jobBlock(test, "design-md");
@@ -160,7 +157,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     const workflow = await readRepoFile(
       ".github",
       "workflows",
-      "cloud-agent-db-teardown.yml",
+      "agent-db-teardown.yml",
     );
     const signal = await readRepoFile(".github", "workflows", "pr-closed.yml");
     const triggerSection = workflow.split(/^jobs:/m)[0];
@@ -267,7 +264,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["cli", "cli"],
       ["local-env", "local-env"],
       ["ci-config", "ci-config"],
-      ["cloud-agent-db", "cloud-agent-db"],
+      ["agent-db", "agent-db"],
       ["design-md", "design-md"],
     ]) {
       const header = jobBlock(ci, jobId).split(/\n    steps:\n/)[0];

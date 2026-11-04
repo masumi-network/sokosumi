@@ -45,8 +45,8 @@ packages:
 local-env:
   - "{scripts/local-env/**,apps/web/.env.example,apps/core/.env.example,package.json}"
 
-cloud-agent-db:
-  - "{scripts/cloud-agent-db/**,package.json}"
+agent-db:
+  - "{scripts/agent-db/**,package.json}"
 
 # The brand guides the `Lint DESIGN.md` job checks, and the files that
 # define the job.
@@ -61,4 +61,4 @@ design-md:
 # Release Please config, the Release Please manifest, the version xcconfig
 # and the Xcode project.
 ci-config:
-  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,scripts/cloud-agent-db/neon-api.mjs,turbo.json,pnpm-workspace.yaml,.vercelignore,apps/*/vercel.json,apps/web/scripts/**,packages/database/src/helpers/migration-prefix-order.test.ts,apps/apple/release-please-config.json,apps/apple/.release-please-manifest.json,apps/apple/Version.xcconfig,apps/apple/Sokosumi.xcodeproj/project.pbxproj}"
+  - "{*.md,**/*.md,*.mdc,**/*.mdc,package.json,**/package.json,.github/**,scripts/ci/**,scripts/agent-db/neon-api.mjs,turbo.json,pnpm-workspace.yaml,.vercelignore,apps/*/vercel.json,apps/web/scripts/**,packages/database/src/helpers/migration-prefix-order.test.ts,apps/apple/release-please-config.json,apps/apple/.release-please-manifest.json,apps/apple/Version.xcconfig,apps/apple/Sokosumi.xcodeproj/project.pbxproj}"

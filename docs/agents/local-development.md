@@ -19,7 +19,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 1. Run `pnpm install` at repo root
 2. `pnpm env:bootstrap` — copies `.env.example` → `.env` (web + core) and sanitizes placeholders / the `BETTER_AUTH_COOKIE_DOMAIN` trap. Grok/git worktrees reuse the primary checkout `.env` (`BETTER_AUTH_SECRET`, `DATABASE_URL`) unless the worktree already has a unique secret. Do not leave `<…>` values; optional URL keys must be omitted, not set to `dummy`
 3. One-time per machine: `pnpm exec portless trust` if `portless doctor` reports an untrusted CA, then `pnpm portless:proxy` (HTTPS **443**, may sudo). Fail if the URL is `:1355` / `http://` — do not drive the fallback
-4. Bootstrap database: `pnpm prisma:migrate:dev`
+4. Bootstrap database: `pnpm prisma:migrate:dev`, or with a Neon key `pnpm db:up` for a branch of production per worktree ([`agent-database.md`](./agent-database.md))
 5. Generate Prisma clients: `pnpm prisma:generate`
 
 ## Commands
@@ -50,7 +50,7 @@ Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A f
   2. **Prefer** `.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in` (agent-browser) for auth. The harness reads the password from the process env without the model needing to type a Runtime Secret. Only after a session exists should computer-use drive UI.
   3. If computer-use must type the form: email into `[data-testid="auth-field-email"]`, password into `[data-testid="auth-field-currentPassword"]`, then Enter. Never print the password. **`VERIFY_SOKOSUMI_EMAIL` must be an Environment Variable** (not Runtime Secret) so the model can read which account to use — Runtime Secrets redact as `[REDACTED]` in tool output. A Runtime Secret password cannot be typed by computer-use; use the harness instead.
   4. **Never invent** random `/signup` users (`you-*@sokosumi.test`, timestamp emails, etc.) for general UI proof. If `verify_credentials_*=unset` and Alice fixtures fail (`fixture_auth=fail`), **stop and report missing secrets** — do not improvise an account. Signup is only for testing signup itself (see [`.cursor/skills/verify-sokosumi/features/sign-up.md`](../../.cursor/skills/verify-sokosumi/features/sign-up.md)).
-  5. Cloud-agent fixture accounts and when they apply: [`cloud-agent-database.md`](./cloud-agent-database.md). Login recipe: [verify-sokosumi](../../.cursor/skills/verify-sokosumi/SKILL.md).
+  5. Cloud-agent fixture accounts and when they apply: [`agent-database.md`](./agent-database.md). Login recipe: [verify-sokosumi](../../.cursor/skills/verify-sokosumi/SKILL.md).
 - **OAuth / email code:** Google and Microsoft do **not** work with placeholder credentials, and no email is sent. Sign-up needs the emailed code, with or without a password ([ADR 0050](../adr/0050-password-sign-up-proves-the-address.md)). In development Core also prints every code to its console as `[email code] <address>: <code>`, so `/signup` and code sign-in work locally — sign up only when testing signup itself.
 - **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.

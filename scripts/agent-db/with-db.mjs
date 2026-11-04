@@ -3,8 +3,8 @@
  * Run a command with Cloud agent DATABASE_URL overrides applied.
  *
  * Usage:
- *   node scripts/cloud-agent-db/with-db.mjs -- pnpm core:dev
- *   node scripts/cloud-agent-db/with-db.mjs -- pnpm prisma:migrate:deploy
+ *   node scripts/agent-db/with-db.mjs -- pnpm core:dev
+ *   node scripts/agent-db/with-db.mjs -- pnpm prisma:migrate:deploy
  */
 
 import { spawn } from "node:child_process";
@@ -18,7 +18,7 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 
 function printHelp() {
   console.log(
-    `Usage: node scripts/cloud-agent-db/with-db.mjs -- <command> [args...]`,
+    `Usage: node scripts/agent-db/with-db.mjs -- <command> [args...]`,
   );
 }
 
@@ -37,7 +37,7 @@ async function main() {
     applyUrlsToProcessEnv(urls);
   } else {
     console.warn(
-      "[cloud-agent-db] no provisioned env at .cursor/cloud-agent-db.urls.json; running with ambient DATABASE_URL",
+      "[agent-db] no provisioned env at .agent-db/urls.json; running with ambient DATABASE_URL",
     );
   }
 

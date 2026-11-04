@@ -13,7 +13,7 @@
  *   NEON_DATABASE_NAME (default neondb)
  *   NEON_ROLE_NAME (default neondb_owner)
  *   CLOUD_AGENT_RUN_ID (override agent id; default CURSOR_CONVERSATION_ID)
- *   CLOUD_AGENT_DB_FORCE=1 (run outside Cursor agent)
+ *   CLOUD_AGENT_DB_FORCE=1 (run outside Cursor agent; `pnpm db:up` sets it)
  *   CLOUD_AGENT_DB_SKIP_MIGRATE=1
  */
 
@@ -26,6 +26,7 @@ import {
   applyUrlsToProcessEnv,
   injectShellRc,
   patchAppEnvFiles,
+  removeLegacyState,
   writeEnvFile,
   writeState,
 } from "./apply-env.mjs";
@@ -49,15 +50,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
 function log(message) {
-  console.log(`[cloud-agent-db] ${message}`);
+  console.log(`[agent-db] ${message}`);
 }
 
 function warn(message) {
-  console.warn(`[cloud-agent-db] ${message}`);
+  console.warn(`[agent-db] ${message}`);
 }
 
 function fail(message) {
-  console.error(`[cloud-agent-db] error: ${message}`);
+  console.error(`[agent-db] error: ${message}`);
   process.exitCode = 1;
 }
 
@@ -163,7 +164,7 @@ async function main() {
   if (!config) {
     warn(
       "NEON_API_KEY / NEON_PROJECT_ID unset — skip agent DB provision. " +
-        "Add them as Cursor Cloud secrets (see docs/agents/cloud-agent-database.md).",
+        "Add them as Cursor Cloud secrets (see docs/agents/agent-database.md).",
     );
     return;
   }
@@ -208,11 +209,16 @@ async function main() {
 
     await writeState(REPO_ROOT, state);
     await writeEnvFile(REPO_ROOT, urls);
+    await removeLegacyState(REPO_ROOT);
     await patchAppEnvFiles(REPO_ROOT, urls);
 
-    const home = os.homedir();
-    await injectShellRc(path.join(home, ".bashrc"), REPO_ROOT);
-    await injectShellRc(path.join(home, ".profile"), REPO_ROOT);
+    // Cursor VMs hold one checkout. Elsewhere real env vars beat `.env`, so
+    // an rc block would point every worktree's shell at this checkout.
+    if (process.env.CURSOR_AGENT === "1") {
+      const home = os.homedir();
+      await injectShellRc(path.join(home, ".bashrc"), REPO_ROOT);
+      await injectShellRc(path.join(home, ".profile"), REPO_ROOT);
+    }
 
     runMigrations();
     await runAuthFixtures({ branchName });
@@ -221,7 +227,7 @@ async function main() {
       `Ready: branch ${branchName} (${branchMeta.branchId})` +
         (branchMeta.reused ? " [reused]" : " [created]"),
     );
-    log("Use: node scripts/cloud-agent-db/with-db.mjs -- <command>");
+    log("Use: node scripts/agent-db/with-db.mjs -- <command>");
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
   }
@@ -245,7 +251,7 @@ async function runAuthFixtures(input) {
   });
   if (!result.skipped) {
     log(
-      `Auth fixtures ready (${result.seeded}); see docs/agents/cloud-agent-database.md`,
+      `Auth fixtures ready (${result.seeded}); see docs/agents/agent-database.md`,
     );
   }
 }

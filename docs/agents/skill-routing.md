@@ -96,7 +96,7 @@ Task status mapping for needs-triage / ready-for-agent / wontfix and related rol
 
 Single-context: live `GLOSSARY.md` + `docs/adr/` at the repo root. See [`docs/agents/domain.md`](./domain.md).
 
-**Cloud agent database:** [`docs/agents/cloud-agent-database.md`](../../docs/agents/cloud-agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
+**Cloud agent database:** [`docs/agents/agent-database.md`](../../docs/agents/agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](../../docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 

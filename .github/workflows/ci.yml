@@ -51,7 +51,7 @@ jobs:
       packages: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.packages }}
       cli: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cli }}
       local-env: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.local-env }}
-      cloud-agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cloud-agent-db }}
+      agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.agent-db }}
       design-md: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.design-md }}
       # Markdown-only PRs still run the doc-script check.
       ci-config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ci-config }}
@@ -329,10 +329,10 @@ jobs:
       - name: Run Tests
         run: pnpm ci:test
 
-  cloud-agent-db:
-    name: Test Cloud agent db
+  agent-db:
+    name: Test Agent db
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.cloud-agent-db != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.agent-db != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
@@ -340,7 +340,7 @@ jobs:
       - *setup
 
       - name: Run Tests
-        run: pnpm cloud-agent-db:test
+        run: pnpm agent-db:test
 
   # Advisory. The DESIGN.md spec is alpha, so the CLI is pinned: a new
   # release can add rules, and adopting them is a deliberate bump here.

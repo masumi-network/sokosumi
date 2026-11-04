@@ -120,7 +120,7 @@ function owningWorkspace(relativeFile, byWorkspace) {
 
 /**
  * `pnpm run <script>`, `pnpm <script>`, and `pnpm --filter <pkg> <script>`.
- * Script names may carry hyphens and colons (`cloud-agent-db:provision`).
+ * Script names may carry hyphens and colons (`agent-db:provision`).
  */
 const PNPM_INVOCATION =
   /\bpnpm\s+((?:--filter|-F)\s+\S+\s+)?(run\s+)?([a-z][a-z0-9-]*(?::[a-z0-9-]+)*)(:?<)?/g;

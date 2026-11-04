@@ -27,7 +27,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
 function log(message) {
-  console.log(`[cloud-agent-db] ${message}`);
+  console.log(`[agent-db] ${message}`);
 }
 
 const ZERO_WORKSPACE_RESET_SAVEPOINT = "zero_workspace_reset";
@@ -335,7 +335,7 @@ async function main() {
     }
   } catch (error) {
     console.error(
-      `[cloud-agent-db] error: ${error instanceof Error ? error.message : String(error)}`,
+      `[agent-db] error: ${error instanceof Error ? error.message : String(error)}`,
     );
     process.exitCode = 1;
   }
