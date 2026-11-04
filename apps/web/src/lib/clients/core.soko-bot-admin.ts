@@ -10,6 +10,7 @@ import {
   getAdminCmoSpend as coreGetAdminCmoSpend,
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
+  getAdminSokoBotFleetDays as coreGetAdminSokoBotFleetDays,
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
@@ -100,6 +101,15 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreGetAdminCmoSpend({ client, query, cache: "no-store" }),
       "Failed to fetch CMO spend",
+    );
+  }
+
+  async function getAdminSokoBotFleetDays(query: { days: number }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotFleetDays({ client, query, cache: "no-store" }),
+      "Failed to fetch Soko Bot fleet days",
     );
   }
 
@@ -245,6 +255,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminSokoBotQuality,
     getAdminSokoBotModelEvaluations,
     getAdminCmoSpend,
+    getAdminSokoBotFleetDays,
     getAdminSokoBot,
     listAdminSokoBotChats,
     listAdminSokoBotChatMessages,

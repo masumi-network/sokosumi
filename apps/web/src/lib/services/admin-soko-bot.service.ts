@@ -5,6 +5,7 @@ import type {
   AdminSokoBotActionRequest,
   AdminSokoBotChatRoom,
   AdminSokoBotDetail,
+  AdminSokoBotFleetDays,
   AdminSokoBotList,
   AdminSokoBotModelEvaluations,
   AdminSokoBotQuality,
@@ -58,6 +59,12 @@ export const adminSokoBotService = {
   /** What each CMO bot (Cuso) spent over the last days, and on what. */
   async cmoSpend(days: number): Promise<AdminCmoSpend> {
     const response = await coreClient.getAdminCmoSpend({ days });
+    return response.data;
+  },
+
+  /** Per UTC day: people who wrote to a bot, and what all turns cost. */
+  async fleetDays(days: number): Promise<AdminSokoBotFleetDays> {
+    const response = await coreClient.getAdminSokoBotFleetDays({ days });
     return response.data;
   },
 

@@ -144,3 +144,79 @@ export async function sokoBotUsageTotals(
     totalCredits: roundCredits(ownCredits + delegatedCredits),
   };
 }
+
+/** One UTC day of the fleet: who wrote to a bot, and what the turns cost. */
+export interface SokoBotFleetDay {
+  /** YYYY-MM-DD, UTC. */
+  day: string;
+  /** People whose own chat message started a turn; bot hops and lab runs excluded. */
+  users: number;
+  /** Turns those messages started. */
+  messages: number;
+  /** Every turn that day, background work included. */
+  turns: number;
+  totalTokens: number;
+  /** Model cost of all turns: agent loop plus classifier plus judge. */
+  costUsd: number;
+}
+
+interface FleetDayRow {
+  day: string;
+  users: bigint;
+  messages: bigint;
+  turns: bigint;
+  totalTokens: bigint | null;
+  costUsdMicros: bigint | null;
+}
+
+/** The last `days` UTC days, oldest first, with empty days as zeros. */
+export async function sokoBotFleetDays(
+  days: number,
+): Promise<SokoBotFleetDay[]> {
+  const rows = await prisma.$queryRaw<FleetDayRow[]>`
+    WITH days AS (
+      SELECT generate_series(
+        date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1}),
+        date_trunc('day', now() AT TIME ZONE 'UTC'),
+        interval '1 day'
+      ) AS day
+    ),
+    turns AS (
+      SELECT
+        date_trunc('day', t."createdAt") AS day,
+        t."requestedByUserId",
+        t."source" = 'CHAT'
+          AND t."chainDepth" = 0
+          AND t."parentTurnId" IS NULL
+          AND t."requestedByUserId" IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM "soko_bot_lab_run" l WHERE l."turnId" = t."id")
+          AS "fromPerson",
+        COALESCE((t."usage" ->> 'inputTokens')::numeric, 0)
+          + COALESCE((t."usage" ->> 'outputTokens')::numeric, 0)
+          + COALESCE((t."usage" ->> 'cacheReadTokens')::numeric, 0)
+          + COALESCE((t."usage" ->> 'cacheWriteTokens')::numeric, 0) AS tokens,
+        COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros
+      FROM "soko_bot_turn" t
+      WHERE t."createdAt" >= date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})
+    )
+    SELECT
+      to_char(d.day, 'YYYY-MM-DD') AS "day",
+      COUNT(DISTINCT t."requestedByUserId") FILTER (WHERE t."fromPerson") AS "users",
+      COUNT(t.day) FILTER (WHERE t."fromPerson") AS "messages",
+      COUNT(t.day) AS "turns",
+      SUM(t.tokens)::bigint AS "totalTokens",
+      SUM(t.micros)::bigint AS "costUsdMicros"
+    FROM days d
+    LEFT JOIN turns t ON t.day = d.day
+    GROUP BY d.day
+    ORDER BY d.day
+  `;
+  return rows.map((row) => ({
+    day: row.day,
+    users: Number(row.users),
+    messages: Number(row.messages),
+    turns: Number(row.turns),
+    totalTokens: asNumber(row.totalTokens),
+    costUsd: asNumber(row.costUsdMicros) / 1e6,
+  }));
+}

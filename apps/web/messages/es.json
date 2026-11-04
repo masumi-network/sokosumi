@@ -6335,6 +6335,23 @@
           "apply": "Asignar avatar",
           "done": "Avatar actualizado.",
           "error": "No se pudo asignar el avatar."
+        },
+        "Daily": {
+          "title": "Últimos {days} días, UTC",
+          "usersTitle": "Personas que escribieron a un Soko Bot",
+          "usersSub": "máximo {peak} en {days} días",
+          "usersBar": "{day}: {users} personas, {messages} mensajes",
+          "costTitle": "Coste del modelo",
+          "costSub": "{total} en {days} días",
+          "costBar": "{day}: {cost}",
+          "today": "hoy",
+          "table": "Ver como tabla",
+          "day": "Día",
+          "users": "Personas",
+          "messages": "Mensajes",
+          "turns": "Turnos",
+          "tokens": "Tokens",
+          "cost": "Coste"
         }
       },
       "MatchedChannels": {
