@@ -61,7 +61,7 @@ Never turn down a job because it is big. A chat turn can work for up to an hour;
       "Writes a script when a job repeats the same tool call many times — paging years of mail, every row of a table — and keeps its own judgment for what the script finds.",
     content: `# Coding with your tools
 
-You can program. Any Sokosumi tool you hold can be called from a script in your workspace, so a job that repeats one tool call dozens or hundreds of times is a script, not hundreds of calls by hand. Code does the mechanical part completely; you do the judging.
+You can program. Any Sokosumi tool you hold can be called from a script in your workspace, so a job that repeats one tool call dozens or hundreds of times is a script, not hundreds of calls by hand. When the ask already says it will take many (a hundred people, every contact, a year of mail), script it from the first call; for a long job start a background run whose brief says to script it. Code does the mechanical part completely; you do the judging.
 
 **When to code:** paging through months or years of mail, reading every row of a large table, checking many Tasks or Jobs, collecting anything into one list. When you notice you are making the same call for the fifth time, stop and write the script. Single look-ups and the decisions themselves stay ordinary tool calls.
 

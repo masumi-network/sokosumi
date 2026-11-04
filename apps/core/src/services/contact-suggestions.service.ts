@@ -380,9 +380,10 @@ export async function findPeopleForList(
     ...members.flatMap((row) => profileKey(row.value) ?? []),
   ]);
 
-  // Ask for more than wanted: some results are not people, some do not fit.
+  // Ask for far more than wanted: most results are not people, do not fit,
+  // or are already on the list.
   const search = await deps
-    .search({ query, numResults: one ? 5 : input.size * 2 })
+    .search({ query, numResults: one ? 5 : Math.min(input.size * 4, 100) })
     .catch(webSearchUnavailable);
   const fresh = search.hits.filter((hit) => {
     const key = profileKey(hit.url);
