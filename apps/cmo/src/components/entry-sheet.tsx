@@ -1,7 +1,14 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { Clock, Lightbulb, Loader2, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Lightbulb,
+  Loader2,
+  X,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
@@ -25,6 +32,9 @@ export function EntrySheet({
   onAsk,
   loadText,
   extra,
+  position,
+  onPrev,
+  onNext,
 }: {
   entry: Entry;
   /** The image or video Cuso made for this piece, once he has. */
@@ -36,10 +46,16 @@ export function EntrySheet({
   loadText?: (entryId: string) => Promise<string | null>;
   /** What the owner can do with this piece beyond reading it (launch an ad). */
   extra?: ReactNode;
+  /** Where this piece sits among the ones the sheet steps through. */
+  position?: { index: number; total: number };
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const filed = Boolean(entry.fileId && !entry.draft);
   const [filedText, setFiledText] = useState<string | null>(null);
   useEffect(() => {
+    // Stepping to another piece must not show the last one's words.
+    setFiledText(null);
     if (!filed || !loadText) return;
     let current = true;
     loadText(entry.id)
@@ -55,10 +71,14 @@ export function EntrySheet({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      // The arrows step through pieces, except while typing a change.
+      if (event.target instanceof HTMLInputElement) return;
+      if (event.key === "ArrowLeft") onPrev?.();
+      if (event.key === "ArrowRight") onNext?.();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext]);
   return (
     <>
       {/* The sheet's Close button is its one control; the scrim only catches clicks. */}
@@ -92,6 +112,31 @@ export function EntrySheet({
                   ? " · image by Cuso"
                   : ""}
           </span>
+          {position ? (
+            <span className="sheet-steps">
+              <button
+                type="button"
+                className="sheet-close"
+                onClick={onPrev}
+                disabled={!onPrev}
+                aria-label="Previous piece"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="note num">
+                {position.index + 1} of {position.total}
+              </span>
+              <button
+                type="button"
+                className="sheet-close"
+                onClick={onNext}
+                disabled={!onNext}
+                aria-label="Next piece"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </span>
+          ) : null}
           <button
             type="button"
             className="sheet-close"

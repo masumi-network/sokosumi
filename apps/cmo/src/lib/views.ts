@@ -2,6 +2,7 @@
 export const VIEW_PATHS = {
   chat: "/",
   strategy: "/strategy",
+  calendar: "/calendar",
   results: "/results",
   brain: "/brand-brain",
   channels: "/channels",
