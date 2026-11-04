@@ -387,7 +387,8 @@ export function SokoBotConsole({
                     asChild
                     className="flex-1 sm:flex-none"
                   >
-                    <Link href={adminHref}>
+                    {/* The admin view loads 50 turns in full; only on click. */}
+                    <Link href={adminHref} prefetch={false}>
                       <ShieldCheck aria-hidden className="size-4" />
                       {t("Console.adminView")}
                     </Link>

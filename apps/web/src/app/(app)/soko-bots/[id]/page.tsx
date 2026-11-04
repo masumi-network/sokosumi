@@ -73,6 +73,8 @@ export default async function SharedSokoBotPage({
   }
 
   const focusTurnId = typeof query.turn === "string" ? query.turn : null;
+  // Ad accounts render behind Advanced only; each Project costs a Core call.
+  const wantsAdvanced = query.view === "advanced" || focusTurnId !== null;
   const integrationOutcome =
     typeof query.integration === "string" ? query.integration : null;
   const [stats, usage, integrations, adAccounts] = await Promise.all([
@@ -80,9 +82,11 @@ export default async function SharedSokoBotPage({
     sokoBotService.getMyUsage(id).catch(() => null),
     sokoBotService.listIntegrations(id).catch(() => null),
     // A workspace bot has no Project, so it reads like the personal bot.
-    loadBotAdAccounts({ projectId: summary.projectId ?? null }).catch(
-      () => null,
-    ),
+    wantsAdvanced
+      ? loadBotAdAccounts({ projectId: summary.projectId ?? null }).catch(
+          () => null,
+        )
+      : null,
   ]);
 
   return (
