@@ -47,11 +47,20 @@ pnpm db:down --force # delete the branch even while other sessions hold it
 - **Branch:** `cloud-agent-bc-<sha256 of the checkout path>`, so a resumed
   session finds the same branch and each worktree gets its own. Inside Cursor
   the run id stays `CURSOR_CONVERSATION_ID`.
-- **Leases:** one file per session in `.agent-db/sessions/`. The session id is
-  `--session <id>`, else `AGENT_DB_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`,
-  else `shell`. Give each non-Claude agent its own `AGENT_DB_SESSION_ID`, or a
-  shared `shell` lease releases the branch for all of them. A crashed session's
-  lease stays; the branch then expires through the 72 h Neon TTL.
+- **Leases:** one file per session in `.agent-db/sessions/`. The session id
+  is the first of: `--session <id>`, the hook JSON `session_id` (`--hook`),
+  `AGENT_DB_SESSION_ID`, `CLAUDE_CODE_SESSION_ID`, the hc terminal
+  (`hc-$HC_SCOPE-$HC_TERMINAL_ID`), `CODEX_THREAD_ID`, the nearest ancestor
+  process that is not a shell or pnpm/node wrapper (`pid-<n>`, the agent
+  itself), and `shell`. Grok tool shells carry no session id
+  (`GROK_SESSION_ID` is hook-only), so Grok gets the hc or process id.
+  `db:down --force` deletes the branch but leaves other sessions' leases. A
+  crashed session's lease stays; the branch then expires through the 72 h
+  Neon TTL.
+- **Lock:** `db:up` and `db:down` hold `.agent-db/lock` (pid inside; a dead
+  holder's lock is taken over). `db:up` writes its lease before provisioning
+  and `db:down` decides on teardown under the lock, so a session joining
+  during a teardown waits, then provisions a fresh branch.
 - **Env files:** `db:up` runs `pnpm env:bootstrap` when `apps/core/.env` is
   missing, then provision writes the URLs into `apps/core/.env`,
   `apps/web/.env` and `packages/database/.env` (Prisma's config loads `.env`

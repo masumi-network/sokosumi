@@ -38,6 +38,15 @@ export function sessionsDirPath(repoRoot) {
 }
 
 /**
+ * Held by `db:up` / `db:down` so lease checks and provision/teardown never
+ * interleave.
+ * @param {string} repoRoot
+ */
+export function lockFilePath(repoRoot) {
+  return path.join(repoRoot, AGENT_DB_DIR, "lock");
+}
+
+/**
  * Files written before `.agent-db/` existed; read as a fallback so a checkout
  * provisioned by an older provision.mjs still resolves its branch.
  * @param {string} repoRoot
@@ -100,9 +109,9 @@ export async function clearState(repoRoot) {
     statePath(repoRoot),
     envFilePath(repoRoot),
     urlsFilePath(repoRoot),
-    sessionsDirPath(repoRoot),
   ]) {
-    await rm(file, { force: true, recursive: true });
+    // Leases stay: each session releases its own (scripts/agent-db/db.mjs).
+    await rm(file, { force: true });
   }
 }
 
