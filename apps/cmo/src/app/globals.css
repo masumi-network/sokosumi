@@ -3577,6 +3577,7 @@ a.rv-dot {
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-items: start;
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -3735,4 +3736,13 @@ a.rv-dot {
 
 .production > .note {
   margin: 0;
+}
+
+.sheet-head > span:not(.sheet-steps) {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-steps .note {
+  white-space: nowrap;
 }

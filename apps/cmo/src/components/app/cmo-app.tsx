@@ -275,7 +275,13 @@ export function CmoApp({
     if (!content) return;
     setDraft("");
     startSending(async () => {
-      await actions.sendMessage(content);
+      // A message that did not send comes back to the box, not lost.
+      try {
+        await actions.sendMessage(content);
+      } catch {
+        setDraft(content);
+        return;
+      }
       await refresh();
     });
   }
@@ -371,6 +377,14 @@ export function CmoApp({
             </span>
           ) : null}
           <span className="sp" />
+          {view === "strategy" &&
+          overview.strategy &&
+          !strategyApproved(overview) &&
+          overview.viewerCanApprove ? (
+            <ApproveDraft
+              approve={async () => setOverview(await actions.approveStrategy())}
+            />
+          ) : null}
           {view === "strategy" || view === "brain" ? (
             <button
               type="button"
@@ -695,6 +709,35 @@ function ThreadEntry({
 }
 
 /**
+ * Approves the newest version from the Strategy page; Cuso makes the month
+ * from it. A refused approval says so instead of leaving the page.
+ */
+function ApproveDraft({ approve }: { approve: () => Promise<void> }) {
+  const [pending, startApproving] = useTransition();
+  const [failed, setFailed] = useState(false);
+  return (
+    <button
+      type="button"
+      className="button button-small"
+      disabled={pending}
+      title={failed ? "That didn't go through. Try again." : undefined}
+      onClick={() =>
+        startApproving(async () => {
+          setFailed(false);
+          try {
+            await approve();
+          } catch {
+            setFailed(true);
+          }
+        })
+      }
+    >
+      {pending ? "Approving…" : failed ? "Try again" : "Approve"}
+    </button>
+  );
+}
+
+/**
  * Cuso making the month, as one card that fills up: his rounds report to
  * Core, and the owner sees how far the month is and where to read it.
  */
@@ -713,10 +756,18 @@ function ProductionCard({
   return (
     <div className="production">
       <p className="production-head">
-        {ready ? null : <span className="dot live" aria-hidden="true" />}
-        <b>{ready ? "Your month is ready" : "Cuso is making your month"}</b>
+        {production.state === "running" ? (
+          <span className="dot live" aria-hidden="true" />
+        ) : null}
+        <b>
+          {ready
+            ? "Your month is ready"
+            : production.state === "stuck"
+              ? "Most of your month is ready"
+              : "Cuso is making your month"}
+        </b>
         <span className="note num">
-          {production.ready} of {production.total} pieces
+          {production.ready} of {production.total} ready
         </span>
       </p>
       <span

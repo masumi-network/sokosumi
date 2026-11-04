@@ -42,7 +42,8 @@ export function StartOver({
       action={async () => setError(await startOver())}
     >
       <p className="note">
-        Cuso stops and his unsent posts are canceled. Your Sokosumi files stay.
+        Cuso stops and his unsent posts are canceled. Your chat and files stay
+        in Sokosumi.
       </p>
       <div className="start-over-actions">
         <SubmitButton className={className}>Start over</SubmitButton>

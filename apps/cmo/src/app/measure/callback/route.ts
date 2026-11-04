@@ -27,7 +27,10 @@ export async function GET(request: NextRequest) {
     params.get("from") === "app"
       ? new URL("/results", request.nextUrl)
       : new URL("/", request.nextUrl);
-  if (params.get("from") !== "app") back.searchParams.set("step", "results");
+  if (params.get("from") !== "app") {
+    back.searchParams.set("step", "results");
+    back.searchParams.set("from", "onboarding");
+  }
   if (!connected) back.searchParams.set("measure", "failed");
   return NextResponse.redirect(back);
 }
