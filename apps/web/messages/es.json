@@ -3815,7 +3815,7 @@
           "lastChecked": "Última comprobación: {time}",
           "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
           "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
-          "checked": "Comprobado. Algunos registros DNS aún faltan o no se pudieron verificar. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
+          "checked": "{found} de {total} registros DNS encontrados. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
           "verifyRecords": "Verificar registros",
           "checkAgain": "Comprobar de nuevo",
           "dmarc": {

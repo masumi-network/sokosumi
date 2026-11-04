@@ -3815,7 +3815,7 @@
           "lastChecked": "Last checked {time}",
           "verifiedDescription": "This project’s newsletter now sends from this address.",
           "verifiedToast": "Domain verified. Newsletters now send from your address.",
-          "checked": "Checked. Some DNS records are still missing or could not be verified. Review their status below; DNS changes can take a few hours.",
+          "checked": "{found} of {total} DNS records found. Review their status below; DNS changes can take a few hours.",
           "verifyRecords": "Verify records",
           "checkAgain": "Check again",
           "dmarc": {

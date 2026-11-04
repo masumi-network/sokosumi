@@ -10,6 +10,7 @@ import {
   ChevronDown,
   CircleAlert,
   CircleCheck,
+  CircleDashed,
   CircleDotDashed,
   Clock,
   ExternalLink,
@@ -94,6 +95,36 @@ function recordPurpose(record: NewsletterDnsRecord): RecordPurpose {
   // Resend files the return path under SPF as an MX or a CNAME; only TXT is SPF.
   if (record.record === "SPF") return record.type === "TXT" ? "spf" : "bounce";
   return "other";
+}
+
+type RecordHealth = "found" | "missing" | "wrongValue";
+
+const HEALTH_CHIP = {
+  found: { icon: CircleCheck, className: "text-foreground" },
+  missing: { icon: CircleDashed, className: "text-muted-foreground" },
+  wrongValue: { icon: CircleAlert, className: "text-semantic-destructive" },
+} as const;
+
+const HEALTH_ROW_ORDER: RecordPurpose[] = [
+  "dkim",
+  "bounce",
+  "spf",
+  "dmarc",
+  "other",
+];
+
+function recordHealth(record: NewsletterDnsRecord): RecordHealth {
+  if (record.status === "verified") return "found";
+  return record.status === "failed" ? "wrongValue" : "missing";
+}
+
+function requiredRecordCounts(records: NewsletterDnsRecord[]) {
+  // DMARC is a suggestion: verification does not wait for it.
+  const required = records.filter((record) => record.record !== "DMARC");
+  return {
+    found: required.filter((record) => record.status === "verified").length,
+    total: required.length,
+  };
 }
 
 // Client-safe counterpart of Core's relativeHost; no DNS lookup is needed here.
@@ -285,17 +316,11 @@ function ConnectedDomain({
     (record) => record.record === "DMARC" && record.status !== "verified",
   );
   const needsDns = !verified || dmarcMissing;
-  // DMARC is a suggestion: verification does not wait for it.
-  const requiredRecords = domain.dnsRecords.filter(
-    (record) => record.record !== "DMARC",
-  );
-  const foundRecords = requiredRecords.filter(
-    (record) => record.status === "verified",
-  ).length;
+  const recordCounts = requiredRecordCounts(domain.dnsRecords);
   const displayStatus =
     domain.status === "PENDING" &&
-    foundRecords > 0 &&
-    foundRecords < requiredRecords.length
+    recordCounts.found > 0 &&
+    recordCounts.found < recordCounts.total
       ? "PARTIAL"
       : domain.status;
   const StatusIcon = STATUS_ICON[displayStatus];
@@ -323,7 +348,7 @@ function ConnectedDomain({
       } else {
         // The toast points at each record's status, so show them.
         setRecordsOverride(true);
-        toast.success(t("checked"));
+        toast.info(t("checked", requiredRecordCounts(result.value.dnsRecords)));
       }
       router.refresh();
     } catch {
@@ -361,12 +386,10 @@ function ConnectedDomain({
           )
         ) : canManage || displayStatus !== "FAILED" ? (
           <p className="text-muted-foreground text-sm text-pretty">
-            {t(`statusDetail.${displayStatus}`, {
-              found: foundRecords,
-              total: requiredRecords.length,
-            })}
+            {t(`statusDetail.${displayStatus}`, recordCounts)}
           </p>
         ) : null}
+        {needsDns ? <PurposeHealthRow records={domain.dnsRecords} /> : null}
         {!verified && !paused ? (
           <FallbackNote fallbackAvailable={fallbackAvailable} />
         ) : null}
@@ -506,6 +529,37 @@ function ConnectedDomain({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function PurposeHealthRow({ records }: { records: NewsletterDnsRecord[] }) {
+  const t = useTranslations("App.Projects.Newsletter.SendingDomain");
+  if (!records.length) return null;
+  return (
+    <ul
+      aria-label={t("records.title")}
+      className="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm"
+    >
+      {HEALTH_ROW_ORDER.map((purpose) => {
+        const healths = records
+          .filter((record) => recordPurpose(record) === purpose)
+          .map(recordHealth);
+        if (!healths.length) return null;
+        // A purpose can span several records; it reads as its worst one.
+        const health =
+          (["wrongValue", "missing"] as const).find((worst) =>
+            healths.includes(worst),
+          ) ?? "found";
+        const { icon: Icon, className } = HEALTH_CHIP[health];
+        return (
+          <li key={purpose} className={`flex items-center gap-1 ${className}`}>
+            <Icon aria-hidden className="size-4 shrink-0" />
+            {t(`records.purpose.${purpose}.label`)}
+            <span className="sr-only">{t(`records.${health}`)}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -820,11 +874,7 @@ function DnsRecords({
                   ) : (
                     <CircleAlert aria-hidden />
                   )}
-                  {found
-                    ? t("records.found")
-                    : record.status === "failed"
-                      ? t("records.wrongValue")
-                      : t("records.missing")}
+                  {t(`records.${recordHealth(record)}`)}
                 </Badge>
               </div>
               <p className="text-muted-foreground text-sm text-pretty">

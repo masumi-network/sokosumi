@@ -23,7 +23,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 vi.mock("@/lib/actions/newsletter/sending-domain", () => ({
   saveNewsletterSendingDomain: mocks.save,
   checkNewsletterSendingDomain: mocks.check,
@@ -599,10 +601,121 @@ describe("SendingDomainCard", () => {
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
     rerenderCard({ sendingDomain: checked });
 
-    expect(toast.success).toHaveBeenCalledExactlyOnceWith(T.checked);
+    expect(toast.info).toHaveBeenCalledExactlyOnceWith(
+      "1 of 2 DNS records found. Review their status below; DNS changes can take a few hours.",
+    );
+    expect(toast.success).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
     expect(screen.queryByText(T.oneClick.checking)).not.toBeInTheDocument();
     expect(mocks.connect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the success toast for a check that verifies the domain", async () => {
+    const user = userEvent.setup();
+    mocks.check.mockResolvedValue({
+      ok: true,
+      value: { ...DOMAIN, status: "VERIFIED" },
+    });
+    renderCard({ sendingDomain: DOMAIN });
+    await user.click(screen.getByRole("button", { name: T.checkAgain }));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledExactlyOnceWith(T.verifiedToast),
+    );
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+
+  it("counts the checked result in the toast, not the stale card", async () => {
+    const user = userEvent.setup();
+    mocks.check.mockResolvedValue({ ok: true, value: UNSTARTED_DOMAIN });
+    renderCard({ sendingDomain: DOMAIN });
+    await user.click(screen.getByRole("button", { name: T.checkAgain }));
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledExactlyOnceWith(
+        expect.stringMatching(/^0 of 2 DNS records found\./),
+      ),
+    );
+  });
+
+  describe("purpose health row", () => {
+    const record = DOMAIN.dnsRecords[0];
+    const healthRow = () => screen.getByRole("list", { name: T.records.title });
+    const chips = () =>
+      within(healthRow())
+        .getAllByRole("listitem")
+        .map((chip) => chip.textContent);
+
+    it("shows each purpose in a fixed order with found and missing apart", () => {
+      renderCard({
+        sendingDomain: {
+          ...DOMAIN,
+          dnsRecords: [
+            { ...record, record: "DMARC", status: "not_found" },
+            { ...record, record: "SPF", type: "TXT", status: "pending" },
+            { ...record, record: "SPF", type: "CNAME", status: "pending" },
+            { ...record, record: "DKIM", status: "verified" },
+          ],
+        },
+      });
+      expect(chips()).toEqual([
+        "DKIMFound",
+        "Return pathMissing",
+        "SPFMissing",
+        "DMARCMissing",
+      ]);
+      const [dkim, returnPath] = within(healthRow()).getAllByRole("listitem");
+      expect(dkim).toHaveClass("text-foreground");
+      expect(returnPath).toHaveClass("text-muted-foreground");
+    });
+
+    it("marks a failed record as wrong and reads a purpose as its worst record", () => {
+      renderCard({
+        sendingDomain: {
+          ...DOMAIN,
+          status: "FAILED",
+          dnsRecords: [
+            { ...record, name: "a.brand.example", status: "verified" },
+            { ...record, name: "b.brand.example", status: "failed" },
+          ],
+        },
+      });
+      expect(chips()).toEqual(["DKIMWrong value"]);
+      expect(within(healthRow()).getByRole("listitem")).toHaveClass(
+        "text-semantic-destructive",
+      );
+    });
+
+    it("stays while only DMARC is missing on a verified domain", () => {
+      renderCard({
+        sendingDomain: {
+          ...DOMAIN,
+          status: "VERIFIED",
+          dnsRecords: [
+            { ...record, status: "verified" },
+            { ...record, record: "DMARC", status: "not_found" },
+          ],
+        },
+      });
+      expect(chips()).toEqual(["DKIMFound", "DMARCMissing"]);
+    });
+
+    it("sits beside the records instead of replacing them, also for members", () => {
+      renderCard({ sendingDomain: DOMAIN, canManage: false });
+      expect(chips()).toEqual(["DKIMMissing", "Return pathFound"]);
+      expect(
+        screen.getByRole("region", { name: T.records.title }),
+      ).toBeInTheDocument();
+    });
+
+    it("is gone once no DNS is needed", () => {
+      renderCard({
+        sendingDomain: {
+          ...DOMAIN,
+          status: "VERIFIED",
+          dnsRecords: [{ ...record, status: "verified" }],
+        },
+      });
+      expect(screen.queryByRole("list", { name: T.records.title })).toBeNull();
+    });
   });
 
   it("makes one-click the primary action and keeps manual one click away", async () => {
