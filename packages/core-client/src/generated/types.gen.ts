@@ -7476,7 +7476,11 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         audience?: string;
         contentLanguage?: string;
         positioning?: string;
-        pillars: Array<string>;
+        pillars: Array<{
+            name: string;
+            share: number;
+            why?: string;
+        }>;
         channels: Array<{
             channel: string;
             cadence: string;
@@ -7706,7 +7710,11 @@ export type MarketingStrategyRequest = {
         audience?: string;
         contentLanguage?: string;
         positioning?: string;
-        pillars: Array<string>;
+        pillars: Array<{
+            name: string;
+            share: number;
+            why?: string;
+        }>;
         channels: Array<{
             channel: string;
             cadence: string;
@@ -10762,7 +10770,11 @@ export type CmoPlan = {
     audience?: string;
     contentLanguage?: string;
     positioning?: string;
-    pillars: Array<string>;
+    pillars: Array<{
+        name: string;
+        share: number;
+        why?: string;
+    }>;
     channels: Array<{
         channel: string;
         cadence: string;
@@ -11023,6 +11035,18 @@ export type CmoProduction = {
     ready: number;
     total: number;
     finishedAt: string | null;
+    /**
+     * Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.
+     */
+    pillars: {
+        shares: Array<{
+            name: string;
+            planned: number;
+            made: number;
+            pieces: number;
+        }>;
+        rewriting: boolean;
+    } | null;
 };
 
 export type CmoOnboardingRequest = {

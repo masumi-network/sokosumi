@@ -240,6 +240,16 @@ export function StrategyReveal({
         </Section>
       ) : null}
 
+      {strategy.pillars.length > 0 ? (
+        <Section title="What the posts are about" beat={beat(4)}>
+          <Pillars
+            pillars={strategy.pillars}
+            calendar={strategy.calendar}
+            made={overview.production.pillars}
+          />
+        </Section>
+      ) : null}
+
       <Section title="Where Cuso works" beat={beat(5)} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
@@ -251,12 +261,6 @@ export function StrategyReveal({
             them set up yet. Add one and he starts on it.
           </p>
           <Proposals proposals={strategy.proposals ?? []} />
-        </Section>
-      ) : null}
-
-      {strategy.pillars.length > 0 ? (
-        <Section title="Topics" beat={beat(5)}>
-          <p className="bb-big">{strategy.pillars.join(" · ")}</p>
         </Section>
       ) : null}
 
@@ -467,6 +471,76 @@ function Mix({
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * The content pillars: each topic's share of the month, what it does, and
+ * once the month is made, the share Cuso's pieces really have.
+ */
+function Pillars({
+  pillars,
+  calendar,
+  made,
+}: {
+  pillars: Strategy["pillars"];
+  calendar: Entry[];
+  made: CmoOverview["production"]["pillars"];
+}) {
+  const pieces = planPieces(calendar);
+  return (
+    <>
+      {made ? (
+        <p className="note">
+          {made.rewriting
+            ? "Some pieces read as another topic than planned. Cuso is rewriting them now."
+            : "Cuso read every piece he made and counted what each one is really about."}
+        </p>
+      ) : null}
+      <ul className="bb-mix">
+        {pillars.map((pillar) => {
+          const mine = pieces.filter(
+            (entry) =>
+              entry.pillar?.trim().toLowerCase() ===
+              pillar.name.trim().toLowerCase(),
+          );
+          const read = made?.shares.find((share) => share.name === pillar.name);
+          const width = read ? read.made : pillar.share;
+          return (
+            <li key={pillar.name}>
+              <div className="bb-mix-head">
+                <b>{pillar.name}</b>
+                <span className="num">
+                  {read
+                    ? `${read.made}% made · ${pillar.share}% planned`
+                    : `${pillar.share}%`}
+                </span>
+              </div>
+              <span className="bb-bar" aria-hidden="true">
+                <motion.i
+                  style={{ width: `${width}%` }}
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, ease: EASE }}
+                />
+                {read ? (
+                  <span
+                    className="bb-bar-plan"
+                    style={{ left: `${pillar.share}%` }}
+                  />
+                ) : null}
+              </span>
+              {pillar.why ? <span>{pillar.why}</span> : null}
+              <span className="note">
+                {mine.length} {mine.length === 1 ? "piece" : "pieces"} planned
+                {mine[0] ? `, such as “${withoutLabel(mine[0].title)}”` : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

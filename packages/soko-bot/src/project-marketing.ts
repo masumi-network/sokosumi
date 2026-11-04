@@ -719,6 +719,38 @@ const strategyPlanShape = {
   questions: z.array(cmoPlanQuestionSchema).max(5).default([]),
 };
 
+/**
+ * Older plans named their pillars without shares: each gets an equal part.
+ */
+function sharedPillars(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  const named = value.filter((item) => typeof item === "string").length;
+  return value.map((item) =>
+    typeof item === "string"
+      ? { name: item, share: Math.max(5, Math.round(100 / named)) }
+      : item,
+  );
+}
+
+/**
+ * The content pillars: three to five recurring topics, each with the share
+ * of the month's pieces it gets. Every calendar entry names one.
+ */
+export const cmoPillarsSchema = z.preprocess(
+  sharedPillars,
+  z
+    .array(
+      z.object({
+        name: shortText,
+        share: z.number().int().min(5).max(100),
+        /** What these pieces do for this business, in one plain line. */
+        why: shortText.optional(),
+      }),
+    )
+    .max(6),
+);
+export type CmoPillar = z.infer<typeof cmoPillarsSchema>[number];
+
 /** A sample piece in the strategy proposal, so the owner sees the voice. */
 export const cmoPreviewSchema = z.object({
   kind: z.enum(["post", "ad", "seo", "newsletter"]),
@@ -739,7 +771,7 @@ export const marketingStrategyPlanSchema = z.object({
   /** The language posts, ads and emails are written in, named in English ("German"). */
   contentLanguage: shortText.optional(),
   positioning: longText.optional(),
-  pillars: z.array(shortText).max(6),
+  pillars: cmoPillarsSchema,
   channels: z
     .array(
       z.object({

@@ -22,6 +22,10 @@ const STATUS: Record<Entry["status"], { label: string; tone: string }> = {
   skipped: { label: "Skipped", tone: "" },
 };
 
+function samePillar(named: string | undefined, pillar: string): boolean {
+  return named?.trim().toLowerCase() === pillar.trim().toLowerCase();
+}
+
 /** The first words of a piece, without Markdown, for its card. */
 function excerpt(entry: Entry): string {
   const text = entry.draft ?? entry.brief ?? "";
@@ -53,6 +57,7 @@ export function CalendarPage({
   // The month being made; a change waiting for approval does not empty it.
   const strategy = overview.approvedStrategy ?? overview.strategy;
   const [channel, setChannel] = useState<string | null>(null);
+  const [pillar, setPillar] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const live = useMemo(
     () =>
@@ -69,9 +74,12 @@ export function CalendarPage({
     () => [...new Set(live.map((entry) => entry.channel))],
     [live],
   );
-  const shown = channel
-    ? live.filter((entry) => entry.channel === channel)
-    : live;
+  const shown = live.filter(
+    (entry) =>
+      (!channel || entry.channel === channel) &&
+      (!pillar || samePillar(entry.pillar, pillar)),
+  );
+  const pillars = strategy?.pillars ?? [];
   const weeks = useMemo(() => planWeeks(live), [live]);
 
   if (!strategy) {
@@ -124,6 +132,35 @@ export function CalendarPage({
             </button>
           ))}
         </div>
+        {pillars.length > 0 ? (
+          <div className="cal-filters" role="group" aria-label="Pillar">
+            <button
+              type="button"
+              className="cal-filter"
+              aria-pressed={pillar === null}
+              onClick={() => setPillar(null)}
+            >
+              Every pillar
+            </button>
+            {pillars.map(({ name }) => (
+              <button
+                key={name}
+                type="button"
+                className="cal-filter"
+                aria-pressed={pillar === name}
+                onClick={() => setPillar(name)}
+              >
+                {name}
+                <span className="num">
+                  {
+                    live.filter((entry) => samePillar(entry.pillar, name))
+                      .length
+                  }
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {weeks.map((week, weekIndex) => {
@@ -235,6 +272,9 @@ function PieceCard({
             {entry.time ? ` ${entry.time}` : ""}
           </span>
         </span>
+        {entry.pillar ? (
+          <span className="cal-pillar">{entry.pillar}</span>
+        ) : null}
         <span className="cal-title">{entry.title}</span>
         {excerpt(entry) ? (
           <span className="cal-excerpt">{excerpt(entry)}</span>

@@ -27,7 +27,7 @@ export const cmoStrategy: NonNullable<CmoOverview["strategy"]> = {
   month: "2026-10",
   summary: "Founder led LinkedIn posts that show the product working.",
   goals: ["More demo requests"],
-  pillars: ["Product stories"],
+  pillars: [{ name: "Product stories", share: 100 }],
   channels: [{ channel: "linkedin", cadence: "3 a week" }],
   calendar: [
     {
@@ -94,7 +94,13 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     connectChannelUrl: "http://web/social?projectId=project-1",
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
-    production: { state: "waiting", ready: 0, total: 0, finishedAt: null },
+    production: {
+      state: "waiting",
+      ready: 0,
+      total: 0,
+      finishedAt: null,
+      pillars: null,
+    },
     measurement: [
       {
         provider: "google_analytics",

@@ -182,6 +182,7 @@ describe("thread", () => {
           ready: 16,
           total: 40,
           finishedAt: null,
+          pillars: null,
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),

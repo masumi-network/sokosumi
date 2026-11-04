@@ -3269,6 +3269,16 @@ a.rv-dot {
   transform-origin: left;
 }
 
+/* The planned share, marked on a pillar's made bar */
+.bb-bar-plan {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--foreground);
+}
+
 /* Where Cuso works: one card per channel of the plan */
 .cw-grid {
   display: grid;
@@ -3663,6 +3673,12 @@ a.rv-dot {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+
+.cal-pillar {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .cal-title {

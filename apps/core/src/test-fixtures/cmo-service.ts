@@ -135,6 +135,7 @@ export function seedStrategy(
     authorTurnId: null,
     approvedAt: null,
     approvedByUserId: null,
+    pillarCheck: null,
     ...fields,
   };
   strategyRows.push(row);

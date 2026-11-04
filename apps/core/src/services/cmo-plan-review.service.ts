@@ -20,8 +20,8 @@ export const CMO_PLAN_REVIEWS_PER_TURN = 4;
 const MIN_PIECES = 16;
 const MIN_FORMATS = 6;
 const MAX_SUMMARY_WORDS = 20;
-/** How far, in points, the calendar's approach shares may stray from the mix. */
-const MIX_TOLERANCE = 7;
+/** How far, in points, the calendar's shares may stray from the mix and the pillars. */
+export const CMO_SHARE_TOLERANCE = 7;
 
 /**
  * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
@@ -36,6 +36,7 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
     );
   if (strategy.mix.length === 0)
     problems.push("mix is empty; give two to four approaches.");
+  problems.push(...pillarListProblems(strategy.pillars));
   if (strategy.funnel.length < 3)
     problems.push(
       `funnel has ${strategy.funnel.length} stages; give three or four.`,
@@ -94,6 +95,7 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
         "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
     problems.push(...mixProblems(strategy.mix, pieces));
+    problems.push(...pillarProblems(strategy.pillars, pieces));
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
         entry.title,
@@ -245,7 +247,7 @@ export function mixProblems(
       (entry) => entry.approach === part.approach,
     ).length;
     const share = Math.round((count / pieces.length) * 100);
-    return Math.abs(share - part.share) > MIX_TOLERANCE
+    return Math.abs(share - part.share) > CMO_SHARE_TOLERANCE
       ? [
           `${part.approach} is ${part.share}% of the mix but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((part.share / 100) * pieces.length)}.`,
         ]
@@ -260,6 +262,53 @@ export function mixProblems(
       `${outside} pieces take an approach outside the mix; use only the mix's approaches.`,
     );
   return off;
+}
+
+function pillarListProblems(
+  pillars: MarketingStrategyPlan["pillars"],
+): string[] {
+  if (pillars.length < 3 || pillars.length > 5)
+    return [
+      `pillars has ${pillars.length}; give three to five, each with its share.`,
+    ];
+  const total = pillars.reduce((sum, pillar) => sum + pillar.share, 0);
+  return Math.abs(total - 100) > 2
+    ? [`the pillar shares add up to ${total}; make them add up to 100.`]
+    : [];
+}
+
+/** A pillar as an entry names it, so "Setup proof" and "setup proof " match. */
+export function samePillar(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+/**
+ * Like the mix, the pillars are planned in the calendar: every piece names
+ * one of them, and each pillar's share of the pieces is close to its own.
+ */
+export function pillarProblems(
+  pillars: MarketingStrategyPlan["pillars"],
+  pieces: MarketingStrategyPlan["calendar"],
+): string[] {
+  if (pillars.length === 0 || pieces.length === 0) return [];
+  const named = (entry: (typeof pieces)[number], name: string) =>
+    Boolean(entry.pillar && samePillar(entry.pillar, name));
+  const outside = pieces.filter(
+    (entry) => !pillars.some((pillar) => named(entry, pillar.name)),
+  ).length;
+  if (outside > 0)
+    return [
+      `${outside} calendar entries name no pillar of the plan; give every entry one of: ${pillars.map((pillar) => pillar.name).join(", ")}.`,
+    ];
+  return pillars.flatMap((pillar) => {
+    const count = pieces.filter((entry) => named(entry, pillar.name)).length;
+    const share = Math.round((count / pieces.length) * 100);
+    return Math.abs(share - pillar.share) > CMO_SHARE_TOLERANCE
+      ? [
+          `the pillar "${pillar.name}" is ${pillar.share}% of the plan but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((pillar.share / 100) * pieces.length)}.`,
+        ]
+      : [];
+  });
 }
 
 /**
@@ -288,7 +337,7 @@ export async function cmoPlanDrift(input: {
           summary: strategy.summary,
           offer: strategy.offer?.what,
           focus: strategy.focus?.segment,
-          pillars: strategy.pillars,
+          pillars: strategy.pillars.map((pillar) => pillar.name),
         },
       },
       questions: {

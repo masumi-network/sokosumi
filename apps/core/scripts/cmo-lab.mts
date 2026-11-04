@@ -170,7 +170,7 @@ function judge(
   const head = [
     strategy.summary,
     strategy.offer?.what ?? "",
-    ...strategy.pillars,
+    ...strategy.pillars.map((pillar) => pillar.name),
   ].join(" ");
   if (!new RegExp(brand.main, "i").test(head))
     findings.push("the plan does not sell the main offer");

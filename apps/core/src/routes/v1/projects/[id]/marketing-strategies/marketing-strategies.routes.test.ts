@@ -118,6 +118,7 @@ function version(
     authorTurnId: "66666666-6666-4666-8666-666666666666",
     approvedAt,
     approvedByUserId: approvedAt ? "user_0" : null,
+    pillarCheck: null,
   };
 }
 
