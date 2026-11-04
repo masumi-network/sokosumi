@@ -1,7 +1,3 @@
-import {
-  SOCIAL_PUBLIC_PROVIDERS,
-  socialPostProviderLabel,
-} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -216,7 +212,7 @@ describe("Social tool contracts", () => {
       "publish_social_post",
     ] as const) {
       expect(descriptions[key]).toContain(
-        `Public publishing platforms: ${SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel).join(", ")}.`,
+        "Public publishing platforms: X, YouTube, LinkedIn, Instagram, Facebook.",
       );
       expect(descriptions[key]).toContain("Coming soon");
       expect(descriptions[key]).toContain("enabledProviders");

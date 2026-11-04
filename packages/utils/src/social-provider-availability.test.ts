@@ -24,6 +24,8 @@ describe("Social provider availability", () => {
         "x",
         "youtube",
         "linkedin",
+        "instagram",
+        "facebook",
       ]);
       for (const provider of ALL_PROVIDERS) {
         expect(isSocialProviderEnabled(provider, workspace)).toBe(
@@ -33,7 +35,7 @@ describe("Social provider availability", () => {
     },
   );
 
-  it.each(["tiktok", "instagram", "facebook"] as const)(
+  it.each(["tiktok"] as const)(
     "explains %s availability using the public list in every workspace",
     (provider) => {
       const available = new Intl.ListFormat("en", {
