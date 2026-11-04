@@ -665,6 +665,20 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(items.map((contact) => contact.name)).not.toContain("Anna Kind");
   });
 
+  it("sorts by first contact, which every contact has", async () => {
+    const page = await listContacts(asAlice, {
+      filter: {},
+      sort: "firstContactAt",
+      direction: "desc",
+      limit: 50,
+    });
+    const dates = page.items.map((contact) =>
+      new Date(contact.firstContactAt as Date).getTime(),
+    );
+    expect(dates.length).toBeGreaterThan(0);
+    expect(dates).toEqual([...dates].sort((a, b) => b - a));
+  });
+
   it("pages through contacts sorted by last contact with never-contacted last", async () => {
     const seen: string[] = [];
     let cursor: string | undefined;
