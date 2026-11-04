@@ -3809,9 +3809,10 @@
           "lastChecked": "Last checked {time}",
           "verifiedDescription": "This project’s newsletter now sends from this address.",
           "verifiedToast": "Domain verified. Newsletters now send from your address.",
-          "checked": "Checked. Your DNS records aren’t visible yet. DNS changes can take up to a few hours.",
-          "checkNow": "Check now",
-          "connectTitle": "Add the DNS records",
+          "checked": "Checked. Some DNS records are still missing or could not be verified. Review their status below; DNS changes can take a few hours.",
+          "verifyRecords": "Verify records",
+          "checkAgain": "Check again",
+          "connectTitle": "Choose how to set up DNS",
           "dmarc": {
             "title": "No DMARC policy found",
             "description": "DMARC tells inboxes what to do with mail that fails these checks. Add the suggested DMARC record below. It starts with p=none, which only monitors and never blocks mail."
@@ -3819,24 +3820,40 @@
           "oneClick": {
             "title": "One-click setup",
             "description": "Sign in to your DNS provider and confirm. Sokosumi adds the records for you.",
-            "lookup": "Find my DNS provider",
+            "checking": "Checking for one-click setup…",
+            "lookup": "Retry provider lookup",
             "found": "Your domain uses {provider}.",
             "connect": "Connect with {provider}",
-            "unavailable": "One-click setup isn’t available for your DNS provider yet. Use a Cloudflare token or add the records below."
+            "unavailable": "One-click setup is not available for your DNS host yet. Choose manual setup to add the records with any DNS provider."
+          },
+          "manual": {
+            "title": "Set up DNS records manually",
+            "description": "Add the records yourself with any DNS provider.",
+            "action": "View DNS records",
+            "saved": "You can leave and come back — we’ll keep these records here until they’re verified."
           },
           "cloudflare": {
             "title": "Cloudflare API token",
+            "advanced": "Advanced: Cloudflare API token",
             "description": "Create a token with Zone · DNS · Edit for this domain’s zone and paste it here. Sokosumi uses it once to add the records and never stores it.",
             "submit": "Add records in Cloudflare",
             "success": "Records added in Cloudflare. Checking can take a few minutes."
           },
           "records": {
             "title": "DNS records",
-            "description": "Or add these records at your DNS provider yourself.",
-            "name": "Name",
+            "description": "Add every record shown here in your DNS provider’s settings. Use the host format your provider expects.",
+            "type": "Type",
+            "host": "Host / Name",
+            "relativeName": "Relative host",
+            "fullName": "Full name (FQDN)",
             "value": "Value",
             "priority": "Priority",
-            "found": "Record found",
+            "ttl": "TTL",
+            "status": "Status",
+            "found": "Found",
+            "missing": "Missing",
+            "wrongValue": "Wrong value",
+            "failedDescription": "Verification failed: the record may be missing or have a different value. Compare the host and value with the record shown here.",
             "purpose": {
               "dkim": {
                 "label": "DKIM",
@@ -3857,6 +3874,69 @@
               "other": {
                 "label": "Extra record",
                 "explanation": "Required by the email provider."
+              }
+            }
+          },
+          "troubleshooting": {
+            "title": "Records still missing?",
+            "host": "Check whether your provider expects a relative host or a full name. The saved name must match the FQDN shown here. Avoid repeating the domain, such as send.brand.example.brand.example.",
+            "quotes": "Paste TXT values without extra quotes unless your DNS form requires them. If it adds quotes automatically, do not add another pair.",
+            "propagation": "DNS changes can take a few hours to become visible. Save your changes, then check again later."
+          },
+          "providerTips": {
+            "title": "Tips for your DNS provider",
+            "description": "Open the provider that manages your DNS records; this may be different from where you bought the domain.",
+            "common": {
+              "host": "Relative hosts here use the sending domain as their base. If you edit a parent domain’s DNS zone, include the sending subdomain in the host. Check the saved full name against the FQDN shown here, without appending the domain twice.",
+              "quotes": "Do not wrap TXT values in quotes unless the DNS form requires them. If it adds quotes automatically, paste only the value.",
+              "apex": "For the root of the DNS zone you are editing, the host is often @ or blank. Use the full domain only if the form asks for it.",
+              "ttl": "TTL Auto or 3600 seconds (1 hour) is fine where available."
+            },
+            "providers": {
+              "godaddy": {
+                "name": "GoDaddy",
+                "host": "In DNS, use Name for the prefix relative to the selected domain. Use @ only for that domain’s root.",
+                "extra": "Remove conflicting parked records only if they block these records. No ALIAS record is needed for this TXT/MX setup."
+              },
+              "namecheap": {
+                "name": "Namecheap",
+                "host": "In Advanced DNS, use Host for the prefix relative to the selected domain; @ means that domain’s root.",
+                "extra": "Add TXT records under Host Records. MX records use Custom MX under Mail Settings; keep your existing email MX records when switching, then add this record with its priority."
+              },
+              "squarespace": {
+                "name": "Squarespace / Google Domains",
+                "host": "Under DNS Settings → Custom Records, Name is relative to the selected domain; Squarespace appends that domain automatically.",
+                "extra": "Use @ for that domain’s root and paste TXT data into Text. Former Google Domains users can manage migrated domains in Squarespace."
+              },
+              "porkbun": {
+                "name": "Porkbun",
+                "host": "In DNS Records, Host is the subdomain prefix. Leave it blank only for the root of the selected domain.",
+                "extra": "Paste the record value into Answer / Value. Copy the priority for MX records and leave unrelated records in place."
+              },
+              "ionos": {
+                "name": "IONOS",
+                "host": "In the domain’s DNS settings, use Host name for the subdomain prefix; @ is used for the selected domain’s root.",
+                "extra": "Add TXT and MX as separate records. Copy the MX priority and keep the default TTL or use 3600 seconds."
+              },
+              "hostinger": {
+                "name": "Hostinger",
+                "host": "In hPanel’s DNS zone editor, enter the subdomain prefix in Name; @ is used for the selected domain’s root.",
+                "extra": "If the domain uses another provider’s nameservers, edit records there instead. Copy MX priority into its own field."
+              },
+              "route53": {
+                "name": "Route 53",
+                "host": "Open the correct hosted zone. Record name can be relative to that zone; leave it blank only for the zone root.",
+                "extra": "Route 53 requires TXT strings in double quotes. Split TXT values longer than 255 characters into quoted chunks on the same line, without adding spaces inside the value."
+              },
+              "vercel": {
+                "name": "Vercel",
+                "host": "In the domain’s DNS Records, Name is the prefix relative to the selected domain. Check the resulting full name matches the FQDN here.",
+                "extra": "Vercel DNS settings apply when the domain uses Vercel nameservers. Add each TXT/MX record and copy the MX priority separately."
+              },
+              "cloudflare": {
+                "name": "Cloudflare (manual)",
+                "host": "In DNS → Records, use the prefix in Name or the full name accepted by the form. Check the resulting full name.",
+                "extra": "Use DNS only (grey cloud) for mail records where that option exists. TXT and MX records are always DNS-only and cannot be proxied."
               }
             }
           },

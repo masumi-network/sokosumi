@@ -3809,9 +3809,10 @@
           "lastChecked": "Última comprobación: {time}",
           "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
           "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
-          "checked": "Comprobado. Tus registros DNS aún no son visibles. Los cambios de DNS pueden tardar unas horas.",
-          "checkNow": "Comprobar ahora",
-          "connectTitle": "Añadir los registros DNS",
+          "checked": "Comprobado. Algunos registros DNS aún faltan o no se pudieron verificar. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
+          "verifyRecords": "Verificar registros",
+          "checkAgain": "Comprobar de nuevo",
+          "connectTitle": "Elige cómo configurar el DNS",
           "dmarc": {
             "title": "No se encontró ninguna política DMARC",
             "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
@@ -3819,24 +3820,40 @@
           "oneClick": {
             "title": "Configuración con un clic",
             "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
-            "lookup": "Buscar mi proveedor de DNS",
+            "checking": "Comprobando la configuración con un clic…",
+            "lookup": "Volver a buscar el proveedor",
             "found": "Tu dominio usa {provider}.",
             "connect": "Conectar con {provider}",
-            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Usa un token de Cloudflare o añade los registros de abajo."
+            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Elige la configuración manual para añadir los registros con cualquier proveedor de DNS."
+          },
+          "manual": {
+            "title": "Configurar los registros DNS manualmente",
+            "description": "Añade los registros tú mismo con cualquier proveedor de DNS.",
+            "action": "Ver registros DNS",
+            "saved": "Puedes salir y volver más tarde — guardaremos estos registros aquí hasta que estén verificados."
           },
           "cloudflare": {
             "title": "Token de la API de Cloudflare",
+            "advanced": "Avanzado: token de la API de Cloudflare",
             "description": "Crea un token con Zone · DNS · Edit para la zona de este dominio y pégalo aquí. Sokosumi lo usa una vez para añadir los registros y nunca lo guarda.",
             "submit": "Añadir registros en Cloudflare",
             "success": "Registros añadidos en Cloudflare. La comprobación puede tardar unos minutos."
           },
           "records": {
             "title": "Registros DNS",
-            "description": "O añade estos registros tú mismo en tu proveedor de DNS.",
-            "name": "Nombre",
+            "description": "Añade todos los registros que aparecen aquí en los ajustes de tu proveedor de DNS. Usa el formato de host que espere tu proveedor.",
+            "type": "Tipo",
+            "host": "Host / Nombre",
+            "relativeName": "Host relativo",
+            "fullName": "Nombre completo (FQDN)",
             "value": "Valor",
             "priority": "Prioridad",
-            "found": "Registro encontrado",
+            "ttl": "TTL",
+            "status": "Estado",
+            "found": "Encontrado",
+            "missing": "Falta",
+            "wrongValue": "Valor incorrecto",
+            "failedDescription": "La verificación falló: puede que el registro falte o tenga un valor distinto. Compara el host y el valor con el registro que aparece aquí.",
             "purpose": {
               "dkim": {
                 "label": "DKIM",
@@ -3857,6 +3874,69 @@
               "other": {
                 "label": "Registro adicional",
                 "explanation": "Lo exige el proveedor de correo."
+              }
+            }
+          },
+          "troubleshooting": {
+            "title": "¿Aún faltan registros?",
+            "host": "Comprueba si tu proveedor espera un host relativo o un nombre completo. El nombre guardado debe coincidir con el FQDN que aparece aquí. Evita repetir el dominio, como send.brand.example.brand.example.",
+            "quotes": "Pega los valores TXT sin comillas adicionales, salvo que el formulario DNS las requiera. Si las añade automáticamente, no añadas otro par.",
+            "propagation": "Los cambios de DNS pueden tardar unas horas en hacerse visibles. Guarda los cambios y vuelve a comprobarlo más tarde."
+          },
+          "providerTips": {
+            "title": "Consejos para tu proveedor de DNS",
+            "description": "Abre el proveedor que gestiona tus registros DNS; puede ser distinto de donde compraste el dominio.",
+            "common": {
+              "host": "Los hosts relativos de aquí toman como base el dominio de envío. Si editas la zona DNS de un dominio superior, incluye el subdominio de envío en el host. Compara el nombre completo guardado con el FQDN de aquí, sin añadir el dominio dos veces.",
+              "quotes": "No pongas los valores TXT entre comillas salvo que el formulario DNS las requiera. Si las añade automáticamente, pega solo el valor.",
+              "apex": "Para la raíz de la zona DNS que editas, el host suele ser @ o estar en blanco. Usa el dominio completo solo si el formulario lo pide.",
+              "ttl": "Puedes usar TTL Auto o 3600 segundos (1 hora), si están disponibles."
+            },
+            "providers": {
+              "godaddy": {
+                "name": "GoDaddy",
+                "host": "En DNS, usa Name para el prefijo relativo al dominio seleccionado. Usa @ solo para la raíz de ese dominio.",
+                "extra": "Elimina los registros de aparcamiento en conflicto solo si bloquean estos registros. No hace falta un registro ALIAS para esta configuración TXT/MX."
+              },
+              "namecheap": {
+                "name": "Namecheap",
+                "host": "En Advanced DNS, usa Host para el prefijo relativo al dominio seleccionado; @ indica la raíz de ese dominio.",
+                "extra": "Añade los registros TXT en Host Records. Los registros MX usan Custom MX en Mail Settings; conserva los MX de tu correo actual al cambiar y añade este registro con su prioridad."
+              },
+              "squarespace": {
+                "name": "Squarespace / Google Domains",
+                "host": "En DNS Settings → Custom Records, Name es relativo al dominio seleccionado; Squarespace añade ese dominio automáticamente.",
+                "extra": "Usa @ para la raíz de ese dominio y pega los datos TXT en Text. Los antiguos usuarios de Google Domains pueden gestionar sus dominios migrados en Squarespace."
+              },
+              "porkbun": {
+                "name": "Porkbun",
+                "host": "En DNS Records, Host es el prefijo del subdominio. Déjalo en blanco solo para la raíz del dominio seleccionado.",
+                "extra": "Pega el valor del registro en Answer / Value. Copia la prioridad de los registros MX y conserva los demás registros."
+              },
+              "ionos": {
+                "name": "IONOS",
+                "host": "En los ajustes DNS del dominio, usa Nombre de host para el prefijo del subdominio; @ indica la raíz del dominio seleccionado.",
+                "extra": "Añade TXT y MX como registros separados. Copia la prioridad MX y conserva el TTL predeterminado o usa 3600 segundos."
+              },
+              "hostinger": {
+                "name": "Hostinger",
+                "host": "En el editor de zona DNS de hPanel, introduce el prefijo del subdominio en Name; @ indica la raíz del dominio seleccionado.",
+                "extra": "Si el dominio usa los servidores de nombres de otro proveedor, edita allí los registros. Copia la prioridad MX en su propio campo."
+              },
+              "route53": {
+                "name": "Route 53",
+                "host": "Abre la zona alojada correcta. Record name puede ser relativo a esa zona; déjalo en blanco solo para la raíz de la zona.",
+                "extra": "Route 53 requiere que las cadenas TXT estén entre comillas dobles. Divide los valores TXT de más de 255 caracteres en fragmentos entre comillas en la misma línea, sin añadir espacios dentro del valor."
+              },
+              "vercel": {
+                "name": "Vercel",
+                "host": "En DNS Records del dominio, Name es el prefijo relativo al dominio seleccionado. Comprueba que el nombre completo resultante coincida con el FQDN de aquí.",
+                "extra": "Los ajustes DNS de Vercel se aplican cuando el dominio usa sus servidores de nombres. Añade cada registro TXT/MX y copia la prioridad MX por separado."
+              },
+              "cloudflare": {
+                "name": "Cloudflare (manual)",
+                "host": "En DNS → Registros, usa el prefijo en Name o el nombre completo que acepte el formulario. Comprueba el nombre completo resultante.",
+                "extra": "Usa Solo DNS (nube gris) para los registros de correo cuando exista esa opción. Los registros TXT y MX siempre usan Solo DNS y no pueden pasar por el proxy."
               }
             }
           },

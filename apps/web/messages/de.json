@@ -3809,9 +3809,10 @@
           "lastChecked": "Zuletzt geprüft {time}",
           "verifiedDescription": "Der Newsletter dieses Projekts wird jetzt von dieser Adresse versendet.",
           "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
-          "checked": "Geprüft. Deine DNS-Einträge sind noch nicht sichtbar. DNS-Änderungen können einige Stunden dauern.",
-          "checkNow": "Jetzt prüfen",
-          "connectTitle": "DNS-Einträge anlegen",
+          "checked": "Geprüft. Einige DNS-Einträge fehlen noch oder konnten nicht verifiziert werden. Prüfe ihren Status unten; DNS-Änderungen können einige Stunden dauern.",
+          "verifyRecords": "Einträge verifizieren",
+          "checkAgain": "Erneut prüfen",
+          "connectTitle": "Wähle, wie du DNS einrichten möchtest",
           "dmarc": {
             "title": "Keine DMARC-Richtlinie gefunden",
             "description": "DMARC sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. Lege den vorgeschlagenen DMARC-Eintrag unten an. Er beginnt mit p=none: Das überwacht nur und blockiert nie E-Mails."
@@ -3819,24 +3820,40 @@
           "oneClick": {
             "title": "Einrichtung mit einem Klick",
             "description": "Melde dich bei deinem DNS-Anbieter an und bestätige. Sokosumi legt die Einträge für dich an.",
-            "lookup": "DNS-Anbieter finden",
+            "checking": "Einrichtung mit einem Klick wird geprüft…",
+            "lookup": "Anbietersuche wiederholen",
             "found": "Deine Domain nutzt {provider}.",
             "connect": "Mit {provider} verbinden",
-            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter noch nicht verfügbar. Nutze ein Cloudflare-Token oder lege die Einträge unten an."
+            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter noch nicht verfügbar. Wähle die manuelle Einrichtung, um die Einträge bei einem beliebigen DNS-Anbieter anzulegen."
+          },
+          "manual": {
+            "title": "DNS-Einträge manuell einrichten",
+            "description": "Lege die Einträge selbst bei einem beliebigen DNS-Anbieter an.",
+            "action": "DNS-Einträge anzeigen",
+            "saved": "Du kannst die Seite verlassen und später zurückkommen — wir behalten diese Einträge hier, bis sie verifiziert sind."
           },
           "cloudflare": {
             "title": "Cloudflare-API-Token",
+            "advanced": "Erweitert: Cloudflare-API-Token",
             "description": "Erstelle ein Token mit Zone · DNS · Bearbeiten für die Zone dieser Domain und füge es hier ein. Sokosumi nutzt es einmal, um die Einträge anzulegen, und speichert es nie.",
             "submit": "Einträge in Cloudflare anlegen",
             "success": "Einträge in Cloudflare angelegt. Die Prüfung kann ein paar Minuten dauern."
           },
           "records": {
             "title": "DNS-Einträge",
-            "description": "Oder lege diese Einträge selbst bei deinem DNS-Anbieter an.",
-            "name": "Name",
+            "description": "Lege alle hier gezeigten Einträge in den Einstellungen deines DNS-Anbieters an. Verwende das Hostformat, das dein Anbieter erwartet.",
+            "type": "Typ",
+            "host": "Host / Name",
+            "relativeName": "Relativer Host",
+            "fullName": "Vollständiger Name (FQDN)",
             "value": "Wert",
             "priority": "Priorität",
-            "found": "Eintrag gefunden",
+            "ttl": "TTL",
+            "status": "Status",
+            "found": "Gefunden",
+            "missing": "Fehlt",
+            "wrongValue": "Falscher Wert",
+            "failedDescription": "Verifizierung fehlgeschlagen: Der Eintrag fehlt möglicherweise oder hat einen anderen Wert. Vergleiche Host und Wert mit dem hier gezeigten Eintrag.",
             "purpose": {
               "dkim": {
                 "label": "DKIM",
@@ -3857,6 +3874,69 @@
               "other": {
                 "label": "Zusätzlicher Eintrag",
                 "explanation": "Vom E-Mail-Anbieter verlangt."
+              }
+            }
+          },
+          "troubleshooting": {
+            "title": "Fehlen noch Einträge?",
+            "host": "Prüfe, ob dein Anbieter einen relativen Host oder einen vollständigen Namen erwartet. Der gespeicherte Name muss dem hier gezeigten FQDN entsprechen. Vermeide eine doppelte Domain wie send.brand.example.brand.example.",
+            "quotes": "Füge TXT-Werte ohne zusätzliche Anführungszeichen ein, sofern das DNS-Formular sie nicht verlangt. Fügt es automatisch Anführungszeichen hinzu, ergänze kein weiteres Paar.",
+            "propagation": "DNS-Änderungen können einige Stunden brauchen, bis sie sichtbar sind. Speichere deine Änderungen und prüfe später erneut."
+          },
+          "providerTips": {
+            "title": "Tipps für deinen DNS-Anbieter",
+            "description": "Öffne den Anbieter, der deine DNS-Einträge verwaltet. Das kann ein anderer sein als der, bei dem du die Domain gekauft hast.",
+            "common": {
+              "host": "Relative Hosts beziehen sich hier auf die Absenderdomain. Bearbeitest du die DNS-Zone einer übergeordneten Domain, ergänze die Absender-Subdomain im Host. Vergleiche den gespeicherten vollständigen Namen mit dem hier gezeigten FQDN, ohne die Domain doppelt anzuhängen.",
+              "quotes": "Setze TXT-Werte nur dann in Anführungszeichen, wenn das DNS-Formular sie verlangt. Fügt es sie automatisch hinzu, kopiere nur den Wert.",
+              "apex": "Für die Wurzel der bearbeiteten DNS-Zone ist der Host oft @ oder leer. Verwende die vollständige Domain nur, wenn das Formular sie verlangt.",
+              "ttl": "TTL Auto oder 3600 Sekunden (1 Stunde) ist passend, sofern verfügbar."
+            },
+            "providers": {
+              "godaddy": {
+                "name": "GoDaddy",
+                "host": "Nutze unter DNS das Feld Name für das Präfix relativ zur ausgewählten Domain. Verwende @ nur für deren Wurzel.",
+                "extra": "Entferne widersprüchliche Parking-Einträge nur, wenn sie diese Einträge blockieren. Für diese TXT/MX-Einrichtung ist kein ALIAS-Eintrag nötig."
+              },
+              "namecheap": {
+                "name": "Namecheap",
+                "host": "Nutze unter Advanced DNS das Feld Host für das Präfix relativ zur ausgewählten Domain; @ steht für deren Wurzel.",
+                "extra": "Lege TXT-Einträge unter Host Records an. MX-Einträge nutzen Custom MX unter Mail Settings; behalte beim Wechsel die MX-Einträge deiner bisherigen E-Mails bei und ergänze dann diesen Eintrag mit seiner Priorität."
+              },
+              "squarespace": {
+                "name": "Squarespace / Google Domains",
+                "host": "Unter DNS Settings → Custom Records ist Name relativ zur ausgewählten Domain; Squarespace hängt diese automatisch an.",
+                "extra": "Nutze @ für die Wurzel dieser Domain und füge TXT-Daten in Text ein. Migrierte Google-Domains-Domains lassen sich in Squarespace verwalten."
+              },
+              "porkbun": {
+                "name": "Porkbun",
+                "host": "Unter DNS Records ist Host das Subdomain-Präfix. Lass es nur für die Wurzel der ausgewählten Domain leer.",
+                "extra": "Füge den Eintragswert in Answer / Value ein. Kopiere bei MX-Einträgen die Priorität und behalte andere Einträge bei."
+              },
+              "ionos": {
+                "name": "IONOS",
+                "host": "Nutze in den DNS-Einstellungen der Domain das Feld Hostname für das Subdomain-Präfix; @ steht für die Wurzel der ausgewählten Domain.",
+                "extra": "Lege TXT und MX als separate Einträge an. Kopiere die MX-Priorität und behalte die Standard-TTL bei oder nutze 3600 Sekunden."
+              },
+              "hostinger": {
+                "name": "Hostinger",
+                "host": "Trage im DNS-Zonen-Editor von hPanel das Subdomain-Präfix in Name ein; @ steht für die Wurzel der ausgewählten Domain.",
+                "extra": "Nutzt die Domain die Nameserver eines anderen Anbieters, bearbeite die Einträge dort. Kopiere die MX-Priorität in ihr eigenes Feld."
+              },
+              "route53": {
+                "name": "Route 53",
+                "host": "Öffne die richtige gehostete Zone. Record name kann relativ zu dieser Zone sein; lass es nur für die Wurzel der Zone leer.",
+                "extra": "Route 53 verlangt TXT-Zeichenfolgen in doppelten Anführungszeichen. Teile TXT-Werte mit mehr als 255 Zeichen in zitierte Abschnitte auf derselben Zeile auf, ohne Leerzeichen innerhalb des Werts hinzuzufügen."
+              },
+              "vercel": {
+                "name": "Vercel",
+                "host": "Unter DNS Records der Domain ist Name das Präfix relativ zur ausgewählten Domain. Prüfe, ob der vollständige Name dem FQDN hier entspricht.",
+                "extra": "Die DNS-Einstellungen von Vercel gelten, wenn die Domain Vercel-Nameserver nutzt. Lege jeden TXT/MX-Eintrag an und kopiere die MX-Priorität separat."
+              },
+              "cloudflare": {
+                "name": "Cloudflare (manuell)",
+                "host": "Nutze unter DNS → Einträge im Feld Name das Präfix oder den vollständigen Namen, den das Formular akzeptiert. Prüfe den entstehenden vollständigen Namen.",
+                "extra": "Nutze für E-Mail-Einträge Nur DNS (graue Wolke), wenn diese Option verfügbar ist. TXT- und MX-Einträge sind immer Nur DNS und können nicht über den Proxy laufen."
               }
             }
           },

@@ -3,16 +3,23 @@
 import type {
   NewsletterDnsRecord,
   NewsletterSendingDomain,
-  NewsletterSendingDomainConnect,
   NewsletterSendingDomainState,
 } from "@sokosumi/core-client";
+import { useQuery } from "@tanstack/react-query";
 import { CircleAlert, CircleCheck, Clock, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { CopyableValue } from "@/components/copyable-value";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,11 +45,26 @@ import { Label } from "@/components/ui/label";
 import {
   checkNewsletterSendingDomain,
   connectNewsletterSendingDomainWithCloudflare,
-  getNewsletterSendingDomainConnect,
   removeNewsletterSendingDomain,
   resumeNewsletterSendingDomainWarmup,
   saveNewsletterSendingDomain,
 } from "@/lib/actions/newsletter/sending-domain";
+
+const domainConnectResultSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    value: z
+      .object({
+        providerName: z.string().min(1),
+        applyUrl: z.url({ protocol: /^https$/ }),
+      })
+      .nullable(),
+  }),
+  z.object({
+    ok: z.literal(false),
+    error: z.object({ message: z.string() }),
+  }),
+]);
 
 // Status chips are neutral; the glyph and the word carry the state.
 const STATUS_ICON = {
@@ -58,6 +80,14 @@ function recordPurpose(record: NewsletterDnsRecord): RecordPurpose {
   if (record.record === "DMARC") return "dmarc";
   if (record.record === "SPF") return record.type === "MX" ? "bounce" : "spf";
   return "other";
+}
+
+// Client-safe counterpart of Core's relativeHost; no DNS lookup is needed here.
+function relativeHost(fqdn: string, domain: string): string | null {
+  const host = fqdn.toLowerCase().replace(/\.$/, "");
+  const zone = domain.toLowerCase().replace(/\.$/, "");
+  if (host === zone) return "@";
+  return host.endsWith(`.${zone}`) ? host.slice(0, -zone.length - 1) : null;
 }
 
 interface SendingDomainCardProps {
@@ -88,6 +118,7 @@ export function SendingDomainCard({
         <CardContent className="min-w-0 space-y-6">
           {sendingDomain ? (
             <ConnectedDomain
+              key={sendingDomain.id}
               domain={sendingDomain}
               canManage={canManage}
               fallbackAvailable={fallbackAvailable}
@@ -216,6 +247,7 @@ function ConnectedDomain({
   const format = useFormatter();
   const router = useRouter();
   const [checking, setChecking] = useState(false);
+  const [hasChecked, setHasChecked] = useState(false);
   const StatusIcon = STATUS_ICON[domain.status];
   const verified = domain.status === "VERIFIED";
   const paused = Boolean(domain.warmup.pausedAt);
@@ -233,6 +265,7 @@ function ConnectedDomain({
         toast.error(result.error.message);
         return;
       }
+      setHasChecked(true);
       toast.success(
         result.value.status === "VERIFIED" ? t("verifiedToast") : t("checked"),
       );
@@ -310,14 +343,32 @@ function ConnectedDomain({
       ) : null}
 
       {canManage && needsDns ? (
-        <div className="min-w-0 space-y-4">
+        <div className="@container min-w-0 space-y-4">
           <h4 className="text-sm font-medium">{t("connectTitle")}</h4>
-          <DomainConnectOption projectId={projectId} />
-          <CloudflareOption projectId={projectId} />
+          <div className="grid min-w-0 gap-3 @2xl:grid-cols-2">
+            <DomainConnectOption projectId={projectId} domain={domain} />
+            <section
+              aria-labelledby="newsletter-manual-setup"
+              className="bg-muted min-w-0 space-y-2 rounded-md p-3"
+            >
+              <h5 id="newsletter-manual-setup" className="text-sm font-medium">
+                {t("manual.title")}
+              </h5>
+              <p className="text-muted-foreground text-sm text-pretty">
+                {t("manual.description")}
+              </p>
+              <Button asChild variant="primary" size="sm">
+                <a href="#newsletter-dns-records">{t("manual.action")}</a>
+              </Button>
+            </section>
+          </div>
+          <p className="text-muted-foreground text-sm text-pretty">
+            {t("manual.saved")}
+          </p>
         </div>
       ) : null}
 
-      <DnsRecords records={domain.dnsRecords} />
+      <DnsRecords records={domain.dnsRecords} domain={domain.domain} />
 
       {canManage ? (
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -328,11 +379,43 @@ function ConnectedDomain({
               loading={checking}
               onClick={() => void handleCheck()}
             >
-              {t("checkNow")}
+              {domain.lastCheckedAt || hasChecked
+                ? t("checkAgain")
+                : t("verifyRecords")}
             </Button>
           ) : null}
           <RemoveDomainButton domain={domain.domain} projectId={projectId} />
         </div>
+      ) : null}
+
+      {needsDns ? <ProviderTips /> : null}
+
+      {needsDns &&
+      domain.dnsRecords.some((record) => record.status !== "verified") ? (
+        <section
+          aria-labelledby="newsletter-dns-troubleshooting"
+          className="bg-muted min-w-0 space-y-2 rounded-md p-3 text-sm"
+        >
+          <h4 id="newsletter-dns-troubleshooting" className="font-medium">
+            {t("troubleshooting.title")}
+          </h4>
+          <ul className="text-muted-foreground list-disc space-y-1 ps-5">
+            <li>{t("troubleshooting.host")}</li>
+            <li>{t("troubleshooting.quotes")}</li>
+            <li>{t("troubleshooting.propagation")}</li>
+          </ul>
+        </section>
+      ) : null}
+
+      {canManage && needsDns ? (
+        <Accordion type="single" collapsible>
+          <AccordionItem value="cloudflare">
+            <AccordionTrigger>{t("cloudflare.advanced")}</AccordionTrigger>
+            <AccordionContent>
+              <CloudflareOption projectId={projectId} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       ) : null}
     </div>
   );
@@ -431,76 +514,92 @@ function WarmupStatus({
   );
 }
 
-function DomainConnectOption({ projectId }: { projectId: string }) {
+function DomainConnectOption({
+  projectId,
+  domain,
+}: {
+  projectId: string;
+  domain: NewsletterSendingDomain;
+}) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
-  const [pending, setPending] = useState(false);
-  const [connect, setConnect] = useState<
-    NewsletterSendingDomainConnect | undefined
-  >(undefined);
-  const [error, setError] = useState("");
-
-  async function handleLookup() {
-    setPending(true);
-    setError("");
-    try {
-      const result = await getNewsletterSendingDomainConnect({ projectId });
+  const {
+    data: connect,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      "newsletter-domain-connect",
+      projectId,
+      domain.id,
+      domain.lastCheckedAt,
+      domain.status,
+    ],
+    queryFn: async ({ signal }) => {
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/newsletter/sending-domain/domain-connect`,
+        { cache: "no-store", signal },
+      ).catch(() => {
+        throw new Error(t("errors.generic"));
+      });
+      const parsed = domainConnectResultSchema.safeParse(
+        await response.json().catch(() => null),
+      );
+      if (!parsed.success) throw new Error(t("errors.generic"));
+      const result = parsed.data;
       if (!result.ok) {
-        setError(result.error.message);
-        return;
+        throw new Error(result.error.message);
       }
-      setConnect(result.value);
-    } catch {
-      setError(t("errors.generic"));
-    } finally {
-      setPending(false);
-    }
-  }
+      if (!response.ok) throw new Error(t("errors.generic"));
+      return result.value;
+    },
+    retry: false,
+  });
+  const provider = !error && !isFetching ? connect : null;
 
   return (
-    <div className="bg-muted min-w-0 space-y-2 rounded-md p-3">
-      <p className="text-sm font-medium">{t("oneClick.title")}</p>
-      {connect ? (
-        <>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {t("oneClick.found", { provider: connect.providerName })}
-          </p>
+    <section
+      aria-labelledby="newsletter-one-click-setup"
+      className="bg-muted min-w-0 space-y-2 rounded-md p-3"
+    >
+      <h5 id="newsletter-one-click-setup" className="text-sm font-medium">
+        {t("oneClick.title")}
+      </h5>
+      <p role="status" className="text-muted-foreground text-sm text-pretty">
+        {isFetching
+          ? t("oneClick.checking")
+          : provider
+            ? t("oneClick.found", { provider: provider.providerName })
+            : connect === null
+              ? t("oneClick.unavailable")
+              : t("oneClick.description")}
+      </p>
+      <div className="flex min-w-0 flex-wrap gap-2">
+        {provider ? (
           <Button asChild variant="primary" size="sm">
             {/* Domain Connect's synchronous flow returns here when done. */}
-            <a href={connect.applyUrl} rel="noopener noreferrer">
-              {t("oneClick.connect", { provider: connect.providerName })}
+            <a href={provider.applyUrl} rel="noopener noreferrer">
+              {t("oneClick.connect", { provider: provider.providerName })}
               <ExternalLink aria-hidden />
             </a>
           </Button>
-        </>
-      ) : (
-        <>
-          <p
-            role={connect === null ? "status" : undefined}
-            className="text-muted-foreground text-sm text-pretty"
-          >
-            {connect === null
-              ? t("oneClick.unavailable")
-              : t("oneClick.description")}
-          </p>
-          {connect === null ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              loading={pending}
-              onClick={() => void handleLookup()}
-            >
-              {t("oneClick.lookup")}
-            </Button>
-          )}
-        </>
-      )}
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          loading={isFetching}
+          onClick={() => void refetch()}
+        >
+          {t("oneClick.lookup")}
+        </Button>
+      </div>
       {error ? (
         <p role="alert" className="text-semantic-destructive text-sm">
-          {error}
+          {error.message}
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -583,16 +682,25 @@ function CloudflareOption({ projectId }: { projectId: string }) {
   );
 }
 
-function DnsRecords({ records }: { records: NewsletterDnsRecord[] }) {
+function DnsRecords({
+  records,
+  domain,
+}: {
+  records: NewsletterDnsRecord[];
+  domain: string;
+}) {
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   if (!records.length) return null;
   return (
     <section
       aria-labelledby="newsletter-dns-records"
-      className="min-w-0 space-y-3"
+      className="@container min-w-0 space-y-3"
     >
       <div className="space-y-1">
-        <h4 id="newsletter-dns-records" className="text-sm font-medium">
+        <h4
+          id="newsletter-dns-records"
+          className="scroll-mt-20 text-sm font-medium"
+        >
           {t("records.title")}
         </h4>
         <p className="text-muted-foreground text-sm text-pretty">
@@ -600,48 +708,106 @@ function DnsRecords({ records }: { records: NewsletterDnsRecord[] }) {
         </p>
       </div>
       <ul className="min-w-0 space-y-3">
-        {records.map((record) => (
-          <li
-            key={`${record.type}:${record.name}:${record.value}`}
-            className="bg-muted min-w-0 space-y-2 rounded-md p-3"
-          >
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge variant="outline" className="bg-background font-mono">
-                {record.type}
-              </Badge>
-              <span className="text-sm font-medium">
-                {t(`records.purpose.${recordPurpose(record)}.label`)}
-              </span>
-              {record.status === "verified" ? (
-                <CircleCheck
-                  aria-label={t("records.found")}
-                  className="text-foreground size-4"
-                />
-              ) : null}
-            </div>
-            <p className="text-muted-foreground text-sm text-pretty">
-              {t(`records.purpose.${recordPurpose(record)}.explanation`)}
-            </p>
-            <dl className="grid min-w-0 gap-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:gap-x-3">
-              <RecordField label={t("records.name")} value={record.name} />
-              <RecordField label={t("records.value")} value={record.value} />
-              {record.priority !== null ? (
-                <RecordField
-                  label={t("records.priority")}
-                  value={String(record.priority)}
-                />
-              ) : null}
-            </dl>
-          </li>
-        ))}
+        {records.map((record) => {
+          const relativeName = relativeHost(record.name, domain);
+          // Resend's "failed" cannot distinguish absent DNS from a wrong value, so unverified records show Missing
+          // unless failed; failed records show Wrong value with guidance covering both possibilities.
+          const found = record.status === "verified";
+          return (
+            <li
+              key={`${record.type}:${record.name}:${record.value}`}
+              className="bg-muted min-w-0 space-y-2 rounded-md p-3"
+            >
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">
+                  {t(`records.purpose.${recordPurpose(record)}.label`)}
+                </span>
+              </div>
+              <p className="text-muted-foreground text-sm text-pretty">
+                {t(`records.purpose.${recordPurpose(record)}.explanation`)}
+              </p>
+              <dl className="grid min-w-0 gap-4 text-sm @4xl:grid-cols-[auto_minmax(0,2fr)_minmax(0,3fr)_auto_auto_minmax(0,1fr)]">
+                <div className="space-y-1">
+                  <dt className="text-muted-foreground">{t("records.type")}</dt>
+                  <dd>
+                    <Badge
+                      variant="outline"
+                      className="bg-background font-mono"
+                    >
+                      {record.type}
+                    </Badge>
+                  </dd>
+                </div>
+                <div className="min-w-0 space-y-2">
+                  <dt className="text-muted-foreground">{t("records.host")}</dt>
+                  <dd>
+                    <dl className="space-y-2">
+                      {relativeName !== null ? (
+                        <RecordField
+                          label={t("records.relativeName")}
+                          value={relativeName}
+                        />
+                      ) : null}
+                      <RecordField
+                        label={t("records.fullName")}
+                        value={record.name}
+                      />
+                    </dl>
+                  </dd>
+                </div>
+                <RecordField label={t("records.value")} value={record.value} />
+                {record.priority !== null ? (
+                  <RecordField
+                    label={t("records.priority")}
+                    value={String(record.priority)}
+                  />
+                ) : null}
+                <div className="space-y-1 tabular-nums">
+                  <dt className="text-muted-foreground">{t("records.ttl")}</dt>
+                  <dd>{record.ttl || "—"}</dd>
+                </div>
+                <div className="space-y-1">
+                  <dt className="text-muted-foreground">
+                    {t("records.status")}
+                  </dt>
+                  <dd>
+                    <Badge variant="outline" className="bg-background">
+                      {found ? (
+                        <CircleCheck aria-hidden />
+                      ) : (
+                        <CircleAlert aria-hidden />
+                      )}
+                      {found
+                        ? t("records.found")
+                        : record.status === "failed"
+                          ? t("records.wrongValue")
+                          : t("records.missing")}
+                    </Badge>
+                    {record.status === "failed" ? (
+                      <p className="text-muted-foreground mt-2 max-w-prose text-sm text-pretty">
+                        {t("records.failedDescription")}
+                      </p>
+                    ) : null}
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
 }
 
-function RecordField({ label, value }: { label: string; value: string }) {
+function RecordField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
   return (
-    <>
+    <div className="min-w-0 space-y-1">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0">
         <CopyableValue
@@ -653,7 +819,55 @@ function RecordField({ label, value }: { label: string; value: string }) {
           containerClassName="bg-background justify-between rounded-md px-2 py-1"
         />
       </dd>
-    </>
+    </div>
+  );
+}
+
+function ProviderTips() {
+  const t = useTranslations("App.Projects.Newsletter.SendingDomain");
+  return (
+    <section
+      aria-labelledby="newsletter-dns-provider-tips"
+      className="min-w-0 space-y-3"
+    >
+      <h4 id="newsletter-dns-provider-tips" className="text-sm font-medium">
+        {t("providerTips.title")}
+      </h4>
+      <p className="text-muted-foreground text-sm text-pretty">
+        {t("providerTips.description")}
+      </p>
+      <ul className="text-muted-foreground list-disc space-y-1 ps-5 text-sm">
+        <li>{t("providerTips.common.host")}</li>
+        <li>{t("providerTips.common.quotes")}</li>
+        <li>{t("providerTips.common.apex")}</li>
+        <li>{t("providerTips.common.ttl")}</li>
+      </ul>
+      <Accordion type="single" collapsible>
+        {[
+          "godaddy",
+          "namecheap",
+          "squarespace",
+          "porkbun",
+          "ionos",
+          "hostinger",
+          "route53",
+          "vercel",
+          "cloudflare",
+        ].map((provider) => (
+          <AccordionItem key={provider} value={provider}>
+            <AccordionTrigger>
+              {t(`providerTips.providers.${provider}.name`)}
+            </AccordionTrigger>
+            <AccordionContent>
+              <ul className="text-muted-foreground list-disc space-y-1 ps-5">
+                <li>{t(`providerTips.providers.${provider}.host`)}</li>
+                <li>{t(`providerTips.providers.${provider}.extra`)}</li>
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </section>
   );
 }
 
