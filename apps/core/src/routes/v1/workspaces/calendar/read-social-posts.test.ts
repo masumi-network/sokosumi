@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   postCount: vi.fn(),
   latestPost: vi.fn(),
   newsletterIssues: vi.fn(),
+  latestIssue: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -25,7 +26,7 @@ vi.mock("@/lib/db/prisma", () => ({
     newsletterIssue: {
       findMany: mocks.newsletterIssues,
       count: mocks.newsletterIssues,
-      aggregate: mocks.newsletterIssues,
+      aggregate: mocks.latestIssue,
       groupBy: mocks.newsletterIssues,
     },
   },
@@ -110,6 +111,8 @@ describe("Social posts in the calendar", () => {
     mocks.posts.mockResolvedValue([post]);
     mocks.postCount.mockResolvedValue(1);
     mocks.latestPost.mockResolvedValue({ _max: { scheduledAt: null } });
+    mocks.latestIssue.mockResolvedValue({ _max: { scheduledAt: null } });
+    mocks.newsletterIssues.mockResolvedValue([]);
   });
   afterEach(() => vi.useRealTimers());
   it("merges tasks and posts with stable pagination at the same timestamp", async () => {
@@ -412,6 +415,53 @@ describe("Social posts in the calendar", () => {
         ),
       ).rejects.toThrow("Calendar browse range cannot extend");
       expect(mocks.latestPost).not.toHaveBeenCalled();
+      expect(mocks.latestIssue).not.toHaveBeenCalled();
     },
   );
+
+  it("extends the browse horizon for a far-future Newsletter issue", async () => {
+    mocks.latestIssue.mockResolvedValue({
+      _max: { scheduledAt: new Date("2027-06-15T12:00:00.000Z") },
+    });
+    await expect(
+      readWorkspaceCalendar(
+        workspaceId,
+        "user",
+        {
+          ...query,
+          types: ["newsletter"],
+          includeSocialPosts: false,
+          from: new Date("2027-05-30T08:00:00.000Z"),
+          to: new Date("2027-07-06T11:59:59.999Z"),
+          limit: 100,
+        },
+        { projectId },
+      ),
+    ).resolves.toMatchObject({ items: [] });
+    expect(mocks.latestPost).not.toHaveBeenCalled();
+    expect(mocks.latestIssue).toHaveBeenCalledWith({
+      where: {
+        workspaceId,
+        projectId,
+        status: { in: ["SCHEDULED", "SENDING"] },
+        scheduledAt: { not: null },
+      },
+      _max: { scheduledAt: true },
+    });
+  });
+
+  it("does not extend for Newsletter when Social is selected without posts", async () => {
+    mocks.latestIssue.mockResolvedValue({
+      _max: { scheduledAt: new Date("2027-06-15T12:00:00.000Z") },
+    });
+    await expect(
+      readWorkspaceCalendar(workspaceId, "user", {
+        ...query,
+        types: ["social"],
+        from: new Date("2027-05-01T00:00:00.000Z"),
+        to: new Date("2027-06-01T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow("Calendar browse range cannot extend");
+    expect(mocks.latestIssue).not.toHaveBeenCalled();
+  });
 });

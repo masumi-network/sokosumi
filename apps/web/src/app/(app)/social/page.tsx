@@ -4,6 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
+import type { CalendarType } from "@/app/calendar/calendar-types";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import {
   type CalendarPageSearchParams,
@@ -29,17 +30,21 @@ import { SocialPageShell } from "./components/social-page-shell";
 // Wait for the current session and project access before rendering.
 export const instant = false;
 
+/** Social's calendar shows Social posts and asks Core for nothing else. */
+const SOCIAL_CALENDAR_TYPES: readonly CalendarType[] = ["social"];
+
 /**
  * Social's calendar has no agenda list, but older links (and the workspace
  * calendar's phone default) can still carry `view=agenda`; loading that
- * range would leave the month grid missing posts.
+ * range would leave the month grid missing posts. Task filters would also
+ * hide Social posts on the Core read, so drop them here.
  */
 function socialCalendarQuery(query: CalendarPageSearchParams) {
   return {
     ...query,
-    // Social hides task filters; carrying them over disables post reads.
     assigneeId: undefined,
     assigneeUserId: undefined,
+    // Older links may still carry a Tasks source filter; Social has none.
     sourceId: undefined,
     status: undefined,
     view: query.view === "agenda" ? undefined : query.view,
@@ -89,6 +94,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           ...socialCalendarQuery(query),
           projectId: undefined,
         }),
+        types: SOCIAL_CALENDAR_TYPES,
       }),
       sokoBotService.getMine().catch(() => null),
     ]);
@@ -157,6 +163,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     loadWorkspaceCalendarPage({
       projectId: project.id,
       searchParams: Promise.resolve(socialCalendarQuery(query)),
+      types: SOCIAL_CALENDAR_TYPES,
     })
       .then((calendar) => ({ failed: false as const, calendar }))
       .catch((error: unknown) => {
@@ -286,7 +293,6 @@ function SocialCalendar({
       activeOrganizationId={calendar.activeOrganizationId}
       coworkers={calendar.coworkerOptions}
       currentUserId={calendar.currentUserId}
-      includeSocialPosts={calendar.includeSocialPosts}
       initialDate={calendar.initialDate}
       items={calendar.items}
       key={calendar.calendarKey}
@@ -294,11 +300,11 @@ function SocialCalendar({
       lockedProjectId={lockedProjectId}
       pagination={calendar.pagination}
       range={calendar.range}
-      // Nothing but Social posts belongs on Social's own calendar, so task
-      // runs are left out here rather than behind a toggle the reader would
-      // have to find.
-      socialPostsOnly
       sources={calendar.sources}
+      // Nothing but Social posts belongs on Social's own calendar, so the
+      // other features are left out here rather than behind a filter the
+      // reader would have to find.
+      types={SOCIAL_CALENDAR_TYPES}
       workspaceId={calendar.workspaceId}
     />
   );

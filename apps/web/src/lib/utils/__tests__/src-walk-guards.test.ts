@@ -1732,7 +1732,6 @@ const INSTANT_WORKLIST = new Set([
   "(app)/agents/[agentId]/jobs/@right/page.tsx",
   "(app)/agents/[agentId]/page.tsx",
   "(app)/billing/page.tsx",
-  "(app)/calendar/page.tsx",
   "(app)/chat/invites/[id]/page.tsx",
   "(app)/chat/join/[token]/page.tsx",
   "(app)/chat/page.tsx",

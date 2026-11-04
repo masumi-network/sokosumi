@@ -29,7 +29,7 @@ const m = vi.hoisted(() => ({
   postCreateMany: vi.fn(),
   postUpdateMany: vi.fn(),
   connectionFindMany: vi.fn(),
-  scheduleFindFirst: vi.fn(),
+  scheduleFindMany: vi.fn(),
   sokoBotFindFirst: vi.fn(),
   kickCmoProduction: vi.fn(),
 }));
@@ -52,7 +52,7 @@ vi.mock("@/lib/db/prisma", () => {
       updateMany: m.postUpdateMany,
     },
     projectSocialConnection: { findMany: m.connectionFindMany },
-    sokoBotSchedule: { findFirst: m.scheduleFindFirst },
+    sokoBotSchedule: { findMany: m.scheduleFindMany },
     sokoBot: { findFirst: m.sokoBotFindFirst },
     sokoBotTurn: { findFirst: m.turnFindFirst },
     sokoBotRuntimeEvent: { findFirst: m.eventFindFirst },
@@ -170,7 +170,7 @@ beforeEach(() => {
   m.turnFindFirst.mockResolvedValue(null);
   m.postFindMany.mockResolvedValue([]);
   m.connectionFindMany.mockResolvedValue([]);
-  m.scheduleFindFirst.mockResolvedValue(null);
+  m.scheduleFindMany.mockResolvedValue([]);
   m.sokoBotFindFirst.mockResolvedValue(null);
   m.strategyUpdate.mockImplementation(
     async (args: { where: { id: string }; data: object }) => ({
@@ -375,7 +375,9 @@ describe("Marketing strategy routes", () => {
     m.connectionFindMany.mockResolvedValue([
       { id: "conn-li", provider: "linkedin" },
     ]);
-    m.scheduleFindFirst.mockResolvedValue({ timezone: "Europe/Zurich" });
+    m.scheduleFindMany.mockResolvedValue([
+      { timezone: "Europe/Zurich", sokoBot: { projectId: PROJECT_ID } },
+    ]);
 
     const response = await post(`${NEW_ID}/approve`);
 

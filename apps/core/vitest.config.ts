@@ -15,6 +15,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 const optInPostgresFiles = [
   "src/services/image-studio-recovery.postgres.test.ts",
   "src/helpers/calendar-erasure.postgres.test.ts",
+  "src/helpers/calendar-feature-invalidation.postgres.test.ts",
   "src/helpers/project-activity.postgres.test.ts",
   "src/routes/v1/projects/get.postgres.test.ts",
   "src/services/soko-bot-integrations.service.postgres.test.ts",

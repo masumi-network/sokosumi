@@ -26,7 +26,7 @@ describe("getNewsletterTabs", () => {
     ]);
     expect(tabs.map((tab) => tab.href)).toEqual([
       "/newsletter/issues?projectId=project%2Fone",
-      "/newsletter/calendar?projectId=project%2Fone",
+      "/calendar?types=newsletter&projectId=project%2Fone",
       "/newsletter/subscribers?projectId=project%2Fone",
       "/newsletter/signup-form?projectId=project%2Fone",
       "/newsletter/analytics?projectId=project%2Fone",

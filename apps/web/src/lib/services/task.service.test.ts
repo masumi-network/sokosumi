@@ -172,16 +172,19 @@ describe("task.service", () => {
 
   it("loads the active workspace calendar source catalog through Core", async () => {
     coreClientMock.getWorkspaceCalendarSources.mockResolvedValue({
-      data: [
-        {
-          sourceId: "workspace:workspace-1",
-          sourceType: "WORKSPACE",
-          displayName: "Ada's workspace",
-          logoUrl: null,
-          paletteToken: "blue",
-          isSchedulable: true,
-        },
-      ],
+      data: {
+        sources: [
+          {
+            sourceId: "workspace:workspace-1",
+            sourceType: "WORKSPACE",
+            displayName: "Ada's workspace",
+            logoUrl: null,
+            paletteToken: "blue",
+            isSchedulable: true,
+          },
+        ],
+        features: ["tasks", "social", "contacts", "marketing"],
+      },
     });
     const { taskService } = await import("./task.service");
 
@@ -206,7 +209,7 @@ describe("task.service", () => {
       },
     ];
     coreClientMock.getWorkspaceCalendarSources.mockResolvedValue({
-      data: sources,
+      data: { sources, features: ["tasks", "social"] },
     });
     const { taskService } = await import("./task.service");
     const query = { includeSocialPosts: "true", scope: "owned" } as const;

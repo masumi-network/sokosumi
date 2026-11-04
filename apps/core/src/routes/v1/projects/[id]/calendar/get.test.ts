@@ -4,6 +4,7 @@ import {
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { NEWSLETTER_BETA_ORGANIZATION_SLUG } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -22,6 +23,8 @@ const {
   taskScheduleOccurrenceFindManyMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
+  workspaceFindUniqueMock,
+  newsletterIssueFindManyMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -33,6 +36,8 @@ const {
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
+  newsletterIssueFindManyMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
@@ -72,6 +77,8 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: taskScheduleOccurrenceFindManyMock,
     },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
+    workspace: { findUnique: workspaceFindUniqueMock },
+    newsletterIssue: { findMany: newsletterIssueFindManyMock },
   },
 }));
 
@@ -394,6 +401,52 @@ describe("GET /projects/{id}/calendar", () => {
     expect(response.status).toBe(403);
     expect(projectFindFirstMock).not.toHaveBeenCalled();
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the requested types for the Project", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({
+      organization: { slug: NEWSLETTER_BETA_ORGANIZATION_SLUG },
+    });
+    newsletterIssueFindManyMock.mockResolvedValue([
+      {
+        id: "44444444-4444-7444-8444-444444444444",
+        subject: "June update",
+        status: "SCHEDULED",
+        scheduledAt: new Date("2026-06-03T09:00:00.000Z"),
+        sentAt: null,
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        project: { name: "Launch project" },
+      },
+    ]);
+
+    const response = await createApp({
+      ...USER_AUTH_CONTEXT,
+      authenticationMethod: "session",
+    }).request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&types=newsletter`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        kind: "newsletterIssue",
+        id: "newsletter:44444444-4444-7444-8444-444444444444",
+      }),
+    ]);
+    expect(newsletterIssueFindManyMock.mock.lastCall?.[0].where.projectId).toBe(
+      PROJECT_ID,
+    );
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects automation opt-in to other features", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&types=contacts`,
+    );
+    expect(response.status).toBe(403);
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("limits a delegated coworker to schedules and Tasks it can read", async () => {

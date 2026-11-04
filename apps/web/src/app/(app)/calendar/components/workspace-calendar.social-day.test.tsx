@@ -103,11 +103,10 @@ function renderSocialCalendar({
 }) {
   const calendar = (
     <WorkspaceCalendar
-      includeSocialPosts
       initialDate="2030-01-16"
       items={items}
       lockedProjectId="project-1"
-      socialPostsOnly
+      types={["social"]}
     />
   );
   return render(
