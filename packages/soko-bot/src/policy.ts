@@ -69,6 +69,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "find_people",
+  "enrich_contact",
   "create_project",
   "update_project",
   "list_integrations",
@@ -421,6 +423,8 @@ const CONTACT_WRITE_CAPABILITIES = [
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "find_people",
+  "enrich_contact",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
