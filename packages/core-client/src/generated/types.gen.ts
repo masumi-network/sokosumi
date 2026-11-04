@@ -7940,7 +7940,7 @@ export type ProjectDesignMdWrite = {
 export type WorkspaceCalendarEntry = {
     scheduledAt: Date;
     originalScheduledAt?: Date | null;
-} & (WorkspaceCalendarItem | SocialPostCalendarItem);
+} & (WorkspaceCalendarItem | SocialPostCalendarItem | NewsletterIssueCalendarItem | ContactFollowUpCalendarItem | MarketingPieceCalendarItem);
 
 export type WorkspaceCalendarItem = {
     /**
@@ -8059,6 +8059,58 @@ export type SocialPostCalendarItem = {
         outcome: string | null;
         errorKind: string | null;
     } | null;
+    sourceId: string;
+    sourceProjectId: string;
+    sourceWorkspaceId: string;
+    sourceType: 'PROJECT';
+};
+
+export type NewsletterIssueCalendarItem = {
+    kind: 'newsletterIssue';
+    id: string;
+    scheduledAt: Date;
+    issueId: string;
+    subject: string;
+    status: 'DRAFT' | 'NEEDS_APPROVAL' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'FAILED' | 'CANCELED';
+    projectName: string;
+    sourceId: string;
+    sourceProjectId: string;
+    sourceWorkspaceId: string;
+    sourceType: 'PROJECT';
+};
+
+export type ContactFollowUpCalendarItem = {
+    kind: 'contactFollowUp';
+    id: string;
+    scheduledAt: Date;
+    contactId: string;
+    name: string;
+    organization: string | null;
+    avatarUrl: string | null;
+    nextStep: string | null;
+    date: string;
+    allDay: true;
+    sourceId: string;
+    sourceProjectId: null;
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE';
+};
+
+export type MarketingPieceCalendarItem = {
+    kind: 'marketingPiece';
+    id: string;
+    scheduledAt: Date;
+    strategyId: string;
+    entryId: string;
+    title: string;
+    channel: string;
+    format: string;
+    status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+    /**
+     * The Project file the piece was written to, once it exists
+     */
+    fileId: string | null;
+    projectName: string;
     sourceId: string;
     sourceProjectId: string;
     sourceWorkspaceId: string;
@@ -12865,6 +12917,14 @@ export type DesignMdOwnerInfo = {
     type: 'user';
 };
 
+export type WorkspaceCalendarSourcesResponse = {
+    sources: Array<WorkspaceCalendarSource>;
+    /**
+     * Calendar features this viewer may show. Web offers only these in the Show filter.
+     */
+    features: Array<'tasks' | 'social' | 'newsletter' | 'contacts' | 'marketing'>;
+};
+
 export type WorkspaceCalendarSource = {
     sourceId: string;
     sourceType: 'WORKSPACE' | 'PROJECT';
@@ -12882,6 +12942,10 @@ export type WorkspaceCalendarSource = {
      * Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.
      */
     latestScheduledSocialPostAt?: Date | null;
+    /**
+     * Latest SCHEDULED or SENDING Newsletter issue in this Project and requested scope. Present only when Social posts are included (interactive Calendar).
+     */
+    latestScheduledNewsletterIssueAt?: Date | null;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;
@@ -52611,9 +52675,17 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
+         * Deprecated: use `types`. Include Social post entries. Omit for the existing task-only contract. Ignored when `types` is set. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
+        /**
+         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.
+         */
+        types?: string;
+        /**
+         * IANA time zone that places all-day Contact follow-ups on their day. Defaults to UTC.
+         */
+        timeZone?: string;
         /**
          * Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
          */
@@ -86618,9 +86690,17 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
-         * Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.
+         * Deprecated: use `types`. Include Social post entries. Omit for the existing task-only contract. Ignored when `types` is set. Requires an interactive user session.
          */
         includeSocialPosts?: 'true' | 'false';
+        /**
+         * Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.
+         */
+        types?: string;
+        /**
+         * IANA time zone that places all-day Contact follow-ups on their day. Defaults to UTC.
+         */
+        timeZone?: string;
         /**
          * Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
          */
@@ -86869,10 +86949,10 @@ export type GetWorkspacesCalendarSourcesError = GetWorkspacesCalendarSourcesErro
 
 export type GetWorkspacesCalendarSourcesResponses = {
     /**
-     * Workspace Calendar sources with scheduling availability
+     * Workspace Calendar sources with scheduling availability and feature list
      */
     200: {
-        data: Array<WorkspaceCalendarSource>;
+        data: WorkspaceCalendarSourcesResponse;
         meta: {
             timestamp: Date;
             requestId: string;

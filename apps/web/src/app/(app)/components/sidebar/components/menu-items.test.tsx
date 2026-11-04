@@ -142,10 +142,13 @@ describe("MenuItems", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not show Calendar in the sidebar", () => {
+  it("shows Calendar to everyone", () => {
     renderMenu();
 
-    expect(screen.queryByRole("link", { name: /calendar/i })).toBeNull();
+    expect(screen.getByRole("link", { name: "calendar" })).toHaveAttribute(
+      "href",
+      "/calendar",
+    );
   });
 
   it("shows Schedules to everyone", () => {
@@ -163,7 +166,7 @@ describe("MenuItems", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("orders primary destinations Agents, Tasks, Schedules, Studio", () => {
+  it("orders primary destinations Agents, Tasks, Schedules, Calendar, Studio", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -173,6 +176,7 @@ describe("MenuItems", () => {
       "exploreAgents",
       "taskManager",
       "schedules",
+      "calendar",
       "contentStudio",
     ];
     const positions = primaryOrder.map((label) =>
@@ -268,6 +272,7 @@ describe("MenuItems groups", () => {
       "exploreAgents",
       "taskManager",
       "schedules",
+      "calendar",
     ]);
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
@@ -333,6 +338,7 @@ describe("MenuItems groups", () => {
       "exploreAgents",
       "taskManager",
       "schedules",
+      "calendar",
     ]);
     // Files stays on the You page there.
     expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
@@ -546,6 +552,7 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
+      ["calendar", "/calendar"],
       ["contacts", "/contacts"],
       ["contentStudio", "/studio"],
       ["drive", "/drive"],
@@ -561,6 +568,7 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
+      ["calendar", "/calendar?projectId=p-1"],
       // Contacts belong to the workspace, not a project.
       ["contacts", "/contacts"],
       ["contentStudio", "/studio?projectId=p-1"],

@@ -14,6 +14,13 @@ type RunChange =
   | { action: "skip" | "restore" }
   | { action: "move"; scheduledAt: Date };
 
+/** A Run or a Queued Task: the entries with a Task's fields. */
+export function isTaskEntry(
+  item: WorkspaceCalendarEntry,
+): item is WorkspaceCalendarEntry & WorkspaceCalendarItem {
+  return item.kind === "RUN" || item.kind === "RUN_AT";
+}
+
 /** A Task Schedule Run the viewer may skip, move, or restore. */
 export type ChangeableRun = WorkspaceCalendarItem & {
   scheduleId: string;
@@ -24,7 +31,7 @@ export function isChangeableRun(
   item: WorkspaceCalendarEntry,
 ): item is ChangeableRun {
   return (
-    item.kind !== "socialPost" &&
+    isTaskEntry(item) &&
     item.canChangeRun &&
     item.scheduleId !== null &&
     item.scheduleRevision !== null

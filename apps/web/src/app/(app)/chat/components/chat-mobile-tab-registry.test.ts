@@ -15,7 +15,6 @@ describe("Newsletter mobile tab selection", () => {
     "/newsletter",
     "/newsletter/issues",
     "/newsletter/subscribers",
-    "/newsletter/calendar",
     "/newsletter/signup-form",
     "/newsletter/analytics",
     "/newsletter/settings",

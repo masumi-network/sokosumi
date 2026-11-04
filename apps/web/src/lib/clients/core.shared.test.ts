@@ -341,7 +341,10 @@ describe("createCoreClient newsletter sending domains", () => {
 describe("createCoreClient calendar sources", () => {
   it("forwards Social scope without caching workspace data", async () => {
     vi.mocked(coreGetWorkspacesCalendarSources).mockResolvedValue({
-      data: { data: [], meta: { timestamp: new Date(), requestId: "req_1" } },
+      data: {
+        data: { sources: [], features: ["tasks"] },
+        meta: { timestamp: new Date(), requestId: "req_1" },
+      },
       response: new Response(null, { status: 200 }),
     });
     const client = createClient();

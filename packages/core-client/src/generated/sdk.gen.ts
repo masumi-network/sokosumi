@@ -3699,7 +3699,7 @@ export const putProjectsByIdDesignMd = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * List the Task Schedule Runs of a Project: planned ones and the ones that created their Task
+ * List the Calendar of a Project: Task Schedule Runs (planned ones and the ones that created their Task) and Queued Tasks, plus the features asked for with `types`
  */
 export const getProjectsByIdCalendar = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdCalendarData, ThrowOnError>): RequestResult<GetProjectsByIdCalendarResponses, GetProjectsByIdCalendarErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdCalendarResponses, GetProjectsByIdCalendarErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdCalendarResponseTransformer,
@@ -6815,7 +6815,7 @@ export const getWorkspacesDesignMd = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List the Task Schedule Runs of the active workspace: planned ones and the ones that created their Task
+ * List the Calendar of the active workspace: Task Schedule Runs (planned ones and the ones that created their Task) and Queued Tasks, plus the features asked for with `types`
  */
 export const getWorkspacesCalendar = <ThrowOnError extends boolean = false>(options: Options<GetWorkspacesCalendarData, ThrowOnError>): RequestResult<GetWorkspacesCalendarResponses, GetWorkspacesCalendarErrors, ThrowOnError> => (options.client ?? client).get<GetWorkspacesCalendarResponses, GetWorkspacesCalendarErrors, ThrowOnError>({
     responseTransformer: getWorkspacesCalendarResponseTransformer,
@@ -6824,7 +6824,7 @@ export const getWorkspacesCalendar = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List workspace and Project Calendar sources, including sources only available for event display and filtering
+ * List workspace and Project Calendar sources, including sources only available for event display and filtering, and the features this viewer may show
  */
 export const getWorkspacesCalendarSources = <ThrowOnError extends boolean = false>(options?: Options<GetWorkspacesCalendarSourcesData, ThrowOnError>): RequestResult<GetWorkspacesCalendarSourcesResponses, GetWorkspacesCalendarSourcesErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkspacesCalendarSourcesResponses, GetWorkspacesCalendarSourcesErrors, ThrowOnError>({
     responseTransformer: getWorkspacesCalendarSourcesResponseTransformer,

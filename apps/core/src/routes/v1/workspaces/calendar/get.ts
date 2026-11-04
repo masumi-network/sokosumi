@@ -22,6 +22,7 @@ import {
   getCalendarAccessWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
+  requestsFeatures,
 } from "./read.js";
 
 const route = withCoworkerContextHeaderParameters(
@@ -29,7 +30,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/calendar",
     description:
-      "List the Task Schedule Runs of the active workspace: planned ones and the ones that created their Task",
+      "List the Calendar of the active workspace: Task Schedule Runs (planned ones and the ones that created their Task) and Queued Tasks, plus the features asked for with `types`",
     tags: ["Workspaces"],
     request: {
       query: workspaceCalendarQuerySchema,
@@ -51,11 +52,11 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
-    if (c.req.valid("query").includeSocialPosts === "true") {
+    const query = c.req.valid("query");
+    if (requestsFeatures(query)) {
       requireInteractiveUserAuthContext(c.var.authContext);
     }
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const query = c.req.valid("query");
     const calendarQuery = parseWorkspaceCalendarQuery(query);
     const project = query.projectId
       ? await prisma.project.findFirst({
