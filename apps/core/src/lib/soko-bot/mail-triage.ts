@@ -39,7 +39,7 @@ const RULE_INSTRUCTIONS = (key: string) =>
 
 /** What a packet with triaged mail tells the bot about the tags. */
 export const MAIL_TRIAGE_GUIDE =
-  "Each mail carries Jev's triage tag (urgent, notable or bulk) with its probability: a guide, not a fact. Read a mail with `read_email` when its tag looks wrong, and judge it yourself.";
+  'Each mail carries Jev\'s triage tag (urgent, notable or bulk) with its probability: a guide, not a fact. Read a mail with `read_email` when its tag looks wrong, and judge it yourself. Mail under "Already answered" was replied to by the owner: it needs nothing from them, so never flag it, and drop any memory follow-up it settles.';
 
 export interface TriagedMail {
   message: SokoBotInboxMessage;
@@ -212,16 +212,24 @@ export async function triageMail(input: {
       result: await tagMailWithJev(batch, owner),
     })),
   );
-  const mail = batches.flatMap(
-    ({ batch, result }) =>
-      result?.mail ??
-      batch.map((message) => ({
-        message,
-        tag: null,
-        probability: null,
-        matchesRule: false,
-      })),
-  );
+  // Mail the owner already answered keeps its rule match but loses its tag:
+  // it never wakes the bot or gets flagged again.
+  const mail = batches
+    .flatMap(
+      ({ batch, result }) =>
+        result?.mail ??
+        batch.map(
+          (message): TriagedMail => ({
+            message,
+            tag: null,
+            probability: null,
+            matchesRule: false,
+          }),
+        ),
+    )
+    .map((item) =>
+      item.message.repliedAt ? { ...item, tag: null, probability: null } : item,
+    );
   const failed = batches.some(({ result }) => result === null);
   const costUsd = batches.reduce(
     (sum, { result }) => sum + (result?.costUsd ?? 0),
@@ -327,7 +335,7 @@ function mailLine(
 ): string {
   const { message } = item;
   const snippet = message.snippet.replace(/\s+/g, " ").slice(0, snippetLength);
-  return `- ${receivedAt(message.receivedAt, timeZone)} · ${message.unread ? "unread" : "read"} · from ${message.from} · **${message.subject || "(no subject)"}**${snippet ? ` — ${snippet}` : ""} [${message.provider}:${message.id}]${item.tag ? ` · ${item.tag.toLowerCase()}${percent(item.probability)}` : ""}`;
+  return `- ${receivedAt(message.receivedAt, timeZone)} · ${message.unread ? "unread" : "read"} · from ${message.from} · **${message.subject || "(no subject)"}**${snippet ? ` — ${snippet}` : ""} [${message.provider}:${message.id}]${item.tag ? ` · ${item.tag.toLowerCase()}${percent(item.probability)}` : ""}${message.repliedAt ? ` · you replied ${receivedAt(message.repliedAt, timeZone)}` : ""}`;
 }
 
 /**
@@ -344,7 +352,10 @@ export function triagedMailLines(input: {
   if (input.mail.length === 0) return [];
   const of = (tag: MailTriageTag | null) =>
     input.mail.filter(
-      (item) => item.tag === tag && (tag === "URGENT" || !item.matchesRule),
+      (item) =>
+        !item.message.repliedAt &&
+        item.tag === tag &&
+        (tag === "URGENT" || !item.matchesRule),
     );
   const lines = [
     `## Mail (${input.mail.length}${input.mail.length >= input.limit ? "+" : ""}), triaged by Jev`,
@@ -382,6 +393,11 @@ export function triagedMailLines(input: {
     );
   }
   section("Not triaged", of(null), 160);
+  section(
+    "Already answered by the owner",
+    input.mail.filter((item) => item.message.repliedAt && !item.matchesRule),
+    60,
+  );
   lines.push("");
   return lines;
 }

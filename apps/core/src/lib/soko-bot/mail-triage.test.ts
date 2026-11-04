@@ -105,6 +105,18 @@ describe("triageMail", () => {
     flaggedMock.mockResolvedValue([]);
   });
 
+  it("drops the tag of mail the owner already answered, so it never wakes the bot", async () => {
+    evaluateMock.mockResolvedValue({ answers: { mail0: choice(0.9, 0.1, 0) } });
+    const answered = {
+      ...mail("a", "Can you sign today?"),
+      repliedAt: "2026-10-10T09:00:00.000Z",
+    };
+    const { mail: tagged } = await triage([answered]);
+    expect(tagged).toEqual([
+      { message: answered, tag: null, probability: null, matchesRule: false },
+    ]);
+  });
+
   it("asks one choice question per mail in one call, with the owner's context", async () => {
     memoryMock.mockResolvedValue({
       markdown:
@@ -313,6 +325,27 @@ describe("triagedMailLines", () => {
     tag,
     probability: tag ? 0.9 : null,
     matchesRule: false,
+  });
+
+  it("lists mail the owner already answered on its own, never as urgent", () => {
+    const answered: TriagedMail = {
+      message: {
+        ...mail("a1", "Subject a1"),
+        repliedAt: "2026-10-10T09:30:00.000Z",
+      },
+      tag: null,
+      probability: null,
+      matchesRule: false,
+    };
+    const lines = triagedMailLines({
+      timeZone: "UTC",
+      limit: 40,
+      mail: [answered, tagged("u1", "URGENT")],
+    }).join("\n");
+    expect(lines).toContain("### Urgent (1)");
+    expect(lines).toContain("### Already answered by the owner (1)");
+    expect(lines).toMatch(/\[gmail:a1\] · you replied .*09:30/);
+    expect(lines).not.toContain("### Not triaged");
   });
 
   it("puts urgent first, notable after, bulk only as a count by sender", () => {

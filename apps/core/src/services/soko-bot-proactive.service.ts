@@ -41,6 +41,7 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessages,
+  withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
 import {
   buildRhythmPacket,
@@ -613,13 +614,13 @@ export async function buildSystemBeatMessage(input: {
       );
     }
     const mail: SokoBotInboxMessage[] = [];
+    const dayAgo = new Date(now.getTime() - 24 * HOUR_MS);
     for (const integration of await activeIntegrationsForBot(bot.id, "email")) {
-      mail.push(
-        ...(await fetchInboxMessages(integration, {
-          since: new Date(now.getTime() - 24 * HOUR_MS),
-          limit: STANDUP_MAIL_LIMIT,
-        }).catch(() => [])),
-      );
+      const received = await fetchInboxMessages(integration, {
+        since: dayAgo,
+        limit: STANDUP_MAIL_LIMIT,
+      }).catch(() => []);
+      mail.push(...(await withOwnerReplies(integration, received, dayAgo)));
     }
     if (mail.length > 0) {
       const triage = await triageMail({

@@ -21,6 +21,7 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessages,
+  withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
@@ -88,6 +89,8 @@ async function mail(
     since?: Date;
     limit: number;
     gmailOnly?: boolean;
+    /** Mark what the owner answered since `since`, and leave out their sent mail. */
+    replies?: boolean;
   },
 ): Promise<SokoBotInboxMessage[] | null> {
   const integrations = (await activeIntegrationsForBot(bot.id, "email")).filter(
@@ -95,18 +98,22 @@ async function mail(
   );
   if (integrations.length === 0) return null;
   const messages: SokoBotInboxMessage[] = [];
-  for (const integration of integrations)
+  for (const integration of integrations) {
+    const fetched = await fetchInboxMessages(integration, {
+      query: options.participant
+        ? participantQuery(integration.provider.id, options.participant)
+        : integration.provider.id === "gmail"
+          ? options.query
+          : undefined,
+      since: options.since,
+      limit: options.limit,
+    }).catch(() => []);
     messages.push(
-      ...(await fetchInboxMessages(integration, {
-        query: options.participant
-          ? participantQuery(integration.provider.id, options.participant)
-          : integration.provider.id === "gmail"
-            ? options.query
-            : undefined,
-        since: options.since,
-        limit: options.limit,
-      }).catch(() => [])),
+      ...(options.replies && options.since
+        ? await withOwnerReplies(integration, fetched, options.since)
+        : fetched),
     );
+  }
   return messages;
 }
 
@@ -336,12 +343,14 @@ async function followUpChaser(
     query: "in:inbox newer_than:21d",
     since: new Date(now.getTime() - 21 * DAY_MS),
     limit: 50,
+    replies: true,
   });
   if (inbox === null) return { lines: [], skip: true };
   const waitingOnYou = inbox.filter(
     (message) =>
       new Date(message.receivedAt).getTime() < twoDaysAgo &&
       new Date(message.receivedAt).getTime() > now.getTime() - 14 * DAY_MS &&
+      !message.repliedAt &&
       emailOf(message.from) !== owner &&
       /\?/.test(`${message.subject} ${message.snippet}`),
   );
