@@ -96,7 +96,13 @@ export function BrainStep({
               disabled={planning || fixing || finishing}
               onClick={() =>
                 startPlanning(async () => {
-                  setRefusal(await onApprove());
+                  try {
+                    setRefusal(await onApprove());
+                  } catch {
+                    setRefusal(
+                      "That didn't go through. Try again in a moment.",
+                    );
+                  }
                 })
               }
             >

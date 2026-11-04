@@ -169,6 +169,26 @@ describe("the funnel strategy", () => {
       ).join(" "),
     ).toContain("all_in pace says 20");
   });
+
+  it("holds each channel's calendar to its cadence", () => {
+    const calendar = Array.from({ length: 49 }, (_, index) =>
+      entry(`x${index}`, "x", index % 2 ? "post" : "image"),
+    );
+    const problems = (cadence: string) =>
+      cmoPlanProblems(
+        plan({ calendar, channels: [{ channel: "x", cadence }] }),
+      ).join(" ");
+    expect(problems("8 posts a week")).toContain(
+      'x has 49 calendar pieces, but its cadence "8 posts a week" means about 32',
+    );
+    expect(problems("12 posts a week")).not.toContain("cadence");
+    expect(problems("10 to 14 posts a week")).not.toContain("cadence");
+    expect(problems("2 posts weekly")).toContain("means about 8");
+    // A cadence that is not a count is left to Cuso.
+    expect(problems("4 page fixes, 2 articles monthly")).not.toContain(
+      "cadence",
+    );
+  });
 });
 
 describe("cmoPlanDrift", () => {

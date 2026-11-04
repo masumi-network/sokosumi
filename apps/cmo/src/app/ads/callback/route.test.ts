@@ -19,7 +19,7 @@ describe("ads callback", () => {
     );
     expect(finalizeAds).toHaveBeenCalledWith("ca_1", "s_1");
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=connect",
+      "http://localhost:3110/?step=connect&from=onboarding",
     );
   });
 
