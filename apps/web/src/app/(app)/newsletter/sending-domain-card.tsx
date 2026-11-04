@@ -17,7 +17,14 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { createElement, type FormEvent, Fragment, useState } from "react";
+import {
+  createElement,
+  type FormEvent,
+  Fragment,
+  type ReactNode,
+  useId,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -56,12 +63,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   checkNewsletterSendingDomain,
   connectNewsletterSendingDomainWithCloudflare,
   removeNewsletterSendingDomain,
   resumeNewsletterSendingDomainWarmup,
   saveNewsletterSendingDomain,
 } from "@/lib/actions/newsletter/sending-domain";
+import { cn } from "@/lib/utils";
 
 const domainConnectResultSchema = z.discriminatedUnion("ok", [
   z.object({
@@ -862,9 +875,11 @@ function DnsRecords({
               className="bg-muted min-w-0 space-y-2 rounded-md p-3"
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">
-                  {t(`records.purpose.${purpose}.label`)}
-                </span>
+                <RecordHint
+                  label={t(`records.purpose.${purpose}.label`)}
+                  hint={t(`records.purpose.${purpose}.explanation`)}
+                  className="font-medium"
+                />
                 <Badge variant="outline" className="bg-background font-mono">
                   {record.type}
                 </Badge>
@@ -877,31 +892,28 @@ function DnsRecords({
                   {t(`records.${recordHealth(record)}`)}
                 </Badge>
               </div>
-              <p className="text-muted-foreground text-sm text-pretty">
-                {t(`records.purpose.${purpose}.explanation`)}
-              </p>
-              <dl className="min-w-0 space-y-1 text-sm">
-                {relativeName !== null ? (
-                  <RecordField
-                    label={t("records.relativeName")}
-                    value={relativeName}
-                  />
-                ) : null}
+              <dl className="min-w-0 space-y-2 text-sm">
                 <RecordField
-                  label={t("records.fullName")}
-                  value={record.name}
+                  label={
+                    relativeName !== null ? (
+                      // The troubleshooting and provider tips check against this FQDN.
+                      <RecordHint
+                        label={t("records.relativeName")}
+                        hint={`${t("records.fullName")}: ${record.name}`}
+                      />
+                    ) : (
+                      t("records.fullName")
+                    )
+                  }
+                  value={relativeName ?? record.name}
                 />
                 <RecordField label={t("records.value")} value={record.value} />
                 {record.priority !== null ? (
-                  <RecordField
-                    label={t("records.priority")}
-                    value={String(record.priority)}
-                  />
+                  <div className="text-muted-foreground flex gap-1 text-xs tabular-nums">
+                    <dt>{t("records.priority")}</dt>
+                    <dd>{record.priority}</dd>
+                  </div>
                 ) : null}
-                <div className={`tabular-nums ${RECORD_FIELD_CLASS}`}>
-                  <dt className="text-muted-foreground">{t("records.ttl")}</dt>
-                  <dd className="px-2">{record.ttl || "—"}</dd>
-                </div>
               </dl>
               {record.status === "failed" ? (
                 <p className="text-muted-foreground text-sm text-pretty">
@@ -916,14 +928,12 @@ function DnsRecords({
   );
 }
 
-const RECORD_FIELD_CLASS =
-  "min-w-0 @md:grid @md:grid-cols-[8rem_minmax(0,1fr)] @md:items-center @md:gap-2";
-
-function RecordField({ label, value }: { label: string; value: string }) {
+// A short value keeps its label's line, even on a phone; a long one wraps below it.
+function RecordField({ label, value }: { label: ReactNode; value: string }) {
   return (
-    <div className={RECORD_FIELD_CLASS}>
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 @md:grid @md:grid-cols-[8rem_minmax(0,1fr)]">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0">
+      <dd className="min-w-0 flex-1 basis-40">
         <CopyableValue
           value={value}
           displayValue={softBreaks(value)}
@@ -931,10 +941,53 @@ function RecordField({ label, value }: { label: string; value: string }) {
           truncateInline={false}
           copiedFeedback
           codeClassName="min-w-0 break-words"
-          containerClassName="bg-background justify-between rounded-md px-2 py-1"
+          containerClassName="bg-background justify-between rounded-md px-2"
         />
       </dd>
     </div>
+  );
+}
+
+// Hover, keyboard focus and a tap all show the hint; screen readers always get it.
+function RecordHint({
+  label,
+  hint,
+  className,
+}: {
+  label: string;
+  hint: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const descriptionId = useId();
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        type="button"
+        aria-describedby={descriptionId}
+        className={cn(
+          "focus-visible:ring-ring decoration-muted-foreground inline-flex min-h-6 cursor-help items-center rounded-sm underline decoration-dotted underline-offset-4 outline-none focus-visible:ring-2",
+          className,
+        )}
+        onClick={(event) => {
+          // Radix closes on click, and on touch a click is the only way to open.
+          event.preventDefault();
+          setOpen((current) => !current);
+        }}
+      >
+        {label}
+      </TooltipTrigger>
+      <span className="sr-only" id={descriptionId}>
+        {hint}
+      </span>
+      <TooltipContent
+        className="max-w-64 break-words text-pretty"
+        side="top"
+        sideOffset={6}
+      >
+        {hint}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -3848,7 +3848,6 @@
             "fullName": "Full name (FQDN)",
             "value": "Value",
             "priority": "Priority",
-            "ttl": "TTL",
             "found": "Found",
             "missing": "Missing",
             "wrongValue": "Wrong value",

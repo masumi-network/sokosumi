@@ -339,7 +339,7 @@ describe("SendingDomainCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers manual setup with relative and full hosts, status, priority, and TTL", async () => {
+  it("offers manual setup with a compact host, value, status, and priority", async () => {
     renderCard({ sendingDomain: DOMAIN });
 
     expect(screen.getByText(T.status.PARTIAL)).toBeInTheDocument();
@@ -348,28 +348,18 @@ describe("SendingDomainCard", () => {
       screen.getByRole("button", { name: T.manual.action }),
     ).toHaveAttribute("aria-expanded", "true");
     const records = screen.getByRole("region", { name: T.records.title });
-    expect(
-      within(records).getByText(T.records.purpose.dkim.explanation),
-    ).toBeInTheDocument();
-    expect(
-      within(records).getByText(T.records.purpose.bounce.explanation),
-    ).toBeInTheDocument();
     expect(within(records).getByText("resend._domainkey")).toBeInTheDocument();
-    expect(
-      within(records).getByText("resend._domainkey.brand.example"),
-    ).toBeInTheDocument();
     expect(within(records).getByText("send")).toBeInTheDocument();
-    expect(within(records).getByText("send.brand.example")).toBeInTheDocument();
     expect(within(records).getByText("10")).toBeInTheDocument();
     const [dkimRecord, mxRecord] = within(records).getAllByRole("listitem");
     expect(
       within(dkimRecord).queryByText(T.records.priority),
     ).not.toBeInTheDocument();
     expect(within(mxRecord).getByText(T.records.priority)).toBeInTheDocument();
-    expect(within(records).getAllByText("Auto")).toHaveLength(2);
+    expect(within(records).queryByText("Auto")).not.toBeInTheDocument();
     expect(
       within(records).getAllByRole("button", { name: "Copy" }),
-    ).toHaveLength(7);
+    ).toHaveLength(4);
     expect(within(records).getByText(T.records.found)).toBeInTheDocument();
     expect(within(records).getByText(T.records.missing)).toBeInTheDocument();
 
@@ -383,6 +373,38 @@ describe("SendingDomainCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("hides each explanation behind its purpose without losing it for screen readers", async () => {
+    const user = userEvent.setup();
+    renderCard({ sendingDomain: DOMAIN });
+    const records = screen.getByRole("region", { name: T.records.title });
+    const purpose = within(records).getByRole("button", {
+      name: T.records.purpose.dkim.label,
+    });
+    expect(purpose).toHaveAccessibleDescription(
+      T.records.purpose.dkim.explanation,
+    );
+    expect(
+      within(records).getByText(T.records.purpose.dkim.explanation),
+    ).toHaveClass("sr-only");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    await user.hover(purpose);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      T.records.purpose.dkim.explanation,
+    );
+  });
+
+  it("keeps the provider tips and Cloudflare accordions collapsed by default", async () => {
+    renderCard({ sendingDomain: DOMAIN });
+    expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
+    for (const name of [T.providerTips.title, T.cloudflare.advanced]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    }
+  });
+
   it("copies each manual DNS field without changing its value", async () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText");
@@ -390,12 +412,9 @@ describe("SendingDomainCard", () => {
     const records = screen.getByRole("region", { name: T.records.title });
     for (const value of [
       "resend._domainkey",
-      "resend._domainkey.brand.example",
       DOMAIN.dnsRecords[0].value,
       "send",
-      "send.brand.example",
       DOMAIN.dnsRecords[1].value,
-      "10",
     ]) {
       const field = within(records).getByText(value).parentElement;
       expect(field).not.toBeNull();
@@ -416,7 +435,31 @@ describe("SendingDomainCard", () => {
       name: T.records.title,
     });
     expect(within(records).getByText("@")).toBeInTheDocument();
-    expect(within(records).getByText(DOMAIN.domain)).toBeInTheDocument();
+    expect(
+      within(records).getByRole("button", { name: T.records.relativeName }),
+    ).toHaveAccessibleDescription(`${T.records.fullName}: ${DOMAIN.domain}`);
+  });
+
+  it("falls back to the full name for a host outside the domain", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText");
+    renderCard({
+      sendingDomain: {
+        ...DOMAIN,
+        dnsRecords: [{ ...DOMAIN.dnsRecords[0], name: "mail.other.example" }],
+      },
+    });
+    const records = await screen.findByRole("region", {
+      name: T.records.title,
+    });
+    expect(within(records).getByText(T.records.fullName)).toBeInTheDocument();
+    expect(
+      within(records).queryByText(T.records.relativeName),
+    ).not.toBeInTheDocument();
+    const field = within(records).getByText("mail.other.example").parentElement;
+    if (!field) throw new Error("Missing copyable host");
+    await user.click(within(field).getByRole("button", { name: "Copy" }));
+    expect(writeText).toHaveBeenLastCalledWith("mail.other.example");
   });
 
   it("handles trailing dots and mixed case without appending the domain twice", async () => {
@@ -433,8 +476,10 @@ describe("SendingDomainCard", () => {
     });
     expect(within(records).getByText("resend._domainkey")).toBeInTheDocument();
     expect(
-      within(records).getByText("Resend._Domainkey.Brand.Example."),
-    ).toBeInTheDocument();
+      within(records).getByRole("button", { name: T.records.relativeName }),
+    ).toHaveAccessibleDescription(
+      `${T.records.fullName}: Resend._Domainkey.Brand.Example.`,
+    );
   });
 
   it.each(["pending", "not_started", "not_found", "unknown"])(
@@ -831,10 +876,22 @@ describe("SendingDomainCard", () => {
     expect(within(records).getByText(type)).toBeInTheDocument();
   });
 
-  it("wraps long hosts between labels, not inside them", () => {
-    renderCard({ sendingDomain: DOMAIN });
-    const records = screen.getByRole("region", { name: T.records.title });
-    const host = within(records).getByText("resend._domainkey.brand.example");
+  it("wraps long hosts between labels, not inside them", async () => {
+    renderCard({
+      sendingDomain: {
+        ...DOMAIN,
+        dnsRecords: [
+          {
+            ...DOMAIN.dnsRecords[0],
+            name: "resend._domainkey.other.example",
+          },
+        ],
+      },
+    });
+    const records = await screen.findByRole("region", {
+      name: T.records.title,
+    });
+    const host = within(records).getByText("resend._domainkey.other.example");
     expect(host.querySelectorAll("wbr")).toHaveLength(3);
     expect(host).toHaveClass("break-words");
     expect(host).not.toHaveClass("wrap-anywhere");
