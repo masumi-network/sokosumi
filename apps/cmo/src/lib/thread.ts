@@ -18,6 +18,7 @@ export type ThreadItem =
   | { kind: "brandBrain"; at: string }
   | { kind: "strategy"; at: string }
   | { kind: "connect"; at: string }
+  | { kind: "production"; at: string }
   | { kind: "update"; at: string; update: Update };
 
 function iso(value: Date | string | null | undefined): string | null {
@@ -75,7 +76,17 @@ export function buildThread(
   if (approvedAt && overview.channels.length === 0) {
     items.push({ kind: "connect", at: approvedAt });
   }
+  // Making the month shows as one progress card, not Cuso's own reports on
+  // each round: it sits where the newest of them would.
+  const production = overview.updates.filter(
+    (update) => update.kind === "production",
+  );
+  if (approvedAt && overview.production.total > 0) {
+    const latest = production.map((update) => iso(update.at) ?? created).sort();
+    items.push({ kind: "production", at: latest.at(-1) ?? approvedAt });
+  }
   for (const update of overview.updates) {
+    if (update.kind === "production") continue;
     items.push({ kind: "update", at: iso(update.at) ?? created, update });
   }
   // Stable: cards built at the same moment keep the order pushed above.

@@ -5521,6 +5521,10 @@ export class SokoBotRuntimeService {
           const update = SOKO_BOT_TOOL_INPUT_SCHEMAS.report_update.parse(
             input.input,
           );
+          const turn = await prisma.sokoBotTurn.findUnique({
+            where: { id: authorized.turn.id },
+            select: { clientTurnId: true },
+          });
           const record = await write((tx) =>
             reportCmoUpdate(
               {
@@ -5528,6 +5532,9 @@ export class SokoBotRuntimeService {
                 turnId: authorized.turn.id,
                 toolCallId: input.toolCallId,
                 update,
+                production:
+                  turn?.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX) ===
+                  true,
               },
               tx,
             ),
