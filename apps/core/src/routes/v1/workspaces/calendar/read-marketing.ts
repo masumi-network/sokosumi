@@ -1,6 +1,5 @@
-import { CalendarSourceType, FileResourceLifecycle } from "@sokosumi/database";
+import { FileResourceLifecycle } from "@sokosumi/database";
 
-import { getCalendarSourceId } from "@/helpers/calendar-source";
 import prisma from "@/lib/db/prisma";
 import { marketingPieceCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
 import {
@@ -10,7 +9,11 @@ import {
   socialPostProvider,
 } from "@/services/marketing-strategy.service";
 
-import { type CalendarReader, pageInMemory } from "./read-shared.js";
+import {
+  type CalendarReader,
+  calendarEntrySource,
+  pageInMemory,
+} from "./read-shared.js";
 
 const AGENDA_STATUSES = ["idea", "draft", "scheduled"];
 
@@ -87,14 +90,10 @@ export const readMarketing: CalendarReader = async (ctx) => {
               // Only a file that still exists; the entry's own fileId can outlive it.
               fileId: fileIds.get(`${strategy.id}:${entry.id}`) ?? null,
               projectName: strategy.project.name,
-              sourceId: getCalendarSourceId({
-                sourceWorkspaceId: workspaceId,
-                sourceType: CalendarSourceType.PROJECT,
-                sourceProjectId: strategy.projectId,
+              ...calendarEntrySource({
+                workspaceId,
+                projectId: strategy.projectId,
               }),
-              sourceProjectId: strategy.projectId,
-              sourceWorkspaceId: workspaceId,
-              sourceType: CalendarSourceType.PROJECT,
             }),
           ];
         },

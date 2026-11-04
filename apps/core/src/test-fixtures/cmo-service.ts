@@ -247,7 +247,11 @@ const client = {
   // No piece of the approved version is written to Files unless a test says so.
   marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.
-  sokoBotSchedule: { findFirst: async () => null },
+  // `planTimeZones` uses findMany; older call sites still use findFirst.
+  sokoBotSchedule: {
+    findFirst: async () => null,
+    findMany: async () => [],
+  },
   sokoBotRuntimeEvent: { findFirst: eventFindFirst },
   sokoBotIntegration: { findMany: integrationFindMany },
 };

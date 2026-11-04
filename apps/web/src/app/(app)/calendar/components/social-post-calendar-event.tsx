@@ -163,15 +163,12 @@ export function SocialPostCalendarEvent({
   item,
   timeZone,
   variant = "preview",
-  showThumb = false,
   showProject = true,
   onReschedule,
 }: {
   item: SocialPostCalendarItem;
   timeZone: string;
   variant?: "compact" | "preview" | "month" | "week";
-  /** Square media preview on a compact chip. Workspace compact stays one line. */
-  showThumb?: boolean;
   /** Off when the calendar is one project's: every chip would repeat it. */
   showProject?: boolean;
   /** Week chips of movable posts offer a Reschedule button: the drag without a pointer. */
@@ -189,24 +186,16 @@ export function SocialPostCalendarEvent({
     );
   }
   if (variant === "compact") {
-    return (
-      <CompactSocialPostCalendarEvent
-        item={item}
-        showThumb={showThumb}
-        timeZone={timeZone}
-      />
-    );
+    return <CompactSocialPostCalendarEvent item={item} timeZone={timeZone} />;
   }
   return <SocialPostPreviewCard item={item} timeZone={timeZone} />;
 }
 
 function CompactSocialPostCalendarEvent({
   item,
-  showThumb,
   timeZone,
 }: {
   item: SocialPostCalendarItem;
-  showThumb: boolean;
   timeZone: string;
 }) {
   const t = useTranslations("App.Calendar.socialPost");
@@ -218,31 +207,7 @@ function CompactSocialPostCalendarEvent({
     media: item.previewMedia?.kind ?? "none",
     count: item.attachmentCount,
   });
-  const media = showThumb ? item.previewMedia : null;
-  const time = (
-    <span
-      className={cn(
-        "text-muted-foreground tabular-nums",
-        showThumb ? "min-w-0 truncate" : "shrink-0",
-      )}
-    >
-      {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
-    </span>
-  );
-  const status = (
-    <CalendarSocialPostStatus
-      className={showThumb && !item.waitingForQuotedPost ? "size-4" : undefined}
-      item={item}
-      showLabel={showThumb ? false : undefined}
-    />
-  );
-  const logo = (
-    <SocialPostProviderIcon
-      provider={item.provider}
-      aria-hidden
-      className="size-3 shrink-0"
-    />
-  );
+  const status = <CalendarSocialPostStatus item={item} />;
   const accessibleName = [
     formatter.dateTime(item.scheduledAt, "time", { timeZone }),
     label,
@@ -265,44 +230,26 @@ function CompactSocialPostCalendarEvent({
           type="button"
           aria-label={accessibleName}
           className={cn(
-            "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none overflow-hidden rounded border text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-            showThumb
-              ? "@container items-center gap-1 px-1 py-1"
-              : "items-center gap-1 px-1.5 py-1",
+            "bg-background text-foreground press hover:bg-muted border-border flex w-full max-w-full min-w-0 cursor-pointer select-none items-center gap-1 overflow-hidden rounded border px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
             item.waitingForQuotedPost && "flex-wrap",
           )}
           data-testid="calendar-social-post"
         >
-          {showThumb ? (
-            <>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
-                <span className="flex min-w-0 flex-nowrap items-center gap-0.5">
-                  {logo}
-                  {time}
-                  <SocialPostThreadBadge count={item.threadPartCount} />
-                  <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
-                  {!item.waitingForQuotedPost ? (
-                    <span className="shrink-0">{status}</span>
-                  ) : null}
-                </span>
-                <span className="w-full min-w-0 truncate">{label}</span>
-                {item.waitingForQuotedPost ? status : null}
-              </span>
-              {media ? <CompactSocialPostThumb media={media} /> : null}
-            </>
+          <SocialPostProviderIcon
+            provider={item.provider}
+            aria-hidden
+            className="size-3 shrink-0"
+          />
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {formatter.dateTime(item.scheduledAt, "time", { timeZone })}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          <SocialPostThreadBadge count={item.threadPartCount} />
+          <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
+          {item.waitingForQuotedPost ? (
+            <span className="w-full">{status}</span>
           ) : (
-            <>
-              {logo}
-              {time}
-              <span className="min-w-0 flex-1 truncate">{label}</span>
-              <SocialPostThreadBadge count={item.threadPartCount} />
-              <SocialPostQuoteBadge quotedPostId={item.quotedPostId} />
-              {item.waitingForQuotedPost ? (
-                <span className="w-full">{status}</span>
-              ) : (
-                status
-              )}
-            </>
+            status
           )}
         </button>
       </PopoverTrigger>

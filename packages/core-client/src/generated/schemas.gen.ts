@@ -48628,6 +48628,15 @@ export const WorkspaceCalendarSourceSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
             description: 'Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.'
+        },
+        latestScheduledNewsletterIssueAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Latest SCHEDULED or SENDING Newsletter issue in this Project and requested scope. Present only when Social posts are included (interactive Calendar).'
         }
     },
     required: [

@@ -6,7 +6,11 @@ import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { socialPostCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
 
-import { type CalendarReader, idFilterAtCursorTime } from "./read-shared.js";
+import {
+  type CalendarReader,
+  calendarEntrySource,
+  idFilterAtCursorTime,
+} from "./read-shared.js";
 
 export const readSocial: CalendarReader = async ({
   workspaceId,
@@ -125,10 +129,10 @@ export const readSocial: CalendarReader = async ({
             errorKind: post.attempts[0].errorKind,
           }
         : null,
-      sourceId: `project:${post.projectId}`,
-      sourceProjectId: post.projectId,
-      sourceWorkspaceId: post.workspaceId,
-      sourceType: "PROJECT",
+      ...calendarEntrySource({
+        workspaceId: post.workspaceId,
+        projectId: post.projectId,
+      }),
     });
   });
   return { items: socialItems, total: postCount };

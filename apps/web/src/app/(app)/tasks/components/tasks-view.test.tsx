@@ -200,7 +200,6 @@ const CANCELED_TASK: TaskWithCoworker = {
 };
 
 const labels = {
-  tabs: { tasks: "Board", calendar: "Calendar" },
   filters: {
     title: "Filters",
     searchPlaceholder: "Search",
@@ -491,11 +490,8 @@ describe("TasksView without the task-board guide", () => {
           "[data-tasks-empty-state-overlay], [data-tasks-empty-state-overlay-mobile]",
         ),
       ).toBeNull();
-      expect(screen.getByRole("tab", { name: "Board" })).toHaveAttribute(
-        "data-state",
-        "active",
-      );
-      expect(screen.getByRole("tab", { name: "Calendar" })).toBeEnabled();
+      // The Calendar is a page of its own, not a tab here.
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Filters" })).toBeEnabled();
       await user.click(screen.getByRole("button", { name: "createTaskFab" }));
       expect(openCreateTaskMock).toHaveBeenCalledOnce();

@@ -30,4 +30,4 @@ Preconditions:
 
 - Social posts is public. **Ads** (`/ads`) is open to everyone too. The sidebar label is **Social posts**, not “Social Scheduling”.
 - With no project selected, Calendar and Performance span projects. **Drafts**, **Needs attention**, and **Accounts** ask to **Choose a project**. That prompt is the all-projects state, not a missing tab.
-- Creating or publishing a post is out of scope. The workspace [Calendar](./calendar.md) tab is a different grid (`/tasks?tab=calendar`).
+- Creating or publishing a post is out of scope. The workspace [Calendar](./calendar.md) (`/calendar`) is a different grid: Social embeds the same component locked to Social posts.

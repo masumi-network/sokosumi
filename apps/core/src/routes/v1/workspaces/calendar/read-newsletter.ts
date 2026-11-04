@@ -1,12 +1,12 @@
-import { CalendarSourceType, NewsletterIssueStatus } from "@sokosumi/database";
+import { NewsletterIssueStatus } from "@sokosumi/database";
 
-import { getCalendarSourceId } from "@/helpers/calendar-source";
 import prisma from "@/lib/db/prisma";
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { newsletterIssueCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
 
 import {
   type CalendarReader,
+  calendarEntrySource,
   NO_ENTRIES,
   pageInMemory,
 } from "./read-shared.js";
@@ -63,14 +63,10 @@ export const readNewsletter: CalendarReader = async (ctx) => {
               subject: issue.subject,
               status: issue.status,
               projectName: issue.project.name,
-              sourceId: getCalendarSourceId({
-                sourceWorkspaceId: issue.workspaceId,
-                sourceType: CalendarSourceType.PROJECT,
-                sourceProjectId: issue.projectId,
+              ...calendarEntrySource({
+                workspaceId: issue.workspaceId,
+                projectId: issue.projectId,
               }),
-              sourceProjectId: issue.projectId,
-              sourceWorkspaceId: issue.workspaceId,
-              sourceType: CalendarSourceType.PROJECT,
             }),
           ]
         : [];

@@ -248,6 +248,13 @@ export const workspaceCalendarSourceSchema = z
       description:
         "Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.",
     }),
+    latestScheduledNewsletterIssueAt: dateTimeSchema
+      .nullable()
+      .optional()
+      .openapi({
+        description:
+          "Latest SCHEDULED or SENDING Newsletter issue in this Project and requested scope. Present only when Social posts are included (interactive Calendar).",
+      }),
   })
   .openapi("WorkspaceCalendarSource");
 

@@ -1,12 +1,11 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import type { CalendarPageSearchParams } from "@/app/calendar/load-calendar-page";
-import CalendarLoading from "@/app/calendar/loading";
-import { TasksCalendarPanel } from "@/app/tasks/components/tasks-calendar-panel";
+import { calendarUrl } from "@/app/calendar/calendar-url";
 import { TasksPageSkeletonHost } from "@/app/tasks/components/tasks-page-skeleton-host";
 import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
@@ -19,12 +18,12 @@ import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-m
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
+  firstQueryString,
   type ProjectFilterOption,
   parseTasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
-import { parseTasksTab } from "@/app/tasks/utils/tasks-tab";
 import { getSession } from "@/lib/auth/auth.server";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
@@ -52,38 +51,17 @@ interface TasksPageProps {
     status?: string | string[];
     projectId?: string | string[];
     visibility?: string | string[];
+    /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
     tab?: string | string[];
     date?: string;
     view?: string;
     timezone?: string;
-    sourceId?: string;
     socialOnly?: string;
+    types?: string;
+    postStatus?: string;
+    provider?: string;
     assigneeUserId?: string | string[];
   }>;
-}
-
-function calendarSearchParamsFromTasksPage(
-  params: Awaited<TasksPageProps["searchParams"]>,
-): CalendarPageSearchParams {
-  const first = (value: string | string[] | undefined) =>
-    typeof value === "string"
-      ? value
-      : Array.isArray(value)
-        ? value[0]
-        : undefined;
-
-  return {
-    assigneeId: first(params.assigneeId),
-    assigneeUserId: first(params.assigneeUserId),
-    date: params.date,
-    projectId: first(params.projectId),
-    sourceId: params.sourceId,
-    scope: first(params.scope),
-    socialOnly: params.socialOnly,
-    status: first(params.status),
-    view: params.view,
-    timezone: params.timezone,
-  };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -123,6 +101,9 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   await connection();
 
   const resolvedSearchParams = await searchParams;
+  if (firstQueryString(resolvedSearchParams.tab) === "calendar") {
+    redirect(calendarUrl(resolvedSearchParams));
+  }
   const {
     create,
     assignee: assigneeSlugParam,
@@ -136,9 +117,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     status,
     projectId,
     visibility,
-    tab,
   } = resolvedSearchParams;
-  const initialTab = parseTasksTab(tab);
   const [
     t,
     tColumns,
@@ -336,8 +315,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       ? findCoworkerIdBySlug(coworkerOptions, resolvedAssigneeSlug)
       : null;
   const initialProjectId = activeFilters.projectId;
-  const calendarSearchParams =
-    calendarSearchParamsFromTasksPage(resolvedSearchParams);
 
   const parkedTaskCount = parkedTasksPage.pagination?.total ?? 0;
 
@@ -359,7 +336,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       </Suspense>
       <TasksView
         tasks={tasks}
-        initialTab={initialTab}
         listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
         columnHiddenCountById={columnHiddenCountById}
@@ -369,19 +345,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         initialFilters={activeFilters}
-        calendar={
-          initialTab === "calendar" ? (
-            <Suspense fallback={<CalendarLoading />}>
-              <TasksCalendarPanel
-                searchParams={Promise.resolve(calendarSearchParams)}
-              />
-            </Suspense>
-          ) : (
-            // Client tab switch hits router.replace; show shell until RSC
-            // brings TasksCalendarPanel. Avoids loading calendar on board.
-            <CalendarLoading />
-          )
-        }
         defaultViewMode={defaultViewMode}
         defaultDensity={defaultDensity}
         initialCreateTaskOpen={initialCreateTaskOpen && canCreateTask}
@@ -392,10 +355,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         }
         createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialAssigneeId ?? resolvedAssigneeSlug ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
         labels={{
-          tabs: {
-            tasks: t("Tabs.tasks"),
-            calendar: t("Tabs.calendar"),
-          },
           filters: {
             title: t("Filters.title"),
             searchPlaceholder: t("Filters.searchPlaceholder"),

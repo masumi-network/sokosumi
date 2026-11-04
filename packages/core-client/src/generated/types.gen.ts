@@ -12896,6 +12896,10 @@ export type WorkspaceCalendarSource = {
      * Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.
      */
     latestScheduledSocialPostAt?: Date | null;
+    /**
+     * Latest SCHEDULED or SENDING Newsletter issue in this Project and requested scope. Present only when Social posts are included (interactive Calendar).
+     */
+    latestScheduledNewsletterIssueAt?: Date | null;
 };
 
 export type CalendarIdentityLabels = Array<CalendarIdentityLabel>;

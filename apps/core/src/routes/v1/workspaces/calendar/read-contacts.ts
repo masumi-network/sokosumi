@@ -1,6 +1,3 @@
-import { CalendarSourceType } from "@sokosumi/database";
-
-import { getCalendarSourceId } from "@/helpers/calendar-source";
 import {
   toLocalDateKey,
   zonedDateTimeLocalToUtc,
@@ -8,7 +5,11 @@ import {
 import prisma from "@/lib/db/prisma";
 import { contactFollowUpCalendarItemSchema } from "@/schemas/workspace-calendar.schema";
 
-import { type CalendarReader, pageInMemory } from "./read-shared.js";
+import {
+  type CalendarReader,
+  calendarEntrySource,
+  pageInMemory,
+} from "./read-shared.js";
 
 /**
  * Contact follow-ups, all-day, on every day the range touches in the
@@ -57,14 +58,10 @@ export const readContacts: CalendarReader = async (ctx) => {
               nextStep: contact.nextStep,
               date,
               allDay: true,
-              sourceId: getCalendarSourceId({
-                sourceWorkspaceId: contact.workspaceId,
-                sourceType: CalendarSourceType.WORKSPACE,
-                sourceProjectId: null,
+              ...calendarEntrySource({
+                workspaceId: contact.workspaceId,
+                projectId: null,
               }),
-              sourceProjectId: null,
-              sourceWorkspaceId: contact.workspaceId,
-              sourceType: CalendarSourceType.WORKSPACE,
             }),
           ]
         : [];

@@ -1,6 +1,11 @@
 import type { z } from "@hono/zod-openapi";
-import type { Prisma, TaskStatus } from "@sokosumi/database";
+import {
+  CalendarSourceType,
+  type Prisma,
+  type TaskStatus,
+} from "@sokosumi/database";
 
+import { getCalendarSourceId } from "@/helpers/calendar-source";
 import type {
   CalendarType,
   workspaceCalendarEntrySchema,
@@ -64,6 +69,25 @@ export type CalendarReader = (
 ) => Promise<CalendarReaderResult>;
 
 export const NO_ENTRIES: CalendarReaderResult = { items: [], total: 0 };
+
+/** The four source fields every Calendar entry carries. */
+export function calendarEntrySource(args: {
+  workspaceId: string;
+  projectId: string | null;
+}) {
+  const sourceType = args.projectId
+    ? CalendarSourceType.PROJECT
+    : CalendarSourceType.WORKSPACE;
+  const fields = {
+    sourceWorkspaceId: args.workspaceId,
+    sourceType,
+    sourceProjectId: args.projectId,
+  };
+  return {
+    sourceId: getCalendarSourceId(fields),
+    ...fields,
+  };
+}
 
 /**
  * Entries sort by (scheduledAt, id). Run and Run at ids are lowercase UUIDs;

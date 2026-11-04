@@ -51,10 +51,10 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
 - [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (coworker greeting and **Needs you**, or Soko Bot home when the user has a personal bot). **Catch up** is `/chat/catch-up`, not the Welcome page.
 - [Soko Bots](./soko-bots.md) — `/soko-bots` team assistants (top sidebar **Soko Bots**).
-- [Tasks board](./tasks-board.md) — `/tasks` task manager (Board / Calendar tabs; kanban or list).
+- [Tasks board](./tasks-board.md) — `/tasks` task manager (Board; kanban or list). Old `?tab=calendar` redirects to `/calendar`.
 - [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
 - [Contacts](./contacts.md) — `/contacts` team contacts (All / My / Recently added), including the empty state.
-- [Calendar](./calendar.md) — Calendar tab on `/tasks` (`/calendar` redirects); Month / Week / Agenda. Not a sidebar row.
+- [Calendar](./calendar.md) — `/calendar` Work sidebar row after Schedules; Month / Week / Agenda with a Show filter.
 - [Content Studio](./studio.md) — `/studio` image studio (named styles with no `?projectId=`; picker only for a missing project).
 - [Social posts](./social.md) — `/social` post calendar (Marketing group; sidebar label **Social posts**).
 - [Newsletter](./newsletter.md) — `/newsletter` only in the newsletter beta organization. Elsewhere the sidebar row is absent and the URL is a 404.
