@@ -29,6 +29,7 @@ import { listAdminSokoBotsAction } from "@/lib/actions/admin-soko-bots/action";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
+import { AdminDeleteAllCusos } from "./admin-delete-all-cusos.client";
 import { attentionReasons } from "./fleet-health-summary";
 
 interface SokoBotFleetTableProps {
@@ -147,6 +148,12 @@ export function SokoBotFleetTable({
             {t("showDormant", { count: dormantCount })}
           </Label>
         </div>
+        {kind === "cmo" && !search.trim() && list.total > 0 ? (
+          <AdminDeleteAllCusos
+            count={list.total}
+            onDeleted={() => reload("", "cmo")}
+          />
+        ) : null}
       </div>
 
       <div

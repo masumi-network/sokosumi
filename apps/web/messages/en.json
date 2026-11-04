@@ -5822,7 +5822,18 @@
             "assistant": "Soko Bots",
             "cmo": "Cuso"
           },
-          "cmoBadge": "CMO"
+          "cmoBadge": "CMO",
+          "deleteAllCusos": {
+            "button": "Delete all {count, plural, one {# Cuso} other {# Cusos}}",
+            "title": "Delete all {count, plural, one {# Cuso} other {# Cusos}}?",
+            "description": "Every Cuso is deleted, with his memory, chat, schedules and connected accounts. Organizations, Projects and Files stay. Everyone hires a new Cuso on CMO.xyz. This cannot be undone.",
+            "confirmLabel": "Type {count} to confirm",
+            "confirm": "Delete {count, plural, one {# Cuso} other {# Cusos}}",
+            "cancel": "Cancel",
+            "deleted": "{count, plural, one {# Cuso} other {# Cusos}} deleted.",
+            "partly": "{deleted} deleted, {failed} could not be deleted.",
+            "error": "Could not delete the Cusos."
+          }
         },
         "Detail": {
           "backToList": "Back to Soko Bots",
