@@ -241,7 +241,12 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
   });
 
   it("keeps first contact, last contact and the count in step, once per sourceRef", async () => {
+    const before = Date.now();
     const { contact } = await create(asAlice, { name: "Derived Fields" });
+    // No interaction yet: first contact is the moment it was added.
+    expect(
+      new Date(contact.firstContactAt as Date).getTime(),
+    ).toBeGreaterThanOrEqual(before - 1_000);
     const one = await log(asAlice, contact.id, "2026-03-01T10:00:00Z", "msg-1");
     const replay = await log(
       asBob,

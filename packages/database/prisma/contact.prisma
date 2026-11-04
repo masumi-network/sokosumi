@@ -83,7 +83,9 @@ enum ContactActivityKind {
 
 /// A person across channels. `firstContactAt`, `lastContactAt` and
 /// `interactionCount` are derived from `ContactInteraction` and written only by
-/// Core, in the transaction that changes an interaction. A merged contact keeps
+/// Core, in the transaction that changes an interaction; `firstContactAt`
+/// starts as the moment the contact was added and keeps it while there is no
+/// interaction. A merged contact keeps
 /// its row as a tombstone (`mergedIntoId` + `archivedAt`).
 model Contact {
   id                 String       @id @default(uuid(7)) @db.Uuid
@@ -102,7 +104,7 @@ model Contact {
   followUpAt         DateTime?    @db.Date
   avatarUrl          String?
   customFields       Json         @default("{}")
-  firstContactAt     DateTime?
+  firstContactAt     DateTime     @default(now())
   lastContactAt      DateTime?
   interactionCount   Int          @default(0)
   /// Latest interaction from them (IN or BOTH); derived like the above.

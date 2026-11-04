@@ -46,7 +46,7 @@ const ADA: Contact = {
   followUpAt: null,
   avatarUrl: null,
   customFields: {},
-  firstContactAt: null,
+  firstContactAt: new Date("2026-10-01T00:00:00Z"),
   lastContactAt: null,
   interactionCount: 0,
   lastInboundAt: null,
