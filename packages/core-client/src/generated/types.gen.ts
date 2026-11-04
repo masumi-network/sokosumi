@@ -4051,7 +4051,7 @@ export type Contact = {
     customFields: {
         [key: string]: unknown;
     };
-    firstContactAt: Date | null;
+    firstContactAt: Date;
     lastContactAt: Date | null;
     interactionCount: number;
     lastInboundAt: Date | null;
