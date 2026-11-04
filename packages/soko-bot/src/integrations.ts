@@ -150,6 +150,8 @@ export interface SokoBotInboxMessage {
   receivedAt: string;
   unread: boolean;
   labels: string[];
+  /** When the owner answered in this thread after it arrived, from their sent mail. */
+  repliedAt?: string;
 }
 
 export interface SokoBotInboxAttachment {

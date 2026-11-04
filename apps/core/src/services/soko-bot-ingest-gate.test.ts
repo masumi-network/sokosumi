@@ -44,6 +44,8 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: activeIntegrationsMock,
   fetchInboxMessages: fetchInboxMock,
+  withOwnerReplies: async (_integration: unknown, messages: unknown) =>
+    messages,
   fetchCalendarEvents: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("@/services/soko-bot-integration-leaver.service", () => ({

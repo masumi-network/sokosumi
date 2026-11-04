@@ -40,6 +40,8 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: integrationsMock,
   fetchCalendarEvents: calendarMock,
   fetchInboxMessages: inboxMock,
+  withOwnerReplies: async (_integration: unknown, messages: unknown) =>
+    messages,
 }));
 vi.mock("@/services/contacts-context.service", () => ({
   contactLinesByEmail: contactLinesMock,

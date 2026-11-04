@@ -752,6 +752,50 @@ export async function fetchInboxMessages(
   return (await fetchInboxPage(integration, options)).messages;
 }
 
+/** Sent mail looked at to see what the owner already answered. */
+const SENT_MAIL_LIMIT = 50;
+
+/**
+ * Incoming mail as of now: each one the owner answered in its thread
+ * afterwards carries `repliedAt`, and the owner's own sent mail (Gmail lists
+ * it with the rest) is left out. Unreadable sent mail leaves the mail as is.
+ */
+export async function withOwnerReplies(
+  integration: ActiveIntegration,
+  messages: SokoBotInboxMessage[],
+  since: Date,
+): Promise<SokoBotInboxMessage[]> {
+  if (messages.length === 0) return messages;
+  const sent = await fetchInboxPage(integration, {
+    since,
+    limit: SENT_MAIL_LIMIT,
+    ...(integration.provider.id === "gmail"
+      ? { query: "in:sent" }
+      : { folder: "sentitems" as const }),
+  })
+    .then((page) => page.messages)
+    .catch(() => []);
+  const sentIds = new Set(sent.map((message) => message.id));
+  const lastReply = new Map<string, string>();
+  for (const message of sent) {
+    if (!message.threadId) continue;
+    if (message.receivedAt > (lastReply.get(message.threadId) ?? ""))
+      lastReply.set(message.threadId, message.receivedAt);
+  }
+  return messages
+    .filter(
+      (message) => !sentIds.has(message.id) && !message.labels.includes("SENT"),
+    )
+    .map((message) => {
+      const reply = message.threadId
+        ? lastReply.get(message.threadId)
+        : undefined;
+      return reply && reply > message.receivedAt
+        ? { ...message, repliedAt: reply }
+        : message;
+    });
+}
+
 /**
  * One page of mail, newest first. Gmail hands back a page token; Outlook
  * pages by offset, so its token is the next `skip`. `raw` is the provider's
