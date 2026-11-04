@@ -4,6 +4,7 @@ import {
   archiveBot,
   cancelSocialPost,
   chatRoomDelete,
+  chatRoomUpdate,
   createBot,
   createOrganizationWorkspace,
   creditBucketFindFirst,
@@ -14,10 +15,12 @@ import {
   getUserWorkspace,
   grantFreeCredits,
   organizationFindFirst,
+  organizationUpdate,
   postFindMany,
   projectCreate,
   projectDelete,
   resetCmoServiceMocks,
+  sokoBotFindUnique,
   startTurn,
   turnFindFirst,
 } from "@/test-fixtures/cmo-service";
@@ -204,6 +207,21 @@ describe("starting over", () => {
     );
   });
 
+  it("names the archived Cuso's room after his website", async () => {
+    cusoFind.mockResolvedValue({
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      businessName: "acme.io",
+    });
+    sokoBotFindUnique.mockResolvedValue({ sharedRoomId: "room-1" });
+    postFindMany.mockResolvedValue([]);
+    await startCmoOver("user-1");
+    expect(chatRoomUpdate).toHaveBeenCalledWith({
+      where: { id: "room-1" },
+      data: { name: "Cuso · acme.io" },
+    });
+  });
+
   it("leaves posts alone when the person may not archive him", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     archiveBot.mockRejectedValueOnce(new Error("Only an organization owner"));
@@ -378,6 +396,42 @@ describe("startCmoOnboarding", () => {
     );
     expect(getUserWorkspace).toHaveBeenCalledWith("user-1", {
       organizationId: "org-0",
+    });
+    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
+    expect(projectCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workspaceId: "ws-0" }),
+      }),
+    );
+  });
+
+  it("stays in the organization of a Cuso let go while hiring", async () => {
+    // No empty organization by this name; one whose Cuso was let go before
+    // any plan was approved.
+    organizationFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: "org-0",
+      metadata: '{"url":"https://old.io"}',
+    });
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-0",
+      kind: "organization",
+      name: "old.io",
+      organizationId: "org-0",
+    });
+
+    await startCmoOnboarding(input);
+
+    expect(
+      organizationFindFirst.mock.calls[1]?.[0].where.workspace.is.projects,
+    ).toMatchObject({
+      some: { sokoBots: { some: { archivedAt: { not: null } } } },
+    });
+    expect(organizationUpdate).toHaveBeenCalledWith({
+      where: { id: "org-0" },
+      data: {
+        name: "acme.io",
+        metadata: JSON.stringify({ url: "https://www.acme.io/" }),
+      },
     });
     expect(createOrganizationWorkspace).not.toHaveBeenCalled();
     expect(projectCreate).toHaveBeenCalledWith(
