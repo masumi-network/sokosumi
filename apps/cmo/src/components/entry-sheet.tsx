@@ -155,6 +155,9 @@ export function EntrySheet({
           })}
           {entry.time ? ` at ${entry.time}` : ""}
         </p>
+        {entry.pillar ? (
+          <span className="cal-pillar">{entry.pillar}</span>
+        ) : null}
         <h3 className="sheet-title">{entry.title}</h3>
         {media?.kind === "video" ? (
           <video

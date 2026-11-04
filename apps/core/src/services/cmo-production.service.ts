@@ -17,6 +17,12 @@ import {
   listCusosWithApprovedStrategy,
 } from "@/services/cmo-cuso.service";
 import {
+  advanceCmoPillars,
+  type CmoPillarShare,
+  cmoPillarShares,
+  parseCmoPillarCheck,
+} from "@/services/cmo-pillars.service";
+import {
   approvedMarketingStrategy,
   entryMedia,
   isMarketingFilePiece,
@@ -161,6 +167,11 @@ export interface CmoProductionStatus {
   ready: number;
   total: number;
   finishedAt: string | null;
+  /**
+   * Once the made month was read: each pillar's planned share beside the
+   * share its pieces really have, and whether Cuso is rewriting pieces.
+   */
+  pillars: { shares: CmoPillarShare[]; rewriting: boolean } | null;
 }
 
 async function connectedChannels(projectId: string): Promise<Set<string>> {
@@ -312,6 +323,7 @@ async function startProductionRun(
   cuso: Cuso,
   message: string,
   clientTurnId: string,
+  title = `Make ${cuso.businessName}'s month`,
 ): Promise<string> {
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: cuso.sokoBotId },
@@ -344,7 +356,7 @@ async function startProductionRun(
     },
     background: {
       parentTurnId: parent,
-      title: `Make ${cuso.businessName}'s month`,
+      title,
       destinationRoomId: bot.sharedRoomId,
     },
   });
@@ -413,6 +425,8 @@ function readyAtStart(run: ProductionRun): number | null {
 
 interface ProductionRead {
   status: CmoProductionStatus;
+  /** The approved version being made. */
+  version: { id: string; pillarCheck: unknown } | null;
   strategy: MarketingStrategyPlan | null;
   /** When the version being made was approved: one run id per approval. */
   approvedAt: Date | null;
@@ -435,7 +449,14 @@ export async function readCmoProduction(
   const approvedAt = approved?.approvedAt ?? null;
   if (!approved || !plan || !approvedAt)
     return {
-      status: { state: "waiting", ready: 0, total: 0, finishedAt: null },
+      status: {
+        state: "waiting",
+        ready: 0,
+        total: 0,
+        finishedAt: null,
+        pillars: null,
+      },
+      version: null,
       strategy: plan,
       approvedAt,
       pending: [],
@@ -453,6 +474,20 @@ export async function readCmoProduction(
   const pieces = cmoProductionPieces(posts, now, strategy.calendar);
   const ready = cmoReadyPieceIds(pieces, connected);
   const pending = pieces.filter((piece) => !ready.has(piece.id));
+  const check = parseCmoPillarCheck(approved.pillarCheck);
+  const pillarsOf = (runs: ProductionRun[]) =>
+    check
+      ? {
+          shares: cmoPillarShares(strategy.pillars, check),
+          rewriting:
+            check.round === 1 &&
+            runs.some(
+              (run) =>
+                run.clientTurnId === check.rewriteRunId &&
+                RUN_ACTIVE.has(run.status),
+            ),
+        }
+      : null;
   const read = (
     state: CmoProductionStatus["state"],
     runs: ProductionRun[] = [],
@@ -468,7 +503,9 @@ export async function readCmoProduction(
               .find((run) => run.status === "COMPLETED")
               ?.completedAt?.toISOString() ?? null)
           : null,
+      pillars: pillarsOf(runs),
     },
+    version: approved,
     strategy,
     approvedAt,
     pending,
@@ -512,6 +549,7 @@ export async function advanceCmoProduction(
   const connected = await connectedChannels(cuso.projectId);
   const {
     status: current,
+    version,
     strategy,
     approvedAt,
     pending,
@@ -522,8 +560,29 @@ export async function advanceCmoProduction(
     subscribed: await isCmoSubscribed(cuso),
     now,
   });
-  if (!strategy || !approvedAt || current.state !== "running" || working)
+  if (!strategy || !approvedAt || working) return current;
+  // A made month is read for its pillars, and rewritten once when off.
+  if (current.state === "ready" && version) {
+    await advanceCmoPillars({
+      sokoBotId: cuso.sokoBotId,
+      businessName: cuso.businessName,
+      version,
+      strategy,
+      runs,
+      runIdPrefix: approvalRunPrefix(cuso.sokoBotId, approvedAt),
+      ready: current.ready,
+      now,
+      startRewrite: (message, clientTurnId) =>
+        startProductionRun(
+          cuso,
+          message,
+          clientTurnId,
+          `Rewrite pieces off their pillar for ${cuso.businessName}`,
+        ),
+    });
     return current;
+  }
+  if (current.state !== "running") return current;
   const attempt = runs.length + 1;
   await startProductionRun(
     cuso,

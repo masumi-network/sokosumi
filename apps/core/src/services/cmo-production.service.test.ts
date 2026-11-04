@@ -19,7 +19,9 @@ const {
   approvedStrategy,
   listPosts,
   listFiles,
+  advanceCmoPillars,
 } = vi.hoisted(() => ({
+  advanceCmoPillars: vi.fn(),
   approvedStrategy: vi.fn(),
   listPosts: vi.fn(),
   listFiles: vi.fn(),
@@ -63,6 +65,10 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+vi.mock("@/services/cmo-pillars.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-pillars.service")>()),
+  advanceCmoPillars,
+}));
 
 import {
   advanceCmoProduction,
@@ -486,8 +492,70 @@ describe("advanceCmoProduction", () => {
       ready: 1,
       total: 1,
       finishedAt: finished.toISOString(),
+      pillars: null,
     });
     expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("reads a made month for its pillars and rewrites under its own title", async () => {
+    await advanceCmoProduction(
+      cuso(
+        [post({ draft: "Done." })],
+        [
+          {
+            clientTurnId: `${RUN}:1:0`,
+            status: "COMPLETED",
+            createdAt: hoursAgo(2),
+          },
+        ],
+      ),
+      NOW,
+    );
+    const [input] = advanceCmoPillars.mock.calls[0] ?? [];
+    expect(input).toMatchObject({
+      version: { id: "strategy-1" },
+      runIdPrefix: `${RUN}:`,
+      ready: 1,
+      strategy: { pillars: [{ name: "Recipes", share: 100 }] },
+    });
+    await input.startRewrite("Rewrite these", `${RUN}:pillars:1`);
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientTurnId: `${RUN}:pillars:1`,
+        message: "Rewrite these",
+        background: expect.objectContaining({
+          title: "Rewrite pieces off their pillar for Acme",
+        }),
+      }),
+    );
+  });
+
+  it("shows the pillars Jev read beside the plan's", async () => {
+    const owner = cuso(
+      [post({ draft: "Done." })],
+      [
+        {
+          clientTurnId: `${RUN}:pillars:1`,
+          status: "RUNNING",
+          createdAt: hoursAgo(1),
+        },
+      ],
+    );
+    approvedStrategy.mockResolvedValue({
+      ...(await approvedStrategy()),
+      pillarCheck: {
+        round: 1,
+        checkedAt: hoursAgo(1).toISOString(),
+        pieces: { e1: "Recipes" },
+        rewriteRunId: `${RUN}:pillars:1`,
+      },
+    });
+    const result = await advanceCmoProduction(owner, NOW);
+    expect(result.pillars).toEqual({
+      shares: [{ name: "Recipes", planned: 100, made: 100, pieces: 1 }],
+      rewriting: true,
+    });
+    expect(advanceCmoPillars).not.toHaveBeenCalled();
   });
 
   it("makes what the daily watch adds after the month is made", async () => {

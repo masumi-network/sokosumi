@@ -26941,9 +26941,28 @@ export const MarketingStrategySchema = {
                         pillars: {
                             type: 'array',
                             items: {
-                                type: 'string',
-                                minLength: 1,
-                                maxLength: 400
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    share: {
+                                        type: 'integer',
+                                        minimum: 5,
+                                        maximum: 100
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name',
+                                    'share'
+                                ]
                             },
                             maxItems: 6
                         },
@@ -28280,9 +28299,28 @@ export const MarketingStrategyRequestSchema = {
                 pillars: {
                     type: 'array',
                     items: {
-                        type: 'string',
-                        minLength: 1,
-                        maxLength: 400
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            share: {
+                                type: 'integer',
+                                minimum: 5,
+                                maximum: 100
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name',
+                            'share'
+                        ]
                     },
                     maxItems: 6
                 },
@@ -41184,9 +41222,28 @@ export const CmoPlanSchema = {
         pillars: {
             type: 'array',
             items: {
-                type: 'string',
-                minLength: 1,
-                maxLength: 400
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    share: {
+                        type: 'integer',
+                        minimum: 5,
+                        maximum: 100
+                    },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    }
+                },
+                required: [
+                    'name',
+                    'share'
+                ]
             },
             maxItems: 6
         },
@@ -42686,13 +42743,60 @@ export const CmoProductionSchema = {
                     type: 'null'
                 }
             ]
+        },
+        pillars: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        shares: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string'
+                                    },
+                                    planned: {
+                                        type: 'integer'
+                                    },
+                                    made: {
+                                        type: 'integer'
+                                    },
+                                    pieces: {
+                                        type: 'integer'
+                                    }
+                                },
+                                required: [
+                                    'name',
+                                    'planned',
+                                    'made',
+                                    'pieces'
+                                ]
+                            }
+                        },
+                        rewriting: {
+                            type: 'boolean'
+                        }
+                    },
+                    required: [
+                        'shares',
+                        'rewriting'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Once the made month was read: each pillar\'s planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.'
         }
     },
     required: [
         'state',
         'ready',
         'total',
-        'finishedAt'
+        'finishedAt',
+        'pillars'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;

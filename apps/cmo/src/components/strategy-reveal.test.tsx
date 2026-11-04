@@ -41,7 +41,7 @@ const strategy: Strategy = {
   month: "2026-11",
   summary: "Turn founders into trial sign-ups with weekly proof.",
   goals: ["35 trials by 23 Nov"],
-  pillars: ["Setup proof"],
+  pillars: [{ name: "Setup proof", share: 100 }],
   channels: [
     { channel: "linkedin", cadence: "2 a week", why: "Where founders read" },
     { channel: "x", cadence: "1 a week" },
@@ -169,6 +169,51 @@ describe("strategy reveal", () => {
     expect(html).toContain(
       "4 pieces, 1 with images by Cuso. Written in German.",
     );
+  });
+
+  it("shows each pillar's share, and once the month is made, the share Cuso's pieces have", () => {
+    const pillars = [
+      { name: "Setup proof", share: 60, why: "Shows setup takes minutes" },
+      { name: "Founder stories", share: 40 },
+    ];
+    const planned = renderToStaticMarkup(
+      <StrategyReveal
+        overview={overview({
+          pillars,
+          calendar: calendar.map((piece) => ({
+            ...piece,
+            pillar: "Setup proof",
+          })),
+        })}
+        calendar={null}
+      />,
+    );
+    expect(planned).toContain("What the posts are about");
+    expect(planned).toContain("Shows setup takes minutes");
+    expect(planned).toContain("4 pieces planned");
+    expect(planned).not.toContain("% made");
+
+    const made = {
+      ...overview({ pillars }),
+      production: {
+        state: "ready" as const,
+        ready: 4,
+        total: 4,
+        finishedAt: null,
+        pillars: {
+          shares: [
+            { name: "Setup proof", planned: 60, made: 75, pieces: 3 },
+            { name: "Founder stories", planned: 40, made: 25, pieces: 1 },
+          ],
+          rewriting: true,
+        },
+      },
+    };
+    const html = renderToStaticMarkup(
+      <StrategyReveal overview={made} calendar={null} />,
+    );
+    expect(html).toContain("75% made · 60% planned");
+    expect(html).toContain("Cuso is rewriting them now.");
   });
 
   it("opens on the goal, then the month, the barrier and the mix", () => {

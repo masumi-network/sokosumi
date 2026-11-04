@@ -40,6 +40,24 @@ export const cmoProductionSchema = z
     ready: z.number().int(),
     total: z.number().int(),
     finishedAt: z.union([z.string(), z.null()]),
+    pillars: z
+      .union([
+        z.object({
+          shares: z.array(
+            z.object({
+              name: z.string(),
+              planned: z.number().int(),
+              made: z.number().int(),
+              pieces: z.number().int(),
+            }),
+          ),
+          rewriting: z.boolean(),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.",
+      ),
   })
   .openapi("CmoProduction");
 

@@ -34,7 +34,7 @@ const strategy: Strategy = {
   summary: "Show the rockets working.",
   why: "Founders read LinkedIn.",
   goals: ["More demo requests"],
-  pillars: ["Launch stories"],
+  pillars: [{ name: "Launch stories", share: 100 }],
   channels: [
     { channel: "linkedin", cadence: "2 a week", why: "Where founders are" },
     { channel: "x", cadence: "1 a week" },
@@ -115,7 +115,13 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     connectChannelUrl: "http://web/social?projectId=project-1",
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
-    production: { state: "waiting", ready: 0, total: 0, finishedAt: null },
+    production: {
+      state: "waiting",
+      ready: 0,
+      total: 0,
+      finishedAt: null,
+      pillars: null,
+    },
     measurement: [
       {
         provider: "google_analytics",

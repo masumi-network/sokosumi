@@ -120,6 +120,19 @@ describe("CMO strategy and rhythms", () => {
     expect(strategy.previews).toEqual([]);
   });
 
+  it("gives the pillars of an older plan equal shares", () => {
+    const pillars = (value: unknown) =>
+      marketingStrategyPlanSchema.shape.pillars.parse(value);
+    expect(pillars(["Recipes", "Delivery", "Prices"])).toEqual([
+      { name: "Recipes", share: 33 },
+      { name: "Delivery", share: 33 },
+      { name: "Prices", share: 33 },
+    ]);
+    expect(pillars([{ name: "Recipes", share: 70, why: "Why" }])).toEqual([
+      { name: "Recipes", share: 70, why: "Why" },
+    ]);
+  });
+
   it("saves only what Cuso runs, mapping older names first", () => {
     const plan = (channel: string, format: string) => ({
       strategy: {

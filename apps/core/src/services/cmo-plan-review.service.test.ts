@@ -15,6 +15,7 @@ import {
   cmoPlanProblems,
   cmoReplySafety,
   mixProblems,
+  pillarProblems,
 } from "./cmo-plan-review.service";
 
 const entry = (id: string, channel: string, format: string) => ({
@@ -33,7 +34,11 @@ const plan = (
     month: "2026-11",
     summary: "Show teams how custom AI CoWorkers fit their work.",
     goals: ["More intro calls"],
-    pillars: ["Recurring work"],
+    pillars: [
+      { name: "Recurring work", share: 40 },
+      { name: "Pilot results", share: 30 },
+      { name: "Setup", share: 30 },
+    ],
     channels: [],
     calendar: [],
     mix: [{ approach: "educational", share: 100, why: "Teach" }],
@@ -303,6 +308,62 @@ describe("mixProblems", () => {
     expect(mixProblems(mix, calendar)[0]).toContain(
       "1 calendar entries have no approach",
     );
+  });
+});
+
+describe("pillarProblems", () => {
+  const pillars = [
+    { name: "Lead routing", share: 50 },
+    { name: "Setup in minutes", share: 50 },
+  ];
+  const pieces = (routing: number, setup: number) =>
+    [
+      ...Array.from({ length: routing }, () => "Lead routing"),
+      ...Array.from({ length: setup }, () => "setup in minutes "),
+    ].map((pillar, index) => ({
+      id: `e${index}`,
+      date: "2026-11-02",
+      channel: "linkedin",
+      format: "text",
+      title: `Piece ${index}`,
+      status: "idea" as const,
+      pillar,
+    }));
+
+  it("accepts a calendar that holds the pillars, however an entry spells one", () => {
+    expect(pillarProblems(pillars, pieces(10, 10))).toEqual([]);
+  });
+
+  it("names the pillar that is off and the count to aim for", () => {
+    expect(pillarProblems(pillars, pieces(15, 5))).toEqual([
+      'the pillar "Lead routing" is 50% of the plan but 15 of 20 pieces (75%); make it about 10.',
+      'the pillar "Setup in minutes" is 50% of the plan but 5 of 20 pieces (25%); make it about 10.',
+    ]);
+  });
+
+  it("asks every entry to name one of the plan's pillars", () => {
+    const calendar = pieces(10, 10);
+    calendar[0] = { ...calendar[0]!, pillar: "Pricing" };
+    expect(pillarProblems(pillars, calendar)).toEqual([
+      "1 calendar entries name no pillar of the plan; give every entry one of: Lead routing, Setup in minutes.",
+    ]);
+  });
+
+  it("asks for three to five pillars whose shares add up to 100", () => {
+    expect(
+      cmoPlanProblems(plan({ pillars: [{ name: "Setup", share: 100 }] })),
+    ).toContain("pillars has 1; give three to five, each with its share.");
+    expect(
+      cmoPlanProblems(
+        plan({
+          pillars: [
+            { name: "A", share: 40 },
+            { name: "B", share: 40 },
+            { name: "C", share: 40 },
+          ],
+        }),
+      ),
+    ).toContain("the pillar shares add up to 120; make them add up to 100.");
   });
 });
 

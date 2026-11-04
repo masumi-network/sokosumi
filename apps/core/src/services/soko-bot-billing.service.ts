@@ -4,6 +4,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 
 const SOKO_BOT_TURN_COST_HISTORY_SIZE = 3;
 const SOKO_BOT_BILLING_SHORTFALL_ERROR_KIND = "insufficient_credits";
@@ -280,15 +281,64 @@ export async function recordSokoBotTurnUsage(
   },
   tx: Prisma.TransactionClient,
 ): Promise<SokoBotUsageChargeResult> {
-  const expectedCents = sokoBotUsageCents(
-    input.costUsdMicros ?? 0n,
-    input.ranModel,
+  return chargeSokoBotUsage(
+    {
+      sokoBotId: input.sokoBotId,
+      userId: input.userId,
+      idempotencyKey: sokoBotTurnUsageIdempotencyKey(input.turnId),
+      referenceId: input.turnId,
+      expectedCents: sokoBotUsageCents(
+        input.costUsdMicros ?? 0n,
+        input.ranModel,
+      ),
+    },
+    tx,
   );
-  if (expectedCents === 0n) {
+}
+
+/**
+ * A model call Core makes for a bot outside any turn, such as Jev reading
+ * Cuso's month: metered like a turn, without the turn minimum, and charged
+ * once per `key`. The bot's payer pays, as for a turn nobody asked for.
+ */
+export async function recordSokoBotCheckUsage(input: {
+  sokoBotId: string;
+  key: string;
+  costUsd: number;
+}): Promise<SokoBotUsageChargeResult> {
+  const expectedCents = convertCreditsToCents(
+    input.costUsd * getEnv().SOKO_BOT_CREDITS_PER_USD,
+  );
+  return serializableTransaction(async (tx) => {
+    const payer = await sokoBotPayer(input.sokoBotId, tx);
+    return chargeSokoBotUsage(
+      {
+        sokoBotId: input.sokoBotId,
+        userId: payer?.userId ?? null,
+        idempotencyKey: input.key,
+        referenceId: null,
+        expectedCents,
+      },
+      tx,
+    );
+  }, "Credits changed while charging this check; try again.");
+}
+
+async function chargeSokoBotUsage(
+  input: {
+    sokoBotId: string;
+    userId: string | null;
+    idempotencyKey: string;
+    referenceId: string | null;
+    expectedCents: bigint;
+  },
+  tx: Prisma.TransactionClient,
+): Promise<SokoBotUsageChargeResult> {
+  const { expectedCents, idempotencyKey } = input;
+  if (expectedCents <= 0n) {
     return { chargedCents: 0n, expectedCents, shortfall: false };
   }
 
-  const idempotencyKey = sokoBotTurnUsageIdempotencyKey(input.turnId);
   const existing = await tx.sokoBotUsage.findUnique({
     where: {
       sokoBotId_idempotencyKey: {
@@ -338,7 +388,7 @@ export async function recordSokoBotTurnUsage(
       userId: input.userId,
       organizationId,
       idempotencyKey,
-      referenceId: input.turnId,
+      referenceId: input.referenceId,
       cents: chargedCents,
       transactionId: transaction.id,
     },
