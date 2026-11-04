@@ -574,11 +574,24 @@ async function keepCmoRhythmsWithRunner(cuso: Cuso): Promise<void> {
   });
 }
 
+const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+
+/**
+ * Each 10-minute cycle starts one Cuso further along, so a cycle that runs
+ * out of time leaves out different Cusos each time, never the same newest ones.
+ */
+export function cmoSyncOrder<T>(hires: T[], now: Date): T[] {
+  if (hires.length === 0) return hires;
+  const start = Math.floor(now.getTime() / SYNC_INTERVAL_MS) % hires.length;
+  return [...hires.slice(start), ...hires.slice(0, start)];
+}
+
 /** The cron: every Cuso with an approved plan, so new and missing pieces get made. */
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
+  now: Date = new Date(),
 ): Promise<{ checked: number }> {
-  const hires = await listCusosWithApprovedStrategy();
+  const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   let checked = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;

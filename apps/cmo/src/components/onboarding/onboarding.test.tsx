@@ -106,6 +106,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrain: brain,
     brandBrainUpdatedAt: new Date("2026-10-05T09:01:00Z"),
     strategy,
+    approvedStrategy: null,
     media: [],
     ...cmoStrategyVersion(null, new Date("2026-10-05T09:02:00Z")),
     updates: [],
@@ -186,6 +187,29 @@ describe("onboarding steps", () => {
     expect(onboardingStep(overview({ work: running("strategy") }))).toBe(
       "strategy",
     );
+    // A "no" on the plan's checks stays on Check until the plan is fitted,
+    // and the fitting keeps the plan on screen.
+    const question = (answer: "yes" | "no") => ({
+      id: `q-${answer}`,
+      question: "Is it right?",
+      statement: "It is right.",
+      answer,
+    });
+    const answered = {
+      ...firstPlan,
+      questions: [question("yes"), question("no")],
+    };
+    expect(onboardingStep(overview({ strategy: answered }))).toBe("check");
+    expect(
+      onboardingStep(
+        overview({ strategy: answered, work: running("strategy") }),
+      ),
+    ).toBe("check");
+    expect(
+      onboardingStep(
+        overview({ strategy: { ...answered, changes: ["Fitted"] } }),
+      ),
+    ).toBe("strategy");
     expect(onboardingStep(overview())).toBe("strategy");
     expect(
       onboardingStep(
@@ -289,6 +313,17 @@ describe("accounts", () => {
           ...strategy.channels,
           { channel: "meta_ads", cadence: "2 a month" },
         ],
+        calendar: [
+          ...strategy.calendar,
+          {
+            id: "meta-1",
+            date: "2026-10-09",
+            channel: "meta_ads",
+            format: "image",
+            title: "Try it free",
+            status: "idea" as const,
+          },
+        ],
         proposals: [
           { channel: "google_ads", why: "Search", what: "Ads", perMonth: 4 },
           { channel: "instagram", why: "Feed", what: "Posts", perMonth: 4 },
@@ -333,6 +368,24 @@ describe("accounts", () => {
       "google_ads",
       "instagram",
     ]);
+  });
+
+  it("leaves out a channel the plan names but gives no pieces", () => {
+    const none = plan();
+    const strategyWithout = none.strategy;
+    if (!strategyWithout) throw new Error("plan has a strategy");
+    const withoutNewsletter = {
+      ...none,
+      strategy: {
+        ...strategyWithout,
+        calendar: strategyWithout.calendar.filter(
+          (entry) => entry.channel !== "newsletter",
+        ),
+      },
+    };
+    expect(
+      optionalChannels(withoutNewsletter).map((channel) => channel.key),
+    ).not.toContain("newsletter");
   });
 
   it("continues once one of the plan's networks is connected", () => {

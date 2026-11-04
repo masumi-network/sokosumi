@@ -50,7 +50,8 @@ export function CalendarPage({
   /** What the owner can do with a piece beyond reading it (launch an ad). */
   pieceExtra?: (entry: Entry) => ReactNode;
 }) {
-  const strategy = overview.strategy;
+  // The month being made; a change waiting for approval does not empty it.
+  const strategy = overview.approvedStrategy ?? overview.strategy;
   const [channel, setChannel] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const live = useMemo(
@@ -82,7 +83,10 @@ export function CalendarPage({
     );
   }
 
-  const made = live.filter((entry) => entry.status !== "idea").length;
+  const written = live.filter((entry) => entry.status !== "idea").length;
+  const scheduled = live.filter(
+    (entry) => entry.status === "scheduled" || entry.status === "published",
+  ).length;
   const mediaFor = (entry: Entry) =>
     overview.media.find((item) => item.entryId === entry.id);
   const index = shown.findIndex((entry) => entry.id === openId);
@@ -92,7 +96,8 @@ export function CalendarPage({
     <div className="cal">
       <div className="cal-head">
         <p className="note num">
-          {live.length} pieces this month · {made} made
+          {live.length} pieces this month · {written} written · {scheduled}{" "}
+          scheduled
         </p>
         <div className="cal-filters" role="group" aria-label="Network">
           <button
