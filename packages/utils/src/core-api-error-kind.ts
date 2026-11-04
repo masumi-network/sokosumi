@@ -41,7 +41,6 @@ export const CORE_API_ERROR_KINDS = {
   FREE_CREDIT_INVALID: "free_credit_invalid",
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
-  PROJECT_HAS_CALENDAR_HISTORY: "project_has_calendar_history",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
   SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
   SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",

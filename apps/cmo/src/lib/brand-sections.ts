@@ -11,6 +11,29 @@ export type BrandProfile = { [Key in keyof RawProfile]?: BrandSection };
 export type BrandSectionKey = keyof BrandProfile;
 export type BrandFinding = BrandSection["findings"][number];
 
+type CompanyLink = BrandBrain["competitors"][number];
+
+/**
+ * The homepage of a company named on the market map. Cuso may name it shorter
+ * or longer there ("Fathom" for "Fathom Analytics", "Google Analytics 4"), and
+ * it may be one of the alternatives rather than a competitor.
+ */
+export function companyUrl(
+  name: string,
+  companies: CompanyLink[],
+): string | undefined {
+  const wanted = name.trim().toLowerCase();
+  const sameOrLonger = (a: string, b: string) =>
+    a === b || a.startsWith(`${b} `);
+  const linked = companies.filter((company) => company.url);
+  const exact = linked.find((company) => company.name.toLowerCase() === wanted);
+  const close = linked.find((company) => {
+    const known = company.name.trim().toLowerCase();
+    return sameOrLonger(known, wanted) || sameOrLonger(wanted, known);
+  });
+  return (exact ?? close)?.url;
+}
+
 export function brandProfile(brain: BrandBrain): BrandProfile {
   return (brain.profile as BrandProfile | undefined) ?? {};
 }

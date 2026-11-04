@@ -43,6 +43,7 @@ function mapOverview(overview: CmoOverview) {
     brandBrainConfirmedAt: cuso.brandBrainConfirmedAt,
     brandMedia: overview.brandMedia,
     strategy: overview.strategy,
+    approvedStrategy: overview.approvedStrategy,
     media: overview.media,
     strategyVersion: overview.strategyVersions[0] ?? null,
     strategyVersions: overview.strategyVersions,

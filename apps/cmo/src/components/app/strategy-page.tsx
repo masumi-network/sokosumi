@@ -43,14 +43,16 @@ export function StrategyVersions({
             </span>
             {version.approvedAt ? (
               <span className="tag ok">Approved</span>
-            ) : index > 0 && overview.viewerCanApprove && onApprove ? (
+            ) : overview.viewerCanApprove && onApprove ? (
               <button
                 type="button"
                 className="button button-secondary button-small"
                 disabled={pending}
                 onClick={() => startTransition(() => onApprove(version.id))}
               >
-                Go back to this version
+                {index === 0
+                  ? "Approve this version"
+                  : "Go back to this version"}
               </button>
             ) : (
               <span className="tag">Draft</span>

@@ -31,6 +31,9 @@ export const cmoMeasurementSchema = z
   })
   .openapi("CmoMeasurement");
 
+/** A plan, named once: the overview carries the newest and the approved one. */
+const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
+
 export const cmoProductionSchema = z
   .object({
     state: z.enum(["waiting", "running", "ready", "stuck"]),
@@ -221,7 +224,12 @@ export const cmoOverviewSchema = z
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
-    strategy: z.union([marketingStrategyPlanSchema, z.null()]),
+    strategy: z.union([cmoPlanSchema, z.null()]),
+    approvedStrategy: z
+      .union([cmoPlanSchema, z.null()])
+      .describe(
+        "The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.",
+      ),
     media: z
       .array(
         z.object({
