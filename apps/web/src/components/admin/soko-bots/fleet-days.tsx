@@ -48,7 +48,7 @@ function DayChart({ days, value, label, ariaLabel }: DayChartProps) {
                 width={Math.max(slot - GAP, 1)}
                 height={height}
                 rx={1.5}
-                className="fill-foreground/80 group-hover:fill-foreground"
+                className="fill-muted-foreground group-hover:fill-foreground"
               />
             ) : null}
           </g>
