@@ -377,6 +377,14 @@ export function CmoApp({
             </span>
           ) : null}
           <span className="sp" />
+          {view === "strategy" &&
+          overview.strategy &&
+          !strategyApproved(overview) &&
+          overview.viewerCanApprove ? (
+            <ApproveDraft
+              approve={async () => setOverview(await actions.approveStrategy())}
+            />
+          ) : null}
           {view === "strategy" || view === "brain" ? (
             <button
               type="button"
@@ -698,6 +706,35 @@ function ThreadEntry({
     }
   })();
   return card ? <CusoSays at={item.at}>{card}</CusoSays> : null;
+}
+
+/**
+ * Approves the newest version from the Strategy page; Cuso makes the month
+ * from it. A refused approval says so instead of leaving the page.
+ */
+function ApproveDraft({ approve }: { approve: () => Promise<void> }) {
+  const [pending, startApproving] = useTransition();
+  const [failed, setFailed] = useState(false);
+  return (
+    <button
+      type="button"
+      className="button button-small"
+      disabled={pending}
+      title={failed ? "That didn't go through. Try again." : undefined}
+      onClick={() =>
+        startApproving(async () => {
+          setFailed(false);
+          try {
+            await approve();
+          } catch {
+            setFailed(true);
+          }
+        })
+      }
+    >
+      {pending ? "Approving…" : failed ? "Try again" : "Approve"}
+    </button>
+  );
 }
 
 /**
