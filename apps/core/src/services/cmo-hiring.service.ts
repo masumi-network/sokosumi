@@ -13,6 +13,7 @@ import {
   brandBrainSectionsSaved,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
+import { grantCmoStarterCredits } from "@/services/cmo-billing.service";
 import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
@@ -427,6 +428,12 @@ export async function startCmoOnboarding(input: {
         name: businessName,
         websiteUrl: input.websiteUrl,
       });
+  if (workspace.organizationId) {
+    await grantCmoStarterCredits({
+      userId: input.userId,
+      organizationId: workspace.organizationId,
+    });
+  }
   if (
     !(await canFundFirstTurn({
       userId: input.userId,

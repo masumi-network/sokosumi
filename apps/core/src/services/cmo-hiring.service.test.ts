@@ -6,11 +6,13 @@ import {
   chatRoomDelete,
   createBot,
   createOrganizationWorkspace,
+  creditBucketFindFirst,
   cusoFind,
   eventFindFirst,
   expireTurn,
   funding,
   getUserWorkspace,
+  grantFreeCredits,
   organizationFindFirst,
   postFindMany,
   projectCreate,
@@ -29,6 +31,11 @@ vi.mock(
   "@/services/social-posts.service",
   async () =>
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.socialPosts,
+);
+vi.mock(
+  "@/services/free-credit-admin.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.freeCredits,
 );
 vi.mock(
   "@/services/soko-bot-shared-create.service",
@@ -288,6 +295,26 @@ describe("startCmoOnboarding", () => {
     projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
     startTurn.mockResolvedValue({ turnId: "turn-1" });
+  });
+
+  it("gives a person's first Cuso his starter credits, once", async () => {
+    creditBucketFindFirst.mockResolvedValueOnce(null);
+    await startCmoOnboarding(input);
+    expect(grantFreeCredits).toHaveBeenCalledWith({
+      target: { targetType: "organization", targetId: "org-1" },
+      credits: 10_000,
+      ttlDays: null,
+      referenceNote: "CMO.xyz starter credits (user-1)",
+    });
+
+    // Start over hires into a new organization; the grant does not repeat.
+    grantFreeCredits.mockClear();
+    cusoFind
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
+    creditBucketFindFirst.mockResolvedValueOnce({ id: "bucket-1" });
+    await startCmoOnboarding(input);
+    expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
   it("refuses before hiring when the organization has no credits", async () => {
