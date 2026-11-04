@@ -3004,6 +3004,29 @@ describe("SokoBotRuntimeService authorization", () => {
       });
     });
 
+    it("reads a writing skill in full, with its checklist", async () => {
+      sharedTurn("read_writing_skill", PROJECT_BOT);
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "read_writing_skill",
+        toolCallId: "call_skill",
+        input: { skill: "linkedin" },
+      });
+      expect(result).toMatchObject({
+        skill: "linkedin",
+        name: "LinkedIn",
+        content: expect.stringContaining("## Before you save"),
+      });
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "read_writing_skill",
+          toolCallId: "call_skill_unknown",
+          input: { skill: "myspace" },
+        }),
+      ).rejects.toThrow();
+    });
+
     it("tells the bot to judge itself when Jev is down", async () => {
       sharedTurn("evaluate_with_jev", PROJECT_BOT);
       jevToolMock.mockRejectedValue(new Error("timeout"));

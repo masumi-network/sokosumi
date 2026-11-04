@@ -94,9 +94,9 @@ LinkedIn rewards posts that teach something from real experience: a lesson, a re
 
 **image**: the image carries one thing (a chart, a product, a moment); the text is shorter, 400 to 900 characters, and says what the image means. The first line still hooks without the image.
 
-**images** (two to four images): one story told across the images, one idea per image. The text introduces the story in a few short paragraphs and tells people to swipe ("Swipe through the four steps.").
+**images** (two to four images): one story told across the images, one idea per image. Choose its shape first: a step-by-step walkthrough, a problem then the proof, a list of tips, a before and after. The first image works on its own; there are exactly as many images as it promises. The text introduces the story in a few short paragraphs and tells people to swipe ("Swipe through the four steps.").
 
-**video** (short vertical video): the text is two to four short lines: the hook, what the video shows, and why it matters.
+**video** (short vertical video): the point in the first second, one idea. Most people watch muted, so the text carries the words: two to four short lines with the hook, what the video shows, and why it matters.
 
 ## Shape of a text post
 
@@ -196,13 +196,13 @@ On Instagram the picture or video does the stopping; the caption makes people st
 
 **quote_card**: the card holds one line people want to save or share, 6 to 15 words, in the brand's voice, with no hashtags and no logo talk. The caption gives the context in two or three lines and asks people to share it with someone who needs it.
 
-**carousel** (3 to 10 slides): one idea per slide, a few words each, readable in two seconds.
-- Slide 1 is the hook: a promise or a question ("5 mistakes that make bread dense").
+**carousel** (3 to 10 slides): one idea per slide, a few words each, readable in two seconds. Choose its shape first: a step-by-step walkthrough, a problem then the proof, a list of tips, a before and after.
+- Slide 1 is the hook: a promise or a question ("5 mistakes that make bread dense"), and there are exactly as many slides as it promises.
 - The middle slides deliver, one point each, in the same layout.
 - The last slide closes: the takeaway and one action ("Save this for your next bake.").
 - The caption repeats the hook in words and adds what the slides cannot.
 
-**reel** (short vertical video): the video carries it. The caption is one to three lines: the hook, the keywords, one action.
+**reel** (short vertical video): the point in the first second; most people watch muted, so put the key words on screen. The caption is one to three lines: the hook, the keywords, one action.
 
 ## Example shape
 

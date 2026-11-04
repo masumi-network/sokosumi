@@ -25,7 +25,7 @@ An ad is shown to people who did not ask for it. It has a second to earn attenti
 - One offer per ad, with its price as the Brand Brain lists it, when that helps.
 - Proof when the Brand Brain has it: a number, a review in the customer's words.
 - The image and the text say different things: the text never just describes the image.
-- Write two or three variants of the primary text, each with a different hook (a problem, a result, a question), so the owner can test them.
+- Write each ad for one buyer motivation, in the buyer's own words. Ads that are more than half alike count as one, so vary the angle, not the wording: two or three variants with different hooks (a problem, a result, a question) let the owner test them.
 
 ## Formats
 
@@ -92,7 +92,7 @@ A search ad answers what someone just typed. It wins by matching the search, nam
 - **Keywords**: 5 to 15 phrases people type when they need the offer, never the brand name alone.
 - Use the words people search for, in their language and spelling.
 - Title Case is common in headlines; follow it unless the voice says otherwise.
-- Count characters. A headline of 31 characters is refused.
+- Count characters before you save. A headline of 31 characters is refused.
 
 ## Display ads (image ads on websites)
 

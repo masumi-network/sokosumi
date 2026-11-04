@@ -38,6 +38,7 @@ import {
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  renderWritingSkill,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
@@ -82,6 +83,7 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
+  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
@@ -8208,6 +8210,18 @@ export class SokoBotRuntimeService {
         }
         // Said on every result, so Cuso stops before the cap refuses him.
         return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };
+      }
+      case "read_writing_skill": {
+        const { skill: id } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_writing_skill.parse(input.input);
+        const skill = WRITING_SKILLS.find((candidate) => candidate.id === id);
+        if (!skill)
+          throw new SokoBotRuntimeValidationError("No such writing skill.");
+        return {
+          skill: skill.id,
+          name: skill.name,
+          content: renderWritingSkill(skill),
+        };
       }
       case "read_social_profile": {
         const { url } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_profile.parse(

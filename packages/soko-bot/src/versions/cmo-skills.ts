@@ -240,13 +240,7 @@ When pictures fail, keep going with the rest and name what failed in the report.
 - One call to action, an action verb plus what they get ("Start your 14-day trial"). Promotional pieces name the entry offer exactly as the plan states it.
 
 ## Formats
-- Multi-image post or carousel: choose its shape first (a step-by-step walkthrough, a problem then the proof, a list of tips, a before and after). The first image works on its own as a post; one idea per image; exactly as many images as the first one promises.
-- Short video: the point in the first second; one idea; the post's text carries the words because most people watch muted.
-- Meta ads: image_ad and carousel_ad get primary text (the first 125 characters carry it), a headline of at most 40 characters and the picture. Write each ad for one buyer motivation in their own words; ads that are more than half alike count as one, so vary the angle, not the wording.
-- Google search ads: up to 15 headlines of at most 30 characters and 4 descriptions of at most 90, each headline working in any combination: some with the search term, some with the benefit, some with the action. Count the characters before you save.
-- SEO article: before writing, say in one sentence what it adds that the pages already ranking do not; if nothing, choose another angle. Answer the search in the first two sentences, use subheadings phrased like the questions people ask, steps for a process, a table for a comparison, and real sources for every number. A title of about 55 characters: the search first, the reason to click next.
-- Page fix: the page's URL, then the new title (about 55 characters) and description (about 150), or the heading, ready to paste.
-- Newsletter: one idea and one call to action. A subject of 40 to 60 characters, specific over clever, and a preview line that adds to it. 150 to 300 words for a tip, up to 500 for a story. When the newsletter tools are available, draft the issue there too.
+Each format's shape (length, layout, fields, counts) is in its writing skill in your brief; follow it. When the newsletter tools are available, draft the issue there too.
 
 ## When you finish
 Check the month as a whole: the mix matches the plan, no two pieces open the same way, every campaign has its pieces, every promotional piece names the same offer. Fix what is off, then report with report_update kind production: pieces made per channel, what is scheduled, and what waits for a connected account.

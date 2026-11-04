@@ -34,7 +34,7 @@ Preview: [the preview text]
 - **Short paragraphs**: two to four sentences, a blank line between them.
 - **Subheadings** (\`##\`) only when the email is longer than about 300 words.
 - **One main link**, written as a plain Markdown link on words that say where it goes ("[Book a tasting](https://...)"), never "click here". Repeat it once at the end at most.
-- **Length**: 150 to 400 words.
+- **Length**: 150 to 300 words for a tip, up to 500 for a story.
 - **Sign off** the way the owner would: their name, or the team when that is how they write.
 
 ## Example shape
@@ -79,7 +79,7 @@ Anna, from the bakery
       },
       { rule: "It signs off the way the owner would, by name or as the team." },
       {
-        rule: "A Subject of 30 to 50 characters and a Preview line; 150 to 400 words.",
+        rule: "A Subject of 30 to 50 characters and a Preview line; 150 to 500 words.",
         counted: true,
       },
     ],
@@ -113,7 +113,7 @@ Why: [one line on what changes and why]
 
 ## Article
 
-- **Pick one search** the article answers (from the strategy and the Brand Brain), and use its words in the title, the first paragraph and one subheading.
+- **Pick one search** the article answers (from the strategy and the Brand Brain), and use its words in the title, the first paragraph and one subheading. Before writing, say in one sentence what it adds that the pages already ranking do not; if nothing, choose another angle.
 - **Structure**:
   - \`# Title\` (a heading, at most about 60 characters)
   - The answer in the first paragraph, two to three sentences. Do not make people scroll for it.
@@ -121,7 +121,7 @@ Why: [one line on what changes and why]
   - Short paragraphs, lists for steps and options, a table when comparing.
   - A closing section with the next step and one link to the offer.
 - **Length**: as long as the answer needs, usually 800 to 1,500 words. No filler introductions or history lessons.
-- **Proof**: real details from the Brand Brain (prices, processes, examples), never invented statistics.
+- **Proof**: real details from the Brand Brain (prices, processes, examples) and a real source for every number, never invented statistics.
 - **Links**: plain Markdown links on descriptive words; link to the brand's own pages where they help.
 - Add a **meta description** line at the top of the file (Description: ...), 120 to 155 characters.
 
