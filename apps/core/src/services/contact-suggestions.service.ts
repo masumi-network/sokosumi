@@ -338,7 +338,7 @@ export async function listContactSuggestions(
 export async function findPeopleForList(
   actor: ContactActor,
   listId: string,
-  input: { brief?: string; size: PeopleSearchSize },
+  input: { brief?: string; size: PeopleSearchSize; focus?: string },
   deps: PeopleSearchDeps = defaultDeps,
 ): Promise<{
   found: number;
@@ -354,6 +354,10 @@ export async function findPeopleForList(
         ? "Say who you are looking for: a name, and where they work if you know"
         : "Describe who belongs in this list first; the search looks for people who fit it",
     );
+  // A focus narrows one search and is never saved: the same search twice
+  // finds the same people, so a long hunt varies it batch by batch.
+  const focus = input.focus?.trim();
+  const query = focus ? `${brief}\nThis search: ${focus}` : brief;
   const owner = await billingOwner(actor);
   await requireBalance(owner, input.size * CREDITS_PER_PERSON_FOUND);
 
@@ -378,14 +382,14 @@ export async function findPeopleForList(
 
   // Ask for more than wanted: some results are not people, some do not fit.
   const search = await deps
-    .search({ query: brief, numResults: one ? 5 : input.size * 2 })
+    .search({ query, numResults: one ? 5 : input.size * 2 })
     .catch(webSearchUnavailable);
   const fresh = search.hits.filter((hit) => {
     const key = profileKey(hit.url);
     return key !== null && !skip.has(key);
   });
   const matched = fresh.length
-    ? await deps.match({ brief, hits: fresh })
+    ? await deps.match({ brief: query, hits: fresh })
     : { matches: [], costUsd: 0 };
   const seen = new Set<string>();
   const picks = matched.matches.flatMap((match) => {
@@ -418,7 +422,7 @@ export async function findPeopleForList(
       data: {
         workspaceId: actor.workspaceId,
         listId,
-        query: brief,
+        query,
         requested: input.size,
         found: kept.length,
         chargedCents: cents,

@@ -544,6 +544,8 @@ export const sokoBotFindPeopleInputSchema = z.object({
   /** 1 looks for one particular person; 10 or 25 for people who fit the list. */
   size: z.union([z.literal(1), z.literal(10), z.literal(25)]),
   brief: z.string().trim().min(1).max(1_000).optional(),
+  /** Narrows this one search without changing the list's description. */
+  focus: z.string().trim().min(1).max(300).optional(),
 });
 
 export const sokoBotEnrichContactInputSchema = z.object({
@@ -1616,7 +1618,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   manage_contact_lists:
     "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
   find_people:
-    "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. Found people wait on the list as suggestions for your owner to add; say who you found and why.",
+    "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. People already on the list are skipped, so the same search twice finds almost nobody new: focus narrows one search (a region, sector, stage, firm type) without changing the description. Found people wait on the list as suggestions for your owner to add; say who you found and why. For more than about 50 people: first give the total (0.5 credits per person) and your best guess at who fits, and wait for an OK. Then start a background run whose bash script calls find_people through $SOKO_TOOLS_URL, size 25, a different focus each call, printing progress, until the target is reached or several focuses in a row find fewer than 5. A restarted run simply carries on, since the list skips who it has. Report the total, the best people and which focuses ran dry.",
   enrich_contact:
     "Look a person up on the web and fill their empty fields (role, organization, location, LinkedIn, summary), the Enrich button. Never overwrites what is there and records the source. Costs 1 credit, only when something was filled. Use it when your owner asks to complete a contact, not on every contact you touch.",
   create_project:
