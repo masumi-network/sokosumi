@@ -4,6 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import {
   ArrowUp,
   Brain,
+  CalendarDays,
   ChartLine,
   type LucideIcon,
   MessageSquare,
@@ -29,6 +30,7 @@ import { type AdActions, SearchAdControl } from "../ads";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
+import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
   type CardActions,
@@ -69,6 +71,7 @@ function useDrawerLayout(): boolean {
 const VIEWS = [
   ["chat", "Cuso", MessageSquare],
   ["strategy", "Strategy", Target],
+  ["calendar", "Calendar", CalendarDays],
   ["results", "Results", ChartLine],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
@@ -484,8 +487,8 @@ export function CmoApp({
         ) : (
           <div className="scroll">
             <div className="page-wide">
-              {view === "strategy" ? (
-                <StrategyPage
+              {view === "calendar" ? (
+                <CalendarPage
                   overview={overview}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
@@ -496,6 +499,15 @@ export function CmoApp({
                       onChange={setOverview}
                     />
                   )}
+                  onAsk={async (text) => {
+                    await actions.sendMessage(text);
+                    await refresh();
+                  }}
+                />
+              ) : view === "strategy" ? (
+                <StrategyPage
+                  overview={overview}
+                  onOpenCalendar={() => go("calendar")}
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
                     await refresh();
