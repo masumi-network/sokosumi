@@ -509,13 +509,35 @@ async function cusoProject() {
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */
+type SocialProvider = "x" | "linkedin" | "instagram" | "facebook" | "youtube";
+
+/** Connects a network from the app's Channels page. */
 export async function connectChannel(
-  provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+  provider: SocialProvider,
+): Promise<{ url: string | null; error: string | null }> {
+  return startChannel(provider, "app");
+}
+
+/** Connects a network on the Accounts step; the founder comes back to it. */
+export async function connectSetupChannel(
+  provider: SocialProvider,
+): Promise<{ url: string | null; error: string | null }> {
+  return startChannel(provider, "onboarding");
+}
+
+async function startChannel(
+  provider: SocialProvider,
+  from: "onboarding" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const { overview: _overview, ...options } = await cusoProject();
+  const query = new URLSearchParams({ from });
   const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
     ...options,
-    body: { action: "connect", provider, callbackUrl: await callbackUrl() },
+    body: {
+      action: "connect",
+      provider,
+      callbackUrl: await callbackUrl(`/connect/callback?${query}`),
+    },
   });
   if (!data) {
     return { url: null, error: errorText(error, "Could not start connecting") };
