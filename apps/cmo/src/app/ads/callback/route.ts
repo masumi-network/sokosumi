@@ -7,6 +7,8 @@ function adsReturn(request: NextRequest, from: string | null): URL {
   if (from === "app") return new URL("/channels", request.nextUrl);
   const back = new URL("/", request.nextUrl);
   back.searchParams.set("step", "connect");
+  // Back on the Accounts step, which stays open until Continue.
+  back.searchParams.set("from", "onboarding");
   return back;
 }
 

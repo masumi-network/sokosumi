@@ -71,8 +71,14 @@ export function CheckStep({
               disabled={going}
               onClick={() =>
                 startGoing(async () => {
-                  if (changes) setRefusal(await onUpdate());
-                  else await onApprove();
+                  try {
+                    if (changes) setRefusal(await onUpdate());
+                    else await onApprove();
+                  } catch {
+                    setRefusal(
+                      "That didn't go through. Try again in a moment.",
+                    );
+                  }
                 })
               }
             >

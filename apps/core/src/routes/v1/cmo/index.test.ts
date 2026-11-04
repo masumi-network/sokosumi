@@ -64,6 +64,7 @@ function overview() {
     viewerCanApprove: true,
     brandBrain: null,
     strategy: null,
+    approvedStrategy: null,
     strategyVersions: [
       {
         id: "strategy-1",

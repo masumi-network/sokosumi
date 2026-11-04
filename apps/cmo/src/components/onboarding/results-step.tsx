@@ -21,7 +21,11 @@ function measureLine(measure: Measure): string {
     return `${measure.value ?? "Measured"}${measure.source ? `, from ${measure.source}` : ""}`;
   }
   if (measure?.basis === "estimated") {
-    return measure.value ? `${measure.value} (my estimate)` : "My estimate";
+    if (!measure.value) return "My estimate";
+    // Cuso often says so himself: "(estimate; not measured)".
+    return /estimat/i.test(measure.value)
+      ? measure.value
+      : `${measure.value} (my estimate)`;
   }
   return "Not measured yet";
 }
