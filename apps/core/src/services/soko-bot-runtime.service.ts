@@ -330,6 +330,10 @@ import {
   cmoTurnExecutesPlan,
   saveCmoStrategy,
 } from "@/services/cmo-strategy.service";
+import {
+  enrichContactFromWeb,
+  findPeopleForList,
+} from "@/services/contact-suggestions.service";
 import { cusoDrive } from "@/services/cuso-project-files.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
@@ -735,6 +739,9 @@ export class SokoBotRuntimeValidationError extends Error {}
  * happened: the attempt is rejected, not of unknown outcome.
  */
 export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
+
+/** How often a turn nobody asked for may run each paid CRM web lookup. */
+const UNATTENDED_CONTACT_RESEARCH = { find_people: 1, enrich_contact: 5 };
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
 
@@ -6227,6 +6234,76 @@ export class SokoBotRuntimeService {
   }
 
   /**
+   * The CRM's paid web lookups, Find people and Enrich, billed to the member
+   * the bot acts for like the buttons. A turn nobody asked for may run each a
+   * few times at most, so text in a mail cannot spend the balance in a loop.
+   */
+  private async executeContactResearch(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const capability = input.capability as "find_people" | "enrich_contact";
+    const { turn } = authorized;
+    if (turn.source !== "CHAT" || turn.chainDepth > 0) {
+      const earlier = await prisma.sokoBotToolCall.count({
+        where: {
+          turnId: turn.id,
+          capability,
+          NOT: { toolCallId: input.toolCallId },
+        },
+      });
+      if (earlier >= UNATTENDED_CONTACT_RESEARCH[capability])
+        throw new SokoBotRefusedUnsentError(
+          `A turn nobody asked for may run ${capability} ${UNATTENDED_CONTACT_RESEARCH[capability]} time(s). Report what you have and ask ${authorized.reader.sharedScope ? "the team in your shared room" : "the owner"} before looking up more.`,
+        );
+    }
+    const userId = actingMemberOf(authorized);
+    await requireSokoBotWorkspaceAccess(prisma, userId, turn.workspaceId);
+    const actor = {
+      workspaceId: turn.workspaceId,
+      userId,
+      sokoBotId: turn.sokoBotId,
+    };
+    try {
+      if (capability === "find_people") {
+        const { listId, ...search } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.find_people.parse(input.input);
+        const result = await findPeopleForList(actor, listId, search);
+        return this.commitReceipt(authorized, input.toolCallId, listId, {
+          listId,
+          found: result.found,
+          credits: result.credits,
+          people: result.suggestions.map((person) => ({
+            name: person.name,
+            role: person.role,
+            organization: person.organization,
+            location: person.location,
+            reason: person.reason,
+            profileUrl: person.profileUrl,
+          })),
+          link: `/contacts?list=${listId}`,
+        });
+      }
+      const { contactId } = SOKO_BOT_TOOL_INPUT_SCHEMAS.enrich_contact.parse(
+        input.input,
+      );
+      const result = await enrichContactFromWeb(actor, contactId);
+      const contact = await prisma.contact.findUniqueOrThrow({
+        where: { id: contactId },
+        select: { name: true },
+      });
+      return this.commitReceipt(authorized, input.toolCallId, contactId, {
+        contact: { id: contactId, name: contact.name },
+        ...result,
+      });
+    } catch (error) {
+      if (error instanceof HTTPException && error.status < 500)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Projects belong to the workspace: a bot creates and edits them for the
    * member who asked, the same way that member would on the Projects page.
    */
@@ -7380,6 +7457,9 @@ export class SokoBotRuntimeService {
       case "merge_contacts":
       case "manage_contact_lists":
         return this.executeContactTool(input, authorized);
+      case "find_people":
+      case "enrich_contact":
+        return this.executeContactResearch(input, authorized);
       case "create_project":
       case "update_project":
         return this.executeProjectTool(input, authorized);
