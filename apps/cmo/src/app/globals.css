@@ -3737,3 +3737,12 @@ a.rv-dot {
 .production > .note {
   margin: 0;
 }
+
+.sheet-head > span:not(.sheet-steps) {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-steps .note {
+  white-space: nowrap;
+}
