@@ -18,7 +18,7 @@ import {
   neonErrorReason,
   resetPreviewBranchToParent,
   waitForOperations,
-} from "../cloud-agent-db/neon-api.mjs";
+} from "../agent-db/neon-api.mjs";
 import {
   preparePreviewResources,
   previewBranchName,

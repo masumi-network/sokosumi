@@ -24,7 +24,7 @@ sokosumi/
 │   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
 │   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (loop runs in per-bot Vercel Sandboxes; Core is the control plane)
 ├── docs/            # Agent, domain, coworker, and design docs
-├── scripts/         # local-env, cloud-agent-db, CI helpers
+├── scripts/         # local-env, agent-db, CI helpers
 ├── skills/          # First-party agent skill sources
 ├── biome.jsonc      # Root Biome configuration
 ├── turbo.json       # Turborepo task graph

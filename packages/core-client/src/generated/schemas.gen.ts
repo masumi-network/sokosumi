@@ -2066,6 +2066,9 @@ export const AdminSokoBotFleetDaysSchema = {
                     },
                     costUsd: {
                         type: 'number'
+                    },
+                    cmoCostUsd: {
+                        type: 'number'
                     }
                 },
                 required: [
@@ -2074,7 +2077,8 @@ export const AdminSokoBotFleetDaysSchema = {
                     'messages',
                     'turns',
                     'totalTokens',
-                    'costUsd'
+                    'costUsd',
+                    'cmoCostUsd'
                 ]
             }
         }

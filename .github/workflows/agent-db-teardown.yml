@@ -48,7 +48,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: node scripts/cloud-agent-db/teardown.mjs --from-workflow-run
+        run: node scripts/agent-db/teardown.mjs --from-workflow-run
 
       - name: Teardown explicit agent id
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.agent_id != '' }}
@@ -57,4 +57,4 @@ jobs:
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
           NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
           AGENT_ID: ${{ inputs.agent_id }}
-        run: node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env
+        run: node scripts/agent-db/teardown.mjs --from-agent-id-env

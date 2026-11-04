@@ -8,7 +8,7 @@ import {
   neonErrorReason,
   refreshBranchExpiration,
   waitForOperations,
-} from "../cloud-agent-db/neon-api.mjs";
+} from "../agent-db/neon-api.mjs";
 
 export const NEON_API_KEY_VARIABLE = "NEON_API_KEY";
 export const PREVIEW_TTL_MS = 24 * 60 * 60 * 1000;

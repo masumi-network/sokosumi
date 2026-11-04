@@ -3,7 +3,7 @@ name: PR closed
 # workflow_run.display_title. pull_requests is empty once the PR is closed.
 run-name: ${{ github.event.pull_request.number }}
 
-# Unprivileged signal. `cloud-agent-db-teardown.yml` and `preview-deploy.yml`
+# Unprivileged signal. `agent-db-teardown.yml` and `preview-deploy.yml`
 # listen via workflow_run so the privileged YAML always comes from the default
 # branch. pull_request_target would load YAML from the PR base, which a
 # same-repo branch can replace. Do not add synchronize here: teardown must

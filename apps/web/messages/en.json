@@ -6457,7 +6457,8 @@
           "usersTitle": "People who wrote to a Soko Bot",
           "usersSub": "peak {peak} in {days} days",
           "usersBar": "{day}: {users} people, {messages} messages",
-          "costTitle": "Model cost",
+          "costTitle": "Soko Bot model cost",
+          "cmoCostTitle": "CMO.xyz model cost",
           "costSub": "{total} in {days} days",
           "costBar": "{day}: {cost}",
           "today": "today",
@@ -6467,7 +6468,8 @@
           "messages": "Messages",
           "turns": "Turns",
           "tokens": "Tokens",
-          "cost": "Cost"
+          "cost": "Soko Bots",
+          "cmoCost": "CMO.xyz"
         }
       },
       "MatchedChannels": {

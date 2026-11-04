@@ -5,7 +5,7 @@ import {
   findBranchByName,
   listBranches,
   refreshBranchExpiration,
-} from "../cloud-agent-db/neon-api.mjs";
+} from "../agent-db/neon-api.mjs";
 import {
   cleanupPreviewResources,
   PREVIEW_TTL_MS,

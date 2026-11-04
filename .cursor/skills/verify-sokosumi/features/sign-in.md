@@ -19,7 +19,7 @@ Sign in lets a user authenticate with email and password (or an emailed code), r
 Preconditions:
 
 - `verify-sokosumi doctor` reports `doctor ok` and `owned_by_verify=yes`.
-- Cloud-agent Neon: doctor should show `fixture_auth=ok` for `alice@sokosumi.test`. If it fails, re-run `node scripts/cloud-agent-db/provision.mjs` (or seed auth fixtures) — only on `cloud-agent-*` branches.
+- Cloud-agent Neon: doctor should show `fixture_auth=ok` for `alice@sokosumi.test`. If it fails, re-run `node scripts/agent-db/provision.mjs` (or seed auth fixtures) — only on `cloud-agent-*` branches.
 - Coworker / shared Neon: doctor will show `fixture_auth=fail`. Use the vault (`sign-in --method vault` or `auto` fallback). Do **not** seed Alice onto that database. If there is no vault profile, create a disposable user via [Sign up](./sign-up.md).
 - `turnstile_site=test-pass` or `turnstile_site=off` in doctor, with `turnstile_secret` either `test-pass` or `off`. `test-block` / `test-interactive` / `live` all stop browser sign-in, the last two behind a “confirm you are human” widget an agent must **not** answer; a `live` secret under a `test-pass` site key instead makes Core 403 the dummy token. `fixture_auth=ok` reports success through every one of these, because the harness POSTs Core's sign-in endpoint with a dummy token and never sees the widget. `pnpm env:bootstrap` only fills a **commented-out** key; a live key already set in `.env` must be replaced with the 1x always-passes values in `apps/web/.env.example` / `apps/core/.env.example`.
 - Credentials available: fixture `alice@sokosumi.test` / `Password123!`, coworker vault `agent-browser auth login sokosumi`, or a user created via [Sign up](./sign-up.md).
