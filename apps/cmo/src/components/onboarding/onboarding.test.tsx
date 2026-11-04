@@ -171,6 +171,17 @@ describe("onboarding steps", () => {
     expect(
       onboardingStep(overview({ strategy: null, work: running("strategy") })),
     ).toBe("planning");
+    // A first plan waits on the planning screen until Cuso has saved all of it.
+    const firstPlan = { ...strategy, changes: [] };
+    expect(
+      onboardingStep(
+        overview({ strategy: firstPlan, work: running("strategy") }),
+      ),
+    ).toBe("planning");
+    expect(
+      onboardingStep(overview({ strategy: { ...firstPlan, calendar: [] } })),
+    ).toBe("planning");
+    expect(onboardingStep(overview({ strategy: firstPlan }))).toBe("strategy");
     // A change request keeps the plan on screen while Cuso rewrites it.
     expect(onboardingStep(overview({ work: running("strategy") }))).toBe(
       "strategy",
@@ -389,6 +400,34 @@ describe("research", () => {
     );
     expect(html).toContain("Research stopped");
     expect(html).toContain("Cuso finishes your Brand Brain");
+    expect(html).toContain("Try again");
+  });
+
+  it("says Cuso is writing the calendar once the plan part is saved", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({ work: running("strategy") })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("Cuso is writing your day-by-day calendar");
+    expect(html).not.toContain("Approve");
+  });
+
+  it("offers a retry when planning ended without a calendar", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({
+          work: { ...running("strategy"), status: "done" },
+        })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("Planning stopped");
     expect(html).toContain("Try again");
   });
 
