@@ -8896,7 +8896,6 @@ describe("Drive file tools", () => {
         id: "ws",
         organizationId: null,
       });
-      toolCallCountMock.mockResolvedValue(0);
       commit = vi
         .spyOn(
           service as unknown as {
@@ -8971,21 +8970,25 @@ describe("Drive file tools", () => {
       });
     });
 
-    it("lets a turn nobody asked for find people once, and says so plainly", async () => {
-      toolCallCountMock.mockResolvedValue(1);
-      await expect(
-        service["executeContactResearch"](
-          {
-            capability: "find_people",
-            input: { listId, size: 10 },
-            toolCallId: "call-2",
-          } as never,
-          { ...chat, turn: { ...chat.turn, source: "INGEST" } } as never,
-        ),
-      ).rejects.toThrow(
-        "A turn nobody asked for may run find_people 1 time(s)",
+    it("keeps finding people in a background run, one focus per batch", async () => {
+      research.findPeople.mockResolvedValue({
+        found: 0,
+        credits: 0,
+        suggestions: [],
+      });
+      await service["executeContactResearch"](
+        {
+          capability: "find_people",
+          input: { listId, size: 25, focus: "Berlin seed funds" },
+          toolCallId: "call-31",
+        } as never,
+        { ...chat, turn: { ...chat.turn, source: "EVENT" } } as never,
       );
-      expect(research.findPeople).not.toHaveBeenCalled();
+      expect(research.findPeople).toHaveBeenCalledWith(
+        expect.anything(),
+        listId,
+        { size: 25, focus: "Berlin seed funds" },
+      );
     });
 
     it("hands the bot the reason when Core refuses, such as a low balance", async () => {

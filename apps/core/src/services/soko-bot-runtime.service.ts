@@ -740,8 +740,6 @@ export class SokoBotRuntimeValidationError extends Error {}
  */
 export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 
-/** How often a turn nobody asked for may run each paid CRM web lookup. */
-const UNATTENDED_CONTACT_RESEARCH = { find_people: 1, enrich_contact: 5 };
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
 
@@ -6235,8 +6233,7 @@ export class SokoBotRuntimeService {
 
   /**
    * The CRM's paid web lookups, Find people and Enrich, billed to the member
-   * the bot acts for like the buttons. A turn nobody asked for may run each a
-   * few times at most, so text in a mail cannot spend the balance in a loop.
+   * the bot acts for like the buttons.
    */
   private async executeContactResearch(
     input: ExecuteSokoBotToolInput,
@@ -6244,19 +6241,6 @@ export class SokoBotRuntimeService {
   ) {
     const capability = input.capability as "find_people" | "enrich_contact";
     const { turn } = authorized;
-    if (turn.source !== "CHAT" || turn.chainDepth > 0) {
-      const earlier = await prisma.sokoBotToolCall.count({
-        where: {
-          turnId: turn.id,
-          capability,
-          NOT: { toolCallId: input.toolCallId },
-        },
-      });
-      if (earlier >= UNATTENDED_CONTACT_RESEARCH[capability])
-        throw new SokoBotRefusedUnsentError(
-          `A turn nobody asked for may run ${capability} ${UNATTENDED_CONTACT_RESEARCH[capability]} time(s). Report what you have and ask ${authorized.reader.sharedScope ? "the team in your shared room" : "the owner"} before looking up more.`,
-        );
-    }
     const userId = actingMemberOf(authorized);
     await requireSokoBotWorkspaceAccess(prisma, userId, turn.workspaceId);
     const actor = {

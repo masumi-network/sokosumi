@@ -205,6 +205,25 @@ describe.runIf(enabled)("Find people on PostgreSQL", () => {
     expect(await balance()).toBe(19n * CREDIT);
   });
 
+  it("narrows one search with a focus, and keeps the list's description", async () => {
+    const deps = scripted([
+      { title: "Fjord Fund", url: "https://fjord.vc", passages: ["A fund."] },
+    ]);
+    await findPeopleForList(
+      asAlice,
+      listId,
+      { size: 25, focus: "Berlin seed funds" },
+      deps,
+    );
+    expect(deps.searched).toEqual([
+      "Pre-seed investors in AI infrastructure\nThis search: Berlin seed funds",
+    ]);
+    const list = await prisma.contactList.findUniqueOrThrow({
+      where: { id: listId },
+    });
+    expect(list.description).toBe("Pre-seed investors in AI infrastructure");
+  });
+
   it("finds one particular person for half a credit, and keeps the list's description", async () => {
     const deps = scripted([
       {
