@@ -335,9 +335,10 @@ describe("accounts", () => {
     ]);
   });
 
-  it("continues only once the plan's networks are connected", () => {
+  it("continues once one of the plan's networks is connected", () => {
     const before = render(plan());
-    expect(before).toContain("Connect LinkedIn and X to continue.");
+    expect(before).toContain("Connect LinkedIn or X to continue.");
+    expect(before).toMatch(/\d+ posts? this month\./);
     expect(continueOff(before)).toBe(true);
 
     const active = (provider: string) => ({
@@ -347,9 +348,10 @@ describe("accounts", () => {
       displayName: "Acme",
       status: "ACTIVE",
     });
-    const after = render(plan({ channels: [active("linkedin"), active("x")] }));
+    const after = render(plan({ channels: [active("x")] }));
     expect(after).not.toContain("to continue.");
     expect(continueOff(after)).toBe(false);
+    expect(after).toMatch(/Connected as @acme\. \d+ posts? this month\./);
     expect(after).toContain("Optional");
   });
 });
