@@ -3695,7 +3695,9 @@ export class SokoBotControlPlane {
             toolCalls: { orderBy: { createdAt: "asc" } },
             delegations: true,
             pendingDecisions: true,
-            contextSnapshot: true,
+            // The packet is the whole model input, often hundreds of KB per
+            // turn; the panel shows only the snapshot's metadata.
+            contextSnapshot: { omit: { packet: true } },
           },
         },
         memoryRevisions: { orderBy: { version: "desc" }, take: 20 },

@@ -6335,6 +6335,23 @@
           "apply": "Avatar setzen",
           "done": "Avatar aktualisiert.",
           "error": "Der Avatar konnte nicht gesetzt werden."
+        },
+        "Daily": {
+          "title": "Letzte {days} Tage, UTC",
+          "usersTitle": "Personen, die einem Soko Bot geschrieben haben",
+          "usersSub": "Spitze {peak} in {days} Tagen",
+          "usersBar": "{day}: {users} Personen, {messages} Nachrichten",
+          "costTitle": "Modellkosten",
+          "costSub": "{total} in {days} Tagen",
+          "costBar": "{day}: {cost}",
+          "today": "heute",
+          "table": "Als Tabelle anzeigen",
+          "day": "Tag",
+          "users": "Personen",
+          "messages": "Nachrichten",
+          "turns": "Durchläufe",
+          "tokens": "Tokens",
+          "cost": "Kosten"
         }
       },
       "MatchedChannels": {

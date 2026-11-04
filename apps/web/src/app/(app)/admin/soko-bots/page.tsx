@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { FleetDays } from "@/components/admin/soko-bots/fleet-days";
 import { FleetHealthSummary } from "@/components/admin/soko-bots/fleet-health-summary";
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { SokoBotFleetTable } from "@/components/admin/soko-bots/soko-bot-fleet-table.client";
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 const FLEET_PAGE_LIMIT = 100;
+const FLEET_DAYS = 30;
 
 interface AdminSokoBotsPageProps {
   searchParams: Promise<{
@@ -33,7 +35,7 @@ export default async function AdminSokoBotsPage({
     typeof params.qualityVersion === "string"
       ? params.qualityVersion.trim() || undefined
       : undefined;
-  const [t, list, quality, availability] = await Promise.all([
+  const [t, list, quality, availability, fleetDays] = await Promise.all([
     getTranslations("App.Admin.SokoBots"),
     adminSokoBotService.list({ limit: FLEET_PAGE_LIMIT }),
     adminSokoBotService.quality({ versionId: qualityVersion }),
@@ -42,6 +44,7 @@ export default async function AdminSokoBotsPage({
       disabledAt: null,
       disabledReason: null,
     })),
+    adminSokoBotService.fleetDays(FLEET_DAYS).catch(() => null),
   ]);
   const selectedVersionId = quality.versions.some(
     (version) => version.versionId === qualityVersion,
@@ -88,6 +91,7 @@ export default async function AdminSokoBotsPage({
           <SokoBotKillSwitch initial={availability} />
         ) : null}
         <FleetHealthSummary items={list.items} />
+        {fleetDays ? <FleetDays fleet={fleetDays} /> : null}
         <QualityOverview
           quality={quality}
           selectedVersionId={selectedVersionId}
