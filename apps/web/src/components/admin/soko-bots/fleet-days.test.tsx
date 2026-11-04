@@ -18,6 +18,7 @@ const day = (date: string, users: number, costUsd: number) => ({
   turns: users * 3,
   totalTokens: 1_000,
   costUsd,
+  cmoCostUsd: costUsd * 2,
 });
 
 describe("FleetDays", () => {
@@ -35,12 +36,14 @@ describe("FleetDays", () => {
     expect(screen.getByText("$1.75 in 2 days")).toBeTruthy();
     expect(screen.getByText("Nov 1: 4 people, 8 messages")).toBeTruthy();
     expect(screen.getByText("Nov 2: $0.50")).toBeTruthy();
+    expect(screen.getByText("$3.50 in 2 days")).toBeTruthy();
+    expect(screen.getByText("Nov 2: $1.00")).toBeTruthy();
 
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
-      "DayPeopleMessagesTurnsTokensCost",
-      "Nov 22461K$0.50",
-      "Nov 148121K$1.25",
+      "DayPeopleMessagesTurnsTokensSoko BotsCMO.xyz",
+      "Nov 22461K$0.50$1.00",
+      "Nov 148121K$1.25$2.50",
     ]);
   });
 });
