@@ -1637,9 +1637,7 @@ const contactKnownBySchemaResponseTransformer = (data: any) => {
 };
 
 const contactSchemaResponseTransformer = (data: any) => {
-    if (data.firstContactAt) {
-        data.firstContactAt = new Date(data.firstContactAt);
-    }
+    data.firstContactAt = new Date(data.firstContactAt);
     if (data.lastContactAt) {
         data.lastContactAt = new Date(data.lastContactAt);
     }
