@@ -378,6 +378,20 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
   throw internalServerError("Social post has no creator");
 }
 
+/** The post's provider, and its connection's, are available to the owning Project. */
+export function isSocialPostProviderEnabled(
+  record: Pick<SocialPostRecord, "provider" | "project"> & {
+    socialConnection: { provider: string } | null;
+  },
+): boolean {
+  const workspace = socialProviderWorkspaceForProject(record.project);
+  return (
+    isSocialProviderEnabled(record.provider, workspace) &&
+    (!record.socialConnection ||
+      isSocialProviderEnabled(record.socialConnection.provider, workspace))
+  );
+}
+
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   const media = parseSocialPostMedia(record.media, record.id);
   const provider = isSocialPostProvider(record.provider)
@@ -386,16 +400,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   const quoteReady =
     socialPostQuotePublishDecision(record, record.quotedPost, new Date())
       .kind === "ready";
-  const providerEnabled =
-    isSocialProviderEnabled(
-      record.provider,
-      socialProviderWorkspaceForProject(record.project),
-    ) &&
-    (!record.socialConnection ||
-      isSocialProviderEnabled(
-        record.socialConnection.provider,
-        socialProviderWorkspaceForProject(record.project),
-      ));
+  const providerEnabled = isSocialPostProviderEnabled(record);
   return {
     id: record.id,
     projectId: record.projectId,

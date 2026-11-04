@@ -855,7 +855,8 @@ async function refreshDerivedFields(tx: Tx, contactId: string) {
   await tx.contact.update({
     where: { id: contactId },
     data: {
-      firstContactAt: aggregate._min.occurredAt,
+      // With no interaction left, the contact keeps the time it was added.
+      firstContactAt: aggregate._min.occurredAt ?? undefined,
       lastContactAt: aggregate._max.occurredAt,
       interactionCount: aggregate._count._all,
       lastInboundAt,
@@ -1284,7 +1285,10 @@ function contactOrderBy(
     (sort === "name" || sort === "organization" || sort === "stage"
       ? "asc"
       : "desc");
-  const nullable = sort === "organization" || sort.endsWith("ContactAt");
+  // Every contact has a first contact; only the other dates can be empty.
+  const nullable =
+    sort === "organization" ||
+    (sort.endsWith("ContactAt") && sort !== "firstContactAt");
   if (sort === "familiarity" || sort === "importance")
     throw new Error("Score sorts are ordered by listContactsByScore");
   return [

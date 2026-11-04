@@ -363,6 +363,15 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
     seed: null,
   },
 }));
+const research = vi.hoisted(() => ({
+  findPeople: vi.fn(),
+  enrich: vi.fn(),
+  contactName: vi.fn(),
+}));
+vi.mock("@/services/contact-suggestions.service", () => ({
+  findPeopleForList: research.findPeople,
+  enrichContactFromWeb: research.enrich,
+}));
 vi.mock("@/services/file-search.service", () => ({
   searchFiles: files.search,
   loadLiveResources: files.loadLive,
@@ -394,6 +403,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: files.resourceFindFirst,
     },
     taskFile: { upsert: files.taskFileUpsert },
+    contact: { findUniqueOrThrow: research.contactName },
     projectImageAsset: { findFirst: images.assetFindFirst },
     project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
@@ -6661,7 +6671,7 @@ describe("Soko Bot project social tools", () => {
         workspaceId: SCOPE.workspaceId,
       });
       expect(result).toEqual({
-        enabledProviders: ["x", "youtube", "linkedin"],
+        enabledProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
         writingGuides: {
           youtube: expect.arrayContaining([
             expect.stringMatching(/Plain text only/),
@@ -8515,7 +8525,7 @@ describe("Soko Bot project social tools", () => {
   ] as const)(
     "%s propagates disabled-provider refusal without recording a completed mutation",
     async (capability, mock, input) => {
-      const message = socialProviderUnavailableMessage("instagram", {
+      const message = socialProviderUnavailableMessage("tiktok", {
         organizationSlug: null,
       });
       if (!message) throw new Error("Expected an unavailable provider");
@@ -8865,6 +8875,135 @@ describe("Drive file tools", () => {
     expect(files.loadLive).toHaveBeenCalledWith(
       expect.objectContaining({ actor }),
     );
+  });
+
+  describe("contact research", () => {
+    const chat = {
+      ...authorized,
+      turn: {
+        ...authorized.turn,
+        id: "turn-1",
+        sokoBotId: "bot-1",
+        source: "CHAT",
+        chainDepth: 0,
+      },
+    };
+    const listId = "01960001-0001-7001-8001-000000000001";
+    const contactId = "01960001-0001-7001-8001-000000000002";
+    let commit: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      workspaceFindFirstMock.mockResolvedValue({
+        id: "ws",
+        organizationId: null,
+      });
+      toolCallCountMock.mockResolvedValue(0);
+      commit = vi
+        .spyOn(
+          service as unknown as {
+            commitReceipt: (...args: unknown[]) => unknown;
+          },
+          "commitReceipt",
+        )
+        .mockImplementation((...args) => args[3]);
+    });
+    afterEach(() => commit.mockRestore());
+
+    it("finds people for a list as the member the bot acts for, with the receipt naming who", async () => {
+      research.findPeople.mockResolvedValue({
+        found: 1,
+        credits: 0.5,
+        suggestions: [
+          {
+            name: "Mara Lind",
+            role: "Partner",
+            organization: "Northwind",
+            location: "Berlin",
+            reason: "Leads pre-seed AI rounds.",
+            profileUrl: "https://linkedin.com/in/maralind",
+          },
+        ],
+      });
+      const result = await service["executeContactResearch"](
+        {
+          capability: "find_people",
+          input: { listId, size: 10 },
+          toolCallId: "call-1",
+        } as never,
+        chat as never,
+      );
+      expect(research.findPeople).toHaveBeenCalledWith(
+        {
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+          sokoBotId: "bot-1",
+        },
+        listId,
+        { size: 10 },
+      );
+      expect(result).toMatchObject({
+        found: 1,
+        credits: 0.5,
+        people: [{ name: "Mara Lind", reason: "Leads pre-seed AI rounds." }],
+      });
+    });
+
+    it("enriches a contact and names it on the receipt", async () => {
+      research.enrich.mockResolvedValue({
+        filled: ["role"],
+        sourceUrl: "https://example.com",
+        credits: 1,
+      });
+      research.contactName.mockResolvedValue({ name: "Ada" });
+      await expect(
+        service["executeContactResearch"](
+          {
+            capability: "enrich_contact",
+            input: { contactId },
+            toolCallId: "c",
+          } as never,
+          chat as never,
+        ),
+      ).resolves.toEqual({
+        contact: { id: contactId, name: "Ada" },
+        filled: ["role"],
+        sourceUrl: "https://example.com",
+        credits: 1,
+      });
+    });
+
+    it("lets a turn nobody asked for find people once, and says so plainly", async () => {
+      toolCallCountMock.mockResolvedValue(1);
+      await expect(
+        service["executeContactResearch"](
+          {
+            capability: "find_people",
+            input: { listId, size: 10 },
+            toolCallId: "call-2",
+          } as never,
+          { ...chat, turn: { ...chat.turn, source: "INGEST" } } as never,
+        ),
+      ).rejects.toThrow(
+        "A turn nobody asked for may run find_people 1 time(s)",
+      );
+      expect(research.findPeople).not.toHaveBeenCalled();
+    });
+
+    it("hands the bot the reason when Core refuses, such as a low balance", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      research.enrich.mockRejectedValue(
+        new HTTPException(422, { message: "Not enough credits." }),
+      );
+      await expect(
+        service["executeContactResearch"](
+          {
+            capability: "enrich_contact",
+            input: { contactId },
+            toolCallId: "c",
+          } as never,
+          chat as never,
+        ),
+      ).rejects.toThrow("Not enough credits.");
+    });
   });
 
   describe("delete_file", () => {

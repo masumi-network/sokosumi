@@ -46,6 +46,8 @@ export const ACTION_LABELS: Record<string, string> = {
   log_contact_interaction: "Logged a contact interaction",
   merge_contacts: "Merged contacts",
   manage_contact_lists: "Updated contact list",
+  find_people: "Found people",
+  enrich_contact: "Enriched contact",
   create_project: "Created project",
   update_project: "Updated project",
   create_schedule: "Configured schedule",
@@ -124,6 +126,8 @@ const CONTACT_CAPABILITIES = new Set([
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "find_people",
+  "enrich_contact",
 ]);
 
 /** The contact or list a contacts receipt names, from its stored result. */

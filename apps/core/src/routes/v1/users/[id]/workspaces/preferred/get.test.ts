@@ -52,7 +52,7 @@ const PERSONAL = {
   memberCount: null,
   logo: null,
   websiteUrl: null,
-  enabledSocialProviders: ["x", "youtube", "linkedin"],
+  enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
   preferred: false,
 } as const;
 
@@ -66,7 +66,7 @@ const ORGANIZATION = {
   memberCount: 1,
   logo: null,
   websiteUrl: "https://acme.com",
-  enabledSocialProviders: ["x", "youtube", "linkedin"],
+  enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
   preferred: true,
 } as const;
 

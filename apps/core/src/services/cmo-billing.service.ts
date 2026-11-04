@@ -1,4 +1,6 @@
+import { CreditBucketReferenceType } from "@sokosumi/database";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
+import prisma from "@/lib/db/prisma";
 import {
   CmoForbiddenError,
   type Cuso,
@@ -18,6 +20,40 @@ export async function isCmoSubscribed(
   _cuso: Pick<Cuso, "workspaceId">,
 ): Promise<boolean> {
   return true;
+}
+
+/** What a person's first Cuso starts with, so he can research and plan. */
+export const CMO_STARTER_CREDITS = 10_000;
+
+/** Names the grant after the person, so they get it once. */
+function starterCreditsNote(userId: string): string {
+  return `CMO.xyz starter credits (${userId})`;
+}
+
+/**
+ * Gives the organization of a person's first Cuso its starter credits. Every
+ * hire, Start over included, makes a new organization, so the grant goes
+ * once per person, not once per organization.
+ */
+export async function grantCmoStarterCredits(input: {
+  userId: string;
+  organizationId: string;
+}): Promise<void> {
+  const referenceNote = starterCreditsNote(input.userId);
+  const granted = await prisma.creditBucket.findFirst({
+    where: { referenceType: CreditBucketReferenceType.FREE, referenceNote },
+    select: { id: true },
+  });
+  if (granted) return;
+  const { freeCreditAdminService } = await import(
+    "@/services/free-credit-admin.service"
+  );
+  await freeCreditAdminService.grantFreeCredits({
+    target: { targetType: "organization", targetId: input.organizationId },
+    credits: CMO_STARTER_CREDITS,
+    ttlDays: null,
+    referenceNote,
+  });
 }
 
 /**

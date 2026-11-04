@@ -30,6 +30,7 @@ const coreClientMock = {
   postProjectsByIdSocialConnectionsInitiate: vi.fn(),
   postProjectsByIdSocialPosts: vi.fn(),
   postProjectsByIdSocialPostsByPostIdCancel: vi.fn(),
+  postProjectsByIdSocialPostsByPostIdReject: vi.fn(),
   postProjectsByIdSocialPostsByPostIdDuplicate: vi.fn(),
   postProjectsByIdSocialAccountPostsByAccountPostIdRecycle: vi.fn(),
   postProjectsByIdSocialPostsByPostIdPublish: vi.fn(),
@@ -912,6 +913,26 @@ describe("project.service", () => {
       expect(
         coreClientMock.postProjectsByIdSocialPostsByPostIdPublish,
       ).toHaveBeenCalledWith("project-1", "post-1", { revision: 3 });
+    });
+
+    it("rejects a pending post using the Core reject endpoint and observed revision", async () => {
+      const rejected = { ...post, status: "CANCELED", revision: 4 };
+      coreClientMock.postProjectsByIdSocialPostsByPostIdReject.mockResolvedValue(
+        { data: rejected },
+      );
+      const { projectService } = await import("./project.service");
+      await expect(
+        projectService.rejectSocialPost("project-1", "post-1", { revision: 3 }),
+      ).resolves.toEqual(rejected);
+      expect(
+        coreClientMock.postProjectsByIdSocialPostsByPostIdReject,
+      ).toHaveBeenCalledWith("project-1", "post-1", { revision: 3 });
+      coreClientMock.postProjectsByIdSocialPostsByPostIdReject.mockRejectedValue(
+        new Error("Post changed"),
+      );
+      await expect(
+        projectService.rejectSocialPost("project-1", "post-1", { revision: 3 }),
+      ).rejects.toThrow("Post changed");
     });
 
     it("propagates Core errors from publishing", async () => {

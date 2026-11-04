@@ -490,6 +490,17 @@ export type AdminCmoSpend = {
     }>;
 };
 
+export type AdminSokoBotFleetDays = {
+    days: Array<{
+        day: string;
+        users: number;
+        messages: number;
+        turns: number;
+        totalTokens: number;
+        costUsd: number;
+    }>;
+};
+
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
@@ -1071,7 +1082,6 @@ export type SokoBotContextSnapshot = {
     id: string;
     schemaVersion: number;
     hash: string;
-    packet?: unknown;
     byteSize: number;
     tokenEstimate: number;
     counts?: unknown;
@@ -3487,6 +3497,11 @@ export type ChatResultAvailable = {
             avatarUrl: string | null;
         } | null;
         timestamp: Date | null;
+        projectId?: string | null;
+        postId?: string | null;
+        revision?: number | null;
+        canApprove?: boolean;
+        canReject?: boolean;
     } | null;
     actor?: {
         id: string;
@@ -4041,7 +4056,7 @@ export type Contact = {
     customFields: {
         [key: string]: unknown;
     };
-    firstContactAt: Date | null;
+    firstContactAt: Date;
     lastContactAt: Date | null;
     interactionCount: number;
     lastInboundAt: Date | null;
@@ -10664,230 +10679,11 @@ export type CmoOverview = {
     brandBrainUpdatedAt: Date | null;
     brandBrainConfirmedAt: Date | null;
     brandMedia: CmoBrandMedia | null;
-    strategy: {
-        month: string;
-        summary: string;
-        why?: string;
-        goals: Array<string>;
-        audience?: string;
-        contentLanguage?: string;
-        positioning?: string;
-        pillars: Array<string>;
-        channels: Array<{
-            channel: string;
-            cadence: string;
-            why?: string;
-        }>;
-        idea?: {
-            who: string;
-            position: string;
-            attract: string;
-            offer: string;
-            sentence: string;
-        };
-        alternatives?: Array<{
-            sentence: string;
-            why: string;
-        }>;
-        ladder?: {
-            entry?: {
-                what: string;
-                why?: string;
-            };
-            core: {
-                what: string;
-                why?: string;
-            };
-            next?: {
-                what: string;
-                why?: string;
-            };
-        };
-        pace?: {
-            level: 'steady' | 'active' | 'all_in';
-            why: string;
-            perWeek: number;
-        };
-        ads?: {
-            monthly: number;
-            currency: string;
-            expect: string;
-            without: string;
-            setByOwner?: boolean;
-        };
-        beforeAfter?: Array<{
-            channel: string;
-            before: string;
-            after: string;
-        }>;
-        improvements?: Array<{
-            area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
-            idea: string;
-            why: string;
-            url?: string;
-        }>;
-        start?: {
-            working?: Array<{
-                text: string;
-                basis?: 'fact' | 'assumption';
-            }>;
-            gaps?: Array<{
-                text: string;
-                basis?: 'fact' | 'assumption';
-            }>;
-            resources?: Array<{
-                text: string;
-                basis?: 'fact' | 'assumption';
-            }>;
-        };
-        objective?: {
-            outcome?: string;
-            metric?: string;
-            baseline?: string;
-            baselineBasis?: 'fact' | 'assumption';
-            target?: string;
-            why?: string;
-        };
-        barrier?: {
-            kind: 'awareness' | 'understanding' | 'trust';
-            text: string;
-        };
-        mix?: Array<{
-            approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
-            share: number;
-            why: string;
-        }>;
-        focus?: {
-            segment: string;
-            problem: string;
-            trigger?: string;
-            objections?: Array<string>;
-            where?: Array<string>;
-        };
-        offer?: {
-            what: string;
-            why: string;
-            proof?: Array<string>;
-            action: string;
-        };
-        campaigns?: Array<{
-            id: string;
-            name: string;
-            message: string;
-            audience?: string;
-            offer?: string;
-            channels?: Array<string>;
-            assets?: Array<string>;
-            start: string;
-            end: string;
-            budget?: string;
-            metric: string;
-        }>;
-        funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
-            goal: string;
-            channels?: Array<string>;
-            metric: string;
-            target?: string;
-            owner?: 'cuso' | 'you' | 'shared';
-            plays?: Array<{
-                channel: string;
-                what: string;
-                cadence?: string;
-            }>;
-            measure?: {
-                value?: string;
-                basis: 'measured' | 'estimated' | 'unknown';
-                source?: string;
-            };
-        }>;
-        proposals?: Array<{
-            channel: string;
-            why: string;
-            what: string;
-            perMonth: number;
-        }>;
-        journey?: Array<{
-            step: string;
-            fix?: string;
-        }>;
-        weeks?: Array<{
-            focus: string;
-            tasks?: Array<{
-                task: string;
-                owner: 'cuso' | 'you';
-                due?: string;
-                approval?: boolean;
-            }>;
-        }>;
-        budget?: {
-            total: string;
-            basis?: 'fact' | 'assumption';
-            lines?: Array<{
-                item: string;
-                amount: string;
-            }>;
-        };
-        measurement?: {
-            primary: string;
-            supporting?: Array<string>;
-            tracking?: Array<string>;
-            rules?: Array<{
-                when: string;
-                then: string;
-            }>;
-        };
-        openQuestions?: Array<string>;
-        questions?: Array<{
-            id: string;
-            question: string;
-            statement: string;
-            answer?: 'yes' | 'no' | 'unsure';
-            note?: string;
-        }>;
-        calendar: Array<{
-            id: string;
-            date: string;
-            time?: string;
-            channel: string;
-            title: string;
-            format: string;
-            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
-            hook?: string;
-            brief?: string;
-            draft?: string;
-            why?: string;
-            socialPostId?: string;
-            imageFileId?: string;
-            slideFileIds?: Array<string>;
-            fileId?: string;
-            searchAd?: {
-                keywords: Array<string>;
-                headlines: Array<string>;
-                descriptions: Array<string>;
-                finalUrl: string;
-                location?: string;
-                language?: string;
-                callouts?: Array<string>;
-            };
-            adCampaign?: {
-                accountId: string;
-                campaignId: string;
-            };
-            taskId?: string;
-            campaignId?: string;
-            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
-            pillar?: string;
-        }>;
-        previews?: Array<{
-            kind: 'post' | 'ad' | 'seo' | 'newsletter';
-            channel: string;
-            title: string;
-            body: string;
-        }>;
-        changes?: Array<string>;
-    } | null;
+    strategy: CmoPlan | null;
+    /**
+     * The approved version as Cuso carries it out, with the pieces he made: the month the Calendar shows. Differs from strategy while a change waits for approval.
+     */
+    approvedStrategy: CmoPlan | null;
     /**
      * The image or video Cuso attached to each calendar piece, by entry id.
      */
@@ -11007,6 +10803,231 @@ export type CmoBrandMedia = {
         fileId: string | null;
         alt: string;
     }>;
+};
+
+export type CmoPlan = {
+    month: string;
+    summary: string;
+    why?: string;
+    goals: Array<string>;
+    audience?: string;
+    contentLanguage?: string;
+    positioning?: string;
+    pillars: Array<string>;
+    channels: Array<{
+        channel: string;
+        cadence: string;
+        why?: string;
+    }>;
+    idea?: {
+        who: string;
+        position: string;
+        attract: string;
+        offer: string;
+        sentence: string;
+    };
+    alternatives?: Array<{
+        sentence: string;
+        why: string;
+    }>;
+    ladder?: {
+        entry?: {
+            what: string;
+            why?: string;
+        };
+        core: {
+            what: string;
+            why?: string;
+        };
+        next?: {
+            what: string;
+            why?: string;
+        };
+    };
+    pace?: {
+        level: 'steady' | 'active' | 'all_in';
+        why: string;
+        perWeek: number;
+    };
+    ads?: {
+        monthly: number;
+        currency: string;
+        expect: string;
+        without: string;
+        setByOwner?: boolean;
+    };
+    beforeAfter?: Array<{
+        channel: string;
+        before: string;
+        after: string;
+    }>;
+    improvements?: Array<{
+        area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+        idea: string;
+        why: string;
+        url?: string;
+    }>;
+    start?: {
+        working?: Array<{
+            text: string;
+            basis?: 'fact' | 'assumption';
+        }>;
+        gaps?: Array<{
+            text: string;
+            basis?: 'fact' | 'assumption';
+        }>;
+        resources?: Array<{
+            text: string;
+            basis?: 'fact' | 'assumption';
+        }>;
+    };
+    objective?: {
+        outcome?: string;
+        metric?: string;
+        baseline?: string;
+        baselineBasis?: 'fact' | 'assumption';
+        target?: string;
+        why?: string;
+    };
+    barrier?: {
+        kind: 'awareness' | 'understanding' | 'trust';
+        text: string;
+    };
+    mix?: Array<{
+        approach: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+        share: number;
+        why: string;
+    }>;
+    focus?: {
+        segment: string;
+        problem: string;
+        trigger?: string;
+        objections?: Array<string>;
+        where?: Array<string>;
+    };
+    offer?: {
+        what: string;
+        why: string;
+        proof?: Array<string>;
+        action: string;
+    };
+    campaigns?: Array<{
+        id: string;
+        name: string;
+        message: string;
+        audience?: string;
+        offer?: string;
+        channels?: Array<string>;
+        assets?: Array<string>;
+        start: string;
+        end: string;
+        budget?: string;
+        metric: string;
+    }>;
+    funnel?: Array<{
+        stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
+        name: string;
+        goal: string;
+        channels?: Array<string>;
+        metric: string;
+        target?: string;
+        owner?: 'cuso' | 'you' | 'shared';
+        plays?: Array<{
+            channel: string;
+            what: string;
+            cadence?: string;
+        }>;
+        measure?: {
+            value?: string;
+            basis: 'measured' | 'estimated' | 'unknown';
+            source?: string;
+        };
+    }>;
+    proposals?: Array<{
+        channel: string;
+        why: string;
+        what: string;
+        perMonth: number;
+    }>;
+    journey?: Array<{
+        step: string;
+        fix?: string;
+    }>;
+    weeks?: Array<{
+        focus: string;
+        tasks?: Array<{
+            task: string;
+            owner: 'cuso' | 'you';
+            due?: string;
+            approval?: boolean;
+        }>;
+    }>;
+    budget?: {
+        total: string;
+        basis?: 'fact' | 'assumption';
+        lines?: Array<{
+            item: string;
+            amount: string;
+        }>;
+    };
+    measurement?: {
+        primary: string;
+        supporting?: Array<string>;
+        tracking?: Array<string>;
+        rules?: Array<{
+            when: string;
+            then: string;
+        }>;
+    };
+    openQuestions?: Array<string>;
+    questions?: Array<{
+        id: string;
+        question: string;
+        statement: string;
+        answer?: 'yes' | 'no' | 'unsure';
+        note?: string;
+    }>;
+    calendar: Array<{
+        id: string;
+        date: string;
+        time?: string;
+        channel: string;
+        title: string;
+        format: string;
+        status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+        hook?: string;
+        brief?: string;
+        draft?: string;
+        why?: string;
+        socialPostId?: string;
+        imageFileId?: string;
+        slideFileIds?: Array<string>;
+        fileId?: string;
+        searchAd?: {
+            keywords: Array<string>;
+            headlines: Array<string>;
+            descriptions: Array<string>;
+            finalUrl: string;
+            location?: string;
+            language?: string;
+            callouts?: Array<string>;
+        };
+        adCampaign?: {
+            accountId: string;
+            campaignId: string;
+        };
+        taskId?: string;
+        campaignId?: string;
+        approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+        pillar?: string;
+    }>;
+    previews?: Array<{
+        kind: 'post' | 'ad' | 'seo' | 'newsletter';
+        channel: string;
+        title: string;
+        body: string;
+    }>;
+    changes?: Array<string>;
 };
 
 export type CmoUpdate = {
@@ -15203,6 +15224,66 @@ export type GetAdminCmoSpendResponses = {
 };
 
 export type GetAdminCmoSpendResponse = GetAdminCmoSpendResponses[keyof GetAdminCmoSpendResponses];
+
+export type GetAdminSokoBotFleetDaysData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+    };
+    url: '/admin/soko-bots/daily';
+};
+
+export type GetAdminSokoBotFleetDaysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotFleetDaysError = GetAdminSokoBotFleetDaysErrors[keyof GetAdminSokoBotFleetDaysErrors];
+
+export type GetAdminSokoBotFleetDaysResponses = {
+    /**
+     * Fleet per day
+     */
+    200: {
+        data: AdminSokoBotFleetDays;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotFleetDaysResponse = GetAdminSokoBotFleetDaysResponses[keyof GetAdminSokoBotFleetDaysResponses];
 
 export type MigrateAdminSokoBotVersionsData = {
     body?: AdminSokoBotVersionMigrationRequest;

@@ -33,6 +33,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import {
   SokoBotTargetContext,
@@ -40,15 +41,31 @@ import {
 } from "@/app/personal-assistant/components/soko-bot-target";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import {
+  approveProjectSocialPost,
+  rejectProjectSocialPost,
+} from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
@@ -90,11 +107,14 @@ export function cardHref(sourceHref: string, botId?: string | null): string {
 export function ResultPreviewCard({
   result,
   onDecisionResolved,
+  onSocialPostResolved,
   source,
 }: {
   source?: ResultPreviewsProps["source"];
   result: ChatResultPreview;
   onDecisionResolved: () => void;
+  /** Re-reads the card after a person approves or rejects its post. */
+  onSocialPostResolved?: () => void;
 }) {
   const sourceLink = useRef<HTMLAnchorElement>(null);
   const botId = useSokoBotTargetId();
@@ -135,8 +155,8 @@ export function ResultPreviewCard({
         }
       : null;
   const social = result.kind === "social_post" ? result.social : null;
-  if (social)
-    return (
+  if (social) {
+    const preview = (
       <SocialPostPreview
         className="w-full min-w-0 max-w-xl"
         provider={social.provider}
@@ -164,6 +184,17 @@ export function ResultPreviewCard({
           }))}
       />
     );
+    if (result.status !== "NEEDS_APPROVAL") return preview;
+    return (
+      <div className="flex w-full min-w-0 max-w-xl flex-col gap-2">
+        {preview}
+        <ChatSocialPostApproval
+          social={social}
+          onResolved={onSocialPostResolved}
+        />
+      </div>
+    );
+  }
   const jobStatus =
     result.kind === "job"
       ? Object.values(SokosumiJobStatus).find(
@@ -616,11 +647,118 @@ function AuthorizedResultPreviews({
                 void query.refetch();
                 onDecisionResolved?.();
               }}
+              onSocialPostResolved={() => void query.refetch()}
             />
           ))}
       </div>
       {renderFooter?.(results)}
     </>
+  );
+}
+
+/** A person approves the post here, as in Project Social. Agents never can. */
+function ChatSocialPostApproval({
+  social,
+  onResolved,
+}: {
+  social: NonNullable<
+    Extract<ChatResultPreview, { state: "available" }>["social"]
+  >;
+  onResolved?: () => void;
+}) {
+  const t = useTranslations("Components.ChatResults.socialApproval");
+  const [pending, setPending] = useState<"approve" | "reject" | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const { projectId, postId, revision, canApprove, canReject } = social;
+  const canAct = projectId && postId && revision != null;
+  async function handleDecision(decision: "approve" | "reject") {
+    if (
+      !canAct ||
+      pending ||
+      !(decision === "approve" ? canApprove : canReject)
+    )
+      return;
+    setPending(decision);
+    const failedKey = decision === "approve" ? "failed" : "rejectFailed";
+    try {
+      const action =
+        decision === "approve"
+          ? approveProjectSocialPost
+          : rejectProjectSocialPost;
+      const result = await action({ projectId, postId, revision });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t(failedKey));
+        return;
+      }
+      toast.success(t(decision === "approve" ? "approved" : "rejected"));
+      setRejectOpen(false);
+      onResolved?.();
+    } catch {
+      toast.error(t(failedKey));
+    } finally {
+      setPending(null);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <SocialPostStatusBadge label={t("label")} status="NEEDS_APPROVAL" />
+      {canApprove && canAct ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="primary"
+          loading={pending === "approve"}
+          disabled={pending !== null}
+          onClick={() => void handleDecision("approve")}
+        >
+          {t("approve")}
+        </Button>
+      ) : null}
+      {canReject && canAct ? (
+        <AlertDialog
+          open={rejectOpen}
+          onOpenChange={(open) => {
+            if (!pending) setRejectOpen(open);
+          }}
+        >
+          <AlertDialogTrigger asChild disabled={pending !== null}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              disabled={pending !== null}
+            >
+              {t("reject")}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("rejectTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("rejectDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={pending !== null}>
+                {t("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                loading={pending === "reject"}
+                disabled={pending !== null}
+                className="text-destructive"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleDecision("reject");
+                }}
+              >
+                {t("reject")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+    </div>
   );
 }
 

@@ -18,6 +18,7 @@ const projectServiceMock = {
   cancelProjectCloseOwedWork: vi.fn(),
   closeProject: vi.fn(),
   approveSocialPost: vi.fn(),
+  rejectSocialPost: vi.fn(),
   resumeSocialPostThread: vi.fn(),
   cancelSocialPost: vi.fn(),
   createProject: vi.fn(),
@@ -1099,6 +1100,47 @@ describe("project actions", () => {
           revision: 2,
         }),
       ).toMatchObject({ ok: false });
+    });
+
+    it("rejects a pending post through Core and revalidates Social", async () => {
+      const { rejectProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const rejected = { ...post, status: "CANCELED" };
+      projectServiceMock.rejectSocialPost.mockResolvedValue(rejected);
+      expect(
+        await rejectProjectSocialPost({
+          projectId: " project-1 ",
+          postId: " post-1 ",
+          revision: 2,
+        }),
+      ).toEqual({ ok: true, value: rejected });
+      expect(projectServiceMock.rejectSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 2 },
+      );
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+      expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      projectServiceMock.rejectSocialPost.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await rejectProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          revision: 2,
+        }),
+      ).toMatchObject({ ok: false });
+      projectServiceMock.rejectSocialPost.mockClear();
+      expect(
+        await rejectProjectSocialPost({
+          projectId: "",
+          postId: "post-1",
+          revision: -1,
+        }),
+      ).toMatchObject({ ok: false });
+      expect(projectServiceMock.rejectSocialPost).not.toHaveBeenCalled();
     });
 
     it("duplicates a post into a draft and revalidates", async () => {

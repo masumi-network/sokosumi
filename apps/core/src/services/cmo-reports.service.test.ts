@@ -119,6 +119,31 @@ function reportMessage(report: Record<string, unknown>) {
 }
 
 describe("report_update", () => {
+  it("files a production run's report as production, whatever kind Cuso gave it", async () => {
+    sokoBotFindUnique.mockResolvedValue(cuso());
+    await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-1",
+      production: true,
+      update: {
+        kind: "request",
+        headline: "16 of 40 posts have copy",
+        done: [],
+        upNext: [],
+        changes: [],
+      },
+    });
+    const { create } = messageUpsert.mock.calls[0]?.[0];
+    expect(create.metadata.cmo_report.kind).toBe("production");
+    // Sokosumi's chat shows the round as its headline alone.
+    expect(create.metadata.result_preview_snapshots[0].data).toMatchObject({
+      title: "16 of 40 posts have copy",
+      status: "Production",
+      details: [],
+    });
+  });
+
   it("posts the report as a result card in Cuso's shared room", async () => {
     sokoBotFindUnique.mockResolvedValue(cuso());
     const record = await reportCmoUpdate({

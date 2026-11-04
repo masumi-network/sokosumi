@@ -1,7 +1,3 @@
-import {
-  SOCIAL_PUBLIC_PROVIDERS,
-  socialPostProviderLabel,
-} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -216,7 +212,7 @@ describe("Social tool contracts", () => {
       "publish_social_post",
     ] as const) {
       expect(descriptions[key]).toContain(
-        `Public publishing platforms: ${SOCIAL_PUBLIC_PROVIDERS.map(socialPostProviderLabel).join(", ")}.`,
+        "Public publishing platforms: X, YouTube, LinkedIn, Instagram, Facebook.",
       );
       expect(descriptions[key]).toContain("Coming soon");
       expect(descriptions[key]).toContain("enabledProviders");
@@ -226,7 +222,36 @@ describe("Social tool contracts", () => {
     expect(descriptions.create_social_post).toMatch(/video/);
     expect(descriptions.create_social_post).toMatch(/LinkedIn/);
     expect(descriptions.create_social_post).toMatch(/Needs approval/);
+    expect(descriptions.create_social_post).toContain(
+      "The post lands as Needs approval (NEEDS_APPROVAL)",
+    );
     expect(descriptions.publish_social_post).toMatch(/Needs approval/);
+  });
+
+  it("leaves approval to people and prepares the chat card after creation", () => {
+    const descriptions = SOKO_BOT_TOOL_DESCRIPTIONS;
+    expect(descriptions.create_social_post).toContain(
+      "Tell the owner it is waiting for approval",
+    );
+    expect(descriptions.create_social_post).toContain(
+      'preview_result with reference {kind:"social_post",id,projectId}',
+    );
+    expect(descriptions.create_social_post).toContain("Approve and Reject");
+    for (const capability of [
+      "create_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+    ] as const) {
+      expect(descriptions[capability]).toContain(
+        "You never approve or reject posts",
+      );
+    }
+    expect(descriptions.publish_social_post).toContain(
+      "Never call it while status is Needs approval (NEEDS_APPROVAL)",
+    );
+    expect(descriptions.create_social_post).toContain(
+      "never call publish_social_post while approval is pending",
+    );
   });
 
   it("requires text or media for creation and preserves partial updates", () => {

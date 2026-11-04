@@ -4,6 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import {
   ArrowUp,
   Brain,
+  CalendarDays,
   ChartLine,
   type LucideIcon,
   MessageSquare,
@@ -29,6 +30,7 @@ import { type AdActions, SearchAdControl } from "../ads";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
+import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
   type CardActions,
@@ -69,6 +71,7 @@ function useDrawerLayout(): boolean {
 const VIEWS = [
   ["chat", "Cuso", MessageSquare],
   ["strategy", "Strategy", Target],
+  ["calendar", "Calendar", CalendarDays],
   ["results", "Results", ChartLine],
   ["brain", "Brand Brain", Brain],
   ["channels", "Channels", Share2],
@@ -272,7 +275,13 @@ export function CmoApp({
     if (!content) return;
     setDraft("");
     startSending(async () => {
-      await actions.sendMessage(content);
+      // A message that did not send comes back to the box, not lost.
+      try {
+        await actions.sendMessage(content);
+      } catch {
+        setDraft(content);
+        return;
+      }
       await refresh();
     });
   }
@@ -368,6 +377,14 @@ export function CmoApp({
             </span>
           ) : null}
           <span className="sp" />
+          {view === "strategy" &&
+          overview.strategy &&
+          !strategyApproved(overview) &&
+          overview.viewerCanApprove ? (
+            <ApproveDraft
+              approve={async () => setOverview(await actions.approveStrategy())}
+            />
+          ) : null}
           {view === "strategy" || view === "brain" ? (
             <button
               type="button"
@@ -426,6 +443,7 @@ export function CmoApp({
                     overview={overview}
                     actions={cardActions}
                     name={name || email}
+                    openCalendar={() => go("calendar")}
                     highlighted={
                       item.kind === "update" && item.update.id === highlight
                     }
@@ -484,8 +502,8 @@ export function CmoApp({
         ) : (
           <div className="scroll">
             <div className="page-wide">
-              {view === "strategy" ? (
-                <StrategyPage
+              {view === "calendar" ? (
+                <CalendarPage
                   overview={overview}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
@@ -496,6 +514,15 @@ export function CmoApp({
                       onChange={setOverview}
                     />
                   )}
+                  onAsk={async (text) => {
+                    await actions.sendMessage(text);
+                    await refresh();
+                  }}
+                />
+              ) : view === "strategy" ? (
+                <StrategyPage
+                  overview={overview}
+                  onOpenCalendar={() => go("calendar")}
                   onAsk={async (text) => {
                     await actions.sendMessage(text);
                     await refresh();
@@ -586,12 +613,14 @@ function ThreadEntry({
   overview,
   actions,
   name,
+  openCalendar,
   highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
+  openCalendar: () => void;
   highlighted: boolean;
 }) {
   if (item.kind === "message") {
@@ -621,8 +650,8 @@ function ThreadEntry({
       <CusoSays at={item.at}>
         <p className="txt">
           Your plan is ready. I'm making this month's posts now and publish each
-          one on its day; Up next shows what goes out first. Ask me anything
-          here, or tell me what to change.
+          one on its day; the Calendar shows every piece. Ask me anything here,
+          or tell me what to change.
         </p>
       </CusoSays>
     );
@@ -645,6 +674,13 @@ function ThreadEntry({
         return <StrategyCard overview={overview} actions={actions} />;
       case "connect":
         return <ConnectCard actions={actions} />;
+      case "production":
+        return (
+          <ProductionCard
+            production={overview.production}
+            openCalendar={openCalendar}
+          />
+        );
       case "update":
         return (
           <div
@@ -670,6 +706,97 @@ function ThreadEntry({
     }
   })();
   return card ? <CusoSays at={item.at}>{card}</CusoSays> : null;
+}
+
+/**
+ * Approves the newest version from the Strategy page; Cuso makes the month
+ * from it. A refused approval says so instead of leaving the page.
+ */
+function ApproveDraft({ approve }: { approve: () => Promise<void> }) {
+  const [pending, startApproving] = useTransition();
+  const [failed, setFailed] = useState(false);
+  return (
+    <button
+      type="button"
+      className="button button-small"
+      disabled={pending}
+      title={failed ? "That didn't go through. Try again." : undefined}
+      onClick={() =>
+        startApproving(async () => {
+          setFailed(false);
+          try {
+            await approve();
+          } catch {
+            setFailed(true);
+          }
+        })
+      }
+    >
+      {pending ? "Approving…" : failed ? "Try again" : "Approve"}
+    </button>
+  );
+}
+
+/**
+ * Cuso making the month, as one card that fills up: his rounds report to
+ * Core, and the owner sees how far the month is and where to read it.
+ */
+function ProductionCard({
+  production,
+  openCalendar,
+}: {
+  production: CmoOverview["production"];
+  openCalendar: () => void;
+}) {
+  const ready = production.state === "ready";
+  const share =
+    production.total > 0
+      ? Math.round((production.ready / production.total) * 100)
+      : 0;
+  return (
+    <div className="production">
+      <p className="production-head">
+        {production.state === "running" ? (
+          <span className="dot live" aria-hidden="true" />
+        ) : null}
+        <b>
+          {ready
+            ? "Your month is ready"
+            : production.state === "stuck"
+              ? "Most of your month is ready"
+              : "Cuso is making your month"}
+        </b>
+        <span className="note num">
+          {production.ready} of {production.total} ready
+        </span>
+      </p>
+      <span
+        className="uprogress"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={production.total}
+        aria-valuenow={production.ready}
+        aria-label="Pieces made"
+      >
+        <span style={{ width: `${share}%` }} />
+      </span>
+      <p className="note">
+        {ready
+          ? "Every post, picture, article and email is made. Each goes out on its day."
+          : production.state === "stuck"
+            ? "A few pieces didn't finish. Cuso tries them again on his next round."
+            : "Posts, pictures, articles and emails, in rounds. Read each one as it's made."}
+      </p>
+      <button
+        type="button"
+        className="button button-secondary button-small"
+        onClick={openCalendar}
+      >
+        <CalendarDays size={14} aria-hidden="true" />
+        See your calendar
+      </button>
+    </div>
+  );
 }
 
 function CusoSays({

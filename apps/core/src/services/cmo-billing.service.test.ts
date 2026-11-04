@@ -17,6 +17,11 @@ vi.mock(
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.socialPosts,
 );
 vi.mock(
+  "@/services/free-credit-admin.service",
+  async () =>
+    (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.freeCredits,
+);
+vi.mock(
   "@/services/soko-bot-shared-create.service",
   async () =>
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.sharedCreate,

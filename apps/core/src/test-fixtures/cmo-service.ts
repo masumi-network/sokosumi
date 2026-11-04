@@ -41,6 +41,9 @@ export const fileLinkFindMany = vi.fn();
 export const projectDelete = vi.fn();
 export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
+export const organizationUpdate = vi.fn();
+export const creditBucketFindFirst = vi.fn();
+export const grantFreeCredits = vi.fn();
 export const getUserWorkspace = vi.fn();
 export const messageUpsert = vi.fn();
 export const messageFindFirst = vi.fn();
@@ -228,7 +231,11 @@ const client = {
   },
   marketingStrategy,
   fileProjectLink: { findMany: fileLinkFindMany },
-  organization: { findFirst: organizationFindFirst },
+  organization: {
+    findFirst: organizationFindFirst,
+    update: organizationUpdate,
+  },
+  creditBucket: { findFirst: creditBucketFindFirst },
   subscription: {
     findFirst: subscriptionFindFirst,
     create: subscriptionCreate,
@@ -288,6 +295,7 @@ export const cmoServiceMocks = {
     connectSokoBotIntegration,
     finalizeSokoBotIntegration,
   },
+  freeCredits: { freeCreditAdminService: { grantFreeCredits } },
 };
 
 export const strategy = {

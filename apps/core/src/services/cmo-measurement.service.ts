@@ -4,6 +4,7 @@ import {
   isCmoMeasurementSource,
 } from "@sokosumi/soko-bot";
 import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
+import { composioHandoffUrl } from "@/helpers/composio-handoff";
 import prisma from "@/lib/db/prisma";
 import type { SitePlatform } from "@/lib/site-platform";
 import {
@@ -95,13 +96,19 @@ export async function connectCmoMeasurement(input: {
   const { connectSokoBotIntegration } = await import(
     "@/services/soko-bot-integration-connection.service"
   );
-  return connectSokoBotIntegration({
+  const { redirectUrl } = await connectSokoBotIntegration({
     userId: input.userId,
     workspaceId: cuso.workspaceId,
     provider: input.provider,
     returnUrl: input.returnUrl,
     selector: { kind: "id", sokoBotId: cuso.sokoBotId },
   });
+  return {
+    redirectUrl: composioHandoffUrl({
+      redirectUrl,
+      returnUrl: input.returnUrl,
+    }),
+  };
 }
 
 /** Finishes a measurement connection once the owner is back from authorizing. */

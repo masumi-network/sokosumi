@@ -11,6 +11,7 @@ import {
   type CmoMeasurement,
   type CmoOverview,
   chooseCmoAdAccount,
+  completeSokoBotIntegrationAuth,
   confirmProjectBrandBrain,
   connectCmoAds,
   connectCmoMeasurement,
@@ -396,12 +397,14 @@ export async function setAdBudget(
 
 /**
  * The founder moved on from the Accounts step, the last one: CMO opens on the
- * chat. A connection already counts; skipping is kept in CMO's cookie.
+ * chat. A connection already counts; skipping is kept in CMO's cookie. It
+ * goes to the app's home, not back to the address it came from: back from a
+ * connection, that address keeps the Accounts step open.
  */
-export async function finishAccounts(): Promise<CmoOverview> {
-  const overview = await skipStep("accounts");
+export async function finishAccounts(): Promise<never> {
+  await skipStep("accounts");
   revalidatePath("/");
-  return overview;
+  redirect("/");
 }
 
 /**
@@ -508,13 +511,35 @@ async function cusoProject() {
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */
+type SocialProvider = "x" | "linkedin" | "instagram" | "facebook" | "youtube";
+
+/** Connects a network from the app's Channels page. */
 export async function connectChannel(
-  provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+  provider: SocialProvider,
+): Promise<{ url: string | null; error: string | null }> {
+  return startChannel(provider, "app");
+}
+
+/** Connects a network on the Accounts step; the founder comes back to it. */
+export async function connectSetupChannel(
+  provider: SocialProvider,
+): Promise<{ url: string | null; error: string | null }> {
+  return startChannel(provider, "onboarding");
+}
+
+async function startChannel(
+  provider: SocialProvider,
+  from: "onboarding" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const { overview: _overview, ...options } = await cusoProject();
+  const query = new URLSearchParams({ from });
   const { data, error } = await postProjectsByIdSocialConnectionsInitiate({
     ...options,
-    body: { action: "connect", provider, callbackUrl: await callbackUrl() },
+    body: {
+      action: "connect",
+      provider,
+      callbackUrl: await callbackUrl(`/connect/callback?${query}`),
+    },
   });
   if (!data) {
     return { url: null, error: errorText(error, "Could not start connecting") };
@@ -672,7 +697,19 @@ export async function connectMeasurement(
 /** Finishes a measurement connection after the founder signed in. */
 export async function finalizeMeasurement(
   provider: CmoMeasurement["provider"],
+  sessionUri: string | null,
 ): Promise<boolean> {
+  // Back from Composio's verifier: redeeming the session for Cuso's bot also
+  // keeps the connection.
+  if (sessionUri) {
+    const overview = await requireOverview();
+    const { error } = await completeSokoBotIntegrationAuth({
+      ...(await inCusoWorkspace(overview)),
+      path: { sokoBotId: overview.sokoBotId },
+      body: { sessionUri },
+    });
+    return !error;
+  }
   const core = await requireCore();
   const { error } = await finalizeCmoMeasurement({
     ...core,

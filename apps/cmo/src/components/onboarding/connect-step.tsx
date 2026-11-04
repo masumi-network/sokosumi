@@ -61,8 +61,15 @@ export function optionalChannels(
   overview: CmoOverview,
 ): { key: string; perMonth: number | null }[] {
   const planned = strategyChannels(overview);
+  const calendar = overview.strategy?.calendar ?? [];
+  // A channel the plan names but gives no pieces has nothing to offer here.
   const own = planned
-    .filter((key) => !isProvider(key) && key !== "seo")
+    .filter(
+      (key) =>
+        !isProvider(key) &&
+        key !== "seo" &&
+        calendar.some((entry) => channelKey(entry.channel) === key),
+    )
     .map((key) => ({ key, perMonth: null }));
   const proposed = (overview.strategy?.proposals ?? []).flatMap((proposal) => {
     const key = channelKey(proposal.channel);
@@ -120,7 +127,9 @@ export function ConnectStep({
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [continuing, startContinuing] = useTransition();
-  const missing = required.filter((key) => !connected.has(key));
+  // One of the plan's networks is enough to start; the rest can follow.
+  const waiting =
+    required.length > 0 && !required.some((key) => connected.has(key));
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
 
@@ -161,7 +170,7 @@ export function ConnectStep({
     );
   const needed = [...required, ...(searchOnly ? ["seo"] : [])];
   const sections = [
-    { label: "Needed", keys: needed },
+    { label: "In your plan", keys: needed },
     { label: "Optional", keys: byGroup(optional.map(({ key }) => key)) },
   ].filter((section) => section.keys.length > 0);
   const perMonth = (key: string) =>
@@ -182,6 +191,7 @@ export function ConnectStep({
           <MailingList
             size={overview.mailingListSize}
             issues={pieces(key)}
+            perMonth={perMonth(key)}
             onAdd={onMailingList}
           />
         ) : (
@@ -240,19 +250,19 @@ export function ConnectStep({
         mood="point"
         say={
           required.length > 0
-            ? "Connect the accounts I post to. Ads and the rest are optional: add them now or later."
+            ? "Connect the accounts I post to. One is enough to start; add the rest now or later."
             : "Nothing here is needed to start. Add any of these now or later."
         }
         note={
-          missing.length > 0
-            ? `Connect ${listNames(missing.map(channelLabel))} to continue.`
+          waiting
+            ? `Connect ${listNames(required.map(channelLabel), "or")} to continue.`
             : undefined
         }
         action={
           <button
             type="button"
             className="ob-button ob-button-lg"
-            disabled={continuing || missing.length > 0}
+            disabled={continuing || waiting}
             onClick={() =>
               startContinuing(async () => {
                 try {
@@ -311,11 +321,11 @@ function Done({ children }: { children: ReactNode }) {
   );
 }
 
-/** Names as one phrase: "X", "X and LinkedIn", "X, LinkedIn and Facebook". */
-function listNames(names: string[]): string {
+/** Names as one phrase: "X", "X or LinkedIn", "X, LinkedIn or Facebook". */
+function listNames(names: string[], joiner: "and" | "or" = "and"): string {
   return names.length < 2
     ? (names[0] ?? "")
-    : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+    : `${names.slice(0, -1).join(", ")} ${joiner} ${names.at(-1)}`;
 }
 
 function rowNote(
@@ -336,30 +346,34 @@ function rowNote(
   const replies = COMMENT_REPLY_CHANNELS.includes(key)
     ? " Cuso answers its comments every day."
     : "";
+  const what = key === "youtube" ? "video" : "post";
+  const thisMonth = `${state.pieces} ${what}${state.pieces === 1 ? "" : "s"} this month.`;
   if (state.connected) {
     return group === "ads"
       ? `Connected. You set the budget and launch the ads in ${platform}.`
-      : `Connected${state.handle ? ` as @${state.handle}` : ""}.${replies}`;
+      : `Connected${state.handle ? ` as @${state.handle}` : ""}. ${thisMonth}${replies}`;
   }
   if (state.perMonth !== null) {
-    const what = group === "ads" ? "ad" : key === "youtube" ? "video" : "post";
-    return `Adds ${state.perMonth} ${what}${state.perMonth === 1 ? "" : "s"} a month.`;
+    const added = group === "ads" ? "ad" : what;
+    return `Adds ${state.perMonth} ${added}${state.perMonth === 1 ? "" : "s"} a month.`;
   }
   if (group === "ads") {
     return `${state.pieces} ${state.pieces === 1 ? "ad" : "ads"}, written and designed. You set the budget and launch ${state.pieces === 1 ? "it" : "them"} in ${platform}.`;
   }
-  const what = key === "youtube" ? "video" : "post";
-  return `Unlocks ${state.pieces} ${what}${state.pieces === 1 ? "" : "s"} in your first four weeks.${replies}`;
+  return `${thisMonth}${replies}`;
 }
 
 /** The newsletter needs the founder's list: a CSV export or pasted addresses. */
 function MailingList({
   size,
   issues,
+  perMonth,
   onAdd,
 }: {
   size: number;
   issues: number;
+  /** A newsletter Cuso proposed adding: the issues it would bring a month. */
+  perMonth: number | null;
   onAdd: (text: string) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
@@ -367,6 +381,8 @@ function MailingList({
   const [error, setError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   const file = useRef<HTMLInputElement>(null);
+  const count = issues > 0 ? issues : (perMonth ?? 0);
+  const written = `${count} ${count === 1 ? "issue" : "issues"}${issues > 0 ? "" : " a month"}`;
 
   const add = (value: string) =>
     startSaving(async () => {
@@ -398,8 +414,8 @@ function MailingList({
           <p className="ob-connect-name">Newsletter</p>
           <p className="ob-note">
             {size > 0
-              ? `${size} ${size === 1 ? "person" : "people"} on your list. Cuso writes ${issues} ${issues === 1 ? "issue" : "issues"} for them, ready to send with your email service.`
-              : `Cuso writes ${issues} ${issues === 1 ? "issue" : "issues"}, ready to send with your email service. Add your mailing list so he writes for the people on it.`}
+              ? `${size} ${size === 1 ? "person" : "people"} on your list. Cuso writes ${written} for them, ready to send with your email service.`
+              : `Cuso writes ${written}, ready to send with your email service. Add your mailing list so he writes for the people on it.`}
           </p>
         </div>
         {open ? null : (

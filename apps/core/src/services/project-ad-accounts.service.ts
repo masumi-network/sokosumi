@@ -3,7 +3,6 @@ import type {
   ProjectAdAccount,
   ProjectAdConnection,
 } from "@sokosumi/database";
-
 import {
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
@@ -17,6 +16,7 @@ import {
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { composioHandoffUrl } from "@/helpers/composio-handoff";
 import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
@@ -186,7 +186,14 @@ export async function initiateProjectAdConnection(
     });
     throw error;
   }
-  return connection;
+  return {
+    connectionId: connection.connectionId,
+    redirectUrl: composioHandoffUrl({
+      redirectUrl: connection.redirectUrl,
+      returnUrl: input.callbackUrl,
+      connectionId: connection.connectionId,
+    }),
+  };
 }
 
 /**

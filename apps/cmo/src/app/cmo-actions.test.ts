@@ -51,6 +51,7 @@ vi.mock("@sokosumi/core-client", () => ({
 const {
   addMailingList,
   connectChannel,
+  connectSetupChannel,
   finalizeChannel,
   finishAccounts,
   loadOverview,
@@ -144,8 +145,23 @@ describe("social accounts", () => {
         body: {
           action: "connect",
           provider: "x",
-          callbackUrl: "https://app.cmo.xyz/connect/callback",
+          callbackUrl: "https://app.cmo.xyz/connect/callback?from=app",
         },
+      }),
+    );
+  });
+
+  it("brings a connect on the Accounts step back to it", async () => {
+    postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+      data: { data: { redirectUrl: "https://connect.example/x" } },
+    });
+
+    await connectSetupChannel("x");
+    expect(postProjectsByIdSocialConnectionsInitiate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          callbackUrl: "https://app.cmo.xyz/connect/callback?from=onboarding",
+        }),
       }),
     );
   });
@@ -253,7 +269,8 @@ describe("skipped hiring steps", () => {
   });
 
   it("opens the app on Continue from the accounts step, kept in an httpOnly cookie", async () => {
-    expect((await finishAccounts()).onboardingStep).toBe("done");
+    await finishAccounts().catch(() => undefined);
+    expect(redirect).toHaveBeenCalledWith("/");
     expect(setCookie).toHaveBeenCalledWith(
       "cmo-skipped-project-1",
       "accounts",

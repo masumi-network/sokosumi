@@ -3,6 +3,10 @@ import {
   CMO_BRAND_SECTIONS,
   CMO_SOKO_BOT_VERSION_ID,
 } from "@sokosumi/soko-bot";
+import {
+  buildOrganizationMetadataWithUrl,
+  parseOrganizationMetadata,
+} from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -13,12 +17,14 @@ import {
   brandBrainSectionsSaved,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
+import { grantCmoStarterCredits } from "@/services/cmo-billing.service";
 import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
   CMO_OUT_OF_CREDITS,
   CmoConflictError,
   type CmoLearningState,
+  CUSO_BOT_WHERE,
   type Cuso,
   cmoBusinessNameFromUrl,
   findCusoForBot,
@@ -63,6 +69,20 @@ async function canFundFirstTurn(input: {
     tx: prisma,
   });
   return credits.spendable >= getEnv().SOKO_BOT_MIN_TURN_CREDITS;
+}
+
+/**
+ * A retry after a turn that saved sections but not the essentials: the
+ * research is done, so Cuso only writes what is missing.
+ */
+function finishBrandBrainMessage(input: { businessName: string }): string {
+  return [
+    `Your research on ${input.businessName} stopped before the Brand Brain essentials were saved. The profile sections you saved are kept.`,
+    "",
+    "Read the saved sections, then save the essentials with save_brand_brain (summary, voice, audience, products, offers, competitors, alternatives and channels), following your Brand Brain skill. Research again only what the essentials still need.",
+    "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
+    "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
+  ].join("\n");
 }
 
 function onboardingMessage(input: {
@@ -286,18 +306,20 @@ export async function cmoWork(
   };
 }
 
-/** Starts learning again after a failed or stuck first look. */
+/**
+ * Starts learning again after a failed or stuck first look, or after one that
+ * ended without the Brand Brain's essentials and asked nothing.
+ */
 export async function retryCmoOnboarding(
   userId: string,
 ): Promise<{ turnId: string }> {
   const cuso = await requireCuso({ userId });
   const state = await cmoLearningState(cuso);
-  if (state !== "failed") {
-    throw new CmoConflictError(
-      state === "running"
-        ? "Cuso is still learning the business"
-        : "Cuso already learned the business",
-    );
+  if (state === "running") {
+    throw new CmoConflictError("Cuso is still learning the business");
+  }
+  if (parseBrandBrain(cuso.brandBrain)) {
+    throw new CmoConflictError("Cuso already learned the business");
   }
   const project = await prisma.project.findUnique({
     where: { id: cuso.projectId },
@@ -327,6 +349,18 @@ export async function startCmoOver(userId: string): Promise<void> {
     kind: "id",
     sokoBotId: cuso.sokoBotId,
   });
+  // The next hire may land in this organization with a room of its own, so
+  // this one is named after its website to tell the two apart.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { sharedRoomId: true },
+  });
+  if (bot?.sharedRoomId) {
+    await prisma.chatRoom.update({
+      where: { id: bot.sharedRoomId },
+      data: { name: `${CUSO_NAME} · ${cuso.businessName}`.slice(0, 80) },
+    });
+  }
   const posts = await prisma.socialPost.findMany({
     where: {
       projectId: cuso.projectId,
@@ -361,8 +395,56 @@ export function startCmoResearch(
 ): Promise<{ turnId: string }> {
   return startCmoTurn(cuso, userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
-    message: onboardingMessage(cuso),
+    message:
+      brandBrainSectionsSaved(cuso.brandBrain).length > 0
+        ? finishBrandBrainMessage(cuso)
+        : onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,
+  });
+}
+
+/**
+ * The organization of a Cuso this person let go with "Use another website"
+ * before approving any plan: hiring for the new website stays in it, so the
+ * chat with the earlier Cuso stays beside the new one. Only theirs alone.
+ */
+async function organizationLeftWhileHiring(userId: string) {
+  return prisma.organization.findFirst({
+    where: {
+      members: {
+        every: { userId },
+        some: { userId, role: "owner" },
+      },
+      workspace: {
+        is: {
+          projects: {
+            some: {
+              sokoBots: {
+                some: { ...CUSO_BOT_WHERE, archivedAt: { not: null } },
+              },
+            },
+            none: {
+              OR: [
+                {
+                  marketingStrategies: { some: { approvedAt: { not: null } } },
+                },
+                {
+                  sokoBots: {
+                    some: {
+                      ...CUSO_BOT_WHERE,
+                      archivedAt: null,
+                      deletedAt: null,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, metadata: true },
   });
 }
 
@@ -370,7 +452,8 @@ export function startCmoResearch(
  * Hires Cuso into a new organization named after the business (ADR 0060):
  * his marketing Project and Cuso as its shared bot (ADR 0061) go there, and
  * his first turn starts. A person who already works with a live Cuso gets
- * that one back; a Project that has one refuses a second (409).
+ * that one back; a Project that has one refuses a second (409). Hiring again
+ * after "Use another website" while hiring stays in that organization.
  */
 export async function startCmoOnboarding(input: {
   userId: string;
@@ -396,18 +479,39 @@ export async function startCmoOnboarding(input: {
       },
       workspace: { is: { projects: { none: {} } } },
     },
-    select: { id: true },
+    select: { id: true, metadata: true },
   });
   // Loaded here: Better Auth's module graph stays out of the CMO service's.
   const { createOrganizationWorkspace } = await import(
     "@/helpers/organization-workspace"
   );
-  const workspace = leftover
-    ? await getUserWorkspace(input.userId, { organizationId: leftover.id })
+  const reused = leftover ?? (await organizationLeftWhileHiring(input.userId));
+  if (reused && reused.id !== leftover?.id) {
+    await prisma.organization.update({
+      where: { id: reused.id },
+      data: {
+        name: businessName,
+        metadata: JSON.stringify(
+          buildOrganizationMetadataWithUrl(
+            parseOrganizationMetadata(reused.metadata),
+            input.websiteUrl,
+          ) ?? {},
+        ),
+      },
+    });
+  }
+  const workspace = reused
+    ? await getUserWorkspace(input.userId, { organizationId: reused.id })
     : await createOrganizationWorkspace(input.userId, {
         name: businessName,
         websiteUrl: input.websiteUrl,
       });
+  if (workspace.organizationId) {
+    await grantCmoStarterCredits({
+      userId: input.userId,
+      organizationId: workspace.organizationId,
+    });
+  }
   if (
     !(await canFundFirstTurn({
       userId: input.userId,

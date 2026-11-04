@@ -660,3 +660,30 @@ describe("createCoreClient user sign-up", () => {
     });
   });
 });
+
+describe("createCoreClient social post rejection", () => {
+  it("sends the revision to Core's reject route and preserves a stale-post failure", async () => {
+    const requests: Request[] = [];
+    const client = createClient({
+      baseUrl: "https://core.example.com/v1",
+      fetch: async (input, init) => {
+        requests.push(new Request(input, init));
+        return new Response(
+          JSON.stringify({ error: "Post changed. Reload and try again." }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    });
+    const core = createCoreClient(() => client);
+    await expect(
+      core.postProjectsByIdSocialPostsByPostIdReject("project-1", "post-1", {
+        revision: 2,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(requests[0].url).toBe(
+      "https://core.example.com/v1/projects/project-1/social-posts/post-1/reject",
+    );
+    expect(requests[0].method).toBe("POST");
+    expect(await requests[0].json()).toEqual({ revision: 2 });
+  });
+});

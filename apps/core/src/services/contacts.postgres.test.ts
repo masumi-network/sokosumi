@@ -241,7 +241,12 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
   });
 
   it("keeps first contact, last contact and the count in step, once per sourceRef", async () => {
+    const before = Date.now();
     const { contact } = await create(asAlice, { name: "Derived Fields" });
+    // No interaction yet: first contact is the moment it was added.
+    expect(
+      new Date(contact.firstContactAt as Date).getTime(),
+    ).toBeGreaterThanOrEqual(before - 1_000);
     const one = await log(asAlice, contact.id, "2026-03-01T10:00:00Z", "msg-1");
     const replay = await log(
       asBob,
@@ -658,6 +663,20 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     });
     expect(items.map((contact) => contact.name)).toContain("Praxis");
     expect(items.map((contact) => contact.name)).not.toContain("Anna Kind");
+  });
+
+  it("sorts by first contact, which every contact has", async () => {
+    const page = await listContacts(asAlice, {
+      filter: {},
+      sort: "firstContactAt",
+      direction: "desc",
+      limit: 50,
+    });
+    const dates = page.items.map((contact) =>
+      new Date(contact.firstContactAt as Date).getTime(),
+    );
+    expect(dates.length).toBeGreaterThan(0);
+    expect(dates).toEqual([...dates].sort((a, b) => b - a));
   });
 
   it("pages through contacts sorted by last contact with never-contacted last", async () => {

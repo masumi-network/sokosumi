@@ -106,6 +106,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrain: brain,
     brandBrainUpdatedAt: new Date("2026-10-05T09:01:00Z"),
     strategy,
+    approvedStrategy: null,
     media: [],
     ...cmoStrategyVersion(null, new Date("2026-10-05T09:02:00Z")),
     updates: [],
@@ -171,10 +172,44 @@ describe("onboarding steps", () => {
     expect(
       onboardingStep(overview({ strategy: null, work: running("strategy") })),
     ).toBe("planning");
+    // A first plan waits on the planning screen until Cuso has saved all of it.
+    const firstPlan = { ...strategy, changes: [] };
+    expect(
+      onboardingStep(
+        overview({ strategy: firstPlan, work: running("strategy") }),
+      ),
+    ).toBe("planning");
+    expect(
+      onboardingStep(overview({ strategy: { ...firstPlan, calendar: [] } })),
+    ).toBe("planning");
+    expect(onboardingStep(overview({ strategy: firstPlan }))).toBe("strategy");
     // A change request keeps the plan on screen while Cuso rewrites it.
     expect(onboardingStep(overview({ work: running("strategy") }))).toBe(
       "strategy",
     );
+    // A "no" on the plan's checks stays on Check until the plan is fitted,
+    // and the fitting keeps the plan on screen.
+    const question = (answer: "yes" | "no") => ({
+      id: `q-${answer}`,
+      question: "Is it right?",
+      statement: "It is right.",
+      answer,
+    });
+    const answered = {
+      ...firstPlan,
+      questions: [question("yes"), question("no")],
+    };
+    expect(onboardingStep(overview({ strategy: answered }))).toBe("check");
+    expect(
+      onboardingStep(
+        overview({ strategy: answered, work: running("strategy") }),
+      ),
+    ).toBe("check");
+    expect(
+      onboardingStep(
+        overview({ strategy: { ...answered, changes: ["Fitted"] } }),
+      ),
+    ).toBe("strategy");
     expect(onboardingStep(overview())).toBe("strategy");
     expect(
       onboardingStep(
@@ -278,6 +313,17 @@ describe("accounts", () => {
           ...strategy.channels,
           { channel: "meta_ads", cadence: "2 a month" },
         ],
+        calendar: [
+          ...strategy.calendar,
+          {
+            id: "meta-1",
+            date: "2026-10-09",
+            channel: "meta_ads",
+            format: "image",
+            title: "Try it free",
+            status: "idea" as const,
+          },
+        ],
         proposals: [
           { channel: "google_ads", why: "Search", what: "Ads", perMonth: 4 },
           { channel: "instagram", why: "Feed", what: "Posts", perMonth: 4 },
@@ -324,9 +370,28 @@ describe("accounts", () => {
     ]);
   });
 
-  it("continues only once the plan's networks are connected", () => {
+  it("leaves out a channel the plan names but gives no pieces", () => {
+    const none = plan();
+    const strategyWithout = none.strategy;
+    if (!strategyWithout) throw new Error("plan has a strategy");
+    const withoutNewsletter = {
+      ...none,
+      strategy: {
+        ...strategyWithout,
+        calendar: strategyWithout.calendar.filter(
+          (entry) => entry.channel !== "newsletter",
+        ),
+      },
+    };
+    expect(
+      optionalChannels(withoutNewsletter).map((channel) => channel.key),
+    ).not.toContain("newsletter");
+  });
+
+  it("continues once one of the plan's networks is connected", () => {
     const before = render(plan());
-    expect(before).toContain("Connect LinkedIn and X to continue.");
+    expect(before).toContain("Connect LinkedIn or X to continue.");
+    expect(before).toMatch(/\d+ posts? this month\./);
     expect(continueOff(before)).toBe(true);
 
     const active = (provider: string) => ({
@@ -336,9 +401,10 @@ describe("accounts", () => {
       displayName: "Acme",
       status: "ACTIVE",
     });
-    const after = render(plan({ channels: [active("linkedin"), active("x")] }));
+    const after = render(plan({ channels: [active("x")] }));
     expect(after).not.toContain("to continue.");
     expect(continueOff(after)).toBe(false);
+    expect(after).toMatch(/Connected as @acme\. \d+ posts? this month\./);
     expect(after).toContain("Optional");
   });
 });
@@ -373,6 +439,51 @@ describe("research", () => {
     expect(html).toContain("What Cuso did");
     expect(html).toContain("See your Brand Brain");
     expect(html).not.toContain("ob-elapsed");
+  });
+
+  it("offers a retry when research ended without a Brand Brain or a question", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({
+          brandBrain: null,
+          work: { ...running("research"), status: "done", sectionsSaved: 16 },
+        })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("Research stopped");
+    expect(html).toContain("Cuso finishes your Brand Brain");
+    expect(html).toContain("Try again");
+  });
+
+  it("says Cuso is writing the calendar once the plan part is saved", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({ work: running("strategy") })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("Cuso is writing your day-by-day calendar");
+    expect(html).not.toContain("Approve");
+  });
+
+  it("offers a retry when planning ended without a calendar", () => {
+    const html = renderToStaticMarkup(
+      <ResearchStep
+        overview={overview({
+          work: { ...running("strategy"), status: "done" },
+        })}
+        messages={[]}
+        onRetry={async () => null}
+        onReply={async () => {}}
+      />,
+    );
+    expect(html).toContain("Planning stopped");
+    expect(html).toContain("Try again");
   });
 
   it("counts the Brand Brain sections as Cuso writes them", () => {

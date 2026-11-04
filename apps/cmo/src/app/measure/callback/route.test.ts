@@ -19,10 +19,16 @@ describe("measure callback", () => {
     const response = await callback(
       "provider=shopify&from=onboarding&status=success",
     );
-    expect(finalizeMeasurement).toHaveBeenCalledWith("shopify");
+    expect(finalizeMeasurement).toHaveBeenCalledWith("shopify", null);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=results",
+      "http://localhost:3110/?step=results&from=onboarding",
     );
+  });
+
+  it("hands Composio's session on, so Cuso's bot redeems it", async () => {
+    finalizeMeasurement.mockResolvedValue(true);
+    await callback("provider=shopify&from=onboarding&session_uri=one-use");
+    expect(finalizeMeasurement).toHaveBeenCalledWith("shopify", "one-use");
   });
 
   it("returns to the Results page in the app", async () => {

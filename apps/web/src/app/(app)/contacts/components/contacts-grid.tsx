@@ -459,13 +459,11 @@ export function ContactsGrid({
         };
       }
       case "firstContact": {
-        const first = contact.firstContactAt
-          ? format.dateTime(new Date(contact.firstContactAt), {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })
-          : "";
+        const first = format.dateTime(new Date(contact.firstContactAt), {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
         return {
           text: first,
           node: (

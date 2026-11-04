@@ -97,8 +97,8 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
     return <CreateState paidByOrganization={paidByOrganization} />;
   }
 
-  // Skills and the version chip are only rendered behind Advanced, which is
-  // off by default; the connectors need integrations in both.
+  // Skills, the version chip and ad accounts are only rendered behind
+  // Advanced, which is off by default; the connectors need integrations in both.
   const wantsAdvanced = params.view === "advanced" || focusTurnId !== null;
   const [versions, installedSkills, stats, usage, integrations, adAccounts] =
     await Promise.all([
@@ -107,7 +107,9 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       sokoBotService.getStats().catch(() => null),
       sokoBotService.getMyUsage().catch(() => null),
       sokoBotService.listIntegrations().catch(() => null),
-      loadBotAdAccounts({ projectId: null }).catch(() => null),
+      wantsAdvanced
+        ? loadBotAdAccounts({ projectId: null }).catch(() => null)
+        : null,
     ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;

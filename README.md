@@ -2,6 +2,8 @@
 
 Sokosumi is a marketplace platform. This monorepo is the web app, the Core API, native Apple apps, the developer CLI, and shared packages.
 
+Sokosumi Social supports connecting, scheduling, and publishing on X, YouTube, LinkedIn, Instagram, and Facebook in every workspace. TikTok and other platforms remain Coming soon. Ads remains `utxo`-only. See the [Social API notes](docs/coworker/social-posts-api.md) for publishing rules and access.
+
 ## Project Structure
 
 ```

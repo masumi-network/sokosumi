@@ -23,6 +23,7 @@ import {
   connectAds,
   connectChannel,
   connectMeasurement,
+  connectSetupChannel,
   finishAccounts,
   launchAd,
   loadAdCampaigns,
@@ -84,6 +85,7 @@ export interface HomeSearchParams {
   error?: string | string[];
   step?: string | string[];
   connect?: string | string[];
+  from?: string | string[];
 }
 
 interface HomeProps {
@@ -147,7 +149,14 @@ export async function Home({ searchParams, view }: HomeProps) {
       />
     );
   }
-  if (overview.onboardingStep !== "done") {
+  // Core ends hiring on the first connection; back from a connection made
+  // during hiring (Accounts, or Results' measurement), the founder stays in
+  // it until Continue.
+  const backInHiring =
+    (step === "connect" || step === "results") &&
+    first(params.from) === "onboarding" &&
+    overview.strategyVersion?.approvedAt != null;
+  if (overview.onboardingStep !== "done" || backInHiring) {
     // The app's pages open once onboarding ends; until then it is the first run.
     if (view !== "chat") redirect("/");
     return (
@@ -170,7 +179,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           applyPlanAnswers,
           finishAccounts,
           addMailingList,
-          connectChannel,
+          connectChannel: connectSetupChannel,
           connectMeasurement,
           connectAds,
           startOver,

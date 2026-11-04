@@ -11,8 +11,11 @@ const {
   studioJob,
   asset,
   socialPost,
+  socialPosts,
+  socialProviderEnabled,
   projectAccess,
   liveFiles,
+  fileResources,
   job,
   projects,
   reportMessage,
@@ -25,8 +28,11 @@ const {
   studioJob: vi.fn(),
   asset: vi.fn(),
   socialPost: vi.fn(),
+  socialPosts: vi.fn(),
+  socialProviderEnabled: vi.fn(),
   projectAccess: vi.fn(),
   liveFiles: vi.fn(),
+  fileResources: vi.fn(),
   job: vi.fn(),
   projects: vi.fn(),
   reportMessage: vi.fn(),
@@ -41,11 +47,12 @@ vi.mock("@/lib/db/prisma", () => ({
       },
     },
     project: { findMany: projects },
+    socialPost: { findMany: socialPosts },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
     sokoBotPendingDecision: { findFirst: decision },
     job: { findFirst: job },
-    fileResource: { findMany: vi.fn().mockResolvedValue([]) },
+    fileResource: { findMany: fileResources },
     chatRoomMessage: { findFirst: reportMessage },
   },
 }));
@@ -68,6 +75,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: socialPost,
+  isSocialPostProviderEnabled: socialProviderEnabled,
 }));
 vi.mock("@/services/file-search.service", () => ({
   loadLiveResources: liveFiles,
@@ -88,6 +96,7 @@ describe("authorized chat results", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     liveFiles.mockResolvedValue([]);
+    fileResources.mockResolvedValue([]);
     workspace.mockResolvedValue({
       id: "workspace",
       userId: "owner",
@@ -294,6 +303,197 @@ describe("authorized chat results", () => {
     await expect(
       hydrateChatResultSnapshots([snapshot], "owner"),
     ).rejects.toThrow("db offline");
+    projects.mockReset();
+  });
+  it.each([true, false])(
+    "keeps human approval and rejection permissions live when provider enabled is %s",
+    async (providerEnabled) => {
+      socialPost.mockResolvedValue({
+        text: "Draft from Soko",
+        status: "NEEDS_APPROVAL",
+        provider: "x",
+        revision: 3,
+        canApprove: providerEnabled,
+        canReject: true,
+        socialConnection: null,
+        scheduledAt: null,
+        publishedAt: null,
+        timezone: null,
+        media: [],
+      });
+      const snapshot = await resolveChatResultReference({
+        reference: { kind: "social_post", id: "post", projectId: "project" },
+        actor,
+      });
+      expect(snapshot.data).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        social: {
+          projectId: "project",
+          postId: "post",
+          revision: 3,
+          canApprove: providerEnabled,
+          canReject: true,
+        },
+      });
+
+      // The page read re-derives approval from the live row.
+      projects.mockResolvedValue([{ id: "project", workspaceId: "workspace" }]);
+      const livePost = {
+        id: "post",
+        projectId: "project",
+        workspaceId: "workspace",
+        text: "Draft from Soko",
+        provider: "x",
+        status: "NEEDS_APPROVAL",
+        revision: 3,
+        scheduledAt: null,
+        publishedAt: null,
+        timezone: null,
+        media: [],
+        project: { workspace: { organization: null } },
+        socialConnection: null,
+      };
+      socialPosts.mockResolvedValue([livePost]);
+      socialProviderEnabled.mockReturnValue(providerEnabled);
+      const [pending] = await hydrateChatResultSnapshots([snapshot], "owner");
+      expect(pending).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        social: {
+          revision: 3,
+          canApprove: providerEnabled,
+          canReject: true,
+        },
+      });
+      socialPosts.mockResolvedValue([
+        { ...livePost, status: "DRAFT", revision: 4 },
+      ]);
+      const [hydrated] = await hydrateChatResultSnapshots([snapshot], "owner");
+      expect(hydrated).toMatchObject({
+        status: "DRAFT",
+        social: { revision: 4, canApprove: false, canReject: false },
+      });
+      projects.mockReset();
+    },
+  );
+  it("shows the live post content that matches the revision a human approves", async () => {
+    const oldMedia = {
+      pathname: "drive/users/owner/before.png",
+      fileUrl: "https://store.public.blob.vercel-storage.com/before.png",
+      name: "before.png",
+      size: 10,
+      mimeType: "image/png",
+      kind: "image",
+    };
+    const post = {
+      id: "post",
+      projectId: "project",
+      workspaceId: "workspace",
+      text: "Before editing",
+      provider: "x",
+      status: "NEEDS_APPROVAL",
+      revision: 3,
+      canApprove: true,
+      canReject: true,
+      scheduledAt: capturedAt,
+      publishedAt: null,
+      timezone: "UTC",
+      media: [oldMedia],
+      project: { workspace: { organization: null } },
+      socialConnection: {
+        provider: "x",
+        externalHandle: "before",
+        displayName: "Before",
+        avatarUrl: "https://example.test/before.png",
+      },
+    };
+    socialPost.mockResolvedValue(post);
+    fileResources.mockResolvedValue([{ id: "old-file" }]);
+    liveFiles.mockResolvedValue([
+      {
+        id: "old-file",
+        displayName: oldMedia.name,
+        mimeType: oldMedia.mimeType,
+        sizeBytes: oldMedia.size,
+      },
+    ]);
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "social_post", id: "post", projectId: "project" },
+      actor,
+      capturedAt,
+    });
+    const scheduledAt = new Date("2026-10-07T11:00:00Z");
+    const newMedia = {
+      ...oldMedia,
+      pathname: "drive/users/owner/after.png",
+      fileUrl: "https://store.public.blob.vercel-storage.com/after.png",
+      name: "after.png",
+    };
+    projects.mockResolvedValue([{ id: "project", workspaceId: "workspace" }]);
+    socialPosts.mockResolvedValue([
+      {
+        ...post,
+        text: "After editing",
+        provider: "linkedin",
+        revision: 4,
+        scheduledAt,
+        timezone: "Europe/Berlin",
+        media: [newMedia],
+        socialConnection: {
+          provider: "linkedin",
+          externalHandle: "after",
+          displayName: "After",
+          avatarUrl: "https://example.test/after.png",
+        },
+      },
+    ]);
+    fileResources.mockResolvedValue([
+      {
+        id: "new-file",
+        workspaceId: "workspace",
+        sourceId: newMedia.pathname,
+      },
+    ]);
+    liveFiles.mockResolvedValue([
+      {
+        id: "new-file",
+        displayName: newMedia.name,
+        mimeType: newMedia.mimeType,
+        sizeBytes: newMedia.size,
+      },
+    ]);
+    socialProviderEnabled.mockReturnValue(true);
+
+    const [hydrated] = await hydrateChatResultSnapshots([snapshot], "owner");
+
+    expect(hydrated).toMatchObject({
+      id: snapshot.data.id,
+      capturedAt: capturedAt.toISOString(),
+      title: "After editing",
+      summary: "After editing",
+      destination: "linkedin · after",
+      scheduledAt: scheduledAt.toISOString(),
+      timezone: "Europe/Berlin",
+      social: {
+        provider: "linkedin",
+        revision: 4,
+        canApprove: true,
+        canReject: true,
+        timestamp: scheduledAt.toISOString(),
+        account: {
+          handle: "after",
+          displayName: "After",
+          avatarUrl: "https://example.test/after.png",
+        },
+      },
+      outputs: [
+        {
+          name: "after.png",
+          openHref: "/drive/files/new-file?scope=me",
+          previewHref: "/api/drive/files/new-file/content?scope=me",
+        },
+      ],
+    });
+    expect(JSON.stringify(hydrated)).not.toContain("old-file");
     projects.mockReset();
   });
   it.each(["FAILED", "CANCELLED", "QUEUED"])(

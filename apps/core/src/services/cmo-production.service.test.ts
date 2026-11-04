@@ -72,6 +72,7 @@ import {
   cmoPieceReady,
   cmoProductionMessage,
   cmoReadyPieceIds,
+  cmoSyncOrder,
   syncCmoProduction,
 } from "./cmo-production.service";
 
@@ -577,6 +578,20 @@ describe("advanceCmoProduction", () => {
     );
     expect(status.state).toBe("running");
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("cmoSyncOrder", () => {
+  const cycle = (n: number) => new Date(n * 10 * 60 * 1000);
+
+  it("starts each cycle one Cuso further along", () => {
+    expect(cmoSyncOrder(["a", "b", "c"], cycle(0))).toEqual(["a", "b", "c"]);
+    expect(cmoSyncOrder(["a", "b", "c"], cycle(1))).toEqual(["b", "c", "a"]);
+    expect(cmoSyncOrder(["a", "b", "c"], cycle(5))).toEqual(["c", "a", "b"]);
+  });
+
+  it("keeps an empty list empty", () => {
+    expect(cmoSyncOrder([], cycle(3))).toEqual([]);
   });
 });
 

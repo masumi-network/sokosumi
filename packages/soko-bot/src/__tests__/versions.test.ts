@@ -62,6 +62,25 @@ describe("versions", () => {
     expect(prompt).toMatch(/ask me to create the post and I will/i);
   });
 
+  it.each(["social-posts", "social", "social-posting-instructions"])(
+    "%s waits for human approval and shows the chat card",
+    (skillId) => {
+      const content = getSokoBotSkill(skillId).content;
+      expect(content).toContain(
+        "Posts you create always land as Needs approval (NEEDS_APPROVAL)",
+      );
+      expect(content).toContain("the post is waiting for approval");
+      expect(content).toContain("`preview_result`");
+      expect(content).toContain('{kind:"social_post",id,projectId}');
+      expect(content).toContain("Approve and Reject when permitted");
+      expect(content).toContain("You never approve or reject posts");
+      expect(content).toContain(
+        "never call `publish_social_post` while approval is pending",
+      );
+      expect(content).not.toContain("Only when the Project requires approval");
+    },
+  );
+
   it("tell the default version what the behaviour lab kept catching", () => {
     const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(version.model).toBe("openai/gpt-6-luna");

@@ -125,6 +125,11 @@ export interface CmoOverview {
   brandBrain: BrandBrain | null;
   /** The newest Marketing strategy version's plan: what the owner reviews. */
   strategy: MarketingStrategyPlan | null;
+  /**
+   * The approved version's plan as Cuso carries it out, with the pieces he
+   * made. Differs from `strategy` while a change waits for approval.
+   */
+  approvedStrategy: MarketingStrategyPlan | null;
   /** Every version, newest first; the first is the one `strategy` shows. */
   strategyVersions: MarketingStrategyVersion[];
   /** When a plan was first approved; a later approval does not move it. */
@@ -289,15 +294,22 @@ export async function getCmoOverview(
     }),
   ]);
   const subscribed = await isCmoSubscribed(cuso);
-  const media = [
-    ...(await cmoCalendarMedia({
-      strategy,
+  const mediaOf = (plan: typeof strategy) =>
+    cmoCalendarMedia({
+      strategy: plan,
       workspaceId: bot.workspaceId,
       organizationId: bot.workspace.organizationId,
       userId,
-    })),
+    });
+  const media = [
+    ...(await mediaOf(strategy)),
+    // The month being made, when a newer version waits for approval.
+    ...(approved && approved.id !== newest?.id ? await mediaOf(running) : []),
     ...cmoSocialPostMedia(posts),
-  ];
+  ].filter(
+    (item, index, all) =>
+      all.findIndex((other) => other.entryId === item.entryId) === index,
+  );
   const { cmoHiredAt, readCmoProduction } = await import(
     "@/services/cmo-production.service"
   );
@@ -358,7 +370,9 @@ export async function getCmoOverview(
     onboardingStep: cmoOnboardingStep({
       brandBrainConfirmed: cuso.brandBrainConfirmedAt !== null,
       strategyApproved: approved !== null,
-      connected: channels.some((channel) => channel.status === "ACTIVE"),
+      // Once a network was connected hiring is over: a lapsed or removed
+      // connection is fixed on Channels, not by hiring again.
+      connected: channels.length > 0,
     }),
     media,
     learning,
@@ -374,6 +388,7 @@ export async function getCmoOverview(
     viewerCanApprove,
     brandBrain,
     strategy,
+    approvedStrategy: approved ? running : null,
     strategyVersions,
     hiredAt,
     botStatus: bot.status,

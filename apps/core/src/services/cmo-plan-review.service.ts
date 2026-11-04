@@ -109,8 +109,47 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       problems.push(
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
+    problems.push(...cadenceProblems(strategy.channels, pieces));
   }
   return problems;
+}
+
+/** "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
+function cadenceRange(cadence: string): [number, number] | null {
+  const match = cadence
+    .trim()
+    .toLowerCase()
+    .match(
+      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(week|month)|(week|month)ly)$/,
+    );
+  if (!match) return null;
+  const low = Number(match[1]);
+  const high = Number(match[2] ?? match[1]);
+  const weeks = (match[3] ?? match[4]) === "week" ? 4 : 1;
+  return [low * weeks, high * weeks];
+}
+
+/**
+ * A channel's calendar against its own cadence. A change that only rewrote
+ * the cadence ("8 posts a week") once left 49 posts in the calendar.
+ */
+function cadenceProblems(
+  channels: MarketingStrategyPlan["channels"],
+  pieces: MarketingStrategyPlan["calendar"],
+): string[] {
+  return channels.flatMap((channel) => {
+    const range = cadenceRange(channel.cadence);
+    if (!range) return [];
+    const count = pieces.filter(
+      (entry) => entry.channel.toLowerCase() === channel.channel.toLowerCase(),
+    ).length;
+    const [low, high] = range;
+    if (count >= Math.floor(low * 0.6) && count <= Math.ceil(high * 1.4))
+      return [];
+    return [
+      `${channel.channel} has ${count} calendar pieces, but its cadence "${channel.cadence}" means about ${low === high ? low : `${low} to ${high}`} over four weeks. Save part calendar so they match.`,
+    ];
+  });
 }
 
 const MAX_DRAFT_PROBLEMS = 6;

@@ -111,7 +111,17 @@ export function ResearchStep({
   const work = overview.work;
   const planning = work?.kind === "strategy";
   const finished = onContinue !== undefined;
-  const status = finished ? "done" : (work?.status ?? overview.learning);
+  const settled = finished ? "done" : (work?.status ?? overview.learning);
+  const asked =
+    !planning && settled === "done" && !overview.brandBrain
+      ? [...messages].reverse().find((message) => message.fromCuso)
+      : undefined;
+  // Done with no Brand Brain and nothing asked, or a plan with no calendar:
+  // Cuso stopped short, so the founder needs the way to try again.
+  const stoppedShort = planning
+    ? settled === "done"
+    : settled === "done" && !overview.brandBrain && !asked;
+  const status = stoppedShort ? "failed" : settled;
   const running = status === "running";
   const elapsed = useElapsed(work?.startedAt, running);
   const steps = work?.steps ?? [];
@@ -123,10 +133,6 @@ export function ResearchStep({
       : null;
   const noCredits =
     status === "failed" && overview.billing.availableCredits <= 0;
-  const asked =
-    !planning && status === "done" && !overview.brandBrain
-      ? [...messages].reverse().find((message) => message.fromCuso)
-      : undefined;
 
   return (
     <section className="ob-research">
@@ -140,7 +146,9 @@ export function ResearchStep({
             : asked
               ? "Cuso has a few questions"
               : planning
-                ? "Cuso is planning your month"
+                ? overview.strategy
+                  ? "Cuso is writing your day-by-day calendar"
+                  : "Cuso is planning your month"
                 : finished
                   ? `Cuso studied ${site}`
                   : `Cuso is studying ${site}`}
@@ -150,7 +158,9 @@ export function ResearchStep({
         ) : (
           <p className="ob-lede">
             {status === "failed"
-              ? "Nothing was lost. Try again and Cuso starts over."
+              ? sections
+                ? "Nothing was lost. Try again and Cuso finishes your Brand Brain."
+                : "Nothing was lost. Try again and Cuso starts over."
               : asked
                 ? "Answer below and he finishes."
                 : planning

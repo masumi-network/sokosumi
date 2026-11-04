@@ -1255,3 +1255,26 @@ export const approveProjectSocialPost = withSession<
     return toActionResult(err(toCoreApiActionError(error)));
   }
 });
+
+export const rejectProjectSocialPost = withSession<
+  PublishProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, revision }) => {
+  const parsed = publishProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    revision,
+  });
+  if (!parsed.success) return badSocialPostInput(parsed);
+  try {
+    const post = await projectService.rejectSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});

@@ -106,7 +106,7 @@ const orgWorkspace: UserWorkspace = {
   logo: null,
   websiteUrl: null,
   preferred: false,
-  enabledSocialProviders: ["x", "youtube", "linkedin"],
+  enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
 };
 
 function renderSwitcher({

@@ -20,6 +20,7 @@ import {
   cmoStrategy as strategy,
 } from "../test-fixtures/cmo";
 import { SearchAdControl } from "./ads";
+import { CalendarPage } from "./app/calendar-page";
 import {
   LearningCard,
   learningSteps,
@@ -30,6 +31,7 @@ import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
 import { StrategyPage, StrategyVersions } from "./app/strategy-page";
 import { Onboarding } from "./onboarding";
+import { StartOver } from "./start-over";
 
 const noop = {
   approve: async () => {},
@@ -159,6 +161,41 @@ describe("thread", () => {
     expect(after.slice(-2)).toEqual(["welcome", "connect"]);
   });
 
+  it("shows making the month as one progress card, not Cuso's round reports", () => {
+    const approvedAt = new Date("2026-10-01T09:05:00Z");
+    const round = (id: string, at: string) => ({
+      id,
+      at: new Date(at),
+      kind: "production" as const,
+      headline: "Partly produced",
+      done: [],
+      upNext: [],
+      changes: [],
+      revertible: false,
+      revertedAt: null,
+    });
+    const thread = buildThread(
+      overview({
+        ...cmoStrategyVersion(approvedAt),
+        production: {
+          state: "running",
+          ready: 16,
+          total: 40,
+          finishedAt: null,
+        },
+        updates: [
+          round("r1", "2026-10-01T10:00:00Z"),
+          round("r2", "2026-10-01T10:20:00Z"),
+        ],
+      }),
+      [],
+    );
+    expect(thread.filter((item) => item.kind === "update")).toEqual([]);
+    expect(thread.filter((item) => item.kind === "production")).toEqual([
+      { kind: "production", at: "2026-10-01T10:20:00.000Z" },
+    ]);
+  });
+
   it("leaves out a background run's empty follow-up", () => {
     const messages = toCusoMessages([
       cmoChatMessage({ id: "empty", content: "Nothing to add." }),
@@ -199,7 +236,12 @@ describe("thread", () => {
       }),
       [],
     );
-    expect(thread.map((item) => item.kind)).toEqual(["welcome", "strategy"]);
+    // The connect card stays: the month runs on the approved plan meanwhile.
+    expect(thread.map((item) => item.kind)).toEqual([
+      "welcome",
+      "connect",
+      "strategy",
+    ]);
   });
 
   it("says what Cuso is waiting for", () => {
@@ -377,6 +419,7 @@ describe("pages", () => {
     expect(viewFromPath("/strategy/")).toBe("strategy");
     expect(viewFromPath("/brain")).toBeNull();
     expect(VIEW_PATHS.settings).toBe("/settings");
+    expect(viewFromPath("/calendar")).toBe("calendar");
   });
 
   it("reads an older strategy as one headline, the main goal and the weeks", () => {
@@ -390,12 +433,13 @@ describe("pages", () => {
           },
         })}
         onAsk={async () => {}}
+        onOpenCalendar={() => {}}
       />,
     );
     expect(html).toContain(strategy.summary);
     expect(html).toContain("40 trial sign-ups");
-    expect(html).toContain("Week 1");
-    expect(html).toContain("Why we built it");
+    expect(html).toContain("in your calendar");
+    expect(html).not.toContain("Week 1");
     // Parts an older plan does not have stay out instead of showing empty.
     expect(html).not.toContain("What stops people buying");
     expect(html).not.toContain("The mix");
@@ -536,6 +580,8 @@ describe("strategy versions", () => {
     expect(html).toContain("Version 1");
     expect(html).toContain("Approved");
     expect(html).not.toContain("Go back to this version");
+    // The newest, waiting, version is approved from here too.
+    expect(html).toContain("Approve this version");
 
     const older = renderToStaticMarkup(
       <StrategyVersions
@@ -606,5 +652,33 @@ describe("renderInline", () => {
       <p>{renderInline("[click](javascript:alert(1))", web)}</p>,
     );
     expect(html).not.toContain("href");
+  });
+});
+
+describe("start over", () => {
+  it("names the way back to the website form", () => {
+    const html = renderToStaticMarkup(
+      <StartOver
+        className="button"
+        label="Use another website"
+        startOver={async () => null}
+      />,
+    );
+    expect(html).toContain("Use another website");
+  });
+});
+
+describe("calendar", () => {
+  it("shows every piece as a card by week, with its words and state", () => {
+    const html = renderToStaticMarkup(
+      <CalendarPage overview={overview()} onAsk={async () => {}} />,
+    );
+    const live = strategy.calendar.filter(
+      (entry) => entry.status !== "skipped",
+    );
+    for (const entry of live) expect(html).toContain(entry.title);
+    expect(html).toContain("Week 1");
+    expect(html).toContain(`${live.length} pieces this month`);
+    expect(html).toContain('aria-pressed="true"');
   });
 });

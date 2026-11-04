@@ -22,6 +22,7 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessages,
+  withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
 import { autoReadBulkMail } from "@/services/soko-bot-mail-auto-read.service";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
@@ -301,10 +302,14 @@ export class SokoBotIngestSyncService {
           : new Date(previous.getTime() - LATE_MAIL_MS);
       let messages: SokoBotInboxMessage[];
       try {
-        messages = await fetchInboxMessages(integration, {
+        messages = await withOwnerReplies(
+          integration,
+          await fetchInboxMessages(integration, {
+            since,
+            limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_FETCH,
+          }),
           since,
-          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_FETCH,
-        });
+        );
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
         // bot must not treat an unreadable mailbox as an empty one.

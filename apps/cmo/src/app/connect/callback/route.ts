@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
       : false;
   const back = new URL("/", request.nextUrl);
   back.searchParams.set("step", "connect");
+  const from = params.get("from");
+  if (from) back.searchParams.set("from", from);
   if (!connected) back.searchParams.set("connect", "failed");
   return NextResponse.redirect(back);
 }
