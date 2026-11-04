@@ -79,6 +79,7 @@ import {
   revokeSokoBotIntegrationAccounts,
   runIntegrationTool,
   searchSokoBotIntegrationCatalog,
+  withOwnerReplies,
 } from "./soko-bot-integrations.service";
 
 const input = {
@@ -310,6 +311,66 @@ describe("Soko Bot OAuth replacement", () => {
     });
     expect(page.nextPageToken).toBe("page-3");
     expect(page.messages).toHaveLength(1);
+  });
+
+  it("marks mail the owner answered later in its thread, and drops their own sent mail", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        successful: true,
+        data: {
+          messages: [
+            {
+              messageId: "s1",
+              threadId: "t1",
+              messageTimestamp: "2026-11-03T10:30:00Z",
+            },
+            {
+              messageId: "s0",
+              threadId: "t2",
+              messageTimestamp: "2026-11-03T08:00:00Z",
+            },
+          ],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const mail = (
+      id: string,
+      threadId: string,
+      receivedAt: string,
+      labels: string[] = [],
+    ) => ({
+      provider: "gmail",
+      id,
+      threadId,
+      from: "ada@example.com",
+      to: [],
+      subject: id,
+      snippet: "",
+      receivedAt,
+      unread: true,
+      labels,
+    });
+
+    const result = await withOwnerReplies(
+      integration,
+      [
+        mail("answered", "t1", "2026-11-03T10:00:00.000Z"),
+        mail("after-reply", "t2", "2026-11-03T09:00:00.000Z"),
+        mail("s1", "t1", "2026-11-03T10:30:00.000Z", ["SENT"]),
+      ],
+      new Date("2026-11-03T00:00:00Z"),
+    );
+
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args.query).toContain("in:sent");
+    expect(result.map((m) => [m.id, m.repliedAt ?? null])).toEqual([
+      ["answered", "2026-11-03T10:30:00.000Z"],
+      ["after-reply", null],
+    ]);
   });
 
   it("marks Gmail mail read and archived by removing its labels", async () => {
