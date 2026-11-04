@@ -14,6 +14,7 @@ import {
 } from "@/services/cmo-plan-review.service";
 import { isMarketingFilePiece } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
 
 /**
  * Once the month is made, Jev, a separate evaluation model, reads every
@@ -234,6 +235,7 @@ export function cmoPillarRewriteMessage(input: {
  * sync: a check another caller already stored is left alone.
  */
 export async function advanceCmoPillars(input: {
+  sokoBotId: string;
   businessName: string;
   version: { id: string; pillarCheck: unknown };
   strategy: Pick<MarketingStrategyPlan, "pillars" | "calendar">;
@@ -264,6 +266,11 @@ export async function advanceCmoPillars(input: {
     round: before ? 2 : 1,
     made: made.length,
     read: Object.keys(read.pieces).length,
+    costUsd: read.costUsd,
+  });
+  await recordSokoBotCheckUsage({
+    sokoBotId: input.sokoBotId,
+    key: `cmo-pillars:${version.id}:${before ? 2 : 1}`,
     costUsd: read.costUsd,
   });
   if (Object.keys(read.pieces).length === 0) return;

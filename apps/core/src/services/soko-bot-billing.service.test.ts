@@ -42,6 +42,10 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+vi.mock("@/lib/db/transaction", () => ({
+  serializableTransaction: (run: (tx: unknown) => unknown) =>
+    run(transactionClient()),
+}));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   postSokoBotOwnerNotice: postNoticeMock,
 }));
@@ -57,6 +61,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 
 import {
   notifySokoBotOutOfCredits,
+  recordSokoBotCheckUsage,
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
   SokoBotBillingAccessError,
@@ -232,6 +237,38 @@ describe("Soko Bot billing", () => {
       shortfall: true,
     });
     expect(transactionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("charges a check outside a turn its metered cost, without the turn minimum", async () => {
+    const expected = convertCreditsToCents(0.01);
+    botFindUniqueMock.mockResolvedValue({
+      userId: "user_1",
+      workspace: { organizationId: null },
+    });
+    usageFindUniqueMock.mockResolvedValue(null);
+    balanceMock.mockResolvedValue(convertCreditsToCents(100));
+    prepareConsumptionMock.mockResolvedValue([
+      { bucketId: "bucket_1", amount: expected },
+    ]);
+    transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+
+    const result = await recordSokoBotCheckUsage({
+      sokoBotId: SOKO_BOT_ID,
+      key: "cmo-pillars:v1:1",
+      costUsd: 0.0001,
+    });
+
+    expect(result.chargedCents).toBe(expected);
+    expect(usageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user_1",
+          idempotencyKey: "cmo-pillars:v1:1",
+          referenceId: null,
+          cents: expected,
+        }),
+      }),
+    );
   });
 
   describe("in an organization workspace", () => {

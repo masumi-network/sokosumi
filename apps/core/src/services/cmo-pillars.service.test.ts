@@ -1,11 +1,14 @@
 import type { CmoCalendarEntry } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { evaluateWithJev, updateMany, readPieceText } = vi.hoisted(() => ({
-  evaluateWithJev: vi.fn(),
-  updateMany: vi.fn(),
-  readPieceText: vi.fn(),
-}));
+const { evaluateWithJev, updateMany, readPieceText, recordUsage } = vi.hoisted(
+  () => ({
+    evaluateWithJev: vi.fn(),
+    updateMany: vi.fn(),
+    readPieceText: vi.fn(),
+    recordUsage: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -13,6 +16,9 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/marketing-strategy-files.service", () => ({
   readMarketingPieceText: readPieceText,
+}));
+vi.mock("@/services/soko-bot-billing.service", () => ({
+  recordSokoBotCheckUsage: recordUsage,
 }));
 
 import {
@@ -161,6 +167,7 @@ describe("readCmoPillars", () => {
 describe("advanceCmoPillars", () => {
   const startRewrite = vi.fn();
   const base = {
+    sokoBotId: "bot-1",
     businessName: "acme.io",
     strategy: {
       pillars: PILLARS,
@@ -201,6 +208,11 @@ describe("advanceCmoPillars", () => {
       '- c · linkedin/post · pillar Setup in minutes · reads as Lead routing · "Piece c"',
     );
     expect(message).not.toContain("- d ·");
+    expect(recordUsage).toHaveBeenCalledWith({
+      sokoBotId: "bot-1",
+      key: "cmo-pillars:v1:1",
+      costUsd: 0.001,
+    });
   });
 
   it("stores the check and rewrites nothing when the pillars hold", async () => {
@@ -249,6 +261,9 @@ describe("advanceCmoPillars", () => {
       expect.objectContaining({
         data: { pillarCheck: expect.objectContaining({ round: 2 }) },
       }),
+    );
+    expect(recordUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "cmo-pillars:v1:2" }),
     );
     expect(startRewrite).not.toHaveBeenCalled();
   });

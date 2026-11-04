@@ -564,6 +564,7 @@ export async function advanceCmoProduction(
   // A made month is read for its pillars, and rewritten once when off.
   if (current.state === "ready" && version) {
     await advanceCmoPillars({
+      sokoBotId: cuso.sokoBotId,
       businessName: cuso.businessName,
       version,
       strategy,
