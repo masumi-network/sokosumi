@@ -13,7 +13,7 @@
  *   NEON_DATABASE_NAME (default neondb)
  *   NEON_ROLE_NAME (default neondb_owner)
  *   CLOUD_AGENT_RUN_ID (override agent id; default CURSOR_CONVERSATION_ID)
- *   CLOUD_AGENT_DB_FORCE=1 (run outside Cursor agent)
+ *   CLOUD_AGENT_DB_FORCE=1 (run outside Cursor agent; `pnpm db:up` sets it)
  *   CLOUD_AGENT_DB_SKIP_MIGRATE=1
  */
 
@@ -26,6 +26,7 @@ import {
   applyUrlsToProcessEnv,
   injectShellRc,
   patchAppEnvFiles,
+  removeLegacyState,
   writeEnvFile,
   writeState,
 } from "./apply-env.mjs";
@@ -208,11 +209,16 @@ async function main() {
 
     await writeState(REPO_ROOT, state);
     await writeEnvFile(REPO_ROOT, urls);
+    await removeLegacyState(REPO_ROOT);
     await patchAppEnvFiles(REPO_ROOT, urls);
 
-    const home = os.homedir();
-    await injectShellRc(path.join(home, ".bashrc"), REPO_ROOT);
-    await injectShellRc(path.join(home, ".profile"), REPO_ROOT);
+    // Cursor VMs hold one checkout. Elsewhere real env vars beat `.env`, so
+    // an rc block would point every worktree's shell at this checkout.
+    if (process.env.CURSOR_AGENT === "1") {
+      const home = os.homedir();
+      await injectShellRc(path.join(home, ".bashrc"), REPO_ROOT);
+      await injectShellRc(path.join(home, ".profile"), REPO_ROOT);
+    }
 
     runMigrations();
     await runAuthFixtures({ branchName });

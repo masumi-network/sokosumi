@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { provisionedEnvFiles } from "../agent-db/apply-env.mjs";
 import { bootstrapLocalEnv } from "./bootstrap.mjs";
 
 export const PORTLESS_WEB_NAME = "web.sokosumi";
@@ -282,8 +283,8 @@ export function ensureProxy() {
 
 function spawnDev({ name, filter, env }) {
   const bin = resolvePortlessBin();
-  const wrapped = fs.existsSync(
-    path.join(repoRoot, ".cursor", "cloud-agent-db.env"),
+  const wrapped = provisionedEnvFiles(repoRoot).some((file) =>
+    fs.existsSync(file),
   )
     ? [
         process.execPath,

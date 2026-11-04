@@ -37,7 +37,7 @@ async function main() {
     applyUrlsToProcessEnv(urls);
   } else {
     console.warn(
-      "[agent-db] no provisioned env at .cursor/cloud-agent-db.urls.json; running with ambient DATABASE_URL",
+      "[agent-db] no provisioned env at .agent-db/urls.json; running with ambient DATABASE_URL",
     );
   }
 

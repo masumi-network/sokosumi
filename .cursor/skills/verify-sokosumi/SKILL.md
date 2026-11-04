@@ -27,7 +27,7 @@ Preconditions before launch:
 - **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - Web `APP_SIGNING_SECRET` is independent of Core `BETTER_AUTH_SECRET` (e.g. web uses `dummy-app-signing-secret`)
 - **`BETTER_AUTH_COOKIE_DOMAIN` must be unset / commented out for localhost.** Core `.env.example` sets `BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"` for production-shaped deploys — if that value is copied into local `.env`, session cookies are scoped to `.sokosumi.com` and **email/password login appears to succeed but the browser never keeps a session on `localhost`**. `doctor` fails when this trap is present
-- Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.cursor/cloud-agent-db.env` is missing
+- Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.agent-db/db.env` is missing
 - `agent-browser` on `PATH` (global `npm i -g agent-browser` then `agent-browser install` for Chromium). Not a workspace dependency
 
 ### Cursor agent session (required pattern)
@@ -41,7 +41,7 @@ pnpm portless:proxy   # HTTPS :443; may sudo once. Do not fall back to :1355.
 # or: pnpm portless:dev
 ```
 
-Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.cursor/cloud-agent-db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
+Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.agent-db/db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
 
 ### Durable human terminal
 
@@ -49,7 +49,7 @@ Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.cur
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi launch
 ```
 
-Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `pnpm portless:dev` (same coordinator). If `.cursor/cloud-agent-db.env` exists, both are wrapped with `with-db.mjs`.
+Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `pnpm portless:dev` (same coordinator). If `.agent-db/db.env` exists, both are wrapped with `with-db.mjs`.
 
 Teardown:
 
@@ -183,7 +183,7 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 
 - Portless proxy must be HTTPS on **443**. If `pnpm portless:url web` prints `:1355` or `http://`, stop and run `pnpm portless:proxy` (sudo). Do not drive the fallback port.
 - One-time on a machine: `pnpm exec portless trust` (CA) if `portless doctor` says the CA is untrusted. Then `pnpm portless:proxy`.
-- Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
+- Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.agent-db/db.env` exists
 - Drive `$WEB_URL` from doctor, not `localhost:3000`. Cookie inject uses `--secure` on https named hosts.
 - **Portless TLS + agent-browser:** if navigation fails with `ERR_CERT_AUTHORITY_INVALID`, ensure `pnpm exec portless trust`, then rely on harness `AGENT_BROWSER_ARGS=--ignore-certificate-errors` (auto for `verify-sokosumi sign-in`) or export it yourself for manual drives.
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form

@@ -42,6 +42,9 @@ yarn-error.log*
 
 # reports
 lint-report.json
+
+# agent DB state (scripts/agent-db); .cursor/cloud-agent-db.* is the pre-.agent-db layout
+/.agent-db/
 .cursor/cloud-agent-db.state.json
 .cursor/cloud-agent-db.env
 .cursor/cloud-agent-db.urls.json

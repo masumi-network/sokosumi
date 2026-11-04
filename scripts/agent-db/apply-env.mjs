@@ -1,21 +1,24 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const RC_BEGIN = "# >>> cloud-agent-db >>>";
 const RC_END = "# <<< cloud-agent-db <<<";
 
+/** Gitignored per-checkout state directory. */
+const AGENT_DB_DIR = ".agent-db";
+
 /**
  * @param {string} repoRoot
  */
 export function statePath(repoRoot) {
-  return path.join(repoRoot, ".cursor", "cloud-agent-db.state.json");
+  return path.join(repoRoot, AGENT_DB_DIR, "state.json");
 }
 
 /**
  * @param {string} repoRoot
  */
 export function envFilePath(repoRoot) {
-  return path.join(repoRoot, ".cursor", "cloud-agent-db.env");
+  return path.join(repoRoot, AGENT_DB_DIR, "db.env");
 }
 
 /**
@@ -23,19 +26,59 @@ export function envFilePath(repoRoot) {
  * @param {string} repoRoot
  */
 export function urlsFilePath(repoRoot) {
-  return path.join(repoRoot, ".cursor", "cloud-agent-db.urls.json");
+  return path.join(repoRoot, AGENT_DB_DIR, "urls.json");
+}
+
+/**
+ * One lease file per session using this checkout's branch.
+ * @param {string} repoRoot
+ */
+export function sessionsDirPath(repoRoot) {
+  return path.join(repoRoot, AGENT_DB_DIR, "sessions");
+}
+
+/**
+ * Files written before `.agent-db/` existed; read as a fallback so a checkout
+ * provisioned by an older provision.mjs still resolves its branch.
+ * @param {string} repoRoot
+ */
+function legacyPaths(repoRoot) {
+  const dir = path.join(repoRoot, ".cursor");
+  return {
+    state: path.join(dir, "cloud-agent-db.state.json"),
+    env: path.join(dir, "cloud-agent-db.env"),
+    urls: path.join(dir, "cloud-agent-db.urls.json"),
+  };
+}
+
+/**
+ * Shell env files a provision may have left, newest layout first; callers
+ * wrap commands with with-db.mjs when any exists.
+ * @param {string} repoRoot
+ */
+export function provisionedEnvFiles(repoRoot) {
+  return [envFilePath(repoRoot), legacyPaths(repoRoot).env];
+}
+
+/**
+ * @param {string[]} files
+ */
+async function readFirstJson(files) {
+  for (const file of files) {
+    try {
+      return JSON.parse(await readFile(file, "utf8"));
+    } catch {
+      // missing or invalid; try the next
+    }
+  }
+  return null;
 }
 
 /**
  * @param {string} repoRoot
  */
 export async function readState(repoRoot) {
-  try {
-    const raw = await readFile(statePath(repoRoot), "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return readFirstJson([statePath(repoRoot), legacyPaths(repoRoot).state]);
 }
 
 /**
@@ -52,17 +95,24 @@ export async function writeState(repoRoot, state) {
  * @param {string} repoRoot
  */
 export async function clearState(repoRoot) {
-  const { unlink } = await import("node:fs/promises");
+  await removeLegacyState(repoRoot);
   for (const file of [
     statePath(repoRoot),
     envFilePath(repoRoot),
     urlsFilePath(repoRoot),
+    sessionsDirPath(repoRoot),
   ]) {
-    try {
-      await unlink(file);
-    } catch {
-      // ignore missing
-    }
+    await rm(file, { force: true, recursive: true });
+  }
+}
+
+/**
+ * Drop `.cursor/cloud-agent-db.*` once `.agent-db/` has been written.
+ * @param {string} repoRoot
+ */
+export async function removeLegacyState(repoRoot) {
+  for (const file of Object.values(legacyPaths(repoRoot))) {
+    await rm(file, { force: true });
   }
 }
 
@@ -100,20 +150,18 @@ export async function writeEnvFile(repoRoot, urls) {
  * @returns {Promise<{ databaseUrl: string, databaseUrlUnpooled: string } | null>}
  */
 export async function readUrlsFile(repoRoot) {
-  try {
-    const raw = await readFile(urlsFilePath(repoRoot), "utf8");
-    const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.DATABASE_URL === "string" &&
-      typeof parsed?.DATABASE_URL_UNPOOLED === "string"
-    ) {
-      return {
-        databaseUrl: parsed.DATABASE_URL,
-        databaseUrlUnpooled: parsed.DATABASE_URL_UNPOOLED,
-      };
-    }
-  } catch {
-    // missing or invalid
+  const parsed = await readFirstJson([
+    urlsFilePath(repoRoot),
+    legacyPaths(repoRoot).urls,
+  ]);
+  if (
+    typeof parsed?.DATABASE_URL === "string" &&
+    typeof parsed?.DATABASE_URL_UNPOOLED === "string"
+  ) {
+    return {
+      databaseUrl: parsed.DATABASE_URL,
+      databaseUrlUnpooled: parsed.DATABASE_URL_UNPOOLED,
+    };
   }
   return null;
 }
@@ -126,7 +174,7 @@ function shellQuote(value) {
 }
 
 /**
- * Inject source of cloud-agent-db.env into a shell rc file (idempotent).
+ * Inject source of the agent DB env file into a shell rc file (idempotent).
  * @param {string} rcPath
  * @param {string} repoRoot
  */
@@ -172,21 +220,24 @@ function escapeRegExp(value) {
 
 /**
  * Patch DATABASE_URL / DATABASE_URL_UNPOOLED in app .env files.
+ * `packages/database/.env` is created when missing: Prisma's config loads
+ * `dotenv/config` from there, not from `apps/core/.env`.
  * @param {string} repoRoot
  * @param {{ databaseUrl: string, databaseUrlUnpooled: string }} urls
  */
 export async function patchAppEnvFiles(repoRoot, urls) {
   const targets = [
-    path.join(repoRoot, "apps", "core", ".env"),
-    path.join(repoRoot, "apps", "web", ".env"),
+    { file: path.join(repoRoot, "apps", "core", ".env"), create: false },
+    { file: path.join(repoRoot, "apps", "web", ".env"), create: false },
+    { file: path.join(repoRoot, "packages", "database", ".env"), create: true },
   ];
 
-  for (const file of targets) {
+  for (const { file, create } of targets) {
     let existing = "";
     try {
       existing = await readFile(file, "utf8");
     } catch {
-      continue;
+      if (!create) continue;
     }
 
     const next = upsertEnvLines(existing, {
@@ -202,7 +253,7 @@ export async function patchAppEnvFiles(repoRoot, urls) {
  * @param {Record<string, string>} values
  */
 export function upsertEnvLines(contents, values) {
-  const lines = contents.split("\n");
+  const lines = contents ? contents.split("\n") : [];
   const keys = new Set(Object.keys(values));
   const seen = new Set();
   const out = [];

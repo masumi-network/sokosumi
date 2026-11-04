@@ -1,8 +1,8 @@
-# Cloud agent database via `DATABASE_URL`
+# Agent database via `DATABASE_URL`
 
-Each Cursor Cloud agent run can get an **ephemeral Neon branch** forked from
-production (`main` by default), injected as `DATABASE_URL` /
-`DATABASE_URL_UNPOOLED`. The branch already has real schema and catalog data.
+Each Cursor Cloud agent run, and each local checkout or worktree with a Neon
+key, can get an **ephemeral Neon branch** forked from production (`main` by
+default), injected as `DATABASE_URL` / `DATABASE_URL_UNPOOLED`. The branch already has real schema and catalog data.
 Provision still upserts **guarded auth fixtures** (known email/password logins)
 on agent branches only. Pending Prisma migrations apply on provision when the
 git branch is ahead of production schema.
@@ -29,6 +29,40 @@ Optional:
 never write to the live production parent. Provision always forks a child
 branch named `cloud-agent-<run-id>`.
 
+## Worktree sessions (`pnpm db:up`)
+
+Outside Cursor, run these from the checkout root. Every agent session in the
+same checkout (Claude, Codex, Grok, a shell) shares one branch:
+
+```bash
+pnpm db:up           # create or reuse this checkout's branch, add this session's lease
+pnpm db:status       # branch, expiry, sessions holding it
+pnpm db:down         # drop this session's lease; delete the branch when none remain
+pnpm db:down --force # delete the branch even while other sessions hold it
+```
+
+- **Neon key:** `NEON_API_KEY` / `NEON_PROJECT_ID` from the environment, else
+  `~/.config/sokosumi/neon.env` (`KEY=value` lines, mode 600). Without a key,
+  `db:up` skips and the checkout keeps the local Postgres in `apps/core/.env`.
+- **Branch:** `cloud-agent-bc-<sha256 of the checkout path>`, so a resumed
+  session finds the same branch and each worktree gets its own. Inside Cursor
+  the run id stays `CURSOR_CONVERSATION_ID`.
+- **Leases:** one file per session in `.agent-db/sessions/`. The session id is
+  `--session <id>`, else `AGENT_DB_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`,
+  else `shell`. Give each non-Claude agent its own `AGENT_DB_SESSION_ID`, or a
+  shared `shell` lease releases the branch for all of them. A crashed session's
+  lease stays; the branch then expires through the 72 h Neon TTL.
+- **Env files:** `db:up` runs `pnpm env:bootstrap` when `apps/core/.env` is
+  missing, then provision writes the URLs into `apps/core/.env`,
+  `apps/web/.env` and `packages/database/.env` (Prisma's config loads `.env`
+  from `packages/database`). No shell rc block is written outside Cursor:
+  exported variables beat `.env`, so one would point every worktree at the
+  last provisioned branch.
+- **Claude Code hooks:** `node "$(git rev-parse --show-toplevel)/scripts/agent-db/db.mjs" status --hook`
+  on `SessionStart` prints a database hint into the session;
+  `… db.mjs down --hook` on `SessionEnd` releases the hook's `session_id`
+  lease and does nothing when that session never ran `db:up`.
+
 ## Provision (how agents get the URL)
 
 `.cursor/environment.json` runs provision after a Corepack-backed `pnpm install`
@@ -39,18 +73,25 @@ placeholder that fails environment builds with `Syntax error: ")" unexpected`):
 bash scripts/agent-db/ensure-pnpm.sh install && node scripts/agent-db/provision.mjs
 ```
 
-When `CURSOR_AGENT=1` and Neon secrets are present, provision:
+When `CURSOR_AGENT=1` (or `CLOUD_AGENT_DB_FORCE=1`, which `pnpm db:up` sets)
+and Neon secrets are present, provision:
 
-1. Resolves the agent run id (`CURSOR_CONVERSATION_ID`, e.g. `bc-…`)
+1. Resolves the agent run id (`CLOUD_AGENT_RUN_ID`, else `CURSOR_CONVERSATION_ID`, e.g. `bc-…`)
 2. Reuses `cloud-agent-<run-id>` if it already exists (resume); otherwise creates
    it from `NEON_PARENT_BRANCH` (never from another agent branch)
 3. Sets Neon `expires_at` to **now + 72 hours** (idle TTL)
 4. Writes:
-   - `.cursor/cloud-agent-db.env` (shell-sourceable)
-   - `.cursor/cloud-agent-db.urls.json` (for `with-db.mjs`)
-   - `.cursor/cloud-agent-db.state.json` (branch metadata)
-   - patches `apps/core/.env` and `apps/web/.env` when present
-   - injects a source block into `~/.bashrc` / `~/.profile`
+   - `.agent-db/db.env` (shell-sourceable)
+   - `.agent-db/urls.json` (for `with-db.mjs`)
+   - `.agent-db/state.json` (branch metadata)
+   - patches `apps/core/.env` and `apps/web/.env` when present, and writes
+     `packages/database/.env`
+   - in Cursor only (`CURSOR_AGENT=1`), injects a source block into
+     `~/.bashrc` / `~/.profile`
+
+   Checkouts provisioned before `.agent-db/` keep `.cursor/cloud-agent-db.*`;
+   `with-db.mjs`, teardown and `db:status` read those as a fallback, and the
+   next provision moves them to `.agent-db/`.
 5. Runs `pnpm prisma:migrate:deploy` with `DATABASE_URL_UNPOOLED`
 6. Upserts **guarded auth fixtures** (known email/password logins) — agent
    branches only; never against production/`main`
@@ -99,7 +140,7 @@ node scripts/agent-db/with-db.mjs -- pnpm prisma:migrate:deploy
 
 `environment.json` `start` already uses `with-db.mjs` for `pnpm dev`.
 
-Login shells also pick up `.cursor/cloud-agent-db.env` via bashrc/profile.
+In Cursor, login shells also pick up `.agent-db/db.env` via bashrc/profile.
 
 ## Teardown
 
@@ -110,6 +151,7 @@ production / `main` parent (or any non-agent branch).
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PR merged                     | GitHub Action `agent-db-teardown.yml` on `workflow_run` of `PR closed`; extracts `bc-…` ids from same-repo PR bodies via the API. Privileged YAML always comes from the default branch. |
 | PR closed without merge       | Same workflow                                                                                                                                                                           |
+| Worktree session ends         | `pnpm db:down` (deletes the branch when it held the last lease)                                                                                                                         |
 | Agent finishes with **no PR** | Agent runs `node scripts/agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`)                                                                                           |
 | Agent archived                | Same explicit teardown when possible; otherwise Neon idle TTL                                                                                                                           |
 | Idle **72h**                  | Neon `expires_at` on create/resume only (no scheduled Action backup)                                                                                                                    |
@@ -149,5 +191,5 @@ Provision skips cleanly and prints a warning. See [`docs/agents/cloud-environmen
 ## Tests
 
 ```bash
-node --test scripts/agent-db/__tests__/agent-db.test.mjs
+pnpm agent-db:test
 ```

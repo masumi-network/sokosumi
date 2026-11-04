@@ -19,7 +19,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 1. Run `pnpm install` at repo root
 2. `pnpm env:bootstrap` — copies `.env.example` → `.env` (web + core) and sanitizes placeholders / the `BETTER_AUTH_COOKIE_DOMAIN` trap. Grok/git worktrees reuse the primary checkout `.env` (`BETTER_AUTH_SECRET`, `DATABASE_URL`) unless the worktree already has a unique secret. Do not leave `<…>` values; optional URL keys must be omitted, not set to `dummy`
 3. One-time per machine: `pnpm exec portless trust` if `portless doctor` reports an untrusted CA, then `pnpm portless:proxy` (HTTPS **443**, may sudo). Fail if the URL is `:1355` / `http://` — do not drive the fallback
-4. Bootstrap database: `pnpm prisma:migrate:dev`
+4. Bootstrap database: `pnpm prisma:migrate:dev`, or with a Neon key `pnpm db:up` for a branch of production per worktree ([`agent-database.md`](./agent-database.md))
 5. Generate Prisma clients: `pnpm prisma:generate`
 
 ## Commands
