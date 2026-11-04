@@ -25,6 +25,8 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
     getMyUsage: async () => null,
     listIntegrations: async () => null,
     searchIntegrationCatalog: async () => [],
+    listVersions: async () => [],
+    listSkills: async () => [],
   },
 }));
 vi.mock("@/lib/soko-bot/load-bot-ad-accounts", () => ({
@@ -42,11 +44,14 @@ vi.mock("./components/create-state.client", () => ({
 
 import SokoBotPage from "./page";
 
-async function renderWith(viewerCanManage: boolean): Promise<void> {
+async function renderWith(
+  viewerCanManage: boolean,
+  params: Record<string, string> = { view: "advanced" },
+): Promise<void> {
   chatStateMock.mockResolvedValue({
     bot: { id: "bot-1", versionId: null, viewerCanManage },
   });
-  render(await SokoBotPage({ searchParams: Promise.resolve({}) }));
+  render(await SokoBotPage({ searchParams: Promise.resolve(params) }));
 }
 
 describe("SokoBotPage", () => {
@@ -74,6 +79,14 @@ describe("SokoBotPage", () => {
     expect(loadAdsMock).toHaveBeenCalledWith({ projectId: null });
     expect(consoleMock).toHaveBeenCalledWith(
       expect.objectContaining({ ads: { accounts: [], projectId: null } }),
+    );
+  });
+
+  it("skips the ad accounts outside Advanced, where they are not shown", async () => {
+    await renderWith(true, {});
+    expect(loadAdsMock).not.toHaveBeenCalled();
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ads: null }),
     );
   });
 
