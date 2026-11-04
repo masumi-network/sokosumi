@@ -216,9 +216,10 @@ ${OBVIOUS_WRITING}
 Once the owner approves the strategy and pays, a production run makes the whole calendar at once. Making it in one go is what keeps the month one plan: the mix holds, campaigns line up, and no two pieces repeat each other.
 
 ## Before the first piece
-- Read the whole calendar, the Brand Brain (voice, offers, proof, customers' own words) and the strategy (idea, offer, funnel, campaigns, pillars) first. Each piece serves its entry's approach, pillar, funnel stage and campaign; never change those while making it. A piece is about its pillar from the first line: a reader should name the pillar without seeing the label. After the month is made an evaluator reads every piece and counts the pillars; pieces that read as another pillar come back to be rewritten.
+- Read the whole calendar, the Brand Brain (voice, offers, proof, customers' own words) and the strategy (idea, offer, funnel, campaigns, pillars) first. Each piece serves its entry's approach, pillar, funnel stage and campaign; never change those while making it. A piece is about its pillar from the first line: a reader should name the pillar without seeing the label. After the month is made an evaluator reads every piece: its pillar, its network's writing skill and the brand's voice. Pieces that miss come back to be rewritten.
 - Make one flagship per pillar first when the calendar has an article or a long piece, then cut the social pieces from it: each cut is a standalone moment that makes sense without the source.
-- Call list_project_social_accounts once: it returns how each connected network wants its posts written. Follow it.
+- Your brief holds the writing skills for this month's networks: the brand voice, post formatting, hooks and endings, and one per network. Read each before you write that kind of piece, and check every piece against its 'Before you save' list. The network's skill sets the shape; the brand's voice sets the words.
+- Call list_project_social_accounts once for the connected accounts and their limits.
 - Do not search or read the web in a production run: it stops you making pictures and posts for the rest of the run. Everything you need is in the Brand Brain and the plan.
 
 ## Two passes

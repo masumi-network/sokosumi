@@ -6674,7 +6674,7 @@ describe("Soko Bot project social tools", () => {
         enabledProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
         writingGuides: {
           youtube: expect.arrayContaining([
-            expect.stringMatching(/Plain text only/),
+            expect.stringMatching(/^Plain text/),
           ]),
         },
         accounts: [

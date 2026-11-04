@@ -19,9 +19,11 @@ const {
   approvedStrategy,
   listPosts,
   listFiles,
-  advanceCmoPillars,
+  advanceCmoMonthReview,
+  getBrandBrain,
 } = vi.hoisted(() => ({
-  advanceCmoPillars: vi.fn(),
+  advanceCmoMonthReview: vi.fn(),
+  getBrandBrain: vi.fn(),
   approvedStrategy: vi.fn(),
   listPosts: vi.fn(),
   listFiles: vi.fn(),
@@ -65,9 +67,15 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
-vi.mock("@/services/cmo-pillars.service", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/services/cmo-pillars.service")>()),
-  advanceCmoPillars,
+vi.mock("@/services/cmo-month-review.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-month-review.service")
+  >()),
+  advanceCmoMonthReview,
+}));
+vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/brand-brain.service")>()),
+  getBrandBrain,
 }));
 
 import {
@@ -365,6 +373,34 @@ describe("cmoProductionMessage", () => {
     expect(message).toContain("carousel: at least 3 slides, 1 made");
     expect(message).toContain("referenceFileIds");
   });
+
+  it("hands the run the writing skills of the batch's channels only", () => {
+    const calendar = [
+      entry({ id: "a" }),
+      entry({ id: "b", channel: "x", format: "post" }),
+    ];
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    for (const id of [
+      "brand-voice",
+      "post-formatting",
+      "hooks-and-endings",
+      "linkedin",
+      "x",
+    ])
+      expect(message).toContain(`<skill id="${id}">`);
+    expect(message).not.toContain('<skill id="instagram">');
+    expect(message).not.toContain('<skill id="newsletter">');
+    expect(message.indexOf('<skill id="brand-voice">')).toBeLessThan(
+      message.indexOf('<skill id="linkedin">'),
+    );
+  });
 });
 
 describe("advanceCmoProduction", () => {
@@ -497,7 +533,7 @@ describe("advanceCmoProduction", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("reads a made month for its pillars and rewrites under its own title", async () => {
+  it("reviews a made month with the brand voice and rewrites under its own title", async () => {
     await advanceCmoProduction(
       cuso(
         [post({ draft: "Done." })],
@@ -511,20 +547,21 @@ describe("advanceCmoProduction", () => {
       ),
       NOW,
     );
-    const [input] = advanceCmoPillars.mock.calls[0] ?? [];
+    const [input] = advanceCmoMonthReview.mock.calls[0] ?? [];
     expect(input).toMatchObject({
       version: { id: "strategy-1" },
+      voice: null,
       runIdPrefix: `${RUN}:`,
       ready: 1,
       strategy: { pillars: [{ name: "Recipes", share: 100 }] },
     });
-    await input.startRewrite("Rewrite these", `${RUN}:pillars:1`);
+    await input.startRewrite("Rewrite these", `${RUN}:review:1`);
     expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({
-        clientTurnId: `${RUN}:pillars:1`,
+        clientTurnId: `${RUN}:review:1`,
         message: "Rewrite these",
         background: expect.objectContaining({
-          title: "Rewrite pieces off their pillar for Acme",
+          title: "Rewrite pieces that miss the plan for Acme",
         }),
       }),
     );
@@ -535,7 +572,7 @@ describe("advanceCmoProduction", () => {
       [post({ draft: "Done." })],
       [
         {
-          clientTurnId: `${RUN}:pillars:1`,
+          clientTurnId: `${RUN}:review:1`,
           status: "RUNNING",
           createdAt: hoursAgo(1),
         },
@@ -543,11 +580,11 @@ describe("advanceCmoProduction", () => {
     );
     approvedStrategy.mockResolvedValue({
       ...(await approvedStrategy()),
-      pillarCheck: {
+      monthReview: {
         round: 1,
         checkedAt: hoursAgo(1).toISOString(),
         pieces: { e1: "Recipes" },
-        rewriteRunId: `${RUN}:pillars:1`,
+        rewriteRunId: `${RUN}:review:1`,
       },
     });
     const result = await advanceCmoProduction(owner, NOW);
@@ -555,7 +592,7 @@ describe("advanceCmoProduction", () => {
       shares: [{ name: "Recipes", planned: 100, made: 100, pieces: 1 }],
       rewriting: true,
     });
-    expect(advanceCmoPillars).not.toHaveBeenCalled();
+    expect(advanceCmoMonthReview).not.toHaveBeenCalled();
   });
 
   it("makes what the daily watch adds after the month is made", async () => {

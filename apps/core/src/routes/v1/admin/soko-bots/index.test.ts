@@ -101,6 +101,27 @@ describe("admin Soko Bot route precedence", () => {
     });
   });
 
+  it("serves the writing skills by group, not a bot named 'writing-skills'", async () => {
+    const response = await app.request("http://localhost/writing-skills");
+
+    expect(response.status).toBe(200);
+    expect(getForAdminMock).not.toHaveBeenCalled();
+    const { data } = await response.json();
+    expect(data.groups.map((group: { key: string }) => group.key)).toEqual([
+      "foundations",
+      "social",
+      "ads",
+      "long_form",
+    ]);
+    expect(data.groups[1].skills).toContainEqual(
+      expect.objectContaining({
+        id: "linkedin",
+        channels: ["linkedin"],
+        content: expect.stringContaining("# LinkedIn"),
+      }),
+    );
+  });
+
   it("serves model evaluations, not a bot named 'evaluations'", async () => {
     listEvaluationsMock.mockResolvedValue({
       currentJudgeModel: "anthropic/claude-opus-5.5",

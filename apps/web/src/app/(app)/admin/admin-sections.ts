@@ -10,6 +10,7 @@ import {
   type LucideIcon,
   MessagesSquare,
   Palette,
+  PenLine,
   Receipt,
   Sparkles,
   Store,
@@ -129,6 +130,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "cmoSpend",
     href: "/admin/cmo-spend",
     Icon: Receipt,
+    group: "operations",
+  },
+  {
+    key: "writingSkills",
+    href: "/admin/writing-skills",
+    Icon: PenLine,
     group: "operations",
   },
   {
