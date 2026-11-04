@@ -1,8 +1,4 @@
-import type {
-  GetJobsData,
-  GetProjectsData,
-  GetTasksData,
-} from "@sokosumi/core-client";
+import type { GetProjectsData } from "@sokosumi/core-client";
 
 export const PROJECTS_PAGE_LIMIT = 20;
 
@@ -100,31 +96,3 @@ export const WORKSPACE_COLUMN_STACKED_ROWS = 3;
  */
 export const PROJECTS_OPEN_LAYOUT_CLASS =
   "flex flex-col gap-5 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start";
-
-/**
- * Query param value for GET /jobs and GET /tasks when listing resources
- * that are not assigned to any project. HTTP query strings cannot carry
- * JavaScript `null`, and omitting `projectId` means "no filter" (all jobs/tasks).
- * The Core API accepts this literal string and maps it to `projectId IS NULL`.
- */
-export const UNASSIGNED_PROJECT_QUERY = "null" as const;
-
-export function unassignedWorkspaceJobsQuery(
-  query: Omit<NonNullable<GetJobsData["query"]>, "scope" | "projectId"> = {},
-): NonNullable<GetJobsData["query"]> {
-  return {
-    scope: "workspace",
-    projectId: UNASSIGNED_PROJECT_QUERY,
-    ...query,
-  };
-}
-
-export function unassignedWorkspaceTasksQuery(
-  query: Omit<NonNullable<GetTasksData["query"]>, "scope" | "projectId"> = {},
-): NonNullable<GetTasksData["query"]> {
-  return {
-    scope: "workspace",
-    projectId: UNASSIGNED_PROJECT_QUERY,
-    ...query,
-  };
-}
