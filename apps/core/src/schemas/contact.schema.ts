@@ -101,7 +101,7 @@ export const contactSchema = z
       .openapi({ example: "2026-11-02" }),
     avatarUrl: z.string().nullable(),
     customFields: z.record(z.string(), z.unknown()),
-    firstContactAt: dateTimeSchema.nullable(),
+    firstContactAt: dateTimeSchema,
     lastContactAt: dateTimeSchema.nullable(),
     interactionCount: z.int(),
     lastInboundAt: dateTimeSchema.nullable(),

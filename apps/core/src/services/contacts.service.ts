@@ -855,7 +855,8 @@ async function refreshDerivedFields(tx: Tx, contactId: string) {
   await tx.contact.update({
     where: { id: contactId },
     data: {
-      firstContactAt: aggregate._min.occurredAt,
+      // With no interaction left, the contact keeps the time it was added.
+      firstContactAt: aggregate._min.occurredAt ?? undefined,
       lastContactAt: aggregate._max.occurredAt,
       interactionCount: aggregate._count._all,
       lastInboundAt,
