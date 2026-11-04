@@ -64,7 +64,8 @@ interface FleetDaysProps {
 
 /**
  * The fleet per UTC day: people who wrote to a Soko Bot, and what every turn
- * cost in model tokens. Two charts, never one with two scales.
+ * cost in model tokens, with CMO.xyz bots on their own. One chart per measure,
+ * never one with two scales.
  */
 export async function FleetDays({ fleet }: FleetDaysProps) {
   const [t, format] = await Promise.all([
@@ -87,6 +88,7 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
       maximumFractionDigits: value < 10 ? 2 : 0,
     });
   const totalCost = days.reduce((sum, day) => sum + day.costUsd, 0);
+  const totalCmoCost = days.reduce((sum, day) => sum + day.cmoCostUsd, 0);
   const peakUsers = Math.max(...days.map((day) => day.users));
 
   const panels = [
@@ -112,6 +114,15 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
       label: (day: FleetDay) =>
         t("costBar", { day: dayName(day), cost: usd(day.costUsd) }),
     },
+    {
+      key: "cmoCost",
+      title: t("cmoCostTitle"),
+      headline: usd(today.cmoCostUsd),
+      sub: t("costSub", { total: usd(totalCmoCost), days: days.length }),
+      value: (day: FleetDay) => day.cmoCostUsd,
+      label: (day: FleetDay) =>
+        t("costBar", { day: dayName(day), cost: usd(day.cmoCostUsd) }),
+    },
   ];
 
   return (
@@ -119,7 +130,7 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
       <h2 id="fleet-days" className="border-b px-4 py-2 text-sm font-medium">
         {t("title", { days: days.length })}
       </h2>
-      <div className="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+      <div className="grid divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
         {panels.map((panel) => (
           <div key={panel.key} className="space-y-2 px-4 py-3">
             <div className="flex items-baseline justify-between gap-3">
@@ -171,6 +182,9 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
                 <th className="px-4 py-1.5 text-end font-normal">
                   {t("cost")}
                 </th>
+                <th className="px-4 py-1.5 text-end font-normal">
+                  {t("cmoCost")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -184,6 +198,9 @@ export async function FleetDays({ fleet }: FleetDaysProps) {
                     {format.number(day.totalTokens, { notation: "compact" })}
                   </td>
                   <td className="px-4 py-1.5 text-end">{usd(day.costUsd)}</td>
+                  <td className="px-4 py-1.5 text-end">
+                    {usd(day.cmoCostUsd)}
+                  </td>
                 </tr>
               ))}
             </tbody>

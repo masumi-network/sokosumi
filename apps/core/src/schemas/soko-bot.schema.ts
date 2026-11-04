@@ -644,6 +644,7 @@ export const adminSokoBotFleetDaysSchema = z
         turns: z.number().int(),
         totalTokens: z.number(),
         costUsd: z.number(),
+        cmoCostUsd: z.number(),
       }),
     ),
   })

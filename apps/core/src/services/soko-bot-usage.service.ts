@@ -1,3 +1,4 @@
+import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -145,7 +146,10 @@ export async function sokoBotUsageTotals(
   };
 }
 
-/** One UTC day of the fleet: who wrote to a bot, and what the turns cost. */
+/**
+ * One UTC day of the fleet: who wrote to a bot, and what the turns cost.
+ * CMO.xyz bots (Cuso) are left out of every count and add up in `cmoCostUsd`.
+ */
 export interface SokoBotFleetDay {
   /** YYYY-MM-DD, UTC. */
   day: string;
@@ -158,6 +162,8 @@ export interface SokoBotFleetDay {
   totalTokens: number;
   /** Model cost of all turns: agent loop plus classifier plus judge. */
   costUsd: number;
+  /** Model cost of CMO.xyz bot turns. */
+  cmoCostUsd: number;
 }
 
 interface FleetDayRow {
@@ -167,6 +173,7 @@ interface FleetDayRow {
   turns: bigint;
   totalTokens: bigint | null;
   costUsdMicros: bigint | null;
+  cmoCostUsdMicros: bigint | null;
 }
 
 /** The last `days` UTC days, oldest first, with empty days as zeros. */
@@ -195,17 +202,20 @@ export async function sokoBotFleetDays(
           + COALESCE((t."usage" ->> 'outputTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheReadTokens')::numeric, 0)
           + COALESCE((t."usage" ->> 'cacheWriteTokens')::numeric, 0) AS tokens,
-        COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros
+        COALESCE(t."costUsdMicros", 0) + t."overheadCostUsdMicros" AS micros,
+        b."versionId" IS NOT DISTINCT FROM ${CMO_SOKO_BOT_VERSION_ID} AS "cmo"
       FROM "soko_bot_turn" t
+      JOIN "soko_bot" b ON b."id" = t."sokoBotId"
       WHERE t."createdAt" >= date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => ${days - 1})
     )
     SELECT
       to_char(d.day, 'YYYY-MM-DD') AS "day",
-      COUNT(DISTINCT t."requestedByUserId") FILTER (WHERE t."fromPerson") AS "users",
-      COUNT(t.day) FILTER (WHERE t."fromPerson") AS "messages",
-      COUNT(t.day) AS "turns",
-      SUM(t.tokens)::bigint AS "totalTokens",
-      SUM(t.micros)::bigint AS "costUsdMicros"
+      COUNT(DISTINCT t."requestedByUserId") FILTER (WHERE t."fromPerson" AND NOT t."cmo") AS "users",
+      COUNT(t.day) FILTER (WHERE t."fromPerson" AND NOT t."cmo") AS "messages",
+      COUNT(t.day) FILTER (WHERE NOT t."cmo") AS "turns",
+      SUM(t.tokens) FILTER (WHERE NOT t."cmo")::bigint AS "totalTokens",
+      SUM(t.micros) FILTER (WHERE NOT t."cmo")::bigint AS "costUsdMicros",
+      SUM(t.micros) FILTER (WHERE t."cmo")::bigint AS "cmoCostUsdMicros"
     FROM days d
     LEFT JOIN turns t ON t.day = d.day
     GROUP BY d.day
@@ -218,5 +228,6 @@ export async function sokoBotFleetDays(
     turns: Number(row.turns),
     totalTokens: asNumber(row.totalTokens),
     costUsd: asNumber(row.costUsdMicros) / 1e6,
+    cmoCostUsd: asNumber(row.cmoCostUsdMicros) / 1e6,
   }));
 }
