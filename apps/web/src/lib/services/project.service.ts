@@ -25,6 +25,7 @@ import type {
   PublishSocialPostRequest,
   QueueSocialPostRequest,
   RecycleSocialAccountPostRequest,
+  RejectSocialPostRequest,
   ReplaceSocialQueueSlotsRequest,
   ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
@@ -601,6 +602,19 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function rejectSocialPost(
+    projectId: string,
+    postId: string,
+    input: RejectSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdReject(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
   async function resumeSocialPostThread(
     projectId: string,
     postId: string,
@@ -749,6 +763,7 @@ export const projectService = (() => {
     recycleSocialAccountPost,
     publishSocialPost,
     approveSocialPost,
+    rejectSocialPost,
     resumeSocialPostThread,
     listProjectJobs,
     listProjectTasks,

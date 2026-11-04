@@ -3540,6 +3540,25 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({ status: 409 });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
+  it.each([
+    ["Coworker", { coworkerId: "cow_123" }],
+    ["Soko Bot", { sokoBotId: "55555555-5555-4555-8555-555555555555" }],
+  ])("holds a %s draft for approval", async (_actor, creator) => {
+    const { createSocialPost } = await loadService();
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      ...creator,
+      text: "Hello",
+    });
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "NEEDS_APPROVAL" }),
+      }),
+    );
+  });
   it("records a coworker creator and contextual scheduling user separately", async () => {
     const { createSocialPost } = await loadService();
     await createSocialPost({

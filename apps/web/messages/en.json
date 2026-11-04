@@ -996,6 +996,18 @@
       "copyFailed": "Could not copy. Select the diagram source below and copy it manually."
     },
     "ChatResults": {
+      "socialApproval": {
+        "reject": "Reject",
+        "rejected": "Post rejected.",
+        "rejectFailed": "Failed to reject the post. Try again.",
+        "rejectTitle": "Reject this post?",
+        "rejectDescription": "This cancels the pending post. It will not be published.",
+        "cancel": "Keep post",
+        "label": "Needs approval",
+        "approve": "Approve",
+        "approved": "Post approved.",
+        "failed": "Failed to approve the post. Try again."
+      },
       "unavailable": "Result unavailable or no longer accessible",
       "loading": "Loading results…",
       "loadError": "Results could not be loaded",

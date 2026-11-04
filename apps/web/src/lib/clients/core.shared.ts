@@ -132,6 +132,7 @@ import type {
   PostProjectsByIdSocialPostsByPostIdCancelData,
   PostProjectsByIdSocialPostsByPostIdPublishData,
   PostProjectsByIdSocialPostsByPostIdQueueData,
+  PostProjectsByIdSocialPostsByPostIdRejectData,
   PostProjectsByIdSocialPostsByPostIdScheduleData,
   PostProjectsByIdSocialPostsByPostIdThreadResumeData,
   PostProjectsByIdSocialPostsData,
@@ -490,6 +491,7 @@ import {
   postProjectsByIdSocialPostsByPostIdDuplicate as corePostProjectsByIdSocialPostsByPostIdDuplicate,
   postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdQueue as corePostProjectsByIdSocialPostsByPostIdQueue,
+  postProjectsByIdSocialPostsByPostIdReject as corePostProjectsByIdSocialPostsByPostIdReject,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdSocialPostsByPostIdStatisticsRefresh as corePostProjectsByIdSocialPostsByPostIdStatisticsRefresh,
   postProjectsByIdSocialPostsByPostIdThreadResume as corePostProjectsByIdSocialPostsByPostIdThreadResume,
@@ -4463,6 +4465,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdSocialPostsByPostIdReject(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdRejectData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdReject({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to reject Project social post",
+    );
+  }
+
   async function postProjectsByIdSocialPostsByPostIdThreadResume(
     id: string,
     postId: string,
@@ -6931,6 +6950,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdSocialAccountPostsByAccountPostIdRecycle,
     postProjectsByIdSocialPostsByPostIdDuplicate,
     postProjectsByIdSocialPostsByPostIdApprove,
+    postProjectsByIdSocialPostsByPostIdReject,
     postProjectsByIdSocialPostsByPostIdThreadResume,
     postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdQueue,

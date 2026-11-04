@@ -1,6 +1,8 @@
 import type { ChatResultAvailable } from "@sokosumi/core-client";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cardHref,
   fileSize,
@@ -9,7 +11,26 @@ import {
   ResultPreviews,
 } from "./result-previews";
 
-const { resultQuery } = vi.hoisted(() => ({ resultQuery: vi.fn() }));
+const {
+  resultQuery,
+  approveSocialPost,
+  rejectSocialPost,
+  toastSuccess,
+  toastError,
+} = vi.hoisted(() => ({
+  resultQuery: vi.fn(),
+  approveSocialPost: vi.fn(),
+  rejectSocialPost: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+vi.mock("@/lib/actions/project/action", () => ({
+  approveProjectSocialPost: approveSocialPost,
+  rejectProjectSocialPost: rejectSocialPost,
+}));
+vi.mock("sonner", () => ({
+  toast: { success: toastSuccess, error: toastError },
+}));
 vi.mock("@tanstack/react-query", () => ({ useQuery: resultQuery }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: { user: { id: "owner" }, session: {} } }),
@@ -63,6 +84,7 @@ const task: ChatResultAvailable = {
   outputs: [],
 };
 describe("chat result cards", () => {
+  beforeEach(() => vi.clearAllMocks());
   it("shows the recorded task, real question, timezone and source link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard result={task} onDecisionResolved={() => {}} />,
@@ -301,6 +323,185 @@ describe("chat result cards", () => {
     expect(html).toContain("now");
     expect(html).not.toContain("2026-10-06");
   });
+  const pendingSocial = {
+    provider: "x" as const,
+    account: null,
+    timestamp: null,
+    projectId: "project",
+    postId: "post",
+    revision: 2,
+    canApprove: true,
+    canReject: true,
+  };
+  const pendingPost: ChatResultAvailable = {
+    ...task,
+    kind: "social_post",
+    status: "NEEDS_APPROVAL",
+    summary: "Our launch",
+    question: null,
+    social: pendingSocial,
+    outputs: [],
+  };
+  async function decide(decision: "approve" | "reject") {
+    await userEvent.click(screen.getByRole("button", { name: decision }));
+    if (decision === "reject") {
+      expect(rejectSocialPost).not.toHaveBeenCalled();
+      await userEvent.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "reject",
+        }),
+      );
+    }
+  }
+  it.each(["approve", "reject"] as const)(
+    "lets a person %s a pending post and refetches the card",
+    async (decision) => {
+      const action =
+        decision === "approve" ? approveSocialPost : rejectSocialPost;
+      action.mockResolvedValue({ ok: true, value: {} });
+      const refetch = vi.fn();
+      resultQuery.mockReturnValue({ data: [pendingPost], refetch });
+      render(
+        <ResultPreviews
+          descriptors={[
+            { id: pendingPost.id, capturedAt: pendingPost.capturedAt },
+          ]}
+          source={{ roomId: "room", messageId: "message" }}
+        />,
+      );
+      expect(
+        screen.getByTestId("social-post-status-NEEDS_APPROVAL"),
+      ).toHaveTextContent("label");
+      await decide(decision);
+      expect(action).toHaveBeenCalledWith({
+        projectId: "project",
+        postId: "post",
+        revision: 2,
+      });
+      await waitFor(() => expect(refetch).toHaveBeenCalledOnce());
+      expect(toastSuccess).toHaveBeenCalledWith(
+        decision === "approve" ? "approved" : "rejected",
+      );
+      expect(
+        decision === "approve" ? rejectSocialPost : approveSocialPost,
+      ).not.toHaveBeenCalled();
+    },
+  );
+  it("keeps the pending post when Reject confirmation is dismissed", async () => {
+    render(
+      <ResultPreviewCard result={pendingPost} onDecisionResolved={() => {}} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "reject" }));
+    await userEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "cancel",
+      }),
+    );
+    expect(rejectSocialPost).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "approve" })).toBeEnabled();
+  });
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+  ])(
+    "gates Approve (%s) and Reject (%s) by their own permissions",
+    (canApprove, canReject) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{
+            ...pendingPost,
+            social: { ...pendingSocial, canApprove, canReject },
+          }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).toContain('data-testid="social-post-status-NEEDS_APPROVAL"');
+      expect(html.includes(">approve</")).toBe(canApprove);
+      expect(html.includes(">reject</")).toBe(canReject);
+    },
+  );
+  it.each(["DRAFT", "SCHEDULED", "CANCELED", "PUBLISHED"])(
+    "hides approval controls once status is %s",
+    (status) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{ ...pendingPost, status }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).not.toContain(">approve</");
+      expect(html).not.toContain(">reject</");
+      expect(html).not.toContain(
+        'data-testid="social-post-status-NEEDS_APPROVAL"',
+      );
+    },
+  );
+  it("keeps old social snapshots read-only when mutation fields are absent", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...pendingPost,
+          social: { provider: "x", account: null, timestamp: null },
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain('data-testid="social-post-status-NEEDS_APPROVAL"');
+    expect(html).not.toContain(">approve</");
+    expect(html).not.toContain(">reject</");
+  });
+  it.each(["approve", "reject"] as const)(
+    "keeps the card available when %s fails",
+    async (decision) => {
+      const action =
+        decision === "approve" ? approveSocialPost : rejectSocialPost;
+      action.mockResolvedValue({
+        ok: false,
+        error: { message: "Post changed. Reload and try again." },
+      });
+      const onSocialPostResolved = vi.fn();
+      render(
+        <ResultPreviewCard
+          result={pendingPost}
+          onDecisionResolved={() => {}}
+          onSocialPostResolved={onSocialPostResolved}
+        />,
+      );
+      await decide(decision);
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(
+          "Post changed. Reload and try again.",
+        ),
+      );
+      expect(onSocialPostResolved).not.toHaveBeenCalled();
+      expect(toastSuccess).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["approve", "reject"] as const)(
+    "shows a fallback when %s throws",
+    async (decision) => {
+      const action =
+        decision === "approve" ? approveSocialPost : rejectSocialPost;
+      action.mockRejectedValue(new Error("Network unavailable"));
+      const onSocialPostResolved = vi.fn();
+      render(
+        <ResultPreviewCard
+          result={pendingPost}
+          onDecisionResolved={() => {}}
+          onSocialPostResolved={onSocialPostResolved}
+        />,
+      );
+      await decide(decision);
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(
+          decision === "approve" ? "failed" : "rejectFailed",
+        ),
+      );
+      expect(onSocialPostResolved).not.toHaveBeenCalled();
+    },
+  );
   it("renders an unavailable card without a resource link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard

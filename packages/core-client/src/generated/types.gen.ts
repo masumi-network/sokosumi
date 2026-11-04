@@ -3497,6 +3497,11 @@ export type ChatResultAvailable = {
             avatarUrl: string | null;
         } | null;
         timestamp: Date | null;
+        projectId?: string | null;
+        postId?: string | null;
+        revision?: number | null;
+        canApprove?: boolean;
+        canReject?: boolean;
     } | null;
     actor?: {
         id: string;

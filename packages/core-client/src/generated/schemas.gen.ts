@@ -12670,6 +12670,38 @@ export const ChatResultAvailableSchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                projectId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                },
+                postId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                },
+                revision: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    minimum: 0,
+                    default: null
+                },
+                canApprove: {
+                    type: 'boolean',
+                    default: false
+                },
+                canReject: {
+                    type: 'boolean',
+                    default: false
                 }
             },
             default: null,

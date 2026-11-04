@@ -996,6 +996,18 @@
       "copyFailed": "No se pudo copiar. Selecciona el código del diagrama de abajo y cópialo manualmente."
     },
     "ChatResults": {
+      "socialApproval": {
+        "reject": "Rechazar",
+        "rejected": "Publicación rechazada.",
+        "rejectFailed": "No se pudo rechazar la publicación. Inténtalo de nuevo.",
+        "rejectTitle": "¿Rechazar esta publicación?",
+        "rejectDescription": "Esto cancela la publicación pendiente. No se publicará.",
+        "cancel": "Conservar publicación",
+        "label": "Requiere aprobación",
+        "approve": "Aprobar",
+        "approved": "Publicación aprobada.",
+        "failed": "No se pudo aprobar la publicación. Inténtalo de nuevo."
+      },
       "unavailable": "Resultado no disponible o sin acceso",
       "loading": "Cargando resultados…",
       "loadError": "No se pudieron cargar los resultados",

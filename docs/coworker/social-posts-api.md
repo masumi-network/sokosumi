@@ -1,15 +1,15 @@
 # Coworker Social post scheduling
 
-Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Posts they create land as Needs approval and never publish until a person approves them. Setting a time while a post still needs approval keeps that status.
+Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Posts they create or duplicate always land as `NEEDS_APPROVAL`, including when created with `scheduledAt`, and wait for a person to approve them before publishing. See [Approval for agent posts](#approval-for-agent-posts).
 
 Social scheduling is public for X, YouTube, LinkedIn, Instagram, and Facebook. Every workspace, including `utxo`, gets the same enabled providers: `socialProvidersForWorkspace` in [`packages/utils/src/social-post.ts`](../../packages/utils/src/social-post.ts) returns `SOCIAL_PUBLIC_PROVIDERS`. TikTok and other platforms show Coming soon and cannot be connected or used to create, edit, schedule, approve, publish, duplicate, or recycle posts. Existing posts on unavailable providers remain readable and fail when due with the coming-soon reason without contacting the platform. Ads remains `utxo`-only.
 
 Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Organization-Id` for an organization workspace. The contextual user must belong to that workspace. Core applies the same delegated-user binding used for delegated Tasks: a granted vendor workspace grant or a baseline assigned/same-vendor task relationship. Denied/revoked grants reject access. Bare Coworker keys, human API keys, OAuth tokens, Soko Bot, and orchestrator actors do not gain this access.
 
 1. List the Project's connected accounts using `GET /v1/projects/{id}/social-connections`; choose an active connection whose provider is enabled for the Project's workspace. Workspace reads (`GET /v1/users/me/workspaces`) include `enabledSocialProviders`.
-2. Create a draft using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
+2. Create a post awaiting approval using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.
 3. Schedule through `POST /v1/projects/{id}/social-posts/{postId}/schedule` with `revision`, `scheduledAt` (more than one minute in the future), and optionally `timezone`. Alternatively provide `scheduledAt` during creation.
-4. Copy a published, failed, or missed post into a new draft with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
+4. Copy a published, failed, or missed post into a new post awaiting approval with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
 5. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
 
 Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
@@ -17,6 +17,12 @@ Core records the Coworker as creator independently of the contextual human. `sch
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, current workspace membership, and the Project's workspace provider availability. Revoked access or an unavailable provider fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly when its provider is enabled.
 
 Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, Publish now/Retry, and approve/reject remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow`, `canApprove`, and `canReject` to false. Calendar's Social feed remains interactive-human-only in this layer.
+
+## Approval for agent posts
+
+Posts and duplicates created by a Coworker or Soko Bot always land as `NEEDS_APPROVAL` and never publish until a person approves them. Setting a planned time while a post still needs approval keeps that status.
+
+A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. The chat card also offers Reject when permitted; it uses Core's reject action to cancel the pending post. Project Social emphasizes Approve and Cancel. Agents never approve or reject posts.
 
 ## Published post statistics
 
@@ -66,9 +72,9 @@ Core derives the user and workspace from the active turn and rechecks owner acti
 
 Version `v23` keeps v22's model and base behavior and replaces the managed-post performance skill with `social-account-performance`. Use `list_social_account_statistics` for general account performance and external publications, then `refresh_social_account_statistics` when fresh or missing results matter. Continue provider history with `continueHistory: true`, up to ten pages per turn, and report freshness, metric periods, and incomplete coverage. Existing managed-post statistics tools remain available for specific Sokosumi posts. Existing version selections retain their workflows while provider availability follows the owning workspace. Account refresh and history synchronization are read capabilities under the existing Social access rules and never authorize publication.
 
-Bot-created posts identify the bot as creator and land as Needs approval. They never publish until a person approves them in Project Social. Scheduling under the owner's identity only stores a planned time while approval is still pending. `publish_social_post` refuses a post that still needs approval.
+Bot-created posts identify the bot as creator and always land as Needs approval (see [Approval for agent posts](#approval-for-agent-posts)). After creation, the bot tells the owner the post is waiting for approval and calls `preview_result` with `{kind:"social_post",id,projectId}` so the in-chat card offers the person Approve and Reject when permitted. Scheduling under the owner's identity only stores a planned time while approval is still pending. The bot never approves or rejects posts and never calls `publish_social_post` while a post still needs approval; Core refuses publication in that state.
 
-Version `v32` keeps v31's model and base behavior and swaps the `social` skill for `social-posting-instructions`, which tells the bot to call `get_posting_instructions` before drafting or rewriting post text. The tool itself is a read under the same Social access rules for every version, and the `create_social_post` description names it too.
+Version `v33` keeps v32's model and base behavior and swaps the `social` skill for `social-posting-instructions`, which tells the bot to call `get_posting_instructions` before drafting or rewriting post text. The tool itself is a read under the same Social access rules for every version, and the `create_social_post` description names it too.
 
 ## Provider publishing rules
 

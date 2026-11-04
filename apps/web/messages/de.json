@@ -996,6 +996,18 @@
       "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
     },
     "ChatResults": {
+      "socialApproval": {
+        "reject": "Ablehnen",
+        "rejected": "Beitrag abgelehnt.",
+        "rejectFailed": "Der Beitrag konnte nicht abgelehnt werden. Versuche es erneut.",
+        "rejectTitle": "Diesen Beitrag ablehnen?",
+        "rejectDescription": "Dadurch wird der ausstehende Beitrag abgebrochen. Er wird nicht veröffentlicht.",
+        "cancel": "Beitrag behalten",
+        "label": "Freigabe erforderlich",
+        "approve": "Freigeben",
+        "approved": "Beitrag freigegeben.",
+        "failed": "Der Beitrag konnte nicht freigegeben werden. Versuche es erneut."
+      },
       "unavailable": "Ergebnis nicht verfügbar oder nicht mehr zugänglich",
       "loading": "Ergebnisse werden geladen…",
       "loadError": "Ergebnisse konnten nicht geladen werden",
