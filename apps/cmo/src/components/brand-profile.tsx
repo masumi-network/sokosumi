@@ -31,6 +31,7 @@ import {
   type BrandSection,
   type BrandSectionKey,
   brandProfile,
+  companyUrl,
   EVIDENCE_LABELS,
   formatAsOf,
   sourceHost,
@@ -193,7 +194,10 @@ export function BrandReveal({
       (brain.alternatives ?? []).length > 0 ? (
         <Section title="Competitors" beat={beat(6)}>
           {reveal?.map ? (
-            <MarketMap map={reveal.map} competitors={brain.competitors} />
+            <MarketMap
+              map={reveal.map}
+              companies={[...brain.competitors, ...(brain.alternatives ?? [])]}
+            />
           ) : null}
           {media && media.competitors.length > 0 ? (
             <CompetitorCards brain={brain} media={media} />
@@ -516,17 +520,11 @@ type Reveal = NonNullable<BrandBrain["reveal"]>;
 
 function MarketMap({
   map,
-  competitors,
+  companies,
 }: {
   map: NonNullable<Reveal["map"]>;
-  competitors: BrandBrain["competitors"];
+  companies: BrandBrain["competitors"];
 }) {
-  const links = new Map(
-    competitors.map((competitor) => [
-      competitor.name.toLowerCase(),
-      competitor.url,
-    ]),
-  );
   return (
     <div className="rv-map">
       <div className="rv-plot">
@@ -535,7 +533,7 @@ function MarketMap({
         {map.players.map((player) => {
           const url = player.you
             ? undefined
-            : links.get(player.name.toLowerCase());
+            : companyUrl(player.name, companies);
           const Dot = url ? "a" : "span";
           return (
             <Dot
