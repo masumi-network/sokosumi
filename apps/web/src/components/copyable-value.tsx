@@ -2,7 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { KeyboardEvent, MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ export interface CopyableValueProps {
   presentation?: "middle-truncate" | "inline-code";
   /** Only applies when `presentation` is `inline-code`. */
   truncateInline?: boolean;
+  /** Only applies when `presentation` is `inline-code`; copying still uses `value`. */
+  displayValue?: ReactNode;
   codeClassName?: string;
   buttonClassName?: string;
   containerClassName?: string;
@@ -34,6 +36,7 @@ export function CopyableValue({
   copiedFeedback = false,
   presentation = "middle-truncate",
   truncateInline = true,
+  displayValue,
   codeClassName,
   buttonClassName,
   containerClassName,
@@ -79,7 +82,7 @@ export function CopyableValue({
           codeClassName,
         )}
       >
-        {value}
+        {displayValue ?? value}
       </code>
     );
 

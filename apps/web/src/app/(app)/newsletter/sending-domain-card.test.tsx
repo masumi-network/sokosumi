@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/messages/en.json";
 
@@ -71,6 +72,18 @@ const DOMAIN: NewsletterSendingDomain = {
     pauseReason: null,
   },
   createdAt: new Date("2026-10-27T12:00:00Z"),
+};
+// Nothing found yet, so one-click can stand alone until records are needed.
+const UNSTARTED_DOMAIN: NewsletterSendingDomain = {
+  ...DOMAIN,
+  dnsRecords: DOMAIN.dnsRecords.map((record) => ({
+    ...record,
+    status: "pending",
+  })),
+};
+const GODADDY = {
+  providerName: "GoDaddy",
+  applyUrl: "https://dns.example/domainconnect/apply?x=1",
 };
 const WARMING_DOMAIN: NewsletterSendingDomain = {
   ...DOMAIN,
@@ -327,16 +340,11 @@ describe("SendingDomainCard", () => {
   it("offers manual setup with relative and full hosts, status, priority, and TTL", async () => {
     renderCard({ sendingDomain: DOMAIN });
 
-    expect(screen.getByText(T.status.PENDING)).toBeInTheDocument();
-    expect(
-      screen.getByRole("region", { name: T.manual.title }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(T.manual.description)).toBeInTheDocument();
+    expect(screen.getByText(T.status.PARTIAL)).toBeInTheDocument();
     expect(screen.getByText(T.manual.saved)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: T.manual.action })).toHaveAttribute(
-      "href",
-      "#newsletter-dns-records",
-    );
+    expect(
+      screen.getByRole("button", { name: T.manual.action }),
+    ).toHaveAttribute("aria-expanded", "true");
     const records = screen.getByRole("region", { name: T.records.title });
     expect(
       within(records).getByText(T.records.purpose.dkim.explanation),
@@ -395,19 +403,21 @@ describe("SendingDomainCard", () => {
     }
   });
 
-  it("shows @ for the apex while retaining the full host", () => {
+  it("shows @ for the apex while retaining the full host", async () => {
     renderCard({
       sendingDomain: {
         ...DOMAIN,
         dnsRecords: [{ ...DOMAIN.dnsRecords[0], name: DOMAIN.domain }],
       },
     });
-    const records = screen.getByRole("region", { name: T.records.title });
+    const records = await screen.findByRole("region", {
+      name: T.records.title,
+    });
     expect(within(records).getByText("@")).toBeInTheDocument();
     expect(within(records).getByText(DOMAIN.domain)).toBeInTheDocument();
   });
 
-  it("handles trailing dots and mixed case without appending the domain twice", () => {
+  it("handles trailing dots and mixed case without appending the domain twice", async () => {
     renderCard({
       sendingDomain: {
         ...DOMAIN,
@@ -416,7 +426,9 @@ describe("SendingDomainCard", () => {
         ],
       },
     });
-    const records = screen.getByRole("region", { name: T.records.title });
+    const records = await screen.findByRole("region", {
+      name: T.records.title,
+    });
     expect(within(records).getByText("resend._domainkey")).toBeInTheDocument();
     expect(
       within(records).getByText("Resend._Domainkey.Brand.Example."),
@@ -425,14 +437,16 @@ describe("SendingDomainCard", () => {
 
   it.each(["pending", "not_started", "not_found", "unknown"])(
     "shows %s as missing",
-    (status) => {
+    async (status) => {
       renderCard({
         sendingDomain: {
           ...DOMAIN,
           dnsRecords: [{ ...DOMAIN.dnsRecords[0], status }],
         },
       });
-      const records = screen.getByRole("region", { name: T.records.title });
+      const records = await screen.findByRole("region", {
+        name: T.records.title,
+      });
       expect(within(records).getByText(T.records.missing)).toBeInTheDocument();
       expect(
         within(records).queryByText(T.records.failedDescription),
@@ -440,14 +454,16 @@ describe("SendingDomainCard", () => {
     },
   );
 
-  it("shows failed records as Wrong value with guidance for missing or incorrect values", () => {
+  it("shows failed records as Wrong value with guidance for missing or incorrect values", async () => {
     renderCard({
       sendingDomain: {
         ...DOMAIN,
         dnsRecords: [{ ...DOMAIN.dnsRecords[0], status: "failed" }],
       },
     });
-    const records = screen.getByRole("region", { name: T.records.title });
+    const records = await screen.findByRole("region", {
+      name: T.records.title,
+    });
     expect(within(records).getByText("Wrong value")).toBeInTheDocument();
     expect(
       within(records).getByText(T.records.failedDescription),
@@ -457,9 +473,12 @@ describe("SendingDomainCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows troubleshooting when records are missing", () => {
+  it("shows troubleshooting when records are missing", async () => {
+    const user = userEvent.setup();
     renderCard({ sendingDomain: DOMAIN });
-    expect(screen.getByText(T.troubleshooting.title)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: T.troubleshooting.title }),
+    );
     expect(screen.getByText(T.troubleshooting.host)).toBeInTheDocument();
     expect(screen.getByText(T.troubleshooting.quotes)).toBeInTheDocument();
     expect(screen.getByText(T.troubleshooting.propagation)).toBeInTheDocument();
@@ -468,6 +487,9 @@ describe("SendingDomainCard", () => {
   it("shows compact DNS tips for all supported manual providers", async () => {
     const user = userEvent.setup();
     renderCard({ sendingDomain: DOMAIN });
+    await user.click(
+      screen.getByRole("button", { name: T.providerTips.title }),
+    );
     const tips = screen.getByRole("region", { name: T.providerTips.title });
     expect(
       within(tips).getByText(T.providerTips.description),
@@ -509,9 +531,8 @@ describe("SendingDomainCard", () => {
       });
       expect(link).toHaveAttribute("href", applyUrl);
       expect(
-        screen.getByRole("region", { name: T.manual.title }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: T.manual.action })).toBeVisible();
+        screen.getByRole("button", { name: T.manual.action }),
+      ).toBeVisible();
       expect(mocks.connect).toHaveBeenCalledExactlyOnceWith({
         projectId: PROJECT_ID,
       });
@@ -525,63 +546,199 @@ describe("SendingDomainCard", () => {
     },
   );
 
-  it("allows discovery to be retried after finding a provider", async () => {
+  it.each([
+    {
+      status: "VERIFIED" as const,
+      dnsRecords: [
+        {
+          ...DOMAIN.dnsRecords[0],
+          record: "DMARC",
+          name: "_dmarc.brand.example",
+          value: "v=DMARC1; p=none;",
+          status: "not_found",
+        },
+      ],
+    },
+    {
+      dnsRecords: [{ ...DOMAIN.dnsRecords[0], value: "p=rotated" }],
+    },
+  ])(
+    "refreshes discovery when the apply URL would change: %j",
+    async (change) => {
+      mocks.connect.mockResolvedValueOnce({ ok: true, value: GODADDY });
+      mocks.connect.mockResolvedValue({
+        ok: true,
+        value: {
+          providerName: "IONOS",
+          applyUrl: "https://dns.example/domainconnect/apply?x=2",
+        },
+      });
+      const { rerenderCard } = renderCard({ sendingDomain: DOMAIN });
+      expect(
+        await screen.findByRole("link", { name: "Connect with GoDaddy" }),
+      ).toBeInTheDocument();
+      rerenderCard({ sendingDomain: { ...DOMAIN, ...change } });
+      expect(
+        await screen.findByRole("link", { name: "Connect with IONOS" }),
+      ).toHaveAttribute("href", "https://dns.example/domainconnect/apply?x=2");
+      expect(mocks.connect).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("only reports the verification result when pressing Check again", async () => {
     const user = userEvent.setup();
-    mocks.connect.mockResolvedValueOnce({
-      ok: true,
-      value: {
-        providerName: "GoDaddy",
-        applyUrl: "https://dns.example/domainconnect/apply?x=1",
-      },
+    const checked = {
+      ...DOMAIN,
+      status: "FAILED" as const,
+      lastCheckedAt: new Date("2026-11-04T12:00:00Z"),
+    };
+    mocks.check.mockResolvedValue({ ok: true, value: checked });
+    const { rerenderCard } = renderCard({ sendingDomain: DOMAIN });
+    expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: T.checkAgain }));
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+    rerenderCard({ sendingDomain: checked });
+
+    expect(toast.success).toHaveBeenCalledExactlyOnceWith(T.checked);
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.queryByText(T.oneClick.checking)).not.toBeInTheDocument();
+    expect(mocks.connect).toHaveBeenCalledOnce();
+  });
+
+  it("makes one-click the primary action and keeps manual one click away", async () => {
+    const user = userEvent.setup();
+    mocks.connect.mockResolvedValue({ ok: true, value: GODADDY });
+    renderCard({ sendingDomain: UNSTARTED_DOMAIN });
+
+    const link = await screen.findByRole("link", {
+      name: "Connect with GoDaddy",
     });
-    mocks.connect.mockResolvedValue({
-      ok: true,
-      value: {
-        providerName: "IONOS",
-        applyUrl: "https://dns.example/domainconnect/apply?x=2",
-      },
-    });
-    renderCard({ sendingDomain: DOMAIN });
+    expect(link).toHaveClass("bg-primary");
+    expect(screen.getByRole("button", { name: T.checkAgain })).not.toHaveClass(
+      "bg-primary",
+    );
+    expect(screen.getByText(T.status.PENDING)).toBeInTheDocument();
+    expect(screen.getByText(T.statusDetail.PENDING)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: T.records.title })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: T.manual.action }));
     expect(
-      await screen.findByRole("link", { name: "Connect with GoDaddy" }),
+      screen.getByRole("region", { name: T.records.title }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: T.oneClick.lookup }));
+  });
+
+  it("opens the records once a check finds them still unverified", async () => {
+    const user = userEvent.setup();
+    mocks.connect.mockResolvedValue({ ok: true, value: GODADDY });
+    mocks.check.mockResolvedValue({ ok: true, value: UNSTARTED_DOMAIN });
+    renderCard({ sendingDomain: UNSTARTED_DOMAIN });
+    await screen.findByRole("link", { name: "Connect with GoDaddy" });
+    expect(screen.queryByRole("region", { name: T.records.title })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: T.checkAgain }));
     expect(
-      await screen.findByRole("link", { name: "Connect with IONOS" }),
-    ).toHaveAttribute("href", "https://dns.example/domainconnect/apply?x=2");
+      await screen.findByRole("region", { name: T.records.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows records and manual steps straight away without one-click", async () => {
+    renderCard({ sendingDomain: UNSTARTED_DOMAIN });
     expect(
-      screen.queryByRole("link", { name: "Connect with GoDaddy" }),
-    ).not.toBeInTheDocument();
-    expect(mocks.connect).toHaveBeenCalledTimes(2);
+      await screen.findByRole("region", { name: T.records.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: T.checkAgain })).toHaveClass(
+      "bg-primary",
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("does not offer a jump to records that are already on the page", () => {
+    renderCard({ sendingDomain: DOMAIN });
+    expect(screen.queryByRole("link", { name: /DNS records/ })).toBeNull();
+  });
+
+  it("counts partial progress and leaves the optional DMARC record out", async () => {
+    renderCard({
+      sendingDomain: {
+        ...DOMAIN,
+        dnsRecords: [
+          ...DOMAIN.dnsRecords,
+          {
+            ...DOMAIN.dnsRecords[0],
+            record: "DMARC",
+            name: "_dmarc.brand.example",
+            value: "v=DMARC1; p=none;",
+            status: "not_found",
+          },
+        ],
+      },
+    });
+    expect(screen.getByText(T.status.PARTIAL)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "1 of 2 DNS records found. Sending starts from this address once all of them are verified.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: T.records.title }),
+    ).toBeInTheDocument();
+    await screen.findByText(T.oneClick.unavailable);
   });
 
   it.each([
-    { lastCheckedAt: new Date("2026-11-03T12:00:00Z") },
-    { status: "FAILED" as const },
-  ])("refreshes discovery after DNS state changes: %j", async (change) => {
-    mocks.connect.mockResolvedValueOnce({
-      ok: true,
-      value: {
-        providerName: "GoDaddy",
-        applyUrl: "https://dns.example/domainconnect/apply?x=1",
+    ["MX", "bounce"],
+    ["CNAME", "bounce"],
+    ["TXT", "spf"],
+  ] as const)("labels an SPF-group %s record as %s", async (type, purpose) => {
+    renderCard({
+      sendingDomain: {
+        ...DOMAIN,
+        dnsRecords: [
+          {
+            record: "SPF",
+            type,
+            name: "rsend.brand.example",
+            value: "return.resend.example",
+            ttl: "Auto",
+            priority: null,
+            status: "pending",
+          },
+        ],
       },
     });
-    mocks.connect.mockResolvedValue({
-      ok: true,
-      value: {
-        providerName: "IONOS",
-        applyUrl: "https://dns.example/domainconnect/apply?x=2",
-      },
+    const records = await screen.findByRole("region", {
+      name: T.records.title,
     });
-    const { rerenderCard } = renderCard({ sendingDomain: DOMAIN });
     expect(
-      await screen.findByRole("link", { name: "Connect with GoDaddy" }),
+      within(records).getByText(T.records.purpose[purpose].label),
     ).toBeInTheDocument();
-    rerenderCard({ sendingDomain: { ...DOMAIN, ...change } });
     expect(
-      await screen.findByRole("link", { name: "Connect with IONOS" }),
-    ).toHaveAttribute("href", "https://dns.example/domainconnect/apply?x=2");
-    expect(mocks.connect).toHaveBeenCalledTimes(2);
+      within(records).getByText(T.records.purpose[purpose].explanation),
+    ).toBeInTheDocument();
+    expect(within(records).getByText(type)).toBeInTheDocument();
+  });
+
+  it("wraps long hosts between labels, not inside them", () => {
+    renderCard({ sendingDomain: DOMAIN });
+    const records = screen.getByRole("region", { name: T.records.title });
+    const host = within(records).getByText("resend._domainkey.brand.example");
+    expect(host.querySelectorAll("wbr")).toHaveLength(3);
+    expect(host).toHaveClass("break-words");
+    expect(host).not.toHaveClass("wrap-anywhere");
+  });
+
+  it("offers a lookup retry only while no provider is found", async () => {
+    const user = userEvent.setup();
+    mocks.connect.mockResolvedValue({ ok: true, value: GODADDY });
+    renderCard({ sendingDomain: DOMAIN });
+    await screen.findByRole("link", { name: "Connect with GoDaddy" });
+    expect(
+      screen.queryByRole("button", { name: T.oneClick.lookup }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: T.manual.action }));
+    expect(
+      screen.queryByRole("button", { name: T.oneClick.lookup }),
+    ).toBeNull();
   });
 
   it.each([
@@ -595,7 +752,7 @@ describe("SendingDomainCard", () => {
     expect(
       screen.queryByRole("link", { name: /Connect with / }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: T.manual.action })).toBeVisible();
+    expect(screen.getByRole("button", { name: T.manual.action })).toBeVisible();
   });
 
   it("hides the one-click connect link until discovery has succeeded", async () => {
@@ -606,7 +763,7 @@ describe("SendingDomainCard", () => {
     expect(
       screen.queryByRole("link", { name: /Connect with / }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: T.manual.action })).toBeVisible();
+    expect(screen.getByRole("button", { name: T.manual.action })).toBeVisible();
 
     lookup.resolve({ ok: true, value: null });
     expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
@@ -627,7 +784,7 @@ describe("SendingDomainCard", () => {
     });
     renderCard({ sendingDomain: DOMAIN });
     expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: T.manual.action })).toBeVisible();
+    expect(screen.getByRole("button", { name: T.manual.action })).toBeVisible();
     expect(
       screen.queryByRole("link", { name: /Connect with / }),
     ).not.toBeInTheDocument();
@@ -656,7 +813,9 @@ describe("SendingDomainCard", () => {
           failure === "result" ? T.errors.forbidden : T.errors.generic,
         ),
       ).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: T.manual.action })).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: T.manual.action }),
+      ).toBeVisible();
       expect(
         screen.queryByRole("link", { name: /Connect with / }),
       ).not.toBeInTheDocument();
@@ -701,7 +860,8 @@ describe("SendingDomainCard", () => {
     expect(input).toHaveValue("");
   });
 
-  it("hides setup once verified and shows a failure reason when failed", () => {
+  it("hides setup once verified and shows a failure reason when failed", async () => {
+    const user = userEvent.setup();
     const { unmount } = renderCard({
       sendingDomain: { ...DOMAIN, status: "VERIFIED" },
     });
@@ -711,6 +871,13 @@ describe("SendingDomainCard", () => {
       screen.queryByRole("button", { name: T.checkAgain }),
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText(T.cloudflare.title)).not.toBeInTheDocument();
+    // Still there for reference, just out of the way.
+    expect(screen.queryByRole("region", { name: T.records.title })).toBeNull();
+    await user.click(screen.getByRole("button", { name: T.records.title }));
+    expect(
+      screen.getByRole("region", { name: T.records.title }),
+    ).toBeInTheDocument();
+    expect(mocks.connect).not.toHaveBeenCalled();
     unmount();
 
     renderCard({
@@ -723,6 +890,10 @@ describe("SendingDomainCard", () => {
     expect(screen.getByText(T.status.FAILED)).toBeInTheDocument();
     expect(
       screen.getByText("Resend could not find these DNS records: DKIM"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(T.statusDetail.FAILED)).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: T.records.title }),
     ).toBeInTheDocument();
   });
 
@@ -752,7 +923,7 @@ describe("SendingDomainCard", () => {
       within(records).getByText(T.records.purpose.dmarc.explanation),
     ).toBeInTheDocument();
     // Verified, but DMARC still needs adding: setup and Check now stay.
-    expect(screen.getByRole("link", { name: T.manual.action })).toBeVisible();
+    expect(screen.getByRole("button", { name: T.manual.action })).toBeVisible();
     expect(
       screen.getByRole("button", { name: T.cloudflare.advanced }),
     ).toBeInTheDocument();

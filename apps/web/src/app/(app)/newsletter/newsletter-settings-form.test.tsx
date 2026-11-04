@@ -74,6 +74,31 @@ beforeEach(() => {
 });
 
 describe("NewsletterSettingsForm", () => {
+  it("places the sending domain above Save and outside the settings form", async () => {
+    const user = userEvent.setup();
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <NewsletterSettingsForm
+          projectId="p1"
+          projectName="Launch"
+          projectLogo={null}
+          newsletter={NEWSLETTER}
+          sendingDomain={<form aria-label="Sending domain" />}
+        />
+      </NextIntlClientProvider>,
+    );
+    const sendingDomain = screen.getByRole("form", { name: "Sending domain" });
+    const save = screen.getByRole("button", { name: "Save settings" });
+    expect(
+      sendingDomain.compareDocumentPosition(save) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(sendingDomain.parentElement?.closest("form")).toBeNull();
+
+    await user.click(save);
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  });
+
   it("preserves signup overrides when shared settings are saved", async () => {
     const signupForm = {
       accentColor: "#123456",

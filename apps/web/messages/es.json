@@ -3803,8 +3803,14 @@
           "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
           "status": {
             "PENDING": "Pendiente",
+            "PARTIAL": "Verificado en parte",
             "VERIFIED": "Verificado",
             "FAILED": "Fallido"
+          },
+          "statusDetail": {
+            "PENDING": "El envío desde esta dirección empieza cuando se verifiquen sus registros DNS.",
+            "PARTIAL": "{found} de {total} registros DNS encontrados. El envío desde esta dirección empieza cuando todos estén verificados.",
+            "FAILED": "La verificación ha fallado. Compara tus registros DNS con los de abajo y vuelve a comprobar."
           },
           "lastChecked": "Última comprobación: {time}",
           "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
@@ -3812,24 +3818,20 @@
           "checked": "Comprobado. Algunos registros DNS aún faltan o no se pudieron verificar. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
           "verifyRecords": "Verificar registros",
           "checkAgain": "Comprobar de nuevo",
-          "connectTitle": "Elige cómo configurar el DNS",
           "dmarc": {
             "title": "No se encontró ninguna política DMARC",
             "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
           },
           "oneClick": {
-            "title": "Configuración con un clic",
             "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
             "checking": "Comprobando la configuración con un clic…",
             "lookup": "Volver a buscar el proveedor",
             "found": "Tu dominio usa {provider}.",
             "connect": "Conectar con {provider}",
-            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Elige la configuración manual para añadir los registros con cualquier proveedor de DNS."
+            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Añade los registros de abajo con cualquier proveedor de DNS."
           },
           "manual": {
-            "title": "Configurar los registros DNS manualmente",
-            "description": "Añade los registros tú mismo con cualquier proveedor de DNS.",
-            "action": "Ver registros DNS",
+            "action": "Configurar manualmente",
             "saved": "Puedes salir y volver más tarde — guardaremos estos registros aquí hasta que estén verificados."
           },
           "cloudflare": {
@@ -3842,14 +3844,11 @@
           "records": {
             "title": "Registros DNS",
             "description": "Añade todos los registros que aparecen aquí en los ajustes de tu proveedor de DNS. Usa el formato de host que espere tu proveedor.",
-            "type": "Tipo",
-            "host": "Host / Nombre",
             "relativeName": "Host relativo",
             "fullName": "Nombre completo (FQDN)",
             "value": "Valor",
             "priority": "Prioridad",
             "ttl": "TTL",
-            "status": "Estado",
             "found": "Encontrado",
             "missing": "Falta",
             "wrongValue": "Valor incorrecto",
@@ -3864,7 +3863,7 @@
                 "explanation": "Permite que Sokosumi envíe en tu nombre."
               },
               "bounce": {
-                "label": "Ruta de retorno (MX)",
+                "label": "Ruta de retorno",
                 "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
               },
               "dmarc": {
