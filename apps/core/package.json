@@ -42,13 +42,13 @@
     "cmo:lab": "SOKO_BOT_IN_PROCESS_TURN_BUDGET_MS=900000 tsx --env-file=.env scripts/cmo-lab.mts"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.7.15",
-    "@better-auth/core": "1.7.15",
-    "@better-auth/i18n": "1.7.15",
-    "@better-auth/oauth-provider": "1.7.15",
-    "@better-auth/passkey": "1.7.15",
-    "@better-auth/prisma-adapter": "1.7.15",
-    "@better-auth/stripe": "1.7.15",
+    "@better-auth/api-key": "1.7.16",
+    "@better-auth/core": "1.7.16",
+    "@better-auth/i18n": "1.7.16",
+    "@better-auth/oauth-provider": "1.7.16",
+    "@better-auth/passkey": "1.7.16",
+    "@better-auth/prisma-adapter": "1.7.16",
+    "@better-auth/stripe": "1.7.16",
     "@better-auth/utils": "0.5.1",
     "@composio/core": "0.27.0",
     "@hono/node-server": "2.1.6",
@@ -72,7 +72,7 @@
     "@vercel/sandbox": "3.9.1",
     "ably": "2.30.0",
     "ai": "7.0.162",
-    "better-auth": "1.7.15",
+    "better-auth": "1.7.16",
     "cron-parser": "5.10.3",
     "dotenv": "18.0.9",
     "evlog": "2.34.0",
@@ -92,7 +92,7 @@
     "slugify": "1.6.9",
     "stripe": "23.1.0",
     "uuid": "14.0.3",
-    "viem": "2.57.15",
+    "viem": "2.57.16",
     "zod": "4.6.7"
   },
   "devDependencies": {
