@@ -199,8 +199,8 @@ export function useChatRoomRealtime({
 
       // A room the props dropped leaves before the token is renewed: the
       // new token names only the rooms in scope, and a channel still
-      // attached when its grant goes is failed by the server, then
-      // reattached and refused until the detach below would reach it.
+      // attached when its grant goes is taken down by the server and
+      // refused on reattach until the detach below would reach it.
       for (const roomId of [...channelsRef.current.keys()]) {
         if (!propIds.has(roomId)) {
           detachRoomLocally(roomId);

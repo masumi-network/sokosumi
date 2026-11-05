@@ -411,7 +411,7 @@ describe("useChatRoomRealtime", () => {
       expect(authorizeMock).toHaveBeenCalledTimes(1);
     });
     // The token being minted grants room-b alone. A channel for room-a that
-    // is still attached when the server reads it is failed, not detached.
+    // is still attached when the server reads it loses its grant mid-attach.
     expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
     expect(channelFor("chat_rooms:room_room-a").unsubscribe).toHaveBeenCalled();
 
