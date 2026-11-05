@@ -1,7 +1,9 @@
 import * as Sentry from "@sentry/node";
+import type { Prisma } from "@sokosumi/database";
 import { generateText } from "ai";
 
 import prisma from "@/lib/db/prisma";
+import { PROJECT_MEMORY_LOCK_TTL_MS } from "@/lib/project-memory-config";
 
 const LATEST_UPDATE_GENERATION_TIMEOUT_MS = 60_000;
 const MAX_LATEST_UPDATE_LINES = 120;
@@ -136,6 +138,35 @@ export function hasLeadingTldrHeading(content: string): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Sets a Project's latest update to a report written elsewhere, such as
+ * Cuso's. One conditional write that skips while a memory refresh holds the
+ * `contextMdUpdatingSince` lock: that refresh writes its own latest update
+ * under the lock, and the newest write stands.
+ * shortcut: a report posted while a refresh holds the lock never becomes the
+ * latest update (the refresh's summary wins); queue it for after the refresh
+ * if reports start going missing from the latest update.
+ */
+export async function setProjectLatestUpdate(
+  input: { projectId: string; markdown: string; at: Date },
+  db: Prisma.TransactionClient = prisma,
+): Promise<"updated" | "skipped"> {
+  const content = capLatestUpdateMd(input.markdown);
+  if (!content || !hasLeadingTldrHeading(content)) return "skipped";
+  const staleBefore = new Date(input.at.getTime() - PROJECT_MEMORY_LOCK_TTL_MS);
+  const { count } = await db.project.updateMany({
+    where: {
+      id: input.projectId,
+      OR: [
+        { contextMdUpdatingSince: null },
+        { contextMdUpdatingSince: { lt: staleBefore } },
+      ],
+    },
+    data: { latestUpdateMd: content, latestUpdateMdUpdatedAt: input.at },
+  });
+  return count > 0 ? "updated" : "skipped";
 }
 
 export interface RefreshProjectLatestUpdateInput {

@@ -61,14 +61,14 @@ The inverse holds too. A non-clickable badge shaped exactly like the buttons bes
 
 ## Logical properties for anything that mirrors
 
-| Physical | Logical |
-| --- | --- |
-| `margin-left` | `margin-inline-start` |
-| `padding-right` | `padding-inline-end` |
-| `left: 0` | `inset-inline-start: 0` |
-| `text-align: left` | `text-align: start` |
-| `border-right` | `border-inline-end` |
-| `float: left` | `float: inline-start` |
+| Physical                 | Logical                     |
+| ------------------------ | --------------------------- |
+| `margin-left`            | `margin-inline-start`       |
+| `padding-right`          | `padding-inline-end`        |
+| `left: 0`                | `inset-inline-start: 0`     |
+| `text-align: left`       | `text-align: start`         |
+| `border-right`           | `border-inline-end`         |
+| `float: left`            | `float: inline-start`       |
 | `border-top-left-radius` | `border-start-start-radius` |
 
 ```html

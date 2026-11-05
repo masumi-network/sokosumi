@@ -10,6 +10,9 @@ function driveFile(activityAt: string, pathname: string): DriveRecentsItem {
     pathname,
     size: 100,
     activityAt: new Date(activityAt),
+    resourceId: null,
+    category: null,
+    tags: [],
   };
 }
 

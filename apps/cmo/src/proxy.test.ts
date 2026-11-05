@@ -2,14 +2,15 @@ import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { renewSession } from "./lib/auth";
-import { config, proxy } from "./proxy";
+import { hasSessionCookie, renewSession } from "./lib/auth";
+import { config, LANDING_PATH, proxy, showsLanding } from "./proxy";
 
 /** CMO's public origin, as `getAuth().options.baseURL` reports it. */
 const cmo = vi.hoisted(() => ({ baseURL: "https://app.cmo.xyz" }));
 
 vi.mock("./lib/auth", () => ({
   getAuth: vi.fn(() => ({ options: { baseURL: cmo.baseURL } })),
+  hasSessionCookie: vi.fn(() => false),
   renewSession: vi.fn(),
 }));
 
@@ -17,6 +18,37 @@ afterEach(() => {
   cmo.baseURL = "https://app.cmo.xyz";
   vi.unstubAllEnvs();
   vi.mocked(renewSession).mockReset();
+});
+
+it("shows the waitlist site to a signed-out visitor of the home page", async () => {
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+
+  const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
+
+  expect(response.headers.get("x-middleware-rewrite")).toBe(
+    `https://app.cmo.xyz${LANDING_PATH}`,
+  );
+});
+
+it("leaves the app to the signed in, and errors and other pages to the app", () => {
+  const url = (path: string) => new URL(`https://app.cmo.xyz${path}`);
+  expect(showsLanding(url("/"), false)).toBe(true);
+  expect(showsLanding(url("/"), true)).toBe(false);
+  expect(showsLanding(url("/?error=state_mismatch"), false)).toBe(false);
+  expect(showsLanding(url("/login"), false)).toBe(false);
+});
+
+it("renders the app for a visitor with a session", async () => {
+  vi.mocked(hasSessionCookie).mockReturnValueOnce(true);
+  vi.mocked(renewSession).mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+
+  const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
+
+  expect(response.headers.has("x-middleware-rewrite")).toBe(false);
 });
 
 const BRANCH_ALIAS = "https://sokosumi-cmo-git-sok-1-fix.preview.cmo.xyz";

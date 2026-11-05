@@ -38,23 +38,61 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_chat",
   "post_chat",
   "open_direct_chat",
+  "ask_coworker",
   "list_files",
   "read_file",
   "list_tables",
   "read_table",
   "upload_file",
+  "move_file",
+  "delete_file",
+  "update_emails",
+  "draft_email",
+  "send_email_draft",
+  "save_email_attachment",
   "generate_image",
   "get_image",
+  "generate_video",
+  "get_video",
+  "list_skills",
+  "install_skill",
+  "remove_skill",
   "create_table",
   "write_table_rows",
   "update_table_columns",
+  "search_contacts",
+  "get_contact",
+  "list_contact_lists",
+  "find_contact_duplicates",
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
+  "find_people",
+  "enrich_contact",
+  "create_project",
+  "update_project",
   "list_integrations",
+  "find_integrations",
   "search_inbox",
   "read_email",
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  "read_integration_tool",
   "run_integration_tool",
   "list_project_social_accounts",
+  "get_posting_instructions",
+  "list_ad_accounts",
+  "list_ad_campaigns",
+  "find_ad_targeting",
+  "get_market_keywords",
+  "get_ad_campaign",
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+  "delete_ad_campaign",
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
@@ -62,6 +100,24 @@ export const SOKO_BOT_CAPABILITIES = [
   "refresh_social_account_statistics",
   "get_social_post",
   "create_social_post",
+  "newsletter_draft_issue",
+  "get_newsletter",
+  "list_newsletter_issues",
+  "get_newsletter_issue",
+  "get_newsletter_analytics",
+  "list_newsletter_subscribers",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "preview_newsletter_issue",
+  "preview_newsletter_signup_form",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -75,12 +131,75 @@ export const SOKO_BOT_CAPABILITIES = [
   "workspace_search",
   "update_plan",
   "run_subagent",
+  "save_brand_brain",
+  "save_strategy",
+  "report_update",
+  "search_exa",
+  "read_social_profile",
+  "list_social_comments",
+  "handle_social_comment",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
+  "wait_for",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
+
+/**
+ * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
+ * workspace (Brand Brain, strategy), so a CMO bot has them on every turn and
+ * no other bot ever does; `applyVersionCapabilities` enforces both.
+ */
+export const SOKO_BOT_CMO_CAPABILITIES = [
+  "save_brand_brain",
+  "save_strategy",
+  "report_update",
+  "search_exa",
+  "read_social_profile",
+  // The daily reply round: comments on the Project's own posts.
+  "list_social_comments",
+  "handle_social_comment",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCmoCapability(value: string): boolean {
+  return (SOKO_BOT_CMO_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/**
+ * Every tool on a Project's newsletter. Core offers them only while the
+ * newsletter is available to the bot's Project, and checks the same scope on
+ * each call. Approving, scheduling and sending stay with a person in the
+ * Newsletter UI, so no tool here does any of them.
+ */
+export const SOKO_BOT_NEWSLETTER_CAPABILITIES = [
+  "newsletter_draft_issue",
+  "get_newsletter",
+  "list_newsletter_issues",
+  "get_newsletter_issue",
+  "get_newsletter_analytics",
+  "list_newsletter_subscribers",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "preview_newsletter_issue",
+  "preview_newsletter_signup_form",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotNewsletterCapability(
+  value: string,
+): value is (typeof SOKO_BOT_NEWSLETTER_CAPABILITIES)[number] {
+  return (SOKO_BOT_NEWSLETTER_CAPABILITIES as readonly string[]).includes(
+    value,
+  );
+}
 
 /**
  * Tools that run inside the bot's own sandbox: the web, a shell and a
@@ -115,13 +234,36 @@ export function isSokoBotSandboxCapability(
  */
 export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "hire_agent",
+  // Mail leaves the owner's mailbox; a page the bot read must not send it.
+  "send_email_draft",
+  "update_emails",
+  // A skill is instructions the bot follows from then on; a page it read
+  // must not be able to install one.
+  "install_skill",
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
+  // Deleting is for good; a page the bot read must not pick what goes.
+  "delete_file",
   // Spends credits, and its prompt is the kind of thing a page can inject.
   "generate_image",
+  "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  "submit_newsletter_issue",
+  "update_newsletter_settings",
+  // Subscribing emails people a confirmation; a page must not pick who.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
+  "generate_video",
   "post_chat",
   "open_direct_chat",
+  // The question is a prompt for a Coworker; a page must not write it.
+  "ask_coworker",
   "reply_to_task",
   "assign_task",
   "update_assigned_task",
@@ -133,8 +275,13 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+  "delete_ad_campaign",
   // A brief is a prompt for a turn with this one's tools; a page must not write it.
   "start_background_run",
+  "wait_for",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -152,6 +299,16 @@ export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
+  // Other people's newsletter subscriptions, and the emails that confirm them.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+  "delete_ad_campaign",
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 const DIRECT_READ_CAPABILITIES = [
@@ -167,20 +324,45 @@ const DIRECT_READ_CAPABILITIES = [
   "list_files",
   "read_file",
   "get_image",
+  "get_video",
+  "list_skills",
   "list_tables",
   "read_table",
+  "search_contacts",
+  "get_contact",
+  "list_contact_lists",
+  "find_contact_duplicates",
   "list_integrations",
+  "find_integrations",
   "search_inbox",
   "read_email",
+  // Asks Jev typed questions about text the bot passes in; changes nothing.
+  "evaluate_with_jev",
   "list_calendar_events",
   "list_integration_tools",
+  // Only tools Composio marks read-only; Core refuses the rest.
+  "read_integration_tool",
   "list_project_social_accounts",
+  "get_posting_instructions",
+  "list_ad_accounts",
+  "list_ad_campaigns",
+  "find_ad_targeting",
+  "get_market_keywords",
+  "get_ad_campaign",
   "list_social_posts",
   "list_social_post_statistics",
   "refresh_social_post_statistics",
   "list_social_account_statistics",
   "refresh_social_account_statistics",
   "get_social_post",
+  "get_newsletter",
+  "list_newsletter_issues",
+  "get_newsletter_issue",
+  "get_newsletter_analytics",
+  "list_newsletter_subscribers",
+  // Renders an issue for review; it never saves or sends one.
+  "preview_newsletter_issue",
+  "preview_newsletter_signup_form",
   "list_background_runs",
   // Reads the marketplace listing in Sokosumi and spends nothing, so "what
   // could this cost?" is answerable below the hire route's bar. The input
@@ -197,6 +379,14 @@ const SOCIAL_WRITE_CAPABILITIES = [
   "publish_social_post",
 ] as const satisfies readonly SokoBotCapability[];
 
+/** Creates campaigns (always paused), changes and deletes them in the owner's ad account. */
+const ADS_WRITE_CAPABILITIES = [
+  "create_ad_campaign",
+  "update_ad_campaign",
+  "edit_ad_campaign",
+  "delete_ad_campaign",
+] as const satisfies readonly SokoBotCapability[];
+
 /** Long work the bot hands to itself in the background. */
 const BACKGROUND_RUN_CAPABILITIES = [
   "start_background_run",
@@ -205,23 +395,78 @@ const BACKGROUND_RUN_CAPABILITIES = [
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */
 const SCHEDULE_CAPABILITIES = [
+  "wait_for",
   "create_schedule",
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
+/**
+ * The bot's own installed skills. Core allows them only in the owner's own
+ * chat, when the owner asked: a skill is third-party instructions the bot
+ * follows on every later turn.
+ */
+const SKILL_CAPABILITIES = [
+  "install_skill",
+  "remove_skill",
+] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * The workspace's shared contacts: people, their channels, interactions and
+ * lists. Every member sees them, so they are writes, but nothing leaves
+ * Sokosumi — web research may fill them, as the prospects feature asks.
+ */
+const CONTACT_WRITE_CAPABILITIES = [
+  "upsert_contact",
+  "update_contact",
+  "log_contact_interaction",
+  "merge_contacts",
+  "manage_contact_lists",
+  "find_people",
+  "enrich_contact",
+] as const satisfies readonly SokoBotCapability[];
+
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
+  "newsletter_draft_issue",
+  "create_newsletter_issue",
+  "update_newsletter_issue",
+  "delete_newsletter_issue",
+  // Asks a person to approve; approving and sending stay with them.
+  "submit_newsletter_issue",
+  // Sender, reply-to and welcome email changes also need the owner's word.
+  "update_newsletter_settings",
+  // Core runs these only on the owner's word in their own chat.
+  "add_newsletter_subscriber",
+  "import_newsletter_subscribers",
+  "add_newsletter_subscribers_from_contacts",
+  "update_newsletter_subscriber",
+  "remove_newsletter_subscriber",
   "post_chat",
   // Starts a conversation with somebody who did not ask for one. A write in
   // the plainest sense: it puts the bot in front of a colleague.
   "open_direct_chat",
+  // Opens a private channel of the owner, the bot and Coworkers and asks them
+  // something. Nobody else is in it, so it is not an outward post.
+  "ask_coworker",
   "upload_file",
+  "move_file",
+  "delete_file",
+  // The owner's mailbox: read state, archive, drafts. Sending is its own
+  // tool, which Core allows only on the owner's word in their chat.
+  "update_emails",
+  "draft_email",
+  "save_email_attachment",
   "generate_image",
+  "generate_video",
   "create_table",
   "write_table_rows",
   "update_table_columns",
+  ...CONTACT_WRITE_CAPABILITIES,
+  // The workspace's Projects: everyone sees them, nothing leaves Sokosumi.
+  "create_project",
+  "update_project",
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",
@@ -293,12 +538,14 @@ const OWNER_BASE_CAPABILITIES = [
 ] as const;
 
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
-  DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES],
+  // A question that needs an app not connected yet waits for it (app_connected).
+  DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES, "wait_for"],
   CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "find_coworkers",
@@ -314,6 +561,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "get_agent_input_schema",
@@ -324,7 +572,9 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,
+    ...ADS_WRITE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
+    ...SKILL_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
     "update_task",
@@ -373,21 +623,34 @@ export function capabilitiesForClassification(
     Exclude<NonNullable<TurnClassification["writeScope"]>, "WORK">,
     readonly SokoBotCapability[]
   > = {
-    MEMORY: ["update_memory"],
+    MEMORY: ["update_memory", ...SKILL_CAPABILITIES],
     SCHEDULE: SCHEDULE_CAPABILITIES,
-    CHAT: ["post_chat", "open_direct_chat"],
+    CHAT: ["post_chat", "open_direct_chat", "ask_coworker", "wait_for"],
     // A table the owner asks for is a Files table, not a markdown file.
     FILE: [
       "upload_file",
+      "move_file",
+      "delete_file",
+      "save_email_attachment",
       "generate_image",
+      "generate_video",
+      "wait_for",
       "create_table",
       "write_table_rows",
       "update_table_columns",
+      ...CONTACT_WRITE_CAPABILITIES,
     ],
-    INTEGRATION: ["run_integration_tool"],
+    INTEGRATION: [
+      "run_integration_tool",
+      "update_emails",
+      "draft_email",
+      "send_email_draft",
+    ],
     // A post's media must be in Files first; images sent in chat get there
     // through upload_file.
     SOCIAL: [...SOCIAL_WRITE_CAPABILITIES, "upload_file"],
+    // One turn can make the images, save them to Files and build the campaign.
+    ADS: [...ADS_WRITE_CAPABILITIES, "generate_image", "upload_file"],
   };
   return [...OWNER_BASE_CAPABILITIES, ...writes[classification.writeScope]];
 }
@@ -400,7 +663,8 @@ export interface TurnClassification {
     | "CHAT"
     | "FILE"
     | "INTEGRATION"
-    | "SOCIAL";
+    | "SOCIAL"
+    | "ADS";
   candidateTaskIds?: string[];
   selectedIntentId?: string;
   continuation?: "NEW" | "CONTINUE" | "CANCEL" | "AMBIGUOUS";
@@ -417,6 +681,16 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
   /** The write route Jev leaned toward but was not sure of; reads only. */
   unsureRoute?: SokoBotRoute;
+  /** Jev's soft reads of a typed message: hints for context, never gates. */
+  signals?: SokoBotTurnSignals;
+}
+
+/** Probabilities, 0–1, that a typed message does each of these. */
+export interface SokoBotTurnSignals {
+  refersToEarlier: number;
+  statesPreference: number;
+  aboutMail: number;
+  aboutTasks: number;
 }
 
 export function isSokoBotCapability(value: string): value is SokoBotCapability {

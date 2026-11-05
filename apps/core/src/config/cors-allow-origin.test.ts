@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveCorsAllowOrigin } from "./cors-allow-origin.js";
+import {
+  isFirstPartyAppUrl,
+  resolveCorsAllowOrigin,
+} from "./cors-allow-origin.js";
 
 const getEnvMock = vi.fn();
 
@@ -83,5 +86,40 @@ describe("resolveCorsAllowOrigin", () => {
   it("rejects localhost when not in development", () => {
     getEnvMock.mockReturnValue({ NODE_ENV: "production" });
     expect(resolveCorsAllowOrigin("http://localhost:3000")).toBeNull();
+  });
+});
+
+describe("isFirstPartyAppUrl", () => {
+  beforeEach(() => {
+    getEnvMock.mockReturnValue({ NODE_ENV: "production" });
+  });
+
+  it("accepts Sokosumi, CMO.xyz and their previews, nothing else", () => {
+    expect(isFirstPartyAppUrl("https://app.cmo.xyz/connect/callback")).toBe(
+      true,
+    );
+    expect(
+      isFirstPartyAppUrl(
+        "https://sokosumi-cmo-git-x.preview.cmo.xyz/connect/callback",
+      ),
+    ).toBe(true);
+    expect(
+      isFirstPartyAppUrl("https://app.sokosumi.com/composio/callback"),
+    ).toBe(true);
+    expect(isFirstPartyAppUrl("https://evil.example/cmo.xyz")).toBe(false);
+    expect(isFirstPartyAppUrl("http://app.cmo.xyz/connect/callback")).toBe(
+      false,
+    );
+    expect(isFirstPartyAppUrl("https://cmo.xyz.evil.example/")).toBe(false);
+    expect(isFirstPartyAppUrl("http://localhost:3100/connect/callback")).toBe(
+      false,
+    );
+  });
+
+  it("accepts local dev hosts in development", () => {
+    getEnvMock.mockReturnValue({ NODE_ENV: "development" });
+    expect(isFirstPartyAppUrl("http://localhost:3100/connect/callback")).toBe(
+      true,
+    );
   });
 });

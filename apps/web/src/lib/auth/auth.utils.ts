@@ -504,6 +504,30 @@ export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
   return hasOAuthPrompt(oauthQuery, "create");
 }
 
+/** A product whose Log in and Register wear its own look. */
+export type OAuthRequestBrand = "cmo";
+
+const CMO_CALLBACK_PATH = "/api/auth/callback/sokosumi";
+
+/**
+ * The look the signed request's product gets: CMO.xyz, whose callback lives on
+ * cmo.xyz (production and previews) or on a local CMO.
+ */
+export function oauthRequestBrand(
+  oauthQuery: string,
+): OAuthRequestBrand | undefined {
+  const redirect = URL.parse(
+    new URLSearchParams(oauthQuery).get("redirect_uri") ?? "",
+  );
+  if (redirect?.pathname !== CMO_CALLBACK_PATH) {
+    return undefined;
+  }
+  const host = redirect.hostname;
+  return host === "cmo.xyz" || host.endsWith(".cmo.xyz") || host === "localhost"
+    ? "cmo"
+    : undefined;
+}
+
 /**
  * Where a finished sign-in or sign-up goes: the page's returnUrl, or else back
  * into the OAuth request the page carries.

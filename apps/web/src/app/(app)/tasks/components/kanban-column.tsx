@@ -9,6 +9,8 @@ interface KanbanColumnProps {
   title: string;
   statusColor: string;
   tasks: TaskWithCoworker[];
+  /** Tasks in this column not loaded yet; the header counts them too. */
+  hiddenCount?: number;
   emptyLabel: string;
   footer?: React.ReactNode;
   renderTask?: (task: TaskWithCoworker) => React.ReactNode;
@@ -18,6 +20,7 @@ export function KanbanColumn({
   title,
   statusColor,
   tasks,
+  hiddenCount = 0,
   emptyLabel,
   footer,
   renderTask,
@@ -34,7 +37,7 @@ export function KanbanColumn({
       <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
         <ColumnHeader
           title={title}
-          count={tasks.length}
+          count={tasks.length + hiddenCount}
           statusColorClass={statusColor}
         />
       </div>

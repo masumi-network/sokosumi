@@ -179,7 +179,7 @@ Only content inside an activated boundary animates position — everything else 
 </ViewTransition>
 ```
 
-The section — heading included — morphs as one group when rows above are added or removed. Nothing inside the section changed; the *displacement* is the update.
+The section — heading included — morphs as one group when rows above are added or removed. Nothing inside the section changed; the _displacement_ is the update.
 
 - React only measures boundaries that are direct children of nodes along the changed path — a VT buried under an extra wrapper element won't activate. Place the boundary as a direct sibling of the changing content.
 - Sometimes the better fix is no morph at all: pad fixed-size lists to a constant slot count with invisible fillers so the grid never changes height and nothing below it moves.
@@ -266,9 +266,9 @@ The `types` array (second argument) lets you vary animation based on transition 
 
 ## Animation Timing
 
-| Interaction | Duration |
-|------------|----------|
-| Direct toggle (expand/collapse) | 100–200ms |
-| Route transition (slide) | 150–250ms |
+| Interaction                          | Duration  |
+| ------------------------------------ | --------- |
+| Direct toggle (expand/collapse)      | 100–200ms |
+| Route transition (slide)             | 150–250ms |
 | Suspense reveal (skeleton → content) | 200–400ms |
-| Shared element morph | 300–500ms |
+| Shared element morph                 | 300–500ms |

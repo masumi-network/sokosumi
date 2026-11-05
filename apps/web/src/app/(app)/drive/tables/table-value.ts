@@ -37,6 +37,18 @@ export function tableValueText(value: TableRow["values"][string]): string {
       ? value.join("; ")
       : String(value);
 }
+/** A URL as people read it: host and path, without scheme, `www.` or a trailing slash. */
+export function tableUrlLabel(text: string): string {
+  try {
+    const url = new URL(text);
+    return `${url.hostname.replace(/^www\./, "")}${url.pathname}`.replace(
+      /\/$/,
+      "",
+    );
+  } catch {
+    return text;
+  }
+}
 export function parseTableInput(
   column: Pick<TableColumn, "type" | "options">,
   text: string,
@@ -159,4 +171,14 @@ export function tableHistoryText(
   if (typeof input === "string" || typeof input === "number")
     return String(input);
   return "—";
+}
+
+/** A row's Last updated label names its year only when it is not this year. */
+export function lastUpdatedFormat(
+  updatedAt: Date,
+  now: Date,
+): "dateTime" | "dateTimeWithYear" {
+  return updatedAt.getFullYear() === now.getFullYear()
+    ? "dateTime"
+    : "dateTimeWithYear";
 }

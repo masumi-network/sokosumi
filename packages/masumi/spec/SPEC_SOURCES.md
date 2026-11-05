@@ -21,10 +21,10 @@ Record the new provenance below whenever a snapshot changes.
 
 ## Current snapshots
 
-| File | Source | Version | Recorded |
-| --- | --- | --- | --- |
-| `payment.openapi.json` | `https://payment.masumi.network/api-docs` | 1.0.0 | 2026-09-01 |
-| `registry.openapi.json` | `https://registry.masumi.network/api-docs` | 0.1.2 | 2026-08-07 |
+| File                    | Source                                     | Version | Recorded   |
+| ----------------------- | ------------------------------------------ | ------- | ---------- |
+| `payment.openapi.json`  | `https://payment.masumi.network/api-docs`  | 1.0.0   | 2026-09-01 |
+| `registry.openapi.json` | `https://registry.masumi.network/api-docs` | 0.1.2   | 2026-08-07 |
 
 Last refresh: 2026-09-01 — the payment deployment had moved well past the pin
 while holding version 1.0.0, so the version guard could not have caught it. It

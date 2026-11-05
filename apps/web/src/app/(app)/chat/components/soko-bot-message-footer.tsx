@@ -97,7 +97,7 @@ export function sokoBotSourceLabel(metadata: unknown): SourceLabel | null {
   }
 }
 
-const SOURCE_ICONS = {
+export const SOKO_BOT_SOURCE_ICONS = {
   inbox: Mail,
   standup: CalendarClock,
   weeklyWrap: CalendarClock,
@@ -111,7 +111,7 @@ export function SokoBotSourceLabel({ metadata }: { metadata: unknown }) {
   const t = useTranslations("App.Chat.SokoBot.source");
   const label = sokoBotSourceLabel(metadata);
   if (!label) return null;
-  const Icon = SOURCE_ICONS[label.kind];
+  const Icon = SOKO_BOT_SOURCE_ICONS[label.kind];
   return (
     <div className="text-muted-foreground mb-1 inline-flex items-center gap-1.5 text-xs">
       <Icon aria-hidden className="size-3" />
@@ -250,9 +250,9 @@ export function SokoBotMessageFooter({
       {pending > 0 ? (
         <Link
           href={`${sokoBotConsoleRoute(sharedBotId)}?turn=${encodeURIComponent(info.turn_id)}`}
-          className={`${chip} border-primary-tertiary text-foreground`}
+          className={`${chip} border-border text-foreground`}
         >
-          <ShieldCheck aria-hidden className="text-primary size-3.5" />
+          <ShieldCheck aria-hidden className="text-foreground size-3.5" />
           <span className="font-medium">
             {t("approvals", { count: pending })}
           </span>
@@ -266,7 +266,7 @@ export function SokoBotMessageFooter({
           href={`/tasks/${encodeURIComponent(taskId)}`}
           className={chip}
         >
-          <span className="bg-primary size-1.5 rounded-full" aria-hidden />
+          <span className="bg-foreground size-1.5 rounded-full" aria-hidden />
           <span className="font-medium">{t("task")}</span>
           <ArrowUpRight aria-hidden className="size-3" />
         </Link>

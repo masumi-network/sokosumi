@@ -16,10 +16,22 @@ export {
   type RealtimeChannelEnvironment,
 } from "./ably-channel.js";
 export {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
+  type AdCampaignSettableStatus,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
+  type GoogleDisplayImageRole,
+  type GoogleKeywordMatchType,
+} from "./ads.js";
+export {
   AUTH_CAPTCHA_ACTION,
   AUTH_CAPTCHA_HEADER,
   TURNSTILE_ALWAYS_PASS_SECRET,
 } from "./auth-captcha.js";
+export {
+  BETA_ORGANIZATION_SLUGS,
+  NEWSLETTER_BETA_ORGANIZATION_SLUG,
+} from "./beta-organizations.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
@@ -63,6 +75,7 @@ export {
   CHAT_MENTION_ALL_KEY,
   CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
   canonicalUuidSpelling,
+  chatMessageTextWithNames,
   localizeChatMentionAllPreview,
   readChatMentionKeys,
 } from "./chat-message-preview.js";
@@ -118,6 +131,7 @@ export {
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
+  chatRoomQuotePromptLine,
 } from "./chat-room-quote-snippet.js";
 export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
 export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";
@@ -133,6 +147,42 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
+export {
+  CMO_CHANNELS,
+  type CmoChannelKey,
+  isCmoChannelFormat,
+  normalizeCmoChannelFormat,
+} from "./cmo-channels.js";
+export {
+  CONTACT_CHANNEL_SOURCES,
+  CONTACT_CHANNEL_TYPES,
+  CONTACT_CONVERSATION_DAYS,
+  CONTACT_INTERACTION_CHANNELS,
+  CONTACT_INTERACTION_DIRECTIONS,
+  CONTACT_KINDS,
+  CONTACT_LIST_COLORS,
+  CONTACT_REPLY_STATES,
+  CONTACT_REPLY_WAIT_DAYS,
+  CONTACT_SORT_FIELDS,
+  CONTACT_STAGES,
+  type ContactChannelType,
+  type ContactFilter,
+  calendarDateSchema,
+  contactChannelInputSchema,
+  contactFieldsSchema,
+  contactFilterSchema,
+  contactImportMappingSchema,
+  contactImportSchema,
+  contactInteractionInputSchema,
+  contactListInputSchema,
+  contactListMembersSchema,
+  contactListUpdateSchema,
+  contactNameFromChannel,
+  createContactSchema,
+  mergeContactsSchema,
+  normalizeContactChannelValue,
+  updateContactSchema,
+} from "./contacts.js";
 export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
@@ -154,6 +204,7 @@ export {
 } from "./credit-topup-pricing.js";
 export {
   createDataTableSchema,
+  TABLE_COLUMN_WIDTH,
   tableBatchSchema,
   tableColumnInputSchema,
   tableEvidenceSchema,
@@ -277,6 +328,18 @@ export {
   serializeMetadataRecord,
 } from "./metadata-record.js";
 export {
+  NEWSLETTER_SOCIAL_NETWORKS,
+  type NewsletterBlock,
+  type NewsletterBrand,
+  newsletterBlockSchema,
+  newsletterBrandSchema,
+  newsletterColumnsBlockSchema,
+  newsletterContentSchema,
+  newsletterDraftInputSchema,
+  newsletterImageBlockSchema,
+  newsletterSignupLinks,
+} from "./newsletter.js";
+export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
@@ -377,6 +440,8 @@ export {
 } from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  isSocialProviderEnabled,
+  isXLongPostSubscription,
   SOCIAL_POST_FIRST_COMMENT_LIMITS,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_MAX,
@@ -386,10 +451,13 @@ export {
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_POST_THREAD_MAX_PARTS,
+  SOCIAL_PUBLIC_PROVIDERS,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  type SocialProviderWorkspace,
   socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
@@ -398,8 +466,15 @@ export {
   socialPostMimeForFileName,
   socialPostProviderLabel,
   socialPostSupportsFirstComment,
+  socialPostTextLength,
+  socialPostTextLimit,
+  socialProvidersForWorkspace,
+  socialProviderUnavailableMessage,
   splitYouTubePostText,
   validateSocialPostMedia,
+  X_LONG_POST_SUBSCRIPTION_TYPES,
+  X_PREMIUM_TEXT_LIMIT,
+  type XLongPostSubscriptionType,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
@@ -477,6 +552,11 @@ export {
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
+export {
+  creditsPerVideoCents,
+  type VideoLength,
+  type VideoPriceFigures,
+} from "./video-credits.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

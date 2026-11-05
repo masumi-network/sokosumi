@@ -18,7 +18,7 @@ export function useIntegrationActions() {
   function connect(provider: string) {
     setBusy(provider);
     startTransition(async () => {
-      const error = await startSokoBotConnect(provider, botId);
+      const error = await startSokoBotConnect(provider, { botId });
       if (error) {
         setBusy(null);
         toast.error(error.message ?? t("connectError"));

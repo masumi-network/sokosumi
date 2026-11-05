@@ -36,15 +36,7 @@ Group focus styles with `:focus-within` when a wrapper should light up while an 
 
 ## Focus not obscured
 
-Sticky chrome hides whatever scrolls under it, including the element that just received focus. Pad the scroll container by the sticky element's height:
-
-```css
-html {
-  scroll-padding-top: 64px; /* the sticky header's height */
-}
-```
-
-A sticky footer or cookie banner needs `scroll-padding-bottom` the same way.
+Sticky chrome hides whatever scrolls under it, including the element that just received focus. Pad the scroll container by the sticky element's height with `scroll-padding-block-start`, and by a sticky footer or cookie banner's height with `scroll-padding-block-end`. The recipe is `better-layout`'s.
 
 ## Skip link
 
@@ -69,7 +61,7 @@ Target `<main id="main">` and visually hide the link until focused:
 </body>
 ```
 
-Give in-page anchor targets `scroll-margin-top`, such as `80px` under a sticky header, so the target isn't hidden when jumped to.
+Give in-page anchor targets `scroll-margin-block-start`, such as `80px` under a sticky header, so the target isn't hidden when jumped to.
 
 ## tabindex rules
 
@@ -131,14 +123,14 @@ Either way:
 
 Native elements come with these behaviors; custom widgets must implement them.
 
-| Widget | Keys |
-| --- | --- |
-| Dialog | Tab/Shift+Tab cycle inside (wrap at ends); Escape closes |
-| Tabs | Arrow keys move between tabs (wrapping); Tab exits to the panel; Home/End jump to first/last |
-| Menu button | Enter/Space/ArrowDown opens and focuses first item; ArrowUp opens and focuses last; arrows navigate; Escape closes and refocuses the button |
-| Disclosure / accordion | Header is a `<button aria-expanded>`; Enter and Space toggle |
-| Combobox | ArrowDown opens/moves into the list; Enter accepts; Escape closes and returns to the input; typing filters |
-| Listbox / radio group | Arrow keys move selection; one Tab stop for the whole group |
+| Widget                 | Keys                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dialog                 | Tab/Shift+Tab cycle inside (wrap at ends); Escape closes                                                                                    |
+| Tabs                   | Arrow keys move between tabs (wrapping); Tab exits to the panel; Home/End jump to first/last                                                |
+| Menu button            | Enter/Space/ArrowDown opens and focuses first item; ArrowUp opens and focuses last; arrows navigate; Escape closes and refocuses the button |
+| Disclosure / accordion | Header is a `<button aria-expanded>`; Enter and Space toggle                                                                                |
+| Combobox               | ArrowDown opens/moves into the list; Enter accepts; Escape closes and returns to the input; typing filters                                  |
+| Listbox / radio group  | Arrow keys move selection; one Tab stop for the whole group                                                                                 |
 
 Universal rules:
 

@@ -66,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: roomFindFirstMock,
     },
     chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
       findUnique: messageFindUniqueMock,
     },
     chatRoomUserMember: {
@@ -91,6 +92,16 @@ vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
 
 vi.mock("@/services/chat-room-message-unfurl.service", () => ({
   scheduleChatRoomMessageUnfurls: scheduleUnfurlsMock,
+}));
+
+const { enqueueChatMessageSignalMock } = vi.hoisted(() => ({
+  enqueueChatMessageSignalMock: vi.fn(),
+}));
+vi.mock("@/services/chat-message-signals.service", () => ({
+  // A promise, as waitUntil is handed one; resetting mocks keeps it so.
+  enqueueChatMessageSignal: async (messageId: string) => {
+    enqueueChatMessageSignalMock(messageId);
+  },
 }));
 
 vi.mock("@/helpers/chat-mention-notifications", () => ({
@@ -175,19 +186,29 @@ const quoteSnapshot = {
   authorName: "Alice",
   snippet: "Earlier point about launch risk",
   attachment: null,
+  attachments: [],
 };
 
+const launchAttachment = {
+  fileName: "launch.png",
+  url: "https://blob.example/launch.png",
+  mediaKind: "image" as const,
+};
 const imageQuoteContent =
-  "see this [launch.png](https://blob.example/launch.png)";
+  "see this [launch.png](https://blob.example/launch.png) [risk.png](https://blob.example/risk.png)";
 const imageQuoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
   authorName: "Alice",
   snippet: "see this",
-  attachment: {
-    fileName: "launch.png",
-    url: "https://blob.example/launch.png",
-    mediaKind: "image" as const,
-  },
+  attachment: launchAttachment,
+  attachments: [
+    launchAttachment,
+    {
+      fileName: "risk.png",
+      url: "https://blob.example/risk.png",
+      mediaKind: "image" as const,
+    },
+  ],
 };
 
 const tx = {
@@ -196,6 +217,7 @@ const tx = {
     update: roomUpdateMock,
   },
   chatRoomMessage: {
+    groupBy: vi.fn().mockResolvedValue([]),
     findFirst: messageFindFirstMock,
     findUnique: messageFindUniqueMock,
     findMany: messageFindManyMock,
@@ -401,7 +423,6 @@ function createdMessage(
     reactions: [],
     replies: [],
     pins: [],
-    _count: { replies: 0 },
   };
 }
 
@@ -675,6 +696,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(readStateUpsertMock).not.toHaveBeenCalled();
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
+      // Jev reads people, not coworkers.
+      expect(enqueueChatMessageSignalMock).not.toHaveBeenCalled();
       // The unfurl, and the room message the subscribed members asked for.
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
 
@@ -1018,8 +1041,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
-      // The unfurl, and the room message the subscribed members asked for.
-      expect(waitUntilMock).toHaveBeenCalledTimes(2);
+      expect(enqueueChatMessageSignalMock).toHaveBeenCalledWith(MESSAGE_ID);
+      // The unfurl, the room message the subscribed members asked for, and
+      // Jev's read of it, none of them in front of the answer.
+      expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -2490,7 +2515,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
     });
 
-    it("persists image attachment cue when quoting a message with an image link", async () => {
+    it("persists every attachment when quoting a message with image links", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
       messageFindFirstMock.mockResolvedValue(
         quotedSourceMessage({ content: imageQuoteContent }),

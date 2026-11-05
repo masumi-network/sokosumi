@@ -52,7 +52,7 @@ describe("sidebar boot script contract", () => {
     // the sidebar; only the boot script gets to change it here.
     const { container } = render(
       <SidebarProvider open onOpenChange={() => {}}>
-        <Sidebar collapsible="icon" />
+        <Sidebar />
       </SidebarProvider>,
     );
 
@@ -71,7 +71,7 @@ describe("sidebar boot script contract", () => {
     // Expanded markup blanks data-collapsible, so the mode must ride along
     // separately or the script cannot know what to collapse to.
     expect(sidebar.getAttribute("data-collapsible")).toBe("");
-    expect(sidebar.getAttribute("data-collapsible-mode")).toBe("icon");
+    expect(sidebar.getAttribute("data-collapsible-mode")).toBe("offcanvas");
   });
 
   it("collapses that markup before React hydrates", () => {
@@ -82,7 +82,7 @@ describe("sidebar boot script contract", () => {
     new Function(SIDEBAR_BOOT_SCRIPT)();
 
     expect(sidebar.getAttribute("data-state")).toBe("collapsed");
-    expect(sidebar.getAttribute("data-collapsible")).toBe("icon");
+    expect(sidebar.getAttribute("data-collapsible")).toBe("offcanvas");
   });
 
   it("collapses a narrow window with no stored preference", () => {
@@ -91,10 +91,10 @@ describe("sidebar boot script contract", () => {
 
     new Function(SIDEBAR_BOOT_SCRIPT)();
 
-    // Otherwise the rail the provider settles on arrives a frame late, which is
-    // the expanded-then-collapse flash this script exists to prevent.
+    // Otherwise the hidden state the provider settles on arrives a frame late,
+    // which is the shown-then-hidden flash this script exists to prevent.
     expect(sidebar.getAttribute("data-state")).toBe("collapsed");
-    expect(sidebar.getAttribute("data-collapsible")).toBe("icon");
+    expect(sidebar.getAttribute("data-collapsible")).toBe("offcanvas");
   });
 
   it("leaves a wide window expanded with no stored preference", () => {

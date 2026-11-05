@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,8 +95,7 @@ export function ExpandableMarkdown({
             className={cn(
               !open && "overflow-hidden",
               !open && lineClampClass,
-              shouldFade &&
-                "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
+              shouldFade && COLLAPSED_FADE_CLASS,
             )}
           >
             <Markdown className={className} highlightTerm={highlightTerm}>
@@ -115,7 +115,7 @@ export function ExpandableMarkdown({
               <Button
                 type="button"
                 variant="outline"
-                className="bg-surface-glass hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
+                className="bg-popover hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold"
               >
                 {expandLabel}
               </Button>

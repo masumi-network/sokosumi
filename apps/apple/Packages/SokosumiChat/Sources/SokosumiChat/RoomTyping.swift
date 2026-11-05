@@ -67,7 +67,7 @@ public final class RoomTyping: ObservableObject {
   /// A genuine edit in the room composer. Returns what to publish, if anything: `started` on
   /// the first edit and then once per throttle window, `stopped` when the text is cleared.
   /// Nothing opens a window while the channel cannot carry it, so an edit made before the
-  /// channel is ready is announced by the next one instead of ten seconds later.
+  /// channel is ready is announced by the next one instead of a throttle window later.
   public func composerChanged(hasText: Bool, now: Date) -> ChatTypingState? {
     switch nextTypingPublishAction(composerHasText: hasText, startedPublishedAt: startedPublishedAt, now: now) {
     case .none:

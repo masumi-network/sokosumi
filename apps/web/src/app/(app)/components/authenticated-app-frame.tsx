@@ -4,19 +4,21 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
+import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
+import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
-import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 import { getRequestPath, signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
+import { isNewsletterEnabled } from "@/lib/newsletter-access.server";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, workspaceGatePath } from "@/lib/workspace-gate";
 import { AccountNoticeToast } from "./account-notice-toast.client";
@@ -84,16 +86,24 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  // In parallel: the sidebar's Social row and the seat gate are both single
-  // reads the frame already has to finish before it paints nav.
-  const [hasAssignedSeat, socialBetaEnabled] = await Promise.all([
+  // One Core read (ADR 0051, cached per request): the Workspace switcher's
+  // list and the active workspace's social providers.
+  const workspaces = (await userService.getMyWorkspaces())?.workspaces ?? [];
+  const enabledSocialProviders =
+    workspaces.find(
+      (workspace) => workspace.organizationId === activeOrganizationId,
+    )?.enabledSocialProviders ?? [];
+  // In parallel: the seat gate is a single read the frame already has to
+  // finish before it paints nav.
+  // Newsletter's workspace availability resolves alongside them.
+  const [hasAssignedSeat, newsletterEnabled] = await Promise.all([
     organizationSeatService
       .hasAssignedSeat(activeOrganizationId)
       .catch((error) => {
         console.error("Failed to resolve assigned organization seat", error);
         return activeOrganizationId == null;
       }),
-    hasCurrentUserSocialBetaAccess(),
+    isNewsletterEnabled(),
   ]);
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
@@ -119,14 +129,21 @@ export default async function AuthenticatedAppFrame({
                 <HistorySearchDialogProvider
                   activeOrganizationId={activeOrganizationId}
                 >
-                  <BreadcrumbOverrideProvider>
-                    {/* Sidebar "New Task" opens the wizard in place, so the
-                        provider wraps sidebar and content. */}
-                    <AuthenticatedRoomCache
-                      currentUserId={session.user.id}
-                      workspaceId={activeOrganizationId}
-                    >
-                      <NewTaskWizardProvider>
+                  {/* Sidebar "New Task" opens the wizard in place, so the
+                    provider wraps sidebar and content. */}
+                  <AuthenticatedRoomCache
+                    currentUserId={session.user.id}
+                    workspaceId={activeOrganizationId}
+                  >
+                    <NewTaskWizardProvider>
+                      {/* The sidebar header and the phone's top bar each
+                          place a switcher trigger; this owns what is behind
+                          them, once. */}
+                      <WorkspaceSwitcherProvider
+                        sessionUser={session.user}
+                        workspaces={workspaces}
+                        activeOrganizationId={activeOrganizationId}
+                      >
                         <FeatureBadgesProvider
                           userId={session.user.id}
                           campaigns={loadBadgeCampaigns()}
@@ -135,9 +152,12 @@ export default async function AuthenticatedAppFrame({
                             sessionUser={session.user}
                             activeOrganizationId={activeOrganizationId}
                             adminMenuEnabled={adminMenuEnabled}
-                            socialBetaEnabled={socialBetaEnabled}
+                            newsletterEnabled={newsletterEnabled}
                           />
                         </FeatureBadgesProvider>
+                        {/* Right after the sidebar: it follows the sidebar's
+                          `data-state` as its peer. */}
+                        <SidebarEdgeHandle />
                         <Suspense fallback={null}>
                           <AppShellOverlays />
                         </Suspense>
@@ -160,7 +180,6 @@ export default async function AuthenticatedAppFrame({
                               // Horizontal pad only on md: vertical py would fight the
                               // shared h-16 hairline with SidebarHeader.
                               className="px-4 py-3 md:px-4 md:py-0"
-                              session={session}
                             />
                             <main
                               className={cn(
@@ -184,14 +203,18 @@ export default async function AuthenticatedAppFrame({
                                 className="flex min-h-full flex-1 flex-col overflow-visible"
                                 data-app-main-inner
                               >
-                                <AppMobileChrome>{children}</AppMobileChrome>
+                                <SocialProviderAvailabilityProvider
+                                  enabledProviders={enabledSocialProviders}
+                                >
+                                  <AppMobileChrome>{children}</AppMobileChrome>
+                                </SocialProviderAvailabilityProvider>
                               </div>
                             </main>
                           </div>
                         </div>
-                      </NewTaskWizardProvider>
-                    </AuthenticatedRoomCache>
-                  </BreadcrumbOverrideProvider>
+                      </WorkspaceSwitcherProvider>
+                    </NewTaskWizardProvider>
+                  </AuthenticatedRoomCache>
                 </HistorySearchDialogProvider>
               </NoticeDialogProvider>
             </AccountNoticeProvider>

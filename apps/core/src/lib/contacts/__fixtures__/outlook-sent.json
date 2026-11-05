@@ -1,0 +1,42 @@
+{
+  "value": [
+    {
+      "id": "AAMkAGI2TG93AAA=",
+      "conversationId": "AAQkAGI2conv1",
+      "subject": "RE: Contract draft",
+      "sentDateTime": "2026-10-20T13:05:00Z",
+      "receivedDateTime": "2026-10-20T13:05:00Z",
+      "from": {
+        "emailAddress": {
+          "name": "Patrick Tobler",
+          "address": "patrick@yellowhouse.gmbh"
+        }
+      },
+      "toRecipients": [
+        {
+          "emailAddress": {
+            "name": "Ana Silva",
+            "address": "ana.silva@lawfirm.pt"
+          }
+        }
+      ],
+      "ccRecipients": [
+        {
+          "emailAddress": {
+            "name": "Bob Teammate",
+            "address": "bob@yellowhouse.gmbh"
+          }
+        },
+        {
+          "emailAddress": {
+            "name": "contracts@lawfirm.pt",
+            "address": "contracts@lawfirm.pt"
+          }
+        }
+      ],
+      "categories": [],
+      "body": { "contentType": "html", "content": "<p>Thanks Ana</p>" },
+      "webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGI2TG93AAA%3D"
+    }
+  ]
+}

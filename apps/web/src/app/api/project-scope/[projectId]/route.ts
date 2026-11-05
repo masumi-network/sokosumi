@@ -8,7 +8,8 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { projectService } from "@/lib/services/project.service";
 
 /**
- * Names the scoped project for a switcher trigger. A Route
+ * Names the scoped project for a switcher trigger, and whether it is closed
+ * for its Closed badge. A Route
  * Handler, not a server action, because the chrome reads it on mount and
  * Next serializes server actions per session. Core checks workspace access;
  * a project the reader cannot see is `null`.
@@ -30,7 +31,12 @@ export async function GET(
     return NextResponse.json(
       {
         project: project
-          ? { id: project.id, name: project.name, logo: project.logo }
+          ? {
+              id: project.id,
+              name: project.name,
+              logo: project.logo,
+              closedAt: project.closedAt ?? null,
+            }
           : null,
       },
       { headers: { "Cache-Control": "no-store" } },

@@ -110,9 +110,7 @@ function BrowserNotice({
         // thing holding the line off the heading above it and the grid
         // below, and one line pressed against both reads as a caption
         // belonging to whichever it touches.
-        warning
-          ? "border-semantic-warning-tertiary bg-semantic-warning-quinary rounded-lg border p-4"
-          : "py-2",
+        warning ? "border-border bg-muted rounded-lg border p-4" : "py-2",
       )}
     >
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
@@ -137,7 +135,7 @@ function BrowserNotice({
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
-              warning ? "text-semantic-warning" : "text-muted-foreground",
+              warning ? "text-foreground" : "text-muted-foreground",
             )}
             aria-hidden="true"
           />

@@ -5,6 +5,7 @@ import {
   type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPost,
   type SocialPostStatus,
+  type SocialQueueSlot,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS, isValidTimezone } from "@sokosumi/utils";
 import {
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import {
   parseAsString,
   parseAsStringEnum,
@@ -29,6 +30,7 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
+import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
@@ -39,6 +41,7 @@ import {
   SocialPlatformFilter,
 } from "@/components/social-platform-filter";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
+import { TimezoneLabel } from "@/components/timezone-label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,22 +62,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
 } from "@/components/ui/tabs";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
   type ActionError,
   toActionRejectionError,
 } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
+  approveProjectSocialPost,
   cancelProjectSocialPost,
   duplicateProjectSocialPost,
   publishProjectSocialPost,
+  resumeProjectSocialPostThread,
+  updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import {
@@ -99,11 +105,24 @@ import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
+import { SocialPostPreviewFailure } from "./social-post-preview-failure";
 import { publishFailureCopy } from "./social-post-publish-failure";
+import {
+  SocialPostQuoteBadge,
+  socialPostQuoteAttentionCopy,
+  useReportMovedSocialPostQuotes,
+} from "./social-post-quote";
 import { SocialPostStatistics } from "./social-post-statistics";
+import { SocialPostThreadBadge } from "./social-post-thread-badge";
 import { getSocialReconnections } from "./social-reconnection";
+import {
+  SOCIAL_TABS_LIST_CLASS_NAME,
+  SOCIAL_TABS_ROW_CLASS_NAME,
+  SocialTabTrigger,
+} from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
+  queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
   /** The project's Social accounts, shown as the last tab when given. */
@@ -121,7 +140,13 @@ interface ProjectSocialPostsProps {
   connectDisabled?: boolean;
   managedConnections?: ProjectSocialConnection[];
   affectedPosts?: SocialPost[];
+  /** The Accounts first page failed, so do not pretend there are none. */
+  accountsFailed?: boolean;
+  /** The Calendar first page failed, so do not pretend there are no posts. */
+  calendarFailed?: boolean;
   posts: SocialPost[];
+  /** List tabs whose first page failed to load. */
+  failedSections?: readonly SectionKey[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
@@ -133,14 +158,12 @@ interface ProjectSocialPostsProps {
   selectedPostId?: string;
   /** The same `?postId=` even when that post is gone, so the page can say so. */
   requestedPostId?: string;
+  /** The named post request failed, so do not pretend the link is gone. */
+  selectedPostFailed?: boolean;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
-
-function canRetryPost(post: SocialPost): boolean {
-  return RETRY_STATUSES.includes(post.status) && post.canPublishNow;
-}
 
 function retryLabel(post: SocialPost): string {
   const text = post.text.trim();
@@ -275,21 +298,38 @@ export function ProjectSocialPosts({
   connectDisabled = false,
   managedConnections,
   affectedPosts = [],
+  accountsFailed = false,
   actions,
   calendar,
+  calendarFailed = false,
   connections,
   posts: initialPosts,
+  queueSlots,
+  failedSections = [],
   nextCursors,
   projectId,
   selectedPostId,
   requestedPostId,
+  selectedPostFailed = false,
   previewOnly = false,
   returnFocus,
 }: ProjectSocialPostsProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
+  function canRetryPost(post: SocialPost): boolean {
+    return (
+      isProviderEnabled(post.provider) &&
+      RETRY_STATUSES.includes(post.status) &&
+      post.canPublishNow
+    );
+  }
+
   const router = useRouter();
   const accountsHref = `/social?projectId=${encodeURIComponent(projectId)}&tab=accounts`;
   const t = useTranslations("App.Projects.SocialPosts");
+  const reportMovedQuotes = useReportMovedSocialPostQuotes();
   const formatter = useFormatter();
+  const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
@@ -319,18 +359,27 @@ export function ProjectSocialPosts({
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
   const compose = useSocialCompose();
+  const studioPrefill = compose?.open
+    ? peekSocialComposePrefill(projectId)
+    : null;
   const composerMode: SocialPostComposerMode | null =
     composer ??
     (compose?.open
       ? ({
           kind: "create",
           ...peekSocialComposePrefill(projectId),
+          scheduledAt: compose.scheduledAt ?? undefined,
+          ...studioPrefill,
+          source: studioPrefill ? "studio" : undefined,
         } satisfies SocialPostComposerMode)
       : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  const [actionPendingPostId, setActionPendingPostId] = useState<string | null>(
+    null,
+  );
   const [duplicatePending, setDuplicatePending] = useState(false);
   const [selectedRetryIds, setSelectedRetryIds] = useState<ReadonlySet<string>>(
     new Set(),
@@ -356,12 +405,13 @@ export function ProjectSocialPosts({
   }
 
   useEffect(() => {
-    if (!requestedPostId || selectedPostId) return;
+    // A failed load is not a missing post; the inline error says so instead.
+    if (!requestedPostId || selectedPostId || selectedPostFailed) return;
     toast.error(t("toasts.missingPost"), {
       duration: Infinity,
       closeButton: true,
     });
-  }, [requestedPostId, selectedPostId, t]);
+  }, [requestedPostId, selectedPostId, selectedPostFailed, t]);
 
   function handleCloseAutoFocus(event: Event) {
     if (!returnFocus) return;
@@ -419,11 +469,17 @@ export function ProjectSocialPosts({
             remaining.push(target);
           } else {
             setPosts((current) => upsertPost(current, result.value));
+            reportMovedQuotes(result.value);
             if (result.value.status !== "PUBLISHED") {
               remaining.push(result.value);
               toast.error(
                 t("toasts.publishFailed", {
-                  error: publishFailureCopy(result.value, t),
+                  error: publishFailureCopy(
+                    result.value,
+                    t,
+                    (values) => formatter.list(values, { type: "conjunction" }),
+                    enabledProviders,
+                  ),
                 }),
               );
             }
@@ -442,21 +498,23 @@ export function ProjectSocialPosts({
 
   // Needs attention is a tab only while something needs it. Once the last
   // post in it is dealt with, the page goes back to its first tab.
+  const hasCalendar = calendar !== undefined || calendarFailed;
   const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
-    if (candidate === "calendar") return calendar !== undefined;
+    if (candidate === "calendar") return hasCalendar;
     if (candidate === "accounts") return accounts !== undefined;
     return (
       candidate !== "attention" ||
       postsIn(candidate).length > 0 ||
       reconnections.length > 0 ||
-      Boolean(cursors[candidate])
+      Boolean(cursors[candidate]) ||
+      failedSections.includes(candidate)
     );
   });
   const tab: SocialTab =
     tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
   const listedAccountCount = accountCount ?? connections.length;
   const accountPrompt =
-    accounts === undefined || tab === "accounts"
+    accounts === undefined || tab === "accounts" || accountsFailed
       ? null
       : listedAccountCount === 0
         ? "connect"
@@ -507,6 +565,13 @@ export function ProjectSocialPosts({
       toast.error(t("toasts.timeout"));
       return;
     }
+    if (error.status === 409) {
+      toast.error(error.message || t("toasts.failed"), {
+        duration: Infinity,
+        closeButton: true,
+      });
+      return;
+    }
     toast.error(error.message || t("toasts.failed"));
   }
 
@@ -536,6 +601,7 @@ export function ProjectSocialPosts({
   }
 
   function handleSaved(post: SocialPost): void {
+    setPreviewTarget((current) => (current?.id === post.id ? post : current));
     setPosts((current) => upsertPost(current, post));
     // Follow the post to the list that still shows it. A failed or missed
     // post that just left that list should not yank the page to the calendar
@@ -555,7 +621,7 @@ export function ProjectSocialPosts({
       attentionRemains;
     const openCalendar =
       nextSection === undefined &&
-      (previewOnly || (calendar !== undefined && !stayOnAttention));
+      (previewOnly || (hasCalendar && !stayOnAttention));
     if (openCalendar && post.scheduledAt) {
       const zone =
         timezone && isValidTimezone(timezone) ? timezone : getDefaultTimezone();
@@ -571,7 +637,7 @@ export function ProjectSocialPosts({
     if (stayOnAttention) {
       return;
     }
-    showTab(calendar !== undefined ? "calendar" : null);
+    showTab(hasCalendar ? "calendar" : null);
   }
 
   async function handleDuplicate(post: SocialPost): Promise<void> {
@@ -625,8 +691,10 @@ export function ProjectSocialPosts({
     }
   }
 
-  async function handleConfirmPublish(): Promise<void> {
-    const target = publishTarget;
+  async function handleConfirmPublish(
+    confirmedTarget?: SocialPost,
+  ): Promise<void> {
+    const target = confirmedTarget ?? publishTarget;
     if (!target || publishPending) return;
     setPublishPending(true);
     try {
@@ -641,10 +709,17 @@ export function ProjectSocialPosts({
       }
       const post = result.value;
       handleSaved(post);
+      reportMovedQuotes(post);
       if (post.status === "PUBLISHED") {
         toast.success(t("toasts.published"));
       } else if (post.lastError || post.lastAttempt?.errorKind) {
-        const error = publishFailureCopy(post, t) ?? t("toasts.failed");
+        const error =
+          publishFailureCopy(
+            post,
+            t,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
+          ) ?? t("toasts.failed");
         toast.error(t("toasts.publishFailed", { error }));
       } else {
         toast.error(t("toasts.failed"));
@@ -723,7 +798,13 @@ export function ProjectSocialPosts({
           postId: post.id,
           label: retryLabel(post),
           ok: false,
-          error: publishFailureCopy(next, t) ?? t("toasts.failed"),
+          error:
+            publishFailureCopy(
+              next,
+              t,
+              (values) => formatter.list(values, { type: "conjunction" }),
+              enabledProviders,
+            ) ?? t("toasts.failed"),
         });
       } catch (error) {
         const actionError = toActionRejectionError(error);
@@ -745,15 +826,85 @@ export function ProjectSocialPosts({
     setSelectedRetryIds(new Set());
     setBulkRetryResults(results);
     setBulkRetryPending(false);
-    if (sawConflict) router.refresh();
+    const movedQuotes = updated.flatMap((post) => post.movedQuotes ?? []);
+    reportMovedQuotes({ movedQuotes });
+    if (sawConflict || movedQuotes.length > 0) router.refresh();
+  }
+
+  async function handleApprove(post: SocialPost): Promise<void> {
+    if (actionPendingPostId) return;
+    setActionPendingPostId(post.id);
+    try {
+      const result = await approveProjectSocialPost({
+        projectId,
+        postId: post.id,
+        revision: post.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.approved"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
+  async function handleResume(post: SocialPost): Promise<void> {
+    if (actionPendingPostId || publishPending) return;
+    setActionPendingPostId(post.id);
+    try {
+      const result = await resumeProjectSocialPostThread({
+        projectId,
+        postId: post.id,
+        revision: post.revision,
+        confirmedNotPosted: true,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      await handleConfirmPublish(result.value);
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
+  }
+
+  async function handleRemoveQuote(post: SocialPost): Promise<void> {
+    setActionPendingPostId(post.id);
+    try {
+      const result = await updateProjectSocialPost({
+        projectId,
+        postId: post.id,
+        quotedPostId: null,
+        revision: post.revision,
+      });
+      if (!result.ok) {
+        handleActionError(result.error);
+        return;
+      }
+      handleSaved(result.value);
+      toast.success(t("toasts.updated"));
+    } catch (error) {
+      handleActionError(toActionRejectionError(error), error);
+    } finally {
+      setActionPendingPostId(null);
+    }
   }
 
   function renderPostActions(post: SocialPost, preview = false) {
+    const providerEnabled = isProviderEnabled(post.provider);
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
     // Retry sits on the row, the way Reconnect does on a Social account.
-    const canRetry = isRetry && post.canPublishNow;
-    const canPublishNow = !isRetry && post.canPublishNow;
+    const canRetry = providerEnabled && isRetry && post.canPublishNow;
+    const canPublishNow = providerEnabled && !isRetry && post.canPublishNow;
     // Preview footer already has Edit and Schedule. Keep the menu for
     // Publish now and Cancel, and hide it when those are gone.
     const showComposeInMenu = !preview;
@@ -766,9 +917,35 @@ export function ProjectSocialPosts({
     const subject = actionSubject(post, t("thisDraft"));
     return (
       <div
-        className="ms-auto flex items-center gap-2"
+        className="ms-auto flex flex-wrap items-center gap-2"
         data-testid={preview ? `social-post-${post.id}` : undefined}
       >
+        {post.needsAttentionReason && post.canEdit ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-h-11 whitespace-normal md:min-h-10"
+              disabled={Boolean(actionPendingPostId)}
+              onClick={() => {
+                if (preview) setPreviewOpen(false);
+                setComposer({ kind: "edit", post, chooseQuote: true });
+              }}
+            >
+              {t("quote.change")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 md:min-h-10"
+              disabled={Boolean(actionPendingPostId)}
+              loading={actionPendingPostId === post.id}
+              onClick={() => void handleRemoveQuote(post)}
+            >
+              {t("quote.remove")}
+            </Button>
+          </>
+        ) : null}
         {!preview ? (
           <Button
             type="button"
@@ -785,6 +962,32 @@ export function ProjectSocialPosts({
             <Eye className="size-4" aria-hidden />
           </Button>
         ) : null}
+        {post.canApprove ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="min-h-11 md:min-h-10"
+            disabled={Boolean(actionPendingPostId)}
+            loading={actionPendingPostId === post.id}
+            onClick={() => void handleApprove(post)}
+          >
+            {t("actions.approve")}
+          </Button>
+        ) : null}
+        {preview &&
+        post.status === "FAILED" &&
+        post.publishingThreadPartPosition != null ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="h-auto min-h-11 whitespace-normal md:min-h-10"
+            disabled={Boolean(actionPendingPostId) || publishPending}
+            loading={actionPendingPostId === post.id}
+            onClick={() => void handleResume(post)}
+          >
+            {t("thread.confirmNotPosted")}
+          </Button>
+        ) : null}
         {canRetry ? (
           <Button
             type="button"
@@ -797,7 +1000,7 @@ export function ProjectSocialPosts({
             }}
           >
             <RotateCcw className="size-4" aria-hidden />
-            {t("actions.retry")}
+            {t(post.threadPartCount > 1 ? "thread.retry" : "actions.retry")}
           </Button>
         ) : null}
         {hasMenu ? (
@@ -835,7 +1038,7 @@ export function ProjectSocialPosts({
                   {t("composer.edit")}
                 </DropdownMenuItem>
               ) : null}
-              {showComposeInMenu && post.canSchedule ? (
+              {providerEnabled && showComposeInMenu && post.canSchedule ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
@@ -847,7 +1050,7 @@ export function ProjectSocialPosts({
                     : t("composer.schedule")}
                 </DropdownMenuItem>
               ) : null}
-              {post.canDuplicate ? (
+              {providerEnabled && post.canDuplicate ? (
                 <DropdownMenuItem
                   className="min-h-11"
                   onSelect={() => {
@@ -881,6 +1084,8 @@ export function ProjectSocialPosts({
     publishTarget && RETRY_STATUSES.includes(publishTarget.status)
       ? "retryDialog"
       : "publishDialog";
+  const isThreadRetry =
+    publishCopy === "retryDialog" && (publishTarget?.threadPartCount ?? 1) > 1;
   const cancelCopy =
     cancelTarget && RETRY_STATUSES.includes(cancelTarget.status)
       ? "dismissDialog"
@@ -890,7 +1095,7 @@ export function ProjectSocialPosts({
     if (!post.connectionNeedsReconnect) return null;
     return (
       <p
-        className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+        className="text-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
         data-testid="social-post-needs-reconnect"
         role="status"
       >
@@ -919,6 +1124,11 @@ export function ProjectSocialPosts({
   }
 
   function renderDraft(post: SocialPost) {
+    const showStatus =
+      post.waitingForQuotedPost ||
+      post.status === "PUBLISHING" ||
+      post.status === "NEEDS_APPROVAL";
+
     function openPreview() {
       setPreviewTarget(post);
       setPreviewOpen(true);
@@ -935,18 +1145,33 @@ export function ProjectSocialPosts({
           account={previewAccountFor(post, connections)}
           compact
           media={post.media}
+          quotedPost={post.quotedPost}
           onSeeMore={openPreview}
           provider={post.provider}
           text={post.text}
           timestamp={null}
         />
-        {post.status === "PUBLISHING" ? (
-          <SocialPostStatusBadge
-            label={t("status.PUBLISHING")}
-            status={post.status}
-          />
+        {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {showStatus ? (
+              <SocialPostStatusBadge
+                label={t(
+                  post.waitingForQuotedPost
+                    ? "quote.waiting"
+                    : `status.${post.status}`,
+                )}
+                waitingForQuotedPost={post.waitingForQuotedPost}
+                status={post.status}
+              />
+            ) : null}
+            <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
+          </div>
         ) : null}
         {renderReconnectWarning(post)}
+        {post.needsAttentionReason ? (
+          <SocialPostPreviewFailure post={post} />
+        ) : null}
         <div className="mt-auto">{renderPostActions(post)}</div>
       </li>
     );
@@ -964,9 +1189,15 @@ export function ProjectSocialPosts({
     const failedAt = post.lastAttempt?.finishedAt ?? null;
     const leadingAt =
       post.status === "FAILED" && failedAt ? failedAt : post.scheduledAt;
-    const failureReason =
-      post.status === "FAILED" || post.status === "MISSED"
-        ? publishFailureCopy(post, t)
+    const failureReason = post.needsAttentionReason
+      ? socialPostQuoteAttentionCopy(post.needsAttentionReason, t)
+      : post.status === "FAILED" || post.status === "MISSED"
+        ? publishFailureCopy(
+            post,
+            t,
+            (values) => formatter.list(values, { type: "conjunction" }),
+            enabledProviders,
+          )
         : null;
 
     const retryable = canRetryPost(post);
@@ -976,7 +1207,7 @@ export function ProjectSocialPosts({
         id={`social-post-${post.id}`}
         // The Task board's card: one border weight, the primary border on
         // hover, and the status badge leading like a task's.
-        className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm"
+        className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-foreground hover:shadow-sm"
         data-testid={`social-post-${post.id}`}
       >
         {retryable ? (
@@ -998,23 +1229,35 @@ export function ProjectSocialPosts({
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <SocialPostStatusBadge
+              label={t(
+                post.partiallyPublished
+                  ? "thread.partlyPosted"
+                  : post.waitingForQuotedPost
+                    ? "quote.waiting"
+                    : `status.${post.status}`,
+              )}
+              partiallyPublished={post.partiallyPublished}
+              waitingForQuotedPost={post.waitingForQuotedPost}
+              status={post.status}
+            />
+            <SocialPostThreadBadge count={post.threadPartCount} />
+            <SocialPostQuoteBadge quotedPostId={post.quotedPostId} />
             {leadingAt ? (
               <time
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
                 dateTime={leadingAt.toISOString()}
               >
                 {/* Named, so a reader in another zone does not misread it. */}
-                {formatter.dateTime(leadingAt, "dateTime", {
-                  timeZoneName: "short",
-                })}
+                {formatter.dateTime(leadingAt, "dateTime")}{" "}
+                <TimezoneLabel
+                  timeZone={displayTimezone}
+                  at={leadingAt}
+                  variant="short"
+                />
               </time>
             ) : null}
             <span className="min-w-0 truncate">{accountLabel}</span>
-            <SocialPostStatusBadge
-              className="order-first"
-              label={t(`status.${post.status}`)}
-              status={post.status}
-            />
           </p>
           <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
           {post.media.length > 0 ? (
@@ -1048,7 +1291,7 @@ export function ProjectSocialPosts({
               ) : null}
               {post.publishedUrl ? (
                 <a
-                  className="text-primary inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+                  className="text-foreground inline-flex items-center gap-1 font-medium underline-offset-4 underline"
                   href={post.publishedUrl}
                   rel="noreferrer"
                   target="_blank"
@@ -1059,7 +1302,9 @@ export function ProjectSocialPosts({
               ) : null}
             </div>
           ) : null}
-          {(post.status === "FAILED" || post.status === "MISSED") &&
+          {(post.needsAttentionReason ||
+            post.status === "FAILED" ||
+            post.status === "MISSED") &&
           (failureReason || failedAt) ? (
             <div className="space-y-0.5 text-xs">
               {failureReason ? (
@@ -1135,12 +1380,14 @@ export function ProjectSocialPosts({
           }}
         >
           <div className="flex flex-row items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div
+              className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}
+            >
               <TabsList
                 aria-label={t("title")}
                 className={cn(
                   SEGMENTED_TABS_LIST_CLASS_NAME,
-                  "app-scrollbar w-fit min-w-0 max-w-full max-sm:justify-start max-sm:overflow-x-auto",
+                  SOCIAL_TABS_LIST_CLASS_NAME,
                 )}
               >
                 {tabs.map((candidate) => {
@@ -1152,30 +1399,22 @@ export function ProjectSocialPosts({
                         ? listedAccountCount
                         : 0;
                   return (
-                    <TabsTrigger
-                      key={candidate}
-                      className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-                      data-testid={`social-posts-tab-${candidate}`}
-                      value={candidate}
-                    >
-                      {candidate === "attention" ? (
-                        <AlertTriangle
-                          className="text-semantic-warning size-4"
-                          aria-hidden
-                        />
-                      ) : null}
-                      {t(`sections.${candidate}`)}{" "}
-                      {count > 0 ? (
-                        <span className="text-muted-foreground tabular-nums">
-                          {candidate !== "calendar" &&
-                          candidate !== "accounts" &&
-                          candidate !== "statistics" &&
-                          cursors[candidate]
+                    <SocialTabTrigger
+                      alert={candidate === "attention"}
+                      count={
+                        count > 0
+                          ? candidate !== "calendar" &&
+                            candidate !== "accounts" &&
+                            candidate !== "statistics" &&
+                            cursors[candidate]
                             ? `${count}+`
-                            : count}
-                        </span>
-                      ) : null}
-                    </TabsTrigger>
+                            : String(count)
+                          : null
+                      }
+                      key={candidate}
+                      label={t(`sections.${candidate}`)}
+                      tab={candidate}
+                    />
                   );
                 })}
               </TabsList>
@@ -1230,12 +1469,28 @@ export function ProjectSocialPosts({
             </div>
           ) : null}
 
-          {calendar !== undefined ? (
+          {/* A slim line, not a card: the tabs below still work. */}
+          {selectedPostFailed ? (
+            <SocialLoadError
+              data-testid="social-selected-post-load-error"
+              kind="post"
+              variant="banner"
+            />
+          ) : null}
+
+          {hasCalendar ? (
             <TabsContent
               data-testid="social-posts-section-calendar"
               value="calendar"
             >
-              {calendar}
+              {calendarFailed ? (
+                <SocialLoadError
+                  data-testid="social-calendar-load-error"
+                  kind="calendar"
+                />
+              ) : (
+                calendar
+              )}
             </TabsContent>
           ) : null}
 
@@ -1311,7 +1566,23 @@ export function ProjectSocialPosts({
                       </Button>
                     </div>
                   ) : null}
-                  {sectionPosts.length > 0 || loadingSection === section ? (
+                  {/* A linked post can still show while its list failed:
+                      keep the retry, as a slim line above it. */}
+                  {failedSections.includes(section) &&
+                  sectionPosts.length > 0 ? (
+                    <SocialLoadError
+                      data-testid={`social-posts-load-error-${section}`}
+                      kind={section}
+                      variant="banner"
+                    />
+                  ) : null}
+                  {failedSections.includes(section) &&
+                  sectionPosts.length === 0 ? (
+                    <SocialLoadError
+                      data-testid={`social-posts-load-error-${section}`}
+                      kind={section}
+                    />
+                  ) : sectionPosts.length > 0 || loadingSection === section ? (
                     <ul
                       className={
                         section === "drafts"
@@ -1393,7 +1664,14 @@ export function ProjectSocialPosts({
               data-testid="social-posts-section-accounts"
               value="accounts"
             >
-              {accounts}
+              {accountsFailed ? (
+                <SocialLoadError
+                  data-testid="social-accounts-load-error"
+                  kind="accounts"
+                />
+              ) : (
+                accounts
+              )}
             </TabsContent>
           ) : null}
         </Tabs>
@@ -1401,7 +1679,9 @@ export function ProjectSocialPosts({
 
       {composerMode ? (
         <SocialPostComposerDialog
-          connections={connections}
+          connections={managed}
+          connectDisabled={connectDisabled}
+          queueSlots={queueSlots}
           mode={composerMode}
           onConnectAccount={() => {
             setComposer(null);
@@ -1495,9 +1775,15 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t(`${publishCopy}.title`)}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(isThreadRetry ? "thread.retry" : `${publishCopy}.title`)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t(`${publishCopy}.description`)}
+              {t(
+                isThreadRetry
+                  ? "thread.retryDescription"
+                  : `${publishCopy}.description`,
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1511,7 +1797,7 @@ export function ProjectSocialPosts({
                 void handleConfirmPublish();
               }}
             >
-              {t(`${publishCopy}.confirm`)}
+              {t(isThreadRetry ? "thread.retry" : `${publishCopy}.confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

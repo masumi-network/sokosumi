@@ -15,10 +15,6 @@ export const SEAT_RELEASE_CONFLICT_MESSAGE =
 export const SEAT_RECONCILIATION_CONFLICT_MESSAGE =
   "Seat reconciliation lost a concurrent update. Try again.";
 
-/** Shown when a purchased-seat change keeps losing that race (SOK-1007). */
-export const SEAT_CHANGE_CONFLICT_MESSAGE =
-  "Seat update lost a concurrent update. Try again.";
-
 /**
  * Maps member-repository seat errors to HTTP exceptions; rethrows everything
  * else (including HTTP exceptions thrown by guards inside the transaction).

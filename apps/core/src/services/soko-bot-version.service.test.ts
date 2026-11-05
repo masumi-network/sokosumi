@@ -37,6 +37,7 @@ import {
   createAuthoredVersion,
   isKnownSokoBotVersionId,
   isRunnableSokoBotVersionId,
+  isSelectableSokoBotVersionId,
   listSokoBotVersions,
   resolveRunnableSokoBotVersion,
   resolveSokoBotVersion,
@@ -76,6 +77,20 @@ describe("Soko Bot version resolution", () => {
 
     expect(version.id).toBe("v11");
     expect(findFirstMock).not.toHaveBeenCalled();
+  });
+
+  // Cuso ran as the personal assistant: cmo-v1 was looked up as an authored
+  // version, not found, and replaced by the promoted default.
+  it("resolves CMO's built-in version instead of the promoted default", async () => {
+    const version = await resolveSokoBotVersion("cmo-v1");
+
+    expect(version.id).toBe("cmo-v1");
+    expect(version.profile).toBe("cmo");
+    expect(findFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("does not offer CMO's version for a personal assistant", async () => {
+    expect(await isSelectableSokoBotVersionId("cmo-v1", "user_1")).toBe(false);
   });
 
   it("resolves an authored version by slug", async () => {

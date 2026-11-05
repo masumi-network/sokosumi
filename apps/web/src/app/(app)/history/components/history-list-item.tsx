@@ -24,6 +24,7 @@ export interface HistoryListItemLabels {
     task: string;
     coworker: string;
     sokoBot: string;
+    contacts: string;
     topUp: string;
     unattributed: string;
   };
@@ -55,7 +56,7 @@ export function HistoryListItem({
     showOwner
       ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_130px] sm:items-center sm:gap-4"
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_130px] sm:items-center sm:gap-4",
-    href ? "hover:bg-card-background-hover press content-in" : "cursor-default",
+    href ? "hover:bg-accent press content-in" : "cursor-default",
   );
   const content = (
     <HistoryListItemContent
@@ -176,14 +177,23 @@ export function HistoryTypeColumn({
 function formatHistoryCredits(
   item: TransactionHistoryItem,
   labels: Pick<HistoryListItemLabels, "credit" | "credits">,
-  formatNumber: (
-    value: number,
-    options: { maximumFractionDigits: number },
-  ) => string,
+  formatNumber: CreditNumberFormatter,
 ): string {
-  const credits = Math.trunc(item.credits * 100) / 100;
-  const unit = credits === 1 ? labels.credit : labels.credits;
-  const amount = `${formatNumber(credits, { maximumFractionDigits: 2 })} ${unit}`;
-
+  const amount = formatCreditAmount(item.credits, labels, formatNumber);
   return item.kind === "topUp" ? `+${amount}` : amount;
+}
+
+type CreditNumberFormatter = (
+  value: number,
+  options: { maximumFractionDigits: number },
+) => string;
+
+export function formatCreditAmount(
+  value: number,
+  labels: Pick<HistoryListItemLabels, "credit" | "credits">,
+  formatNumber: CreditNumberFormatter,
+): string {
+  const credits = Math.trunc(value * 100) / 100;
+  const unit = credits === 1 ? labels.credit : labels.credits;
+  return `${formatNumber(credits, { maximumFractionDigits: 2 })} ${unit}`;
 }

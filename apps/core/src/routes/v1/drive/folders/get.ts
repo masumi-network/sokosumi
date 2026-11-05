@@ -1,6 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { DRIVE_OWNER_PREFIX_PATTERN } from "@sokosumi/utils";
-
+import {
+  buildOrganizationDriveFilePrefix,
+  buildUserDriveFilePrefix,
+  DRIVE_OWNER_PREFIX_PATTERN,
+  isDriveFolderMarker,
+} from "@sokosumi/utils";
+import { list } from "@vercel/blob";
+import { getEnv } from "@/config/env";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -96,6 +102,54 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
+    for (const folder of await emptyFolderMarkers(context)) {
+      const segments = folder.split("/");
+      for (let depth = 1; depth <= segments.length; depth += 1) {
+        folders.add(segments.slice(0, depth).join("/"));
+      }
+    }
+
     return ok(c, [...folders].sort());
   });
+}
+
+/** Listing pages read for folder markers; a store this large is rare. */
+const MARKER_LIST_PAGES = 5;
+
+/**
+ * Folders created with "New folder" and still empty. They exist only as a
+ * marker blob, never in the catalog, so the reader made a folder and could
+ * not see it. A storage failure leaves the catalog's folders as they are.
+ */
+async function emptyFolderMarkers(context: {
+  scope: "user" | "organization";
+  ownerId: string;
+}): Promise<string[]> {
+  const token = getEnv().BLOB_READ_WRITE_TOKEN;
+  if (!token) return [];
+  const prefix =
+    context.scope === "user"
+      ? buildUserDriveFilePrefix(context.ownerId)
+      : buildOrganizationDriveFilePrefix(context.ownerId);
+  const folders: string[] = [];
+  try {
+    let cursor: string | undefined;
+    for (let page = 0; page < MARKER_LIST_PAGES; page += 1) {
+      const result = await list({ prefix, token, cursor, limit: 1_000 });
+      for (const blob of result.blobs) {
+        if (!isDriveFolderMarker(blob.pathname)) continue;
+        const folder = blob.pathname
+          .slice(prefix.length)
+          .replace(/\/[^/]*$/, "");
+        if (folder) folders.push(folder);
+      }
+      if (!result.hasMore || !result.cursor) break;
+      cursor = result.cursor;
+    }
+  } catch (error) {
+    console.warn("[drive] folder markers unavailable", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+  return folders;
 }

@@ -10,6 +10,10 @@
 export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
+  /** A channel being added already belongs to another contact; `existingContactId` names it. */
+  CONTACT_CHANNEL_TAKEN: "contact_channel_taken",
+  /** The contact changed since it was read; reload and apply the edit again. */
+  CONTACT_VERSION_CONFLICT: "contact_version_conflict",
   /** A coworker must send `X-Context-Organization-Id`: the context user has no personal workspace. */
   CONTEXT_ORGANIZATION_REQUIRED: "context_organization_required",
   INTEGRATION_NOT_CONFIGURED: "integration_not_configured",
@@ -19,6 +23,9 @@ export const CORE_API_ERROR_KINDS = {
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  NEWSLETTER_APPROVAL_REQUIRED: "newsletter_approval_required",
+  NEWSLETTER_SENDER_NOT_CONFIGURED: "newsletter_sender_not_configured",
+  NEWSLETTER_NO_ACTIVE_SUBSCRIBERS: "newsletter_no_active_subscribers",
   /** The user has no workspace, or a coworker may not act in the preferred one. */
   NO_PREFERRED_WORKSPACE: "no_preferred_workspace",
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",
@@ -28,11 +35,12 @@ export const CORE_API_ERROR_KINDS = {
   SEAT_CAPACITY_EXCEEDED: "seat_capacity_exceeded",
   SUBSCRIPTION_CHANGE_NOT_ALLOWED: "subscription_change_not_allowed",
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",
+  /** Stripe could not collect the payment, so the subscription was left unchanged. */
+  SUBSCRIPTION_PAYMENT_FAILED: "subscription_payment_failed",
   SUBSCRIPTION_SEATS_BELOW_ASSIGNED: "subscription_seats_below_assigned",
   FREE_CREDIT_INVALID: "free_credit_invalid",
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
-  PROJECT_HAS_CALENDAR_HISTORY: "project_has_calendar_history",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
   SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
   SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",

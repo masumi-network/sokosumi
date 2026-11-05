@@ -215,7 +215,7 @@ function WizardFrame({
       {step > 0 ? (
         <TaskFormModalHeaderStart key={`${step}:${submitting}`}>
           <Button
-            className="text-primary -ml-2"
+            className="text-foreground -ml-2"
             disabled={submitting}
             onClick={() => onJump(step - 1)}
             size="sm"
@@ -262,7 +262,7 @@ function WizardFrame({
               >
                 {reachable ? (
                   <button
-                    className="focus-visible:ring-ring-halo block w-full rounded-sm text-left outline-none focus-visible:ring-[3px] [&>span:last-child]:hover:text-foreground"
+                    className="focus-visible:ring-ring block w-full rounded-sm text-left outline-none focus-visible:ring-2 [&>span:last-child]:hover:text-foreground"
                     disabled={submitting}
                     onClick={() => onJump(index)}
                     type="button"
@@ -387,13 +387,13 @@ function GoogleTypeStep() {
           return (
             <label
               key={type}
-              className="group bg-card has-[[data-state=checked]]:border-primary has-[:focus-visible]:ring-ring-halo hover:bg-card-background-hover flex cursor-pointer flex-col gap-5 rounded-xl border p-5 transition-colors has-[:focus-visible]:ring-[3px]"
+              className="group bg-card has-[[data-state=checked]]:border-foreground has-[:focus-visible]:ring-ring hover:bg-card-background-hover flex cursor-pointer flex-col gap-5 rounded-xl border p-5 transition-colors has-[:focus-visible]:ring-2"
               htmlFor={`${id}-${type}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <span
                   aria-hidden
-                  className="bg-quinary text-muted-foreground group-has-[[data-state=checked]]:text-primary flex size-10 items-center justify-center rounded-lg transition-colors"
+                  className="bg-quinary text-muted-foreground group-has-[[data-state=checked]]:text-foreground flex size-10 items-center justify-center rounded-lg transition-colors"
                 >
                   <Icon className="size-5" />
                 </span>
@@ -427,7 +427,7 @@ function GoogleTypeStep() {
                     <li key={need} className="flex gap-2 text-pretty">
                       <Check
                         aria-hidden
-                        className="text-primary mt-0.5 size-4 shrink-0"
+                        className="text-foreground mt-0.5 size-4 shrink-0"
                       />
                       {need}
                     </li>

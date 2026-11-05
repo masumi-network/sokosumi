@@ -55,6 +55,23 @@ describe("designMdApiResponseSchema", () => {
     expect(wrapped).toEqual({ status: "queued", jobId: "job_1" });
   });
 
+  // The live API answers this shape for sites it reads without a stored
+  // extraction (seen for plausible.io and tartinebakery.com).
+  it("parses a heuristic result with no extraction id", () => {
+    const done = designMdApiResponseSchema.parse({
+      status: "done",
+      jobId: "job_1",
+      url: "https://plausible.io",
+      source: "heuristic",
+      extractionId: null,
+      designMd: "---\nname: Plausible Analytics\n---\n",
+      frontmatter: { name: "Plausible Analytics" },
+      screenshotUrl: null,
+    });
+
+    expect(done).toMatchObject({ status: "done", extractionId: null });
+  });
+
   it("parses running job payloads", () => {
     const running = designMdApiResponseSchema.parse({
       status: "running",

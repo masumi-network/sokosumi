@@ -71,9 +71,14 @@ export async function fetchBackgroundJson(
   url: string,
   timeoutMs: number,
   onStatus?: (status: number) => void,
+  /** The caller's own cancel: ends the request like the deadline does. */
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const cancel = () => controller.abort();
+  if (signal?.aborted) cancel();
+  signal?.addEventListener("abort", cancel, { once: true });
   try {
     for (let attempt = 0; ; attempt++) {
       // Deliberately not `AbortSignal.any`: it needs Safari 17.4, this app
@@ -159,5 +164,6 @@ export async function fetchBackgroundJson(
     return null;
   } finally {
     window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", cancel);
   }
 }

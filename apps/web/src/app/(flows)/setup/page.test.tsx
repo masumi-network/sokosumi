@@ -168,6 +168,38 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).not.toContain("pendingInvitesTitle");
   });
 
+  it("keeps the identity form in place when the new workspace becomes ready", async () => {
+    // Creating the workspace refreshes this page. A different tree would
+    // remount the form, which then forgets this is a new account and skips
+    // the assistant step.
+    const { default: WorkspaceGatePage } = await import("./page");
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "identity-onboarding",
+      hasPersonalWorkspace: false,
+      hasOrganizationMembership: false,
+    });
+    const before = (await WorkspaceGatePage(
+      pageProps(),
+    )) as React.ReactElement<{
+      children: React.ReactNode[];
+    }>;
+    getWorkspaceAccessMock.mockResolvedValue({
+      gate: "ready",
+      hasPersonalWorkspace: true,
+      hasOrganizationMembership: false,
+    });
+    const after = (await WorkspaceGatePage(pageProps())) as React.ReactElement<{
+      children: React.ReactNode[];
+    }>;
+
+    expect(after.type).toBe(before.type);
+    const formOf = (ui: typeof before) =>
+      (ui.props.children[1] as React.ReactElement<{ workspaceReady: boolean }>)
+        .props.workspaceReady;
+    expect(formOf(before)).toBe(false);
+    expect(formOf(after)).toBe(true);
+  });
+
   it("does not swap a ready user onto the pending-invites queue", async () => {
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",

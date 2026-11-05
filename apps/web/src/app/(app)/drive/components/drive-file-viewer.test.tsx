@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { DriveFileViewer } from "@/app/drive/components/drive-file-viewer";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key}:${Object.values(values).join(",")}` : key,
 }));
 vi.mock("@/components/ui/image-viewer", () => ({
   ImageViewer: ({ activeSrc }: { activeSrc: string | null }) => (
@@ -52,6 +53,40 @@ describe("DriveFileViewer", () => {
     open("assets.zip", "application/zip");
     expect(screen.getByTestId("drive-file-viewer")).toBeVisible();
     expect(screen.getByText("viewerNoPreview")).toBeVisible();
+  });
+
+  it("plays video and audio through the authorized route", () => {
+    const { unmount } = open("promo.mp4", "video/mp4");
+    expect(
+      screen.getByLabelText("promo.mp4", { selector: "video" }),
+    ).toHaveAttribute("src", "/api/drive/files/res-1/content?scope=me");
+    unmount();
+
+    open("podcast.mp3", null);
+    expect(
+      screen.getByLabelText("podcast.mp3", { selector: "audio" }),
+    ).toHaveAttribute("controls");
+  });
+
+  it("names the size on the download for a file it cannot show", () => {
+    render(
+      <DriveFileViewer
+        file={{
+          id: "res-1",
+          displayName: "assets.zip",
+          mimeType: "application/zip",
+          sizeBytes: 2048,
+        }}
+        store={store}
+        onClose={noop}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /viewerDownloadWithSize:2.0 KB/ }),
+    ).toHaveAttribute(
+      "href",
+      "/api/drive/files/res-1/content?scope=me&download=true",
+    );
   });
 
   it("renders nothing while closed", () => {

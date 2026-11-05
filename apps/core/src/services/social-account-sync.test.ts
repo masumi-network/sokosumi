@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   updateMany: vi.fn(),
   refresh: vi.fn(),
   provider: vi.fn(),
+  backfillProfile: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: mocks.listAccounts,
+  backfillLinkedInAccountProfile: mocks.backfillProfile,
 }));
 vi.mock("@/services/social-account-statistics.service", () => ({
   refreshSocialAccountStatistics: mocks.refresh,
@@ -315,6 +317,32 @@ describe("runDueSocialAccountSync", () => {
         },
       }),
     );
+  });
+
+  it("backfills a missing LinkedIn photo for each claimed account before collecting", async () => {
+    const account = {
+      id: connectionId,
+      projectId,
+      provider: "linkedin",
+      status: "active",
+      avatarUrl: null,
+      project: { workspaceId },
+      performanceRefreshRequestedAt: requestedAt,
+      performanceRefreshAttemptedAt: staleHead,
+      performanceHeadFetchedAt: staleHead,
+      statistics: null,
+    };
+    mocks.findMany.mockResolvedValue([account]);
+    mocks.backfillProfile.mockResolvedValue(true);
+
+    await runDueSocialAccountSync({
+      shouldContinue: () => true,
+      now,
+      connectionId,
+    });
+
+    expect(mocks.backfillProfile).toHaveBeenCalledWith(account);
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("retries historyError after backoff instead of waiting for UTC midnight", async () => {

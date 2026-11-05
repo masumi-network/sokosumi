@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -16,6 +14,13 @@ import {
   type StatusWeight,
 } from "@/components/ui/status-marker";
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/core-client";
+
+import {
+  BRIDGES,
+  contrastOf,
+  luminanceOf,
+  THEMES,
+} from "@/test/theme-tokens";
 
 const HUES: StatusHue[] = [
   "dormant",
@@ -50,22 +55,6 @@ const TONES_IN_USE: StatusTone[] = (() => {
   return [...seen.values()];
 })();
 
-const GLOBALS_CSS = readFileSync(
-  join(process.cwd(), "src/app/globals.css"),
-  "utf8",
-);
-
-function block(selector: string): string {
-  const start = GLOBALS_CSS.indexOf(selector);
-  return GLOBALS_CSS.slice(start, GLOBALS_CSS.indexOf("\n}", start));
-}
-
-const THEMES = {
-  light: block(":root {"),
-  dark: block(".dark {"),
-} as const;
-const BRIDGES = block("@theme inline {");
-
 /** The token a colour utility reads: `bg-status-working` -> `status-working`. */
 function tokenOf(utility: string): string {
   return utility.replace(/^(bg|text|border)-/, "");
@@ -78,34 +67,6 @@ function utilitiesIn(classes: string): string[] {
     .filter((entry) => entry.length > 0 && !entry.endsWith("-transparent"));
 }
 
-function declaredValue(theme: string, token: string): string {
-  const match = theme.match(new RegExp(`--${token}:\\s*hsla\\(([^)]*)\\)`));
-  if (!match) throw new Error(`--${token} is not declared in this theme`);
-  return match[1];
-}
-
-/** sRGB relative luminance, WCAG 2.1 definition. */
-function luminance(hsla: string): number {
-  const [h, s, l] = hsla
-    .split(",")
-    .slice(0, 3)
-    .map((part) => Number.parseFloat(part));
-  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
-  const channel = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(0) + 0.7152 * channel(8) + 0.0722 * channel(4);
-}
-
-function contrast(theme: string, a: string, b: string): number {
-  const [x, y] = [
-    luminance(declaredValue(theme, a)),
-    luminance(declaredValue(theme, b)),
-  ];
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
 
 function toneName(tone: StatusTone): string {
   return `${tone.hue}/${tone.weight}`;
@@ -242,12 +203,17 @@ describe("tone styles", () => {
   );
 
   it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
-    "gives %s an onSurface twin of its dot",
+    "gives %s a dot in its disc colour, or else its glyph colour",
     (_name, tone) => {
-      const { dot, onSurface } = getToneStyle(tone);
+      const { disc, dot, onSurface } = getToneStyle(tone);
 
-      expect(onSurface).toBe(dot.replace("bg-", "text-"));
-      expect(onSurface).not.toMatch(/-foreground$/);
+      if (disc) {
+        expect(dot).toBe(disc);
+        expect(onSurface).toBe("text-foreground");
+      } else {
+        expect(dot).toBe(onSurface.replace("text-", "bg-"));
+        expect(onSurface).not.toMatch(/-foreground$/);
+      }
     },
   );
 
@@ -255,8 +221,6 @@ describe("tone styles", () => {
    * A colour token becomes a utility only through a `--color-*` bridge in
    * `@theme inline`. Without one the class emits no CSS at all, the badge
    * silently inherits, and every string-comparing test stays green.
-   * `--status-external-tertiary` is new with this model and reads through
-   * exactly that seam.
    */
   it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
     "bridges every token %s paints with",
@@ -266,7 +230,7 @@ describe("tone styles", () => {
         ...utilitiesIn(style.box),
         style.label,
         style.mark,
-        style.labelOnSurface,
+        ...(style.disc ? [style.disc] : []),
         style.dot,
         style.onSurface,
       ];
@@ -280,8 +244,8 @@ describe("tone styles", () => {
         expect(bridge.test(BRIDGES), `--color-${token} has no bridge`).toBe(
           true,
         );
-        expect(() => declaredValue(THEMES.light, token)).not.toThrow();
-        expect(() => declaredValue(THEMES.dark, token)).not.toThrow();
+        expect(() => luminanceOf(THEMES.light, token)).not.toThrow();
+        expect(() => luminanceOf(THEMES.dark, token)).not.toThrow();
       }
     },
   );
@@ -304,57 +268,44 @@ describe("tone styles", () => {
         entry.startsWith("bg-"),
       );
       const ground = fill ? tokenOf(fill) : "card-background";
+      // A glyph on a disc is measured on the disc, not on the chip.
+      const markGround = style.disc ? tokenOf(style.disc) : ground;
 
       for (const theme of [THEMES.light, THEMES.dark]) {
         expect(
-          contrast(theme, ground, tokenOf(style.label)),
+          contrastOf(theme, ground, tokenOf(style.label)),
         ).toBeGreaterThanOrEqual(4.5);
         expect(
-          contrast(theme, ground, tokenOf(style.mark)),
+          contrastOf(theme, markGround, tokenOf(style.mark)),
         ).toBeGreaterThanOrEqual(3);
-      }
-    },
-  );
-
-  /**
-   * `labelOnSurface` is what the activity feed and the share page paint, since
-   * both dropped the badge box. It is read on --card-background by definition,
-   * including for `solid`, whose own label is a near-white tuned for the solid
-   * fill and would measure 1.06:1 here.
-   */
-  it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
-    "keeps the %s inline label legible on the card",
-    (_name, tone) => {
-      const { labelOnSurface } = getToneStyle(tone);
-
-      for (const theme of [THEMES.light, THEMES.dark]) {
-        expect(
-          contrast(theme, "card-background", tokenOf(labelOnSurface)),
-        ).toBeGreaterThanOrEqual(4.5);
       }
     },
   );
 
   /**
    * The bare dot is painted on a surface, not on a tone's fill, so the test
-   * above cannot see it for filled tones. List rows use --muted on hover,
-   * where the dark fault mark reaches only 2.53; that exception is recorded on
-   * the model and is not measured here.
+   * above cannot see it for filled tones. A disc-coloured dot is exempt: the
+   * guide's green, yellow and Iris sit under 3:1 on white, and the status word
+   * beside the dot carries the status (see `getToneStyle`).
    */
-  it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
+  it.each(
+    TONES_IN_USE.filter((tone) => !getToneStyle(tone).disc).map(
+      (tone) => [toneName(tone), tone] as const,
+    ),
+  )(
     "keeps the %s mark visible on the card surface",
     (_name, tone) => {
       for (const theme of [THEMES.light, THEMES.dark]) {
         expect(
-          contrast(theme, "card-background", tokenOf(getToneStyle(tone).dot)),
+          contrastOf(theme, "card-background", tokenOf(getToneStyle(tone).dot)),
         ).toBeGreaterThanOrEqual(3);
       }
     },
   );
 
-  it("paints the solid fault dot with the solid fill, not its label", () => {
+  it("paints the solid fault dot as the X, not its label", () => {
     expect(getToneStyle({ hue: "fault", weight: "solid" }).dot).toBe(
-      "bg-semantic-destructive-solid",
+      "bg-semantic-destructive",
     );
   });
 

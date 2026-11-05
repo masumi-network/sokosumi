@@ -46,7 +46,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/",
     description:
-      'Create a chat room. `kind: "channel"` requires an active organization and a user session. `kind: "direct"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1 is an Org Direct when both people are Members of the active organization; otherwise a Personal Direct when they share an External channel roster. Multi-human groups still require an active organization. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: "direct", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.',
+      'Create a chat room. `kind: "channel"` requires an active organization and a user session. `kind: "direct"` creates or returns a direct room (self, 1:1 or multi-human group). Exactly the caller’s user ID and no AI targets opens one private Self Direct across workspaces, without requiring a personal workspace. Human 1:1s and groups are Personal Directs (`organizationId` null) in any workspace: every target must share an Organization or an External channel with the caller; `GET /chats/people` lists them. An existing Direct with the same participants is returned. Coworker API keys may create-or-get an org-scoped coworker 1:1 with `{ kind: "direct", memberUserIds: [targetUserId] }` when the coworker is usable in that workspace; they cannot create channels, human Directs, groups, or personal coworker 1:1s. User-started coworker DMs may be personal (`organizationId` null) with no active org.',
     tags: ["Chat Rooms"],
     request: {
       body: {
@@ -111,10 +111,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (body.kind === "direct") {
       const direct = await createOrGetDirectRoom({
-        // Both kinds respect activeOrganization when present.
-        // Coworker 1:1 may be personal (null) with no active org.
-        // Human 1:1 is personal when the pair share an External channel and
-        // are not both Members of the active org; groups still need an org.
+        // Coworker and Soko Bot 1:1s belong to the active workspace (personal
+        // with no active org); human Directs ignore it (ADR-0059).
         organizationId: userContext.organizationId,
         currentUserId: userContext.userId,
         memberUserIds: body.memberUserIds ?? [],

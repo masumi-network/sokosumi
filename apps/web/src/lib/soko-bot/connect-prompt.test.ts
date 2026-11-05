@@ -1,7 +1,7 @@
 import type { SokoBotIntegrations } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { connectOffers } from "./connect-prompt";
+import { connectOffers, contactsSyncState } from "./connect-prompt";
 
 function integration(
   provider: string,
@@ -50,5 +50,26 @@ describe("connectOffers", () => {
     expect(
       connectOffers([integration("outlook", ["email", "calendar"], "ACTIVE")]),
     ).toEqual([]);
+  });
+});
+
+describe("contactsSyncState", () => {
+  it("asks for a Soko Bot first, since contacts only sync through one", () => {
+    expect(contactsSyncState(null, [])).toEqual({ kind: "noBot" });
+  });
+
+  it("offers connections while mail or calendar is missing", () => {
+    expect(contactsSyncState({ name: "Joseph" }, [])).toMatchObject({
+      kind: "connect",
+    });
+  });
+
+  it("says the bot is syncing once mail and calendar are connected", () => {
+    expect(
+      contactsSyncState({ name: "Joseph" }, [
+        integration("gmail", ["email"], "ACTIVE"),
+        integration("googlecalendar", ["calendar"], "ACTIVE"),
+      ]),
+    ).toEqual({ kind: "syncing", botName: "Joseph" });
   });
 });

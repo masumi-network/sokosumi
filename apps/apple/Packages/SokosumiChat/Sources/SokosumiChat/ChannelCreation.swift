@@ -64,7 +64,7 @@ public final class ChannelCreation: ObservableObject {
   /// Web's create dialog shows its member notice and creates nothing when the member page or the caller's role
   /// failed (`loadChatComposeRosterAction` turns either into `membersLoadFailed`).
   public var participantsUnavailable: Bool {
-    roster.map { $0.recipients.membersLoadFailed || $0.roleLoadFailed } ?? false
+    roster.map { $0.recipients.humansLoadFailed || $0.roleLoadFailed } ?? false
   }
 
   public var canAdvance: Bool {

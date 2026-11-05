@@ -16,6 +16,8 @@ export interface FetchDriveRecentsPageOptions {
   organizationId?: string;
   cursor?: string;
   q?: string;
+  /** Label ids. Only Drive files carrying any of them are listed. */
+  tagLabelIds?: string[];
   signal?: AbortSignal;
 }
 
@@ -32,6 +34,9 @@ export async function fetchDriveRecentsPage(
         : {}),
       ...(options.cursor ? { cursor: options.cursor } : {}),
       ...(options.q?.trim() ? { q: options.q.trim() } : {}),
+      ...(options.tagLabelIds?.length
+        ? { tags: options.tagLabelIds.join(",") }
+        : {}),
     },
     ...(options.signal ? { signal: options.signal } : {}),
     throwOnError: true,

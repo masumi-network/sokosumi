@@ -1,3 +1,5 @@
+import { USER_TRANSITION_TASK_STATUSES } from "./task-status-transitions.js";
+
 /**
  * Task statuses that allow archive (soft-delete). Values match the Prisma
  * `TaskStatus` enum in `@sokosumi/database`.
@@ -5,7 +7,9 @@
  * Implemented as string literals so this package does not depend on
  * `@sokosumi/database` at runtime (that package already depends on utils).
  */
-export const TASK_ARCHIVABLE_STATUSES = [
+// CANCELED stays before COMPLETED and FAILED so the archive error string
+// keeps its current order.
+const archivableStatuses = [
   "DRAFT",
   "QUEUED",
   "READY",
@@ -13,7 +17,11 @@ export const TASK_ARCHIVABLE_STATUSES = [
   "CANCELED",
   "COMPLETED",
   "FAILED",
-] as const;
+] as const satisfies readonly (typeof USER_TRANSITION_TASK_STATUSES)[number][];
+
+export const TASK_ARCHIVABLE_STATUSES = archivableStatuses.filter((status) =>
+  USER_TRANSITION_TASK_STATUSES.includes(status),
+);
 
 export type TaskArchivableStatus = (typeof TASK_ARCHIVABLE_STATUSES)[number];
 

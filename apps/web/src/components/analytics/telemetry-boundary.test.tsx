@@ -14,23 +14,31 @@ describe("TelemetryBoundary", () => {
     usePathnameMock.mockReset();
   });
 
-  it.each(["/reset-password", "/reset-password/exchange"])(
-    "blocks telemetry on %s",
-    (pathname) => {
-      usePathnameMock.mockReturnValue(pathname);
+  it.each([
+    "/reset-password",
+    "/reset-password/exchange",
+    "/n/weekly/embed",
+    "/n/weekly/embed/",
+  ])("blocks telemetry on %s", (pathname) => {
+    usePathnameMock.mockReturnValue(pathname);
 
-      render(
-        <TelemetryBoundary>
-          <span>telemetry</span>
-        </TelemetryBoundary>,
-      );
+    render(
+      <TelemetryBoundary>
+        <span>telemetry</span>
+      </TelemetryBoundary>,
+    );
 
-      expect(screen.queryByText("telemetry")).not.toBeInTheDocument();
-    },
-  );
+    expect(screen.queryByText("telemetry")).not.toBeInTheDocument();
+  });
 
-  it("allows telemetry on other routes", () => {
-    usePathnameMock.mockReturnValue("/signin");
+  it.each([
+    "/signin",
+    "/n/weekly",
+    "/n/weekly/archive",
+    "/n/weekly/embedded",
+    "/n/weekly/embed/child",
+  ])("allows telemetry on %s", (pathname) => {
+    usePathnameMock.mockReturnValue(pathname);
 
     render(
       <TelemetryBoundary>

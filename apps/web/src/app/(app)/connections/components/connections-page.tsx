@@ -1,7 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
+import { cn } from "@/lib/utils";
 
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
@@ -30,7 +32,7 @@ export async function ConnectionsPage() {
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl space-y-8 px-4">
+      <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <div className="space-y-6">
           <section className="space-y-3" data-testid="connections-sign-in">
             <div className="space-y-1">

@@ -159,6 +159,18 @@ const RUNG_TRUE_PROBABILITY = 0.5;
  */
 const LABEL_MIN_PROBABILITY = 0.85;
 
+/**
+ * The bar for a file with no readable text, judged on its name, type, size,
+ * folder and project alone.
+ *
+ * Lower because the evidence is thinner, not because the bar is softer.
+ * Measured on twenty realistic file descriptors, twice: metadata answers sit
+ * between 0.5 and 0.9 and move by under 0.05 between runs. At 0.85 only four
+ * of twenty files got any label; at 0.7 thirteen did, and every label
+ * above 0.7 was one a person would have filed it under.
+ */
+export const METADATA_LABEL_MIN_PROBABILITY = 0.7;
+
 const resultSchema = z.object({
   model: z.string(),
   answers: answersSchema,
@@ -260,6 +272,8 @@ export interface JevLabelEvaluator {
   evaluateLabels(input: {
     request: SerializedJevRequest;
     labels: readonly { id: string; name: string; description: string | null }[];
+    /** Defaults to the text bar, `LABEL_MIN_PROBABILITY`. */
+    minProbability?: number;
     signal?: AbortSignal;
   }): Promise<JevLabelVerdict>;
 }
@@ -451,12 +465,11 @@ export const gatewayJevEvaluator: JevEvaluator & JevLabelEvaluator = {
       }
     }
 
+    const minProbability = input.minProbability ?? LABEL_MIN_PROBABILITY;
     return {
       ok: true,
       chosen: input.labels
-        .filter(
-          (label) => record[label.id].probability >= LABEL_MIN_PROBABILITY,
-        )
+        .filter((label) => record[label.id].probability >= minProbability)
         .map((label) => label.id),
       reason: null,
       latencyMs: result.latencyMs,

@@ -582,6 +582,24 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
     expect(outcome.status).toBe("conflict");
   });
 
+  it("gives an uploaded file its Drive pathname, for deleting it", async () => {
+    const page = await searchFiles({
+      workspaceId,
+      actor: actorFor(ownerId),
+      query: null,
+      filters: {},
+      sortBy: "name",
+      sortOrder: "asc",
+      cursor: null,
+      limit: 10,
+    });
+
+    const aurora = page.items.find(
+      (item) => item.displayName === "aurora-research.txt",
+    );
+    expect(aurora?.pathname).toBe(`drive/users/${ownerId}/aurora-research.txt`);
+  });
+
   it("survives a table resource whose source id is not a uuid", async () => {
     // The NATIVE_TABLE arm casts `sourceId` to uuid to join `data_table`.
     // `sourceId` is a plain string column that holds a pathname for every

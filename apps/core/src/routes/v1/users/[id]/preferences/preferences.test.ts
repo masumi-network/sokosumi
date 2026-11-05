@@ -53,6 +53,7 @@ const PREFERENCES = {
   pushOptIn: false,
   // Stored as "hide", so a reader who never chose is shown the count.
   hideRoomUnreadCount: false,
+  tagDirectMessages: false,
   notificationPreferences: [] as {
     category: string;
     channel: string;
@@ -194,6 +195,7 @@ describe("user preferences routes", () => {
         notificationsOptIn: true,
         pushOptIn: true,
         hideRoomUnreadCount: true,
+        tagDirectMessages: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -221,6 +223,7 @@ describe("user preferences routes", () => {
         notificationsOptIn: true,
         pushOptIn: true,
         hideRoomUnreadCount: true,
+        tagDirectMessages: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -279,6 +282,26 @@ describe("user preferences routes", () => {
     expect(body.data.showRoomUnreadCount).toBe(false);
     expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
       hideRoomUnreadCount: true,
+    });
+  });
+
+  it("stores the Direct opt-in for chat signals, off until turned on", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+    userFindUniqueMock.mockResolvedValue(PREFERENCES);
+    const read = await app.request("http://localhost/me/preferences");
+    expect((await read.json()).data.tagDirectMessages).toBe(false);
+
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      tagDirectMessages: true,
+    });
+    const response = await app.request(
+      patchRequest("/me/preferences", { tagDirectMessages: true }),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.tagDirectMessages).toBe(true);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
+      tagDirectMessages: true,
     });
   });
 

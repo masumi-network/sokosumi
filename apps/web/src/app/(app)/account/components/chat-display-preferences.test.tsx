@@ -51,19 +51,31 @@ describe("ChatDisplayPreferences", () => {
   });
 
   it("starts from the reader's stored answer", () => {
-    render(<ChatDisplayPreferences showRoomUnreadCount />);
+    render(
+      <ChatDisplayPreferences showRoomUnreadCount tagDirectMessages={false} />,
+    );
 
     expect(switchControl()).toBeChecked();
   });
 
   it("is off for a reader who switched the count off", () => {
-    render(<ChatDisplayPreferences showRoomUnreadCount={false} />);
+    render(
+      <ChatDisplayPreferences
+        showRoomUnreadCount={false}
+        tagDirectMessages={false}
+      />,
+    );
 
     expect(switchControl()).not.toBeChecked();
   });
 
   it("writes the one field it owns and nothing else", async () => {
-    render(<ChatDisplayPreferences showRoomUnreadCount={false} />);
+    render(
+      <ChatDisplayPreferences
+        showRoomUnreadCount={false}
+        tagDirectMessages={false}
+      />,
+    );
 
     await userEvent.click(switchControl());
 
@@ -78,7 +90,9 @@ describe("ChatDisplayPreferences", () => {
   });
 
   it("turns the count back off", async () => {
-    render(<ChatDisplayPreferences showRoomUnreadCount />);
+    render(
+      <ChatDisplayPreferences showRoomUnreadCount tagDirectMessages={false} />,
+    );
 
     await userEvent.click(switchControl());
 
@@ -96,7 +110,12 @@ describe("ChatDisplayPreferences", () => {
       data: null,
       error: { message: "nope" },
     });
-    render(<ChatDisplayPreferences showRoomUnreadCount={false} />);
+    render(
+      <ChatDisplayPreferences
+        showRoomUnreadCount={false}
+        tagDirectMessages={false}
+      />,
+    );
 
     await userEvent.click(switchControl());
 
@@ -110,7 +129,9 @@ describe("ChatDisplayPreferences", () => {
 
   it("puts the switch back when the write never reaches the server", async () => {
     updateUser.mockRejectedValue(new Error("offline"));
-    render(<ChatDisplayPreferences showRoomUnreadCount />);
+    render(
+      <ChatDisplayPreferences showRoomUnreadCount tagDirectMessages={false} />,
+    );
 
     await userEvent.click(switchControl());
 
@@ -129,7 +150,12 @@ describe("ChatDisplayPreferences", () => {
         settle = resolve;
       }),
     );
-    render(<ChatDisplayPreferences showRoomUnreadCount={false} />);
+    render(
+      <ChatDisplayPreferences
+        showRoomUnreadCount={false}
+        tagDirectMessages={false}
+      />,
+    );
 
     await userEvent.click(switchControl());
     await userEvent.click(switchControl());

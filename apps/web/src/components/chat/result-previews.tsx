@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   CalendarClock,
+  ClipboardList,
   Download,
   FileText,
   FolderKanban,
@@ -21,13 +22,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  type NumberFormatOptions,
+  useFormatter,
+  useTranslations,
+} from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import {
   SokoBotTargetContext,
@@ -35,15 +41,31 @@ import {
 } from "@/app/personal-assistant/components/soko-bot-target";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
+import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import {
+  approveProjectSocialPost,
+  rejectProjectSocialPost,
+} from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
@@ -63,6 +85,7 @@ const icons = {
   file: FileText,
   decision: MessageSquare,
   project_selection: FolderKanban,
+  cmo_report: ClipboardList,
 };
 
 /**
@@ -84,11 +107,14 @@ export function cardHref(sourceHref: string, botId?: string | null): string {
 export function ResultPreviewCard({
   result,
   onDecisionResolved,
+  onSocialPostResolved,
   source,
 }: {
   source?: ResultPreviewsProps["source"];
   result: ChatResultPreview;
   onDecisionResolved: () => void;
+  /** Re-reads the card after a person approves or rejects its post. */
+  onSocialPostResolved?: () => void;
 }) {
   const sourceLink = useRef<HTMLAnchorElement>(null);
   const botId = useSokoBotTargetId();
@@ -129,8 +155,8 @@ export function ResultPreviewCard({
         }
       : null;
   const social = result.kind === "social_post" ? result.social : null;
-  if (social)
-    return (
+  if (social) {
+    const preview = (
       <SocialPostPreview
         className="w-full min-w-0 max-w-xl"
         provider={social.provider}
@@ -158,6 +184,17 @@ export function ResultPreviewCard({
           }))}
       />
     );
+    if (result.status !== "NEEDS_APPROVAL") return preview;
+    return (
+      <div className="flex w-full min-w-0 max-w-xl flex-col gap-2">
+        {preview}
+        <ChatSocialPostApproval
+          social={social}
+          onResolved={onSocialPostResolved}
+        />
+      </div>
+    );
+  }
   const jobStatus =
     result.kind === "job"
       ? Object.values(SokosumiJobStatus).find(
@@ -166,6 +203,8 @@ export function ResultPreviewCard({
       : undefined;
   const Icon = icons[result.kind];
   const statusKey = `status.${result.status}`;
+  const jobHintKey = `jobHint.${jobStatus}`;
+  const jobHint = jobStatus && t.has(jobHintKey) ? t(jobHintKey) : null;
   function openSource(event: ReactMouseEvent<HTMLElement>) {
     if (event.defaultPrevented || (event.button !== 0 && event.button !== 1))
       return;
@@ -228,7 +267,9 @@ export function ResultPreviewCard({
               />
             )}
             <span className="text-muted-foreground text-xs">
-              {t(`kind.${result.kind}`)}
+              {jobStatus && result.agent
+                ? result.agent.name
+                : t(`kind.${result.kind}`)}
             </span>
           </div>
           {jobStatus ? (
@@ -249,6 +290,9 @@ export function ResultPreviewCard({
             {result.title}
           </h3>
         )}
+        {jobHint ? (
+          <p className="text-muted-foreground text-sm">{jobHint}</p>
+        ) : null}
         {!nativeTask && result.summary && result.summary !== result.title ? (
           <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
             {result.summary}
@@ -263,7 +307,7 @@ export function ResultPreviewCard({
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
             {(
               [
-                ["assignee", nativeTask ? null : result.assignee],
+                ["assignee", nativeTask || jobStatus ? null : result.assignee],
                 ["project", nativeTask ? null : result.project],
                 ["destination", result.destination],
               ] as const
@@ -284,6 +328,14 @@ export function ResultPreviewCard({
                 </div>
               ) : null,
             )}
+            {result.details?.map((detail, index) => (
+              <div key={`${detail.label}-${index}`} className="contents">
+                <dt className="text-muted-foreground">{detail.label}</dt>
+                <dd className="min-w-0 wrap-break-word">
+                  <DetailValue value={detail.value} />
+                </dd>
+              </div>
+            ))}
             {result.scheduledAt ? (
               <div className="contents">
                 <dt className="text-muted-foreground">{t("scheduled")}</dt>
@@ -368,9 +420,8 @@ export function ResultPreviewCard({
                       <FileText aria-hidden className="size-4 shrink-0" />
                       <span className="wrap-break-word">
                         {output.name}
-                        {output.contentType ? ` · ${output.contentType}` : ""}
                         {output.sizeBytes != null
-                          ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
+                          ? ` · ${fileSize(output.sizeBytes, format.number)}`
                           : ""}
                       </span>
                     </Link>
@@ -392,21 +443,84 @@ export function ResultPreviewCard({
           </ul>
         ) : null}
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
-          <span>
-            {t("recorded", {
-              time: format.dateTime(new Date(result.capturedAt), "dateTime"),
-            })}
-          </span>
+          {jobStatus ? null : (
+            <span>
+              {t("recorded", {
+                time: format.dateTime(new Date(result.capturedAt), "dateTime"),
+              })}
+            </span>
+          )}
           <span
             aria-hidden
-            className="text-foreground inline-flex items-center gap-1"
+            className="text-foreground ml-auto inline-flex items-center gap-1"
           >
-            {t("open")}
+            {jobStatus ? t("openJob") : t("open")}
             <ArrowUpRight aria-hidden className="size-3.5" />
           </span>
         </div>
       </div>
     </article>
+  );
+}
+
+const SIZE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+/** A decimal file size in the reader's locale, such as "182 kB". */
+export function fileSize(
+  bytes: number,
+  formatNumber: (value: number, options: NumberFormatOptions) => string,
+): string {
+  const step = Math.min(
+    SIZE_UNITS.length - 1,
+    bytes >= 1000 ? Math.floor(Math.log10(bytes) / 3) : 0,
+  );
+  return formatNumber(bytes / 1000 ** step, {
+    style: "unit",
+    unit: SIZE_UNITS[step],
+    unitDisplay: "short",
+    maximumFractionDigits: step > 1 ? 1 : 0,
+  });
+}
+
+/** An http(s) value opens in a new tab; anything else stays text. */
+function DetailValue({ value }: { value: string }) {
+  let url: URL | null = null;
+  try {
+    url = /^https?:\/\//i.test(value) ? new URL(value) : null;
+  } catch {
+    url = null;
+  }
+  if (!url) return value;
+  return (
+    <a
+      href={url.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-foreground focus-visible:ring-ring rounded-sm underline underline-offset-2 outline-none focus-visible:ring-2"
+    >
+      {`${url.host}${url.pathname === "/" ? "" : url.pathname}`}
+    </a>
+  );
+}
+
+/** How often a card asks again while an image or video is still being made. */
+const PENDING_STUDIO_POLL_MS = 4_000;
+
+/**
+ * A Studio card is recorded when the bot starts the generation, so it says
+ * "Queued". Until it is done, the card keeps asking; Core reads the job's
+ * live state each time and adds the image once it exists.
+ */
+export function hasPendingStudioJob(
+  results: readonly ChatResultPreview[] | undefined,
+): boolean {
+  return (
+    results?.some(
+      (result) =>
+        result.state === "available" &&
+        result.kind === "studio_job" &&
+        (result.status === "QUEUED" || result.status === "RUNNING"),
+    ) ?? false
   );
 }
 
@@ -475,6 +589,8 @@ function AuthorizedResultPreviews({
     gcTime: 0,
     retry: false,
     refetchOnMount: "always",
+    refetchInterval: (current) =>
+      hasPendingStudioJob(current.state.data) ? PENDING_STUDIO_POLL_MS : false,
   });
   if (query.isError)
     return (
@@ -495,7 +611,8 @@ function AuthorizedResultPreviews({
         {renderFooter?.([])}
       </>
     );
-  if (!session?.user.id || query.isFetching || !query.data)
+  // A refetch keeps the cards on screen; only the first load shows "Loading".
+  if (!session?.user.id || !query.data)
     return (
       <>
         <p role="status" className="text-muted-foreground text-xs">
@@ -530,11 +647,118 @@ function AuthorizedResultPreviews({
                 void query.refetch();
                 onDecisionResolved?.();
               }}
+              onSocialPostResolved={() => void query.refetch()}
             />
           ))}
       </div>
       {renderFooter?.(results)}
     </>
+  );
+}
+
+/** A person approves the post here, as in Project Social. Agents never can. */
+function ChatSocialPostApproval({
+  social,
+  onResolved,
+}: {
+  social: NonNullable<
+    Extract<ChatResultPreview, { state: "available" }>["social"]
+  >;
+  onResolved?: () => void;
+}) {
+  const t = useTranslations("Components.ChatResults.socialApproval");
+  const [pending, setPending] = useState<"approve" | "reject" | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const { projectId, postId, revision, canApprove, canReject } = social;
+  const canAct = projectId && postId && revision != null;
+  async function handleDecision(decision: "approve" | "reject") {
+    if (
+      !canAct ||
+      pending ||
+      !(decision === "approve" ? canApprove : canReject)
+    )
+      return;
+    setPending(decision);
+    const failedKey = decision === "approve" ? "failed" : "rejectFailed";
+    try {
+      const action =
+        decision === "approve"
+          ? approveProjectSocialPost
+          : rejectProjectSocialPost;
+      const result = await action({ projectId, postId, revision });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t(failedKey));
+        return;
+      }
+      toast.success(t(decision === "approve" ? "approved" : "rejected"));
+      setRejectOpen(false);
+      onResolved?.();
+    } catch {
+      toast.error(t(failedKey));
+    } finally {
+      setPending(null);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <SocialPostStatusBadge label={t("label")} status="NEEDS_APPROVAL" />
+      {canApprove && canAct ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="primary"
+          loading={pending === "approve"}
+          disabled={pending !== null}
+          onClick={() => void handleDecision("approve")}
+        >
+          {t("approve")}
+        </Button>
+      ) : null}
+      {canReject && canAct ? (
+        <AlertDialog
+          open={rejectOpen}
+          onOpenChange={(open) => {
+            if (!pending) setRejectOpen(open);
+          }}
+        >
+          <AlertDialogTrigger asChild disabled={pending !== null}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              disabled={pending !== null}
+            >
+              {t("reject")}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("rejectTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("rejectDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={pending !== null}>
+                {t("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                loading={pending === "reject"}
+                disabled={pending !== null}
+                className="text-destructive"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleDecision("reject");
+                }}
+              >
+                {t("reject")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+    </div>
   );
 }
 

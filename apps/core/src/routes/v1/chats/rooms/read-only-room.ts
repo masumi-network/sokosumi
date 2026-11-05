@@ -5,8 +5,7 @@ export const DIRECT_PARTICIPANT_KEY_PREFIX = "direct:v2:";
 /**
  * Humans a Direct was started for, read from its participant key. Empty for
  * Self Directs and AI 1:1s, whose one human owns the room and is never left
- * out of it while it exists. SQL `chat_direct_key_user_ids` mirrors this for
- * the Organization rejoin trigger; change both together.
+ * out of it while it exists.
  */
 function directKeyUserIds(directKey: string): string[] {
   if (directKey.startsWith(DIRECT_PARTICIPANT_KEY_PREFIX)) {
@@ -24,8 +23,9 @@ function directKeyUserIds(directKey: string): string[] {
 
 /**
  * Former members of a Direct: the humans it was started for who are no longer
- * in it. Organization exit takes a member out of an Org Direct but keeps its
- * participant key, so the key still says who the Direct was with.
+ * in it. Before Org Directs were retired (ADR-0059), Organization exit took
+ * members out of human Directs but kept the participant key, so the key still
+ * says who the Direct was with.
  */
 export function formerDirectUserIds(room: {
   kind: string;

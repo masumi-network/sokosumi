@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/ai-provider`
 **Purpose**: Vercel AI SDK `LanguageModelV4` provider for Sokosumi chat (`createSokosumi`). Talks to OpenRouter Responses API or a coworker agent HTTP surface.
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/ai-provider/` within the pnpm workspace
 
 ## Layout
@@ -50,12 +50,12 @@ Web does not depend on this package.
 
 ## Package-Specific Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm --filter @sokosumi/ai-provider build` | Compile `src/` to `dist/` |
-| `pnpm --filter @sokosumi/ai-provider test` | Run Vitest |
-| `pnpm --filter @sokosumi/ai-provider typecheck` | Typecheck |
-| `pnpm --filter @sokosumi/ai-provider lint` | Lint |
+| Command                                         | Purpose                   |
+| ----------------------------------------------- | ------------------------- |
+| `pnpm --filter @sokosumi/ai-provider build`     | Compile `src/` to `dist/` |
+| `pnpm --filter @sokosumi/ai-provider test`      | Run Vitest                |
+| `pnpm --filter @sokosumi/ai-provider typecheck` | Typecheck                 |
+| `pnpm --filter @sokosumi/ai-provider lint`      | Lint                      |
 
 ## Testing
 

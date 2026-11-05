@@ -1,15 +1,21 @@
 "use client";
 
-import { MousePointer2 } from "lucide-react";
+import { LayoutTemplate, MousePointer2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Carousel,
   type CarouselApi,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   collectStudioCarouselSlides,
@@ -28,6 +34,10 @@ type TemplatePickerProps = {
   onApplyTemplate: (template: StudioTemplate) => void;
 };
 
+interface StudioTemplateCarouselProps extends TemplatePickerProps {
+  projectAction?: React.ReactNode;
+}
+
 function TemplateButton({
   template,
   label,
@@ -44,11 +54,11 @@ function TemplateButton({
   return (
     <button
       className={cn(
-        "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
+        "bg-background hover:bg-accent focus-visible:ring-ring flex cursor-pointer gap-2 rounded-xl text-left transition-[background-color] outline-none focus-visible:ring-2",
         STUDIO_SELECT_NONE_CLASS,
         STUDIO_TOUCH_CALLOUT_NONE_CLASS,
         large
-          ? "border-border data-[studio-snap-target]:border-primary flex-col overflow-hidden border p-2"
+          ? "border-border data-[studio-snap-target]:border-foreground flex-col overflow-hidden border p-2"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
         large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}
@@ -94,26 +104,59 @@ function TemplateButton({
   );
 }
 
-/** The same starting briefs, beside the composer once there are results. */
-export function StudioTemplateStrip({
+/**
+ * The same starting briefs, one toolbar button away once there are results.
+ *
+ * A popover rather than a row above the composer: the row needed a horizontal
+ * scrollbar, and it sat between the gallery and the prompt on every visit.
+ * Picking one closes the menu and leaves the caret in the prompt.
+ */
+export function StudioTemplateMenu({
   labels,
   onApplyTemplate,
-}: TemplatePickerProps) {
+  triggerClassName,
+}: TemplatePickerProps & { triggerClassName?: string }) {
+  const [open, setOpen] = useState(false);
+  const pickedRef = useRef(false);
   return (
-    <div
-      aria-label={labels.templates}
-      className="app-scrollbar flex gap-2 overflow-x-auto p-1"
-      role="group"
-    >
-      {STUDIO_TEMPLATES.map((template) => (
-        <TemplateButton
-          key={template.id}
-          label={labels.templateLabels[template.id]}
-          onApplyTemplate={onApplyTemplate}
-          template={template}
-        />
-      ))}
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          className={triggerClassName}
+          size="sm"
+          variant="ghost"
+        >
+          <LayoutTemplate aria-hidden />
+          <span className="max-sm:sr-only">{labels.templates}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        aria-label={labels.templates}
+        className="app-scrollbar max-h-[min(28rem,var(--radix-popover-content-available-height))] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain p-2"
+        onCloseAutoFocus={(event) => {
+          if (!pickedRef.current) return;
+          pickedRef.current = false;
+          event.preventDefault();
+        }}
+      >
+        <div className="grid grid-cols-2 gap-1" role="group">
+          {STUDIO_TEMPLATES.map((template) => (
+            <TemplateButton
+              key={template.id}
+              label={labels.templateLabels[template.id]}
+              onApplyTemplate={(picked) => {
+                pickedRef.current = true;
+                setOpen(false);
+                onApplyTemplate(picked);
+              }}
+              template={template}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -121,7 +164,8 @@ export function StudioTemplateStrip({
 export function StudioTemplateCarousel({
   labels,
   onApplyTemplate,
-}: TemplatePickerProps) {
+  projectAction,
+}: StudioTemplateCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const reduceMotion = useReducedMotion();
   const apiRef = useRef(api);
@@ -247,6 +291,9 @@ export function StudioTemplateCarousel({
           <MousePointer2 aria-hidden className="size-4 shrink-0" />
           <span>{labels.emptyBody}</span>
         </p>
+        {projectAction ? (
+          <div className="flex justify-center">{projectAction}</div>
+        ) : null}
       </div>
       <Carousel
         aria-label={labels.templates}
@@ -271,7 +318,7 @@ export function StudioTemplateCarousel({
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 hidden bg-overlay-primary group-data-[studio-dragging]:block"
+          className="pointer-events-none absolute inset-0 z-20 hidden border-2 border-dashed border-foreground bg-overlay-primary group-data-[studio-dragging]:block"
         />
         <CarouselContent
           className={reduceMotion ? "py-1" : "items-center py-10"}

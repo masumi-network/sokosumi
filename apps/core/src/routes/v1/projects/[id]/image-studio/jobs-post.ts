@@ -6,7 +6,6 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { readImageJobFailureReason } from "@/lib/image-studio/failure-reason";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -15,6 +14,7 @@ import {
   imageStudioJobSchema,
   imageStudioProjectParamsSchema,
 } from "@/schemas/project-image-studio.schema";
+import { toJobView } from "@/services/image-studio-assets.service";
 import {
   createImageJob,
   DEFAULT_SETTINGS,
@@ -82,30 +82,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
 
       return created(
         c,
-        imageStudioJobSchema.parse({
-          id: job.id,
-          projectId: job.projectId,
-          status: job.status,
-          kind: job.kind,
-          model: job.model,
-          prompt: job.prompt,
-          settings: job.settings,
-          referenceAssetIds: job.referenceAssetIds,
-          error: job.error,
-          failureReason: readImageJobFailureReason(job.failureReason),
-          parentAssetId: job.parentAssetId,
-          assetId: null,
-          createdAt: job.createdAt,
-          submittedAt: job.submittedAt,
-          settledAt: job.settledAt,
-          cancelRequestedAt: job.cancelRequestedAt,
-          retryMayDuplicateCharge: job.status === "SUBMISSION_UNCERTAIN",
-          // A job this fresh has never been delivered, so it has cost nothing yet.
-          // `chargedCents` on the row is the quote, and the composer already knows
-          // that figure — it is the one it showed.
-          credits: null,
-          refunded: false,
-        }),
+        imageStudioJobSchema.parse(toJobView({ ...job, asset: null })),
       );
     },
     imageStudioValidationHook,

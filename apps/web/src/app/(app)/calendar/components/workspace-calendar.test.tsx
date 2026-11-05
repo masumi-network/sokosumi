@@ -53,6 +53,7 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US" });
   return {
     useFormatter: () => formatter,
+    useLocale: () => "en",
     useTranslations: () => (key: string, values?: Record<string, string>) =>
       key === "event.accessibleName"
         ? `${values?.task}, ${values?.source}`
@@ -154,6 +155,7 @@ describe("WorkspaceCalendar", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
   it("clears Calendar details and pagination immediately when access is revoked", () => {
     // The next page never answers, so the drain stays in flight for the test.
@@ -452,29 +454,11 @@ describe("WorkspaceCalendar", () => {
     };
     expect(props.sections.map((section) => section.id)).toEqual([
       "scope",
-      "source",
       "coworker",
       "human",
       "status",
       "timezone",
     ]);
-    expect(
-      props.sections.find((section) => section.id === "source")?.options,
-    ).toEqual([
-      {
-        avatarLabel: "Ada's workspace",
-        image: null,
-        label: "Ada's workspace",
-        value: "workspace:workspace-1",
-      },
-      {
-        avatarLabel: "Release planning",
-        image: "https://example.com/release-planning.png",
-        label: "Release planning",
-        value: "project:project-1",
-      },
-    ]);
-
     props.sections.find((section) => section.id === "scope")?.onChange("owned");
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
 
@@ -607,110 +591,23 @@ describe("WorkspaceCalendar", () => {
     expect(updates).toContain("timezone=UTC&status=READY");
   });
 
-  it.each(["workspace:workspace-1"])(
-    "stores the selected non-Project source %s in the Calendar URL",
-    async (sourceId) => {
-      const onUrlUpdate = vi.fn();
-      render(
-        <NuqsTestingAdapter
-          onUrlUpdate={onUrlUpdate}
-          searchParams="?timezone=UTC&projectId=project-1"
-        >
-          <WorkspaceCalendar
-            initialDate="2026-08-18"
-            items={[...ITEMS, WORKSPACE_ITEM]}
-            sources={SOURCES}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
-        sections: Array<{
-          id: string;
-          onChange: (value: string | null) => void;
-        }>;
-      };
-      const sourceSection = props.sections.find(
-        (section) => section.id === "source",
-      );
-      expect(sourceSection).toBeDefined();
-
-      sourceSection?.onChange(sourceId);
-
-      await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
-      expect(
-        onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("sourceId"),
-      ).toBe(sourceId);
-      expect(
-        onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("projectId"),
-      ).toBeNull();
-    },
-  );
-
-  it("stores Project source selections in the Calendar URL", async () => {
-    const onUrlUpdate = vi.fn();
+  it("follows the Project in the URL and offers no project filter of its own", () => {
     render(
-      <NuqsTestingAdapter
-        onUrlUpdate={onUrlUpdate}
-        searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1"
-      >
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week&projectId=project-1">
         <WorkspaceCalendar
           initialDate="2026-08-18"
-          items={ITEMS}
+          items={[...ITEMS, WORKSPACE_ITEM]}
           sources={SOURCES}
         />
       </NuqsTestingAdapter>,
     );
 
+    expect(screen.getByText("Prepare release notes")).toBeInTheDocument();
+    expect(screen.queryByText("Review workspace plan")).not.toBeInTheDocument();
     const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
-      sections: Array<{
-        id: string;
-        onChange: (value: string | null) => void;
-      }>;
+      sections: Array<{ id: string }>;
     };
-    props.sections
-      .find((section) => section.id === "source")
-      ?.onChange("project:project-1");
-
-    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
-    expect(
-      onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("projectId"),
-    ).toBe("project-1");
-    expect(
-      onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("sourceId"),
-    ).toBeNull();
-  });
-
-  it("clears both Calendar source query filters when selecting all sources", async () => {
-    const onUrlUpdate = vi.fn();
-    render(
-      <NuqsTestingAdapter
-        onUrlUpdate={onUrlUpdate}
-        searchParams="?timezone=UTC&projectId=project-1&sourceId=workspace%3Aworkspace-1"
-      >
-        <WorkspaceCalendar
-          initialDate="2026-08-18"
-          items={ITEMS}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
-      sections: Array<{
-        id: string;
-        onChange: (value: string | null) => void;
-      }>;
-    };
-    props.sections.find((section) => section.id === "source")?.onChange(null);
-
-    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
-    expect(
-      onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("projectId"),
-    ).toBeNull();
-    expect(
-      onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("sourceId"),
-    ).toBeNull();
+    expect(props.sections.map((section) => section.id)).not.toContain("source");
   });
 
   it("persists view and date in the URL", async () => {
@@ -726,7 +623,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(screen.getByRole("tab", { name: "view.week" }));
+    await user.click(screen.getByRole("radio", { name: "view.week" }));
     await user.click(screen.getByRole("button", { name: "next" }));
 
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
@@ -824,6 +721,35 @@ describe("WorkspaceCalendar", () => {
       ),
     );
   });
+
+  // The formatter renders in UTC, as the server does before the browser's
+  // time zone cookie exists; the runtime zone must not shift the labels.
+  it.each([
+    "UTC",
+    "Europe/Berlin",
+    "America/Los_Angeles",
+    "Pacific/Kiritimati",
+  ])(
+    "labels the week and month by calendar day when the runtime zone is %s",
+    (runtimeZone) => {
+      vi.stubEnv("TZ", runtimeZone);
+
+      const { unmount } = render(
+        <NuqsTestingAdapter searchParams="?view=week&date=2027-02-18&timezone=UTC">
+          <WorkspaceCalendar initialDate="2027-02-18" items={[]} />
+        </NuqsTestingAdapter>,
+      );
+      expect(screen.getByText("Feb 14 - Feb 20, 2027")).toBeInTheDocument();
+      unmount();
+
+      render(
+        <NuqsTestingAdapter searchParams="?view=month&date=2027-03-01&timezone=UTC">
+          <WorkspaceCalendar initialDate="2027-03-01" items={[]} />
+        </NuqsTestingAdapter>,
+      );
+      expect(screen.getByText("March 2027")).toBeInTheDocument();
+    },
+  );
 
   it("leaves URL dates unbounded when no latest date is supplied", () => {
     render(
@@ -1171,9 +1097,8 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it.each([false, true])(
-    "loads the next calendar page with Social opt-in %s",
-    async (includeSocialPosts) => {
+  it("loads the next calendar page for the selected features, in the calendar's zone", async () => {
+    {
       getWorkspaceCalendarMock.mockResolvedValue({
         data: [
           {
@@ -1193,9 +1118,8 @@ describe("WorkspaceCalendar", () => {
       });
 
       render(
-        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=workspace%3Aworkspace-1">
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC&types=contacts,marketing">
           <WorkspaceCalendar
-            includeSocialPosts={includeSocialPosts}
             items={ITEMS}
             initialDate="2026-08-18"
             {...CALENDAR_PAGE}
@@ -1209,17 +1133,17 @@ describe("WorkspaceCalendar", () => {
       expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
         from: new Date("2026-08-01T00:00:00.000Z"),
         to: new Date("2026-09-01T00:00:00.000Z"),
-        includeSocialPosts: includeSocialPosts ? "true" : undefined,
+        types: "contacts,marketing",
+        timeZone: "UTC",
         agendaOnly: undefined,
         cursor: "cursor-2",
         limit: 100,
         scope: "workspace",
         assigneeId: undefined,
         status: undefined,
-        sourceId: "workspace:workspace-1",
       });
-    },
-  );
+    }
+  });
 
   it.each(["onAccessRevoked", "onResync", "onInvalidated"] as const)(
     "rejects pending pages after %s",
@@ -1309,21 +1233,20 @@ describe("WorkspaceCalendar", () => {
     expect(screen.queryByText(/Removed task/)).not.toBeInTheDocument();
   });
 
-  it.each([false, true])(
-    "loads the next Project Calendar page with Social opt-in %s",
-    async (includeSocialPosts) => {
+  it("loads the next Project Calendar page for the selected features", async () => {
+    {
       getProjectCalendarMock.mockResolvedValue({
         data: [],
         meta: { pagination: { nextCursor: null } },
       });
 
       render(
-        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
+        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&timezone=UTC&projectId=project-2">
           <WorkspaceCalendar
-            includeSocialPosts={includeSocialPosts}
             initialDate="2026-08-18"
             items={ITEMS}
             lockedProjectId="project-1"
+            newsletterEnabled
             {...CALENDAR_PAGE}
           />
         </NuqsTestingAdapter>,
@@ -1333,17 +1256,20 @@ describe("WorkspaceCalendar", () => {
         expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
           from: new Date("2026-08-01T00:00:00.000Z"),
           to: new Date("2026-09-01T00:00:00.000Z"),
-          includeSocialPosts: includeSocialPosts ? "true" : undefined,
+          // Project drops Follow-ups; owned drops Marketing.
+          types: "tasks,social,newsletter",
+          timeZone: "UTC",
           agendaOnly: undefined,
           cursor: "cursor-2",
           limit: 100,
           scope: "owned",
           assigneeId: "coworker-1",
+          assigneeUserId: undefined,
           status: "QUEUED",
         }),
       );
-    },
-  );
+    }
+  });
 
   it("shows an empty state after filters exclude all calendar items", () => {
     render(

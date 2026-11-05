@@ -118,6 +118,37 @@ describe("publishInstagramPost", () => {
     ]);
   });
 
+  it("publishes two or more images as one carousel", async () => {
+    const fetchMock = stubSession((call) =>
+      call.tool_slug === "INSTAGRAM_CREATE_CAROUSEL_CONTAINER"
+        ? toolResponse({ id: "carousel_1" })
+        : toolResponse({ id: "media_79" }),
+    );
+    const second = { ...IMAGE_REF, fileUrl: `${IMAGE_REF.fileUrl}?2` };
+
+    await expect(
+      publishInstagramPost({ ...context, media: [IMAGE_REF, second] }),
+    ).resolves.toMatchObject({ externalId: "media_79" });
+    expect(executeCalls(fetchMock)).toEqual([
+      {
+        tool_slug: "INSTAGRAM_CREATE_CAROUSEL_CONTAINER",
+        arguments: {
+          ig_user_id: "17841400000000000",
+          caption: "Hello Instagram",
+          child_image_urls: [IMAGE_REF.fileUrl, second.fileUrl],
+        },
+      },
+      {
+        tool_slug: "INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH",
+        arguments: {
+          ig_user_id: "17841400000000000",
+          creation_id: "carousel_1",
+          max_wait_seconds: 180,
+        },
+      },
+    ]);
+  });
+
   it("uses the video URL for a Reel container", async () => {
     const fetchMock = stubSession((call) =>
       call.tool_slug === "INSTAGRAM_POST_IG_USER_MEDIA"

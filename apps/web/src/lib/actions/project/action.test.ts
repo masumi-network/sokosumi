@@ -17,9 +17,14 @@ vi.mock("@/middleware/auth-middleware", () => ({
 const projectServiceMock = {
   cancelProjectCloseOwedWork: vi.fn(),
   closeProject: vi.fn(),
+  approveSocialPost: vi.fn(),
+  rejectSocialPost: vi.fn(),
+  resumeSocialPostThread: vi.fn(),
   cancelSocialPost: vi.fn(),
   createProject: vi.fn(),
   createSocialPost: vi.fn(),
+  queueSocialPost: vi.fn(),
+  replaceSocialQueueSlots: vi.fn(),
   duplicateSocialPost: vi.fn(),
   recycleSocialAccountPost: vi.fn(),
   disconnectSocialConnection: vi.fn(),
@@ -236,6 +241,55 @@ describe("project actions", () => {
     });
   });
 
+  it("saves posting instructions and clears blank ones", async () => {
+    const { updateProjectPostingInstructions } = await import("./action");
+    projectServiceMock.patchProject.mockResolvedValueOnce({
+      ...buildProject(),
+      postingInstructionsMd: "Tone: warm",
+    });
+
+    const saved = await updateProjectPostingInstructions({
+      projectId: "project-1",
+      postingInstructionsMd: "  Tone: warm\n",
+    });
+
+    expect(saved).toEqual({
+      ok: true,
+      value: { postingInstructionsMd: "Tone: warm" },
+    });
+    expect(projectServiceMock.patchProject).toHaveBeenLastCalledWith(
+      "project-1",
+      { postingInstructionsMd: "Tone: warm" },
+    );
+
+    projectServiceMock.patchProject.mockResolvedValueOnce({
+      ...buildProject(),
+      postingInstructionsMd: null,
+    });
+    await updateProjectPostingInstructions({
+      projectId: "project-1",
+      postingInstructionsMd: "   ",
+    });
+    expect(projectServiceMock.patchProject).toHaveBeenLastCalledWith(
+      "project-1",
+      { postingInstructionsMd: null },
+    );
+  });
+
+  it("returns a Core error when saving posting instructions fails", async () => {
+    const { updateProjectPostingInstructions } = await import("./action");
+    projectServiceMock.patchProject.mockRejectedValueOnce(
+      new CoreApiRequestError("forbidden", { status: 403 }),
+    );
+
+    const result = await updateProjectPostingInstructions({
+      projectId: "project-1",
+      postingInstructionsMd: "Tone: warm",
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
   it("rejects a non-uuid projectId for site-icon resolution", async () => {
     const { resolveProjectSiteIcon } = await import("./action");
     const result = await resolveProjectSiteIcon({
@@ -335,7 +389,6 @@ describe("project actions", () => {
     for (const path of [
       "/projects",
       "/projects/project-1",
-      "/projects/project-1/calendar",
       "/calendar",
       "/tasks",
     ]) {
@@ -873,6 +926,223 @@ describe("project actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/social");
     });
 
+    it("preserves, removes and validates quote references through create and edit actions", async () => {
+      const { createProjectSocialPost, updateProjectSocialPost } = await import(
+        "./action"
+      );
+      const quotedPostId = "77777777-7777-4777-8777-777777777777";
+      projectServiceMock.createSocialPost.mockResolvedValue({
+        ...post,
+        quotedPostId,
+      });
+      projectServiceMock.updateSocialPost.mockResolvedValue({
+        ...post,
+        quotedPostId: null,
+      });
+      expect(
+        await createProjectSocialPost({
+          projectId: "project-1",
+          text: "Quote",
+          quotedPostId,
+        }),
+      ).toMatchObject({ ok: true, value: { quotedPostId } });
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        { text: "Quote", quotedPostId },
+      );
+      expect(
+        await updateProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          quotedPostId: null,
+          revision: 0,
+        }),
+      ).toMatchObject({ ok: true, value: { quotedPostId: null } });
+      expect(projectServiceMock.updateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { quotedPostId: null, revision: 0 },
+      );
+      projectServiceMock.createSocialPost.mockClear();
+      expect(
+        await createProjectSocialPost({
+          projectId: "project-1",
+          text: "Quote",
+          quotedPostId: "not-a-uuid",
+        }),
+      ).toMatchObject({ ok: false });
+      expect(projectServiceMock.createSocialPost).not.toHaveBeenCalled();
+    });
+
+    it("keeps thread text and attachments through draft create, edit and duplicate actions", async () => {
+      const {
+        createProjectSocialPost,
+        updateProjectSocialPost,
+        duplicateProjectSocialPost,
+      } = await import("./action");
+      const threadParts = [
+        { text: "Second", media: [] },
+        { text: "Third", media: [] },
+      ];
+      const thread = {
+        ...post,
+        threadParts,
+        status: "NEEDS_APPROVAL",
+        canApprove: true,
+      };
+      projectServiceMock.createSocialPost.mockResolvedValue(thread);
+      projectServiceMock.updateSocialPost.mockResolvedValue(thread);
+      projectServiceMock.duplicateSocialPost.mockResolvedValue(thread);
+      expect(
+        await createProjectSocialPost({
+          projectId: "project-1",
+          text: "First",
+          threadParts,
+        }),
+      ).toEqual({ ok: true, value: thread });
+      expect(projectServiceMock.createSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        { text: "First", threadParts },
+      );
+      expect(
+        await updateProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          threadParts,
+          revision: 0,
+        }),
+      ).toEqual({ ok: true, value: thread });
+      expect(projectServiceMock.updateSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { threadParts, revision: 0 },
+      );
+      expect(
+        await duplicateProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+        }),
+      ).toEqual({ ok: true, value: thread });
+      await updateProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        threadParts: [],
+        revision: 0,
+      });
+      expect(projectServiceMock.updateSocialPost).toHaveBeenLastCalledWith(
+        "project-1",
+        "post-1",
+        { threadParts: [], revision: 0 },
+      );
+    });
+
+    it("resumes only with explicit confirmation and returns Core conflicts", async () => {
+      const { resumeProjectSocialPostThread } = await import("./action");
+      projectServiceMock.resumeSocialPostThread.mockResolvedValue(post);
+      expect(
+        await resumeProjectSocialPostThread({
+          projectId: "project-1",
+          postId: "post-1",
+          revision: 2,
+          confirmedNotPosted: true,
+        }),
+      ).toEqual({ ok: true, value: post });
+      expect(projectServiceMock.resumeSocialPostThread).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 2, confirmedNotPosted: true },
+      );
+      projectServiceMock.resumeSocialPostThread.mockRejectedValue(
+        new Error("Post changed"),
+      );
+      expect(
+        await resumeProjectSocialPostThread({
+          projectId: "project-1",
+          postId: "post-1",
+          revision: 2,
+          confirmedNotPosted: true,
+        }),
+      ).toMatchObject({ ok: false });
+      projectServiceMock.resumeSocialPostThread.mockClear();
+      expect(
+        await resumeProjectSocialPostThread({
+          projectId: "",
+          postId: "post-1",
+          revision: 2,
+          confirmedNotPosted: true,
+        }),
+      ).toMatchObject({ ok: false });
+      expect(projectServiceMock.resumeSocialPostThread).not.toHaveBeenCalled();
+    });
+
+    it("approves a thread through the existing Core approval endpoint", async () => {
+      const { approveProjectSocialPost } = await import("./action");
+      projectServiceMock.approveSocialPost.mockResolvedValue(post);
+      expect(
+        await approveProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          revision: 2,
+        }),
+      ).toEqual({ ok: true, value: post });
+      expect(projectServiceMock.approveSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 2 },
+      );
+      projectServiceMock.approveSocialPost.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await approveProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          revision: 2,
+        }),
+      ).toMatchObject({ ok: false });
+    });
+
+    it("rejects a pending post through Core and revalidates Social", async () => {
+      const { rejectProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const rejected = { ...post, status: "CANCELED" };
+      projectServiceMock.rejectSocialPost.mockResolvedValue(rejected);
+      expect(
+        await rejectProjectSocialPost({
+          projectId: " project-1 ",
+          postId: " post-1 ",
+          revision: 2,
+        }),
+      ).toEqual({ ok: true, value: rejected });
+      expect(projectServiceMock.rejectSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 2 },
+      );
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
+      expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      projectServiceMock.rejectSocialPost.mockRejectedValue(
+        new Error("Denied"),
+      );
+      expect(
+        await rejectProjectSocialPost({
+          projectId: "project-1",
+          postId: "post-1",
+          revision: 2,
+        }),
+      ).toMatchObject({ ok: false });
+      projectServiceMock.rejectSocialPost.mockClear();
+      expect(
+        await rejectProjectSocialPost({
+          projectId: "",
+          postId: "post-1",
+          revision: -1,
+        }),
+      ).toMatchObject({ ok: false });
+      expect(projectServiceMock.rejectSocialPost).not.toHaveBeenCalled();
+    });
+
     it("duplicates a post into a draft and revalidates", async () => {
       projectServiceMock.duplicateSocialPost.mockResolvedValue({
         ...post,
@@ -1038,6 +1308,67 @@ describe("project actions", () => {
         },
       });
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("queues an existing draft", async () => {
+      projectServiceMock.createSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+      });
+      projectServiceMock.queueSocialPost.mockResolvedValue({
+        ...post,
+        status: "SCHEDULED",
+        revision: 1,
+      });
+
+      const { queueProjectSocialPost } = await import("./action");
+
+      const queued = await queueProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 0,
+      });
+      expect(projectServiceMock.queueSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 0 },
+      );
+      expect(queued).toMatchObject({ ok: true, value: { revision: 1 } });
+    });
+
+    it("replaces posting-queue slots", async () => {
+      projectServiceMock.replaceSocialQueueSlots.mockResolvedValue({
+        timezone: "UTC",
+        slots: [
+          {
+            id: "slot-1",
+            name: "Tuesday morning",
+            weekday: 2,
+            minutesFromMidnight: 660,
+            timezone: "UTC",
+          },
+        ],
+      });
+
+      const { replaceProjectSocialQueueSlots } = await import("./action");
+      const result = await replaceProjectSocialQueueSlots({
+        projectId: "project-1",
+        timezone: "UTC",
+        slots: [
+          { name: "Tuesday morning", weekday: 2, minutesFromMidnight: 660 },
+        ],
+      });
+
+      expect(projectServiceMock.replaceSocialQueueSlots).toHaveBeenCalledWith(
+        "project-1",
+        {
+          timezone: "UTC",
+          slots: [
+            { name: "Tuesday morning", weekday: 2, minutesFromMidnight: 660 },
+          ],
+        },
+      );
+      expect(result).toMatchObject({ ok: true });
     });
 
     it("publishes a post now through the service and revalidates", async () => {

@@ -1,6 +1,6 @@
 ---
 name: better-accessibility
-description: Reviews and fixes keyboard and focus behavior, ARIA, accessible names, forms, screen-reader announcements, motion and zoom in your project against WCAG 2.2.
+description: Reviews and fixes keyboard and focus behavior, ARIA, accessible names, forms, screen-reader announcements, motion and zoom against WCAG 2.2.
 ---
 
 # Accessibility
@@ -29,7 +29,7 @@ Style `:focus-visible`, not bare `:focus`. Keyboard users get a ring and mouse u
 
 A custom ring needs a project focus token or another explicit color. It must reach 3:1 against every adjacent color it crosses, `currentColor` included, under 1.4.11. A `2px` solid perimeter with a 3:1 change of contrast is the 2.4.13 AAA target. Never use `outline: none` without a verified replacement, and preserve system colors in forced-colors mode.
 
-A focused element must never sit fully hidden behind a sticky header, footer or banner (2.4.11). Give the scroller `scroll-padding-top` equal to the sticky header's height. Recipes are in [focus-and-keyboard.md](focus-and-keyboard.md).
+A focused element must never sit fully hidden behind a sticky header, footer or banner (2.4.11). Pad the scroller by the sticky chrome's height, a fix `better-layout` owns. Recipes are in [focus-and-keyboard.md](focus-and-keyboard.md).
 
 ## Full keyboard support
 
@@ -65,23 +65,23 @@ Validate on submit, never by disabling submit until the form is valid. Mark fail
 
 Icon-only buttons need a descriptive `aria-label`. Visible label text must appear in the accessible name. Decorative elements get `aria-hidden="true"`, never on a focusable element.
 
-## Don't rely on color alone
+## Pair color with a second cue
 
 Status needs a redundant cue: an icon, text or an underline alongside the color (1.4.1).
 
 This skill decides which contrast requirement applies:
 
-| Criterion | Applies to | Minimum |
-| --- | --- | --- |
-| 1.4.3 AA | Text | 4.5:1 |
-| 1.4.3 AA | Large text, at least `24px` or `18.67px` bold | 3:1 |
-| 1.4.11 AA | UI component boundaries, states and meaningful graphics | 3:1 |
+| Criterion | Applies to                                              | Minimum |
+| --------- | ------------------------------------------------------- | ------- |
+| 1.4.3 AA  | Text                                                    | 4.5:1   |
+| 1.4.3 AA  | Large text, at least `24px` or `18.67px` bold           | 3:1     |
+| 1.4.11 AA | UI component boundaries, states and meaningful graphics | 3:1     |
 
 Inactive controls and logos are exempt. Use `better-colors` to measure the rendered pair. When it fails, report the pair and the criterion it misses, and leave the colors alone unless asked.
 
 ## Honor prefers-reduced-motion
 
-Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in. Under reduced motion, replace slides and scales with opacity crossfades, and kill parallax and autoplay entirely. See [motion-and-zoom.md](motion-and-zoom.md).
+Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in. Under reduced motion, replace slides and scales with opacity cross-fades, and kill parallax and autoplay entirely. See [motion-and-zoom.md](motion-and-zoom.md).
 
 ## Nothing the user needs runs on a timer
 
@@ -99,7 +99,7 @@ Decorative images get `alt=""`. Informative images describe the meaning. Functio
 
 ## Structure is navigation
 
-Use headings that describe their sections and form a coherent outline. Expose one visible primary `<main>` landmark. When repeated navigation or chrome precedes it, make a "Skip to content" link the first focusable element. Anchored headings get `scroll-margin-top`.
+Use headings that describe their sections and form a coherent outline. Expose one visible primary `<main>` landmark. When repeated navigation or chrome precedes it, make a "Skip to content" link the first focusable element. Anchored headings get `scroll-margin-block-start`.
 
 ## Survive zoom and text resize
 
@@ -107,22 +107,21 @@ Text must survive 200% resize (1.4.4), and the page must reflow at 320px width w
 
 ## Before you finish
 
-| Pattern | Fix |
-| --- | --- |
-| `outline: none` or `outline-none` with no `focus-visible` replacement nearby | Restore the browser ring or add a verified custom one |
-| `<div onClick` or `<span onClick` | Use `<button>`, or `<a href>` when it navigates |
-| `role="button"` or `role="tab"` with no `onKeyDown` | Use the native element, or implement the APG key map |
-| `tabIndex={1}` or any positive `tabindex` | Fix the DOM order and use `0` |
-| `disabled={!isValid}` on a submit button | Keep it enabled and validate on submit |
-| `{msg && <div role="status">`, region mounted with its text | Render the empty region first and update its text |
-| `aria-live="assertive"` on a success toast | `role="status"` |
-| `<img` with no `alt` attribute | `alt=""` if decorative, otherwise describe the purpose |
-| `aria-label` whose text omits the visible label | Start the name with the visible text |
-| `aria-hidden` on an ancestor of a button, link or input | Remove it, or make the subtree inert |
-| `maximum-scale=1` or `user-scalable=no` | Remove it |
-| `position: sticky` header with no `scroll-padding-top` on the scroller | Pad the scroller by the header height |
-| Tooltip on a natively `disabled` control | Text beside it, or `aria-disabled` so it stays focusable |
-| `onDragStart` or a drag library with no button alternative | Add a single-pointer path to the same result |
+| Pattern                                                                      | Fix                                                      |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `outline: none` or `outline-none` with no `focus-visible` replacement nearby | Restore the browser ring or add a verified custom one    |
+| `<div onClick` or `<span onClick`                                            | Use `<button>`, or `<a href>` when it navigates          |
+| `role="button"` or `role="tab"` with no `onKeyDown`                          | Use the native element, or implement the APG key map     |
+| `tabIndex={1}` or any positive `tabindex`                                    | Fix the DOM order and use `0`                            |
+| `disabled={!isValid}` on a submit button                                     | Keep it enabled and validate on submit                   |
+| `{msg && <div role="status">`, region mounted with its text                  | Render the empty region first and update its text        |
+| `aria-live="assertive"` on a success toast                                   | `role="status"`                                          |
+| `<img` with no `alt` attribute                                               | `alt=""` if decorative, otherwise describe the purpose   |
+| `aria-label` whose text omits the visible label                              | Start the name with the visible text                     |
+| `aria-hidden` on an ancestor of a button, link or input                      | Remove it, or make the subtree inert                     |
+| `maximum-scale=1` or `user-scalable=no`                                      | Remove it                                                |
+| Tooltip on a natively `disabled` control                                     | Text beside it, or `aria-disabled` so it stays focusable |
+| `onDragStart` or a drag library with no button alternative                   | Add a single-pointer path to the same result             |
 
 ## Reporting
 
@@ -133,7 +132,7 @@ Text must survive 200% resize (1.4.4), and the page must reflow at 320px width w
 **Format.** Group findings under the principle each violates, ordered by severity, one row per root cause listing every location it appears in:
 
 | Severity | Location | Before | After | Why |
-| --- | --- | --- | --- | --- |
+| -------- | -------- | ------ | ----- | --- |
 
 `Location` is `path/to/file:line`. `Why` names the WCAG criterion or principle and the user impact.
 

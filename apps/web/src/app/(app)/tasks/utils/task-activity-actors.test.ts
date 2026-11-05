@@ -112,6 +112,30 @@ describe("getEventActorInfo", () => {
   });
 });
 
+describe("getEventActorInfo crafted avatar", () => {
+  it("carries the style of a soko bot actor's avatar", () => {
+    const event = {
+      actor: {
+        type: "sokoBot",
+        id: "orch-1",
+        sokoBot: {
+          id: "orch-1",
+          name: "Hermes",
+          avatarSeed: null,
+          avatarImageUrl: "https://blob/idle.png",
+          avatarStyleId: "crafted-desk",
+          owner: null,
+        },
+      },
+    } as TaskEvent;
+
+    expect(getEventActorInfo(event)).toMatchObject({
+      image: "https://blob/idle.png",
+      avatarStyleId: "crafted-desk",
+    });
+  });
+});
+
 describe("getEventActorInfo creation fallback", () => {
   const owner = { name: "Ada Lovelace", image: null };
   const userById = { "owner-1": owner };

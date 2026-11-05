@@ -27,6 +27,7 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
 
 import {
   createMetaCampaign,
+  deleteMetaCampaign,
   listMetaAdAccounts,
   listMetaCampaigns,
   updateMetaCampaign,
@@ -535,6 +536,81 @@ describe("updateMetaCampaign", () => {
       await expect(
         updateMetaCampaign({ ...update, status: "PAUSED" }),
       ).rejects.toBeInstanceOf(ComposioToolError);
+    },
+  );
+});
+
+describe("deleteMetaCampaign", () => {
+  const remove = { ...input, adAccountId: "act_1", campaignId: "10" };
+  const campaignObject = (overrides: Record<string, unknown> = {}) => ({
+    id: "10",
+    account_id: "1",
+    objective: "OUTCOME_TRAFFIC",
+    ...overrides,
+  });
+  const writes = () =>
+    executeToolMock.mock.calls
+      .map(([call]) => call)
+      .filter((call) => call.toolSlug === "METAADS_UPDATE_CAMPAIGN");
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "METAADS_GET_OBJECT"
+        ? campaignObject()
+        : { success: true },
+    );
+  });
+
+  it("reads the campaign's account, then sets status DELETED in one call", async () => {
+    await deleteMetaCampaign(remove);
+    expect(executeToolMock.mock.calls[0]?.[0]).toMatchObject({
+      toolSlug: "METAADS_GET_OBJECT",
+      arguments: { object_id: "10" },
+    });
+    expect(writes().map((call) => call.arguments)).toEqual([
+      { campaign_id: "10", status: "DELETED" },
+    ]);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolkitSlug: "metaads",
+        toolSlugs: ["METAADS_GET_OBJECT", "METAADS_UPDATE_CAMPAIGN"],
+      }),
+    );
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 404 without deleting a campaign of another ad account", async () => {
+    executeToolMock.mockResolvedValue(campaignObject({ account_id: "2" }));
+    await expect(deleteMetaCampaign(remove)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(writes()).toEqual([]);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 404 without deleting an object that is not a campaign", async () => {
+    executeToolMock.mockResolvedValue(campaignObject({ objective: undefined }));
+    await expect(deleteMetaCampaign(remove)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(writes()).toEqual([]);
+  });
+
+  it.each([
+    ["success false", { success: false }],
+    ["no payload", {}],
+    ["null", null],
+  ])(
+    "raises a tool error when the delete returns %s",
+    async (_name, result) => {
+      executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+        call.toolSlug === "METAADS_GET_OBJECT" ? campaignObject() : result,
+      );
+      await expect(deleteMetaCampaign(remove)).rejects.toBeInstanceOf(
+        ComposioToolError,
+      );
     },
   );
 });

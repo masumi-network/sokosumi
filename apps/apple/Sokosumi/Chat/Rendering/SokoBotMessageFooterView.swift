@@ -14,9 +14,9 @@ struct SokoBotMessageFooterView: View {
   var body: some View {
     WrappingRow(spacing: 8) {
       if turn.pendingDecisionCount > 0, let url = turn.assistantURL(webBaseURL: CoreSettings.webBaseURL) {
-        FooterChip(accented: true) { openURL(url) } label: {
+        FooterChip { openURL(url) } label: {
           // Decorative like web's aria-hidden icons; the texts carry the name.
-          Image(systemName: "checkmark.shield").foregroundStyle(Color.accentColor).accessibilityHidden(true)
+          Image(systemName: "checkmark.shield").accessibilityHidden(true)
           Text(turn.pendingDecisionCount == 1 ? "1 approval waiting" : "\(turn.pendingDecisionCount) approvals waiting").fontWeight(.medium)
           Text("Review on the assistant page").foregroundStyle(.secondary)
           Image(systemName: "arrow.up.right").font(.caption2).accessibilityHidden(true)
@@ -26,7 +26,7 @@ struct SokoBotMessageFooterView: View {
       ForEach(turn.footerTaskIds(excluding: previewedTaskIds), id: \.self) { taskId in
         if let url = SokoBotTurnMetadata.taskURL(taskId: taskId, webBaseURL: CoreSettings.webBaseURL) {
           FooterChip { openURL(url) } label: {
-            Circle().fill(Color.accentColor).frame(width: taskDotSize, height: taskDotSize)
+            Circle().fill(Color("BrandSolid")).frame(width: taskDotSize, height: taskDotSize)
             Text("Task").fontWeight(.medium)
             Image(systemName: "arrow.up.right").font(.caption2).accessibilityHidden(true)
           }
@@ -42,7 +42,6 @@ struct SokoBotMessageFooterView: View {
 
 /// Bordered chip like web's footer links: a card border that tints on hover.
 private struct FooterChip<Content: View>: View {
-  var accented = false
   let action: () -> Void
   @ViewBuilder let label: () -> Content
   @State private var hovered = false
@@ -53,7 +52,7 @@ private struct FooterChip<Content: View>: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(hovered ? Color.primary.opacity(0.04) : .clear, in: .rect(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(accented ? Color.accentColor.opacity(0.4) : Color.primary.opacity(hovered ? 0.2 : 0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(hovered ? 0.2 : 0.12)))
         .contentShape(.rect)
     }
     .buttonStyle(.plain)

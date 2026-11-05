@@ -519,6 +519,24 @@ export function buildChatMessagePreview(
   return previewOfReadable(readableChatMessageText(content), mentionNames);
 }
 
+/**
+ * A message body in full, with each mention token turned into the name it
+ * carries: for a Task made from a message, whose reader may not see the
+ * chat. Unlike a preview it keeps every line and the sender's formatting.
+ */
+export function chatMessageTextWithNames(
+  content: string,
+  mentionNames?: ReadonlyMap<string, string>,
+): string {
+  return content
+    .replace(MENTION_TOKEN_REGEX, (token, key: string, slug?: string) => {
+      if (key === CHAT_MENTION_ALL_KEY) return "@all";
+      const name = whoAMentionNames(key, slug ?? "", mentionNames);
+      return name || token;
+    })
+    .trim();
+}
+
 /** The preview of a body already read for what a banner cannot show. */
 function previewOfReadable(
   readable: string,

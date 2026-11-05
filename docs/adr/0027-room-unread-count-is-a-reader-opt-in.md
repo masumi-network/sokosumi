@@ -5,6 +5,9 @@
   it off, stored as `hideRoomUnreadCount`. Everything else stands, in
   particular that the count is a field of its own beside the mention badge and
   never the badge's meaning.
+- Its mentions of the collapsed rail are superseded by
+  [ADR-0058](./0058-the-sidebar-hides-instead-of-collapsing-to-a-rail.md):
+  the sidebar hides instead, so there is no rail pill to match or mark.
 - Date: 2026-09-07
 
 A chat sidebar row shows its numeric **Room unread** unless the reader
@@ -35,8 +38,8 @@ reader switches it off.
 
 **Why not switch the mention badge to count messages:** the badge counts user
 mentions and direct messages, and a reader relies on it to tell a message
-aimed at them from general volume. `CONTEXT.md` lists using the mention badge
-as the message unread count under *Avoid* for **Room unread**. The count is
+aimed at them from general volume. `GLOSSARY.md` lists using the mention badge
+as the message unread count under _Avoid_ for **Room unread**. The count is
 therefore a third field on `resolveRoomAttention` and separate text on the
 row, so both numbers can sit on one row with neither changing what the other
 says. [ADR-0013](./0013-thread-unread-is-participant-gated.md)'s chrome

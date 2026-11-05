@@ -27,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/star",
     description:
-      "Pin a project for the current user (ADR 0036). A Pin is personal and never shared with the workspace. Idempotent: starring an already-Pinned project keeps the original starredAt.",
+      "Pin a project for the current user (ADR 0036). A Pin is personal and never shared with the workspace. Pinning a Hidden project shows it again. Idempotent: starring an already-Pinned project keeps the original starredAt.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -60,20 +60,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
+    const key = { userId: userContext.userId, projectId: project.id };
     // `update: {}` is what makes this idempotent. Rewriting starredAt on a
     // second star would move the project to the end of the reader's Pins,
     // so a double click would silently reorder their flyout.
-    const star = await prisma.projectStar.upsert({
-      where: {
-        userId_projectId: {
-          userId: userContext.userId,
-          projectId: project.id,
-        },
-      },
-      create: { userId: userContext.userId, projectId: project.id },
-      update: {},
-      select: { starredAt: true },
-    });
+    // Pinning shows a Hidden project again: a Hide is the opposite of a Pin.
+    const [, star] = await prisma.$transaction([
+      prisma.projectHide.deleteMany({ where: key }),
+      prisma.projectStar.upsert({
+        where: { userId_projectId: key },
+        create: key,
+        update: {},
+        select: { starredAt: true },
+      }),
+    ]);
 
     return ok(
       c,

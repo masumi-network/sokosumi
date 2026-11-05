@@ -23,17 +23,19 @@ public extension OpenRoomSession {
   /// room with no Thread over it.
   @discardableResult
   func openLinkTarget(roomId: String, messageId: String?) async throws -> MessageNavigationResult {
-    let request = beginNavigation()
-    let generation = room.timeline.generation
-    if room.timeline.isLoading {
-      _ = await room.loadTask?.value
+    try await holdingReads {
+      let request = beginNavigation()
+      let generation = room.timeline.generation
+      if room.timeline.isLoading {
+        _ = await room.loadTask?.value
+      }
+      guard isCurrent(NavigationGuard(request: request, generation: generation)), room.timeline.roomId == roomId else { return .superseded }
+      guard let messageId else {
+        thread.close()
+        return .opened
+      }
+      return try await openMessage(messageId)
     }
-    guard isCurrent(NavigationGuard(request: request, generation: generation)), room.timeline.roomId == roomId else { return .superseded }
-    guard let messageId else {
-      thread.close()
-      return .opened
-    }
-    return try await openMessage(messageId)
   }
 
   /// Quotes and links resolve replies before choosing the existing context loader. A quote from the same room
@@ -41,34 +43,38 @@ public extension OpenRoomSession {
   /// included) takes web's search jump, which also marks a reply's parent in the room (row 25c).
   @discardableResult
   func openMessage(_ messageId: String, marksThreadParent: Bool = true) async throws -> MessageNavigationResult {
-    guard let roomId = room.timeline.roomId, let access = hooks.access() else { return .unavailable }
-    let request = beginNavigation()
-    let initialThreadGeneration = thread.transcript.timeline.generation
-    let navigation = NavigationGuard(request: request, generation: room.timeline.generation)
-    do {
-      let message = try await navigationMessage(messageId, roomId: roomId, client: access.client, organizationSlug: access.organizationSlug)
-      guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
-      if let message {
-        // A row the transcript drops (a deleted message) can never be landed on.
-        guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
-        if message.parentMessageId != nil {
-          return try await navigateReply(message, request: request, marksParent: marksThreadParent)
+    try await holdingReads {
+      guard let roomId = room.timeline.roomId, let access = hooks.access() else { return .unavailable }
+      let request = beginNavigation()
+      let initialThreadGeneration = thread.transcript.timeline.generation
+      let navigation = NavigationGuard(request: request, generation: room.timeline.generation)
+      do {
+        let message = try await navigationMessage(messageId, roomId: roomId, client: access.client, organizationSlug: access.organizationSlug)
+        guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
+        if let message {
+          // A row the transcript drops (a deleted message) can never be landed on.
+          guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
+          if message.parentMessageId != nil {
+            return try await navigateReply(message, request: request, marksParent: marksThreadParent)
+          }
         }
+        guard try await jumpToMessage(messageId),
+              isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
+        thread.close()
+        requestJump(to: messageId)
+        return .opened
+      } catch {
+        return try currentNavigationFailure(error, navigation: navigation)
       }
-      guard try await jumpToMessage(messageId),
-            isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
-      thread.close()
-      requestJump(to: messageId)
-      return .opened
-    } catch {
-      return try currentNavigationFailure(error, navigation: navigation)
     }
   }
 
   /// Opens the parent first, reuses its normal initial load, then fetches a context window only if the result is
   /// outside the loaded replies.
   func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage) async throws -> MessageNavigationResult {
-    try await navigateReply(hit, request: beginNavigation(), marksParent: true)
+    try await holdingReads {
+      try await navigateReply(hit, request: beginNavigation(), marksParent: true)
+    }
   }
 }
 

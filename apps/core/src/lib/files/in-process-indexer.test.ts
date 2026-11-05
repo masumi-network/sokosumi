@@ -338,6 +338,8 @@ describe("neither half can take down the request that triggered it", () => {
       // caller sees `undefined` where it expects a number.
       noVocabulary: 0,
       vocabularyTruncated: { tags: 0, categories: 0 },
+      metadataOnly: 0,
+      costUsd: 0,
     });
   });
 

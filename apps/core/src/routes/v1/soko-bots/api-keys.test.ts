@@ -59,6 +59,7 @@ function createRecord(overrides: Record<string, unknown> = {}) {
 
 function createApp(
   authenticationMethod: "session" | "api_key" | "oauth" = "session",
+  firstPartyClient?: boolean,
 ) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
@@ -69,6 +70,7 @@ function createApp(
       organizationId: null,
       role: "user",
       authenticationMethod,
+      ...(firstPartyClient ? { firstPartyClient } : {}),
     });
     return await next();
   });
@@ -281,6 +283,20 @@ describe("Soko Bot API keys", () => {
       expect(prismaTransactionMock).not.toHaveBeenCalled();
     },
   );
+
+  it("refuses to mint a key for a first-party OAuth client", async () => {
+    // A stolen CMO or Apple token must not turn into a key that outlives it.
+    const app = createApp("oauth", true);
+
+    const response = await app.request(`/${BOT_ID}/api-keys`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "minted" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
 
   it("still lists keys for a non-interactive actor", async () => {
     apiKeyFindManyMock.mockResolvedValue([]);

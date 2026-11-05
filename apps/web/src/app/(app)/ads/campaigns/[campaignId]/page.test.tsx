@@ -5,18 +5,14 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const {
   adsServiceMock,
-  breadcrumbMock,
   detailsMock,
   errorMock,
-  hasSocialBetaAccessMock,
   notFoundMock,
   projectServiceMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn(), getCampaignDetails: vi.fn() },
-  breadcrumbMock: vi.fn(),
   detailsMock: vi.fn(),
   errorMock: vi.fn(),
-  hasSocialBetaAccessMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
@@ -34,19 +30,10 @@ vi.mock("@/lib/services/ads.service", () => ({ adsService: adsServiceMock }));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
-}));
 vi.mock("@/app/ads/components/ads-campaign-details", () => ({
   AdsCampaignDetails: (props: Record<string, unknown>) => {
     detailsMock(props);
     return <div data-testid="details" />;
-  },
-}));
-vi.mock("@/app/ads/components/ads-campaign-breadcrumb", () => ({
-  AdsCampaignBreadcrumb: (props: Record<string, unknown>) => {
-    breadcrumbMock(props);
-    return null;
   },
 }));
 vi.mock("@/app/ads/components/ads-campaigns-error", () => ({
@@ -83,18 +70,9 @@ async function visit(
 describe("AdsCampaignDetailsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockResolvedValue(true);
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     adsServiceMock.listAccounts.mockResolvedValue([GOOGLE, META]);
     adsServiceMock.getCampaignDetails.mockResolvedValue(DETAILS);
-  });
-
-  it("stays hidden outside the beta, reading nothing", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(false);
-
-    await expect(visit()).rejects.toThrow("NEXT_NOT_FOUND");
-    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
-    expect(adsServiceMock.getCampaignDetails).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -152,32 +130,6 @@ describe("AdsCampaignDetailsPage", () => {
       "href",
       "/ads?projectId=project-1&tab=campaigns&account=a1&range=7d",
     );
-  });
-
-  it("names the campaign in the breadcrumb, not its numeric id", async () => {
-    render(
-      await visit({ projectId: "project-1", accountId: "a1", range: "7d" }),
-    );
-
-    expect(breadcrumbMock).toHaveBeenCalledWith({
-      adsHref: "/ads?projectId=project-1&tab=campaigns&account=a1&range=7d",
-      campaign: {
-        name: "Spring sale",
-        href: "/ads/campaigns/42?projectId=project-1&accountId=a1&range=7d",
-      },
-    });
-  });
-
-  it("keeps the project in the breadcrumb when the campaign fails to load", async () => {
-    adsServiceMock.getCampaignDetails.mockRejectedValue(
-      new CoreApiRequestError("inactive", { status: 409 }),
-    );
-    render(await visit());
-
-    expect(breadcrumbMock).toHaveBeenCalledWith({
-      adsHref: "/ads?projectId=project-1&tab=campaigns&account=a1&range=30d",
-      campaign: undefined,
-    });
   });
 
   it("shows 30 days unless the URL says otherwise", async () => {

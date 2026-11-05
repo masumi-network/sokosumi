@@ -3,7 +3,9 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminSokoBotDetailSchema } from "@/schemas/soko-bot.schema";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import { getSokoBotAvatarFields } from "@/services/soko-bot-state.service";
 import { sokoBotUsageTotals } from "@/services/soko-bot-usage.service";
 import { botParams, mapDetail, mapError } from "../helpers.js";
 
@@ -25,13 +27,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(detailRoute, async (c) => {
     try {
       const sokoBotId = c.req.valid("param").sokoBotId;
-      const [detail, usage] = await Promise.all([
+      const [detail, usage, availability] = await Promise.all([
         sokoBotControlPlane.getForAdmin(sokoBotId),
         sokoBotUsageTotals(sokoBotId),
+        getSokoBotAvailability(),
       ]);
       return ok(
         c,
-        adminSokoBotDetailSchema.parse({ ...mapDetail(detail), usage }),
+        adminSokoBotDetailSchema.parse({
+          ...mapDetail(detail),
+          ...(await getSokoBotAvatarFields(sokoBotId, availability.disabled)),
+          usage,
+        }),
       );
     } catch (error) {
       mapError(error);

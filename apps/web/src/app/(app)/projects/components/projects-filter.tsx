@@ -62,7 +62,7 @@ export function ProjectsFilter({ labels }: ProjectsFilterProps) {
   }
 
   return (
-    <div className="relative w-full md:w-64 md:shrink-0">
+    <div className="relative min-w-0 flex-1">
       <Search
         className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
         aria-hidden

@@ -10,9 +10,7 @@ import { ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX } from "./credit.js";
 import {
   CreditBucketOwnerXorError,
   classifyCreditBucketOwner,
-  creditBucketOwnerClassAction,
   inventoryCreditBucketOwnerXor,
-  listDualOwnedCreditBuckets,
   reconcileCreditBucketOwnerXor,
 } from "./credit-bucket-owner-xor.js";
 
@@ -33,7 +31,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "personal",
     );
-    assert.equal(creditBucketOwnerClassAction("personal"), "keep");
     assert.equal(
       classifyCreditBucketOwner({
         organizationId: "org-1",
@@ -44,7 +41,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "org",
     );
-    assert.equal(creditBucketOwnerClassAction("org"), "keep");
   });
 
   it("classifies leftover member: period rows including legacy-split", () => {
@@ -59,10 +55,6 @@ describe("classifyCreditBucketOwner", () => {
       "leftover_member_period_rem0",
     );
     assert.equal(
-      creditBucketOwnerClassAction("leftover_member_period_rem0"),
-      "delete",
-    );
-    assert.equal(
       classifyCreditBucketOwner({
         organizationId: "org-1",
         referenceId: "member:user-1:legacy-split:clxyz",
@@ -71,10 +63,6 @@ describe("classifyCreditBucketOwner", () => {
         userId: "user-1",
       }),
       "leftover_member_period_rem_gt0",
-    );
-    assert.equal(
-      creditBucketOwnerClassAction("leftover_member_period_rem_gt0"),
-      "drain_then_delete",
     );
     assert.equal(
       classifyCreditBucketOwner({
@@ -109,10 +97,6 @@ describe("classifyCreditBucketOwner", () => {
         userId: "owner-1",
       }),
       "dual_owned_org_period",
-    );
-    assert.equal(
-      creditBucketOwnerClassAction("dual_owned_org_period"),
-      "null_user_id",
     );
   });
 
@@ -157,10 +141,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "dual_owned_non_period",
     );
-    assert.equal(
-      creditBucketOwnerClassAction("dual_owned_non_period"),
-      "null_user_id",
-    );
   });
 
   it("fails closed on both-null remaining and deletes remaining-0", () => {
@@ -175,10 +155,6 @@ describe("classifyCreditBucketOwner", () => {
       "both_null_rem_gt0",
     );
     assert.equal(
-      creditBucketOwnerClassAction("both_null_rem_gt0"),
-      "fail_closed",
-    );
-    assert.equal(
       classifyCreditBucketOwner({
         organizationId: null,
         referenceId: null,
@@ -188,7 +164,6 @@ describe("classifyCreditBucketOwner", () => {
       }),
       "both_null_rem0",
     );
-    assert.equal(creditBucketOwnerClassAction("both_null_rem0"), "delete");
   });
 });
 
@@ -308,38 +283,6 @@ describe("inventoryCreditBucketOwnerXor", () => {
     assert.equal(
       inventory.remainingCentsByClass.leftover_member_period_rem_gt0,
       80n,
-    );
-  });
-});
-
-describe("listDualOwnedCreditBuckets", () => {
-  it("returns dual-owned rows and excludes both-null", async () => {
-    const prisma = createPrismaMock({
-      rows: [
-        {
-          id: "dual-1",
-          organizationId: "org-1",
-          referenceId: "member:user-1:in_1:subscription",
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-          remaining: 5n,
-          userId: "user-1",
-        },
-        {
-          id: "both-null-0",
-          organizationId: null,
-          referenceId: null,
-          referenceType: null,
-          remaining: 0n,
-          userId: null,
-        },
-      ],
-    });
-
-    const rows = await listDualOwnedCreditBuckets(prisma as never);
-
-    assert.deepEqual(
-      rows.map((row) => row.id),
-      ["dual-1"],
     );
   });
 });

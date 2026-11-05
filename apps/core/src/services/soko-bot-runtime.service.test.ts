@@ -2,11 +2,16 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { socialProviderUnavailableMessage } from "@sokosumi/utils";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { badRequest } from "@/helpers/error";
 
 const {
   botFindFirstMock,
   botFindUniqueMock,
+  marketingStrategyFindFirstMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
   chatRoomUserMemberFindFirstMock,
@@ -50,6 +55,7 @@ const {
   transactionTaskCountMock,
   transactionJobCountMock,
   coworkerFindManyMock,
+  userFindManyMock,
   integrationListMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotFindUniqueMock,
@@ -92,6 +98,8 @@ const {
   dispatchChatRoomMentionMock,
   serializableTransactionMock,
   turnUpdateManyMock,
+  turnUpdateMock,
+  jevToolMock,
   workspaceFindFirstMock,
   availabilityMock,
   applyGuardedTaskStatusUpdateMock,
@@ -102,6 +110,7 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
+  marketingStrategyFindFirstMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
   chatRoomUserMemberFindFirstMock: vi.fn(),
@@ -137,6 +146,7 @@ const {
   images: {
     access: vi.fn(),
     create: vi.fn(),
+    createVideo: vi.fn(),
     getJob: vi.fn(),
     reconcile: vi.fn(),
     credits: vi.fn(),
@@ -146,6 +156,9 @@ const {
   files: {
     taskFileUpsert: vi.fn(),
     resourceFindUnique: vi.fn(),
+    resourceFindFirst: vi.fn(),
+    del: vi.fn(),
+    tombstone: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -167,6 +180,7 @@ const {
   transactionTaskCountMock: vi.fn(),
   transactionJobCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  userFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotFindUniqueMock: vi.fn(),
@@ -209,6 +223,8 @@ const {
   dispatchChatRoomMentionMock: vi.fn(),
   serializableTransactionMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
+  turnUpdateMock: vi.fn(),
+  jevToolMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
   applyGuardedTaskStatusUpdateMock: vi.fn(),
@@ -234,6 +250,7 @@ vi.mock("@/helpers/data-table", () => ({
 
 const social = vi.hoisted(() => ({
   listAccounts: vi.fn(),
+  project: vi.fn(),
   listStatistics: vi.fn(),
   listAccountStatistics: vi.fn(),
   refreshAccountStatistics: vi.fn(),
@@ -245,12 +262,42 @@ const social = vi.hoisted(() => ({
   schedule: vi.fn(),
   cancel: vi.fn(),
   publish: vi.fn(),
-  beta: vi.fn(),
+  xTiers: vi.fn(),
   seat: vi.fn(),
   owner: vi.fn(),
+  postingInstructions: vi.fn(),
+}));
+const ads = vi.hoisted(() => ({
+  accounts: vi.fn(),
+  campaigns: vi.fn(),
+  locations: vi.fn(),
+  languages: vi.fn(),
+  create: vi.fn(),
+  details: vi.fn(),
+  update: vi.fn(),
+  edit: vi.fn(),
+  delete: vi.fn(),
+  marketProfile: vi.fn(),
+  marketKeywords: vi.fn(),
+}));
+vi.mock("@/services/project-ad-market.service", () => ({
+  getProjectAdMarketProfile: ads.marketProfile,
+  listProjectAdMarketKeywords: ads.marketKeywords,
+}));
+vi.mock("@/services/project-ad-accounts.service", () => ({
+  createProjectAdCampaign: ads.create,
+  getProjectAdCampaignDetails: ads.details,
+  updateProjectAdCampaign: ads.update,
+  editProjectAdCampaign: ads.edit,
+  deleteProjectAdCampaign: ads.delete,
+  listProjectAdAccounts: ads.accounts,
+  listProjectAdCampaigns: ads.campaigns,
+  searchProjectAdLocations: ads.locations,
+  listProjectAdLanguages: ads.languages,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   listProjectSocialConnections: social.listAccounts,
+  requireScopedProject: social.project,
 }));
 vi.mock("@/services/social-post-statistics.service", () => ({
   listSocialPostStatistics: social.listStatistics,
@@ -271,14 +318,15 @@ vi.mock("@/services/social-posts.service", () => ({
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
 }));
-vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: social.beta,
+vi.mock("@/services/x-subscription-tier.service", () => ({
+  resolveProjectXSubscriptionTypes: social.xTiers,
 }));
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
 }));
 
 vi.mock("@vercel/blob", () => ({
+  del: files.del,
   head: files.head,
   list: files.list,
   put: files.put,
@@ -289,7 +337,7 @@ vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   rateAgentFit: marketplace.rate,
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
-  imageModel: () => ({ id: "gemini-flash" }),
+  imageModel: () => ({ id: "gemini-flash", outputFormats: ["png", "jpeg"] }),
   resolveImageSettings: (_id: string, settings: unknown) => settings,
 }));
 vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
@@ -308,6 +356,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
+  createVideoJob: images.createVideo,
   reconcileProjectJobs: images.reconcile,
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
@@ -315,6 +364,15 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
     outputFormat: "png",
     seed: null,
   },
+}));
+const research = vi.hoisted(() => ({
+  findPeople: vi.fn(),
+  enrich: vi.fn(),
+  contactName: vi.fn(),
+}));
+vi.mock("@/services/contact-suggestions.service", () => ({
+  findPeopleForList: research.findPeople,
+  enrichContactFromWeb: research.enrich,
 }));
 vi.mock("@/services/file-search.service", () => ({
   searchFiles: files.search,
@@ -326,6 +384,7 @@ vi.mock("@/services/file-backfill.service", () => ({
 vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: files.reserve,
   activateDriveUploadResource: files.activate,
+  tombstoneDriveUploadResource: files.tombstone,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
@@ -341,11 +400,17 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
-    fileResource: { findUnique: files.resourceFindUnique },
+    fileResource: {
+      findUnique: files.resourceFindUnique,
+      findFirst: files.resourceFindFirst,
+    },
     taskFile: { upsert: files.taskFileUpsert },
+    contact: { findUniqueOrThrow: research.contactName },
     projectImageAsset: { findFirst: images.assetFindFirst },
+    project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
-    user: { findUnique: social.owner },
+    user: { findUnique: social.owner, findMany: userFindManyMock },
+    marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -384,6 +449,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
+      update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
@@ -415,6 +481,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
+}));
+vi.mock("@/lib/soko-bot/jev-tool", () => ({
+  evaluateWithJevForBot: jevToolMock,
 }));
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
   listSokoBotIntegrationsForBot: integrationListMock,
@@ -492,6 +561,16 @@ vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
   // resolver, and stubbing that would have hidden what it actually matches.
   ...(await importOriginal<object>()),
   createOrGetDirectRoom: createOrGetDirectRoomMock,
+  validateChatCoworkerIds: validateChatCoworkerIdsMock,
+}));
+const { createOrGetCoworkerQuestionRoomMock, validateChatCoworkerIdsMock } =
+  vi.hoisted(() => ({
+    createOrGetCoworkerQuestionRoomMock: vi.fn(),
+    validateChatCoworkerIdsMock: vi.fn(),
+  }));
+vi.mock("@/lib/soko-bot/coworker-question-room", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  createOrGetCoworkerQuestionRoom: createOrGetCoworkerQuestionRoomMock,
 }));
 const { unreadCountsMock } = vi.hoisted(() => ({
   unreadCountsMock: vi.fn().mockResolvedValue(new Map()),
@@ -571,6 +650,8 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  personAssignee,
+  pinToBotProject,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -2089,6 +2170,105 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  it("reads a Job as a compact digest with its open input request", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the jobs",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_job_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: {
+        archivedAt: null,
+        status: "RUNNING",
+      },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "get_job_status",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify({ jobId: "job_1" }))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      WEB_APP_BASE_URL: "https://app.example",
+    });
+    jobFindFirstMock.mockResolvedValue({
+      id: "job_1",
+      name: "Attention insights for nmkr.io",
+      agentId: "agent_1",
+      agent: { name: "AttentionInsight" },
+      jobType: "FREE",
+      transaction: null,
+      purchase: null,
+      refundedTransactionId: null,
+      updatedAt: new Date("2026-10-20T10:00:00Z"),
+      events: [
+        {
+          id: "event_2",
+          status: "AWAITING_INPUT",
+          result: null,
+          input: null,
+          inputSchema: JSON.stringify({
+            input_data: [{ id: "brand", type: "string", name: "Brand name" }],
+          }),
+          createdAt: new Date("2026-10-20T10:00:00Z"),
+          blobs: [],
+          links: [],
+        },
+        {
+          id: "event_1",
+          status: "INITIATED",
+          result: null,
+          input: { input: JSON.stringify({ input_url: "https://nmkr.io" }) },
+          inputSchema: JSON.stringify({
+            input_data: [{ id: "input_url", type: "url", name: "Website" }],
+          }),
+          createdAt: new Date("2026-10-20T09:00:00Z"),
+          blobs: [],
+          links: [],
+        },
+      ],
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_job_status",
+      toolCallId: "call_teammate_job",
+      input: { jobId: "job_1" },
+    });
+
+    expect(result).toMatchObject({
+      id: "job_1",
+      name: "Attention insights for nmkr.io",
+      status: "input_required",
+      input: [{ label: "Website", value: "https://nmkr.io" }],
+      inputRequest: {
+        eventId: "event_2",
+        fields: [{ id: "brand", name: "Brand name", required: true }],
+      },
+      result: null,
+      url: "https://app.example/agents/agent_1/jobs/job_1",
+      trust: "untrusted-data",
+    });
+  });
+
   it("keeps a fresh in-flight tool call single-flight", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",
@@ -2157,7 +2337,7 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     });
     toolCallFindUniqueMock.mockResolvedValue(null);
-    transactionToolCallCountMock.mockResolvedValue(64);
+    transactionToolCallCountMock.mockResolvedValue(640);
 
     await expect(
       new SokoBotRuntimeService().executeTool({
@@ -2168,8 +2348,59 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("tool-call limit reached");
 
+    const [{ where }] = transactionToolCallCountMock.mock.calls[0];
+    expect(where.capability.in).toEqual(
+      expect.arrayContaining([
+        "get_task_status",
+        "search_inbox",
+        "read_table",
+        "evaluate_with_jev",
+      ]),
+    );
+    for (const notARead of [
+      "write_table_rows",
+      "start_background_run",
+      "refresh_social_post_statistics",
+      "bash",
+    ])
+      expect(where.capability.in).not.toContain(notARead);
     expect(transactionToolCallCreateMock).not.toHaveBeenCalled();
     expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("lets reads go past the change limit", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_task_status"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Check task",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(64);
+
+    await new SokoBotRuntimeService()
+      .executeTool({
+        ...SCOPE,
+        capability: "get_task_status",
+        toolCallId: "call_read_65",
+        input: { taskId: "task_1" },
+      })
+      .catch(() => undefined);
+
+    expect(transactionToolCallCreateMock).toHaveBeenCalled();
   });
 
   it("gives a turn tool calls in proportion to how long it may run", () => {
@@ -2729,6 +2960,8 @@ describe("SokoBotRuntimeService authorization", () => {
           integrations: [
             { provider: "gmail", status: "ACTIVE" },
             { provider: "slack", status: "DISCONNECTED" },
+            // Ads go through the Project's ad account, so the bot's own is hidden.
+            { provider: "googleads", status: "ACTIVE" },
           ],
         });
         await expect(
@@ -2743,6 +2976,51 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     );
 
+    it("asks Jev for the bot and books the call as turn overhead", async () => {
+      sharedTurn("evaluate_with_jev", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      const result = {
+        answers: [{ key: "q", type: "boolean", probability: 0.8 }],
+        unanswered: [],
+        note: "guide",
+      };
+      jevToolMock.mockResolvedValue({ result, costUsd: 0.000_25 });
+      const input = {
+        state: "Payout failed",
+        questions: [{ key: "q", question: "Money?" }],
+      };
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "evaluate_with_jev",
+          toolCallId: "call_jev",
+          input,
+        }),
+      ).resolves.toEqual(result);
+      expect(jevToolMock).toHaveBeenCalledWith(input);
+      expect(turnUpdateMock).toHaveBeenCalledWith({
+        where: { id: SCOPE.turnId },
+        data: { overheadCostUsdMicros: { increment: 250n } },
+      });
+    });
+
+    it("tells the bot to judge itself when Jev is down", async () => {
+      sharedTurn("evaluate_with_jev", PROJECT_BOT);
+      jevToolMock.mockRejectedValue(new Error("timeout"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "evaluate_with_jev",
+          toolCallId: "call_jev_down",
+          input: { state: "x", questions: [{ key: "q", question: "Yes?" }] },
+        }),
+      ).rejects.toThrow("Jev is unavailable right now");
+      expect(turnUpdateMock).not.toHaveBeenCalled();
+    });
+
     it("finds Coworkers without the member's own assignments", async () => {
       sharedTurn("find_coworkers", PROJECT_BOT);
       coworkerFindManyMock.mockResolvedValue([]);
@@ -2755,6 +3033,37 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(
         JSON.stringify(coworkerFindManyMock.mock.calls[0]?.[0]),
       ).not.toContain("assignments");
+    });
+
+    it("finds teammates a Task can go to beside the Coworkers", async () => {
+      sharedTurn("find_coworkers", PROJECT_BOT);
+      coworkerFindManyMock.mockResolvedValue([]);
+      workspaceFindUniqueMock.mockResolvedValue({
+        userId: null,
+        organizationId: "org_1",
+      });
+      userFindManyMock.mockResolvedValue([
+        { id: "user_shiv", name: "Shivangi Gupta", email: "shiv@example.test" },
+      ]);
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_coworkers",
+        toolCallId: "call_find_people",
+        input: { query: "Shivangi" },
+      });
+      expect(result).toEqual({
+        coworkers: [],
+        people: [
+          {
+            userId: "user_shiv",
+            name: "Shivangi Gupta",
+            email: "shiv@example.test",
+          },
+        ],
+      });
+      expect(JSON.stringify(userFindManyMock.mock.calls[0]?.[0])).toContain(
+        "org_1",
+      );
     });
   });
 
@@ -4706,6 +5015,48 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(chatMessageFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("reads the owner's Directs on the owner's turns, never for a teammate", async () => {
+    chatRoomFindFirstMock.mockResolvedValueOnce({
+      id: "room_dm",
+      name: "Ada",
+      groupName: null,
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const owner = (await new SokoBotRuntimeService()["readChat"](
+      {
+        turn: SCOPE_TURN,
+        askedByKind: "OWNER",
+        reader: { sharedScope: null },
+      } as never,
+      { roomId: "room_dm" },
+    )) as { roomId: string };
+    expect(owner.roomId).toBe("room_dm");
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toEqual({
+      kind: "direct",
+      archivedAt: null,
+      OR: [{ organizationId: "org_1" }, { organizationId: null }],
+      userMembers: { some: { userId: SCOPE.userId } },
+      id: "room_dm",
+    });
+
+    chatRoomFindFirstMock.mockReset().mockResolvedValue(null);
+    await expect(
+      new SokoBotRuntimeService()["readChat"](
+        {
+          turn: SCOPE_TURN,
+          askedByKind: "TEAMMATE",
+          reader: { sharedScope: null },
+        } as never,
+        { roomId: "room_dm" },
+      ),
+    ).rejects.toThrow(/not a member/);
+    expect(chatRoomFindFirstMock).toHaveBeenCalledTimes(1);
+    expect(chatRoomFindFirstMock.mock.calls[0][0].where).toMatchObject({
+      sokoBotMembers: { some: { sokoBotId: SCOPE.sokoBotId } },
+    });
+  });
+
   it("returns messages newest first and marks the bot's own", async () => {
     chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
     chatMessageFindManyMock.mockResolvedValue([
@@ -5519,6 +5870,224 @@ describe("open_direct_chat", () => {
   });
 });
 
+describe("ask_coworker", () => {
+  const SCOPE_TURN = {
+    id: SCOPE.turnId,
+    sokoBotId: SCOPE.sokoBotId,
+    actingUserId: SCOPE.userId,
+    requestedByUserId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    eveSessionId: SCOPE.sessionId,
+    source: "CHAT",
+    chainDepth: 0,
+  };
+  const ELENA = { id: "cow_elena", name: "Elena", slug: "elena" };
+  const coworkerFindMany = vi.fn();
+  const outboxUpsert = vi.fn();
+
+  function arm() {
+    vi.clearAllMocks();
+    outboxUpsert.mockResolvedValue({ id: "effect" });
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    toolCallCountMock.mockResolvedValue(0);
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
+    validateChatCoworkerIdsMock.mockResolvedValue(["cow_elena"]);
+    coworkerFindMany.mockResolvedValue([ELENA]);
+    createOrGetCoworkerQuestionRoomMock.mockResolvedValue({
+      id: "room_ask",
+      name: "Ask Elena",
+      created: true,
+    });
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_ask",
+      name: "Ask Elena",
+      kind: "channel",
+    });
+    chatSokoBotMemberFindManyMock.mockResolvedValue([]);
+    chatCoworkerMemberFindManyMock.mockResolvedValue([{ coworker: ELENA }]);
+    chatMessageCountMock.mockResolvedValue(0);
+    transactionChatMessageCreateMock.mockResolvedValue({
+      id: "msg_1",
+      createdAt: new Date("2026-10-20T10:00:00.000Z"),
+    });
+    transactionChatMentionCreateManyMock.mockResolvedValue({ count: 1 });
+    transactionChatRoomUpdateMock.mockResolvedValue({});
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          sokoBotTurn: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+            findUnique: turnFindUniqueMock,
+          },
+          workspace: {
+            findFirst: vi.fn().mockResolvedValue({ id: SCOPE.workspaceId }),
+            findUnique: workspaceFindUniqueMock,
+          },
+          member: { findFirst: vi.fn().mockResolvedValue({ id: "member" }) },
+          coworker: { findMany: coworkerFindMany },
+          sokoBotToolCall: {
+            update: vi
+              .fn()
+              .mockResolvedValue({ id: "receipt", capability: "ask_coworker" }),
+          },
+          sokoBotEffectOutbox: { upsert: outboxUpsert },
+          chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
+          chatRoomSokoBotMember: { findMany: chatSokoBotMemberFindManyMock },
+          chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
+          chatRoomMessage: {
+            create: transactionChatMessageCreateMock,
+            count: chatMessageCountMock,
+          },
+          chatRoomMention: {
+            createMany: transactionChatMentionCreateManyMock,
+            findMany: mentionFindManyMock,
+          },
+          chatRoom: {
+            update: transactionChatRoomUpdateMock,
+            findFirst: chatRoomFindFirstMock,
+            findUniqueOrThrow: vi.fn().mockResolvedValue({
+              userMembers: [{ userId: SCOPE.userId }],
+              coworkerMembers: [{ coworkerId: "cow_elena" }],
+              sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+            }),
+          },
+        }),
+    );
+    return {
+      turn: SCOPE_TURN,
+      askedByKind: "OWNER",
+      reader: { sharedScope: null },
+    } as never;
+  }
+
+  const ask = (
+    authorized: never,
+    question = "Can you write a German landing page? What would you need?",
+  ) =>
+    new SokoBotRuntimeService()["askCoworker"](authorized, {
+      coworkerIds: ["cow_elena"],
+      question,
+      toolCallId: "call_1",
+    });
+
+  it("asks in a room with the owner and stages a mention Elena answers", async () => {
+    const authorized = arm();
+
+    const result = await ask(authorized);
+
+    expect(createOrGetCoworkerQuestionRoomMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      {
+        organizationId: "org_1",
+        ownerUserId: SCOPE.userId,
+        sokoBotId: SCOPE.sokoBotId,
+        coworkers: [ELENA],
+      },
+    );
+    // The mention is what the Coworker dispatch answers; the outbox turns it
+    // from staged to pending once the audience is rechecked.
+    expect(transactionChatMentionCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          messageId: "msg_1",
+          coworkerId: "cow_elena",
+          status: "staged",
+        }),
+      ],
+      skipDuplicates: true,
+    });
+    expect(result).toMatchObject({
+      roomId: "room_ask",
+      name: "Ask Elena",
+      created: true,
+      coworkers: [ELENA],
+      queuedMentions: 1,
+    });
+  });
+
+  it("mentions the Coworker when the question does not", async () => {
+    const authorized = arm();
+
+    await ask(authorized, "Can you do this?");
+
+    expect(outboxUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          payload: expect.objectContaining({
+            content: "@elena Can you do this?",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["a scheduled turn", { source: "SCHEDULE" }, "OWNER"],
+    ["a chained turn", { chainDepth: 1 }, "OWNER"],
+    ["a teammate's request", {}, "TEAMMATE"],
+    ["another assistant's request", {}, "ASSISTANT"],
+  ])("refuses %s", async (_label, turn, askedByKind) => {
+    arm();
+
+    await expect(
+      ask({
+        turn: { ...SCOPE_TURN, ...turn },
+        askedByKind,
+        reader: { sharedScope: null },
+      } as never),
+    ).rejects.toThrow(/owner's own requests/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared bot, which has no owner to ask with", async () => {
+    arm();
+
+    await expect(
+      ask({
+        turn: SCOPE_TURN,
+        askedByKind: "OWNER",
+        reader: {
+          sharedScope: {
+            sokoBotId: SCOPE.sokoBotId,
+            workspaceId: SCOPE.workspaceId,
+            projectId: null,
+          },
+        },
+      } as never),
+    ).rejects.toThrow(/shared Soko Bot/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("stops after three questions in one turn", async () => {
+    const authorized = arm();
+    toolCallCountMock.mockResolvedValue(3);
+
+    await expect(ask(authorized)).rejects.toThrow(/at most 3 times/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("needs an organization workspace", async () => {
+    const authorized = arm();
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
+
+    await expect(ask(authorized)).rejects.toThrow(/organization workspace/);
+  });
+
+  it("says what to do when a Coworker cannot chat", async () => {
+    const authorized = arm();
+    const { HTTPException } = await import("hono/http-exception");
+    validateChatCoworkerIdsMock.mockRejectedValue(
+      new HTTPException(400, {
+        message: "Room AI coworkers must be active chat coworkers",
+      }),
+    );
+
+    await expect(ask(authorized)).rejects.toThrow(/DRAFT Task/);
+    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("get_agent_input_schema", () => {
   function armTurn() {
     vi.clearAllMocks();
@@ -5915,8 +6484,29 @@ describe("Soko Bot project social tools", () => {
   const projectId = "01960001-0001-7001-8001-000000000011";
   const postId = "01960001-0001-7001-8001-000000000012";
   const accountId = "01960001-0001-7001-8001-000000000013";
+  const quotedId = "01960001-0001-7001-8001-000000000014";
+  const media = {
+    pathname: "drive/users/owner/launch.png",
+    fileUrl: "https://store.public.blob.vercel-storage.com/launch.png",
+    name: "launch.png",
+    size: 240000,
+    mimeType: "image/png",
+    kind: "image" as const,
+  };
   const capabilities = [
     "list_project_social_accounts",
+    "get_posting_instructions",
+    "list_ad_accounts",
+    "list_ad_campaigns",
+    "find_ad_targeting",
+    "get_market_keywords",
+    "create_ad_campaign",
+    "get_ad_campaign",
+    "update_ad_campaign",
+    "edit_ad_campaign",
+    "delete_ad_campaign",
+    "list_integration_tools",
+    "run_integration_tool",
     "list_social_posts",
     "list_social_post_statistics",
     "refresh_social_post_statistics",
@@ -5936,6 +6526,15 @@ describe("Soko Bot project social tools", () => {
     text: "Launch",
     firstComment: null,
     media: [],
+    threadParts: [],
+    quotedPostId: null,
+    quotedPost: null,
+    needsAttentionReason: null,
+    threadPartCount: 1,
+    publishedThreadPartCount: 0,
+    failedThreadPartPosition: null,
+    partiallyPublished: false,
+    publishingThreadPartPosition: null,
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,
@@ -5944,6 +6543,7 @@ describe("Soko Bot project social tools", () => {
       externalHandle: "launch",
       displayName: null,
       avatarUrl: null,
+      subscriptionType: null,
       status: "active",
     },
     creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
@@ -5993,8 +6593,9 @@ describe("Soko Bot project social tools", () => {
     availabilityMock.mockResolvedValue({ disabled: false });
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     social.owner.mockResolvedValue({ banned: false, banExpires: null });
-    social.beta.mockResolvedValue(undefined);
     social.seat.mockResolvedValue(undefined);
+    social.project.mockResolvedValue({ workspace: { organization: null } });
+    social.xTiers.mockResolvedValue(new Map());
     social.listAccounts.mockResolvedValue([
       {
         id: accountId,
@@ -6002,6 +6603,7 @@ describe("Soko Bot project social tools", () => {
         externalHandle: "Launch channel",
         displayName: "Launch channel",
         avatarUrl: null,
+        subscriptionType: null,
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,
@@ -6080,28 +6682,284 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it("lists actual account metadata scoped to the authorized workspace", async () => {
+  it.each([null, "other", "utxo"])(
+    "lists account metadata and providers for Project workspace %s without beta membership",
+    async (organizationSlug) => {
+      social.project.mockResolvedValue({
+        workspace: {
+          organization: organizationSlug ? { slug: organizationSlug } : null,
+        },
+      });
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "accounts",
+        input: { projectId },
+      });
+      expect(social.listAccounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(social.project).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        enabledProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
+        writingGuides: {
+          youtube: expect.arrayContaining([
+            expect.stringMatching(/Plain text only/),
+          ]),
+        },
+        accounts: [
+          expect.objectContaining({
+            provider: "youtube",
+            externalHandle: "Launch channel",
+          }),
+        ],
+      });
+      expect(social.seat).toHaveBeenCalledWith(
+        SCOPE.userId,
+        "organization-one",
+        expect.anything(),
+      );
+    },
+  );
+
+  it("reads the Project's posting instructions in the turn's workspace", async () => {
+    social.postingInstructions.mockResolvedValue({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_posting_instructions",
+      toolCallId: "instructions",
+      input: { projectId },
+    });
+
+    expect(social.postingInstructions).toHaveBeenCalledWith({
+      where: { id: projectId, workspaceId: SCOPE.workspaceId },
+      select: { postingInstructionsMd: true },
+    });
+    expect(result).toEqual({
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+    expect(social.owner).toHaveBeenCalled();
+  });
+
+  it("refuses posting instructions for a Project outside the workspace", async () => {
+    social.postingInstructions.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "get_posting_instructions",
+        toolCallId: "instructions-missing",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("That Project is not one your owner can open.");
+  });
+
+  it("states each account's text limit from its current X tier", async () => {
+    const account = {
+      externalHandle: "launch",
+      displayName: null,
+      avatarUrl: null,
+      status: "active",
+      connectedAt: "2026-09-28T12:00:00Z",
+      disconnectedAt: null,
+    };
+    const premiumId = "01960001-0001-7001-8001-000000000021";
+    const basicId = "01960001-0001-7001-8001-000000000022";
+    const linkedinId = "01960001-0001-7001-8001-000000000023";
+    social.listAccounts.mockResolvedValue([
+      // Upgraded since it was connected: the fresh tier wins.
+      { ...account, id: premiumId, provider: "x", subscriptionType: "None" },
+      // Not looked up (lookup cap or failure): the stored tier stays.
+      { ...account, id: basicId, provider: "x", subscriptionType: null },
+      {
+        ...account,
+        id: linkedinId,
+        provider: "linkedin",
+        subscriptionType: null,
+      },
+    ]);
+    social.xTiers.mockResolvedValue(new Map([[premiumId, "Premium"]]));
+
     const result = await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
       capability: "list_project_social_accounts",
-      toolCallId: "accounts",
+      toolCallId: "limits",
       input: { projectId },
     });
-    expect(social.listAccounts).toHaveBeenCalledWith({
-      projectId,
-      workspaceId: SCOPE.workspaceId,
+
+    expect(social.xTiers).toHaveBeenCalledWith(projectId);
+    expect(result).toMatchObject({
+      accounts: [
+        {
+          id: premiumId,
+          subscriptionType: "Premium",
+          xPremium: true,
+          textLimit: 25_000,
+          firstCommentLimit: 25_000,
+        },
+        {
+          id: basicId,
+          subscriptionType: null,
+          xPremium: false,
+          textLimit: 280,
+          firstCommentLimit: 280,
+        },
+        {
+          id: linkedinId,
+          xPremium: false,
+          textLimit: 3000,
+          firstCommentLimit: 1250,
+        },
+      ],
     });
-    expect(result).toEqual([
+  });
+
+  it("passes X thread parts, a quote, and a first comment to the web's service paths", async () => {
+    const threadParts = [{ text: "Second" }, { text: "", media: [media] }];
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "create_social_post",
+      toolCallId: "thread",
+      input: {
+        projectId,
+        socialConnectionId: accountId,
+        text: "x".repeat(300),
+        firstComment: "#launch",
+        threadParts,
+        quotedPostId: quotedId,
+      },
+    });
+    expect(social.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "youtube",
-        externalHandle: "Launch channel",
+        text: "x".repeat(300),
+        firstComment: "#launch",
+        threadParts: [
+          { text: "Second", media: undefined },
+          { text: "", media: [media] },
+        ],
+        quotedPostId: quotedId,
+        sokoBotId: SCOPE.sokoBotId,
       }),
-    ]);
-    expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
-    expect(social.seat).toHaveBeenCalledWith(
-      SCOPE.userId,
-      "organization-one",
-      expect.anything(),
+      tx,
+    );
+
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_post",
+      toolCallId: "unthread",
+      input: {
+        projectId,
+        postId,
+        revision: 2,
+        threadParts: [],
+        quotedPostId: null,
+      },
+    });
+    expect(social.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId,
+        revision: 2,
+        threadParts: [],
+        quotedPostId: null,
+        media: undefined,
+      }),
+      tx,
+    );
+  });
+
+  it("resolves the post's and every thread part's Drive files in one lookup", async () => {
+    const service = new SokoBotRuntimeService();
+    const resolve = vi.fn(async (_authorized: unknown, items: unknown[]) =>
+      items.map((item) => ({
+        ...media,
+        name: (item as { fileId: string }).fileId,
+      })),
+    );
+    Object.assign(service, { resolveSocialMedia: resolve });
+    const result = await service["resolveSocialPostMedia"]({} as never, {
+      media: [{ fileId: "a" }],
+      threadParts: [
+        { text: "Two" },
+        { text: "Three", media: [{ fileId: "b" }, { fileId: "c" }] },
+      ],
+    });
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      media: [expect.objectContaining({ name: "a" })],
+      threadParts: [
+        { text: "Two", media: undefined },
+        {
+          text: "Three",
+          media: [
+            expect.objectContaining({ name: "b" }),
+            expect.objectContaining({ name: "c" }),
+          ],
+        },
+      ],
+    });
+  });
+
+  it("returns Core's account limit when a 300-character X post is over it", async () => {
+    social.create.mockRejectedValue(
+      badRequest("Text must be at most 280 characters for X"),
+    );
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "too-long",
+        input: {
+          projectId,
+          socialConnectionId: accountId,
+          text: "x".repeat(300),
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Text must be at most 280 characters for X",
+    });
+    expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown thread keys before reaching Core's service", async () => {
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "unknown-key",
+        input: { projectId, text: "Launch", thread: [{ text: "Two" }] },
+      }),
+    ).rejects.toThrow();
+    expect(social.create).not.toHaveBeenCalled();
+  });
+
+  it("forwards quote candidate filters to the listing", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_posts",
+      toolCallId: "candidates",
+      input: {
+        projectId,
+        quoteCandidates: true,
+        excludePostId: postId,
+        search: "launch",
+      },
+    });
+    expect(social.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+        quoteCandidates: true,
+        excludePostId: postId,
+        search: "launch",
+      }),
     );
   });
 
@@ -6242,7 +7100,7 @@ describe("Soko Bot project social tools", () => {
     "list_social_account_statistics",
     "refresh_social_account_statistics",
   ] as const)("rejects %s after access revocation", async (capability) => {
-    social.beta.mockRejectedValue(new Error("Access revoked"));
+    social.seat.mockRejectedValue(new Error("Access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6263,8 +7121,8 @@ describe("Soko Bot project social tools", () => {
   it.each([
     "list_social_post_statistics",
     "refresh_social_post_statistics",
-  ] as const)("rejects %s after beta revocation", async (capability) => {
-    social.beta.mockRejectedValue(new Error("Access revoked"));
+  ] as const)("rejects %s after seat revocation", async (capability) => {
+    social.seat.mockRejectedValue(new Error("Access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6305,6 +7163,1212 @@ describe("Soko Bot project social tools", () => {
       projectId,
       postId,
       workspaceId: SCOPE.workspaceId,
+    });
+  });
+
+  describe("ads reads", () => {
+    const adAccountId = "01960001-0001-7001-8001-000000000031";
+    const metaAccountId = "01960001-0001-7001-8001-000000000032";
+    const adAccount = {
+      id: adAccountId,
+      connectionId: "01960001-0001-7001-8001-000000000033",
+      provider: "google_ads",
+      externalAccountId: "1234567890",
+      name: "Sokosumi Ads",
+      currency: "EUR",
+      timeZone: "Europe/Berlin",
+      loginCustomerId: null,
+      createdAt: new Date("2026-09-28T12:00:00Z"),
+    };
+    const campaign = {
+      id: "23850000000000000",
+      name: "Brand",
+      status: "ACTIVE",
+      objective: "SEARCH",
+      dailyBudget: 25,
+      spend: 10,
+      impressions: 1000,
+      clicks: 50,
+      ctr: 0.05,
+      cpc: 0.2,
+      conversions: 3,
+    };
+
+    beforeEach(() => {
+      for (const mock of Object.values(ads)) mock.mockReset();
+      ads.accounts.mockResolvedValue([
+        adAccount,
+        { ...adAccount, id: metaAccountId, provider: "meta_ads" },
+      ]);
+      ads.campaigns.mockResolvedValue({
+        campaigns: [campaign],
+        range: "LAST_30_DAYS",
+        currency: "EUR",
+      });
+      ads.languages.mockResolvedValue({
+        languages: [{ id: "1000", code: "en", name: "English" }],
+      });
+      ads.locations.mockResolvedValue({
+        locations: [
+          {
+            id: "1003854",
+            name: "Berlin",
+            canonicalName: "Berlin,Germany",
+            targetType: "City",
+            countryCode: "DE",
+          },
+        ],
+      });
+    });
+
+    it("lists the Project's ad accounts without connection internals", async () => {
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_accounts",
+        toolCallId: "ad-accounts",
+        input: { projectId },
+      });
+      expect(ads.accounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        accounts: [
+          {
+            id: adAccountId,
+            provider: "google_ads",
+            externalAccountId: "1234567890",
+            name: "Sokosumi Ads",
+            currency: "EUR",
+          },
+          expect.objectContaining({ id: metaAccountId, provider: "meta_ads" }),
+        ],
+      });
+    });
+
+    it("says a person connects the first ad account when there are none", async () => {
+      ads.accounts.mockResolvedValue([]);
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_accounts",
+        toolCallId: "no-ad-accounts",
+        input: { projectId },
+      });
+      expect(result).toEqual({
+        accounts: [],
+        note: expect.stringContaining("Ads page"),
+      });
+    });
+
+    it("lists campaigns over the default range and links Google ones only", async () => {
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_campaigns",
+        toolCallId: "ad-campaigns",
+        input: { projectId, accountId: adAccountId },
+      });
+      expect(ads.campaigns).toHaveBeenCalledWith({
+        projectId,
+        accountId: adAccountId,
+        range: "LAST_30_DAYS",
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(result).toEqual({
+        campaigns: [
+          {
+            ...campaign,
+            link: `/ads/campaigns/23850000000000000?projectId=${projectId}&accountId=${adAccountId}`,
+          },
+        ],
+        range: "LAST_30_DAYS",
+        currency: "EUR",
+      });
+
+      const meta = (await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_campaigns",
+        toolCallId: "meta-campaigns",
+        input: { projectId, accountId: metaAccountId, range: "LAST_7_DAYS" },
+      })) as { campaigns: object[] };
+      expect(ads.campaigns).toHaveBeenLastCalledWith(
+        expect.objectContaining({ range: "LAST_7_DAYS" }),
+      );
+      expect(meta.campaigns[0]).not.toHaveProperty("link");
+    });
+
+    it("finds languages, and locations only when asked for a place", async () => {
+      const input = { projectId, accountId: adAccountId };
+      const withoutPlace = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_ad_targeting",
+        toolCallId: "targeting-languages",
+        input,
+      });
+      expect(withoutPlace).toEqual({
+        languages: [{ id: "1000", code: "en", name: "English" }],
+      });
+      expect(ads.locations).not.toHaveBeenCalled();
+
+      const withPlace = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_ad_targeting",
+        toolCallId: "targeting-locations",
+        input: { ...input, locationQuery: "Berlin" },
+      });
+      expect(ads.locations).toHaveBeenCalledWith({
+        ...input,
+        q: "Berlin",
+        workspaceId: SCOPE.workspaceId,
+      });
+      expect(withPlace).toMatchObject({
+        languages: [expect.objectContaining({ id: "1000" })],
+        locations: [expect.objectContaining({ id: "1003854" })],
+      });
+    });
+
+    it.each(["TEAMMATE", "ASSISTANT"])(
+      "refuses ad reads on a turn %s asked",
+      async (kind) => {
+        const turn = await turnFindUniqueMock();
+        turnFindUniqueMock.mockResolvedValue({
+          ...turn,
+          contextSnapshot: {
+            packet: { memory: { version: 1 }, trigger: { askedBy: { kind } } },
+          },
+        });
+        await expect(
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "list_ad_accounts",
+            toolCallId: "ads-wrong-audience",
+            input: { projectId },
+          }),
+        ).rejects.toThrow("Project ads tools are only available for the owner");
+        expect(ads.accounts).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["SCHEDULE", "EVENT", "INGEST", "ADMIN_RETRY"] as const)(
+      "refuses ad tools on a %s turn",
+      async (source) => {
+        const turn = await turnFindUniqueMock();
+        turnFindUniqueMock.mockResolvedValue({ ...turn, source });
+        await expect(
+          new SokoBotRuntimeService().executeTool({
+            ...SCOPE,
+            capability: "list_ad_accounts",
+            toolCallId: "ads-not-chat",
+            input: { projectId },
+          }),
+        ).rejects.toThrow("only available when a person asks in chat");
+        expect(ads.accounts).not.toHaveBeenCalled();
+      },
+    );
+
+    it("hands the model a service 404 as a readable refusal", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      ads.languages.mockRejectedValue(
+        new HTTPException(404, {
+          message: "Targeting is only available for Google Ads accounts",
+        }),
+      );
+      const refusal = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_ad_targeting",
+        toolCallId: "ads-404",
+        input: { projectId, accountId: metaAccountId },
+      });
+      await expect(refusal).rejects.toBeInstanceOf(
+        SokoBotRuntimeValidationError,
+      );
+      await expect(refusal).rejects.toThrow(
+        "Targeting is only available for Google Ads accounts",
+      );
+    });
+
+    describe("get_market_keywords", () => {
+      const profile = {
+        keywords: ["running shoes", "trail shoes"],
+        countryCode: "DE",
+        locationId: "2276",
+        languageCode: "de",
+        updatedAt: new Date("2026-10-01T12:00:00Z"),
+      };
+      const fetchedAt = new Date("2026-10-27T08:00:00Z");
+      const keyword = {
+        keyword: "laufschuhe",
+        searchVolume: 12100,
+        trend: [{ year: 2026, month: 9, searchVolume: 11000 }],
+        competition: "HIGH",
+        competitionIndex: 87,
+        cpc: 1.2,
+        lowTopOfPageBid: 0.5,
+        highTopOfPageBid: 2.1,
+      };
+
+      beforeEach(() => {
+        ads.marketProfile.mockResolvedValue(profile);
+        ads.marketKeywords.mockResolvedValue({
+          keywords: [keyword],
+          fetchedAt,
+        });
+      });
+
+      it("returns the Market keywords compactly, without the trend", async () => {
+        const result = await new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "get_market_keywords",
+          toolCallId: "market-keywords",
+          input: { projectId },
+        });
+        const scope = { projectId, workspaceId: SCOPE.workspaceId };
+        expect(ads.marketProfile).toHaveBeenCalledWith(scope);
+        expect(ads.marketKeywords).toHaveBeenCalledWith(scope);
+        expect(result).toEqual({
+          market: {
+            countryCode: "DE",
+            languageCode: "de",
+            locationId: "2276",
+            seedKeywords: ["running shoes", "trail shoes"],
+          },
+          keywords: [
+            {
+              keyword: "laufschuhe",
+              searchVolume: 12100,
+              competition: "HIGH",
+              cpc: 1.2,
+              lowTopOfPageBid: 0.5,
+              highTopOfPageBid: 2.1,
+            },
+          ],
+          currency: "USD",
+          fetchedAt: "2026-10-27T08:00:00.000Z",
+        });
+      });
+
+      it("says a person sets the Market when the Project has no profile", async () => {
+        ads.marketProfile.mockResolvedValue(null);
+        const result = await new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "get_market_keywords",
+          toolCallId: "market-keywords-none",
+          input: { projectId },
+        });
+        expect(result).toEqual({
+          keywords: [],
+          note: expect.stringContaining("Market tab"),
+        });
+        expect(ads.marketKeywords).not.toHaveBeenCalled();
+      });
+
+      it.each(["TEAMMATE", "ASSISTANT"])(
+        "refuses Market keywords on a turn %s asked",
+        async (kind) => {
+          const turn = await turnFindUniqueMock();
+          turnFindUniqueMock.mockResolvedValue({
+            ...turn,
+            contextSnapshot: {
+              packet: {
+                memory: { version: 1 },
+                trigger: { askedBy: { kind } },
+              },
+            },
+          });
+          await expect(
+            new SokoBotRuntimeService().executeTool({
+              ...SCOPE,
+              capability: "get_market_keywords",
+              toolCallId: "market-wrong-audience",
+              input: { projectId },
+            }),
+          ).rejects.toThrow("only available for the owner");
+          expect(ads.marketProfile).not.toHaveBeenCalled();
+        },
+      );
+
+      it("hands the model a refreshing 409 as a readable refusal", async () => {
+        const { HTTPException } = await import("hono/http-exception");
+        ads.marketKeywords.mockRejectedValue(
+          new HTTPException(409, {
+            message: "Market keywords are refreshing. Please retry.",
+          }),
+        );
+        const refusal = new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "get_market_keywords",
+          toolCallId: "market-409",
+          input: { projectId },
+        });
+        await expect(refusal).rejects.toBeInstanceOf(
+          SokoBotRuntimeValidationError,
+        );
+        await expect(refusal).rejects.toThrow(
+          "Market keywords are refreshing. Please retry.",
+        );
+      });
+    });
+
+    it("says the provider could not complete when Composio fails", async () => {
+      const { ComposioApiError } = await import("@/clients/composio.client");
+      ads.campaigns.mockRejectedValue(new ComposioApiError(500, "boom"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_ad_campaigns",
+          toolCallId: "ads-composio",
+          input: { projectId, accountId: adAccountId },
+        }),
+      ).rejects.toThrow("The ads provider could not complete the request.");
+    });
+
+    it("treats a 5xx HTTPException as unknown, not a retryable refusal", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      ads.campaigns.mockRejectedValue(
+        new HTTPException(502, { message: "Google Ads timed out" }),
+      );
+      const failed = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_ad_campaigns",
+        toolCallId: "ads-5xx",
+        input: { projectId, accountId: adAccountId },
+      });
+      await expect(failed).rejects.toBeInstanceOf(
+        SokoBotRuntimeValidationError,
+      );
+      await expect(failed).rejects.not.toBeInstanceOf(
+        SokoBotRefusedUnsentError,
+      );
+      await expect(failed).rejects.toThrow(
+        "The ads provider could not complete the request.",
+      );
+    });
+  });
+
+  describe("integration tools on ad toolkits", () => {
+    const lastReceipt = () =>
+      toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+    const refusal = /Google Ads is used through the Project's ad account/;
+
+    it("refuses run_integration_tool as unsent: REJECTED, not UNKNOWN", async () => {
+      const refused = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "run_integration_tool",
+        toolCallId: "ad-run",
+        input: { provider: "googleads", tool: "GOOGLEADS_SEARCH" },
+      });
+      await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+      await expect(refused).rejects.toThrow(refusal);
+      expect(lastReceipt()).toMatchObject({
+        status: "FAILED",
+        disposition: "REJECTED",
+      });
+    });
+
+    it("refuses list_integration_tools with the same pointer", async () => {
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_integration_tools",
+          toolCallId: "ad-list",
+          input: { provider: "GoogleAds" },
+        }),
+      ).rejects.toThrow(refusal);
+    });
+  });
+
+  describe("ad tools in a Project bot", () => {
+    const accountId = "01960001-0001-7001-8001-000000000031";
+    const otherProjectId = "01960001-0001-7001-8001-000000000099";
+    const projectBot = (botProjectId: string) => ({
+      askedByKind: "OWNER",
+      reader: {
+        userId: SCOPE.userId,
+        audience: "TEAMMATE",
+        sharedScope: {
+          sokoBotId: SCOPE.sokoBotId,
+          workspaceId: SCOPE.workspaceId,
+          projectId: botProjectId,
+        },
+      },
+      turn: {
+        id: SCOPE.turnId,
+        actingUserId: SCOPE.userId,
+        requestedByUserId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        source: "CHAT",
+        chainDepth: 0,
+      },
+    });
+    const run = (capability: string, input: object, botProjectId: string) =>
+      new SokoBotRuntimeService()["executeAdsTool"](
+        {
+          ...SCOPE,
+          capability,
+          toolCallId: `scope-${capability}`,
+          input,
+        } as never,
+        projectBot(botProjectId) as never,
+      );
+    const search = {
+      type: "SEARCH" as const,
+      locationIds: ["1003854"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "PHRASE" as const }],
+      headlines: ["Run faster", "Light shoes", "Free returns"],
+      descriptions: ["Shoes that carry you.", "Order today, run tomorrow."],
+    };
+
+    beforeEach(() => {
+      for (const mock of Object.values(ads)) mock.mockReset();
+      ads.accounts.mockResolvedValue([]);
+    });
+
+    it.each([
+      ["list_ad_accounts", { projectId }],
+      ["list_ad_campaigns", { projectId, accountId }],
+      ["find_ad_targeting", { projectId, accountId }],
+      ["get_market_keywords", { projectId }],
+      [
+        "create_ad_campaign",
+        {
+          projectId,
+          accountId,
+          name: "Spring",
+          dailyBudget: 25,
+          google: search,
+        },
+      ],
+      ["get_ad_campaign", { projectId, accountId, campaignId: "123" }],
+      [
+        "update_ad_campaign",
+        { projectId, accountId, campaignId: "123", status: "PAUSED" },
+      ],
+      [
+        "edit_ad_campaign",
+        {
+          projectId,
+          accountId,
+          campaignId: "123",
+          name: "Spring",
+          dailyBudget: 25,
+          google: search,
+        },
+      ],
+      ["delete_ad_campaign", { projectId, accountId, campaignId: "123" }],
+    ])(
+      "refuses %s outside the bot's own Project, unsent",
+      async (capability, input) => {
+        const call = run(capability, input, otherProjectId);
+        await expect(call).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+        await expect(call).rejects.toThrow("works only in its own Project");
+        for (const mock of Object.values(ads))
+          expect(mock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("allows the ad tools in the bot's own Project", async () => {
+      await expect(
+        run("list_ad_accounts", { projectId }, projectId),
+      ).resolves.toMatchObject({ accounts: [] });
+      expect(ads.accounts).toHaveBeenCalledWith({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+      });
+    });
+  });
+
+  describe("ad campaign writes", () => {
+    const adAccountId = "01960001-0001-7001-8001-000000000031";
+    const metaAccountId = "01960001-0001-7001-8001-000000000032";
+    const landscapeId = "01960001-0001-7001-8001-000000000041";
+    const squareId = "01960001-0001-7001-8001-000000000042";
+    const gifId = "01960001-0001-7001-8001-000000000043";
+    const webpId = "01960001-0001-7001-8001-000000000044";
+    const pdfId = "01960001-0001-7001-8001-000000000045";
+    const wide169Id = "01960001-0001-7001-8001-000000000046";
+    const tinyLogoId = "01960001-0001-7001-8001-000000000047";
+    const account = {
+      id: adAccountId,
+      provider: "google_ads",
+      externalAccountId: "1234567890",
+      name: "Sokosumi Ads",
+      currency: "EUR",
+    };
+    const search = {
+      type: "SEARCH" as const,
+      locationIds: ["1003854"],
+      languageIds: ["1001"],
+      finalUrl: "https://example.com/spring",
+      keywords: [{ text: "running shoes", matchType: "PHRASE" as const }],
+      headlines: ["Run faster", "Light shoes", "Free returns"],
+      descriptions: ["Shoes that carry you.", "Order today, run tomorrow."],
+      sitelinks: [{ text: "Sale", finalUrl: "https://example.com/sale" }],
+      callouts: ["Free shipping"],
+    };
+    const display = {
+      type: "DISPLAY" as const,
+      locationIds: [],
+      languageIds: [],
+      finalUrl: "https://example.com/spring",
+      businessName: "Sokosumi",
+      headlines: ["Run faster"],
+      longHeadline: "Light shoes that carry you further",
+      descriptions: ["Order today, run tomorrow."],
+      images: [
+        { fileId: landscapeId, role: "LANDSCAPE" as const },
+        { fileId: squareId, role: "SQUARE" as const },
+      ],
+    };
+    const driveFile = (id: string, name: string, mimeType: string) => ({
+      id,
+      displayName: name,
+      mimeType,
+      sizeBytes: 1000,
+      sourceKind: "DRIVE_UPLOAD",
+      sourceId: `drive/organizations/organization-one/${name}`,
+    });
+    const run = (google: unknown, overrides: object = {}, id = "ad-create") =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_ad_campaign",
+        toolCallId: id,
+        input: {
+          projectId,
+          accountId: adAccountId,
+          name: "Spring",
+          dailyBudget: 25,
+          google,
+          ...overrides,
+        },
+      });
+    const lastReceipt = () =>
+      toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+    const solid = (width: number, height: number) =>
+      sharp({ create: { width, height, channels: 3, background: "#336699" } });
+    const orgPath = "drive/organizations/organization-one";
+
+    beforeEach(async () => {
+      for (const mock of Object.values(ads)) mock.mockReset();
+      const bytes = new Map<string, Uint8Array>([
+        [`${orgPath}/wide.png`, await solid(1910, 1000).png().toBuffer()],
+        [`${orgPath}/square.jpg`, await solid(1000, 1000).jpeg().toBuffer()],
+        [`${orgPath}/moving.gif`, await solid(200, 200).gif().toBuffer()],
+        [`${orgPath}/photo.webp`, await solid(1200, 1200).webp().toBuffer()],
+        [`${orgPath}/wide169.png`, await solid(1920, 1080).png().toBuffer()],
+        [`${orgPath}/tiny.png`, await solid(100, 100).png().toBuffer()],
+      ]);
+      files.download.mockImplementation(async (pathname: string) =>
+        bytes.get(pathname),
+      );
+      files.reserve.mockResolvedValue({
+        resourceId: "file-new",
+        versionId: "v",
+      });
+      files.activate.mockResolvedValue({ resourceId: "file-new" });
+      files.put.mockImplementation(async (pathname: string) => ({
+        url: `https://x.public.blob.vercel-storage.com/${pathname}`,
+      }));
+      ads.accounts.mockResolvedValue([
+        account,
+        { ...account, id: metaAccountId, provider: "meta_ads" },
+      ]);
+      ads.create.mockResolvedValue({ id: "23850000000000000" });
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "organization-one",
+      });
+      files.loadLive.mockResolvedValue([
+        driveFile(landscapeId, "wide.png", "image/png"),
+        driveFile(squareId, "square.jpg", "image/jpeg"),
+        driveFile(gifId, "moving.gif", "image/gif"),
+        driveFile(webpId, "photo.webp", "image/webp"),
+        driveFile(pdfId, "brief.pdf", "application/pdf"),
+        driveFile(wide169Id, "wide169.png", "image/png"),
+        driveFile(tinyLogoId, "tiny.png", "image/png"),
+      ]);
+      files.head.mockImplementation(async (pathname: string) => ({
+        url: `https://x.public.blob.vercel-storage.com/${pathname}`,
+      }));
+    });
+
+    afterEach(() => {
+      files.download.mockReset();
+      files.put.mockReset();
+      files.reserve.mockReset();
+      files.activate.mockReset();
+    });
+
+    it("creates a Search campaign paused and links it", async () => {
+      const result = await run(search);
+      expect(ads.create).toHaveBeenCalledWith({
+        projectId,
+        accountId: adAccountId,
+        workspaceId: SCOPE.workspaceId,
+        userId: SCOPE.userId,
+        organizationId: "organization-one",
+        name: "Spring",
+        dailyBudget: 25,
+        google: search,
+      });
+      expect(result).toEqual({
+        campaignId: "23850000000000000",
+        status: "PAUSED",
+        link: `/ads/campaigns/23850000000000000?projectId=${projectId}&accountId=${adAccountId}`,
+        note: "Created paused. Resume it with update_ad_campaign only when the owner asks.",
+      });
+      expect(lastReceipt()).toMatchObject({
+        disposition: "APPLIED",
+        verification: "PROVIDER_ACK",
+        targetId: "23850000000000000",
+      });
+    });
+
+    it("resolves Display images from the owner's Files", async () => {
+      await run({
+        ...display,
+        images: [...display.images, { fileId: gifId, role: "LOGO" }],
+      });
+      expect(ads.create.mock.calls[0][0].google.images).toEqual([
+        {
+          pathname: "drive/organizations/organization-one/wide.png",
+          fileUrl:
+            "https://x.public.blob.vercel-storage.com/drive/organizations/organization-one/wide.png",
+          name: "wide.png",
+          size: 1000,
+          mimeType: "image/png",
+          role: "LANDSCAPE",
+        },
+        expect.objectContaining({ name: "square.jpg", role: "SQUARE" }),
+        expect.objectContaining({
+          name: "moving.gif",
+          mimeType: "image/gif",
+          role: "LOGO",
+        }),
+      ]);
+    });
+
+    it("passes an image that already fits through untouched", async () => {
+      await run(display);
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("centre-crops a 16:9 LANDSCAPE image into a new Content Studio file", async () => {
+      await run({
+        ...display,
+        images: [
+          { fileId: wide169Id, role: "LANDSCAPE" },
+          { fileId: squareId, role: "SQUARE" },
+        ],
+      });
+      const pathname = `${orgPath}/Content Studio/wide169-landscape-${wide169Id.slice(-8)}.jpg`;
+      expect(files.put).toHaveBeenCalledTimes(1);
+      expect(files.put).toHaveBeenCalledWith(
+        pathname,
+        expect.any(Buffer),
+        expect.objectContaining({ contentType: "image/jpeg" }),
+      );
+      const bytes = files.put.mock.calls[0][1] as Buffer;
+      expect(await sharp(bytes).metadata()).toMatchObject({
+        width: 1920,
+        height: 1005,
+      });
+      expect(ads.create.mock.calls[0][0].google.images[0]).toEqual({
+        pathname,
+        fileUrl: `https://x.public.blob.vercel-storage.com/${pathname}`,
+        name: `wide169-landscape-${wide169Id.slice(-8)}.jpg`,
+        size: bytes.byteLength,
+        mimeType: "image/jpeg",
+        role: "LANDSCAPE",
+      });
+    });
+
+    it("converts a WebP, which Google does not take, into a Content Studio JPEG", async () => {
+      await run({
+        ...display,
+        images: [
+          { fileId: landscapeId, role: "LANDSCAPE" },
+          { fileId: webpId, role: "SQUARE" },
+        ],
+      });
+      expect(files.put).toHaveBeenCalledWith(
+        `${orgPath}/Content Studio/photo-square-${webpId.slice(-8)}.jpg`,
+        expect.any(Buffer),
+        expect.anything(),
+      );
+      expect(ads.create.mock.calls[0][0].google.images[1]).toMatchObject({
+        name: `photo-square-${webpId.slice(-8)}.jpg`,
+        mimeType: "image/jpeg",
+        role: "SQUARE",
+      });
+    });
+
+    /** Refused before anything was sent: the receipt is REJECTED and a retry is allowed. */
+    const refused = async (refusal: Promise<unknown>, message: string) => {
+      await expect(refusal).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+      await expect(refusal).rejects.toThrow(message);
+      expect(lastReceipt()).toMatchObject({
+        status: "FAILED",
+        disposition: "REJECTED",
+      });
+    };
+
+    it("refuses a Display image that is not in the owner's Files", async () => {
+      files.loadLive.mockResolvedValue([]);
+      await refused(run(display), "not in the owner's Files");
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a Display image that is not an image Core can convert", async () => {
+      await refused(
+        run({
+          ...display,
+          images: [
+            { fileId: pdfId, role: "LANDSCAPE" },
+            { fileId: squareId, role: "SQUARE" },
+          ],
+        }),
+        '"brief.pdf" is not a JPEG, PNG, GIF or WebP image',
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a logo smaller than 128x128", async () => {
+      await refused(
+        run({
+          ...display,
+          images: [...display.images, { fileId: tinyLogoId, role: "LOGO" }],
+        }),
+        "at least 128x128",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses when the cropped image cannot be saved to Files", async () => {
+      files.activate.mockResolvedValue(null);
+      await refused(
+        run({
+          ...display,
+          images: [
+            { fileId: wide169Id, role: "LANDSCAPE" },
+            { fileId: squareId, role: "SQUARE" },
+          ],
+        }),
+        "could not be saved after cropping",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a Meta account and points to the Ads page", async () => {
+      await refused(
+        run(search, { accountId: metaAccountId }),
+        "Meta campaigns can be created on the Ads page",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses an account the Project does not have", async () => {
+      await refused(
+        run(search, { accountId: "01960001-0001-7001-8001-000000000099" }),
+        "use an id from list_ad_accounts",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("tells the model what Core's Google rules reject", async () => {
+      await refused(
+        run({
+          ...display,
+          images: [{ fileId: landscapeId, role: "LANDSCAPE" }],
+        }),
+        "Add at least one SQUARE image",
+      );
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    it("hands the model a service refusal so it can fix and retry", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      ads.create.mockRejectedValue(
+        new HTTPException(422, { message: "Google rejected the headline" }),
+      );
+      await refused(run(search), "Google rejected the headline");
+    });
+
+    it("keeps a provider failure unknown so it is never repeated", async () => {
+      const { ComposioApiError } = await import("@/clients/composio.client");
+      ads.create.mockRejectedValue(new ComposioApiError(500, "boom"));
+      const failure = run(search);
+      await expect(failure).rejects.not.toBeInstanceOf(
+        SokoBotRefusedUnsentError,
+      );
+      await expect(failure).rejects.toBeInstanceOf(
+        SokoBotRuntimeValidationError,
+      );
+      expect(lastReceipt()).not.toMatchObject({ disposition: "REJECTED" });
+    });
+
+    it.each(["TEAMMATE", "ASSISTANT"])(
+      "refuses a campaign on a turn %s asked",
+      async (kind) => {
+        const turn = await turnFindUniqueMock();
+        turnFindUniqueMock.mockResolvedValue({
+          ...turn,
+          contextSnapshot: {
+            packet: { memory: { version: 1 }, trigger: { askedBy: { kind } } },
+          },
+        });
+        await expect(run(search)).rejects.toThrow(
+          "only available for the owner",
+        );
+        expect(ads.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rechecks ads access before replaying a created campaign", async () => {
+      const input = {
+        projectId,
+        accountId: adAccountId,
+        name: "Spring",
+        dailyBudget: 25,
+        google: search,
+      };
+      toolCallFindUniqueMock.mockResolvedValue({
+        inputHash: createHash("sha256")
+          .update(canonicalJson(input))
+          .digest("hex"),
+        capability: "create_ad_campaign",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        result: { campaignId: "23850000000000000", status: "PAUSED" },
+      });
+      social.seat.mockRejectedValue(new Error("Seat required"));
+      await expect(run(search)).rejects.toThrow("Seat required");
+      expect(ads.create).not.toHaveBeenCalled();
+    });
+
+    describe("managing a campaign", () => {
+      const campaignId = "23850000000000000";
+      const link = `/ads/campaigns/${campaignId}?projectId=${projectId}&accountId=${adAccountId}`;
+      const scope = {
+        projectId,
+        accountId: adAccountId,
+        campaignId,
+        workspaceId: SCOPE.workspaceId,
+      };
+      const runTool = (
+        capability:
+          | "get_ad_campaign"
+          | "update_ad_campaign"
+          | "edit_ad_campaign"
+          | "delete_ad_campaign",
+        input: object,
+        accountId = adAccountId,
+      ) =>
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: `ad-${capability}`,
+          input: { projectId, accountId, campaignId, ...input },
+        });
+
+      describe("get_ad_campaign", () => {
+        it("returns the campaign's details with a link to open it", async () => {
+          const details = {
+            campaign: { id: campaignId, name: "Spring", editable: true },
+            keywords: [],
+          };
+          ads.details.mockResolvedValue(details);
+          await expect(runTool("get_ad_campaign", {})).resolves.toEqual({
+            ...details,
+            link,
+          });
+          expect(ads.details).toHaveBeenCalledWith({
+            ...scope,
+            range: "LAST_30_DAYS",
+          });
+        });
+
+        it("hands the model the 404 for a Meta account", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.details.mockRejectedValue(
+            new HTTPException(404, {
+              message:
+                "Campaign details are only available for Google Ads accounts",
+            }),
+          );
+          const refusal = runTool("get_ad_campaign", {}, metaAccountId);
+          await expect(refusal).rejects.toBeInstanceOf(
+            SokoBotRuntimeValidationError,
+          );
+          await expect(refusal).rejects.toThrow(
+            "only available for Google Ads accounts",
+          );
+        });
+      });
+
+      describe("update_ad_campaign", () => {
+        beforeEach(() => {
+          ads.update.mockResolvedValue(undefined);
+        });
+
+        it.each(["PAUSED", "ACTIVE"] as const)(
+          "sets the status to %s",
+          async (status) => {
+            await expect(
+              runTool("update_ad_campaign", { status }),
+            ).resolves.toEqual({
+              campaignId,
+              updated: true,
+              status,
+              link,
+            });
+            expect(ads.update).toHaveBeenCalledWith({ ...scope, status });
+            expect(lastReceipt()).toMatchObject({
+              disposition: "APPLIED",
+              verification: "PROVIDER_ACK",
+              targetId: campaignId,
+            });
+          },
+        );
+
+        it("changes only the budget", async () => {
+          await expect(
+            runTool("update_ad_campaign", { dailyBudget: 30 }),
+          ).resolves.toEqual({
+            campaignId,
+            updated: true,
+            dailyBudget: 30,
+            link,
+          });
+          expect(ads.update.mock.calls[0][0]).not.toHaveProperty("status");
+        });
+
+        it("updates a Meta campaign without a link, since it has no details page", async () => {
+          await expect(
+            runTool("update_ad_campaign", { status: "PAUSED" }, metaAccountId),
+          ).resolves.toEqual({ campaignId, updated: true, status: "PAUSED" });
+        });
+
+        it.each([
+          ["neither a status nor a budget", {}],
+          [
+            "a status and a budget together",
+            { status: "PAUSED", dailyBudget: 30 },
+          ],
+        ])("refuses %s before calling anything", async (_label, change) => {
+          await expect(runTool("update_ad_campaign", change)).rejects.toThrow(
+            "Set either status or dailyBudget",
+          );
+          expect(ads.accounts).not.toHaveBeenCalled();
+          expect(ads.update).not.toHaveBeenCalled();
+        });
+
+        it("hands the model a service refusal so it can fix and retry", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.update.mockRejectedValue(
+            new HTTPException(422, {
+              message: "Daily budget in EUR can have at most 2 decimal places",
+            }),
+          );
+          await refused(
+            runTool("update_ad_campaign", { dailyBudget: 1.234 }),
+            "at most 2 decimal places",
+          );
+        });
+      });
+
+      describe("delete_ad_campaign", () => {
+        beforeEach(() => {
+          ads.delete.mockResolvedValue(undefined);
+        });
+
+        it("deletes a Google campaign and reports it gone, with no link", async () => {
+          await expect(runTool("delete_ad_campaign", {})).resolves.toEqual({
+            campaignId,
+            deleted: true,
+          });
+          expect(ads.delete).toHaveBeenCalledWith(scope);
+          expect(ads.delete).toHaveBeenCalledTimes(1);
+          expect(lastReceipt()).toMatchObject({
+            disposition: "APPLIED",
+            verification: "PROVIDER_ACK",
+            targetId: campaignId,
+          });
+        });
+
+        it("deletes a Meta campaign", async () => {
+          await expect(
+            runTool("delete_ad_campaign", {}, metaAccountId),
+          ).resolves.toEqual({ campaignId, deleted: true });
+          expect(ads.delete).toHaveBeenCalledWith({
+            ...scope,
+            accountId: metaAccountId,
+          });
+        });
+
+        it("hands the model a service 404 as an unsent refusal", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.delete.mockRejectedValue(
+            new HTTPException(404, { message: "Campaign not found" }),
+          );
+          await refused(
+            runTool("delete_ad_campaign", {}),
+            "Campaign not found",
+          );
+        });
+
+        it("refuses an ad account that is not in the Project, before deleting", async () => {
+          await refused(
+            runTool(
+              "delete_ad_campaign",
+              {},
+              "01960001-0001-7001-8001-000000000099",
+            ),
+            "Ad account not found in this Project",
+          );
+          expect(ads.delete).not.toHaveBeenCalled();
+        });
+
+        it("rechecks ads access before replaying a delete", async () => {
+          const input = { projectId, accountId: adAccountId, campaignId };
+          toolCallFindUniqueMock.mockResolvedValue({
+            inputHash: createHash("sha256")
+              .update(canonicalJson(input))
+              .digest("hex"),
+            capability: "delete_ad_campaign",
+            status: "COMPLETED",
+            disposition: "APPLIED",
+            result: { campaignId, deleted: true },
+          });
+          social.seat.mockRejectedValue(new Error("Seat required"));
+          await expect(runTool("delete_ad_campaign", {})).rejects.toThrow(
+            "Seat required",
+          );
+          expect(ads.delete).not.toHaveBeenCalled();
+        });
+      });
+
+      describe("edit_ad_campaign", () => {
+        const edit = { name: "Spring", dailyBudget: 25 };
+        const keptSquare = { assetId: "111", role: "SQUARE" as const };
+        beforeEach(() => {
+          ads.edit.mockResolvedValue(undefined);
+        });
+
+        it("edits a Search campaign and links it", async () => {
+          await expect(
+            runTool("edit_ad_campaign", { ...edit, google: search }),
+          ).resolves.toEqual({ campaignId, edited: true, link });
+          expect(ads.edit).toHaveBeenCalledWith({
+            ...scope,
+            userId: SCOPE.userId,
+            organizationId: "organization-one",
+            ...edit,
+            google: search,
+          });
+          expect(lastReceipt()).toMatchObject({
+            disposition: "APPLIED",
+            verification: "PROVIDER_ACK",
+            targetId: campaignId,
+          });
+        });
+
+        it("keeps a current image by asset id and crops a new one, in order", async () => {
+          await runTool("edit_ad_campaign", {
+            ...edit,
+            google: {
+              ...display,
+              images: [keptSquare, { fileId: wide169Id, role: "LANDSCAPE" }],
+            },
+          });
+          const pathname = `${orgPath}/Content Studio/wide169-landscape-${wide169Id.slice(-8)}.jpg`;
+          expect(files.put).toHaveBeenCalledTimes(1);
+          expect(ads.edit.mock.calls[0][0].google.images).toEqual([
+            keptSquare,
+            expect.objectContaining({
+              pathname,
+              mimeType: "image/jpeg",
+              role: "LANDSCAPE",
+            }),
+          ]);
+        });
+
+        it("writes nothing to Files when every image is kept", async () => {
+          const keptLandscape = { assetId: "222", role: "LANDSCAPE" as const };
+          await runTool("edit_ad_campaign", {
+            ...edit,
+            google: { ...display, images: [keptLandscape, keptSquare] },
+          });
+          expect(files.put).not.toHaveBeenCalled();
+          expect(ads.edit.mock.calls[0][0].google.images).toEqual([
+            keptLandscape,
+            keptSquare,
+          ]);
+        });
+
+        it("refuses a Meta account and points to the Ads page", async () => {
+          await refused(
+            runTool(
+              "edit_ad_campaign",
+              { ...edit, google: search },
+              metaAccountId,
+            ),
+            "Meta campaigns are edited on the Ads page",
+          );
+          expect(ads.edit).not.toHaveBeenCalled();
+        });
+
+        it("tells the model what Core's Google rules reject", async () => {
+          await refused(
+            runTool("edit_ad_campaign", {
+              ...edit,
+              google: {
+                ...display,
+                images: [{ assetId: "111", role: "LANDSCAPE" }],
+              },
+            }),
+            "Add at least one SQUARE image",
+          );
+          expect(ads.edit).not.toHaveBeenCalled();
+        });
+
+        it("hands the model a service refusal so it can fix and retry", async () => {
+          const { HTTPException } = await import("hono/http-exception");
+          ads.edit.mockRejectedValue(
+            new HTTPException(422, {
+              message: "This campaign cannot be edited",
+            }),
+          );
+          await refused(
+            runTool("edit_ad_campaign", { ...edit, google: search }),
+            "cannot be edited",
+          );
+        });
+
+        it("rechecks ads access before replaying an edit", async () => {
+          const input = {
+            projectId,
+            accountId: adAccountId,
+            campaignId,
+            ...edit,
+            google: search,
+          };
+          toolCallFindUniqueMock.mockResolvedValue({
+            inputHash: createHash("sha256")
+              .update(canonicalJson(input))
+              .digest("hex"),
+            capability: "edit_ad_campaign",
+            status: "COMPLETED",
+            disposition: "APPLIED",
+            result: { campaignId, edited: true },
+          });
+          social.seat.mockRejectedValue(new Error("Seat required"));
+          await expect(
+            runTool("edit_ad_campaign", { ...edit, google: search }),
+          ).rejects.toThrow("Seat required");
+          expect(ads.edit).not.toHaveBeenCalled();
+        });
+      });
     });
   });
 
@@ -6353,21 +8417,18 @@ describe("Soko Bot project social tools", () => {
     });
   });
 
-  it.each(["beta", "seat"] as const)(
-    "rejects reads when %s access is revoked",
-    async (guard) => {
-      social[guard].mockRejectedValue(new Error("Access revoked"));
-      await expect(
-        new SokoBotRuntimeService().executeTool({
-          ...SCOPE,
-          capability: "list_project_social_accounts",
-          toolCallId: "denied",
-          input: { projectId },
-        }),
-      ).rejects.toThrow("Access revoked");
-      expect(social.listAccounts).not.toHaveBeenCalled();
-    },
-  );
+  it("rejects reads when seat access is revoked", async () => {
+    social.seat.mockRejectedValue(new Error("Access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "denied",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("Access revoked");
+    expect(social.listAccounts).not.toHaveBeenCalled();
+  });
 
   it("rejects banned owners before reading accounts", async () => {
     social.owner.mockResolvedValue({ banned: true, banExpires: null });
@@ -6394,7 +8455,7 @@ describe("Soko Bot project social tools", () => {
     expect(social.listAccounts).not.toHaveBeenCalled();
   });
 
-  it("records bot authorship and the receipt in the mutation transaction", async () => {
+  it("records bot authorship and the receipt without beta membership", async () => {
     await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
       capability: "create_social_post",
@@ -6478,6 +8539,56 @@ describe("Soko Bot project social tools", () => {
     expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "create_social_post",
+      "create",
+      { projectId, socialConnectionId: accountId, text: "Launch" },
+    ],
+    [
+      "update_social_post",
+      "update",
+      { projectId, postId, text: "Changed", revision: 2 },
+    ],
+    [
+      "schedule_social_post",
+      "schedule",
+      { projectId, postId, scheduledAt: "2026-10-01T12:00:00Z", revision: 2 },
+    ],
+    ["publish_social_post", "publish", { projectId, postId, revision: 2 }],
+  ] as const)(
+    "%s propagates disabled-provider refusal without recording a completed mutation",
+    async (capability, mock, input) => {
+      const message = socialProviderUnavailableMessage("tiktok", {
+        organizationSlug: null,
+      });
+      if (!message) throw new Error("Expected an unavailable provider");
+      social[mock].mockRejectedValue(badRequest(message));
+
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability,
+          toolCallId: "disabled-provider",
+          input,
+        }),
+      ).rejects.toMatchObject({ status: 400, message });
+
+      expect(social[mock]).toHaveBeenCalledOnce();
+      expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
+      expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "COMPLETED" }),
+        }),
+      );
+      expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED" }),
+        }),
+      );
+    },
+  );
+
   it("rechecks cancellation before committing a social mutation", async () => {
     transactionTurnFindFirstMock.mockResolvedValue(null);
     await expect(
@@ -6524,7 +8635,7 @@ describe("Soko Bot project social tools", () => {
       status: "COMPLETED",
       result: [{ provider: "youtube", externalHandle: "Old channel" }],
     });
-    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    social.seat.mockRejectedValue(new Error("Social access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6574,7 +8685,7 @@ describe("Soko Bot project social tools", () => {
       disposition: "APPLIED",
       result: post,
     });
-    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    social.seat.mockRejectedValue(new Error("Social access revoked"));
     await expect(
       new SokoBotRuntimeService().executeTool({
         ...SCOPE,
@@ -6798,6 +8909,199 @@ describe("Drive file tools", () => {
     expect(files.loadLive).toHaveBeenCalledWith(
       expect.objectContaining({ actor }),
     );
+  });
+
+  describe("contact research", () => {
+    const chat = {
+      ...authorized,
+      turn: {
+        ...authorized.turn,
+        id: "turn-1",
+        sokoBotId: "bot-1",
+        source: "CHAT",
+        chainDepth: 0,
+      },
+    };
+    const listId = "01960001-0001-7001-8001-000000000001";
+    const contactId = "01960001-0001-7001-8001-000000000002";
+    let commit: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      workspaceFindFirstMock.mockResolvedValue({
+        id: "ws",
+        organizationId: null,
+      });
+      commit = vi
+        .spyOn(
+          service as unknown as {
+            commitReceipt: (...args: unknown[]) => unknown;
+          },
+          "commitReceipt",
+        )
+        .mockImplementation((...args) => args[3]);
+    });
+    afterEach(() => commit.mockRestore());
+
+    it("finds people for a list as the member the bot acts for, with the receipt naming who", async () => {
+      research.findPeople.mockResolvedValue({
+        found: 1,
+        credits: 0.5,
+        suggestions: [
+          {
+            name: "Mara Lind",
+            role: "Partner",
+            organization: "Northwind",
+            location: "Berlin",
+            reason: "Leads pre-seed AI rounds.",
+            profileUrl: "https://linkedin.com/in/maralind",
+          },
+        ],
+      });
+      const result = await service["executeContactResearch"](
+        {
+          capability: "find_people",
+          input: { listId, size: 10 },
+          toolCallId: "call-1",
+        } as never,
+        chat as never,
+      );
+      expect(research.findPeople).toHaveBeenCalledWith(
+        {
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+          sokoBotId: "bot-1",
+        },
+        listId,
+        { size: 10 },
+      );
+      expect(result).toMatchObject({
+        found: 1,
+        credits: 0.5,
+        people: [{ name: "Mara Lind", reason: "Leads pre-seed AI rounds." }],
+      });
+    });
+
+    it("enriches a contact and names it on the receipt", async () => {
+      research.enrich.mockResolvedValue({
+        filled: ["role"],
+        sourceUrl: "https://example.com",
+        credits: 1,
+      });
+      research.contactName.mockResolvedValue({ name: "Ada" });
+      await expect(
+        service["executeContactResearch"](
+          {
+            capability: "enrich_contact",
+            input: { contactId },
+            toolCallId: "c",
+          } as never,
+          chat as never,
+        ),
+      ).resolves.toEqual({
+        contact: { id: contactId, name: "Ada" },
+        filled: ["role"],
+        sourceUrl: "https://example.com",
+        credits: 1,
+      });
+    });
+
+    it("keeps finding people in a background run, one focus per batch", async () => {
+      research.findPeople.mockResolvedValue({
+        found: 0,
+        credits: 0,
+        suggestions: [],
+      });
+      await service["executeContactResearch"](
+        {
+          capability: "find_people",
+          input: { listId, size: 25, focus: "Berlin seed funds" },
+          toolCallId: "call-31",
+        } as never,
+        { ...chat, turn: { ...chat.turn, source: "EVENT" } } as never,
+      );
+      expect(research.findPeople).toHaveBeenCalledWith(
+        expect.anything(),
+        listId,
+        { size: 25, focus: "Berlin seed funds" },
+      );
+    });
+
+    it("hands the bot the reason when Core refuses, such as a low balance", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      research.enrich.mockRejectedValue(
+        new HTTPException(422, { message: "Not enough credits." }),
+      );
+      await expect(
+        service["executeContactResearch"](
+          {
+            capability: "enrich_contact",
+            input: { contactId },
+            toolCallId: "c",
+          } as never,
+          chat as never,
+        ),
+      ).rejects.toThrow("Not enough credits.");
+    });
+  });
+
+  describe("delete_file", () => {
+    const asked = {
+      ...authorized,
+      turn: { ...authorized.turn, source: "CHAT", chainDepth: 0 },
+      askedByKind: "USER",
+    };
+    beforeEach(() => {
+      getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+      files.resourceFindFirst.mockResolvedValue({
+        id: "file-1",
+        sourceId: "drive/u/meta.pdf",
+        displayName: "meta.pdf",
+      });
+    });
+
+    it("deletes the file for good when the owner asks in their chat", async () => {
+      const commit = vi
+        .spyOn(
+          service as unknown as {
+            commitReceipt: (...args: unknown[]) => unknown;
+          },
+          "commitReceipt",
+        )
+        .mockImplementation((...args) => args[3]);
+      await expect(
+        service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
+      ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
+      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+        token: "token",
+      });
+      expect(files.tombstone).toHaveBeenCalledWith({
+        workspaceId: "personal-workspace",
+        scope: "user",
+        pathname: "drive/u/meta.pdf",
+      });
+      commit.mockRestore();
+    });
+
+    it.each([
+      [
+        "a mail or scheduled turn",
+        { turn: { ...asked.turn, source: "EVENT" } },
+      ],
+      ["a chained turn", { turn: { ...asked.turn, chainDepth: 1 } }],
+      ["another assistant asking", { askedByKind: "ASSISTANT" }],
+      [
+        "a shared bot",
+        { reader: { ...asked.reader, sharedScope: { projectId: "p" } } },
+      ],
+    ])("refuses from %s", async (_, override) => {
+      await expect(
+        service["deleteFile"](
+          { ...asked, ...override } as never,
+          { fileId: "file-1" },
+          "call-1",
+        ),
+      ).rejects.toThrow("only when your owner asks");
+      expect(files.del).not.toHaveBeenCalled();
+    });
   });
 
   it("reads a file's extracted text, and explains when there is none", async () => {
@@ -7227,7 +9531,7 @@ describe("Content Studio image tools", () => {
       generate(projectBotChat("project-2"), request, "call-p"),
     ).rejects.toThrow("works only in its own Project");
     await expect(
-      service["getImage"](projectBotChat("project-2") as never, {
+      service["getStudioJob"](projectBotChat("project-2") as never, {
         projectId: "project-1",
         jobId: "job-1",
       }),
@@ -7263,6 +9567,24 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
+  it("lets Cuso's production run make a month of images, and only that run", async () => {
+    const production = new SokoBotRuntimeService();
+    production["mayActForOwner"] = vi.fn().mockResolvedValue(true);
+    const run = { ...ownerChat, turn: { ...ownerChat.turn, source: "EVENT" } };
+    const check = () =>
+      production["checkImageRequest"](run as never, request, "call-m");
+    toolCallCountMock.mockResolvedValue(4);
+    turnFindUniqueMock.mockResolvedValue({
+      clientTurnId: "cmo:production:hire-1:2026-10:1:1",
+    });
+    await expect(check()).resolves.toMatchObject({ credits: 4 });
+    toolCallCountMock.mockResolvedValue(60);
+    await expect(check()).rejects.toThrow("at most 60 images");
+    toolCallCountMock.mockResolvedValue(4);
+    turnFindUniqueMock.mockResolvedValue({ clientTurnId: "cmo:daily:hire-1" });
+    await expect(check()).rejects.toThrow("at most 4 images");
+  });
+
   it("starts an image within the price and links to the studio", async () => {
     images.create.mockResolvedValue({ id: "job-1", status: "QUEUED" });
     const result = await generate(ownerChat, request, "call-1");
@@ -7281,6 +9603,57 @@ describe("Content Studio image tools", () => {
       credits: 4,
       studioUrl: "/studio?projectId=project-1",
     });
+  });
+
+  it("makes a JPEG and sends the owner's product photos as references", async () => {
+    const photo = "11111111-1111-4111-8111-111111111111";
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: photo,
+        displayName: "leggings.jpg",
+        mimeType: "image/jpeg",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/leggings.jpg",
+      },
+    ]);
+    images.create.mockResolvedValue({ id: "job-2", status: "QUEUED" });
+    await generate(
+      ownerChat,
+      { ...request, referenceFileIds: [photo] },
+      "call-ref",
+    );
+    expect(images.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceFileIds: [photo],
+        settings: expect.objectContaining({ outputFormat: "jpeg" }),
+      }),
+    );
+  });
+
+  it("refuses a reference that is not an image in the owner's Files", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        displayName: "notes.md",
+        mimeType: "text/markdown",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/notes.md",
+      },
+    ]);
+    await expect(
+      generate(
+        ownerChat,
+        {
+          ...request,
+          referenceFileIds: [
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+          ],
+        },
+        "call-bad-ref",
+      ),
+    ).rejects.toThrow("is not an image in the owner's Files");
+    expect(images.create).not.toHaveBeenCalled();
   });
 
   it("declines an image that costs more than it may spend", async () => {
@@ -7314,6 +9687,26 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
+  it("lets Cuso's daily run make the images his approved plan lists", async () => {
+    const dailyRun = {
+      ...ownerChat,
+      turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
+    };
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    // Only a draft version: nothing of it is carried out yet.
+    marketingStrategyFindFirstMock.mockResolvedValueOnce(null);
+    await expect(generate(dailyRun, request, "call-c1")).rejects.toThrow(
+      "only when a person asks in chat",
+    );
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: "project-1" });
+    marketingStrategyFindFirstMock.mockResolvedValueOnce({
+      id: "strategy-1",
+      approvedAt: new Date(),
+    });
+    await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
+    expect(images.create).toHaveBeenCalledTimes(1);
+  });
+
   it("generates for a teammate who asks in chat, on the owner's credits", async () => {
     await expect(
       generate({ ...ownerChat, askedByKind: "TEAMMATE" }, request, "call-7"),
@@ -7339,7 +9732,7 @@ describe("Content Studio image tools", () => {
       failureReason: null,
     });
     await expect(
-      service["getImage"](ownerChat as never, {
+      service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
         jobId: "job-1",
       }),
@@ -7380,7 +9773,7 @@ describe("Content Studio image tools", () => {
 
     it("copies it once into a Content Studio folder and returns its file id", async () => {
       files.resourceFindUnique.mockResolvedValue(null);
-      const result = await service["getImage"](ownerChat as never, {
+      const result = await service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
         jobId: ready.id,
       });
@@ -7405,7 +9798,7 @@ describe("Content Studio image tools", () => {
         tombstonedAt: null,
       });
       await expect(
-        service["getImage"](ownerChat as never, {
+        service["getStudioJob"](ownerChat as never, {
           projectId: "project-1",
           jobId: ready.id,
         }),
@@ -7418,7 +9811,7 @@ describe("Content Studio image tools", () => {
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(
-        service["getImage"](ownerChat as never, {
+        service["getStudioJob"](ownerChat as never, {
           projectId: "project-1",
           jobId: ready.id,
         }),
@@ -7496,7 +9889,7 @@ describe("Content Studio image tools", () => {
   it("returns nothing for a job that is not in the Project", async () => {
     images.getJob.mockResolvedValue(null);
     await expect(
-      service["getImage"](ownerChat as never, {
+      service["getStudioJob"](ownerChat as never, {
         projectId: "project-1",
         jobId: "missing",
       }),
@@ -7588,6 +9981,155 @@ describe("Content Studio image tools", () => {
   });
 });
 
+describe("Content Studio video tools", () => {
+  const ownerChat = {
+    askedByKind: "OWNER",
+    reader: { userId: SCOPE.userId, audience: "OWNER", sharedScope: null },
+    turn: {
+      id: SCOPE.turnId,
+      actingUserId: SCOPE.userId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "CHAT",
+      chainDepth: 0,
+    },
+  };
+  const service = new SokoBotRuntimeService();
+  const generate = (authorized: unknown, input: unknown, callId: string) =>
+    service["generateVideo"](authorized as never, input, callId);
+  const request = {
+    projectId: "project-1",
+    prompt: "A product turning on a plinth",
+    maxCredits: 100,
+  };
+  beforeEach(() => {
+    images.access.mockResolvedValue({ organizationId: null });
+    images.createVideo.mockReset();
+    images.getJob.mockReset();
+    toolCallCountMock.mockResolvedValue(0);
+  });
+
+  it("starts a 9:16 five second video on the default model, keyed to the call", async () => {
+    images.createVideo.mockResolvedValue({ id: "job-v", status: "QUEUED" });
+    const result = await generate(ownerChat, request, "call-v1");
+    expect(images.createVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        modelId: "h3-max-turbo",
+        settings: {
+          aspectRatio: "9:16",
+          durationSeconds: 5,
+          resolution: "768P",
+        },
+        sourceAssetId: null,
+        idempotencyKey: `soko-bot:${SCOPE.turnId}:call-v1`,
+      }),
+    );
+    expect(result).toMatchObject({
+      jobId: "job-v",
+      status: "QUEUED",
+      credits: 20,
+      studioUrl: "/studio?projectId=project-1",
+    });
+  });
+
+  it("uses the quality model when asked, and prices it before sending", async () => {
+    await expect(
+      generate(
+        ownerChat,
+        { ...request, quality: "high", durationSeconds: 15, maxCredits: 50 },
+        "call-v2",
+      ),
+    ).rejects.toThrow("costs 120 credits, more than the 50 allowed");
+    expect(images.createVideo).not.toHaveBeenCalled();
+  });
+
+  it("animates a finished image from this Project by its job id", async () => {
+    images.getJob.mockResolvedValue({
+      id: "job-i",
+      status: "SUCCEEDED",
+      assetId: "asset-i",
+      video: null,
+    });
+    images.createVideo.mockResolvedValue({ id: "job-v", status: "QUEUED" });
+    await generate(
+      ownerChat,
+      { ...request, imageJobId: "job-i", aspectRatio: "16:9" },
+      "call-v3",
+    );
+    expect(images.createVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "h3-max-turbo-animate",
+        sourceAssetId: "asset-i",
+        // The frame follows the image; the requested ratio is not sent.
+        settings: expect.objectContaining({ aspectRatio: "" }),
+      }),
+    );
+  });
+
+  it("refuses an image that is not ready, or a job that is a video", async () => {
+    images.getJob.mockResolvedValueOnce({
+      id: "job-i",
+      assetId: null,
+      video: null,
+    });
+    await expect(
+      generate(ownerChat, { ...request, imageJobId: "job-i" }, "call-v4"),
+    ).rejects.toThrow("not ready yet");
+    images.getJob.mockResolvedValueOnce({
+      id: "job-v",
+      assetId: "asset-v",
+      video: { aspectRatio: "9:16", durationSeconds: 5, resolution: "768P" },
+    });
+    await expect(
+      generate(ownerChat, { ...request, imageJobId: "job-v" }, "call-v5"),
+    ).rejects.toThrow("must be a generate_image job");
+    expect(images.createVideo).not.toHaveBeenCalled();
+  });
+
+  it("stops a turn after two videos and spends only when a person asks in chat", async () => {
+    toolCallCountMock.mockResolvedValue(2);
+    await expect(generate(ownerChat, request, "call-v6")).rejects.toThrow(
+      "at most 2 videos",
+    );
+    toolCallCountMock.mockResolvedValue(0);
+    await expect(
+      generate(
+        { ...ownerChat, turn: { ...ownerChat.turn, source: "SCHEDULE" } },
+        request,
+        "call-v7",
+      ),
+    ).rejects.toThrow("only when a person asks in chat");
+    expect(images.createVideo).not.toHaveBeenCalled();
+  });
+
+  it("refuses a length the studio does not offer", async () => {
+    await expect(
+      generate(ownerChat, { ...request, durationSeconds: 8 }, "call-v8"),
+    ).rejects.toThrow("does not support this length");
+  });
+
+  it("reports a running video through the same job read as an image", async () => {
+    images.getJob.mockResolvedValue({
+      id: "job-v",
+      status: "RUNNING",
+      assetId: null,
+      failureReason: null,
+    });
+    await expect(
+      service["getStudioJob"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: "job-v",
+      }),
+    ).resolves.toEqual({
+      jobId: "job-v",
+      status: "RUNNING",
+      failureReason: null,
+      studioUrl: "/studio?projectId=project-1",
+    });
+  });
+});
+
 describe("create_task on an event turn", () => {
   const inbox = vi.fn();
   const eventTurn = {
@@ -7619,7 +10161,7 @@ describe("create_task on an event turn", () => {
   it("follows up the batch's only Task when none is named", async () => {
     inbox.mockReset().mockResolvedValue([{ entityId: "task-1" }]);
     // The claim is then checked against that Task, as if it had been named.
-    await expect(create({})).rejects.toThrow("no current authority");
+    await expect(create({})).rejects.toThrow("may not change this one");
     expect(inbox).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ entityId: "task-1" }),
@@ -7655,6 +10197,7 @@ describe("find_agents", () => {
     } as never);
 
   beforeEach(() => {
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     marketplace.list.mockResolvedValue({
       count: 2,
       agents: [listing("a", "Company Researcher"), listing("b", "SEO Auditor")],
@@ -7806,5 +10349,353 @@ describe("archive_task without approval cards", () => {
       where: { id: TASK_ID, workspaceId: "w" },
       select: { id: true },
     });
+  });
+});
+
+describe("project bots", () => {
+  const PROJECT = "01960001-0001-7001-8001-0000000000aa";
+  const call = (input: unknown) => ({
+    ...SCOPE,
+    capability: "create_social_post" as const,
+    toolCallId: "call-1",
+    input,
+  });
+
+  it("puts a project bot's work in its own Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: PROJECT });
+    const pinned = await pinToBotProject(call({ text: "Hi" }), SCOPE.sokoBotId);
+    expect(pinned.input).toEqual({ text: "Hi", projectId: PROJECT });
+  });
+
+  it("refuses another Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: PROJECT });
+    await expect(
+      pinToBotProject(
+        call({ projectId: "01960001-0001-7001-8001-0000000000bb" }),
+        SCOPE.sokoBotId,
+      ),
+    ).rejects.toThrow("own Project");
+  });
+
+  it("leaves a personal assistant's choice alone", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null });
+    const input = call({ projectId: "01960001-0001-7001-8001-0000000000bb" });
+    expect(await pinToBotProject(input, SCOPE.sokoBotId)).toBe(input);
+  });
+});
+
+describe("Social comment scope", () => {
+  const PROJECT = "01960001-0001-7001-8001-0000000000c1";
+  const authorized = { turn: { sokoBotId: SCOPE.sokoBotId } } as never;
+
+  it("handles the comments of the bot's own Project, with its Brand Brain when it has one", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      projectId: PROJECT,
+      project: { brandBrain: { body: { summary: "Lofts" } } },
+    });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).resolves.toEqual({
+      projectId: PROJECT,
+      brandBrain: { summary: "Lofts" },
+    });
+  });
+
+  it("works for a Project without a Brand Brain", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      projectId: PROJECT,
+      project: { brandBrain: null },
+    });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).resolves.toEqual({ projectId: PROJECT, brandBrain: null });
+  });
+
+  it("refuses a bot with no Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null, project: null });
+    await expect(
+      new SokoBotRuntimeService()["socialCommentScopeOf"](authorized),
+    ).rejects.toThrow("belong to a Project");
+  });
+});
+
+describe("CMO record saves", () => {
+  const report = {
+    ...SCOPE,
+    capability: "report_update" as const,
+    toolCallId: "report",
+    input: {
+      kind: "daily",
+      headline: "Today",
+      done: [],
+      upNext: [],
+      changes: [],
+    },
+  };
+  const owner = {
+    turn: { id: SCOPE.turnId, sokoBotId: SCOPE.sokoBotId, versionId: "cmo-v1" },
+    askedByKind: "OWNER",
+  };
+  function cmoTx() {
+    const tx = {
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({
+          workspaceId: SCOPE.workspaceId,
+          projectId: "project-1",
+          sharedRoomId: "room-1",
+          versionId: "cmo-v1",
+        }),
+      },
+      chatRoomMessage: {
+        upsert: vi.fn(
+          async (args: {
+            create: { id: string; createdAt: Date; metadata: unknown };
+          }) => ({
+            id: args.create.id,
+            createdAt: args.create.createdAt,
+            metadata: args.create.metadata,
+          }),
+        ),
+      },
+      chatRoom: { update: vi.fn().mockResolvedValue({}) },
+      project: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    return tx;
+  }
+
+  it("posts the report as a card in Cuso's shared room and makes it the Project's latest update", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    publishChatRoomMessageRealtimeByIdMock.mockClear();
+    const result = await service["saveCmoRecord"](owner as never, report);
+    const { create } = tx.chatRoomMessage.upsert.mock.calls[0]![0];
+    expect(create).toMatchObject({ roomId: "room-1", content: "Today" });
+    expect(result).toEqual({
+      reported: "daily",
+      id: create.id,
+      revertible: false,
+    });
+    expect(tx.project.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "project-1" }),
+        data: expect.objectContaining({
+          latestUpdateMd: expect.stringContaining("## TL;DR\n\nToday"),
+        }),
+      }),
+    );
+    // Open chats see the card at once.
+    expect(publishChatRoomMessageRealtimeByIdMock).toHaveBeenCalledWith(
+      create.id,
+      "create",
+    );
+  });
+
+  it("refuses an assistant's turn, which never sees the plan", async () => {
+    transactionMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service["saveCmoRecord"](
+        { ...owner, askedByKind: "ASSISTANT" } as never,
+        report,
+      ),
+    ).rejects.toThrow("Only the owner's turns");
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("saves a member's turn: Cuso works for the whole business", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](
+      { ...owner, askedByKind: "TEAMMATE" } as never,
+      report,
+    );
+    expect(tx.chatRoomMessage.upsert).toHaveBeenCalled();
+  });
+
+  it("refuses a teammate's turn on any other shared bot", async () => {
+    transactionMock.mockClear();
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service["saveCmoRecord"](
+        {
+          ...owner,
+          turn: { ...owner.turn, versionId: null },
+          askedByKind: "TEAMMATE",
+        } as never,
+        report,
+      ),
+    ).rejects.toThrow();
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing once the turn is cancelled or the bot paused", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi
+      .fn()
+      .mockRejectedValue(
+        new SokoBotRuntimeAuthorizationError("Turn is no longer writable"),
+      );
+    await expect(
+      service["saveCmoRecord"](owner as never, report),
+    ).rejects.toThrow("no longer writable");
+    expect(tx.chatRoomMessage.upsert).not.toHaveBeenCalled();
+  });
+
+  it("saves Cuso's plan as a new Marketing strategy version of his Project", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000ab";
+    const plan = {
+      month: "2026-11",
+      summary: "Founder-led LinkedIn posts that show the product working.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [{ channel: "linkedin", cadence: "3 a week" }],
+      calendar: [],
+    };
+    const created = {
+      id: "strategy-2",
+      projectId: PROJECT,
+      plan,
+      approvedAt: null,
+      updatedAt: new Date("2026-11-01T09:00:00Z"),
+    };
+    const tx = {
+      // Cuso, found as the Project's shared bot on CMO's version.
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: SCOPE.sokoBotId,
+          createdAt: new Date("2026-10-01T09:00:00Z"),
+          project: {
+            id: PROJECT,
+            workspaceId: SCOPE.workspaceId,
+            websiteUrl: "https://acme.io",
+            workspace: { organizationId: "org-1" },
+            brandBrain: null,
+          },
+        }),
+      },
+      marketingStrategy: {
+        // The approved version runs; this turn has written none yet.
+        findFirst: vi
+          .fn()
+          .mockImplementation(
+            async (args: { where: { authorTurnId?: string } }) =>
+              args.where.authorTurnId
+                ? null
+                : { id: "strategy-1", plan, approvedAt: new Date() },
+          ),
+        create: vi.fn().mockResolvedValue(created),
+        update: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValueOnce({
+      source: "CHAT",
+      clientTurnId: "chat-1",
+    });
+    toolCallCountMock.mockResolvedValueOnce(1);
+    // No Brand Brain to check the plan against: the drift review is skipped.
+    botFindUniqueMock.mockResolvedValueOnce(null);
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+
+    const result = await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_strategy",
+      toolCallId: "strategy",
+      input: { part: "plan", strategy: plan },
+    });
+
+    expect(tx.marketingStrategy.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: PROJECT,
+        authorTurnId: SCOPE.turnId,
+        authorSokoBotId: SCOPE.sokoBotId,
+      }),
+    });
+    expect(tx.marketingStrategy.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      saved: "strategy",
+      versionId: "strategy-2",
+      approved: false,
+    });
+  });
+
+  it("saves the Brand Brain to Cuso's Project", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000c2";
+    const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      brandBrain: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue({
+          id: "brain-1",
+          body: { profile: {} },
+          updatedAt: null,
+        }),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, {
+      ...SCOPE,
+      capability: "save_brand_brain",
+      toolCallId: "brain",
+      input: {
+        sections: {
+          pricing: {
+            answer: "From 9 dollars",
+            findings: [
+              { point: "From 9 dollars", evidence: "fact", confidence: "high" },
+            ],
+          },
+        },
+      },
+    });
+    const upsert = tx.brandBrain.upsert.mock.calls[0]?.[0];
+    expect(upsert.where).toEqual({ projectId: PROJECT });
+    expect(upsert.create.body.profile.pricing.answer).toBe("From 9 dollars");
+  });
+
+  it("checks the turn's authority inside the transaction that writes", async () => {
+    const tx = cmoTx();
+    const service = new SokoBotRuntimeService();
+    const authority = vi.fn().mockResolvedValue(undefined);
+    service["requireMutationAuthority"] = authority;
+    serializableTransactionMock.mockResolvedValueOnce(undefined);
+    await service["saveCmoRecord"](owner as never, report);
+    expect(authority.mock.calls[0]?.[0]).toBe(tx);
+    expect(authority.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.chatRoomMessage.upsert.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+});
+
+describe("personAssignee", () => {
+  it("hands a Task to a teammate, the owner, or nobody", () => {
+    expect(personAssignee({ memberId: "user_shiv" }, "owner")).toBe(
+      "user_shiv",
+    );
+    expect(personAssignee({ assignToOwner: true }, "owner")).toBe("owner");
+    expect(personAssignee({}, "owner")).toBeNull();
+    expect(() =>
+      personAssignee({ assignToOwner: true, memberId: "user_shiv" }, "owner"),
+    ).toThrow("not both");
   });
 });

@@ -62,7 +62,7 @@ struct ChannelMemberAdditionTests {
   /// A member page failure hides only People; a failed roster blocks Add until Retry.
   @Test func loadFailuresFollowParticipantCheckboxes() async {
     let model = ChannelMemberAddition(room: room())
-    await model.load { .init(targets: [.init(id: .coworker("writer"), name: "Writer")], membersLoadFailed: true) }
+    await model.load { .init(targets: [.init(id: .coworker("writer"), name: "Writer")], humansLoadFailed: true) }
     #expect(model.membersLoadFailed && model.sections.map(\.id) == [.coworkers])
     await model.load { throw URLError(.notConnectedToInternet) }
     #expect(model.roster == nil && model.errorMessage == "No network connection. Check your connection and try again.")
@@ -79,7 +79,7 @@ struct ChannelMemberAdditionTests {
     #expect(model.sections.isEmpty && !model.nobodyToAdd, "A query that matches nobody is not an empty roster")
     await model.load { .init(targets: [.init(id: .human("peer"), name: "Peer"), .init(id: .coworker("agent"), name: "Agent")]) }
     #expect(model.nobodyToAdd)
-    await model.load { .init(targets: [.init(id: .coworker("agent"), name: "Agent")], membersLoadFailed: true) }
+    await model.load { .init(targets: [.init(id: .coworker("agent"), name: "Agent")], humansLoadFailed: true) }
     #expect(!model.nobodyToAdd)
   }
 

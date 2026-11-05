@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   membership: vi.fn(),
   messages: vi.fn(),
   hydrate: vi.fn(),
+  preload: vi.fn(),
   budget: vi.fn(),
 }));
 vi.mock("@/middleware/auth", async (original) => {
@@ -28,6 +29,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/chat-result-preview.service", () => ({
   hydrateChatResultSnapshots: mocks.hydrate,
+  preloadChatResultHydration: mocks.preload,
 }));
 const roomId = "00000000-0000-4000-8000-000000000001";
 const first = "00000000-0000-4000-8000-000000000002";
@@ -84,7 +86,7 @@ describe("batched room result hydration", () => {
       select: { id: true, metadata: true },
     });
     expect(mocks.hydrate).toHaveBeenCalledTimes(2);
-    expect(mocks.hydrate).toHaveBeenCalledWith([], "reader");
+    expect(mocks.hydrate).toHaveBeenCalledWith([], "reader", undefined);
     expect((await response.json()).data).toEqual([
       { messageId: first, results: [] },
       { messageId: second, results: [] },

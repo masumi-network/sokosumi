@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { defaultValidationHook } from "@/lib/hono";
 
+import newsletterRouter from "./resend/newsletter.js";
 import uploadedRouter from "./tasks/files/uploaded.js";
 
 /**
@@ -12,5 +13,6 @@ const app = new OpenAPIHono({
 });
 
 app.route("/tasks/files", uploadedRouter);
+app.route("/resend", newsletterRouter);
 
 export default app;

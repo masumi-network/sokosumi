@@ -24,15 +24,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { listAdminSokoBotsAction } from "@/lib/actions/admin-soko-bots/action";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
+import { AdminDeleteAllCusos } from "./admin-delete-all-cusos.client";
 import { attentionReasons } from "./fleet-health-summary";
 
 interface SokoBotFleetTableProps {
   initialList: AdminSokoBotList;
   limit: number;
+}
+
+type FleetKind = "all" | "assistant" | "cmo";
+const FLEET_KINDS = ["all", "assistant", "cmo"] as const;
+
+function isFleetKind(value: string): value is FleetKind {
+  return (FLEET_KINDS as readonly string[]).includes(value);
 }
 
 /** Never used, or switched off by its owner: rarely what an operator is after. */
@@ -57,17 +66,19 @@ export function SokoBotFleetTable({
   const format = useFormatter();
   const [list, setList] = useState(initialList);
   const [search, setSearch] = useState("");
+  const [kind, setKind] = useState<FleetKind>("all");
   const [showDormant, setShowDormant] = useState(false);
   const dormantSwitchId = useId();
   const [isPending, startTransition] = useTransition();
   const latestRequestId = useRef(0);
 
-  const runSearch = useDebouncedCallback((query: string) => {
+  const reload = (query: string, nextKind: FleetKind) => {
     const requestId = ++latestRequestId.current;
     startTransition(async () => {
       const result = await listAdminSokoBotsAction({
         query: query.trim() || undefined,
         limit,
+        kind: nextKind,
       });
       if (requestId !== latestRequestId.current) return;
       if (!result.ok) {
@@ -76,7 +87,11 @@ export function SokoBotFleetTable({
       }
       setList(result.value);
     });
-  }, 300);
+  };
+  const runSearch = useDebouncedCallback(
+    (query: string) => reload(query, kind),
+    300,
+  );
 
   const dormantCount = list.items.filter(isDormant).length;
   // A search is a question about specific bots; answer it in full.
@@ -103,6 +118,22 @@ export function SokoBotFleetTable({
           aria-label={t("searchPlaceholder")}
           className="max-w-sm"
         />
+        <ToggleGroup
+          type="single"
+          value={kind}
+          onValueChange={(next) => {
+            if (!isFleetKind(next)) return;
+            setKind(next);
+            reload(search, next);
+          }}
+          aria-label={t("kindLabel")}
+        >
+          {FLEET_KINDS.map((option) => (
+            <ToggleGroupItem key={option} value={option}>
+              {t(`kind.${option}`)}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
         <div className="flex items-center gap-2">
           <Switch
             id={dormantSwitchId}
@@ -117,6 +148,12 @@ export function SokoBotFleetTable({
             {t("showDormant", { count: dormantCount })}
           </Label>
         </div>
+        {kind === "cmo" && !search.trim() && list.total > 0 ? (
+          <AdminDeleteAllCusos
+            count={list.total}
+            onDeleted={() => reload("", "cmo")}
+          />
+        ) : null}
       </div>
 
       <div
@@ -157,6 +194,11 @@ export function SokoBotFleetTable({
                     >
                       {item.name ?? t("unnamed")}
                     </Link>
+                    {item.kind === "cmo" ? (
+                      <StatusBadge tone="neutral" className="ml-2">
+                        {t("cmoBadge")}
+                      </StatusBadge>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <span className="block truncate">

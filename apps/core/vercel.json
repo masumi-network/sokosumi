@@ -13,7 +13,7 @@
   "functions": {
     "dist/index.js": {
       "maxDuration": 300,
-      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**}"
+      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**,assets/soko-bot-avatar/*}"
     }
   },
   "relatedProjects": [
@@ -21,6 +21,10 @@
     "prj_DsK6SqWjSU47g7O3unja5h4jtxMk"
   ],
   "crons": [
+    {
+      "path": "/sync/newsletter-issues-send",
+      "schedule": "* * * * *"
+    },
     {
       "path": "/sync/social-performance",
       "schedule": "7,22,37,52 * * * *"
@@ -114,6 +118,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/cmo-production",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-turns",
       "schedule": "* * * * *"
     },
@@ -126,12 +134,24 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/sync/contact-capture",
+      "schedule": "5,20,35,50 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
     },
     {
+      "path": "/sync/soko-bot-avatar-renders",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/sync/task-tags",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/sync/chat-message-signals",
+      "schedule": "* * * * *"
     },
     {
       "path": "/sync/social-posts-publish",

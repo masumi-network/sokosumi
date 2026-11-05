@@ -40,7 +40,7 @@ and sokosumi already ingests them. They appear on public `GET /v1/agents` as
 `kind: "x402"` next to Cardano hire items (`kind: "cardano"`). There is no
 `/v1/agents/x402`. Web `/agents` restored Agent catalog browse (ADR-0024);
 app Hire stays off (SOK-805 remainder). Paying an x402 agent stays coworker
-+ assigned task.
+- assigned task.
 
 The two rails differ structurally, not just by network:
 
@@ -49,7 +49,7 @@ The two rails differ structurally, not just by network:
   can recover funds when a seller never delivers.
 - **x402** is synchronous and terminal: call the resource, receive a 402 with
   payment requirements, have the node sign a payment, replay the call, and
-  the HTTP response *is* the result. The buyer node's OUTBOUND attempt
+  the HTTP response _is_ the result. The buyer node's OUTBOUND attempt
   lifecycle terminates at `Verified` (or `Failed`) once the payment is
   signed; settlement to `Settled` is the receiving side's concern. There is
   no escrow, no result hash, and no on-chain refund path.
@@ -66,7 +66,7 @@ Relevant payment-node surface (pinned in `packages/masumi/spec/payment.openapi.j
   (`evmWalletId`, `paymentRequired`, `preferredNetwork`, `preferredAsset`,
   `paymentIdentifier`).
 - `GET /rail-readiness` — per-rail checks; the X402 rail's `isReady` covers
-  *receiving* only. The coarse buy-side check is `x402.purchasing_wallet`.
+  _receiving_ only. The coarse buy-side check is `x402.purchasing_wallet`.
   (Superseded: an `x402.budget` check sat beside it until masumi ADR 0016
   removed it.)
 - `GET /api-key-status`: the calling key's own record, including

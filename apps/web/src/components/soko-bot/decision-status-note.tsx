@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 const TONE_CLASS: Record<SokoBotPendingDecision["status"], string> = {
   PENDING: "text-muted-foreground",
-  PROCESSING: "text-semantic-warning",
-  ACCEPTED: "text-semantic-success",
+  PROCESSING: "text-foreground",
+  ACCEPTED: "text-foreground",
   REJECTED: "text-muted-foreground",
   EXPIRED: "text-muted-foreground",
 };

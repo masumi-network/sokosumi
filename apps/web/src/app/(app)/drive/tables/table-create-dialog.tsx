@@ -44,6 +44,7 @@ export const TABLE_TYPES: TableColumn["type"][] = [
   "email",
   "single_select",
   "multiple_select",
+  "last_updated",
 ];
 export function TableCreateDialog({
   workspaceId,
@@ -119,11 +120,13 @@ export function TableCreateDialog({
       const rows = csv.slice(1).map((row, index) => {
         try {
           const parsed = tableInsertRowSchema.parse({
+            // A Last updated column fills itself, so its CSV cells are dropped.
             values: Object.fromEntries(
-              definitions.map((column, i) => [
-                column.id,
-                parseTableInput(column, row[i]),
-              ]),
+              definitions.flatMap((column, i) =>
+                column.type === "last_updated"
+                  ? []
+                  : [[column.id, parseTableInput(column, row[i])]],
+              ),
             ),
           });
           validateTableValues(

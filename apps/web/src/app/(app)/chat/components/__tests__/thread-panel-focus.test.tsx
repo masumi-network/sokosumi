@@ -154,7 +154,7 @@ describe("ThreadPanel composer focus", () => {
       messageId: "quoted-1",
       authorName: "Ada",
       snippet: "quoted",
-      attachment: null,
+      attachments: [],
     });
 
     await flushAnimationFrame();

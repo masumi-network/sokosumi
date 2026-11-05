@@ -61,6 +61,7 @@ const performActionSchema = z
 const listSchema = z.object({
   query: z.string().trim().max(200).optional(),
   limit: z.number().int().min(1).max(200).optional(),
+  kind: z.enum(["all", "assistant", "cmo"]).optional(),
 });
 
 const versionSlugSchema = z
@@ -108,15 +109,16 @@ function mapError(error: unknown): ActionError {
 interface ListParams extends AuthenticatedRequest {
   query?: unknown;
   limit?: unknown;
+  kind?: unknown;
 }
 
 export const listAdminSokoBotsAction = withSession<
   ListParams,
   ActionResultDto<AdminSokoBotList, ActionError>
->(async ({ session, query, limit }) => {
+>(async ({ session, query, limit, kind }) => {
   try {
     assertAdminSession(session);
-    const parsed = listSchema.safeParse({ query, limit });
+    const parsed = listSchema.safeParse({ query, limit, kind });
     if (!parsed.success) {
       return toActionResult(
         err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
@@ -258,6 +260,65 @@ export const deleteAdminSokoBotAction = withSession<
     const result = await adminSokoBotService.deleteBot(parsed.data.sokoBotId);
     revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
     return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+const deleteAllCusosSchema = z.object({ count: z.number().int().positive() });
+/** Core's largest fleet page. */
+const CUSO_PAGE = 100;
+
+/**
+ * Deletes every Cuso (CMO.xyz bot), one admin delete each. The operator
+ * typed how many there are; a different count means the fleet changed under
+ * them, so nothing is deleted.
+ */
+export const deleteAllAdminCusosAction = withSession<
+  DeleteBotParams,
+  ActionResultDto<{ deleted: number; failed: number }, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = deleteAllCusosSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid count" }),
+      );
+    }
+    let page = await adminSokoBotService.list({
+      kind: "cmo",
+      limit: CUSO_PAGE,
+    });
+    if (page.total !== parsed.data.count) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: `There are ${page.total} Cusos now. Check the list and try again.`,
+        }),
+      );
+    }
+    const tried = new Set<string>();
+    let deleted = 0;
+    let failed = 0;
+    // A deleted bot leaves the list, so the first page refills until only
+    // bots that could not be deleted are left.
+    for (;;) {
+      const next = page.items.filter((item) => !tried.has(item.id));
+      if (next.length === 0) break;
+      for (const item of next) {
+        tried.add(item.id);
+        try {
+          await adminSokoBotService.deleteBot(item.id);
+          deleted += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      page = await adminSokoBotService.list({ kind: "cmo", limit: CUSO_PAGE });
+    }
+    revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
+    return toActionResult(ok({ deleted, failed }));
   } catch (error) {
     return toActionResult(err(mapError(error)));
   }

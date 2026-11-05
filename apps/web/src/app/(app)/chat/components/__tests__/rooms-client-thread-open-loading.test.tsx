@@ -1,12 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
@@ -19,6 +13,7 @@ import {
   markOrganizationChatRoomReadAction,
   markThreadReadAction,
   mockSearch,
+  renderWithQueryClient,
   roomsClientBaseProps,
   useChatRoomRealtimeMock,
 } from "./rooms-client-harness";
@@ -213,7 +208,7 @@ describe("RoomsClient thread open loading race", () => {
       },
     });
 
-    render(<RoomsClient {...baseProps} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     fireEvent.click(screen.getByTestId("open-thread-parent-1"));
 
@@ -250,7 +245,7 @@ describe("RoomsClient thread open loading race", () => {
       value: { messages: [replyMessage("r1")], nextCursor: null },
     });
 
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messages={[{ ...parentMessage(), threadUnreadReplyCount: 2 }]}
@@ -276,7 +271,7 @@ describe("RoomsClient thread open loading race", () => {
       value: [],
     });
     const otherParent = { ...parentMessage(), id: "parent-2" };
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messages={[
@@ -337,7 +332,7 @@ describe("RoomsClient thread open loading race", () => {
       ok: true as const,
       value: [],
     });
-    const view = render(
+    const view = renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messages={[{ ...parentMessage(), threadUnreadReplyCount: 0 }]}
@@ -367,7 +362,7 @@ describe("RoomsClient thread open loading race", () => {
   it("opens the thread list the URL asks for", async () => {
     mockSearch.current = "threads=1";
 
-    render(<RoomsClient {...baseProps} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("thread-list-panel")).toBeTruthy();
@@ -375,7 +370,7 @@ describe("RoomsClient thread open loading race", () => {
   });
 
   it("opens no thread list when the URL asks for nothing", () => {
-    render(<RoomsClient {...baseProps} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     expect(screen.queryByTestId("thread-list-panel")).toBeNull();
   });
@@ -399,7 +394,7 @@ describe("RoomsClient thread open loading race", () => {
       },
     });
 
-    render(<RoomsClient {...baseProps} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
     fireEvent.click(screen.getByTestId("open-thread-parent-1"));
     expect(screen.getByTestId("thread-state").textContent).toBe("loading");
 
@@ -438,7 +433,7 @@ describe("RoomsClient thread open loading race", () => {
         error: { message: "boom" },
       } as never);
 
-    render(<RoomsClient {...baseProps} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
     fireEvent.click(screen.getByTestId("open-thread-parent-1"));
 
     await waitFor(() => {
@@ -500,7 +495,7 @@ describe("RoomsClient thread open loading race", () => {
 
     mockSearchHit.current = replyMessage("r-old");
 
-    render(<RoomsClient {...baseProps} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
     fireEvent.click(screen.getByTestId("open-thread-parent-1"));
 
     await waitFor(() => {

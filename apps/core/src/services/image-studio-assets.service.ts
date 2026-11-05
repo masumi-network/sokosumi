@@ -43,6 +43,9 @@ export interface AssetView {
   height: number;
   bytes: number;
   contentType: string;
+  mediaType: "IMAGE" | "VIDEO";
+  durationSeconds: number | null;
+  video: VideoSettingsView | null;
   createdAt: Date;
   jobId: string;
 }
@@ -61,6 +64,8 @@ const assetSelect = {
   height: true,
   bytes: true,
   contentType: true,
+  mediaType: true,
+  durationSeconds: true,
   createdAt: true,
   jobId: true,
 } as const;
@@ -71,7 +76,48 @@ function toAssetView({
 }: Prisma.ProjectImageAssetGetPayload<{
   select: typeof assetSelect;
 }>): AssetView {
-  return { ...asset, projectName: project.name };
+  return {
+    ...asset,
+    ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
+    projectName: project.name,
+  };
+}
+
+export interface VideoSettingsView {
+  aspectRatio: string;
+  durationSeconds: number;
+  resolution: string;
+}
+
+/**
+ * A video row's settings, split into the image-shaped `settings` every client
+ * already reads and the `video` block that is the truth for it. Without the
+ * split a video's `768P` would fail the image resolution enum and take the whole
+ * gallery response down.
+ */
+export function splitVideoSettings(
+  isVideo: boolean,
+  settings: unknown,
+): { settings: unknown; video: VideoSettingsView | null } {
+  if (!isVideo) return { settings, video: null };
+  const raw =
+    typeof settings === "object" &&
+    settings !== null &&
+    !Array.isArray(settings)
+      ? (settings as Record<string, unknown>)
+      : {};
+  // Empty for an animated image, whose frame is the still's own.
+  const aspectRatio =
+    typeof raw.aspectRatio === "string" ? raw.aspectRatio : "";
+  return {
+    settings: aspectRatio ? { aspectRatio } : {},
+    video: {
+      aspectRatio,
+      durationSeconds:
+        typeof raw.durationSeconds === "number" ? raw.durationSeconds : 5,
+      resolution: typeof raw.resolution === "string" ? raw.resolution : "",
+    },
+  };
 }
 
 /**
@@ -195,11 +241,18 @@ export async function openAssetStream(options: {
   projectId: string;
   workspaceId: string;
   userId: string;
+  /**
+   * The browser's `Range` header, passed through. A `<video>` seeks with it,
+   * and Safari will not play an mp4 at all from a server that ignores it.
+   */
+  range?: string;
 }): Promise<{
   stream: ReadableStream<Uint8Array>;
   contentType: string;
   size: number;
   checksum: string;
+  /** Set when the store answered a byte range: the response is then a 206. */
+  contentRange: string | null;
 }> {
   await requireProjectAccess(options);
   const asset = await prisma.projectImageAsset.findFirst({
@@ -216,15 +269,20 @@ export async function openAssetStream(options: {
   const result = await get(asset.blobPathname, {
     access: "private",
     token: requireStudioBlobToken(),
+    ...(options.range ? { headers: { range: options.range } } : {}),
   });
   if (!result || result.statusCode !== 200) {
     throw notFound("Image bytes are no longer available");
   }
+  // The store reports a partial answer as an ordinary 200 with a
+  // `content-range`, so that header is the one signal it was a range.
+  const contentRange = result.headers.get("content-range");
   return {
     stream: result.stream,
     contentType: asset.contentType || result.blob.contentType,
     size: result.blob.size,
     checksum: asset.checksum,
+    contentRange,
   };
 }
 
@@ -266,6 +324,8 @@ export interface JobView {
   prompt: string;
   /** The provider input this job asked for, so a retry can ask for the same. */
   settings: unknown;
+  /** A video job's own settings. Null for an image job. */
+  video: VideoSettingsView | null;
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
   /** One sentence a person can read. Never the provider's own words. */
@@ -365,7 +425,7 @@ export async function listJobs(
   return jobs.map(toJobView);
 }
 
-function toJobView(job: {
+export function toJobView(job: {
   id: string;
   projectId: string;
   status: ProjectImageJobStatus;
@@ -392,7 +452,10 @@ function toJobView(job: {
     kind: job.kind,
     model: job.model,
     prompt: job.prompt,
-    settings: job.settings,
+    ...splitVideoSettings(
+      job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",
+      job.settings,
+    ),
     referenceAssetIds: job.referenceAssetIds,
     error: job.error,
     failureReason: readImageJobFailureReason(job.failureReason),

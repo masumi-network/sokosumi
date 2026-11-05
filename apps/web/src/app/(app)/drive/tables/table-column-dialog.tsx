@@ -180,6 +180,11 @@ export function TableColumnDialog({
                 </option>
               ))}
             </select>
+            {type === "last_updated" && (
+              <p className="text-muted-foreground text-sm">
+                {t("lastUpdatedHint")}
+              </p>
+            )}
           </div>
           {type.includes("select") && (
             <div className="grid gap-2">

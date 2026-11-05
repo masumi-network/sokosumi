@@ -20,14 +20,14 @@ Ready when:
 
 Preconditions before launch:
 
-- Node **24.x** on `PATH` (`node -v`)
+- Node **26.x** on `PATH` (`node -v`)
 - `pnpm install` already done (`portless` is a root devDependency). Utils `dist` comes from package `prepare` on install; `@sokosumi/database` has no build (ADR 0035 — Core consumes it from source)
 - Prisma client generated (`pnpm prisma:generate`)
 - `apps/web/.env` and `apps/core/.env` present. **`verify-sokosumi launch` (and `pnpm env:bootstrap`) copy `.env.example` and sanitize placeholders.** **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see [`docs/agents/cloud-environment.md`](../../../docs/agents/cloud-environment.md)): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
 - **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - Web `APP_SIGNING_SECRET` is independent of Core `BETTER_AUTH_SECRET` (e.g. web uses `dummy-app-signing-secret`)
 - **`BETTER_AUTH_COOKIE_DOMAIN` must be unset / commented out for localhost.** Core `.env.example` sets `BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"` for production-shaped deploys — if that value is copied into local `.env`, session cookies are scoped to `.sokosumi.com` and **email/password login appears to succeed but the browser never keeps a session on `localhost`**. `doctor` fails when this trap is present
-- Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/cloud-agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.cursor/cloud-agent-db.env` is missing
+- Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.agent-db/db.env` is missing
 - `agent-browser` on `PATH` (global `npm i -g agent-browser` then `agent-browser install` for Chromium). Not a workspace dependency
 
 ### Cursor agent session (required pattern)
@@ -41,7 +41,7 @@ pnpm portless:proxy   # HTTPS :443; may sudo once. Do not fall back to :1355.
 # or: pnpm portless:dev
 ```
 
-Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.cursor/cloud-agent-db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
+Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.agent-db/db.env` exists, `portless:dev` already wraps with `with-db.mjs`.
 
 ### Durable human terminal
 
@@ -49,7 +49,7 @@ Read `web_url=` / `core_url=` from doctor (or `pnpm portless:url web`). If `.cur
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi launch
 ```
 
-Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `pnpm portless:dev` (same coordinator). If `.cursor/cloud-agent-db.env` exists, both are wrapped with `with-db.mjs`.
+Helper bootstraps `.env`, starts `portless proxy` on 443, then Core/Web via `pnpm portless:dev` (same coordinator). If `.agent-db/db.env` exists, both are wrapped with `with-db.mjs`.
 
 Teardown:
 
@@ -81,7 +81,7 @@ Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
 1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
 2. If the fixture works: UI Enter-submit. Cookie bootstrap runs **only if UI fails**, not as a second step on success.
-3. If the fixture fails: the harness types the vault profile's username on step 1, then `agent-browser auth login sokosumi --no-navigate` with `[data-testid="auth-field-username"]` / `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
+3. If the fixture fails: the harness fills the vault profile's email into `[data-testid="auth-field-email"]` on step 1, then `agent-browser auth login sokosumi --no-navigate` fills the hidden `[data-testid="auth-field-username"]` and `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
@@ -120,14 +120,14 @@ If UI login leaves you on `/signin` or bounces back after a “success” (class
 
 Credentials (pick **in this order** — do not skip to signup):
 
-| Source | Email | Password | When |
-| --- | --- | --- | --- |
-| Env secrets | `$VERIFY_SOKOSUMI_EMAIL` | `$VERIFY_SOKOSUMI_PASSWORD` | Always first when `verify_credentials_*=set` (doctor / `credentials-status`) |
-| Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | VERIFY_* unset **and** `fixture_auth=ok` on Neon `cloud-agent-*` |
-| Cloud-agent admin | `admin@sokosumi.test` | `Password123!` | Admin UI `/admin` only |
-| Cloud-agent bob | `bob@sokosumi.test` | `Password123!` | Second-user scenarios only |
-| Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Shared/preprod Neon or local DB — never seed Alice here |
-| Local signup | unique `*@sokosumi.test` via `/signup` | choose once | **Only** when testing signup itself — never as a computer-use fallback |
+| Source               | Email                                  | Password                    | When                                                                         |
+| -------------------- | -------------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| Env secrets          | `$VERIFY_SOKOSUMI_EMAIL`               | `$VERIFY_SOKOSUMI_PASSWORD` | Always first when `verify_credentials_*=set` (doctor / `credentials-status`) |
+| Cloud-agent fixtures | `alice@sokosumi.test`                  | `Password123!`              | VERIFY_* unset **and** `fixture_auth=ok` on Neon `cloud-agent-*`             |
+| Cloud-agent admin    | `admin@sokosumi.test`                  | `Password123!`              | Admin UI `/admin` only                                                       |
+| Cloud-agent bob      | `bob@sokosumi.test`                    | `Password123!`              | Second-user scenarios only                                                   |
+| Coworker vault       | `agent-browser auth save sokosumi …`   | machine-local               | Shared/preprod Neon or local DB — never seed Alice here                      |
+| Local signup         | unique `*@sokosumi.test` via `/signup` | choose once                 | **Only** when testing signup itself — never as a computer-use fallback       |
 
 OAuth and passkey do **not** work with placeholder credentials. Skip those paths. Email codes do work in development: Core prints each one as `[email code] <address>: <code>`, in `.cursor/verify-sokosumi-artifacts/state/logs/core.log` (or `$VERIFY_SOKOSUMI_STATE_DIR/logs/core.log`) when the launch helper started it.
 
@@ -183,7 +183,7 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 
 - Portless proxy must be HTTPS on **443**. If `pnpm portless:url web` prints `:1355` or `http://`, stop and run `pnpm portless:proxy` (sudo). Do not drive the fallback port.
 - One-time on a machine: `pnpm exec portless trust` (CA) if `portless doctor` says the CA is untrusted. Then `pnpm portless:proxy`.
-- Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
+- Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.agent-db/db.env` exists
 - Drive `$WEB_URL` from doctor, not `localhost:3000`. Cookie inject uses `--secure` on https named hosts.
 - **Portless TLS + agent-browser:** if navigation fails with `ERR_CERT_AUTHORITY_INVALID`, ensure `pnpm exec portless trust`, then rely on harness `AGENT_BROWSER_ARGS=--ignore-certificate-errors` (auto for `verify-sokosumi sign-in`) or export it yourself for manual drives.
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
@@ -192,10 +192,10 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
 - `/agents` stacks the Coworker gallery above an Agent catalog (`Browse all agents` when catalog data is present). Empty coworker data omits the whole gallery tier (hero included); the catalog stays independent. App Hire stays off. Cookie **Accept all** covers lower catalog cards until dismissed.
 - Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop (`md+`) `/chat` redirects to `/`; mobile may keep `/chat`.
-- Desktop main nav (after Agents / Tasks): **Schedules**, **Content Studio**, **Files** (`/drive`). **Calendar** is the **Calendar** tab on `/tasks` (`/calendar` redirects there) — not a sidebar row and not on the You page. **Credit history** is `/history` via the account menu / You page, not a sidebar row. **Social** is a sidebar row only when the org has social beta (`socialMenuEnabled`). **Projects** is not a desktop sidebar row — open `/projects` directly (or ProjectScope **Manage projects**). Mobile keeps Files on the You page, not the sidebar.
+- Desktop chrome: the header has project scope (**All projects**, or the selected project), **Search**, and **New task**. The sidebar starts with **Soko Bots** (when you already have a bot, that row shows the bot's name and opens `/personal-assistant`; the people icon opens `/soko-bots`). Grouped nav: **Work** — **Home** (desktop), **Projects** (or **Overview** of the scoped project), **Agents**, **Tasks**, **Schedules**, **Calendar**; **Records** — **Contacts**, **Files** (`/drive`, desktop only); **Marketing** — **Content Studio**, **Social posts** (always on). **Ads** (`/ads`) is always a Marketing row. **Newsletter** (`/newsletter`) is an extra Marketing row only for the newsletter beta organization; otherwise the row is absent and `/newsletter` is a 404 (see [newsletter.md](./features/newsletter.md)). **Calendar** is `/calendar`, a Work sidebar row after **Schedules** (not on the You page). **Credit history** is `/history` via the account menu / You page, not a sidebar row. There is no **Manage projects** row. Mobile keeps Files on the You page, not the sidebar.
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)
-- Node **24.x** required
+- Node **26.x** required
 - `/signin` is two steps: email first (Google / Microsoft / Passkey below it), then the code or the password — automation must target `[data-testid="auth-*"]` only
 - New signup users may land on `/setup` (workspace onboarding) before `/agents` works — still authenticated if not bounced to `/signin`

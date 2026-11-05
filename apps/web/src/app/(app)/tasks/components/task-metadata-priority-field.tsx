@@ -88,7 +88,7 @@ export function TaskMetadataPriorityField({
       aria-label={ariaLabel}
       disabled={isPending}
       className={cn(
-        "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+        "focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
         ROW_TRIGGER_CLASS,
       )}
     >

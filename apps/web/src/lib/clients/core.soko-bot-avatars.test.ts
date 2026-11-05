@@ -6,6 +6,10 @@ const sdk = vi.hoisted(() => ({
   listSokoBotAvatars: vi.fn(),
   topUpSokoBotAvatars: vi.fn(),
   claimMySokoBotAvatar: vi.fn(),
+  discardMySokoBotAvatarDrafts: vi.fn(),
+  discardSokoBotAvatarDrafts: vi.fn(),
+  regenerateMySokoBotAvatarState: vi.fn(),
+  regenerateSokoBotAvatarState: vi.fn(),
 }));
 
 vi.mock("@sokosumi/core-client", async (importOriginal) => ({
@@ -48,25 +52,31 @@ describe("Soko Bot avatar methods on the Core client", () => {
     });
   });
 
-  it("forwards the top-up request and response", async () => {
-    const body = { take: 6, excludeIds: ["avatar-2"] };
+  it("discards the caller's own drafts, or a shared bot's by id", async () => {
+    await core.discardSokoBotAvatarDrafts();
+    expect(sdk.discardMySokoBotAvatarDrafts).toHaveBeenCalledWith({ client });
+    expect(sdk.discardSokoBotAvatarDrafts).not.toHaveBeenCalled();
 
-    await expect(core.topUpSokoBotAvatars(body)).resolves.toBe(response);
-
-    expect(sdk.topUpSokoBotAvatars).toHaveBeenCalledWith({ client, body });
+    await core.discardSokoBotAvatarDrafts("bot-7");
+    expect(sdk.discardSokoBotAvatarDrafts).toHaveBeenCalledWith({
+      client,
+      path: { sokoBotId: "bot-7" },
+    });
   });
 
-  it("forwards the selected avatar and returns the updated bot", async () => {
-    const botResponse = { ...response, data: { id: "bot-1" } };
-    sdk.claimMySokoBotAvatar.mockResolvedValue({
-      data: botResponse,
-      response: new Response("{}", { status: 200 }),
+  it("redoes one state of the caller's own bot, or of a shared bot by id", async () => {
+    await core.regenerateSokoBotAvatarState("working");
+    expect(sdk.regenerateMySokoBotAvatarState).toHaveBeenCalledWith({
+      client,
+      path: { state: "working" },
     });
-    const body = { avatarId: "avatar-1" };
+    expect(sdk.regenerateSokoBotAvatarState).not.toHaveBeenCalled();
 
-    await expect(core.claimMySokoBotAvatar(body)).resolves.toBe(botResponse);
-
-    expect(sdk.claimMySokoBotAvatar).toHaveBeenCalledWith({ client, body });
+    await core.regenerateSokoBotAvatarState("done", "bot-7");
+    expect(sdk.regenerateSokoBotAvatarState).toHaveBeenCalledWith({
+      client,
+      path: { sokoBotId: "bot-7", state: "done" },
+    });
   });
 
   it.each([

@@ -7,6 +7,8 @@ import messages from "@/../messages/en.json";
 const mocks = vi.hoisted(() => ({
   setOpen: vi.fn(),
   push: vi.fn(),
+  compose: { open: false, scheduledAt: null as string | null },
+  openProjectScope: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -14,16 +16,28 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("./social-compose-context", () => ({
-  useSocialCompose: () => ({ open: false, setOpen: mocks.setOpen }),
+  useSocialCompose: () => ({ ...mocks.compose, setOpen: mocks.setOpen }),
 }));
 
 vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: vi.fn(),
 }));
 
-vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
-  ProjectScopeMenu: () => <div data-testid="project-scope-menu" />,
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: mocks.openProjectScope,
 }));
+
+/** What the menu asked the header's project selector for, most recently. */
+function lastRequest(): {
+  required?: boolean;
+  reason?: string;
+  onSelect?: (projectId: string) => void;
+  onDismiss?: () => void;
+} {
+  const request = mocks.openProjectScope.mock.lastCall?.[0];
+  if (!request) throw new Error("The project selector was not opened");
+  return request;
+}
 
 import { SocialNewPostMenu } from "./social-new-post-menu";
 
@@ -38,7 +52,10 @@ function setup() {
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.compose = { open: false, scheduledAt: null };
+});
 
 describe("SocialNewPostMenu", () => {
   it("gives New post a 40px desktop target and 44px menu rows", async () => {
@@ -56,5 +73,42 @@ describe("SocialNewPostMenu", () => {
     expect(
       screen.getByRole("menuitem", { name: /Post with Soko Bot/ }),
     ).toHaveClass("min-h-11");
+  });
+
+  it("turns a calendar day's request into a project pick that keeps the day", () => {
+    mocks.compose = { open: true, scheduledAt: "2030-01-16T09:00" };
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SocialNewPostMenu project={null} sokoBotId="bot-1" />
+      </NextIntlClientProvider>,
+    );
+
+    expect(mocks.openProjectScope).toHaveBeenCalledOnce();
+    expect(lastRequest()).toMatchObject({
+      required: true,
+      reason: "Posts go out from one project's accounts.",
+    });
+    lastRequest().onSelect?.("p2");
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/social?projectId=p2&compose=new&composeAt=2030-01-16T09%3A00",
+    );
+
+    // Closing the selector without a project drops the composer request.
+    lastRequest().onDismiss?.();
+    expect(mocks.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("asks for a project through the composer request when none is in scope", async () => {
+    const user = userEvent.setup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SocialNewPostMenu project={null} sokoBotId="bot-1" />
+      </NextIntlClientProvider>,
+    );
+    expect(mocks.openProjectScope).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await user.click(screen.getByRole("menuitem", { name: /Manual post/ }));
+    expect(mocks.setOpen).toHaveBeenCalledWith(true);
   });
 });

@@ -22,7 +22,7 @@ export interface ChatRoomMessageUnfurlCard {
 const MAX_HTML_BYTES = 512 * 1024;
 
 /** Decode the handful of entities that actually show up inside content/title. */
-function decodeEntities(value: string): string {
+export function decodeEntities(value: string): string {
   return value
     .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_match, code) =>
@@ -142,7 +142,7 @@ export function tweetTextFromOembedHtml(html: string): string | null {
 }
 
 /** Drop everything from a `<` to the next `>`; a `<` inside a tag stays in it. */
-function stripTags(html: string): string {
+export function stripTags(html: string): string {
   let out = "";
   let inTag = false;
   for (const char of html) {

@@ -47,6 +47,33 @@ describe("chat result cards", () => {
     });
   });
 
+  it("defaults approval fields so older social snapshots still parse", () => {
+    expect(
+      chatResultPreviewSchema.parse({
+        id: "00000000-0000-4000-8000-000000000001",
+        state: "available",
+        kind: "social_post",
+        capturedAt: "2026-10-06T10:00:00Z",
+        title: "Launch",
+        sourceHref: "/social?projectId=project&postId=post",
+        status: "NEEDS_APPROVAL",
+        social: {
+          provider: "x",
+          account: null,
+          timestamp: null,
+        },
+      }),
+    ).toMatchObject({
+      social: {
+        projectId: null,
+        postId: null,
+        revision: null,
+        canApprove: false,
+        canReject: false,
+      },
+    });
+  });
+
   it("emits nullable preview objects without a null subschema", () => {
     const app = new OpenAPIHono();
     app.openAPIRegistry.register("ChatResultPreview", chatResultPreviewSchema);

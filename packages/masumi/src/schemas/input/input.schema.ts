@@ -545,13 +545,9 @@ export const inputFieldsSchema = z.array(inputFieldSchema).refine(
   },
 );
 
-export type InputFieldsSchemaType = z.infer<typeof inputFieldsSchema>;
-
 export const inputDataSchema = z.object({
   input_data: inputFieldsSchema,
 });
-
-export type InputDataSchemaType = z.infer<typeof inputDataSchema>;
 
 export const inputGroupSchema = z
   .object({
@@ -586,8 +582,6 @@ export const inputGroupsSchema = z
       path: ["input_groups"],
     },
   );
-
-export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
 
 export const inputSchemaSchema = z
   .union([inputDataSchema, z.object({ input_groups: inputGroupsSchema })])

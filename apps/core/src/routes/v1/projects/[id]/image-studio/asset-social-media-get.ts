@@ -5,8 +5,6 @@ import { head } from "@vercel/blob";
 import { notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -52,7 +50,6 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       workspaceId: workspaceContext.workspaceId,
       userId: userContext.userId,
     });
-    await requireSocialBetaAccess(userContext.userId, prisma);
 
     const file = await ensureStudioAssetDriveFile({
       projectId,

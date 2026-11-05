@@ -18,6 +18,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   requireChatRoomUserWriteAccess,
+  withChatRoomReplyCount,
 } from "../../../../../../helpers";
 import { assertChatRoomContentMessage } from "../../../../../../membership-status";
 
@@ -133,7 +134,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       chatRoomMessageSchema.parse(
-        mapChatRoomMessage(message, userContext.userId),
+        mapChatRoomMessage(
+          await withChatRoomReplyCount(prisma, message),
+          userContext.userId,
+        ),
       ),
     );
   });

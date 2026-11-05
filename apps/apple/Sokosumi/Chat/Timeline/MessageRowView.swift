@@ -550,7 +550,7 @@ import SwiftUI
           .scaleEffect(!reduceMotion && hoveredAction == focus ? 1.15 : 1)
           .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: hoveredAction == focus)
           .frame(width: replyActionHeight, height: replyActionHeight)
-          .background(reacted ? Color.accentColor.opacity(0.18) : .clear, in: .rect(cornerRadius: 5))
+          .background(reacted ? Color.primary.opacity(0.14) : .clear, in: .rect(cornerRadius: 5))
           .background(hoveredAction == focus ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
           .contentShape(.rect)
       }

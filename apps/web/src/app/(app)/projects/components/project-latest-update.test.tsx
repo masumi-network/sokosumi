@@ -49,11 +49,18 @@ describe("ProjectLatestUpdate", () => {
 
     const toggle = screen.getByRole("button", { name: "Show more" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle.className).toContain("text-primary");
+    // Quiet like the Briefing's toggle, which is the same component now.
+    expect(toggle.className).toContain("text-muted-foreground");
+    const body = screen.getByTestId("project-latest-update-content");
+    // The fade says there is more below the cap.
+    expect(body.className).toContain("max-h-64");
+    expect(body.className).toContain("mask-");
     await user.click(toggle);
     expect(screen.getByRole("button", { name: "Show less" })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
+    expect(body.className).not.toContain("max-h-64");
+    expect(body.className).not.toContain("mask-");
   });
 });

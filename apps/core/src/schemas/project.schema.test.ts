@@ -36,9 +36,11 @@ function createDatabaseProject(
     contextMdUpdatingSince: null,
     contextMdVersion: 0,
     websiteUrl: null,
+    sitePlatform: null,
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,
+    postingInstructionsMd: null,
     projectRevision: 0,
     calendarRevision: 0,
     closingAt: null,
@@ -140,6 +142,25 @@ describe("project schemas", () => {
     ).toBe("LAU");
   });
 
+  it("maps posting instructions and accepts them alone on PATCH", () => {
+    expect(
+      mapProjectForApi(createDatabaseProject()).postingInstructionsMd,
+    ).toBe(null);
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({ postingInstructionsMd: "Tone: warm" }),
+      ).postingInstructionsMd,
+    ).toBe("Tone: warm");
+    expect(
+      patchProjectRequestSchema.parse({ postingInstructionsMd: null }),
+    ).toMatchObject({ postingInstructionsMd: null });
+    expect(
+      patchProjectRequestSchema.safeParse({
+        postingInstructionsMd: "a".repeat(20_001),
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts deprecated description as a briefing alias", () => {
     expect(
       createProjectRequestSchema.parse({
@@ -209,9 +230,17 @@ describe("project schemas", () => {
       ),
     ).toMatchObject({
       projectRevision: 4,
+      scheduledSocialPostCount: 0,
       closingAt: "2026-08-26T12:00:00.000Z",
       closedAt: "2026-08-26T12:05:00.000Z",
     });
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({ projectRevision: 4 }),
+        new Date(),
+        3,
+      ).scheduledSocialPostCount,
+    ).toBe(3);
   });
 
   it("maps memory metadata and active update state", () => {

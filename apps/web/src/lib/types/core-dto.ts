@@ -2,10 +2,7 @@ import type {
   Agent,
   AgentDetail,
   Job,
-  JobEvent,
-  JobSummary,
   MemberRecord,
-  OrganizationRecord,
   Task,
 } from "@sokosumi/core-client";
 
@@ -14,20 +11,13 @@ export type CoreAgentDto = Agent | AgentDetail;
 
 export type AgentRatingStats = Agent["metrics"]["ratings"];
 
-export type OrganizationWithLimitedInfo = Pick<
-  OrganizationRecord,
-  "id" | "name" | "slug"
->;
-
 export type OrganizationMembershipSelf = Pick<MemberRecord, "id" | "role">;
 
 /** Core API enum unions derived from generated entity fields.
  * Prefer generated const maps for runtime values
  * (`TaskStatus.RUNNING` from `@sokosumi/core-client`). */
 export type TaskStatus = Task["status"];
-export type SokosumiJobStatus = JobSummary["status"];
 export type JobType = Job["jobType"];
-export type AgentJobStatus = JobEvent["status"];
 export type OnChainJobStatus = NonNullable<Job["onChainStatus"]>;
 export type RiskClassification = AgentDetail["riskClassification"];
 

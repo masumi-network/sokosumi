@@ -4,13 +4,14 @@ import { withEve } from "eve/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import { documentSecurityHeaders } from "./src/config/document-security-headers";
+import { documentSecurityHeaderRules } from "./src/config/document-security-headers";
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   PUSH_WORKER_MESSAGES_CACHE_CONTROL,
   PUSH_WORKER_MESSAGES_PATH,
   PUSH_WORKER_RENEWAL_PATH,
 } from "./src/config/push-worker-assets";
+import { SENTRY_TUNNEL_PATH } from "./src/config/sentry-tunnel";
 import {
   getCoreRelatedProjectName,
   normalizeCoreApiBaseUrl,
@@ -84,10 +85,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["localhost", "*.localhost"],
   async headers() {
     return [
-      {
-        source: "/:path*",
-        headers: documentSecurityHeaders({ includeHsts: isVercelProduction }),
-      },
+      ...documentSecurityHeaderRules({ includeHsts: isVercelProduction }),
       ...[PUSH_WORKER_MESSAGES_PATH, PUSH_WORKER_RENEWAL_PATH].map(
         (source) => ({
           source,
@@ -116,12 +114,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // The largest body any Server Action needs is the coworker image
-      // upload: COWORKER_IMAGE_MAX_SIZE_BYTES (2 MB) plus multipart framing.
-      // Every other action carries small JSON. Job and task files are
-      // uploaded straight to Core, not through a Server Action. Core keeps
-      // its own authoritative caps.
-      bodySizeLimit: "4mb",
+      // Newsletter CSV imports carry up to 5 MB of multipart text plus framing.
+      // The import action and Core enforce the authoritative 5 MB CSV cap.
+      bodySizeLimit: "6mb",
     },
     ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
     optimizePackageImports: ["lucide-react", "radix-ui", "@lobehub/icons"],
@@ -192,7 +187,8 @@ export default withSentryConfig(
     // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
     // This can increase your server load as well as your hosting bill.
     // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
-    tunnelRoute: true, // Generates a random route for each build (recommended)
+    // Fixed, not random per build, so `proxy.ts` can exempt it from the session check.
+    tunnelRoute: SENTRY_TUNNEL_PATH,
 
     // v11 adds each of these as its own Turbopack loader rule: component
     // annotation over each .tsx/.jsx, build-time instrumentation over each

@@ -51,13 +51,13 @@ In Tailwind 4, `transition-transform` covers `transform, translate, scale, rotat
 }
 ```
 
-| Property | Worth `will-change` |
-| --- | --- |
-| `transform`, `translate`, `scale`, `rotate` | Yes |
-| `opacity` | Yes |
-| `filter` | Yes |
-| `clip-path` | Rarely, since compositing it is not reliable across browsers |
-| `top`, `left`, `width`, `height` | No |
-| `background`, `border`, `color` | No |
+| Property                                    | Worth `will-change`                                          |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| `transform`, `translate`, `scale`, `rotate` | Yes                                                          |
+| `opacity`                                   | Yes                                                          |
+| `filter`                                    | Yes                                                          |
+| `clip-path`                                 | Rarely, since compositing it is not reliable across browsers |
+| `top`, `left`, `width`, `height`            | No                                                           |
+| `background`, `border`, `color`             | No                                                           |
 
 `will-change` on a transform property or `filter` makes the element the containing block for its `position: fixed` descendants, so a fixed modal or tooltip inside it stops tracking the viewport. Any of these values also creates a stacking context, which can reorder `z-index` against siblings.

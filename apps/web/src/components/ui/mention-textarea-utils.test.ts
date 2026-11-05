@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  buildMentionToken,
   createChannelLinkSpan,
   filterNormalizedMentions,
   getActiveChannelTrigger,
@@ -18,7 +17,6 @@ import {
   POPUP_HEIGHT_PX,
   POPUP_MIN_HEIGHT_PX,
   serializeEditorText,
-  setEditorFromRaw,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 
@@ -127,57 +125,10 @@ describe("mention-textarea utils", () => {
     }
   });
 
-  it("round-trips mention markup with friendly labels", () => {
-    const root = document.createElement("div");
-    const raw = "Hello @agent1:stock-photos-agent world";
-
-    setEditorFromRaw(root, raw, (mentionKey, mentionSlug) => ({
-      displayName: mentionKey === "agent1" ? "Stock Photos Agent" : mentionSlug,
-      isKnown: mentionKey === "agent1",
-    }));
-
-    expect(serializeEditorText(root)).toBe(raw);
-    const mentionSpan = root.querySelector(
-      "span[data-mention-key]",
-    ) as HTMLSpanElement | null;
-    expect(mentionSpan?.textContent).toBe("@Stock Photos Agent");
-  });
-
-  it("round trips ID-only mentions without adding a name-derived slug", () => {
-    const root = document.createElement("div");
-    setEditorFromRaw(root, "Hi @user-1, and @user-1:old-name", () => ({
-      displayName: "Renamed",
-      isKnown: true,
-    }));
-    expect(root.textContent).toBe("Hi @Renamed, and @Renamed");
-    expect(serializeEditorText(root)).toBe("Hi @user-1, and @user-1:old-name");
-    expect(buildMentionToken("user-1", "", undefined)).toBe("@user-1 ");
-  });
-
-  it("round-trips newlines with mentions", () => {
-    const root = document.createElement("div");
-    const raw = "Hello\n@agent1:stock-photos-agent\nWorld";
-
-    setEditorFromRaw(root, raw, (mentionKey, mentionSlug) => ({
-      displayName: mentionKey === "agent1" ? "Stock Photos Agent" : mentionSlug,
-      isKnown: mentionKey === "agent1",
-    }));
-
-    expect(serializeEditorText(root)).toBe(raw);
-    expect(root.querySelectorAll("br")).toHaveLength(2);
-  });
-
   it("serializes channel chips as #label", () => {
     const root = document.createElement("div");
     root.append("see ", createChannelLinkSpan("Marketing"), " please");
     expect(serializeEditorText(root)).toBe("see #Marketing please");
-  });
-
-  it("adds a trailing space only when needed", () => {
-    expect(buildMentionToken("agent", "slug", undefined)).toBe("@agent:slug ");
-    expect(buildMentionToken("agent", "slug", " ")).toBe("@agent:slug");
-    expect(buildMentionToken("agent", "slug", "\n")).toBe("@agent:slug");
-    expect(buildMentionToken("agent", "slug", "x")).toBe("@agent:slug ");
   });
 
   it("does not activate trigger when caret is before @", () => {

@@ -26,6 +26,22 @@ describe("loadMoreSocialPosts", () => {
     listSocialPosts.mockResolvedValue({ posts: [], nextCursor: null });
   });
 
+  it("loads quote candidates with project scope, search, exclusions and pagination", async () => {
+    const { loadSocialPostQuoteCandidates } = await import("./actions");
+    await loadSocialPostQuoteCandidates({
+      projectId: "project-1",
+      excludePostId: "post-1",
+      search: "launch",
+      cursor: "page-2",
+    });
+    expect(listSocialPosts).toHaveBeenCalledWith("project-1", {
+      quoteCandidates: true,
+      excludePostId: "post-1",
+      search: "launch",
+      cursor: "page-2",
+    });
+  });
+
   it("rejects an unknown list section", async () => {
     const { loadMoreSocialPosts } = await import("./actions");
     await expect(
@@ -61,7 +77,7 @@ describe("loadMoreSocialPosts", () => {
       cursor: "cursor-2",
     });
     expect(SECTION_STATUSES).toEqual({
-      drafts: ["DRAFT", "PUBLISHING"],
+      drafts: ["DRAFT", "NEEDS_APPROVAL", "PUBLISHING"],
       attention: ["FAILED", "MISSED"],
     });
   });

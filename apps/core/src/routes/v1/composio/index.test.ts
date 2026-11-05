@@ -34,6 +34,11 @@ const OAUTH_TOKEN_AUTH: AuthenticationContext = {
   authenticationMethod: "oauth",
 };
 
+const FIRST_PARTY_OAUTH_AUTH: AuthenticationContext = {
+  ...OAUTH_TOKEN_AUTH,
+  firstPartyClient: true,
+};
+
 vi.mock("@/services/composio-callback-completion.service", () => ({
   completeComposioCallback: completeComposioCallbackMock,
 }));
@@ -109,7 +114,29 @@ describe("POST /composio/callback/complete", () => {
     expect(completeComposioCallbackMock).not.toHaveBeenCalled();
   });
 
-  it("gates callback redemption behind Social beta access", async () => {
+  it("redeems for CMO's first-party OAuth token", async () => {
+    completeComposioCallbackMock.mockResolvedValue(undefined);
+    const response = await createApp(FIRST_PARTY_OAUTH_AUTH).request(
+      "http://localhost/callback/complete",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: "ca_123",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(completeComposioCallbackMock).toHaveBeenCalledWith({
+      connectionId: "ca_123",
+      sessionUri: "https://backend.composio.dev/session/single-use",
+      userId: "user_123",
+    });
+  });
+
+  it("allows Social callback redemption outside the Ads beta", async () => {
     requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Calendar is only available to utxo AG workspace members"),
     );
@@ -125,12 +152,9 @@ describe("POST /composio/callback/complete", () => {
       },
     );
 
-    expect(response.status).toBe(403);
-    expect(requireSocialBetaAccessMock).toHaveBeenCalledWith(
-      "user_123",
-      expect.anything(),
-    );
-    expect(completeComposioCallbackMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
+    expect(completeComposioCallbackMock).toHaveBeenCalled();
   });
 
   it.each([

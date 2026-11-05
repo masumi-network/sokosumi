@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectVideoJobRequest,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
@@ -63,6 +64,17 @@ export const imageStudioService = {
     return result.data;
   },
 
+  async createVideoJob(
+    projectId: string,
+    input: CreateProjectVideoJobRequest,
+  ): Promise<ProjectImageJob> {
+    const result = await coreClient.postProjectsByIdImageStudioVideoJobs(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
   async cancelJob(
     projectId: string,
     jobId: string,
@@ -81,6 +93,18 @@ export const imageStudioService = {
   ): Promise<SocialPostMediaRef> {
     const result =
       await coreClient.getProjectsByIdImageStudioAssetsByAssetIdSocialMedia(
+        projectId,
+        assetId,
+      );
+    return result.data;
+  },
+
+  async writeCaption(
+    projectId: string,
+    assetId: string,
+  ): Promise<{ text: string }> {
+    const result =
+      await coreClient.postProjectsByIdImageStudioAssetsByAssetIdCaption(
         projectId,
         assetId,
       );

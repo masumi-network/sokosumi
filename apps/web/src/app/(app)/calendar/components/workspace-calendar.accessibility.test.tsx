@@ -21,6 +21,7 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US" });
   return {
     useFormatter: () => formatter,
+    useLocale: () => "en",
     useTranslations: () => (key: string, values?: Record<string, string>) =>
       key === "event.accessibleName"
         ? `${values?.task}, ${values?.source}`
@@ -173,11 +174,11 @@ describe("WorkspaceCalendar accessibility", () => {
 
     for (const view of ["month", "week", "agenda"]) {
       expect(
-        screen.getByRole("tab", { name: `view.${view}` }),
+        screen.getByRole("radio", { name: `view.${view}` }),
       ).toBeInTheDocument();
     }
     expect(
-      screen.queryByRole("tab", { name: "view.schedules" }),
+      screen.queryByRole("radio", { name: "view.schedules" }),
     ).not.toBeInTheDocument();
   });
 });

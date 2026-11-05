@@ -25,6 +25,10 @@ interface NewTaskWizardProps {
   /** Which open this is; a new number means a fresh wizard with fresh lists. */
   instance: number;
   defaultProjectId?: string | null;
+  /** Prefilled description, for a task made from somewhere else. */
+  initialPrompt?: string | null;
+  initialAssigneeId?: string | null;
+  onTaskCreated?: (taskId: string) => void;
   /** Runs when the modal closes (dismiss, load error, or success). */
   onClose?: () => void;
 }
@@ -38,12 +42,18 @@ interface NewTaskWizardProps {
 export function NewTaskWizard({
   instance,
   defaultProjectId = null,
+  initialPrompt = null,
+  initialAssigneeId = null,
+  onTaskCreated,
   onClose,
 }: NewTaskWizardProps) {
   return (
     <CreateTaskModalProvider
       initialOpen
       initialProjectId={defaultProjectId}
+      initialPrompt={initialPrompt}
+      initialAssigneeId={initialAssigneeId}
+      onTaskCreated={onTaskCreated}
       onClose={onClose}
     >
       <NewTaskWizardModal

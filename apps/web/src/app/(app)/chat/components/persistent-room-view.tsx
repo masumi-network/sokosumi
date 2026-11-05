@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useState,
 } from "react";
+import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
 import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
@@ -20,9 +21,7 @@ const RoomBootstrapContext = createContext<
   ((props: RoomsClientProps) => void) | null
 >(null);
 
-function roomIdFromPath(path: string | null | undefined): string | undefined {
-  return path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
-}
+const NO_ROOM_KEY = ["room-transcript", "no-room"];
 
 /** Cached room, or the page bootstrap that just registered this room. */
 function roomCanPaint(
@@ -35,12 +34,33 @@ function roomCanPaint(
   return bootstrap?.selectedRoomId === roomId;
 }
 
-/** Lives above the route's loading boundary. Next owns URLs and access validation. */
+/**
+ * Lives above the route's loading boundary. Next owns URLs and access
+ * validation; a room painted before its page did so from a click read that
+ * Core answered only for a member.
+ */
 export function PersistentRoomView({ children }: { children: ReactNode }) {
   const cache = useRoomCache();
   const path = useRoomSelection();
-  const [bootstrap, setBootstrap] = useState<RoomsClientProps | null>(null);
+  const [registered, setRegistered] = useState<RoomsClientProps | null>(null);
+  // A page registered before a workspace switch never paints in the next one.
+  const bootstrap =
+    registered &&
+    cache?.matchesScope(
+      registered.currentUserId,
+      registered.activeOrganization?.id ?? null,
+    )
+      ? registered
+      : null;
   const requestedId = roomIdFromPath(path);
+  // The click's read can seed the target before its page registers.
+  useQuery<RoomTranscriptEntry>(
+    {
+      queryKey: cache && requestedId ? cache.key(requestedId) : NO_ROOM_KEY,
+      queryFn: skipToken,
+    },
+    cache?.client,
+  );
   const [paintedId, setPaintedId] = useState(requestedId);
   // A click updates the target before the next page can register. Painting
   // that id immediately unmounts the open room onto a page that renders null.
@@ -60,7 +80,7 @@ export function PersistentRoomView({ children }: { children: ReactNode }) {
   if (nextPaintedId !== paintedId) setPaintedId(nextPaintedId);
   const roomId = cache ? nextPaintedId : requestedId;
   return (
-    <RoomBootstrapContext value={setBootstrap}>
+    <RoomBootstrapContext value={setRegistered}>
       {cache && roomId ? (
         <SelectedRoom key={roomId} roomId={roomId} bootstrap={bootstrap}>
           {children}

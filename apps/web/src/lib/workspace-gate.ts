@@ -43,6 +43,28 @@ export function workspaceGatePath(requestedPath: string): string {
   return `${WORKSPACE_GATE_PATH}?${new URLSearchParams({ next: requestedPath })}`;
 }
 
+/** First-run step after setup that offers the personal Soko Bot. */
+export const SETUP_ASSISTANT_PATH = "/setup/assistant";
+
+/** Its optional follow-up: connect mail and calendar, then the chat. */
+export const SETUP_ASSISTANT_CONNECT_PATH = "/setup/assistant/connect";
+
+function withNext(path: string, next: string): string {
+  if (!next || next === "/") {
+    return path;
+  }
+  return `${path}?${new URLSearchParams({ next })}`;
+}
+
+/** Where setup ends for someone who just got a workspace. */
+export function setupAssistantPath(next: string): string {
+  return withNext(SETUP_ASSISTANT_PATH, next);
+}
+
+export function setupAssistantConnectPath(next: string): string {
+  return withNext(SETUP_ASSISTANT_CONNECT_PATH, next);
+}
+
 export function isWorkspaceReady(
   gate: string | null | undefined,
 ): gate is "ready" {

@@ -35,6 +35,8 @@ interface GetTasksColumnPageParams {
 interface GetTasksColumnPageResult {
   tasks: TaskWithCoworker[];
   nextCursor: ColumnCursor;
+  /** Every Task in the column under these filters, loaded or not. */
+  total: number;
 }
 
 export async function getTasksColumnPage({
@@ -57,6 +59,7 @@ export async function getTasksColumnPage({
     return {
       tasks: [],
       nextCursor: null,
+      total: 0,
     };
   }
 
@@ -86,5 +89,6 @@ export async function getTasksColumnPage({
   return {
     tasks,
     nextCursor: result.pagination?.nextCursor ?? null,
+    total: result.pagination?.total ?? tasks.length,
   };
 }

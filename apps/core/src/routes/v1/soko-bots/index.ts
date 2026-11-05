@@ -1,6 +1,10 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
+import {
+  mountSokoBotAvatarStudioByIdRoutes,
+  mountSokoBotAvatarStudioMeRoutes,
+} from "./avatar-studio.js";
 import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotIntegrationByIdRoutes } from "./by-id/integrations.js";
 import { mountSokoBotScheduleByIdRoutes } from "./by-id/schedules.js";
@@ -109,6 +113,7 @@ mountFinalizeMySokoBotIntegration(app);
 mountDisconnectMySokoBotIntegration(app);
 mountIntroduceMySokoBot(app);
 mountClaimMySokoBotAvatar(app);
+mountSokoBotAvatarStudioMeRoutes(app);
 mountListSokoBotVersions(app);
 mountUpdateMySokoBotProactive(app);
 mountSendMySokoBotTurnFeedback(app);
@@ -145,6 +150,7 @@ mountStartSokoBotTurn(app);
 mountGetSokoBotUsage(app);
 mountUpdateSokoBotVersion(app);
 mountReactivateSokoBot(app);
+mountSokoBotAvatarStudioByIdRoutes(app);
 mountSokoBotIntegrationByIdRoutes(app);
 mountSokoBotScheduleByIdRoutes(app);
 

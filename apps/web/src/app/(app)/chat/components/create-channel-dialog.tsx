@@ -23,12 +23,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { SIDEBAR_ICON_ACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import {
-  CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-  useChatComposeRoster,
-} from "./chat-compose-dialog";
+import { useChatComposeRoster } from "./chat-compose-dialog";
 import {
   backToCreate,
   CHANNEL_NAME_MAX,
@@ -229,7 +227,7 @@ export function CreateChannelDialog() {
         <button
           type="button"
           aria-label={tChannels("createChannel")}
-          className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+          className={SIDEBAR_ICON_ACTION_CLASS}
         >
           <Plus className="size-4 md:size-3.5" aria-hidden />
         </button>

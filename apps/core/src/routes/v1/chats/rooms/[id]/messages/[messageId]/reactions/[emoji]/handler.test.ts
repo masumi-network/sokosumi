@@ -37,6 +37,7 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomMessage: { groupBy: vi.fn().mockResolvedValue([]) },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -55,6 +56,7 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   chatRoomMessage: {
+    groupBy: vi.fn().mockResolvedValue([]),
     findFirst: messageFindFirstMock,
     findUniqueOrThrow: messageFindUniqueOrThrowMock,
   },
@@ -116,7 +118,6 @@ function storedMessage(reactions: Array<{ emoji: string; userId: string }>) {
     })),
     replies: [],
     pins: [],
-    _count: { replies: 0 },
   };
 }
 

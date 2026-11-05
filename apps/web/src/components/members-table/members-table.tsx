@@ -51,7 +51,7 @@ export default function MembersTable({
               pendingInvitations,
             )}
             rowClassName={() =>
-              "text-foreground active:bg-muted hover:bg-muted"
+              "text-foreground active:bg-accent hover:bg-accent"
             }
             containerClassName={cn("w-full rounded-xl bg-card-background p-2")}
             showPagination={members.length > 10}

@@ -1,9 +1,17 @@
-import type { ReactNode, Ref } from "react";
+import { AnimatePresence } from "motion/react";
+import type { ReactNode, Ref, RefObject } from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
-import { ROOM_MESSAGE_LIST_CONTENT_CLASSNAME } from "@/app/chat/components/room-message-list-skeleton";
+import {
+  ROOM_CONTENT_COLUMN_CLASSNAME,
+  ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
+} from "@/app/chat/components/room-message-list-skeleton";
+import {
+  useRoomPanelSlide,
+  useRoomPanelSlideOut,
+} from "@/app/chat/components/use-room-panel-slide";
 import { cn } from "@/lib/utils";
 
 /** Root height for open room (no mobile tab bar). Instant + live must match. */
@@ -12,8 +20,9 @@ export const ROOM_SHELL_ROOT_CLASSNAME = cn(
   CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS,
 );
 
+/** `@container`: the room content column reads the whole pane as `100cqw`. */
 export const ROOM_SHELL_MAIN_CLASSNAME =
-  "relative flex min-h-0 min-w-0 flex-1 overflow-x-clip";
+  "@container relative flex min-h-0 min-w-0 flex-1 overflow-x-clip";
 
 export const ROOM_SHELL_SECTION_CLASSNAME =
   "flex min-h-0 min-w-0 flex-1 flex-col";
@@ -22,8 +31,13 @@ export const ROOM_SHELL_SECTION_CLASSNAME =
 export const ROOM_SHELL_COLUMN_CLASSNAME =
   "flex min-h-0 min-w-0 flex-1 flex-col";
 
+/**
+ * Spans the section, outside the reading column. px-3.5 is the list's px-5 less
+ * the title's own px-1.5: where the column fills the section, the title's mark
+ * starts at the avatars' left edge.
+ */
 export const ROOM_SHELL_DESKTOP_HEADER_CLASSNAME =
-  "flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6";
+  "flex h-16 shrink-0 items-center justify-between gap-4 border-b px-3.5";
 
 /** Empty desktop header slot (Instant). Same outer box as live header. */
 export const ROOM_SHELL_DESKTOP_HEADER_SLOT_CLASSNAME =
@@ -60,6 +74,33 @@ interface RoomShellLayoutProps {
 }
 
 /**
+ * The box a docked side panel slides in. Below `lg` it has none (`contents`), so
+ * a panel's `absolute inset-0` still measures against the room shell. A closing
+ * panel leaves the flow at once, and the room takes its width while it slides.
+ */
+function RoomSidePanelSlot({
+  panelRef,
+  children,
+}: {
+  panelRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  const isPresent = useRoomPanelSlideOut(panelRef);
+  return (
+    <div
+      ref={panelRef}
+      inert={!isPresent}
+      className={cn(
+        "contents lg:flex lg:min-h-0 lg:shrink-0",
+        !isPresent && "lg:absolute lg:inset-y-0 lg:right-0",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * Shared open-room chrome tree for Instant loading and progressive RoomsClient.
  */
 export function RoomShellLayout({
@@ -75,6 +116,8 @@ export function RoomShellLayout({
   composer,
   mainEnd = null,
 }: RoomShellLayoutProps): React.ReactElement {
+  const { mainRef, sectionRef, panelRef, listRef, composerRef } =
+    useRoomPanelSlide();
   const header =
     desktopHeader != null ? (
       <header className={ROOM_SHELL_DESKTOP_HEADER_CLASSNAME}>
@@ -89,6 +132,7 @@ export function RoomShellLayout({
       {header}
       <div ref={listScrollerRef} className={ROOM_SHELL_SCROLLER_CLASSNAME}>
         <div
+          ref={listRef}
           // Scopes the jump-highlight spotlight in globals.css to this list,
           // and names it so a lookup can tell it from the thread's copy of the
           // same message ids.
@@ -98,7 +142,12 @@ export function RoomShellLayout({
           {listContent}
         </div>
       </div>
-      {composer}
+      <div
+        ref={composerRef}
+        className={cn("shrink-0", ROOM_CONTENT_COLUMN_CLASSNAME)}
+      >
+        {composer}
+      </div>
     </>
   );
 
@@ -115,9 +164,19 @@ export function RoomShellLayout({
       className={rootClassName ?? ROOM_SHELL_ROOT_CLASSNAME}
     >
       {beforeMain}
-      <main className={ROOM_SHELL_MAIN_CLASSNAME}>
-        <section className={ROOM_SHELL_SECTION_CLASSNAME}>{column}</section>
-        {mainEnd}
+      <main ref={mainRef} className={ROOM_SHELL_MAIN_CLASSNAME}>
+        <section ref={sectionRef} className={ROOM_SHELL_SECTION_CLASSNAME}>
+          {column}
+        </section>
+        {/* One key, so swapping one panel for another keeps the slot and does
+            not slide. */}
+        <AnimatePresence initial={false}>
+          {mainEnd != null ? (
+            <RoomSidePanelSlot key="panel" panelRef={panelRef}>
+              {mainEnd}
+            </RoomSidePanelSlot>
+          ) : null}
+        </AnimatePresence>
       </main>
     </div>
   );

@@ -2,7 +2,7 @@ import { CHAT_UNREADS_FILTER_BOOT_SCRIPT } from "@/lib/ui-preferences/chat-unrea
 import { SIDEBAR_BOOT_SCRIPT } from "@/lib/ui-preferences/sidebar-state";
 
 /**
- * Applies the persisted collapsed preference and the Unreads filter mark
+ * Applies the persisted hidden-sidebar preference and the Unreads filter mark
  * before the shell paints. See `SIDEBAR_BOOT_SCRIPT` for why this cannot be a
  * `cookies()` read.
  */

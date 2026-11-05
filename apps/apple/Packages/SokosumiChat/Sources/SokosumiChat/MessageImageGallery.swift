@@ -15,7 +15,7 @@ public struct MessageImageGallery: Equatable, Sendable {
   /// The images embedded in rendered blocks, in document order (code samples stay text), for a document drawn from
   /// its whole blocks, as the text-file preview draws one.
   public init(blocks: [MessageMarkdownBlock]) {
-    self.init(MessageMarkdown.attachmentRows(in: blocks).flatMap(\.self))
+    self.init(MessageMarkdown.embeddedAttachments(in: blocks))
   }
 
   private func index(of url: URL?) -> Int? {

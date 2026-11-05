@@ -82,9 +82,10 @@ import {
   SokoBotRetryableStartError,
 } from "@/services/soko-bot-control-plane.service";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
+import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
 import {
-  MAX_CONSECUTIVE_SCHEDULE_FAILURES,
   SokoBotSchedulesSyncService,
+  scheduleRunPrompt,
   sokoBotScheduleClientTurnId,
 } from "@/services/soko-bot-schedules-sync.service";
 
@@ -99,12 +100,20 @@ const dueSchedule = {
   requestedByUserId: "user_1",
   sokoBot: { userId: "user_1" as string | null },
   workspaceId: "01960001-0001-7001-8001-000000000002",
+  // The schedule's own bot runs it: Joseph's schedules never reach a Cuso
+  // that lives in the same workspace, and Cuso's never reach Joseph.
+  sokoBotId: "01960001-0001-7001-8001-0000000000b0",
   cronExpression: "0 * * * * *",
   timezone: "UTC",
+  name: "Hourly review",
   prompt: "Review active work",
   nextRunAt: scheduledFor,
   consecutiveFailures: 0,
   capabilityNames: [] as string[],
+  systemKey: null as string | null,
+  runOnce: false,
+  taskId: null as string | null,
+  jobId: null as string | null,
 };
 const personalBot = {
   userId: dueSchedule.requestedByUserId,
@@ -199,9 +208,11 @@ describe("SokoBotSchedulesSyncService", () => {
     expect(startTurnMock).toHaveBeenCalledWith({
       userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
+      sokoBotId: dueSchedule.sokoBotId,
       clientTurnId: sokoBotScheduleClientTurnId(dueSchedule.id, scheduledFor),
       message: dueSchedule.prompt,
       source: "SCHEDULE",
+      ownScheduleId: dueSchedule.id,
       scheduleReservation: {
         runId: claimedRun.id,
         attempt: claimedRun.attempt,
@@ -356,8 +367,22 @@ describe("SokoBotSchedulesSyncService", () => {
     });
 
     expect(runCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({ prompt: "Review active work" }),
+      data: expect.objectContaining({ prompt: scheduleRunPrompt(dueSchedule) }),
     });
+  });
+
+  it("tells a run which schedule it is and how to end it", () => {
+    expect(scheduleRunPrompt(dueSchedule)).toBe(
+      `[Schedule "Hourly review" (scheduleId ${dueSchedule.id}). It repeats (cron "0 * * * * *", UTC). When its purpose is done, remove it with delete_schedule and scheduleId ${dueSchedule.id}.]\n\nReview active work`,
+    );
+    expect(
+      scheduleRunPrompt({ ...dueSchedule, runOnce: true, taskId: "task-9" }),
+    ).toContain(
+      "It runs once; Core removes it after this run. It watches Task task-9; Core removes it once that Task finishes.]",
+    );
+    expect(scheduleRunPrompt({ ...dueSchedule, systemKey: "standup" })).toBe(
+      "Review active work",
+    );
   });
 
   it("settles a run when startTurn returns an already-terminal duplicate", async () => {
@@ -869,6 +894,31 @@ describe("SokoBotSchedulesSyncService", () => {
       }),
     );
     expect(scheduleUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("retries when no pool connection was free for a transaction (P2028)", async () => {
+    startTurnMock.mockRejectedValue(
+      Object.assign(
+        new Error("Unable to start a transaction in the given time."),
+        {
+          code: "P2028",
+        },
+      ),
+    );
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(result).toMatchObject({ failed: 0, deferred: 1 });
+    expect(runUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "PENDING",
+          errorKind: "runtime_transient",
+        }),
+      }),
+    );
   });
 
   it("dead-letters a transient Eve failure after bounded attempts", async () => {

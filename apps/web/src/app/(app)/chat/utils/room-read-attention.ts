@@ -8,6 +8,8 @@ export interface RoomReadAttentionSnapshot {
   messages: readonly ReadableRoomMessage[];
   openThreadParentId: string | null;
   threadMessages: readonly ReadableRoomMessage[];
+  /** The room transcript is at its end, where Jump to latest is hidden. */
+  transcriptAtEnd: boolean;
 }
 
 function sameMessageContent(
@@ -24,7 +26,12 @@ function sameMessageContent(
   );
 }
 
-/** Compare content without serializing bodies or counting Thought metadata. */
+/**
+ * Compare content without serializing bodies or counting Thought metadata.
+ * A snapshot taken at the end of the transcript, where the room was read,
+ * also covers the same content seen from above the end; one taken above the
+ * end does not cover reaching it.
+ */
 export function sameRoomReadAttention(
   previous: RoomReadAttentionSnapshot | null,
   current: RoomReadAttentionSnapshot,
@@ -33,6 +40,7 @@ export function sameRoomReadAttention(
     previous !== null &&
     previous.roomId === current.roomId &&
     previous.openThreadParentId === current.openThreadParentId &&
+    (previous.transcriptAtEnd || !current.transcriptAtEnd) &&
     sameMessageContent(previous.messages, current.messages) &&
     sameMessageContent(previous.threadMessages, current.threadMessages)
   );

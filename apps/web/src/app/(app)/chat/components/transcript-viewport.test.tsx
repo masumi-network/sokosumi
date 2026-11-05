@@ -433,6 +433,21 @@ describe("TranscriptViewport", () => {
     expect(ids.length).toBeLessThan(100);
   });
 
+  it("paints a shallow range first and mounts the deep buffer above after", async () => {
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container } = render(<Harness rows={rows(500)} handle={handle} />);
+    const opening = mountedIds(container);
+    await settle(container);
+    const settled = mountedIds(container);
+
+    // The viewport holds 15 rows. The first paint adds a few above and the
+    // live-edge buffer below; the next frame adds the deep buffer above.
+    expect(opening.length).toBeGreaterThan(0);
+    expect(opening.length).toBeLessThanOrEqual(15 + 4 + 8);
+    expect(settled.length).toBeGreaterThan(opening.length);
+    expect(settled).toEqual(expect.arrayContaining(opening));
+  });
+
   it("sizes unmounted history with image unfurls taller than short text", async () => {
     const text = render(
       <Harness

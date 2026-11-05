@@ -9,11 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * assertion is always the same: the catalog is still there.
  */
 
-const { getEnvMock, redisMock, fetchSourcesMock } = vi.hoisted(() => ({
-  getEnvMock: vi.fn(),
-  redisMock: vi.fn(),
-  fetchSourcesMock: vi.fn(),
-}));
+const { getEnvMock, redisMock, fetchSourcesMock, fetchVideoSourcesMock } =
+  vi.hoisted(() => ({
+    getEnvMock: vi.fn(),
+    redisMock: vi.fn(),
+    fetchSourcesMock: vi.fn(),
+    fetchVideoSourcesMock: vi.fn(),
+  }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/redis", () => ({ getRedisClient: redisMock }));
@@ -23,6 +25,12 @@ vi.mock("./fal-catalog-fetch", async () => ({
   )),
   fetchFalCatalogSources: fetchSourcesMock,
 }));
+vi.mock("./fal-video-catalog-fetch", async () => ({
+  ...(await vi.importActual<typeof import("./fal-video-catalog-fetch")>(
+    "./fal-video-catalog-fetch",
+  )),
+  fetchFalVideoCatalogSources: fetchVideoSourcesMock,
+}));
 
 import { getImageCatalog } from "./catalog";
 import {
@@ -30,15 +38,18 @@ import {
   refreshImageCatalog,
   resetImageCatalogFreshness,
 } from "./fal-catalog-refresh";
+import { getVideoCatalog } from "./video-catalog";
 
 /** The snapshot's own size, which is what "still there" has to mean. */
 const SNAPSHOT_MODEL_COUNT = getImageCatalog().models.length;
+const SNAPSHOT_VIDEO_MODEL_COUNT = getVideoCatalog().models.length;
 
 beforeEach(() => {
   vi.clearAllMocks();
   resetImageCatalogFreshness();
   getEnvMock.mockReturnValue({ FAL_KEY: "k" });
   redisMock.mockReturnValue(null);
+  fetchVideoSourcesMock.mockRejectedValue(new Error("fal returned 429"));
 });
 
 describe("refreshImageCatalog", () => {
@@ -94,6 +105,8 @@ describe("refreshImageCatalog", () => {
       refreshImageCatalog(),
       refreshImageCatalog(),
     ];
+    // The video crawl runs first, so the image crawl starts a tick later.
+    await vi.waitFor(() => expect(release).toBeDefined());
     release?.();
     await Promise.all(calls);
 
@@ -125,12 +138,15 @@ describe("ensureImageCatalogFresh", () => {
       fetchedAt: "2026-09-28T00:00:00.000Z",
       models: getImageCatalog().models,
     };
-    const get = vi.fn().mockResolvedValue(JSON.stringify(shared));
+    const get = vi.fn(async (key: string) =>
+      key === "image-studio:fal-catalog:v1" ? JSON.stringify(shared) : null,
+    );
     redisMock.mockReturnValue({ get, set: vi.fn() });
 
     await ensureImageCatalogFresh();
 
-    expect(get).toHaveBeenCalledOnce();
+    // One read for the image catalog, one for the video catalog.
+    expect(get).toHaveBeenCalledTimes(2);
     expect(fetchSourcesMock).not.toHaveBeenCalled();
     expect(getImageCatalog().refreshedAt).toBe(shared.fetchedAt);
   });
@@ -200,5 +216,48 @@ describe("a crawl that runs out of time", () => {
     expect(fetchSourcesMock).toHaveBeenCalledWith(
       expect.objectContaining({ shouldContinue }),
     );
+  });
+});
+
+describe("the video catalog", () => {
+  it("keeps the last good video catalog, and still crawls images, when the video crawl fails", async () => {
+    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
+
+    await refreshImageCatalog();
+
+    expect(fetchVideoSourcesMock).toHaveBeenCalledOnce();
+    expect(fetchSourcesMock).toHaveBeenCalledOnce();
+    expect(getVideoCatalog().models).toHaveLength(SNAPSHOT_VIDEO_MODEL_COUNT);
+  });
+
+  it("crawls only the endpoints a person verified a price for", async () => {
+    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
+
+    await refreshImageCatalog();
+
+    const wanted = fetchVideoSourcesMock.mock.calls[0]![1] as Set<string>;
+    expect([...wanted]).toContain("minimax/h3-max-turbo/text-to-video");
+    expect(wanted.size).toBe(SNAPSHOT_VIDEO_MODEL_COUNT);
+  });
+
+  it("adopts a video catalog a sibling instance already shared", async () => {
+    const shared = {
+      fetchedAt: "2026-10-25T00:00:00.000Z",
+      models: getVideoCatalog().models.slice(0, 1),
+    };
+    redisMock.mockReturnValue({
+      get: vi.fn(async (key: string) =>
+        key === "image-studio:fal-video-catalog:v1"
+          ? JSON.stringify(shared)
+          : null,
+      ),
+      set: vi.fn(),
+    });
+
+    await ensureImageCatalogFresh();
+
+    expect(getVideoCatalog().models.map((model) => model.id)).toEqual([
+      shared.models[0]!.id,
+    ]);
   });
 });

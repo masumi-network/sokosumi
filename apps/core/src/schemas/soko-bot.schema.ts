@@ -7,6 +7,10 @@ import {
   routerModelSummarySchema,
 } from "@/lib/soko-bot/model-evaluation";
 import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
+import {
+  sokoBotAvatarOrNullSchema,
+  sokoBotAvatarStateSchema,
+} from "@/schemas/soko-bot-avatar.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { sokoBotPendingDecisionSchema } from "./soko-bot-pending-decision.schema";
 
@@ -23,6 +27,15 @@ export const sokoBotSummarySchema = z
     avatarImageUrl: z.string().nullable().openapi({
       example: "https://blob.example/mascot.png",
     }),
+    /**
+     * The style of the bot's claimed avatar, null when it has none. Always
+     * sent; optional in the contract so clients written before it compile.
+     */
+    avatarStyleId: z
+      .string()
+      .nullable()
+      .optional()
+      .openapi({ example: "crafted-desk" }),
     owner: z.union([userSummarySchema, z.null()]),
   })
   .openapi("SokoBotSummary");
@@ -125,6 +138,10 @@ export const sokoBotDelegationSchema = z
     error: z.string().nullable(),
     taskId: z.string().nullable(),
     jobId: z.string().nullable(),
+    /** What the bot will do once this work completes; null when none. */
+    followUp: z.string().nullable().optional(),
+    /** The turn that carried the plan out, once the work completed. */
+    followUpTurnId: z.string().nullable().optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -310,10 +327,15 @@ export const sokoBotSchema = z
     legacyMessages: z.array(sokoBotLegacyMessageSchema).optional(),
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     schedules: z.array(sokoBotScheduleSchema).optional(),
-    /** Picked mascot image; null → generative orb. */
+    /** The idle still (or a legacy mascot image); null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
+    /** What the avatar is doing, derived in Core. */
+    avatarState: sokoBotAvatarStateSchema.optional(),
+    /** Where each still and loop lives. Null when the bot has no image. */
+    avatar: sokoBotAvatarOrNullSchema.optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
+    mailAutoRead: z.boolean().optional(),
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
     proactiveDailyLimit: z.number().int().optional(),
@@ -333,6 +355,10 @@ export const sokoBotActivitySchema = z
     /** The turn to watch, when one is running. */
     activeTurnId: z.string().uuid().nullable(),
     lastTurnAt: dateTimeSchema.nullable(),
+    /** What "Active 5m ago" counts from; any activity, not only turns. */
+    lastActivityAt: dateTimeSchema.nullable(),
+    /** What the bot's face shows, for a surface that reads nothing else. */
+    avatarState: sokoBotAvatarStateSchema,
   })
   .openapi("SokoBotActivity");
 
@@ -402,6 +428,8 @@ export const adminSokoBotListItemSchema = z
     archivedAt: dateTimeSchema.nullable(),
     /** Agent version the bot runs (prompt, skills, model), e.g. "v11". */
     versionId: z.string().nullable(),
+    /** "cmo" for Cuso (CMO.xyz), "assistant" for a personal Soko Bot. */
+    kind: z.enum(["assistant", "cmo"]),
     runtimeVersion: z.string().nullable(),
     runtimeDeployment: z.string().nullable(),
     lastActivityAt: dateTimeSchema.nullable(),
@@ -431,7 +459,6 @@ export const sokoBotContextSnapshotSchema = z
     id: z.string().uuid(),
     schemaVersion: z.number().int(),
     hash: z.string(),
-    packet: z.unknown(),
     byteSize: z.number().int().nonnegative(),
     tokenEstimate: z.number().int().nonnegative(),
     counts: z.unknown(),
@@ -603,6 +630,70 @@ export const adminSokoBotVersionUsageSchema = z
   })
   .openapi("AdminSokoBotVersionUsage");
 
+export const adminSokoBotFleetDaysQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
+
+export const adminSokoBotFleetDaysSchema = z
+  .object({
+    days: z.array(
+      z.object({
+        day: z.string(),
+        users: z.number().int(),
+        messages: z.number().int(),
+        turns: z.number().int(),
+        totalTokens: z.number(),
+        costUsd: z.number(),
+        cmoCostUsd: z.number(),
+      }),
+    ),
+  })
+  .openapi("AdminSokoBotFleetDays");
+
+export const adminCmoSpendQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
+});
+
+export const adminCmoSpendSchema = z
+  .object({
+    since: z.string(),
+    bots: z.array(
+      z.object({
+        sokoBotId: z.string(),
+        businessName: z.string(),
+        ownerEmail: z.string(),
+        turns: z.number().int(),
+        totalUsd: z.number(),
+        overheadUsd: z.number(),
+        imagesCredits: z.number(),
+        chargedCredits: z.number(),
+        bySource: z.array(
+          z.object({
+            source: z.string(),
+            costUsd: z.number(),
+            calls: z.number().int(),
+            inputTokens: z.number(),
+            outputTokens: z.number(),
+          }),
+        ),
+        tools: z.array(
+          z.object({ capability: z.string(), calls: z.number().int() }),
+        ),
+        planChecks: z.object({
+          checked: z.number().int(),
+          withProblems: z.number().int(),
+          drifted: z.number().int(),
+          unavailable: z.number().int(),
+          last: z.union([
+            z.object({ at: z.string(), problems: z.array(z.string()) }),
+            z.null(),
+          ]),
+        }),
+      }),
+    ),
+  })
+  .openapi("AdminCmoSpend");
+
 export const adminSokoBotVersionMigrationRequestSchema = z
   .object({
     fromVersionId: sokoBotVersionSlugSchema.optional(),
@@ -651,6 +742,7 @@ export const updateSokoBotProactiveRequestSchema = z
     paused: z.boolean().optional(),
     dailyLimit: z.number().int().min(1).max(200).optional(),
     timezone: z.string().min(1).max(64).optional(),
+    mailAutoRead: z.boolean().optional(),
   })
   .strict()
   .openapi("UpdateSokoBotProactiveRequest");
@@ -907,6 +999,10 @@ export const sokoBotTeamSchema = z
             id: z.string().uuid(),
             name: z.string().nullable(),
             avatarImageUrl: z.string().nullable(),
+            // Always sent. Optional in the contract so clients written before
+            // them keep compiling; tighten once every consumer reads them.
+            avatarState: sokoBotAvatarStateSchema.optional(),
+            avatar: sokoBotAvatarOrNullSchema.optional(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
             lastActivityAt: dateTimeSchema.nullable(),

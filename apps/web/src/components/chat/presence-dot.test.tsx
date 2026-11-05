@@ -58,9 +58,8 @@ describe("PresenceDot", () => {
     expect(mark(online).children).toHaveLength(0);
     expect(mark(afk).children).toHaveLength(1);
     expect(mark(offline).children).toHaveLength(1);
-    // toHaveClass, not toContain: "bg-semantic-warning" is a prefix of
-    // "bg-semantic-warning-quaternary", the near-invisible tint, so a
-    // substring match would accept the wrong step of the same ramp.
+    // toHaveClass, not toContain: a substring match would also accept
+    // "bg-semantic-warning-foreground".
     expect(mark(afk)).toHaveClass("bg-semantic-warning");
     expect(mark(offline)).toHaveClass("bg-background");
     expect(mark(offline).firstElementChild?.className).toContain(

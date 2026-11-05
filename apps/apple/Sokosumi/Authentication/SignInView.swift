@@ -74,9 +74,9 @@ private struct SignInColumn: View {
           Text("Continue in browser")
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(Color("BrandSolid"))
+        .buttonStyle(.brandPrimary)
         .controlSize(.extraLarge)
+        .buttonStyle(.brandPrimary)
         .keyboardShortcut(.defaultAction)
       case .signingIn:
         HStack(spacing: 8) {
@@ -107,7 +107,8 @@ private struct SignInColumn: View {
           // website's onboarding sets up the new account.
           Link("Register", destination: CoreSettings.signUpURL)
             .buttonStyle(.plain)
-            .foregroundStyle(Color("BrandSolid"))
+            .foregroundStyle(.primary)
+            .underline()
             .pointerStyle(.link)
         }
         Text(SignInLinks.termsNotice)

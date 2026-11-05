@@ -31,6 +31,7 @@ import {
   notificationListSchema,
 } from "@/schemas/notification.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { projectIdQuerySchema } from "@/schemas/project.schema";
 
 const notificationKindsQuerySchema = z
   .preprocess(
@@ -85,6 +86,9 @@ const query = z
     kind: notificationKindsQuerySchema,
     isRead: isReadQuerySchema,
     needsAction: needsActionQuerySchema,
+    projectId: projectIdQuerySchema(
+      "With needsAction=true, only requests about this project's tasks and jobs. Rejected without needsAction=true.",
+    ),
     mentions: mentionsQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
@@ -146,11 +150,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    if (queryParams.projectId && !queryParams.needsAction) {
+      throw badRequest("projectId requires needsAction=true");
+    }
 
     const [where, needsActionIds] = await Promise.all([
       resolvedNotificationFeedWhere(userContext.userId, queryParams.kind),
       queryParams.needsAction
-        ? findNeedsActionNotificationIds(userContext.userId)
+        ? findNeedsActionNotificationIds(
+            userContext.userId,
+            queryParams.projectId,
+          )
         : undefined,
     ]);
 

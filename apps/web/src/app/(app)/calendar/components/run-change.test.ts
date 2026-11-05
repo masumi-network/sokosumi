@@ -33,6 +33,12 @@ function run(
 
 const socialPost: SocialPostCalendarItem = {
   kind: "socialPost",
+  quotedPostId: null,
+  needsAttentionReason: null,
+  threadPartCount: 1,
+  publishedThreadPartCount: 0,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
   revision: 4,
   id: "social:post-1",
   postId: "post-1",

@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -11,6 +11,7 @@ import { RoomsClient } from "../rooms-client";
 import {
   editRoomMessageAction,
   pinRoomMessageAction,
+  renderWithQueryClient,
   roomsClientBaseProps,
   setMessageReactionAction,
   unpinRoomMessageAction,
@@ -186,7 +187,9 @@ function rendersSince(before: Map<string, number>) {
 }
 
 async function mountRoom(initialMessages: ChatRoomMessage[] = messages) {
-  render(<RoomsClient {...baseProps} messages={initialMessages} />);
+  renderWithQueryClient(
+    <RoomsClient {...baseProps} messages={initialMessages} />,
+  );
   await act(async () => {});
   expect(screen.getAllByTestId("chat-message-row")).toHaveLength(3);
   return snapshotRenders();

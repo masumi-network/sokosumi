@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const listSharedMock = vi.fn();
 const chatStateMock = vi.fn();
 const consoleMock = vi.fn();
+const loadAdsMock = vi.fn();
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
@@ -32,6 +33,9 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
     searchIntegrationCatalog: async () => [],
   },
 }));
+vi.mock("@/lib/soko-bot/load-bot-ad-accounts", () => ({
+  loadBotAdAccounts: (...a: unknown[]) => loadAdsMock(...a),
+}));
 vi.mock(
   "@/app/soko-bots/components/reactivate-shared-bot-button.client",
   () => ({
@@ -54,6 +58,7 @@ const BOT_ID = "8a7f2c1e-4b3d-4e5f-9a8b-1c2d3e4f5a6b";
 async function renderPage(
   archivedAt: Date | null,
   viewerCanManage = true,
+  query: Record<string, string> = { view: "advanced" },
 ): Promise<void> {
   listSharedMock.mockResolvedValue([
     {
@@ -61,6 +66,7 @@ async function renderPage(
       name: "Ops",
       archivedAt,
       sharedRoomId: "room-1",
+      projectId: "project-1",
       viewerCanManage,
     },
   ]);
@@ -68,7 +74,7 @@ async function renderPage(
   render(
     await SharedSokoBotPage({
       params: Promise.resolve({ id: BOT_ID }),
-      searchParams: Promise.resolve({}),
+      searchParams: Promise.resolve(query),
     }),
   );
 }
@@ -76,6 +82,22 @@ async function renderPage(
 describe("SharedSokoBotPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadAdsMock.mockResolvedValue([]);
+  });
+
+  it("hands the console the ad accounts of the bot's own Project", async () => {
+    await renderPage(null);
+    expect(loadAdsMock).toHaveBeenCalledWith({ projectId: "project-1" });
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ads: { accounts: [], projectId: "project-1" },
+      }),
+    );
+  });
+
+  it("skips the ad accounts outside Advanced", async () => {
+    await renderPage(null, true, {});
+    expect(loadAdsMock).not.toHaveBeenCalled();
   });
 
   it("renders the console for a live shared bot", async () => {

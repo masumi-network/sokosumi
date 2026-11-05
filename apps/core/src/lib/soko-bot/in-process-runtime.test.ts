@@ -1,3 +1,5 @@
+import { simulateReadableStream, wrapLanguageModel } from "ai";
+import { MockLanguageModelV3 } from "ai/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const pendingTurns: Promise<unknown>[] = [];
@@ -9,7 +11,7 @@ const {
   executeToolMock,
   findFirstMock,
   findManyMock,
-  generateTextMock,
+  streamModelCallMock,
   getContextMock,
   waitUntilMock,
 } = vi.hoisted(() => ({
@@ -19,7 +21,7 @@ const {
   executeToolMock: vi.fn(),
   findFirstMock: vi.fn(),
   findManyMock: vi.fn(),
-  generateTextMock: vi.fn(),
+  streamModelCallMock: vi.fn(),
   getContextMock: vi.fn(),
   // The real waitUntil detaches the turn, so tests await the captured promise.
   waitUntilMock: vi.fn((promise: Promise<unknown>) => {
@@ -32,9 +34,12 @@ vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 vi.mock("./answer-claims", () => ({ claimsAction: async () => true }));
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
-  generateText: generateTextMock,
   stepCountIs: (count: number) => count,
   tool: (definition: unknown) => definition,
+}));
+vi.mock("./stream-model-call", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./stream-model-call")>()),
+  streamModelCall: streamModelCallMock,
 }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
@@ -74,6 +79,22 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
+import { sokoBotRegionMiddleware } from "./model-policy";
+import {
+  MODEL_STREAM_IDLE_MS,
+  ModelStreamStalledError,
+} from "./stream-model-call";
+
+/** The model as the runtime gets it: behind the region check. */
+function behindRegionCheck(model: MockLanguageModelV3) {
+  return wrapLanguageModel({
+    model,
+    middleware: sokoBotRegionMiddleware({
+      model: "google/gemini-3.6-flash",
+      role: "agent",
+    }),
+  });
+}
 
 const TURN_ID = "01960001-0001-7001-8001-000000000001";
 
@@ -94,7 +115,7 @@ describe("InProcessSokoBotRuntime", () => {
       version: { id: "v11", name: "v11 test", systemPrompt: "Be useful." },
       packet: { memory: { version: 1 } },
     });
-    generateTextMock.mockImplementation(async (options) => {
+    streamModelCallMock.mockImplementation(async (options) => {
       // The SDK reports each step through onStepFinish; the drain meters those.
       await options.onStepFinish?.({
         usage: {
@@ -104,7 +125,11 @@ describe("InProcessSokoBotRuntime", () => {
         },
         providerMetadata: { gateway: { cost: "0.0136" } },
       });
-      return { text: "Delegated to a Coworker.", finishReason: "stop" };
+      return {
+        text: "Delegated to a Coworker.",
+        finishReason: "stop",
+        steps: [],
+      };
     });
   });
 
@@ -163,6 +188,164 @@ describe("InProcessSokoBotRuntime", () => {
     });
   });
 
+  it("finishes a step that streams for minutes and meters it once", async () => {
+    // A non-streamed Gateway call dies at about 60 seconds; this step's
+    // answer arrives over two minutes.
+    const { streamModelCall } = await vi.importActual<
+      typeof import("./stream-model-call")
+    >("./stream-model-call");
+    const { stepCountIs } = await vi.importActual<typeof import("ai")>("ai");
+    const deltas = Array.from({ length: 12 }, (_, index) => ({
+      type: "text-delta" as const,
+      id: "answer",
+      delta: `Week ${index + 1} of the plan. `,
+    }));
+    const model = new MockLanguageModelV3({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunkDelayInMs: 10_000,
+          chunks: [
+            { type: "text-start" as const, id: "answer" },
+            ...deltas,
+            { type: "text-end" as const, id: "answer" },
+            {
+              type: "finish" as const,
+              finishReason: { unified: "stop" as const, raw: "stop" },
+              usage: {
+                inputTokens: {
+                  total: 20,
+                  noCache: 13,
+                  cacheRead: 7,
+                  cacheWrite: 0,
+                },
+                outputTokens: { total: 6_000, text: 6_000, reasoning: 0 },
+              },
+              providerMetadata: { gateway: { cost: "0.05" } },
+            },
+          ],
+        }),
+      }),
+    });
+    streamModelCallMock.mockImplementationOnce((options) =>
+      streamModelCall({
+        ...options,
+        model: behindRegionCheck(model),
+        stopWhen: stepCountIs(5),
+      }),
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Write the month's strategy",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await vi.advanceTimersByTimeAsync(150_000);
+      await Promise.all(pendingTurns);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const types = recordedEvents().map((event) => event.type);
+    expect(types.filter((type) => type === "step.completed")).toHaveLength(1);
+    expect(types).toContain("turn.completed");
+    expect(types).not.toContain("turn.failed");
+    expect(
+      recordedEvents().find((event) => event.type === "step.completed")?.data
+        .usage,
+    ).toEqual({
+      inputTokens: 20,
+      outputTokens: 6_000,
+      cacheReadTokens: 7,
+      cacheWriteTokens: 0,
+      costUsd: 0.05,
+    });
+  });
+
+  it("fails the turn fast when the model stream goes silent", async () => {
+    const { streamModelCall } = await vi.importActual<
+      typeof import("./stream-model-call")
+    >("./stream-model-call");
+    const model = new MockLanguageModelV3({
+      doStream: async () => ({
+        // Opens, sends one part, then never sends or closes again.
+        stream: new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "text-start", id: "answer" });
+          },
+        }),
+      }),
+    });
+    streamModelCallMock.mockImplementationOnce((options) =>
+      streamModelCall({
+        ...options,
+        model: behindRegionCheck(model),
+        stopWhen: undefined,
+      }),
+    );
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Write the month's strategy",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_MS + 2_000);
+      await Promise.all(pendingTurns);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(
+      recordedEvents().find((event) => event.type === "turn.failed")?.data,
+    ).toMatchObject({
+      code: "ModelStreamStalledError",
+      message: new ModelStreamStalledError(MODEL_STREAM_IDLE_MS).message,
+    });
+    expect(
+      recordedEvents().filter((event) => event.type === "step.completed"),
+    ).toHaveLength(0);
+  });
+
+  it("fails the turn when the model stream reports an error", async () => {
+    const { streamModelCall } = await vi.importActual<
+      typeof import("./stream-model-call")
+    >("./stream-model-call");
+    const model = new MockLanguageModelV3({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: [{ type: "error" as const, error: new Error("Overloaded") }],
+        }),
+      }),
+    });
+    streamModelCallMock.mockImplementationOnce((options) =>
+      streamModelCall({ ...options, model, stopWhen: undefined }),
+    );
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Plan the launch",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    expect(
+      recordedEvents().find((event) => event.type === "turn.failed")?.data
+        .message,
+    ).toBe("Overloaded");
+  });
+
   it.each([
     "create_schedule",
     "post_chat",
@@ -176,9 +359,10 @@ describe("InProcessSokoBotRuntime", () => {
         turn: { id: TURN_ID, versionId: "v11" },
         grant: { capabilities: [capability] },
       });
-      generateTextMock.mockResolvedValueOnce({
+      streamModelCallMock.mockResolvedValueOnce({
         text: "Everything was saved and sent successfully.",
         finishReason: "stop",
+        steps: [],
       });
       await new InProcessSokoBotRuntime().createSession({
         sessionId: null,
@@ -202,9 +386,10 @@ describe("InProcessSokoBotRuntime", () => {
       turn: { id: TURN_ID, versionId: "v11" },
       grant: { capabilities: ["get_task_status", "read_memory"] },
     });
-    generateTextMock.mockResolvedValueOnce({
+    streamModelCallMock.mockResolvedValueOnce({
       text: "What part of the plan would you like to discuss?",
       finishReason: "stop",
+      steps: [],
     });
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,
@@ -265,7 +450,7 @@ describe("InProcessSokoBotRuntime", () => {
 
     await Promise.all(pendingTurns);
 
-    expect(Object.keys(generateTextMock.mock.calls[0][0].tools)).toEqual([
+    expect(Object.keys(streamModelCallMock.mock.calls[0][0].tools)).toEqual([
       "create_task",
     ]);
   });
@@ -284,7 +469,7 @@ describe("InProcessSokoBotRuntime", () => {
     });
     await Promise.all(pendingTurns);
 
-    const tools = generateTextMock.mock.calls[0][0].tools;
+    const tools = streamModelCallMock.mock.calls[0][0].tools;
     executeToolMock.mockImplementation(() => new Promise(() => {}));
 
     vi.useFakeTimers();
@@ -316,9 +501,10 @@ describe("InProcessSokoBotRuntime", () => {
     await Promise.all(pendingTurns);
 
     expect(
-      generateTextMock.mock.calls[0][0].providerOptions.gateway.inferenceRegion,
+      streamModelCallMock.mock.calls[0][0].providerOptions.gateway
+        .inferenceRegion,
     ).toEqual({ scope: "zone", geoRegion: "eu" });
-    expect(generateTextMock.mock.calls[0][0].prepareStep).toBe(
+    expect(streamModelCallMock.mock.calls[0][0].prepareStep).toBe(
       (await import("./evaluation-dispatch")).prepareEvaluationStep,
     );
   });

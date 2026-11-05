@@ -176,7 +176,6 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung",
       "settings": "Einstellungen",
-      "expandSidebar": "Seitenleiste erweitern",
       "creditsSummary": "Credits-Übersicht:",
       "monthlyUsageLimit": "Monatliches Nutzungslimit",
       "additionalCreditsHero": "{credits, number}",
@@ -196,7 +195,11 @@
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
       "createWorkspace": "Workspace erstellen",
-      "userAvatarAlt": "Nutzer-Avatar"
+      "userAvatarAlt": "Nutzer-Avatar",
+      "inviteMembers": "Mitglieder einladen",
+      "organizationSettings": "Einstellungen",
+      "membersAndSettings": "Mitglieder & Einstellungen",
+      "roleAndMemberCount": "{role, select, owner {Eigentümer} admin {Admin} other {Mitglied}} · {count, plural, =1 {1 Mitglied} other {# Mitglieder}}"
     },
     "DataTable": {
       "Data": {
@@ -255,7 +258,8 @@
             "changeRole": "Rolle konnte nicht geändert werden",
             "remove": "Mitglied konnte nicht entfernt werden",
             "assignSeat": "Seat konnte nicht zugewiesen werden",
-            "unassignSeat": "Seat konnte nicht entfernt werden"
+            "unassignSeat": "Seat konnte nicht entfernt werden",
+            "manageSeats": "Seats verwalten"
           },
           "Errors": {
             "unauthorizedAction": "Anmelden"
@@ -285,48 +289,6 @@
         "resendError": "Einladung konnte nicht erneut gesendet werden",
         "open": "Aktionen für Einladung"
       }
-    },
-    "Breadcrumb": {
-      "jobs": "Jobs",
-      "agents": "Agenten",
-      "credits": "Credits",
-      "coupon": "Gutschein",
-      "subscriptions": "Abonnements",
-      "billing": "Abrechnung",
-      "account": "Konto",
-      "admin": "Administration",
-      "organizations": "Organisationen",
-      "users": "Benutzer",
-      "edit": "Bearbeiten",
-      "editor": "Editor",
-      "enterprise-contracts": "Enterprise-Verträge",
-      "mcp": "Model Context Protocol (MCP)",
-      "chat": "Chat",
-      "tasks": "Aufgaben",
-      "connections": "Verbindungen",
-      "developer": "Entwickler",
-      "personal-assistant": "Persönlicher Assistent",
-      "history": "Kreditverlauf",
-      "new": "Neu",
-      "notifications": "Benachrichtigungen",
-      "projects": "Projekte",
-      "invoices": "Rechnungen",
-      "oauth-clients": "OAuth-Clients",
-      "api-keys": "API-Schlüssel",
-      "coworkers": "Coworkers",
-      "vendors": "Vendors",
-      "docs": "Dokumentation",
-      "drive": "Dateien",
-      "soko-bots": "Soko Bots",
-      "calendar": "Kalender",
-      "schedules": "Zeitpläne",
-      "threads": "Threads",
-      "studio": "Content Studio",
-      "design-md": "Design",
-      "memory": "Gedächtnis",
-      "social": "Social-Planung",
-      "ads": "Ads",
-      "evaluations": "Modellvergleiche"
     },
     "Jobs": {
       "StatusBadge": {
@@ -759,8 +721,8 @@
         }
       },
       "BulkInviteModal": {
-        "title": "Mitglieder gesammelt einladen",
-        "description": "Füge E-Mail-Adressen ein, um mehrere Mitglieder gleichzeitig einzuladen.",
+        "title": "Mitglieder einladen",
+        "description": "Füge eine oder mehrere E-Mail-Adressen ein.",
         "label": "E-Mail-Adressen",
         "placeholder": "alex@example.com, sam@example.com",
         "hint": "Trenne E-Mail-Adressen mit Kommas, Semikolons oder Zeilenumbrüchen.",
@@ -992,6 +954,26 @@
         "ACCEPTED": "Freigegeben und ausgeführt.",
         "REJECTED": "Abgelehnt. Es wurde nichts erstellt.",
         "EXPIRED": "Ohne Entscheidung abgelaufen. Frage deinen Soko Bot bei Bedarf erneut."
+      },
+      "AvatarState": {
+        "alt": "{name}, {state}",
+        "label": {
+          "idle": "Bereit",
+          "thinking": "Denkt nach",
+          "working": "Arbeitet",
+          "done": "Fertig",
+          "needs_you": "Braucht dich",
+          "offline": "Offline"
+        },
+        "line": {
+          "idle": "Bereit, wenn du es bist",
+          "thinking": "Überlegt sich den nächsten Schritt",
+          "working": "Arbeitet an einer Anfrage",
+          "done": "Hat die letzte Anfrage erledigt",
+          "needs_you": "Eine Entscheidung wartet auf dich",
+          "offline": "Nimmt gerade keine Anfragen an"
+        },
+        "lastActive": "Zuletzt aktiv {time}"
       }
     },
     "Mermaid": {
@@ -1014,12 +996,34 @@
       "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
     },
     "ChatResults": {
+      "socialApproval": {
+        "reject": "Ablehnen",
+        "rejected": "Beitrag abgelehnt.",
+        "rejectFailed": "Der Beitrag konnte nicht abgelehnt werden. Versuche es erneut.",
+        "rejectTitle": "Diesen Beitrag ablehnen?",
+        "rejectDescription": "Dadurch wird der ausstehende Beitrag abgebrochen. Er wird nicht veröffentlicht.",
+        "cancel": "Beitrag behalten",
+        "label": "Freigabe erforderlich",
+        "approve": "Freigeben",
+        "approved": "Beitrag freigegeben.",
+        "failed": "Der Beitrag konnte nicht freigegeben werden. Versuche es erneut."
+      },
       "unavailable": "Ergebnis nicht verfügbar oder nicht mehr zugänglich",
       "loading": "Ergebnisse werden geladen…",
       "loadError": "Ergebnisse konnten nicht geladen werden",
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
       "openLabel": "Quelle öffnen: {title}",
+      "openJob": "Job öffnen",
+      "jobHint": {
+        "started": "Der Job wird gestartet.",
+        "payment_pending": "Die Zahlung wird bestätigt, bevor der Agent startet.",
+        "processing": "Der Agent arbeitet daran.",
+        "input_required": "Der Agent braucht weitere Angaben, um weiterzumachen.",
+        "result_pending": "Der Agent ist fertig. Das Ergebnis ist unterwegs.",
+        "failed": "Der Agent konnte diesen Job nicht abschließen.",
+        "payment_failed": "Die Zahlung ist fehlgeschlagen, daher hat der Agent nicht begonnen."
+      },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
@@ -1027,7 +1031,6 @@
       "destination": "Konto",
       "scheduled": "Geplant für",
       "recurrence": "Wiederholung",
-      "bytes": "{size} Bytes",
       "kind": {
         "task": "Aufgabe",
         "task_schedule": "Aufgabenzeitplan",
@@ -1036,7 +1039,8 @@
         "studio_job": "Studio-Generierung",
         "job": "Agent-Ergebnis",
         "file": "Datei",
-        "decision": "Freigabe"
+        "decision": "Freigabe",
+        "cmo_report": "Bericht"
       },
       "status": {
         "DRAFT": "Entwurf",
@@ -1073,6 +1077,9 @@
         "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut.",
         "selectedProject": "Ausgewähltes Projekt"
       }
+    },
+    "ConnectLink": {
+      "error": "Die Verbindung konnte nicht gestartet werden."
     }
   },
   "Join": {
@@ -1165,7 +1172,8 @@
       "termsOfServices": "Nutzungsbedingungen",
       "privacyPolicy": "Datenschutzrichtlinie",
       "imprint": "Impressum",
-      "acceptableUse": "Zulässige Nutzung"
+      "acceptableUse": "Zulässige Nutzung",
+      "usesSokosumi": "Nutzt dein Sokosumi-Konto."
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1224,7 +1232,9 @@
         "Header": {
           "title": "Anmelden",
           "description": "Agents auf unserer Plattform beauftragen",
-          "descriptionFor": "Melde dich mit deinem Sokosumi-Konto an, um mit {client} fortzufahren"
+          "descriptionFor": "Melde dich mit deinem Sokosumi-Konto an, um mit {client} fortzufahren",
+          "titleCmo": "Bei CMO.xyz anmelden",
+          "descriptionCmo": "Cuso macht dein Marketing."
         },
         "Form": {
           "submit": "Anmelden",
@@ -1282,7 +1292,9 @@
           "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
           "description": "Agents auf unserer Plattform beauftragen",
-          "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
+          "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren",
+          "titleCmo": "Erstelle dein CMO.xyz-Konto",
+          "descriptionCmo": "Cuso macht dein Marketing."
         },
         "Form": {
           "submit": "Registrieren",
@@ -1454,8 +1466,11 @@
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
           "topUp": "Aufladung",
-          "unattributed": "Sonstige"
-        }
+          "unattributed": "Sonstige",
+          "contacts": "Personen finden"
+        },
+        "sokoBotTurns": "{count, plural, one {# Interaktion} other {# Interaktionen}}",
+        "sokoBotTurnsList": "Interaktionen von {name}"
       },
       "Export": {
         "button": "CSV exportieren",
@@ -1600,7 +1615,8 @@
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
           "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
-          "trendDown": "{count} weniger als in den vorherigen 24 Stunden"
+          "trendDown": "{count} weniger als in den vorherigen 24 Stunden",
+          "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1610,6 +1626,19 @@
         "searchAgents": {
           "label": "Suchen",
           "subtitle": "Spezialisierte Agenten"
+        },
+        "SokoBotHome": {
+          "defaultName": "Soko Bot",
+          "heading": "Was steht als Nächstes an?",
+          "headingWithName": "Was steht als Nächstes an, {name}?",
+          "placeholder": "Frag {name}…",
+          "sendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
+          "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
+          "suggestions": {
+            "catchUp": "Bring mich auf den Stand",
+            "teamWins": "Was haben wir geschafft?",
+            "planTomorrow": "Morgen planen"
+          }
         }
       },
       "SokoBot": {
@@ -1630,6 +1659,7 @@
         "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr.",
         "source": {
           "inbox": "Aus deinem Posteingang",
+          "briefing": "Morgen-Briefing",
           "standup": "Tägliches Stand-up",
           "weeklyWrap": "Wochenrückblick",
           "scheduled": "Geplant: {name}",
@@ -1642,10 +1672,6 @@
       "Page": {
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
-      },
-      "Tabs": {
-        "tasks": "Board",
-        "calendar": "Kalender"
       },
       "Columns": {
         "backlog": "Backlog",
@@ -1702,7 +1728,8 @@
         "emptyResults": "Keine Treffer.",
         "all": "Alle",
         "scopeLabel": "Bereich",
-        "scopeOwned": "Meine Tasks",
+        "scopeOwned": "Von mir erstellt",
+        "assignedToMe": "Meine Tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
         "humanLabel": "Mensch",
@@ -1803,8 +1830,6 @@
         "actions": {
           "edit": "Bearbeiten",
           "archive": "Archivieren",
-          "confirmArchive": "Diesen Task archivieren?",
-          "confirmArchiveDescription": "Der Task wird in deiner Liste ausgeblendet, inklusive verknüpfter geplanter Läufe. Laufende Läufe müssen zuerst enden oder abgebrochen werden. Er wird nicht dauerhaft aus der Datenbank gelöscht.",
           "archiveError": "Task konnte nicht archiviert werden",
           "reopenToReady": "Als Bereit wiedereröffnen",
           "reopenToReadyTitle": "Aufgabe wiedereröffnen",
@@ -2163,6 +2188,7 @@
           "resume": "Fortsetzen",
           "end": "Beenden",
           "delete": "Löschen",
+          "more": "Weitere Aktionen",
           "paused": "Zeitplan pausiert",
           "resumed": "Zeitplan fortgesetzt",
           "ended": "Zeitplan beendet",
@@ -2241,7 +2267,14 @@
           "marketing": "Marketing",
           "social": "Social Media",
           "seo": "SEO",
-          "operations": "Betrieb"
+          "operations": "Betrieb",
+          "presentations": "Präsentationen",
+          "dashboards": "Dashboards",
+          "monitoring": "Monitoring",
+          "media": "Medienbearbeitung",
+          "communication": "Kommunikation",
+          "finance": "Finanzen",
+          "qa": "Review & QA"
         }
       }
     },
@@ -2262,8 +2295,9 @@
         },
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
-        "pin": "Projekt anheften",
+        "pin": "Anheften",
         "unpin": "Anheften aufheben",
+        "pinned": "Angeheftet",
         "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
@@ -2299,6 +2333,54 @@
             "dispute_pending": "Streitfall",
             "dispute_resolved": "Geklärt"
           }
+        },
+        "emptyClosed": {
+          "title": "Keine geschlossenen Projekte",
+          "description": "Ein Projekt, das du schließt, landet hier – mit seinem Verlauf."
+        },
+        "emptyHidden": {
+          "title": "Keine ausgeblendeten Projekte",
+          "description": "Blende ein Projekt, das nicht deins ist, über sein Menü aus. Es verschwindet aus Offen, dem Projektwechsler und den letzten Aktivitäten und wartet hier."
+        },
+        "onlyClosed": {
+          "title": "Alle Projekte sind geschlossen",
+          "description": "Geschlossene Projekte behalten ihren Verlauf in der Ansicht „Geschlossen“.",
+          "action": "Geschlossene Projekte anzeigen"
+        },
+        "state": {
+          "label": "Projekte anzeigen",
+          "open": "Offen",
+          "hidden": "Ausgeblendet",
+          "closed": "Geschlossen"
+        },
+        "closed": "Geschlossen",
+        "hide": {
+          "hide": "Ausblenden",
+          "show": "Einblenden",
+          "hidden": "Projekt ausgeblendet",
+          "undo": "Rückgängig",
+          "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
+          "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        }
+      },
+      "column": {
+        "needsYou": {
+          "title": "Wartet auf dich",
+          "empty": "Nichts wartet auf dich.",
+          "error": "Fehler beim Laden dessen, was auf dich wartet.",
+          "showAll": "Alle anzeigen"
+        },
+        "activity": {
+          "title": "Letzte Aktivität",
+          "empty": "Noch keine Aktivität in offenen Projekten.",
+          "emptyProject": "Noch keine Aktivität in diesem Projekt.",
+          "error": "Fehler beim Laden der letzten Aktivität.",
+          "showAll": "Alle anzeigen",
+          "untitledJob": "Job ohne Namen",
+          "detail": "{project} · {event}",
+          "task": "{status, select, CREATED {Aufgabe erstellt} COMMENT {Kommentar hinzugefügt} READY {Aufgabe bereit} QUEUED {Aufgabe geplant} RUNNING {Aufgabe läuft} INPUT_REQUIRED {Aufgabe braucht Eingabe} APPROVAL_REQUIRED {Aufgabe braucht Freigabe} AUTHENTICATION_REQUIRED {Aufgabe braucht Anmeldung} OUT_OF_CREDITS {Aufgabe pausiert: Credits nötig} COMPLETED {Aufgabe abgeschlossen} FAILED {Aufgabe fehlgeschlagen} CANCELED {Aufgabe abgebrochen} other {Aufgabe aktualisiert}}",
+          "job": "{status, select, INITIATED {Job gestartet} AWAITING_PAYMENT {Job wartet auf Zahlung} AWAITING_INPUT {Job braucht Eingabe} RUNNING {Job läuft} COMPLETED {Job abgeschlossen} FAILED {Job fehlgeschlagen} other {Job aktualisiert}}",
+          "project": "{event, select, CLOSE_REQUESTED {Schließen angefordert} BATCH_FAILED {Schließen fehlgeschlagen} RETRY_REQUESTED {Schließen erneut versucht} SERIES_RESOLVED {Geplante Arbeit gestoppt} CLOSE_FINALIZED {Projekt geschlossen} other {Projekt aktualisiert}}"
         }
       },
       "Briefing": {
@@ -2375,6 +2457,14 @@
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
+      "PostingInstructions": {
+        "title": "Posting-Anweisungen",
+        "description": "Sag Soko Bot, Coworkern und Agents, wie die Social-Posts dieses Projekts geschrieben werden: Tonalität, Hashtags, Calls to Action und Regeln pro Plattform. Das gilt nur für Social-Entwürfe und ist getrennt vom Projektgedächtnis und von DESIGN.md.",
+        "placeholder": "# Posting-Anweisungen\nTonalität: …\nImmer / nie: …\n\n## X\n…\n\n## LinkedIn\n…",
+        "save": "Anweisungen speichern",
+        "saved": "Posting-Anweisungen gespeichert",
+        "saveFailed": "Posting-Anweisungen konnten nicht gespeichert werden. Versuch es erneut."
+      },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
         "account": "{provider}-Konto",
@@ -2414,7 +2504,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Facebook braucht ein Konto, das genau eine Seite verwaltet.",
+          "facebookPage": "Verbinde ein Facebook-Konto, das genau eine Seite verwaltet. Konten ohne Seiten oder mit mehreren Seiten werden noch nicht unterstützt.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
@@ -2430,11 +2520,26 @@
           "sync": "Synchronisierung konnte nicht gestartet werden."
         },
         "comingSoon": "Bald verfügbar",
+        "linkedinPersonalOnly": "Nur persönliches Profil. Unternehmensseiten werden noch nicht unterstützt.",
+        "personalProfile": "Persönliches Profil",
         "connectComingSoon": "{provider} (bald verfügbar)",
         "empty": "Noch keine Konten.",
         "emptyHint": "Verbinde eines, um zu posten."
       },
       "SocialPosts": {
+        "loadError": {
+          "tryAgain": "Erneut versuchen",
+          "help": "Alles andere funktioniert weiterhin. Prüfe deine Verbindung und versuche es erneut.",
+          "projectHelp": "Vorerst werden alle Projekte angezeigt. Versuche es erneut oder wähle ein anderes Projekt.",
+          "title": {
+            "drafts": "Entwürfe konnten nicht geladen werden",
+            "attention": "Beiträge, die Aufmerksamkeit brauchen, konnten nicht geladen werden",
+            "accounts": "Konten konnten nicht geladen werden",
+            "calendar": "Der Kalender konnte nicht geladen werden",
+            "post": "Dieser Beitrag konnte nicht geöffnet werden",
+            "project": "Dieses Projekt konnte nicht geladen werden"
+          }
+        },
         "loadMore": "Mehr laden",
         "loadMoreError": "Mehr konnte nicht geladen werden.",
         "loadMoreOffline": "Du bist offline.",
@@ -2451,6 +2556,7 @@
           "missed": "Der geplante Zeitpunkt wurde verpasst."
         },
         "failures": {
+          "providerComingSoon": "{provider} ist bald verfügbar. Jetzt verfügbar: {providers}.",
           "rateLimited": "Zu viele Anfragen. Versuche es später erneut.",
           "timeout": "Zeitüberschreitung. Versuche es erneut.",
           "unauthorized": "Verbinde das Konto erneut.",
@@ -2458,7 +2564,8 @@
           "rejected": "Die Plattform hat diesen Beitrag abgelehnt.",
           "mediaMissing": "Eine Datei fehlt.",
           "mediaType": "Dieser Dateityp ist nicht erlaubt.",
-          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details."
+          "generic": "Veröffentlichung fehlgeschlagen. Öffne den Beitrag für Details.",
+          "unconfirmed": "Wir konnten den Beitrag nicht bestätigen. Prüfe {provider}, bevor du es erneut versuchst, damit er nicht doppelt erscheint."
         },
         "sections": {
           "calendar": "Kalender",
@@ -2559,8 +2666,8 @@
           },
           "timezone": {
             "yours": "Deine Zeitzone: {zone}",
-            "goesOut": "Erscheint {date} ({zone})",
-            "postZone": "Geplant als {date} ({zone})"
+            "goesOut": "Erscheint {date} · {zone}",
+            "postZone": "Geplant als {date} · {zone}"
           },
           "platforms": "Limits pro Plattform",
           "platformLimit": "{provider}-{format} · {count} / {limit}",
@@ -2576,6 +2683,7 @@
           "rescheduleFor": "Neu planen für {date}",
           "noAccountsTitle": "Noch kein Konto verbunden",
           "connectAccount": "Konto verbinden",
+          "reconnectAccount": "Verbinde das Konto erneut, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "dismiss": "Abbrechen",
           "discardTitle": "Änderungen verwerfen?",
           "discardDescription": "Deine Änderungen gehen verloren.",
@@ -2583,7 +2691,9 @@
           "keepEditing": "Weiter bearbeiten",
           "previewEmpty": "Hier erscheint dein Beitrag, während du schreibst.",
           "pickAccount": "Wähle ein Konto, auf dem gepostet wird.",
-          "tooLong": "Die Textlänge überschreitet das Limit."
+          "tooLong": "Die Textlänge überschreitet das Limit.",
+          "addToQueue": "Zur Warteschlange",
+          "queueEmptyHint": "Zeiten unter Konten hinzufügen."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2596,6 +2706,7 @@
           "confirm": "Verwerfen"
         },
         "toasts": {
+          "movedQuotes": "Außerdem {count, plural, one {# Zitat verschoben, damit es nach diesem Beitrag erscheint} other {# Zitate verschoben, damit sie nach diesem Beitrag erscheinen}}",
           "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
           "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
@@ -2612,7 +2723,9 @@
           "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
           "publishFailedItem": "{account} — {error}",
           "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}",
-          "duplicated": "Entwurf erstellt."
+          "duplicated": "Entwurf erstellt.",
+          "queued": "{count, plural, one {Zur Warteschlange hinzugefügt.} other {# Beiträge zur Warteschlange hinzugefügt.}}",
+          "approved": "Beitrag genehmigt."
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
@@ -2624,7 +2737,8 @@
           "publishNow": "Jetzt posten",
           "retry": "Erneut versuchen",
           "dismiss": "Verwerfen",
-          "duplicate": "Als Entwurf duplizieren"
+          "duplicate": "Als Entwurf duplizieren",
+          "approve": "Genehmigen"
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt posten?",
@@ -2713,9 +2827,9 @@
           "clearFilters": "Filter zurücksetzen",
           "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen.",
           "loading": "Statistiken werden geladen…",
-          "loadFailed": "Statistiken konnten nicht geladen werden",
+          "loadFailed": "Statistiken nicht geladen.",
           "retry": "Erneut versuchen",
-          "refreshFailed": "Statistiken konnten nicht aktualisiert werden. Vorherige Ergebnisse bleiben erhalten. Prüfe das verbundene Konto und die Berechtigungen und versuche es erneut.",
+          "refreshFailed": "Aktualisieren nicht möglich.",
           "empty": "Keine importierten Beiträge entsprechen diesen Filtern. Synchronisiere ein Konto oder setze die Filter zurück.",
           "refresh": "Statistiken aktualisieren",
           "loadMore": "Weitere Beiträge laden",
@@ -2734,6 +2848,7 @@
           },
           "performance": {
             "lastDays": "Letzte {days} Tage",
+            "rangeLabel": "Zeitraum",
             "moreFilters": "Weitere Filter",
             "activeFilters": "{count} aktiv",
             "posts": "Beiträge",
@@ -2877,7 +2992,77 @@
           "retryDescription": "{count, plural, one {Dein Konto ist wieder verbunden. # fehlgeschlagenen Beitrag erneut versuchen?} other {Dein Konto ist wieder verbunden. # fehlgeschlagene Beiträge erneut versuchen?}}",
           "later": "Später"
         },
-        "moreActions": "Beitragsaktionen"
+        "moreActions": "Beitragsaktionen",
+        "queue": {
+          "title": "Beitragswarteschlange",
+          "hint": "Benannte wöchentliche Zeiten. „Zur Warteschlange“ nimmt die nächste freie.",
+          "empty": "Noch keine Warteschlangenzeiten.",
+          "emptyHint": "Füge eine wöchentliche Zeit hinzu. Danach kannst du Beiträge in die Warteschlange legen.",
+          "add": "Zeit hinzufügen",
+          "save": "Warteschlange speichern",
+          "name": "Name",
+          "weekday": "Tag",
+          "time": "Uhrzeit",
+          "timezone": "Zeitzone",
+          "remove": "{name} entfernen",
+          "toasts": {
+            "saved": "Warteschlange gespeichert.",
+            "empty": "Warteschlange geleert.",
+            "failed": "Warteschlangenzeiten konnten nicht gespeichert werden. Versuche es erneut."
+          },
+          "weekdays": {
+            "0": "Sonntag",
+            "1": "Montag",
+            "2": "Dienstag",
+            "3": "Mittwoch",
+            "4": "Donnerstag",
+            "5": "Freitag",
+            "6": "Samstag"
+          }
+        },
+        "thread": {
+          "add": "Zum Thread hinzufügen",
+          "limit": "Threads können bis zu {max} Teile enthalten.",
+          "part": "Teil {part}",
+          "text": "Text für Teil {part}",
+          "position": "{part}/{total}",
+          "positionLabel": "Teil {part} von {total}",
+          "moveUp": "Teil {part} nach oben verschieben",
+          "moveDown": "Teil {part} nach unten verschieben",
+          "remove": "Teil {part} entfernen",
+          "onlyX": "Thread-Teile werden nur für X-Konten unterstützt. Wähle andere Konten ab oder entferne die zusätzlichen Teile.",
+          "empty": "Teil {part} ist leer. Füge Text oder Medien hinzu.",
+          "tooLong": "Teil {part} überschreitet das Zeichenlimit.",
+          "mediaInvalid": "Teil {part}: {error}",
+          "partlyPosted": "Teilweise veröffentlicht",
+          "progress": "Teilweise veröffentlicht: {published} von {total} Teilen veröffentlicht.",
+          "failedPart": "Teil {part} ist fehlgeschlagen.",
+          "retry": "Verbleibende Teile erneut versuchen",
+          "outcomeUnknown": "Wir konnten nicht bestätigen, ob Teil {part} veröffentlicht wurde. Prüfe X und bestätige zum Fortfahren, dass er nicht veröffentlicht wurde, oder belasse es dabei.",
+          "confirmNotPosted": "Nicht veröffentlicht, fortfahren",
+          "viewPart": "Teil {part} auf X ansehen",
+          "retryDescription": "Es werden nur die verbleibenden Teile veröffentlicht."
+        },
+        "quote": {
+          "label": "Zitat",
+          "choose": "Beitrag zitieren",
+          "pickerDescription": "Wähle einen X-Beitrag aus diesem Projekt aus, den du zitieren möchtest.",
+          "search": "Beiträge suchen",
+          "select": "Diesen Beitrag zitieren",
+          "empty": "Keine Beiträge gefunden. Ändere die Suche oder plane einen X-Beitrag in diesem Projekt.",
+          "loadFailed": "Beiträge konnten nicht geladen werden. Versuche es erneut.",
+          "embedded": "Zitierter Beitrag",
+          "change": "Anderen Beitrag auswählen",
+          "remove": "Zitat entfernen",
+          "publishesAfter": "Wird nach dem zitierten Beitrag veröffentlicht ({time})",
+          "scheduleAfter": "Wähle einen Zeitpunkt nach dem zitierten Beitrag ({time}).",
+          "scheduleTargetFirst": "Plane zuerst den zitierten Beitrag und danach dieses Zitat.",
+          "postNowUnavailable": "Sofortiges Veröffentlichen ist erst möglich, wenn der zitierte Beitrag veröffentlicht wurde.",
+          "onlyX": "Zitate sind nur für X-Konten verfügbar. Entferne das Zitat oder wähle ausschließlich X-Konten aus.",
+          "failed": "Der zitierte Beitrag konnte nicht veröffentlicht werden",
+          "cancelled": "Der zitierte Beitrag wurde abgesagt",
+          "waiting": "Wartet auf den zitierten Beitrag"
+        }
       },
       "Detail": {
         "back": "Zurück zu Projekten",
@@ -2890,6 +3075,12 @@
         },
         "briefing": "Briefing",
         "latestUpdate": "Letztes Update",
+        "stats": {
+          "label": "Aufgabenzahlen",
+          "running": "Läuft",
+          "waiting": "Wartet",
+          "done": "Erledigt"
+        },
         "emptyBriefing": "Noch kein Briefing.",
         "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",
@@ -2966,7 +3157,7 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
-          "close": "Projekt schließen",
+          "close": "Schließen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
@@ -2974,6 +3165,7 @@
           "dialog": {
             "title": "Projekt schließen?",
             "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "scheduledPostsWarning": "{count, plural, one {# geplanter Beitrag wird abgebrochen.} other {# geplante Beiträge werden abgebrochen.}}",
             "reasonLabel": "Grund (optional)",
             "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
             "confirm": "Projekt schließen",
@@ -3038,6 +3230,790 @@
         "bots": {
           "title": "Bots für dieses Projekt"
         }
+      },
+      "Newsletter": {
+        "title": "Newsletter",
+        "description": "Lege Absender, Erscheinungsbild und Begrüßungs-E-Mail für den Newsletter dieses Projekts fest.",
+        "navigation": "Newsletter-Bereiche",
+        "settings": "Einstellungen",
+        "emptyTitle": "Richte deinen Newsletter ein",
+        "emptyDescription": "Wähle einen Namen, einen Absender und ein Erscheinungsbild. Speichere dann die Einstellungen, um den Newsletter zu erstellen.",
+        "general": "Allgemein",
+        "brand": "Erscheinungsbild",
+        "welcome": "Begrüßungs-E-Mail",
+        "welcomeDescription": "Sende eine Begrüßungs-E-Mail, sobald ein Abonnent seine E-Mail-Adresse bestätigt hat.",
+        "save": "Einstellungen speichern",
+        "success": "Newsletter-Einstellungen gespeichert",
+        "error": "Die Newsletter-Einstellungen konnten nicht gespeichert werden. Versuche es erneut.",
+        "unavailable": "Dieser Newsletter ist nicht mehr verfügbar. Lade die Seite neu.",
+        "invalid": "Prüfe die markierten Felder und speichere erneut.",
+        "fields": {
+          "name": "Newsletter-Name",
+          "senderName": "Absendername",
+          "replyTo": "Antwort-E-Mail-Adresse",
+          "logoUrl": "Logo",
+          "primaryColor": "Primärfarbe",
+          "accentColor": "Akzentfarbe",
+          "fontFamily": "Schriftart",
+          "footerText": "Fußzeilentext",
+          "welcomeEmailEnabled": "Begrüßungs-E-Mail senden",
+          "welcomeSubject": "Betreff der Begrüßungs-E-Mail",
+          "welcomeBody": "Text der Begrüßungs-E-Mail",
+          "headerImageUrl": "Kopfbild",
+          "backgroundColor": "Hintergrundfarbe",
+          "buttonTextColor": "Button-Textfarbe",
+          "buttonShape": "Button-Form",
+          "headerAlign": "Ausrichtung des Kopfbereichs",
+          "spacing": "Abstände"
+        },
+        "fonts": {
+          "arial": "Arial",
+          "georgia": "Georgia",
+          "verdana": "Verdana",
+          "timesNewRoman": "Times New Roman",
+          "helvetica": "Helvetica",
+          "trebuchet": "Trebuchet MS"
+        },
+        "Validation": {
+          "required": "Gib einen Wert ein.",
+          "email": "Gib eine gültige E-Mail-Adresse ein.",
+          "url": "Gib eine vollständige HTTPS-URL ein.",
+          "color": "Gib eine Hex-Farbe mit 3 oder 6 Ziffern und einem vorangestellten # ein.",
+          "maxLength": "Verwende höchstens {max} Zeichen."
+        },
+        "Subscribers": {
+          "title": "Abonnenten",
+          "description": "Verwalte die Personen, die den Newsletter dieses Projekts erhalten.",
+          "add": "Abonnenten hinzufügen",
+          "import": "CSV importieren",
+          "cancel": "Abbrechen",
+          "done": "Fertig",
+          "emptyTitle": "Noch keine Abonnenten",
+          "emptyDescription": "Füge Personen aus Kontakte hinzu, importiere eine CSV-Datei oder füge Abonnenten von Hand hinzu.",
+          "search": "Nach E-Mail suchen",
+          "searchPlaceholder": "name@beispiel.de",
+          "searchButton": "Suchen",
+          "filterStatus": "Status",
+          "allStatuses": "Alle Status",
+          "clearFilters": "Filter zurücksetzen",
+          "results": "{count, plural, =0 {Keine passenden Abonnenten} one {# passender Abonnent} other {# passende Abonnenten}}",
+          "firstPage": "Erste Seite",
+          "nextPage": "Nächste Seite",
+          "noName": "—",
+          "rowActions": "Abonnenten {email} verwalten",
+          "unsubscribe": "Abmelden",
+          "remove": "Abonnenten entfernen",
+          "unsubscribed": "Abonnent abgemeldet",
+          "updateError": "Abonnent konnte nicht aktualisiert werden. Versuche es erneut.",
+          "transitionError": "Der Status dieses Abonnenten hat sich geändert. Lade die Seite neu, bevor du es erneut versuchst.",
+          "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+          "columns": {
+            "email": "E-Mail",
+            "name": "Name",
+            "status": "Status",
+            "source": "Quelle",
+            "subscribedAt": "Anmeldedatum",
+            "actions": "Aktionen"
+          },
+          "statuses": {
+            "ACTIVE": "Aktiv",
+            "PENDING": "Ausstehend",
+            "UNSUBSCRIBED": "Abgemeldet",
+            "BOUNCED": "Unzustellbar"
+          },
+          "sources": {
+            "MANUAL": "Manuell hinzugefügt",
+            "CSV_IMPORT": "CSV-Import",
+            "SIGNUP_FORM": "Anmeldeformular",
+            "API": "API",
+            "CONTACTS": "Kontakte"
+          },
+          "Validation": {
+            "email": "Gib eine gültige E-Mail-Adresse ein.",
+            "name": "Verwende höchstens 200 Zeichen.",
+            "consent": "Wähle, wie sie zugestimmt haben, und bestätige ihre Einwilligung, bevor du fortfährst."
+          },
+          "Add": {
+            "description": "Füge eine Person zu diesem Newsletter hinzu.",
+            "email": "E-Mail",
+            "name": "Name (optional)",
+            "duplicate": "Diese E-Mail-Adresse steht bereits auf der Liste. Suche danach, um den bestehenden Abonnenten zu verwalten.",
+            "error": "Abonnent konnte nicht hinzugefügt werden. Versuche es erneut.",
+            "success": "Abonnent hinzugefügt",
+            "pendingConfirmation": "Bestätigungs-E-Mail gesendet"
+          },
+          "Remove": {
+            "title": "Abonnenten entfernen?",
+            "description": "Entferne {email} dauerhaft aus diesem Newsletter. Dies kann nicht rückgängig gemacht werden.",
+            "error": "Abonnent konnte nicht entfernt werden. Versuche es erneut.",
+            "success": "Abonnent entfernt"
+          },
+          "Import": {
+            "description": "Importiere eine CSV mit einer E-Mail-Spalte und optional einer Namensspalte. Bestehende Abonnenten behalten ihren aktuellen Status.",
+            "file": "CSV-Datei",
+            "chooseFile": "CSV auswählen",
+            "noFile": "Keine Datei ausgewählt",
+            "fileHint": "CSV-Dateien bis 5 MB mit höchstens 50.000 Zeilen. Verwende eine Spaltenüberschrift email und optional name.",
+            "fileType": "Wähle eine Datei mit der Endung .csv.",
+            "fileSize": "Wähle eine CSV-Datei mit höchstens 5 MB.",
+            "fileRequired": "Wähle eine CSV-Datei zum Importieren.",
+            "importing": "Abonnenten werden importiert…",
+            "error": "Abonnenten konnten nicht importiert werden. Versuche es erneut.",
+            "invalidCsv": "Prüfe die CSV: Verwende die Spaltenüberschrift email, optional name und höchstens 50.000 Zeilen. Versuche es dann erneut.",
+            "doneDescription": "Import abgeschlossen. Prüfe die Ergebnisse unten.",
+            "result": {
+              "imported": "Importiert",
+              "skippedExisting": "Bereits auf der Liste",
+              "invalid": "Gemeldete ungültige Zeilen",
+              "skippedUnsubscribed": "Wegen Abmeldung übersprungen",
+              "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
+              "pendingConfirmation": "Warten auf Bestätigung"
+            },
+            "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
+            "invalidRow": "Zeile {row}: {value}",
+            "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
+          },
+          "dismiss": "Schließen",
+          "fromContacts": "Aus Kontakten hinzufügen",
+          "openContactList": "Liste in Kontakte öffnen",
+          "Consent": {
+            "question": "Wie haben sie dem Erhalt dieses Newsletters zugestimmt?",
+            "CONFIRMED": "Sie haben bereits zugestimmt (jetzt hinzufügen)",
+            "ASK": "Zuerst fragen (Bestätigungs-E-Mail senden)",
+            "confirm": "Ich bestätige, dass diese Personen dem Erhalt dieses Newsletters zugestimmt haben",
+            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, werden nie erneut hinzugefügt."
+          },
+          "FromContacts": {
+            "description": "Wähle Personen und Listen aus den Kontakten deines Arbeitsbereichs.",
+            "people": "Personen",
+            "lists": "Listen",
+            "search": "Personen suchen",
+            "noEmail": "Keine E-Mail-Adresse",
+            "loading": "Kontakte werden geladen…",
+            "noPeople": "Keine Personen gefunden. Versuche eine andere Suche.",
+            "noLists": "Noch keine Listen. Erstelle eine Liste in Kontakte.",
+            "loadPeopleError": "Personen konnten nicht geladen werden. Versuche es erneut.",
+            "loadListsError": "Listen konnten nicht geladen werden. Versuche es erneut.",
+            "retry": "Erneut versuchen",
+            "loadMore": "Weitere Personen laden",
+            "members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+            "peopleSelected": "{count, plural, one {# Person ausgewählt} other {# Personen ausgewählt}}",
+            "listsSelected": "{count, plural, one {# Liste ausgewählt} other {# Listen ausgewählt}}",
+            "selectionRequired": "Wähle mindestens eine Person oder Liste.",
+            "selectionLimit": "Wähle höchstens 1.000 Personen und 20 Listen auf einmal.",
+            "add": "Hinzufügen",
+            "adding": "Abonnenten werden hinzugefügt…",
+            "error": "Abonnenten konnten nicht hinzugefügt werden. Versuche es erneut.",
+            "doneDescription": "Abonnenten hinzugefügt. Prüfe die Ergebnisse unten.",
+            "result": {
+              "added": "Hinzugefügt",
+              "alreadySubscribed": "Bereits abonniert",
+              "skippedUnsubscribed": "Wegen Abmeldung übersprungen",
+              "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
+              "skippedNoEmail": "Ohne E-Mail-Adresse übersprungen",
+              "pendingConfirmation": "Warten auf Bestätigung"
+            }
+          }
+        },
+        "Calendar": {
+          "title": "Kalender"
+        },
+        "Issues": {
+          "title": "Ausgaben",
+          "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
+          "newIssue": "Neue Ausgabe",
+          "Ai": {
+            "action": "Für mich schreiben",
+            "description": "Beschreibe diese Ausgabe. Soko Bot erstellt einen Entwurf, den du vor der Freigabe prüfen kannst.",
+            "brief": "Auftrag",
+            "placeholder": "Stelle die Highlights unseres Herbststarts vor und lade zur Demo ein.",
+            "useProjectMemory": "Projektgedächtnis verwenden",
+            "useRecentSocialPosts": "Aktuelle Social-Media-Beiträge verwenden",
+            "template": "Vorlage",
+            "pickImages": "Bilder aus Content Studio auswählen",
+            "images": "Aktuelle Projektbilder",
+            "imagesHint": "Wähle bis zu 10 Bilder. Ausgewählte Bilder erhalten öffentliche Links, damit sie in E-Mails angezeigt werden können.",
+            "noImages": "Noch keine Bilder. Erstelle ein Bild in Content Studio und versuche es erneut.",
+            "imagesError": "Bilder konnten nicht geladen werden. Versuche erneut, Bilder auszuwählen.",
+            "generate": "Entwurf erstellen",
+            "cancel": "Abbrechen",
+            "invalid": "Gib einen Auftrag mit 1 bis 10.000 Zeichen ein und wähle bis zu 10 Bilder.",
+            "error": "Der Entwurf konnte nicht erstellt werden. Behalte deinen Auftrag und versuche es erneut.",
+            "rateLimited": "Zu viele Entwürfe für dieses Projekt. Warte zehn Minuten und versuche es erneut.",
+            "notice": "Von Soko Bot entworfen — vor dem Einreichen zur Freigabe prüfen"
+          },
+          "emptyTitle": "Noch keine Ausgaben",
+          "emptyDescription": "Beginne mit einer leeren Ausgabe oder wähle eine Vorlage für deinen ersten Newsletter.",
+          "subject": "Betreff",
+          "previewText": "Vorschautext",
+          "status": "Status",
+          "sentAt": "Gesendet am {date}",
+          "firstPage": "Erste Seite",
+          "nextPage": "Nächste Seite",
+          "results": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
+          "statuses": {
+            "DRAFT": "Entwurf",
+            "NEEDS_APPROVAL": "Freigabe erforderlich",
+            "SCHEDULED": "Geplant",
+            "SENDING": "Wird gesendet",
+            "SENT": "Gesendet",
+            "FAILED": "Fehlgeschlagen",
+            "CANCELED": "Abgebrochen"
+          },
+          "createError": "Ausgabe konnte nicht erstellt werden. Versuche es erneut.",
+          "saveError": "Ausgabe konnte nicht gespeichert werden. Behalte deine Änderungen und versuche es erneut.",
+          "conflict": "Diese Ausgabe wurde geändert oder kann nicht mehr bearbeitet werden. Kopiere deine Änderungen, lade die Seite neu und versuche es erneut.",
+          "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+          "save": "Ausgabe speichern",
+          "saved": "Alle Änderungen gespeichert",
+          "unsaved": "Ungespeicherte Änderungen",
+          "readOnly": "Diese Ausgabe ist schreibgeschützt. Nur Entwürfe und Ausgaben, die eine Freigabe benötigen, können bearbeitet werden.",
+          "back": "Zurück zu den Ausgaben",
+          "blocks": "Inhaltsblöcke",
+          "addBlock": "Block hinzufügen",
+          "moveUp": "Block {number} nach oben verschieben",
+          "moveDown": "Block {number} nach unten verschieben",
+          "removeBlock": "Block {number} entfernen",
+          "blockNumber": "Block {number}: {type}",
+          "emptyBlocks": "Füge einen Block hinzu, um mit dem Schreiben zu beginnen.",
+          "level": "Überschriftenebene",
+          "mainHeading": "Hauptüberschrift",
+          "subheading": "Unterüberschrift",
+          "text": "Text",
+          "imageUrl": "Bild-URL",
+          "alt": "Alternativtext",
+          "imageLink": "Link-URL (optional)",
+          "buttonLabel": "Schaltflächentext",
+          "buttonUrl": "Schaltflächen-URL",
+          "httpsHint": "Verwende eine vollständige HTTPS-URL.",
+          "blockTypes": {
+            "heading": "Überschrift",
+            "text": "Text",
+            "image": "Bild",
+            "button": "Schaltfläche",
+            "divider": "Trennlinie",
+            "columns": "Spalten",
+            "spacer": "Abstand",
+            "social": "Social-Links",
+            "footer": "Fußzeile"
+          },
+          "Validation": {
+            "subject": "Gib einen Betreff mit 1 bis 200 Zeichen ein.",
+            "previewText": "Der Vorschautext darf höchstens 500 Zeichen enthalten.",
+            "content": "Prüfe diesen Block. Verwende HTTPS-URLs und halte die Zeichenbegrenzungen ein."
+          },
+          "Templates": {
+            "title": "Ausgabe beginnen",
+            "description": "Beginne mit einer leeren Ausgabe oder einer anpassbaren Vorlage.",
+            "subject": "Unbenannte Ausgabe",
+            "heading": "Die Höhepunkte dieser Woche",
+            "text": "Teile Neuigkeiten, eine nützliche Idee oder ein Update mit deinen Abonnenten.",
+            "closing": "Danke fürs Lesen. Bis zum nächsten Mal.",
+            "heroAlt": "Titelbild",
+            "imageAlt": "Ergänzendes Bild",
+            "button": "Weiterlesen",
+            "TEXT": {
+              "title": "Text",
+              "description": "Eine Überschrift, Absätze und eine Trennlinie."
+            },
+            "IMAGES": {
+              "title": "Bilder",
+              "description": "Eine Überschrift, ein Titelbild, Text und ein weiteres Bild."
+            },
+            "BUTTONS": {
+              "title": "Schaltflächen",
+              "description": "Eine Überschrift, Text, eine Schaltfläche, eine Trennlinie und ein Abschlusstext."
+            },
+            "blank": "Leer beginnen",
+            "blankDescription": "Verwende deine eigenen Texte und füge nur die benötigten Blöcke hinzu.",
+            "templateHeading": "Oder mit einer Vorlage beginnen"
+          },
+          "Preview": {
+            "title": "Vorschau",
+            "label": "Vorschau der Newsletter-E-Mail",
+            "mobile": "Mobil",
+            "desktop": "Desktop",
+            "loading": "Vorschau wird aktualisiert…",
+            "error": "Vorschau konnte nicht geladen werden. Versuche es erneut.",
+            "invalid": "Vervollständige den Betreff und prüfe die Inhaltsblöcke, um die Vorschau anzuzeigen.",
+            "retry": "Vorschau erneut laden"
+          },
+          "Delete": {
+            "title": "Entwurf löschen?",
+            "description": "„{subject}“ wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+            "action": "Entwurf löschen",
+            "cancel": "Abbrechen",
+            "error": "Ausgabe konnte nicht gelöscht werden. Ihr Status hat sich möglicherweise geändert. Lade die Seite neu und versuche es erneut."
+          },
+          "Lifecycle": {
+            "submit": "Zur Freigabe einreichen",
+            "approve": "Freigeben",
+            "approved": "Freigegeben",
+            "schedule": "Planen",
+            "sendNow": "Jetzt senden",
+            "cancel": "Versandplanung aufheben",
+            "close": "Schließen",
+            "approvedBy": "Freigegeben von {user} am {date}",
+            "formerMember": "Ehemaliges Workspace-Mitglied",
+            "task": "Freigabeaufgabe ansehen",
+            "scheduled": "Geplant für {date} ({timezone})",
+            "when": "Zeitpunkt",
+            "timezone": "Zeitzone: {timezone}",
+            "scheduleTitle": "Newsletter planen",
+            "scheduleDescription": "Wähle den Versandbeginn zwischen einer Minute und einem Jahr ab jetzt.",
+            "sendTitle": "Diesen Newsletter jetzt senden?",
+            "sendDescription": "{count, plural, one {Den Versand dieser Ausgabe an die aktuelle Zielgruppe mit # aktivem Abonnenten starten? Der Versand kann schrittweise erfolgen und lässt sich nicht rückgängig machen.} other {Den Versand dieser Ausgabe an die aktuelle Zielgruppe mit # aktiven Abonnenten starten? Der Versand kann schrittweise erfolgen und lässt sich nicht rückgängig machen.}}",
+            "cancelTitle": "Versandplanung für diesen Newsletter aufheben?",
+            "cancelDescription": "Diese Ausgabe wird wieder zum Entwurf. Reiche sie erneut zur Freigabe ein, bevor du sie planst oder sendest.",
+            "saveFirst": "Speichere deine Änderungen, bevor du die Ausgabe einreichst, freigibst, planst oder sendest.",
+            "invalid": "Prüfe die Ausgabe und versuche es erneut.",
+            "error": "Die Newsletter-Ausgabe konnte nicht aktualisiert werden. Lade die Seite neu und versuche es erneut.",
+            "conflict": "Diese Ausgabe wurde geändert. Lade die Seite neu und versuche es erneut.",
+            "humanRequired": "Eine Person muss diese Ausgabe in einer angemeldeten Browsersitzung freigeben oder senden.",
+            "invalidSchedule": "Wähle einen Zeitpunkt zwischen einer Minute und einem Jahr ab jetzt sowie eine gültige Zeitzone.",
+            "noSubscribers": "Füge mindestens einen aktiven Abonnenten hinzu, bevor du den Versand planst oder startest.",
+            "noSender": "Verbinde in den Newsletter-Einstellungen unter „Absenderdomain“ eine Domain, bevor du planst oder sendest.",
+            "approvalRequired": "Reiche diese Ausgabe ein und lass sie von einer Person freigeben, bevor du sie planst oder sendest."
+          },
+          "viewOnWeb": "Im Web ansehen",
+          "updated": "Aktualisiert am {date}",
+          "nextActions": {
+            "DRAFT": "Weiterschreiben",
+            "NEEDS_APPROVAL": "Prüfen und freigeben",
+            "APPROVED": "Planen oder senden",
+            "SCHEDULED": "Zeitplan ansehen",
+            "SENDING": "Fortschritt ansehen",
+            "SENT": "Ergebnisse ansehen",
+            "FAILED": "Versand prüfen",
+            "CANCELED": "Ausgabe ansehen"
+          },
+          "Readiness": {
+            "title": "Vor dem Versand",
+            "sender": "Absender",
+            "fallbackSender": "{name} via Sokosumi",
+            "fallbackHint": "Versand über die gemeinsame Versanddomain von Sokosumi.",
+            "noSender": "Versanddomain erforderlich",
+            "senderSettings": "Absendereinstellungen prüfen",
+            "audience": "Aktuelle Zielgruppe",
+            "audienceCount": "{count, plural, one {# aktiver Abonnent} other {# aktive Abonnenten}}",
+            "manageSubscribers": "Abonnenten verwalten",
+            "approval": "Freigabe",
+            "approved": "Freigegeben",
+            "approvalRequired": "Freigabe durch eine Person erforderlich",
+            "timing": "Versandbeginn",
+            "afterConfirmation": "Nach der Bestätigung",
+            "chooseTiming": "Sofort senden oder Termin wählen",
+            "scheduled": "{date} ({timezone})",
+            "deliveryHint": "Während der Aufwärmphase deiner Versanddomain kann der Versand schrittweise erfolgen. Die aktiven Abonnenten werden beim Versandbeginn erneut geprüft.",
+            "selectedTime": "Zum gewählten Zeitpunkt"
+          },
+          "Delivery": {
+            "partial": "Mit Versandproblemen gesendet",
+            "details": "Letzter Fehler:",
+            "partialHelp": "Einige E-Mails konnten nicht gesendet oder bestätigt werden. Prüfe den Fehler, bevor du eine weitere Ausgabe planst. Ein erneuter Versand könnte Personen doppelt erreichen.",
+            "failedHelp": "Der Versand ist fehlgeschlagen. Prüfe den Fehler und die Absendereinstellungen, bevor du eine weitere Ausgabe planst. Einige Versandversuche sind möglicherweise unbestätigt. Ein erneuter Versand könnte Personen doppelt erreichen.",
+            "reviewSettings": "Versandeinstellungen prüfen",
+            "sending": "Der Versand läuft. Die Aufwärmphase der Domain kann den Versand zeitlich verteilen. Schau später nach dem Ergebnis."
+          },
+          "details": "Details der Ausgabe",
+          "sendPanel": "Versand",
+          "SendPanel": {
+            "checklist": "Checkliste",
+            "views": "Ansichten im Sendebereich"
+          },
+          "saving": "Ausgabe wird gespeichert…",
+          "undo": "Entfernen rückgängig machen",
+          "removedBlocks": "{count, plural, one {# Block entfernt} other {# Blöcke entfernt}}",
+          "undoLimit": "Diese Ausgabe hat 200 Blöcke. Entferne einen Block, um Platz für die Wiederherstellung zu schaffen.",
+          "duplicateBlock": "Block {number} duplizieren",
+          "footerText": "Abschlusstext",
+          "Image": {
+            "width": "Breite",
+            "widths": {
+              "100": "Volle Breite",
+              "75": "Drei Viertel",
+              "50": "Halb",
+              "25": "Viertel"
+            },
+            "align": "Ausrichtung",
+            "aligns": {
+              "left": "Links",
+              "center": "Zentriert",
+              "right": "Rechts"
+            }
+          },
+          "Columns": {
+            "column": "Spalte {number}",
+            "remove": "Spalte {number} entfernen",
+            "add": "Spalte hinzufügen"
+          },
+          "Spacer": {
+            "size": "Höhe",
+            "sizes": {
+              "sm": "Klein",
+              "md": "Mittel",
+              "lg": "Groß"
+            }
+          },
+          "Social": {
+            "network": "Netzwerk {number}",
+            "url": "URL von Link {number}",
+            "remove": "Link {number} entfernen",
+            "add": "Link hinzufügen",
+            "networks": {
+              "website": "Website",
+              "x": "X",
+              "linkedin": "LinkedIn",
+              "instagram": "Instagram",
+              "facebook": "Facebook",
+              "youtube": "YouTube",
+              "tiktok": "TikTok"
+            }
+          },
+          "Studio": {
+            "label": "Studio",
+            "content": "Inhalt",
+            "design": "Design",
+            "designUnsaved": "Ungespeicherte Designänderungen",
+            "saveDesignFirst": "Speichere oder verwirf die Designänderungen vor dem Versenden."
+          }
+        },
+        "publicArchive": "Öffentliches Archiv",
+        "SignupForm": {
+          "title": "Anmeldeformular",
+          "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
+          "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "previewTitle": "Vorschau des Anmeldeformulars",
+          "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
+          "hostedPage": "Gehostete Anmeldeseite",
+          "open": "Anmeldeseite öffnen",
+          "embedCode": "Einbettungscode",
+          "embedTitle": "Newsletter-Anmeldung",
+          "sharedDesign": "Gemeinsames Newsletter-Design",
+          "sharedDescription": "Wird für Newsletter-Ausgaben, die Anmeldeseite und eingebettete Formulare verwendet. Die Anpassungen unten bleiben erhalten.",
+          "customize": "Anmeldeformular anpassen",
+          "customizeDescription": "Optional. Verwende das gemeinsame Design für ein einheitliches Erscheinungsbild. Anpassungen gelten nur für die Anmeldeseite und das eingebettete Formular.",
+          "useShared": "Gemeinsames Design verwenden",
+          "resetOverrides": "Auf gemeinsames Design zurücksetzen",
+          "accentColor": "Buttonfarbe",
+          "buttonTextColor": "Textfarbe des Buttons",
+          "clear": {
+            "accentColor": "Gemeinsame Buttonfarbe verwenden",
+            "buttonTextColor": "Gemeinsame Button-Textfarbe verwenden"
+          },
+          "previewMode": "Vorschauformat",
+          "previewNote": "Nur eine Vorschau. Anmeldungen sind deaktiviert."
+        },
+        "Analytics": {
+          "title": "Statistiken",
+          "description": "Verfolge Abonnentenwachstum und Interaktionen mit deinem Newsletter.",
+          "keyMetrics": "Newsletter-Kennzahlen",
+          "rangeLabel": "Zeitraum",
+          "rangeSelected": "Zeitraum: {range}",
+          "lastDays": "Letzte {days} Tage",
+          "presetDays": "{days} Tage",
+          "clearRange": "Zeitraum löschen",
+          "periodNoteAria": "Informationen zu Statistikzeiträumen",
+          "invalidRange": "Wähle einen gültigen Zeitraum von 1 bis 366 Tagen oder lösche den Zeitraum.",
+          "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
+          "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
+          "opensNote": "Öffnungen können zu niedrig erfasst werden, da manche E-Mail-Apps Bilder blockieren.",
+          "issueUnsubscribesNote": "Abmeldungen gelten für den gesamten Newsletter und können keiner einzelnen Ausgabe zugeordnet werden.",
+          "emptyTitle": "Kein Versand in diesem Zeitraum",
+          "emptyDescription": "Sende eine Ausgabe, um ihre Statistiken zu sehen, oder wähle einen Zeitraum mit früheren Aktivitäten.",
+          "viewIssues": "Ausgaben ansehen",
+          "subscriberGrowth": "Abonnentenwachstum",
+          "growthMetric": "Kennzahl für das Abonnentendiagramm",
+          "engagement": "Öffnungen und Klicks",
+          "engagementMetric": "Kennzahl für das Interaktionsdiagramm",
+          "issuePerformance": "Ausgabenstatistiken",
+          "subject": "Betreff",
+          "sentAt": "Gesendet am",
+          "unavailable": "—",
+          "issueSummary": "Ausgabenanalyse",
+          "topLinks": "Meistgeklickte Links",
+          "url": "URL",
+          "noLinks": "Noch keine Linkklicks erfasst.",
+          "metrics": {
+            "sent": "Gesendet",
+            "delivered": "Zugestellt",
+            "uniqueOpens": "Eindeutige Öffnungen",
+            "uniqueClicks": "Eindeutige Klicks",
+            "unsubscribes": "Abmeldungen",
+            "bounces": "Unzustellbare E-Mails",
+            "complaints": "Beschwerden",
+            "openRate": "Öffnungsrate",
+            "clickRate": "Klickrate",
+            "activeSubscribers": "Aktive Abonnenten"
+          },
+          "growth": {
+            "newActive": "Neue aktive Abonnenten",
+            "unsubscribed": "Abgemeldet",
+            "bounced": "Unzustellbar",
+            "net": "Nettowachstum",
+            "runningTotal": "Aktive Abonnenten insgesamt"
+          }
+        },
+        "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
+        "brandDescription": "Logo, Farben, Schrift und Layout für Newsletter-Ausgaben und Anmeldeformulare.",
+        "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
+        "unsavedChanges": "Du hast ungespeicherte Änderungen.",
+        "colorPlaceholder": "Keine Farbe",
+        "presetColors": "Vorgegebene Farben",
+        "clearColor": {
+          "primaryColor": "Primärfarbe entfernen",
+          "accentColor": "Akzentfarbe entfernen",
+          "backgroundColor": "Hintergrundfarbe entfernen",
+          "buttonTextColor": "Button-Textfarbe entfernen"
+        },
+        "Logo": {
+          "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
+          "upload": "Hochladen",
+          "replace": "Ersetzen",
+          "remove": "Logo entfernen",
+          "previewAlt": "Newsletter-Logo",
+          "uploadError": "Das Logo konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Dieser Dateityp wird nicht unterstützt",
+          "maxFilesExceeded": "Lade jeweils nur ein Logo hoch"
+        },
+        "Preview": {
+          "title": "Vorschau",
+          "description": "Eine Skizze, wie dein Erscheinungsbild in einer Ausgabe wirkt. Aktualisiert sich beim Tippen.",
+          "from": "Von {sender}",
+          "sampleHeading": "Deine nächste Ausgabe",
+          "sampleBody": "Hier erscheint der Inhalt deiner Ausgabe in deiner Schrift.",
+          "button": "Weiterlesen",
+          "unsubscribe": "Abmelden",
+          "primary": "Primär",
+          "accent": "Akzent",
+          "unset": "Standard",
+          "welcome": "Begrüßungs-E-Mail",
+          "noSubject": "Noch kein Betreff"
+        },
+        "SendingDomain": {
+          "title": "Absenderdomain",
+          "description": "Versende den Newsletter dieses Projekts von deiner eigenen Adresse, etwa news@news.deinemarke.de.",
+          "fromAddress": "Absenderadresse",
+          "fromAddressPlaceholder": "news@news.deinemarke.de",
+          "fromAddressHint": "Nutze eine Subdomain wie news.deinemarke.de. So bleibt die Reputation deiner Newsletter getrennt von deinen alltäglichen E-Mails.",
+          "add": "Domain hinzufügen",
+          "added": "Domain hinzugefügt. Lege jetzt ihre DNS-Einträge an.",
+          "fallback": "Bis sie verifiziert ist, gehen Newsletter von der Adresse von Sokosumi als „dein Absendername via Sokosumi“ raus.",
+          "noFallback": "Newsletter können erst versendet werden, wenn diese Domain verifiziert ist.",
+          "status": {
+            "PENDING": "Ausstehend",
+            "VERIFIED": "Verifiziert",
+            "FAILED": "Fehlgeschlagen"
+          },
+          "lastChecked": "Zuletzt geprüft {time}",
+          "verifiedDescription": "Der Newsletter dieses Projekts wird jetzt von dieser Adresse versendet.",
+          "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
+          "checked": "Geprüft. Einige DNS-Einträge fehlen noch oder konnten nicht verifiziert werden. Prüfe ihren Status unten; DNS-Änderungen können einige Stunden dauern.",
+          "verifyRecords": "Einträge verifizieren",
+          "checkAgain": "Erneut prüfen",
+          "connectTitle": "Wähle, wie du DNS einrichten möchtest",
+          "dmarc": {
+            "title": "Keine DMARC-Richtlinie gefunden",
+            "description": "DMARC sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. Lege den vorgeschlagenen DMARC-Eintrag unten an. Er beginnt mit p=none: Das überwacht nur und blockiert nie E-Mails."
+          },
+          "oneClick": {
+            "title": "Einrichtung mit einem Klick",
+            "description": "Melde dich bei deinem DNS-Anbieter an und bestätige. Sokosumi legt die Einträge für dich an.",
+            "checking": "Einrichtung mit einem Klick wird geprüft…",
+            "lookup": "Anbietersuche wiederholen",
+            "found": "Deine Domain nutzt {provider}.",
+            "connect": "Mit {provider} verbinden",
+            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter noch nicht verfügbar. Wähle die manuelle Einrichtung, um die Einträge bei einem beliebigen DNS-Anbieter anzulegen."
+          },
+          "manual": {
+            "title": "DNS-Einträge manuell einrichten",
+            "description": "Lege die Einträge selbst bei einem beliebigen DNS-Anbieter an.",
+            "action": "DNS-Einträge anzeigen",
+            "saved": "Du kannst die Seite verlassen und später zurückkommen — wir behalten diese Einträge hier, bis sie verifiziert sind."
+          },
+          "cloudflare": {
+            "title": "Cloudflare-API-Token",
+            "advanced": "Erweitert: Cloudflare-API-Token",
+            "description": "Erstelle ein Token mit Zone · DNS · Bearbeiten für die Zone dieser Domain und füge es hier ein. Sokosumi nutzt es einmal, um die Einträge anzulegen, und speichert es nie.",
+            "submit": "Einträge in Cloudflare anlegen",
+            "success": "Einträge in Cloudflare angelegt. Die Prüfung kann ein paar Minuten dauern."
+          },
+          "records": {
+            "title": "DNS-Einträge",
+            "description": "Lege alle hier gezeigten Einträge in den Einstellungen deines DNS-Anbieters an. Verwende das Hostformat, das dein Anbieter erwartet.",
+            "type": "Typ",
+            "host": "Host / Name",
+            "relativeName": "Relativer Host",
+            "fullName": "Vollständiger Name (FQDN)",
+            "value": "Wert",
+            "priority": "Priorität",
+            "ttl": "TTL",
+            "status": "Status",
+            "found": "Gefunden",
+            "missing": "Fehlt",
+            "wrongValue": "Falscher Wert",
+            "failedDescription": "Verifizierung fehlgeschlagen: Der Eintrag fehlt möglicherweise oder hat einen anderen Wert. Vergleiche Host und Wert mit dem hier gezeigten Eintrag.",
+            "purpose": {
+              "dkim": {
+                "label": "DKIM",
+                "explanation": "Belegt, dass die E-Mails von dir kommen."
+              },
+              "spf": {
+                "label": "SPF",
+                "explanation": "Erlaubt Sokosumi, in deinem Namen zu senden."
+              },
+              "bounce": {
+                "label": "Return-Path (MX)",
+                "explanation": "Empfängt Bounces, damit Sokosumi unzustellbare Adressen nicht mehr anschreibt."
+              },
+              "dmarc": {
+                "label": "DMARC",
+                "explanation": "Sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. p=none überwacht nur."
+              },
+              "other": {
+                "label": "Zusätzlicher Eintrag",
+                "explanation": "Vom E-Mail-Anbieter verlangt."
+              }
+            }
+          },
+          "troubleshooting": {
+            "title": "Fehlen noch Einträge?",
+            "host": "Prüfe, ob dein Anbieter einen relativen Host oder einen vollständigen Namen erwartet. Der gespeicherte Name muss dem hier gezeigten FQDN entsprechen. Vermeide eine doppelte Domain wie send.brand.example.brand.example.",
+            "quotes": "Füge TXT-Werte ohne zusätzliche Anführungszeichen ein, sofern das DNS-Formular sie nicht verlangt. Fügt es automatisch Anführungszeichen hinzu, ergänze kein weiteres Paar.",
+            "propagation": "DNS-Änderungen können einige Stunden brauchen, bis sie sichtbar sind. Speichere deine Änderungen und prüfe später erneut."
+          },
+          "providerTips": {
+            "title": "Tipps für deinen DNS-Anbieter",
+            "description": "Öffne den Anbieter, der deine DNS-Einträge verwaltet. Das kann ein anderer sein als der, bei dem du die Domain gekauft hast.",
+            "common": {
+              "host": "Relative Hosts beziehen sich hier auf die Absenderdomain. Bearbeitest du die DNS-Zone einer übergeordneten Domain, ergänze die Absender-Subdomain im Host. Vergleiche den gespeicherten vollständigen Namen mit dem hier gezeigten FQDN, ohne die Domain doppelt anzuhängen.",
+              "quotes": "Setze TXT-Werte nur dann in Anführungszeichen, wenn das DNS-Formular sie verlangt. Fügt es sie automatisch hinzu, kopiere nur den Wert.",
+              "apex": "Für die Wurzel der bearbeiteten DNS-Zone ist der Host oft @ oder leer. Verwende die vollständige Domain nur, wenn das Formular sie verlangt.",
+              "ttl": "TTL Auto oder 3600 Sekunden (1 Stunde) ist passend, sofern verfügbar."
+            },
+            "providers": {
+              "godaddy": {
+                "name": "GoDaddy",
+                "host": "Nutze unter DNS das Feld Name für das Präfix relativ zur ausgewählten Domain. Verwende @ nur für deren Wurzel.",
+                "extra": "Entferne widersprüchliche Parking-Einträge nur, wenn sie diese Einträge blockieren. Für diese TXT/MX-Einrichtung ist kein ALIAS-Eintrag nötig."
+              },
+              "namecheap": {
+                "name": "Namecheap",
+                "host": "Nutze unter Advanced DNS das Feld Host für das Präfix relativ zur ausgewählten Domain; @ steht für deren Wurzel.",
+                "extra": "Lege TXT-Einträge unter Host Records an. MX-Einträge nutzen Custom MX unter Mail Settings; behalte beim Wechsel die MX-Einträge deiner bisherigen E-Mails bei und ergänze dann diesen Eintrag mit seiner Priorität."
+              },
+              "squarespace": {
+                "name": "Squarespace / Google Domains",
+                "host": "Unter DNS Settings → Custom Records ist Name relativ zur ausgewählten Domain; Squarespace hängt diese automatisch an.",
+                "extra": "Nutze @ für die Wurzel dieser Domain und füge TXT-Daten in Text ein. Migrierte Google-Domains-Domains lassen sich in Squarespace verwalten."
+              },
+              "porkbun": {
+                "name": "Porkbun",
+                "host": "Unter DNS Records ist Host das Subdomain-Präfix. Lass es nur für die Wurzel der ausgewählten Domain leer.",
+                "extra": "Füge den Eintragswert in Answer / Value ein. Kopiere bei MX-Einträgen die Priorität und behalte andere Einträge bei."
+              },
+              "ionos": {
+                "name": "IONOS",
+                "host": "Nutze in den DNS-Einstellungen der Domain das Feld Hostname für das Subdomain-Präfix; @ steht für die Wurzel der ausgewählten Domain.",
+                "extra": "Lege TXT und MX als separate Einträge an. Kopiere die MX-Priorität und behalte die Standard-TTL bei oder nutze 3600 Sekunden."
+              },
+              "hostinger": {
+                "name": "Hostinger",
+                "host": "Trage im DNS-Zonen-Editor von hPanel das Subdomain-Präfix in Name ein; @ steht für die Wurzel der ausgewählten Domain.",
+                "extra": "Nutzt die Domain die Nameserver eines anderen Anbieters, bearbeite die Einträge dort. Kopiere die MX-Priorität in ihr eigenes Feld."
+              },
+              "route53": {
+                "name": "Route 53",
+                "host": "Öffne die richtige gehostete Zone. Record name kann relativ zu dieser Zone sein; lass es nur für die Wurzel der Zone leer.",
+                "extra": "Route 53 verlangt TXT-Zeichenfolgen in doppelten Anführungszeichen. Teile TXT-Werte mit mehr als 255 Zeichen in zitierte Abschnitte auf derselben Zeile auf, ohne Leerzeichen innerhalb des Werts hinzuzufügen."
+              },
+              "vercel": {
+                "name": "Vercel",
+                "host": "Unter DNS Records der Domain ist Name das Präfix relativ zur ausgewählten Domain. Prüfe, ob der vollständige Name dem FQDN hier entspricht.",
+                "extra": "Die DNS-Einstellungen von Vercel gelten, wenn die Domain Vercel-Nameserver nutzt. Lege jeden TXT/MX-Eintrag an und kopiere die MX-Priorität separat."
+              },
+              "cloudflare": {
+                "name": "Cloudflare (manuell)",
+                "host": "Nutze unter DNS → Einträge im Feld Name das Präfix oder den vollständigen Namen, den das Formular akzeptiert. Prüfe den entstehenden vollständigen Namen.",
+                "extra": "Nutze für E-Mail-Einträge Nur DNS (graue Wolke), wenn diese Option verfügbar ist. TXT- und MX-Einträge sind immer Nur DNS und können nicht über den Proxy laufen."
+              }
+            }
+          },
+          "remove": {
+            "action": "Domain entfernen",
+            "title": "Absenderdomain entfernen?",
+            "description": "Newsletter werden nicht mehr von {domain} versendet. Die DNS-Einträge bleiben bei deinem DNS-Anbieter, bis du sie löschst.",
+            "cancel": "Abbrechen",
+            "success": "Absenderdomain entfernt."
+          },
+          "errors": {
+            "generic": "Die Absenderdomain konnte nicht aktualisiert werden. Versuche es erneut.",
+            "invalidAddress": "Gib eine E-Mail-Adresse ein, etwa news@news.deinemarke.de.",
+            "forbidden": "Du hast keinen Zugriff auf die Absenderdomain dieses Projekts. Lade die Seite neu.",
+            "notFound": "Diese Absenderdomain wurde entfernt. Lade die Seite neu.",
+            "conflict": "Diese Domain ist bereits verbunden. Entferne zuerst die aktuelle Domain oder nutze eine Domain, die kein anderes Projekt nutzt.",
+            "domainRejected": "Diese Domain kann nicht genutzt werden. Prüfe die Adresse und versuche es erneut.",
+            "providerFailed": "Der E-Mail-Anbieter hat nicht geantwortet. Versuche es in einer Minute erneut.",
+            "cloudflareRejected": "Cloudflare hat das Token abgelehnt. Prüfe, ob es Zone · DNS · Bearbeiten für die Zone dieser Domain hat.",
+            "cloudflareFailed": "Cloudflare hat nicht geantwortet. Versuche es in einer Minute erneut.",
+            "resumeUnavailable": "Verifiziere diese Absenderdomain vor dem Fortsetzen. Prüfe ihre DNS-Einträge und versuche es erneut."
+          },
+          "warmup": {
+            "title": "Aufwärmphase der Domain",
+            "progress": "Tag {day} · Heute {used} von {cap} versendet (UTC)",
+            "unlimited": "Tag {day} · Heute {used} versendet (UTC) · Unbegrenzt",
+            "description": "Empfänger über dem heutigen Limit bleiben in der Warteschlange und werden automatisch angeschrieben, sobald wieder Kapazität verfügbar ist. Das Tageslimit wird um 00:00 UTC zurückgesetzt.",
+            "paused": "Versand pausiert",
+            "bounceReason": "Zu viele E-Mails waren dauerhaft unzustellbar.",
+            "complaintReason": "Zu viele Empfänger haben E-Mails als Spam markiert.",
+            "pausedDescription": "Empfänger bleiben in der Warteschlange, bis ein Projektmitglied den Versand fortsetzt. Prüfe vorher die Abonnentenliste.",
+            "resume": "Versand fortsetzen",
+            "resumed": "Versand fortgesetzt. Empfänger in der Warteschlange werden innerhalb des Tageslimits angeschrieben."
+          }
+        },
+        "colorHints": {
+          "primaryColor": "Überschriften und Text. Leer lassen für den Standard.",
+          "accentColor": "Button-Füllung. Leer lassen für den Standard.",
+          "backgroundColor": "Hinter der E-Mail-Karte. Leer lassen für Hellgrau.",
+          "buttonTextColor": "Button-Beschriftung. Sie muss auf der Akzentfarbe gut lesbar sein."
+        },
+        "Image": {
+          "upload": "Bild hochladen",
+          "replace": "Bild ersetzen",
+          "remove": "Bild entfernen",
+          "previewAlt": "Bildvorschau",
+          "uploadError": "Das Bild konnte nicht hochgeladen werden. Versuche es erneut.",
+          "fileTooLarge": "Die Datei ist zu groß",
+          "fileTypeNotAccepted": "Verwende ein PNG-, JPEG-, WebP- oder GIF-Bild",
+          "maxFilesExceeded": "Lade jeweils nur ein Bild hoch",
+          "headerDescription": "Ein Banner über deinem Logo, bis zu {maxSize}. Breite Bilder wirken am besten."
+        },
+        "Design": {
+          "title": "Newsletter-Design",
+          "description": "Gilt für alle noch nicht versendeten Ausgaben und für Anmeldeformulare. Die Vorschau wird bei Änderungen aktualisiert.",
+          "header": "Kopfbereich",
+          "colors": "Farben",
+          "layout": "Schrift und Layout",
+          "footer": "Fußzeile",
+          "save": "Design speichern",
+          "reset": "Änderungen verwerfen",
+          "saved": "Design gespeichert",
+          "headerAlign": {
+            "left": "Links",
+            "center": "Zentriert"
+          },
+          "spacing": {
+            "compact": "Kompakt",
+            "normal": "Normal",
+            "roomy": "Großzügig"
+          },
+          "buttonShape": {
+            "square": "Eckig",
+            "rounded": "Abgerundet",
+            "pill": "Pille"
+          }
+        }
       }
     },
     "Studio": {
@@ -3051,6 +4027,14 @@
       "regenerate": "Neue Variante",
       "schedule": "Dieses Bild planen",
       "scheduleFailed": "Dieses Bild konnte nicht angehängt werden",
+      "writeCaption": "Bildunterschrift schreiben",
+      "writeCaptionFailed": "Bildunterschrift konnte nicht geschrieben werden",
+      "writingCaption": "Bildunterschrift wird geschrieben…",
+      "captionLabel": "Bildunterschrift",
+      "captionSuggestionLabel": "Neue Bildunterschrift",
+      "useCaption": "Neue Bildunterschrift verwenden",
+      "keepCaption": "Aktuelle Bildunterschrift behalten",
+      "undoCaption": "Änderung rückgängig machen",
       "reroll": "Neu würfeln",
       "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
@@ -3124,8 +4108,6 @@
       "moreOptions": "Optionen",
       "modelCount": "{count, plural, one {# Modell} other {# Modelle}}",
       "copyCount": "{count, plural, one {# Kopie} other {# Kopien}}",
-      "pickTitle": "Projekt auswählen",
-      "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "pickForGeneration": "In welches Projekt sollen diese Bilder?",
       "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
@@ -3138,10 +4120,28 @@
       "noModelSelected": "Wähle mindestens ein Modell. Format, Auflösung und Dateiformat werden nur angeboten, wenn jedes gewählte Modell sie unterstützt.",
       "generationTime": "Generierungsdauer",
       "runPlan": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}",
+      "modelSelectionLimit": "Wähle bis zu {count} Modelle pro Durchlauf. Wähle ein Modell ab, um ein anderes hinzuzufügen.",
+      "selectModelsUpToLimit": "Bis zu {count} auswählen",
+      "mixedSettings": "Je nach Modell unterschiedlich",
+      "modelChoosesFormat": "Modell wählt",
       "copiesOverCeiling": "{models, plural, one {# Modell} other {# Modelle}} x {copies} Kopien sind {images} Bilder, das Limit ist {limit}.",
       "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat.",
-      "errorUnreachable": "Das Studio war nicht erreichbar. Es wurde nichts generiert. Versuche es erneut.",
-      "errorInsufficientCredits": "Nicht genügend Credits. Es wurde nichts generiert und nichts berechnet. Lade Credits auf und versuche es erneut.",
+      "savedSubmission": "Gespeicherte Anfrage für {model}",
+      "submissionUnconfirmed": "Übermittlung nicht bestätigt",
+      "submissionNotStarted": "Bildgenerierung konnte nicht gestartet werden",
+      "viewSavedBrief": "Gespeicherten Entwurf ansehen",
+      "retrySubmission": "Übermittlung erneut versuchen",
+      "editSavedBrief": "Gespeicherten Entwurf bearbeiten",
+      "dismissSubmission": "Verwerfen",
+      "recoveryEditBlocked": "Im Eingabebereich befindet sich ein neuerer Entwurf. Schließe ihn ab, bevor du diesen gespeicherten Entwurf bearbeitest.",
+      "savedRequestsInTab": "Gespeicherte Anfragen bleiben in diesem Tab. Beim Verlassen oder Neuladen werden sie gelöscht.",
+      "promptShortcut": "Strg oder ⌘ + Eingabetaste zum Generieren. Eingabetaste oder Umschalt + Eingabetaste für eine neue Zeile.",
+      "promptCharacterCount": "{count, number} / {limit, number} Zeichen",
+      "promptTooLong": "Kürze den Entwurf vor dem Generieren auf {limit, number} Zeichen.",
+      "templateReplacedBrief": "Die Vorlage hat deinen Entwurf ersetzt.",
+      "undoTemplate": "Vorlage rückgängig machen",
+      "errorUnreachable": "Die Übermittlung konnte nicht bestätigt werden. Die ursprüngliche Anfrage kann noch abgeschlossen und berechnet werden. Ein erneuter Versuch prüft dieselbe Anfrage, ohne eine weitere Generierung zu erstellen.",
+      "errorInsufficientCredits": "Nicht genügend Credits, um die verbleibenden Bilder zu starten. Deine Anfragen bleiben hier gespeichert, damit du sie nach dem Aufladen erneut versuchen kannst.",
       "credits": "Credits",
       "creditsTitle": "Credits für diesen Stapel",
       "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
@@ -3164,6 +4164,18 @@
         "unknown": "Diese Generierung wurde nicht abgeschlossen."
       },
       "failedDetails": "Meldung des Anbieters",
+      "studioMode": "Erstellen",
+      "modeImage": "Bild",
+      "modeVideo": "Video",
+      "videoComposerTitle": "Video beschreiben",
+      "videoPromptPlaceholder": "Beschreibe das gewünschte Video …",
+      "generateVideo": "Video erstellen",
+      "videoLength": "Länge",
+      "videoFollowsImage": "Das Video übernimmt das Format des Bildes.",
+      "videoNeedsProject": "Öffne ein Projekt, um darin ein Video zu erstellen.",
+      "animate": "Animieren",
+      "animating": "Wird animiert",
+      "stopAnimating": "Dieses Bild nicht animieren",
       "runPlanCredits": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}, {credits, plural, one {# Credit} other {# Credits}}",
       "creditsEach": "{credits, plural, one {# Credit} other {# Credits}} x {count}",
       "creditsCount": "{count, plural, one {# Credit} other {# Credits}}",
@@ -3181,8 +4193,37 @@
       "title": "Ads",
       "pickTitle": "Projekt auswählen",
       "pickBody": "Ads gehören zu einem Projekt: Werbekonten und Kampagnen werden dort verwaltet. Wähle ein Projekt aus, um seine Ads zu öffnen.",
-      "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
+      "backdrop": {
+        "roastery": {
+          "headline1": "Bohnen aus einer Herkunft",
+          "headline2": "Diese Woche geröstet",
+          "headline3": "Gratisversand ab 40 €",
+          "description": "Kaffee in kleinen Chargen, auf Bestellung geröstet und in zwei Tagen bei dir.",
+          "sitelink1": "Abos",
+          "sitelink2": "Gutscheine",
+          "sitelink3": "Brühanleitungen"
+        },
+        "studio": {
+          "headline1": "Design-Sprints, die liefern",
+          "headline2": "Kostenloses Erstgespräch",
+          "description": "In fünf Tagen von der groben Idee zum getesteten Prototyp, mit einem erfahrenen Team.",
+          "callout1": "Erfahrenes Team",
+          "callout2": "Festpreis"
+        },
+        "linen": {
+          "businessName": "Atelier Lune",
+          "headline": "Leinen für ruhige Sommer",
+          "longHeadline": "Leinen für ruhige Sommer, gemacht für lange",
+          "description": "Die neue Saison ist da."
+        },
+        "yoga": {
+          "businessName": "Harbor Yoga",
+          "headline": "Deine erste Woche geht auf uns",
+          "longHeadline": "Deine erste Kurswoche geht auf uns",
+          "description": "Morgenflow am Wasser, für alle Level."
+        }
+      },
       "tabsLabel": "Ads-Bereiche",
       "loading": "Ads werden geladen…",
       "updated": "Aktualisiert {time}",
@@ -3748,8 +4789,35 @@
         "retry": "Erneut versuchen"
       }
     },
+    "Newsletter": {
+      "title": "Newsletter",
+      "description": "Jedes Projekt hat seinen eigenen Newsletter. Wähle ein Projekt aus, um ihn zu verwalten.",
+      "pickProject": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "backdrop": {
+        "launch": {
+          "name": "The Launch Log",
+          "sender": "Mia von Northwind",
+          "subject": "Drei Lehren aus dem Launch von v2",
+          "body": "Ein Blick hinter das Release: was wir gestrichen, was wir behalten haben und der eine Test, der unseren Plan geändert hat."
+        },
+        "field": {
+          "name": "Field Notes",
+          "sender": "Field Notes Studio",
+          "subject": "Der Fünf-Tage-Sprint, Schritt für Schritt",
+          "body": "Am Montag wird das Problem skizziert, am Freitag mit echten Menschen getestet. So läuft jeder Tag ab."
+        },
+        "studio": {
+          "name": "Studio Weekly",
+          "sender": "Atelier Lune",
+          "subject": "Neue Saison, neue Farben",
+          "body": "Sand, Ton und ein tiefes Meeresblau: die Palette hinter der Sommerkollektion."
+        }
+      },
+      "projectTitle": "Newsletter von {project}"
+    },
     "Social": {
-      "title": "Social-Planung",
+      "title": "Social-Media-Beiträge",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
         "label": "Neuer Beitrag",
@@ -3762,7 +4830,6 @@
         "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
         "sokoBotPrompt": "Hilf mir, einen Beitrag für {project} zu erstellen.",
         "sokoBotPromptAnyProject": "Hilf mir, einen Beitrag zu erstellen.",
-        "chooseProjectTitle": "Projekt für diesen Beitrag wählen",
         "chooseProjectBody": "Beiträge gehen über die Konten eines Projekts raus."
       },
       "accountsNeedProject": {
@@ -3778,7 +4845,6 @@
         "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
       "loading": "Wird geladen…",
-      "pickProject": "Projekt auswählen",
       "platforms": {
         "label": "Social-Media-Plattformen",
         "pause": "Plattformen pausieren"
@@ -3809,15 +4875,18 @@
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details nicht verfügbar",
+        "compactCredits": "{count, plural, =0 {Keine Credits} =1 {# Credit} other {{credits} Credits}}",
         "planLabel": "Plan",
-        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}",
-        "collapsedSummary": "{name} · {summary}"
+        "openSummary": "Kontoübersicht öffnen: {name}, {presence}, {summary}"
       },
       "Content": {
         "MenuItems": {
           "new": "Neu",
           "newTask": "Neue Aufgabe",
           "search": "Suche",
+          "home": "Startseite",
+          "projects": "Projekte",
+          "overview": "Übersicht",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -3831,8 +4900,15 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social-Planung",
-          "ads": "Ads"
+          "social": "Social-Media-Beiträge",
+          "ads": "Ads",
+          "newsletter": "Newsletter",
+          "contacts": "Kontakte",
+          "groups": {
+            "work": "Arbeit",
+            "records": "Unterlagen",
+            "marketing": "Marketing"
+          }
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -3844,9 +4920,19 @@
           "title": "Zugewiesener Seat erforderlich",
           "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
+        },
+        "SokoBot": {
+          "fallbackName": "Soko Bot",
+          "needsAttention": "Braucht Aufmerksamkeit",
+          "activeAgo": "Aktiv {time}",
+          "ready": "Bereit",
+          "team": "Soko Bots deines Teams"
         }
       },
-      "toggle": "Seitenleiste ein- oder ausblenden"
+      "show": "Seitenleiste einblenden",
+      "hide": "Seitenleiste ausblenden",
+      "resize": "Größe der Seitenleiste ändern",
+      "unreadChats": "Ungelesene Chats"
     },
     "HistorySearchDialog": {
       "title": "Suche",
@@ -4084,7 +5170,8 @@
           "accounts": "Konten",
           "billing": "Abrechnung & Vertrieb",
           "catalog": "Marketplace-Katalog",
-          "operations": "Betrieb"
+          "operations": "Betrieb",
+          "reference": "Referenz"
         },
         "Sections": {
           "enterpriseContracts": {
@@ -4138,6 +5225,14 @@
           "badgeCampaigns": {
             "title": "Feature-Badges",
             "description": "Zeigt bestehenden Nutzern für eine feste Zeit ein Neu-Badge an einer Funktion in der Seitenleiste."
+          },
+          "cmoSpend": {
+            "title": "CMO-Kosten",
+            "description": "Was jeder CMO-Bot (Cuso) ausgegeben hat, was den Inhabern belastet wurde und wofür."
+          },
+          "designSystem": {
+            "title": "Designsystem",
+            "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
           }
         }
       },
@@ -4764,7 +5859,25 @@
           "archived": "Archiviert",
           "version": "Version",
           "showDormant": "Ungenutzte und archivierte anzeigen ({count})",
-          "chat": "Chat"
+          "chat": "Chat",
+          "kindLabel": "Anzeigen",
+          "kind": {
+            "all": "Alle",
+            "assistant": "Soko Bots",
+            "cmo": "Cuso"
+          },
+          "cmoBadge": "CMO",
+          "deleteAllCusos": {
+            "button": "{count, plural, one {# Cuso} other {Alle # Cusos}} löschen",
+            "title": "{count, plural, one {# Cuso} other {Alle # Cusos}} löschen?",
+            "description": "Jeder Cuso wird gelöscht, mit Gedächtnis, Chat, Zeitplänen und verbundenen Konten. Organisationen, Projekte und Dateien bleiben. Alle stellen auf CMO.xyz einen neuen Cuso ein. Das lässt sich nicht rückgängig machen.",
+            "confirmLabel": "Zum Bestätigen {count} eingeben",
+            "confirm": "{count, plural, one {# Cuso} other {# Cusos}} löschen",
+            "cancel": "Abbrechen",
+            "deleted": "{count, plural, one {# Cuso} other {# Cusos}} gelöscht.",
+            "partly": "{deleted} gelöscht, {failed} konnten nicht gelöscht werden.",
+            "error": "Die Cusos konnten nicht gelöscht werden."
+          }
         },
         "Detail": {
           "backToList": "Zurück zu Soko Bots",
@@ -5302,6 +6415,25 @@
           "apply": "Avatar setzen",
           "done": "Avatar aktualisiert.",
           "error": "Der Avatar konnte nicht gesetzt werden."
+        },
+        "Daily": {
+          "title": "Letzte {days} Tage, UTC",
+          "usersTitle": "Personen, die einem Soko Bot geschrieben haben",
+          "usersSub": "Spitze {peak} in {days} Tagen",
+          "usersBar": "{day}: {users} Personen, {messages} Nachrichten",
+          "costTitle": "Modellkosten Soko Bots",
+          "cmoCostTitle": "Modellkosten CMO.xyz",
+          "costSub": "{total} in {days} Tagen",
+          "costBar": "{day}: {cost}",
+          "today": "heute",
+          "table": "Als Tabelle anzeigen",
+          "day": "Tag",
+          "users": "Personen",
+          "messages": "Nachrichten",
+          "turns": "Durchläufe",
+          "tokens": "Tokens",
+          "cost": "Soko Bots",
+          "cmoCost": "CMO.xyz"
         }
       },
       "MatchedChannels": {
@@ -5450,9 +6582,171 @@
           "deleteFailed": "Kampagne konnte nicht gelöscht werden",
           "started": "Kampagne gestartet"
         }
+      },
+      "CmoSpend": {
+        "title": "CMO-Kosten",
+        "description": "Was jeder CMO-Bot für seine Arbeit ausgegeben hat, was dem Inhaber belastet wurde und wofür: jedes Modell, Websuche, Exa, Overhead und Bilder.",
+        "summary": "{bots, plural, one {# CMO-Bot hat} other {# CMO-Bots haben}} {spent} ausgegeben und {charged} Credits belastet.",
+        "period": "Zeitraum",
+        "days": "{days} Tage",
+        "empty": "In diesem Zeitraum hat kein CMO-Bot gearbeitet.",
+        "business": "Unternehmen",
+        "turns": "Durchläufe",
+        "spent": "Ausgegeben",
+        "charged": "Belastet (Credits)",
+        "where": "Wofür",
+        "tools": "Genutzte Tools",
+        "calls": "{calls, plural, one {# Aufruf} other {# Aufrufe}}",
+        "exa": "Exa-Suche",
+        "webSearch": "Websuche",
+        "overhead": "Routing und Qualitätsprüfung (nicht belastet)",
+        "images": "Credits für Bilder",
+        "planChecks": "Plan-Prüfungen",
+        "checksNone": "Noch keine",
+        "checked": "{checked, plural, one {# Speicherung geprüft} other {# Speicherungen geprüft}}",
+        "sentBack": "{count} zur Korrektur zurück",
+        "drifted": "{count} weg vom Hauptangebot",
+        "unavailable": "{count} ohne Prüfmodell",
+        "lastProblems": "Zuletzt zurück {at}:"
+      },
+      "DesignSystem": {
+        "title": "Designsystem",
+        "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten und den Tokens der App. Für den Dunkelmodus das Theme der App umstellen.",
+        "guideLink": "Markenrichtlinie",
+        "backToAdmin": "Zurück zum Admin",
+        "Theme": {
+          "light": "Hell",
+          "dark": "Dunkel"
+        },
+        "Color": {
+          "title": "Farbe",
+          "lead": "Neutrale Flächen. Ein Pink pro Ansicht.",
+          "primaryName": "Iris Flower · Primärfarbe",
+          "primaryRuleTitle": "Text auf Iris Flower ist immer Neutral 950",
+          "primaryRule": "Weiß auf Iris Flower hat zu wenig Kontrast. Setze Iris Flower nie als Textfarbe auf einer weißen Seite. Nutze sie für Flächen, Akzente und aktive Zustände.",
+          "palette": "Masumi-Palette",
+          "paletteRule": "Für alle Marken gleich. Alles außer Iris Flower ist sekundär. Scarlet und Persimmon nie für Status verwenden.",
+          "neutrals": "Neutraltöne",
+          "roles": "Theme-Rollen",
+          "Roles": {
+            "page": "Seite",
+            "panel": "Panel",
+            "border": "Rahmen",
+            "fieldBorder": "Feldrahmen",
+            "text": "Text",
+            "mutedText": "Gedämpfter Text",
+            "primary": "Primär",
+            "component": "Komponente auf einem Panel",
+            "disabledText": "Deaktivierter Text",
+            "textOnPrimary": "Text auf Primärfarbe",
+            "scrim": "Overlay-Abdunklung"
+          },
+          "darkPrimaryRule": "Im Dark Mode ruht die Primärfarbe auf Dark Iris (#D141D1, Vorschlag). Iris Flower wirkt auf fast Schwarz dreimal so laut. Beim Hover kehrt Iris Flower zurück.",
+          "status": "Status",
+          "Status": {
+            "done": "Positiv",
+            "needsInput": "Warnung",
+            "failed": "Destruktiv"
+          },
+          "statusRule": "Jeder Status kombiniert Farbe mit Symbol und Text. Nie nur Farbe.",
+          "gradients": "Verläufe",
+          "gradientRule": "Noch offen. Nur für Hintergründe und Hero-Bereiche, nie hinter dichter UI.",
+          "alpha": "Alpha-Töne",
+          "alphaRule": "Schwarz mit reduzierter Deckkraft. Nur für Overlays und Abdunklungen über Bildern, nie für UI-Flächen.",
+          "alphaStep": "Alpha {step}"
+        },
+        "Type": {
+          "title": "Typografie",
+          "lead": "Nur Inter. Light ab 20px, für Display.",
+          "sample": "Agenten bei der Arbeit",
+          "Roles": {
+            "display": "Display",
+            "heading": "Überschrift",
+            "subheading": "Zwischenüberschrift",
+            "body": "Fließtext",
+            "label": "Label",
+            "caption": "Bildunterschrift",
+            "micro": "Mikro"
+          },
+          "specimenGlyph": "Aa",
+          "Weights": {
+            "light": "Light",
+            "regular": "Regular",
+            "medium": "Medium",
+            "semibold": "Semibold"
+          }
+        },
+        "Shape": {
+          "title": "Form und Tiefe",
+          "lead": "Zuerst Rahmen. Schatten nur bei schwebenden Overlays. Kein Glow, kein Blur.",
+          "border": "Rahmen",
+          "overlay": "Overlay"
+        },
+        "Components": {
+          "title": "Komponenten",
+          "lead": "Ein gefüllter Primärbutton pro Ansicht. Verb zuerst.",
+          "schedule": "Post planen",
+          "duplicate": "Duplizieren",
+          "cancel": "Abbrechen",
+          "delete": "Löschen",
+          "showAll": "Alle anzeigen",
+          "small": "Klein",
+          "addTask": "Aufgabe hinzufügen",
+          "saving": "Wird gespeichert",
+          "postTitle": "Titel des Posts",
+          "postTitlePlaceholder": "z. B. Drei Erkenntnisse aus unserem Launch",
+          "budget": "Tagesbudget",
+          "budgetError": "Gib einen Betrag über 0 ein, etwa 25.",
+          "notify": "Benachrichtige mich, wenn eine Aufgabe Eingaben braucht",
+          "review": "Posts vor der Veröffentlichung prüfen",
+          "calendar": "Kalender",
+          "drafts": "Entwürfe",
+          "cardTitle": "Wettbewerbsanalyse",
+          "cardBody": "Damit wir besser abgestimmt sind: In welcher Region verkaufst du?",
+          "answer": "Antworten",
+          "openTask": "Aufgabe öffnen",
+          "toast": "Post geplant",
+          "undo": "Rückgängig",
+          "dialogTitle": "3 Entwürfe löschen?",
+          "dialogBody": "Sie werden nicht veröffentlicht und lassen sich nicht wiederherstellen.",
+          "deleteDrafts": "Entwürfe löschen"
+        },
+        "Motion": {
+          "title": "Bewegung",
+          "lead": "Bewegung erklärt eine Änderung. Mehr nicht.",
+          "rules": "Animiere Transform und Deckkraft, nie das Layout. Benenne die animierten Eigenschaften. Keine dekorativen Schleifen. Reduzierte Bewegung entfernt alles Unnötige.",
+          "feedback": {
+            "title": "Feedback",
+            "body": "Drücken und Hovern bei jedem Bedienelement, ease-out."
+          },
+          "enter": {
+            "title": "Einblenden",
+            "body": "Listen, Seiten, Dialoge und Menüs erscheinen."
+          }
+        },
+        "States": {
+          "title": "Zustand",
+          "lead": "Jeder Zustand ist gestaltet, nicht übrig geblieben.",
+          "todo": "Zu erledigen",
+          "inProgress": "In Arbeit",
+          "needsInput": "Eingabe nötig",
+          "done": "Erledigt",
+          "failed": "Fehlgeschlagen",
+          "loading": "Deine Posts werden entworfen",
+          "emptyTitle": "Entwürfe",
+          "emptyBody": "Posts, die du beginnst, aber nicht planst, warten hier.",
+          "emptyAction": "Post schreiben",
+          "errorTitle": "LinkedIn hat den Post nicht angenommen",
+          "errorBody": "Das Bild ist größer als 5 MB. Wähle ein kleineres und versuche es erneut.",
+          "errorAction": "Bild ersetzen",
+          "doneTitle": "5 Posts geplant",
+          "doneBody": "Der erste geht am Donnerstag um 09:00 in deiner Zeitzone raus.",
+          "doneAction": "Kalender öffnen"
+        }
       }
     },
     "Billing": {
+      "switchedWorkspace": "Zu {account}-Account gewechselt",
       "balanceTitle": "Guthaben",
       "balanceDescriptionPersonal": "Deine aktuellen Credits im persönlichen Account.",
       "balanceDescriptionOrganization": "Aktuelle Credits für {organization}. {purchased, plural, =1 {# gekaufter Seat} other {# gekaufte Seats}}, {assigned, plural, =1 {# zugewiesen} other {# zugewiesen}}, {unused, plural, =1 {# ungenutzt} other {# ungenutzt}}, {members, plural, =1 {# Mitglied} other {# Mitglieder}}.",
@@ -5834,7 +7128,11 @@
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
-        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert"
+        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
+        "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
+        "tagDirectMessagesDescription": "Jev darf Direktnachrichten zwischen Personen lesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
+        "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
@@ -6338,12 +7636,12 @@
           "currentSeatsLabel": "Aktuelle Seats",
           "membersLabel": "Aktive Mitglieder",
           "seatsInputLabel": "Gekaufte Seats",
-          "seatsInputHint": "Das Minimum ist {minimum}, um genutzte bezahlte Seats abzudecken. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
+          "seatsInputHint": "Wähle, wie viele Seats du mit einem bezahlten Plan kaufst. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
-          "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
+          "seatsUpdatedSuccess": "Seats aktualisiert.",
+          "seatsScheduledSuccess": "Seat-Entfernung für die nächste Verlängerung geplant.",
           "currentPlanCta": "Aktueller Plan",
-          "updateSeatsCta": "Seats aktualisieren",
           "choosePlanCta": "Plan auswählen",
           "Errors": {
             "unauthenticated": "Bitte melde dich an, um fortzufahren",
@@ -6351,8 +7649,42 @@
             "unauthorized": "Nur Eigentümer und Admins der Organisation können Abonnements verwalten",
             "badInput": "Bitte gültige Plan- und Seat-Werte angeben",
             "general": "Organisations-Abonnement konnte nicht verwaltet werden",
-            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
-          }
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan.",
+            "paymentFailed": "Die Zahlung ist fehlgeschlagen, deine Seats wurden nicht geändert. Aktualisiere deine Zahlungsmethode und versuche es erneut.",
+            "paymentFailedAction": "Zahlungsmethode aktualisieren"
+          },
+          "seatsCard": {
+            "summary": "{assigned} von {purchased, plural, =1 {# Seat} other {# Seats}} zugewiesen, {unused} frei. Hinzugefügte Seats werden sofort abgerechnet. Entfernte Seats enden bei der Verlängerung.",
+            "scheduledNote": "{count, plural, =1 {# Seat wird} other {# Seats werden}} am {date} entfernt. Ein Planwechsel bricht das ab.",
+            "removeBlocked": "Dein Plan endet am {date}, und alle Seats enden damit. Reaktiviere deinen Plan, um Seats zu entfernen.",
+            "keepCta": "{count, plural, =1 {# Seat behalten} other {# Seats behalten}}",
+            "addIdleCta": "Seats hinzufügen",
+            "addCta": "{count, plural, =1 {# Seat hinzufügen} other {# Seats hinzufügen}}",
+            "removeCta": "{count, plural, =1 {# Seat entfernen} other {# Seats entfernen}}",
+            "decrease": "Einen Seat entfernen",
+            "increase": "Einen Seat hinzufügen",
+            "dialog": {
+              "addTitle": "{count, plural, =1 {# Seat hinzufügen?} other {# Seats hinzufügen?}}",
+              "removeTitle": "{count, plural, =1 {# Seat entfernen?} other {# Seats entfernen?}}",
+              "keepTitle": "{count, plural, =1 {# Seat behalten?} other {# Seats behalten?}}",
+              "addDescription": "Diese Änderung gilt sofort.",
+              "removeDescription": "Du behältst alle Seats bis zur nächsten Verlängerung, und es wird nichts erstattet.",
+              "keepDescription": "Damit wird die geplante Seat-Entfernung abgebrochen. Deine Rechnung bleibt gleich.",
+              "addCancelsReduction": "Damit wird auch die geplante Seat-Entfernung abgebrochen.",
+              "loading": "Preis wird abgerufen…",
+              "previewError": "Der Preis konnte nicht abgerufen werden, deine Seats können daher noch nicht geändert werden.",
+              "previewRetry": "Erneut versuchen",
+              "dueNow": "Jetzt fällig",
+              "effectiveAt": "Gilt ab",
+              "approximate": "Etwa {amount}",
+              "newMonthly": "Neuer Monatspreis",
+              "newMonthlyHint": "Inklusive Steuern und Rabatten",
+              "seatsLost": "{count, plural, =1 {Bei der Verlängerung verliert das zuletzt beigetretene Mitglied seinen Seat.} other {Bei der Verlängerung verlieren die # zuletzt beigetretenen Mitglieder ihren Seat.}}",
+              "cancellationNote": "Dein Plan endet am {date}, und diese Seats enden damit.",
+              "cancel": "Abbrechen"
+            }
+          },
+          "seatsCheckoutLabel": "Zu kaufende Seats"
         },
         "Seats": {
           "title": "Seat Übersicht",
@@ -6918,11 +8250,20 @@
       "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
+      "headerDirect": "Direktnachricht",
+      "headerSelfDirect": "Nur du",
+      "headerVisitSwitch": "Zu {workspace} wechseln",
       "participantOverflowCount": "{count} weitere Teilnehmer",
+      "chats": "Chats",
       "directMessages": "Direktnachrichten",
       "pinned": "Angeheftet",
       "reorderPinned": "Angeheftete Chats sortieren",
+      "inWorkspace": "in {workspace}",
       "reorderPinnedDone": "Sortieren beenden",
+      "SectionLimit": {
+        "showMore": "{count} weitere anzeigen",
+        "showLess": "Weniger anzeigen"
+      },
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
@@ -6930,14 +8271,15 @@
       "composerCharacterCount": "{count}/{max}",
       "composerConvertToFile": "In Datei umwandeln",
       "NoOrganization": {
-        "title": "Channels kommen bald",
         "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."
       },
       "Empty": {
         "noChannels": "No channels yet.",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
-        "noMessagesDescription": "Start the channel with a message or mention an AI coworker.",
+        "peopleLoadFailedDescription": "Personen, denen du schreiben kannst, sind vorübergehend nicht verfügbar. Bitte versuche es gleich noch einmal.",
+        "noMessagesDescription": "Starte den Channel mit einer Nachricht oder erwähne einen KI-Coworker.",
+        "noDirectMessagesDescription": "Schreib eine Nachricht, um das Gespräch zu beginnen.",
         "messagesLoadFailedTitle": "Messages could not be loaded",
         "messagesLoadFailedDescription": "Try opening this chat again in a moment.",
         "membersLoadFailedTitle": "Mitglieder konnten nicht geladen werden",
@@ -6990,7 +8332,6 @@
         "title": "New direct message",
         "empty": "Wähle, wen du anschreiben möchtest.",
         "chooseRecipientError": "Wähle einen Empfänger.",
-        "organizationRequiredForGroup": "Wechsle zu einer Organisation, um einem Teammitglied zu schreiben.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",
@@ -7074,12 +8415,12 @@
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
-        "filterOn": "Nur ungelesene werden angezeigt",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
-        "allThreads": "Alle Threads",
-        "justRead": "Gerade gelesen"
+        "justRead": "Gerade gelesen",
+        "elsewhereLabel": "Ungelesen in anderen Arbeitsbereichen",
+        "elsewhereMore": "{count} weitere in anderen Arbeitsbereichen"
       },
       "ThreadsView": {
         "title": "Threads",
@@ -7106,6 +8447,10 @@
       },
       "loadOlder": "Ältere Nachrichten laden",
       "jumpToLatest": "Zu den neuesten Nachrichten",
+      "UnreadDivider": {
+        "label": "Neu",
+        "accessibleName": "Neue Nachrichten"
+      },
       "Boundary": {
         "missingHere": "Hier fehlen Nachrichten",
         "loadMissing": "Fehlende Nachrichten laden",
@@ -7293,12 +8638,12 @@
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
         "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten",
-        "railUnread": "Ungelesen"
+        "unread": "Ungelesen"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "mentionsCapped": "Mehr als {max} Erwähnungen",
-        "railMention": "Erwähnt dich"
+        "mentionsYou": "Erwähnt dich"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
@@ -7439,12 +8784,152 @@
       "SelfDirect": {
         "messageYourself": "Dir selbst schreiben",
         "you": "Du",
+        "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
+      },
+      "Signals": {
+        "error": "Das konnte nicht geladen werden. Versuche es erneut.",
+        "retry": "Erneut versuchen",
+        "needsYouCount": "{count, plural, one {# Nachricht wartet auf dich} other {# Nachrichten warten auf dich}}",
+        "needsYouSection": "Wartet auf dich",
+        "catchUp": "Aufholen",
+        "whileYouWereAway": "Während du weg warst:",
+        "whileYouWereAwayTitle": "Während du weg warst",
+        "dismissCatchUp": "Zusammenfassung ausblenden",
+        "summarize": "Zusammenfassung",
+        "summarizing": "Deine Zusammenfassung wird geschrieben…",
+        "writtenByAi": "Aktualisiert {time}",
+        "due": "Fällig {date}",
+        "overdue": "{count, plural, one {# Tag überfällig} other {# Tage überfällig}}",
+        "inReplyTo": "Antwort auf {name}: {text}",
+        "done": "Erledigt",
+        "markRead": "Als gelesen markieren",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
+        "caughtUpTitle": "Du bist auf dem Laufenden",
+        "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
+        "aiNote": "Jev sortiert Nachrichten danach, was sie von dir wollen. Jev kann sich irren, daher wird nichts ausgeblendet: Korrigiere ein Tag an jeder Nachricht mit einem Klick.",
+        "removeTag": "Tag entfernen: {tag}",
+        "taskMade": "Task erstellt",
+        "loopClosed": "Erledigt",
+        "makeTask": "Task erstellen",
+        "handOff": "Übergeben",
+        "findingCoworkers": "Coworker wird gesucht…",
+        "fit": "{fit} passend",
+        "noCoworkerFits": "Noch passt kein Coworker dazu.",
+        "createTask": "Task erstellen",
+        "editTags": "Tags bearbeiten",
+        "editTagsTitle": "Was diese Nachricht ist",
+        "editTagsNote": "Deine Korrektur gilt für alle im Raum.",
+        "taskDue": "Fällig {date}",
+        "taskSource": "Aus dem Chat:",
+        "taskFrom": "{name} schrieb:",
+        "Buckets": {
+          "needsYou": "{count, plural, one {# Frage an dich} other {# Fragen an dich}}",
+          "escalation": "{count, plural, one {# Eskalation} other {# Eskalationen}}",
+          "urgent": "{count, plural, one {# dringend} other {# dringend}}",
+          "blocker": "{count, plural, one {# Blocker} other {# Blocker}}",
+          "decisionMade": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+          "announcement": "{count, plural, one {# Ankündigung} other {# Ankündigungen}}",
+          "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
+          "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
+          "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
+          "bug": "{count, plural, one {# Fehler} other {# Fehler}}",
+          "review": "{count, plural, one {# Feedback-Anfrage} other {# Feedback-Anfragen}}",
+          "question": "{count, plural, one {# Frage} other {# Fragen}}",
+          "fyi": "{count, plural, one {# Info} other {# Infos}}",
+          "chitChat": "{count, plural, one {# Plauderei} other {# Plaudereien}}"
+        },
+        "Sections": {
+          "needsYou": "Wartet auf dich",
+          "blockers": "Blocker",
+          "decisions": "Entscheidungen",
+          "announcements": "Ankündigungen",
+          "openLoops": "Offene Punkte",
+          "highlights": "Wichtiges"
+        },
+        "Chips": {
+          "needsYou": "Wartet auf dich",
+          "escalation": "Eskalation",
+          "urgent": "Dringend",
+          "blocker": "Blocker",
+          "decisionMade": "Entscheidung",
+          "announcement": "Ankündigung",
+          "needsDecision": "Braucht eine Entscheidung",
+          "commitment": "Zusage",
+          "commitmentDue": "Zusage · fällig {date}",
+          "workRequest": "Arbeitsauftrag",
+          "bug": "Fehler",
+          "review": "Feedback"
+        },
+        "Tags": {
+          "question": "Stellt jemandem eine Frage",
+          "needsDecision": "Braucht eine Entscheidung",
+          "decisionMade": "Entscheidung getroffen",
+          "announcement": "Ankündigung",
+          "commitment": "Zusage",
+          "blocker": "Blocker",
+          "urgent": "Dringend",
+          "escalation": "Eskalation",
+          "workRequest": "Arbeitsauftrag",
+          "bug": "Meldet einen Fehler",
+          "review": "Bittet um Feedback",
+          "fyi": "Info",
+          "chitChat": "Plauderei"
+        },
+        "Decisions": {
+          "open": "Entscheidungen",
+          "title": "Entscheidungen",
+          "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
+          "loadOlder": "Ältere laden",
+          "note": "Von Jev gesammelt. Entferne eine falsche an ihrer Nachricht."
+        },
+        "CatchUpTabs": {
+          "label": "Bereiche von Aufholen",
+          "overview": "Überblick",
+          "threads": "Threads"
+        },
+        "Briefing": {
+          "welcomeBack": "Willkommen zurück",
+          "unread": "{messages, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}} in {rooms, plural, one {# Raum} other {# Räumen}}",
+          "unreadSince": "{unread} seit {date}",
+          "waitingOnYou": "Wartet auf dich",
+          "whileAway": "Was passiert ist",
+          "stillOpen": "Noch offen",
+          "mentionedYou": "{name} hat dich erwähnt:",
+          "unreadInRoom": "{count} ungelesen",
+          "messages": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+          "open": "Öffnen",
+          "reply": "Antworten",
+          "replyPlaceholder": "{name} antworten…",
+          "send": "Senden",
+          "replySent": "An {room} gesendet",
+          "replyError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+          "Status": {
+            "decided": "Entschieden",
+            "inProgress": "Läuft",
+            "fyi": "Zur Info"
+          },
+          "otherMessages": "Weitere Nachrichten",
+          "otherMessagesHint": "Nichts zu tun, aber noch ungelesen."
+        }
+      },
+      "Stickers": {
+        "title": "Sticker",
+        "hint": "PNG, JPEG oder WebP, bis zu 2 MiB. Sticker auswählen und senden.",
+        "upload": "Sticker hochladen",
+        "invalid": "Wähle ein PNG-, JPEG- oder WebP-Bild mit höchstens 2 MiB.",
+        "uploadFailed": "Sticker konnte nicht gespeichert werden. Lade ihn erneut hoch.",
+        "loading": "Sticker werden geladen…",
+        "loadFailed": "Sticker konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "empty": "Lade einen Sticker hoch, um deine Sammlung zu beginnen.",
+        "collection": "Gespeicherte Sticker",
+        "select": "{name} auswählen"
       }
     },
     "Drive": {
-      "breadcrumb": "Dateien",
       "breadcrumbNavLabel": "Dateien-Ordner-Navigation",
       "myDrive": "Meine Dateien",
       "uploadButton": "Hochladen",
@@ -7494,6 +8979,13 @@
       "deleteFolderAction": "Ordner löschen",
       "deleteFolderDialogDescription": "Möchtest du wirklich {folderName} und alle darin enthaltenen Dateien löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "moveAction": "Verschieben",
+      "moveFilesDialogTitle": "{count, plural, one {# Datei} other {# Dateien}} verschieben",
+      "movedFiles": "{count, plural, one {# Datei verschoben} other {# Dateien verschoben}}",
+      "moveFilesPartialError": "{count, plural, one {# Datei konnte nicht verschoben werden} other {# Dateien konnten nicht verschoben werden}}",
+      "moveNewFolderLabel": "Neuer Ordner",
+      "moveNewFolderPlaceholder": "Oder neuen Ordnernamen eingeben",
+      "shareAction": "Teilen",
+      "shareFolderAction": "„{name}“ teilen",
       "moveDialogTitle": "{itemName} verschieben",
       "moveDialogDescription": "Wähle den Zielordner aus",
       "moveHere": "Hierher verschieben",
@@ -7528,6 +9020,13 @@
       "filterProjectLabel": "Projekt",
       "filterTaskLabel": "Aufgabe",
       "recentsTab": "Zuletzt verwendet",
+      "recentsTagFilter": "Tags",
+      "recentsTagFilterWithCount": "Tags ({count})",
+      "recentsTagFilterHeading": "Dateien mit diesen Tags zeigen",
+      "recentsTagFilterClear": "Tags zurücksetzen",
+      "recentsTagFilterLoading": "Tags werden geladen",
+      "recentsTagFilterUnavailable": "Tags konnten nicht geladen werden.",
+      "recentsTagFilterEmpty": "Noch keine Tags. Dateien werden bei der Verarbeitung getaggt.",
       "recentsEmptyTitle": "Keine kürzlichen Dateien",
       "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
       "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
@@ -7579,15 +9078,16 @@
         "suggestedChip": "Vorschlag: {name}",
         "selectFile": "{name} auswählen",
         "bulkSelected": "{count} ausgewählt",
-        "bulkWindowSelected": "{count} Dateien aus diesem Ergebnisfenster ausgewählt",
-        "bulkWindowChanged": "Dieses Fenster hat sich geändert – {count} Dateien passen noch. Bitte erneut bestätigen.",
-        "bulkSelectionExpired": "Dieses Ergebnisfenster ist abgelaufen. Bitte erneut suchen.",
-        "bulkSetCategory": "{name} setzen",
         "bulkClear": "Auswahl aufheben",
-        "bulkApplied": "{count} Dateien aktualisiert",
-        "bulkPartial": "{applied} aktualisiert, {failed} fehlgeschlagen und weiterhin ausgewählt",
-        "bulkSelectAllMatches": "Alle {count} Treffer auswählen",
-        "bulkError": "Diese Änderungen konnten nicht angewendet werden.",
+        "bulkDelete": "Löschen",
+        "bulkMove": "Verschieben",
+        "bulkShare": "Teilen",
+        "bulkDeleteTitle": "{count, plural, one {# Datei} other {# Dateien}} löschen?",
+        "bulkDeleteDescription": "Sie werden für alle in diesem Dateibereich entfernt. Das kann nicht rückgängig gemacht werden.",
+        "bulkDeleteDescriptionSkipsTaskFiles": "Sie werden für alle in diesem Dateibereich entfernt. Dateien aus Tasks bleiben bei ihrem Task. Das kann nicht rückgängig gemacht werden.",
+        "bulkDeleteCancel": "Abbrechen",
+        "bulkDeleted": "{count, plural, one {# Datei gelöscht} other {# Dateien gelöscht}}",
+        "bulkDeletePartial": "{deleted} gelöscht, {failed} fehlgeschlagen und weiterhin ausgewählt",
         "detailLoading": "Datei wird geladen",
         "detailProcessing": "Verarbeitung",
         "detailCategory": "Kategorie",
@@ -7665,9 +9165,6 @@
         "addTagUnavailable": "Tags konnten nicht geladen werden",
         "tagAdded": "Tag hinzugefügt. Eine frühere Entfernung gilt nicht mehr.",
         "suggestionExcerpt": "Aus diesem Dokument",
-        "bulkMoreCategories": "{count} weitere…",
-        "bulkCategorySearch": "Kategorien durchsuchen",
-        "bulkCategoryEmpty": "Keine passenden Kategorien",
         "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text.",
         "processingPartialCoverage": "Nur ein Teil dieser Datei ist indexiert. Etwa {percent}% des Textes wurden gelesen.",
         "sheetOpenAsPage": "Als Seite öffnen",
@@ -7675,6 +9172,7 @@
         "viewerDetails": "Details",
         "viewerClose": "Schließen",
         "viewerNoPreview": "Für diesen Dateityp gibt es keine Vorschau. Lade die Datei herunter, um sie zu öffnen.",
+        "viewerDownloadWithSize": "Herunterladen ({size})",
         "searchButton": "Suchen",
         "searchClear": "Suche löschen",
         "typeAll": "Alle",
@@ -7686,7 +9184,34 @@
         "allowAgain": "{name} erneut prüfen lassen",
         "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
       },
-      "tableKind": "Tabelle"
+      "tableKind": "Tabelle",
+      "Share": {
+        "title": "„{name}“ teilen",
+        "fileDescription": "Alle mit dem Link können diese Datei ansehen und herunterladen.",
+        "folderDescription": "Alle mit dem Link sehen alles in diesem Ordner, auch später hinzugefügte Dateien, und können es herunterladen.",
+        "loading": "Link wird geladen",
+        "passwordOptional": "Passwort (optional)",
+        "passwordPlaceholder": "Leer lassen für kein Passwort",
+        "newPasswordPlaceholder": "Neues Passwort",
+        "passwordTooShort": "Mindestens 4 Zeichen",
+        "create": "Link erstellen",
+        "created": "Link erstellt",
+        "linkLabel": "Freigabelink",
+        "copy": "Kopieren",
+        "copied": "Link kopiert",
+        "copyFailed": "Link konnte nicht kopiert werden",
+        "passwordOn": "Passwortgeschützt",
+        "passwordOff": "Kein Passwort",
+        "setPassword": "Passwort setzen",
+        "changePassword": "Ändern",
+        "passwordSaved": "Passwort gespeichert",
+        "removePassword": "Passwort entfernen",
+        "passwordRemoved": "Passwort entfernt",
+        "revoke": "Freigabe beenden",
+        "revoked": "Link deaktiviert",
+        "loadFailed": "Link konnte nicht geladen werden",
+        "saveFailed": "Link konnte nicht gespeichert werden"
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -7698,18 +9223,25 @@
         "description": "Der Persönliche Assistent ist in dieser Umgebung nicht aktiviert. Bitte später erneut versuchen."
       },
       "Create": {
-        "title": "Lern deinen Soko Bot kennen",
         "successTitle": "Das ist {name}",
-        "successHint": "Chat wird geöffnet…",
-        "description": "Ein persönlicher Projektmanager in Sokosumi. Er antwortet direkt, wenn er kann, delegiert Tasks an deine Coworker und beauftragt Marketplace-Agenten mit Jobs. Gib ihm einen Namen und ein Bild.",
+        "successHint": "Noch ein Schritt…",
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
-        "submit": "Soko Bot erstellen",
+        "submit": "{name} erstellen",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
-        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Verbraucht deine Credits. Ein Tageslimit setzt du in den Einstellungen.",
+        "spendNoticeOrganization": "Verbraucht die Credits deiner Organisation. Ein Tageslimit setzt du in den Einstellungen.",
+        "stepName": "Name",
+        "stepPicture": "Bild",
+        "stepConnect": "Verbinden",
+        "stepOf": "Schritt {current} von {total}",
+        "nameTitle": "Gib deinem Soko Bot einen Namen",
+        "nameHint": "Dein eigener KI-Assistent in Sokosumi. Du kannst ihn später umbenennen.",
+        "continue": "Weiter",
+        "back": "Zurück",
+        "pictureTitle": "Wähle ein Bild für {name}"
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -7729,17 +9261,15 @@
       },
       "HowItWorks": {
         "title": "So arbeitet er",
-        "description": "Was er von sich aus tut, und wann.",
-        "rhythms": "Rhythmen",
-        "triggers": "Auslöser",
-        "paused": "Pausiert"
+        "description": "Was es von selbst handeln lässt.",
+        "triggers": "Auslöser"
       },
       "Integrations": {
         "connected": "Konto verbunden.",
         "connectFailed": "Die Verbindung wurde nicht abgeschlossen. Bitte erneut versuchen.",
         "lastError": "Braucht Aufmerksamkeit: {error}",
         "title": "Verbundene Konten",
-        "description": "Apps, die er für dich nutzen kann. Mail und Kalender sind nur lesend; andere Apps handeln auf deine Anfrage in deinem Namen.",
+        "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest.",
         "connect": "Verbinden",
         "reconnect": "Neu verbinden",
         "disconnect": "Trennen",
@@ -7751,23 +9281,16 @@
         "failed": "Verbindung fehlgeschlagen. Neu verbinden, um es erneut zu versuchen.",
         "connectedNotChecked": "Verbunden · erste Prüfung in maximal 15 Minuten",
         "lastChecked": "Verbunden · geprüft {when}",
-        "search": "Suchen",
-        "searchPlaceholder": "Weitere App hinzufügen (Slack, Notion, Linear, …)",
-        "searchError": "Suche fehlgeschlagen.",
+        "searchPlaceholder": "Alle Apps durchsuchen, etwa Notion oder HubSpot",
         "noResults": "Nichts gefunden.",
         "kindsGeneric": "Nutzbar über seine Tools",
-        "popularTitle": "Beliebte Apps — klicken zum Verbinden",
-        "resultsTitle": "Suchergebnisse",
-        "showMore": "{count} weitere anzeigen",
-        "showFewer": "Weniger anzeigen",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
         "kindsMailCalendar": "Liest Posteingang und Kalender",
         "connectedNotRead": "Verbunden · wird gelesen, wenn ein Briefing oder Termin es braucht",
         "lastRead": "Verbunden · gelesen {when}",
         "connectedTools": "Verbunden",
-        "manage": "Verwalten",
-        "browseAll": "Alle Apps ansehen"
+        "manage": "Verwalten"
       },
       "Schedules": {
         "builtIn": "Eingebaut",
@@ -7818,6 +9341,9 @@
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
         "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar ihn beim Namen nennt.",
+        "mailAutoReadTitle": "Routine-Mails erledigen",
+        "mailAutoReadDescription": "Markiert nach jeder Prüfung Mails als gelesen, die weder dringend noch wichtig sind. Wichtige Mails bleiben für dich ungelesen.",
+        "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -7899,6 +9425,8 @@
           "read_file": "Datei wird gelesen",
           "generate_image": "Bild wird erstellt",
           "get_image": "Bild wird geprüft",
+          "generate_video": "Video wird erstellt",
+          "get_video": "Video wird geprüft",
           "preview_result": "Ergebnisvorschau vorbereiten"
         },
         "composer": {
@@ -7995,7 +9523,6 @@
       },
       "Console": {
         "tagline": "Dein persönlicher Projektmanager. Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden — sprich im Chat mit ihm.",
-        "lastActivity": "zuletzt aktiv {time}",
         "adminView": "Admin-Ansicht",
         "openChat": "Chat öffnen",
         "openChatError": "Der Chat mit deinem Soko Bot konnte nicht geöffnet werden.",
@@ -8045,7 +9572,7 @@
         },
         "Connectors": {
           "title": "Tools",
-          "description": "Apps, die er für dich nutzen kann. Mail und Kalender werden nur gelesen; andere Apps handeln in deinem Namen, wenn du darum bittest."
+          "description": "Apps, die er für dich nutzen kann. Er liest deinen Kalender, sortiert deine Mails, legt Anhänge ab und sendet eine Mail nur, wenn du es sagst; andere Apps handeln in deinem Namen, wenn du darum bittest."
         }
       },
       "Avatar": {
@@ -8058,7 +9585,65 @@
         "hint": "Wähle eines oder lass dir andere zeigen.",
         "showOthers": "Andere zeigen",
         "loadError": "Bilder konnten nicht geladen werden.",
-        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal."
+        "rateLimited": "Zu viele neue Bilder angefordert. Versuch es später noch einmal.",
+        "edit": "Bild bearbeiten",
+        "Studio": {
+          "metadata": "Bild-Studio",
+          "back": "Zurück zu {name}",
+          "title": "Wie soll {name} aussehen?",
+          "description": "Ändere das Tier oder füge ein Accessoire hinzu. Der Schreibtisch bleibt: Dort arbeitet dein Bot.",
+          "draftAlt": "Neuer Look für {name}, noch nicht gespeichert",
+          "making": "Dein neuer Look entsteht · etwa 10 s",
+          "sizes": "Profil oben · Bild in Chat und Aufgaben",
+          "states": "Zustände",
+          "statesPlay": "Wähle einen Zustand, um ihn einmal abzuspielen",
+          "statesDraft": "Bewegt sich, sobald du ihn behältst",
+          "statesProgress": "Die Animationen entstehen · {ready} von {total} fertig",
+          "creature": "Tier",
+          "accessory": "Accessoire",
+          "creatures": {
+            "owl": "Eule",
+            "frog": "Frosch",
+            "hedgehog": "Igel",
+            "otter": "Otter",
+            "penguin": "Pinguin"
+          },
+          "accessories": {
+            "beanie": "Mütze",
+            "glasses": "Brille",
+            "scarf": "Schal",
+            "headphones": "Kopfhörer",
+            "magnifier": "Lupe"
+          },
+          "describe": "Oder beschreibe eine Änderung",
+          "placeholder": "Gib ihm einen kleinen Zauberhut",
+          "apply": "Anwenden",
+          "ideas": {
+            "wizard": "Ein kleiner Zauberhut",
+            "coffee": "Kaffee auf dem Schreibtisch",
+            "snow": "Lass es schneien",
+            "sleepy": "Lass es müde aussehen",
+            "beach": "Ab an den Strand"
+          },
+          "keep": "Diesen Look behalten",
+          "shuffle": "Zufällig",
+          "cancel": "Abbrechen",
+          "saved": "Gespeichert.",
+          "error": "Der Look konnte nicht geändert werden. Versuch es erneut.",
+          "keepError": "Der Look konnte nicht gespeichert werden. Versuch es erneut.",
+          "cancelError": "Der aktuelle Look konnte nicht wiederhergestellt werden. Versuch es erneut.",
+          "redo": "Animation neu erstellen",
+          "retry": "Erneut versuchen",
+          "redoing": "Wird erstellt…",
+          "drawing": "Wird gezeichnet…",
+          "animating": "Wird animiert…",
+          "redoError": "Die Animation konnte nicht neu erstellt werden. Versuch es erneut.",
+          "redoLimit": "Du hast heute schon viele Animationen neu erstellt. Versuch es morgen wieder.",
+          "redoBusy": "Diese Animation wird noch erstellt.",
+          "empty": "Noch kein Look. Wähle ein Tier oder tippe auf „Zufällig“, um zu starten.",
+          "rateLimited": "Du hast sehr viele neue Looks erstellt. Versuch es später noch einmal.",
+          "unavailable": "Der Look lässt sich gerade nicht ändern."
+        }
       },
       "Skills": {
         "builtIn": "Enthalten",
@@ -8091,6 +9676,17 @@
       "Disabled": {
         "title": "Soko Bot ist vorübergehend nicht verfügbar",
         "description": "Ein Administrator hat Soko Bot vorerst abgeschaltet. Nichts von der Arbeit deines Assistenten geht verloren; er macht später dort weiter, wo er aufgehört hat."
+      },
+      "Ads": {
+        "title": "Ads",
+        "description": "Dein Assistent nutzt die Werbekonten des Projekts von der Ads-Seite.",
+        "open": "Öffnen",
+        "empty": "Noch keine Werbekonten verbunden.",
+        "connectOnAds": "Verbinde eines auf der Ads-Seite.",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        }
       }
     },
     "SokoBots": {
@@ -8172,19 +9768,27 @@
     "Calendar": {
       "Metadata": {
         "title": "Kalender",
-        "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
+        "description": "Alles, was im Workspace geplant ist, auf einen Blick."
       },
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
       "today": "Heute",
+      "weekNumber": "Kalenderwoche {week}",
       "view": {
+        "label": "Ansicht",
         "month": "Monat",
         "week": "Woche",
         "agenda": "Agenda"
       },
+      "show": {
+        "label": "Anzeigen",
+        "tasks": "Aufgaben",
+        "social": "Social-Beiträge",
+        "newsletter": "Newsletter",
+        "contacts": "Nachfassungen",
+        "marketing": "Marketingplan"
+      },
       "source": {
-        "label": "Quelle",
-        "all": "Alle Quellen",
         "WORKSPACE": "Workspace",
         "PROJECT": "Projekt"
       },
@@ -8195,6 +9799,7 @@
         "skipRun": "Lauf überspringen",
         "restoreRun": "Lauf wiederherstellen",
         "openSchedule": "Zeitplan öffnen",
+        "allDay": "Ganztägig",
         "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
         "runInvalidTime": "Wähle eine Zeit in der Zukunft, innerhalb der nächsten 90 Tage.",
         "runError": "Dieser Lauf konnte nicht geändert werden. Versuche es erneut."
@@ -8237,7 +9842,7 @@
         "showing": "Zeiten in {zone}"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
+        "title": "Nichts Geplantes entspricht diesen Filtern.",
         "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
@@ -8259,10 +9864,28 @@
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
         "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}",
-        "platform": "Plattform"
+        "platform": "Plattform",
+        "more": "+{count} weitere",
+        "moreHint": "{count, plural, one {# weiteren Beitrag} other {# weitere Beiträge}} an diesem Tag anzeigen",
+        "newOnDay": "Neuer Beitrag am {date}",
+        "newPost": "Neuer Beitrag",
+        "dragHint": "Zum Verschieben auf einen anderen Tag ziehen.",
+        "dayEmpty": "An diesem Tag ist nichts geplant.",
+        "dayCount": "{count, plural, =0 {keine Beiträge} one {# Beitrag} other {# Beiträge}}",
+        "statusFilter": "Beiträge nach Status anzeigen",
+        "postCount": "{count, plural, =0 {Keine Beiträge in diesem Zeitraum} one {# Beitrag} other {# Beiträge}}",
+        "dayAttention": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
+        "reschedule": "Neu planen",
+        "rescheduleNamed": "Beitrag um {time} neu planen: {text}"
       },
-      "socialOnly": {
-        "label": "Nur Social-Beiträge"
+      "socialMove": {
+        "title": "Beitrag neu planen",
+        "description": "Wähle ein neues Datum und eine neue Uhrzeit. Zeiten in {zone}.",
+        "label": "Neues Datum und Uhrzeit",
+        "confirm": "Neu planen",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit.",
+        "past": "Wähle einen Zeitpunkt in der Zukunft."
       }
     },
     "You": {
@@ -8308,10 +9931,16 @@
       "yes": "Ja",
       "no": "Nein",
       "cellHistory": "Verlauf und Quellen: {column}",
+      "openLink": "Link öffnen: {column}",
+      "wrapText": "Text umbrechen",
+      "fitColumn": "Breite an Inhalt anpassen",
+      "resizeColumn": "Breite von {column} ändern. Ziehen oder Pfeiltasten nach links und rechts drücken. Doppelklicken passt die Breite an den Inhalt an.",
+      "gridKeys": "Pfeiltasten und Tab wechseln zwischen Zellen. Enter oder Tippen bearbeitet eine Zelle, Escape bricht ab und Enter speichert. Alt+Enter öffnet einen Link, Alt+Umschalt+H zeigt den Verlauf der Zelle.",
       "discard": "Entwurf verwerfen",
       "editColumn": "Spalte bearbeiten",
       "addColumn": "Spalte hinzufügen",
       "columnDescription": "Beschreibungen helfen Menschen und Agenten, Werte zu verstehen. Spalten-IDs bleiben stabil.",
+      "lastUpdatedHint": "Füllt sich selbst mit dem Zeitpunkt der letzten Änderung jeder Zeile.",
       "columnConflictReview": "Diese Tabelle wurde während des Speicherns geändert. Prüfe die neuesten Spalten, bevor du erneut speicherst.",
       "reloadLatest": "Neueste laden",
       "reviewLatest": "Prüfung abgeschlossen",
@@ -8380,7 +10009,8 @@
         "url": "URL",
         "email": "E-Mail",
         "single_select": "Einfachauswahl",
-        "multiple_select": "Mehrfachauswahl"
+        "multiple_select": "Mehrfachauswahl",
+        "last_updated": "Zuletzt aktualisiert"
       },
       "archived": "Archiviert",
       "active": "Aktiv",
@@ -8407,7 +10037,8 @@
         "csvRows": "CSV-Dateien dürfen bis zu 10.000 Datenzeilen enthalten.",
         "csv": "Prüfe die Anführungszeichen und Trennzeichen in der CSV-Datei.",
         "csvHeaders": "Gib jeder CSV-Spalte eine nicht leere Überschrift.",
-        "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben."
+        "csvWidth": "Jede CSV-Zeile muss gleich viele Spalten haben.",
+        "layout": "Das Spaltenlayout wurde nicht gespeichert und zurückgesetzt. {reason}"
       },
       "reorderColumn": "{column} verschieben. Ziehen oder Pfeiltasten nach links und rechts drücken.",
       "reorderRow": "Zeile verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
@@ -8424,23 +10055,25 @@
         "cancelled": "Verschieben von {item} abgebrochen."
       },
       "filterByTag": "Nach {tag} filtern",
-      "editCell": "{column} bearbeiten",
       "quickFilter": "{count, plural, =0 {Nach {column} filtern} one {Nach {column} filtern, # Option ausgewählt} other {Nach {column} filtern, # Optionen ausgewählt}}",
       "matchAllOptions": "Zeilen mit allen ausgewählten Optionen",
       "clearFilter": "Zurücksetzen",
       "clearFilters": "Filter zurücksetzen",
       "removeFilter": "Filter entfernen: {column}",
-      "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}"
+      "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}",
+      "contactsName": "Kontakte",
+      "contactsPinned": "Angeheftet",
+      "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",
+      "clearProject": "Projekt abwählen",
       "close": "Schließen",
       "label": "Projekt",
+      "allProjects": "Alle Projekte",
       "switchLabel": "Projekt wechseln",
-      "workspaceView": "Alles",
-      "workspaceDescription": "Enthält auch Arbeit ohne Projekt",
+      "selectProject": "Projekt auswählen",
       "pinned": "Angepinnt",
-      "recent": "Zuletzt",
       "all": "Projekte",
       "searchPlaceholder": "Projekt suchen...",
       "empty": "Keine Projekte gefunden.",
@@ -8448,9 +10081,451 @@
       "error": "Projekte konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "create": "Projekt erstellen",
-      "manage": "Projekte verwalten",
+      "closed": "Geschlossen",
       "current": "(aktuell)",
       "searching": "Projekte werden gesucht..."
+    },
+    "Contacts": {
+      "Metadata": {
+        "title": "Kontakte",
+        "description": "Alle, die dein Team kennt, mit jedem Weg, sie zu erreichen."
+      },
+      "stages": {
+        "CONTACT": "Kontakt",
+        "FRIEND": "Freund",
+        "PROSPECT": "Interessent",
+        "LEAD": "Lead",
+        "ACTIVE": "Aktiv",
+        "CUSTOMER": "Kunde",
+        "PARTNER": "Partner",
+        "INVESTOR": "Investor",
+        "VENDOR": "Dienstleister",
+        "ADVISOR": "Berater",
+        "COMMUNITY": "Community",
+        "PRESS": "Presse",
+        "DORMANT": "Ruhend"
+      },
+      "channelTypes": {
+        "EMAIL": "E-Mail",
+        "PHONE": "Telefon",
+        "SLACK": "Slack",
+        "LINKEDIN": "LinkedIn",
+        "X": "X",
+        "WEBSITE": "Website",
+        "TELEGRAM": "Telegram",
+        "WHATSAPP": "WhatsApp",
+        "GITHUB": "GitHub",
+        "OTHER": "Sonstiges"
+      },
+      "sources": {
+        "MANUAL": "Von Hand hinzugefügt",
+        "EMAIL": "Aus E-Mails",
+        "CALENDAR": "Aus dem Kalender",
+        "SLACK": "Aus Slack",
+        "WEB_RESEARCH": "Aus Webrecherche",
+        "IMPORT": "Importiert",
+        "OTHER": "Andere Quelle",
+        "X": "Von X"
+      },
+      "presets": {
+        "all": "Alle Kontakte",
+        "mine": "Meine Kontakte",
+        "recent": "Neu hinzugefügt"
+      },
+      "emptyViews": {
+        "all": "Noch keine Kontakte.",
+        "mine": "Noch niemand, mit dem du gesprochen hast. Alle, denen du schreibst oder die du triffst, erscheinen hier.",
+        "recent": "In den letzten zwei Wochen kam niemand dazu.",
+        "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu."
+      },
+      "views": {
+        "label": "Kontaktansichten",
+        "lists": "Listen",
+        "newList": "Neue Liste",
+        "smartList": "Intelligente Liste",
+        "editList": "Liste bearbeiten",
+        "deleteList": "Liste löschen",
+        "noLists": "Noch keine Listen.",
+        "import": "Aus einer Tabelle importieren",
+        "autoList": "Automatisch aus deinen Kontakten erstellt",
+        "companies": "Firmen",
+        "findCompany": "Firma suchen …",
+        "noCompanies": "Keine Firmen gefunden.",
+        "clearCompany": "Alle Firmen zeigen"
+      },
+      "columns": {
+        "name": "Name",
+        "organization": "Organisation",
+        "role": "Rolle",
+        "stage": "Beziehung",
+        "lists": "Listen",
+        "channels": "Kanäle",
+        "firstContact": "Erster Kontakt",
+        "lastContact": "Letzter Kontakt",
+        "knownBy": "Bekannt mit",
+        "followUp": "Follow-up",
+        "email": "E-Mail",
+        "reply": "Antwort",
+        "importance": "Wichtigkeit",
+        "familiarity": "Vertrautheit"
+      },
+      "grid": {
+        "label": "Kontakte",
+        "openContact": "{name} öffnen",
+        "knownByLabel": "Bekannt mit {names}",
+        "due": "Fällig",
+        "selectAll": "Alle Kontakte auswählen",
+        "selectRow": "{name} auswählen",
+        "resizeColumn": "Breite von {column} ändern",
+        "keys": "Pfeiltasten wechseln die Zelle. Enter auf einem Namen öffnet die Person, auf anderen Zellen bearbeitet es. F2 bearbeitet den Namen. Escape bricht ab.",
+        "loadMore": "Mehr laden",
+        "copyEmail": "{email} kopieren",
+        "emailCopied": "E-Mail-Adresse kopiert",
+        "waitingDays": "{days, plural, =0 {heute} other {# T.}}",
+        "addedAutomatically": "Automatisch zu {list} hinzugefügt",
+        "filterCompany": "Personen bei {name} zeigen"
+      },
+      "toolbar": {
+        "search": "Kontakte durchsuchen",
+        "searchPlaceholder": "Name, Firma, E-Mail suchen…",
+        "me": "Ich",
+        "clearFilter": "Filter {filter} entfernen",
+        "export": "CSV exportieren",
+        "add": "Kontakt hinzufügen",
+        "more": "Weitere Aktionen",
+        "filter": "Filter",
+        "kind": "Art"
+      },
+      "bulk": {
+        "label": "Ausgewählte Kontakte",
+        "selected": "{count} ausgewählt",
+        "addToList": "Zu Liste hinzufügen",
+        "removeFromList": "Aus Liste entfernen",
+        "merge": "Zusammenführen",
+        "clear": "Auswahl aufheben",
+        "updated": "{count, plural, =1 {1 Kontakt aktualisiert} other {# Kontakte aktualisiert}}",
+        "addedToList": "{count, plural, =1 {1 Kontakt zu {list} hinzugefügt} other {# Kontakte zu {list} hinzugefügt}}",
+        "removedFromList": "{count, plural, =1 {1 Kontakt aus {list} entfernt} other {# Kontakte aus {list} entfernt}}"
+      },
+      "errors": {
+        "versionConflict": "Jemand hat diesen Kontakt gerade geändert. Wir haben die neue Version geladen; versuch deine Änderung noch einmal.",
+        "saveFailed": "Das wurde nicht gespeichert. Versuch es noch einmal.",
+        "exportFailed": "Der Export wurde nicht abgeschlossen. Versuch es noch einmal.",
+        "loadTitle": "Kontakte wurden nicht geladen",
+        "load": "Prüfe deine Verbindung und versuch es noch einmal."
+      },
+      "count": "{count, plural, =0 {Keine Personen} =1 {1 Person} other {# Personen}}",
+      "showing": "{shown} von {total} angezeigt",
+      "loading": "Kontakte werden geladen",
+      "retry": "Erneut versuchen",
+      "noMatchesTitle": "Niemand hier",
+      "noMatches": "Keine Kontakte passen zu diesen Filtern.",
+      "clearFilters": "Filter entfernen",
+      "merged": "Zusammengeführt in {name}",
+      "deleteList": {
+        "title": "{name} löschen?",
+        "description": "Die Liste verschwindet für das ganze Team. Die Menschen darauf bleiben in den Kontakten.",
+        "cancel": "Abbrechen",
+        "confirm": "Liste löschen"
+      },
+      "listDialog": {
+        "createTitle": "Neue Liste",
+        "editTitle": "Liste bearbeiten",
+        "description": "Listen teilst du mit deinem ganzen Team. Eine Person kann auf beliebig vielen stehen.",
+        "name": "Name",
+        "namePlaceholder": "Investoren, Berlin-Meetup…",
+        "nameRequired": "Gib der Liste einen Namen.",
+        "color": "Farbe",
+        "colors": {
+          "gray": "Grau",
+          "red": "Rot",
+          "orange": "Orange",
+          "amber": "Bernstein",
+          "green": "Grün",
+          "teal": "Petrol",
+          "blue": "Blau",
+          "indigo": "Indigo",
+          "violet": "Violett",
+          "pink": "Pink"
+        },
+        "descriptionLabel": "Beschreibung",
+        "descriptionPlaceholder": "Optional. Wofür die Liste da ist.",
+        "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "create": "Liste erstellen"
+      },
+      "addDialog": {
+        "title": "Kontakt hinzufügen",
+        "description": "Ein Name, ein Weg, die Person zu erreichen, oder beides. Kennt dein Team sie schon, zeigen wir dir diesen Kontakt.",
+        "name": "Name",
+        "organization": "Organisation",
+        "role": "Rolle",
+        "channels": "Erreichbar über",
+        "channelType": "Art von Kanal {index}",
+        "channelValue": "Kanal {index}",
+        "removeChannel": "Kanal {index} entfernen",
+        "addChannel": "Weiteren hinzufügen",
+        "placeholders": {
+          "EMAIL": "name@firma.de",
+          "PHONE": "+49 151 2345678",
+          "SLACK": "TEAMID:USERID",
+          "LINKEDIN": "linkedin.com/in/name",
+          "X": "@handle",
+          "WEBSITE": "firma.de",
+          "TELEGRAM": "@handle",
+          "WHATSAPP": "+49 151 2345678",
+          "GITHUB": "github.com/name",
+          "OTHER": "Alles andere"
+        },
+        "prospect": "Das ist ein Interessent",
+        "prospectHint": "Jemand, mit dem ihr noch nicht gesprochen habt, aber gern würdet.",
+        "whyInteresting": "Warum interessant",
+        "whyPlaceholder": "Was macht diese Person interessant?",
+        "nameOrChannel": "Gib einen Namen oder einen Weg an, die Person zu erreichen.",
+        "channelTaken": "Diese Person ist in deinem Team bereits ein Kontakt.",
+        "openExisting": "Kontakt öffnen",
+        "failed": "Der Kontakt wurde nicht gespeichert. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "submit": "Kontakt hinzufügen"
+      },
+      "mergeDialog": {
+        "title": "{count, plural, =2 {2 Kontakte zusammenführen} other {# Kontakte zusammenführen}}",
+        "description": "Wähle den Kontakt, der bleibt. Alles von den anderen wandert dorthin: Kanäle, Verlauf und Listen. Leere Felder werden aus ihnen ergänzt.",
+        "keep": "Behalten",
+        "noDetails": "Keine Rolle oder Organisation",
+        "interactions": "{count, plural, =0 {Keine Interaktionen} =1 {1 Interaktion} other {# Interaktionen}}",
+        "failed": "Das Zusammenführen wurde nicht abgeschlossen. Nichts wurde geändert.",
+        "cancel": "Abbrechen",
+        "submit": "Zusammenführen"
+      },
+      "importDialog": {
+        "title": "Aus einer Tabelle importieren",
+        "description": "Hol Menschen aus einer Tabelle in Dateien. Zeilen, die per E-Mail oder Name zu jemandem passen, aktualisieren diesen Kontakt.",
+        "doneDescription": "Deine Kontakte sind auf dem neuesten Stand.",
+        "chooseTable": "Tabelle",
+        "columnCount": "{count, plural, =1 {1 Spalte} other {# Spalten}}",
+        "noTables": "In Dateien gibt es noch keine Tabellen.",
+        "mapColumns": "Spalten zuordnen",
+        "mapHint": "Wir haben anhand der Spaltennamen geraten. Überspring alles, was du nicht brauchst.",
+        "required": "(Pflichtfeld)",
+        "skipColumn": "Überspringen",
+        "fields": {
+          "name": "Name",
+          "organization": "Organisation",
+          "role": "Rolle",
+          "location": "Ort",
+          "email": "E-Mail",
+          "phone": "Telefon",
+          "linkedin": "LinkedIn",
+          "x": "X",
+          "website": "Website",
+          "github": "GitHub",
+          "telegram": "Telegram",
+          "summary": "Über die Person",
+          "whyInteresting": "Warum interessant",
+          "nextStep": "Nächster Schritt",
+          "firstContactAt": "Erster Kontakt",
+          "lists": "Listen"
+        },
+        "result": {
+          "created": "Hinzugefügt",
+          "updated": "Aktualisiert",
+          "unchanged": "Bereits aktuell",
+          "skipped": "Übersprungen",
+          "listsCreated": "{count, plural, =1 {1 Liste aus den Tags erstellt} other {# Listen aus den Tags erstellt}}"
+        },
+        "importing": "Wird importiert… Bei großen Tabellen kann das eine Minute dauern.",
+        "nameRequired": "Wähle die Spalte mit den Namen.",
+        "failed": "Der Import wurde nicht abgeschlossen. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "submit": "Importieren",
+        "done": "Fertig"
+      },
+      "empty": {
+        "title": "Hier leben die Kontakte deines Teams",
+        "description": "Kontakte werden über deinen Soko Bot synchronisiert: Er fügt die Personen aus den mit ihm verbundenen Mails, Kalendern und Slack hinzu, samt wer im Team sie kennt. Keine Newsletter oder automatischen Absender.",
+        "connect": "{name} verbinden",
+        "connected": "{name} verbunden",
+        "connectFailed": "Die Verbindung wurde nicht gestartet. Versuch es noch einmal.",
+        "manageConnections": "Verbindungen verwalten",
+        "addByHand": "Jemanden hinzufügen",
+        "import": "Aus einer Tabelle importieren",
+        "needsBot": "Kontakte werden über einen Soko Bot synchronisiert. Richte deinen ein und verbinde Mail und Kalender, dann fügt er die Personen hinzu, mit denen du zu tun hast, samt wer im Team sie kennt.",
+        "needsConnections": "Dein Soko Bot fügt die Personen hinzu, mit denen du zu tun hast, sobald Mail und Kalender mit ihm verbunden sind. Keine Newsletter oder automatischen Absender.",
+        "syncing": "{bot} liest deine verbundenen Mails und Kalender. Die ersten Kontakte erscheinen in etwa 15 Minuten.",
+        "setUpBot": "Soko Bot einrichten"
+      },
+      "panel": {
+        "loading": "Kontakt wird geladen",
+        "notFoundTitle": "Kontakt nicht gefunden",
+        "notFound": "Er wurde vielleicht zusammengeführt oder archiviert.",
+        "retry": "Erneut versuchen",
+        "name": "Name",
+        "roleAt": " bei ",
+        "noRole": "Noch keine Rolle oder Organisation",
+        "addedBy": "Hinzugefügt von {name} {when}",
+        "addedByBot": "Hinzugefügt von Soko Bot {when}",
+        "someone": "einem Teammitglied",
+        "menu": "Kontaktoptionen",
+        "copyLink": "Link kopieren",
+        "linkCopied": "Link kopiert",
+        "archive": "Kontakt archivieren",
+        "archived": "{name} archiviert",
+        "changeStage": "Phase: {stage}. Phase ändern",
+        "changeLists": "Listen ändern",
+        "addToList": "Zu einer Liste hinzufügen",
+        "manualLists": "Listen",
+        "noManualLists": "Noch keine Listen.",
+        "empty": "Hinzufügen…",
+        "location": "Ort",
+        "nextStepTitle": "Nächster Schritt",
+        "nextStep": "Nächster Schritt",
+        "nextStepPlaceholder": "Was passiert als Nächstes?",
+        "noFollowUp": "Kein Datum",
+        "about": "Über die Person",
+        "summary": "Zusammenfassung",
+        "summaryPlaceholder": "Wer die Person ist und woher ihr euch kennt.",
+        "whyInteresting": "Warum interessant",
+        "whyPlaceholder": "Warum das Team sie im Blick haben sollte.",
+        "duplicate": "Das scheint dieselbe Person zu sein wie",
+        "reviewMerge": "Prüfen und zusammenführen",
+        "channels": "Kanäle",
+        "addChannel": "Kanal hinzufügen",
+        "channelSource": "{type}, {source}",
+        "verified": "bestätigt",
+        "primary": "Hauptkanal",
+        "openSource": "Quelle öffnen",
+        "copyChannel": "{value} kopieren",
+        "removeChannel": "{value} entfernen",
+        "noChannels": "Noch kein Weg, die Person zu erreichen.",
+        "channelType": "Kanalart",
+        "channelValue": "Adresse",
+        "add": "Hinzufügen",
+        "timeline": "Verlauf",
+        "interactionCount": "{count, plural, =1 {1 Interaktion} other {# Interaktionen}}",
+        "noInteractions": "Noch keine Interaktionen. E-Mails, Meetings und Slack-Nachrichten mit dieser Person erscheinen hier.",
+        "sokoBot": "Soko Bot",
+        "interactionChannels": {
+          "EMAIL": "E-Mail",
+          "MEETING": "Meeting",
+          "SLACK": "Slack",
+          "CALL": "Anruf",
+          "MANUAL": "Notiz",
+          "OTHER": "Sonstiges",
+          "X": "X"
+        },
+        "source": "Quelle",
+        "showMore": "Mehr anzeigen",
+        "activityTitle": "Aktivität",
+        "activity": {
+          "CREATED": "{who} hat diesen Kontakt hinzugefügt",
+          "UPDATED": "{who} hat {fields} geändert",
+          "CHANNEL_ADDED": "{who} hat einen Kanal hinzugefügt",
+          "CHANNEL_REMOVED": "{who} hat einen Kanal entfernt",
+          "MERGED": "{who} hat {names} in diesen Kontakt zusammengeführt",
+          "ARCHIVED": "{who} hat diesen Kontakt archiviert",
+          "UNARCHIVED": "{who} hat diesen Kontakt wiederhergestellt",
+          "WEB": "{who} hat {fields} aus dem Web ergänzt"
+        },
+        "fields": {
+          "name": "Name",
+          "organization": "Organisation",
+          "role": "Rolle",
+          "location": "Ort",
+          "summary": "Zusammenfassung",
+          "whyInteresting": "Warum interessant",
+          "stage": "Phase",
+          "ownerUserId": "Zuständigkeit",
+          "nextStep": "nächsten Schritt",
+          "followUpAt": "Follow-up",
+          "avatarUrl": "Foto",
+          "customFields": "eigene Felder",
+          "kind": "Art",
+          "linkedin": "LinkedIn"
+        },
+        "markOrganization": "Als Organisation markieren",
+        "markPerson": "Als Person markieren",
+        "waitingSince": "Seit {date} noch keine Antwort",
+        "heardFrom": "Zuletzt von ihnen gehört: {when}",
+        "automatic": "Automatisch",
+        "classifier": "Automatische Einordnung",
+        "enrich": "Anreichern",
+        "enrichHint": "Im Web nachschlagen und leere Felder füllen · 1 Credit",
+        "enriched": "{fields} aus dem Web ergänzt · 1 Credit",
+        "enrichedNone": "Im Web nichts Neues gefunden. Es wurden keine Credits verbraucht.",
+        "enrichFailed": "Nachschlagen hat nicht geklappt. Versuche es erneut.",
+        "connectedVia": "Verbunden über"
+      },
+      "stageGroups": {
+        "general": "Allgemein",
+        "sales": "Vertrieb",
+        "relationships": "Beziehungen",
+        "status": "Status"
+      },
+      "replyStates": {
+        "NO_REPLY": "Keine Antwort",
+        "AWAITING_REPLY": "Antwort ausstehend",
+        "IN_CONVERSATION": "Im Gespräch",
+        "REPLIED": "Hat geantwortet"
+      },
+      "kinds": {
+        "PERSON": "Person",
+        "ORGANIZATION": "Organisation oder Sammelpostfach"
+      },
+      "title": "Kontakte",
+      "importance": {
+        "veryHigh": "Sehr wichtig",
+        "high": "Wichtig",
+        "medium": "Etwas wichtig",
+        "low": "Weniger wichtig",
+        "minimal": "Nicht wichtig",
+        "auto": "Jev entscheiden lassen",
+        "change": "Ändern, wie wichtig die Person für dich ist",
+        "byJev": "Von Jev eingeschätzt",
+        "byJevBecause": "Jev: {reason}",
+        "byYou": "Von dir gesetzt",
+        "byBot": "Von deinem Soko Bot gesetzt",
+        "notYet": "Noch nicht eingeschätzt",
+        "familiarityHint": "Aus deinen eigenen E-Mails und Meetings mit der Person",
+        "reasons": {
+          "decides": "entscheidet mit",
+          "value": "kann deine Arbeit voranbringen",
+          "active": "laufendes Geschäft",
+          "close": "enge Beziehung",
+          "noise": "wirkt automatisiert oder unpersönlich"
+        }
+      },
+      "suggestions": {
+        "title": "Vorgeschlagene Personen",
+        "titleCount": "Vorgeschlagene Personen · {count}",
+        "hint": "Finde Personen im Web, die zu dieser Liste passen.",
+        "find": "Personen finden",
+        "addAll": "Alle hinzufügen",
+        "addShort": "Hinzufügen",
+        "add": "{name} hinzufügen",
+        "dismiss": "{name} verwerfen",
+        "showAll": "Alle {count} anzeigen",
+        "showFewer": "Weniger anzeigen",
+        "added": "{count, plural, one {# Person} other {# Personen}} zu {list} hinzugefügt",
+        "decideFailed": "Die Vorschläge konnten nicht aktualisiert werden.",
+        "dialogTitle": "Personen für {list} finden",
+        "dialogDescription": "Sucht im Web nach passenden Personen und schlägt sie hier vor. Hinzugefügt wird erst, wenn du es tust.",
+        "briefLabel": "Wer gehört in diese Liste?",
+        "briefPlaceholder": "z. B. Partner bei Seed-Fonds, die in KI-Agenten investieren, Europa oder USA",
+        "briefRequired": "Beschreibe, wen du suchst.",
+        "sizeLabel": "Wie viele",
+        "sizeOption": "{count, plural, one {# Person} other {# Personen}}",
+        "submit": "{count, plural, one {# Person} other {# Personen}} finden · bis zu {credits, number} Credits",
+        "searching": "Suche im Web…",
+        "found": "{count, plural, one {# Person} other {# Personen}} gefunden",
+        "foundNone": "Niemand Neues gefunden. Beschreibe sie anders. Es wurden keine Credits verbraucht.",
+        "findFailed": "Die Suche hat nicht geklappt. Versuch es noch einmal.",
+        "cancel": "Abbrechen",
+        "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
+        "personLabel": "Wen suchst du?",
+        "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
+      }
     }
   },
   "Share": {
@@ -8487,6 +10562,22 @@
       "title": "KI-Agents auf Abruf",
       "description": "Wähle einen vertrauenswürdigen Agent, definiere deine Anforderungen und erhalte umsetzbare Ergebnisse – ohne Abonnement.",
       "buttonText": "Agents entdecken"
+    },
+    "Files": {
+      "sharedFile": "Geteilte Datei",
+      "sharedFolder": "Geteilter Ordner",
+      "notFoundTitle": "Link nicht gefunden",
+      "passwordLabel": "Dieser Link ist geschützt. Passwort eingeben",
+      "open": "Öffnen",
+      "download": "Herunterladen",
+      "downloadFile": "{name} herunterladen",
+      "truncated": "Es werden die ersten 2.000 Dateien dieses Ordners angezeigt.",
+      "emptyFolder": "Dieser Ordner ist leer.",
+      "errors": {
+        "wrong": "Falsches Passwort.",
+        "locked": "Zu viele falsche Passwörter. Versuche es in 15 Minuten erneut.",
+        "failed": "Etwas ist schiefgelaufen. Versuche es erneut."
+      }
     }
   },
   "NotFound": {
@@ -8698,8 +10789,8 @@
   "WorkspaceGate": {
     "title": "Workspace einrichten",
     "identityTitle": "Wie möchtest du arbeiten?",
-    "identityDescriptionChoose": "Wähle eine Option.",
-    "identityDescriptionEnter": "Gib deinen Namen ein.",
+    "identityDescriptionChoose": "Wähle, wo du startest.",
+    "identityDescriptionEnter": "Gib deinen Namen ein und wähle, wo du startest.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescriptionInvitations": "Nimm eine Organisationseinladung an, um Sokosumi in dieser Organisation zu öffnen.",
     "pendingInvitesDescriptionJoin": "Tritt über den Einladungslink bei, um Sokosumi in dieser Organisation zu öffnen.",
@@ -8736,6 +10827,42 @@
       "rejectError": "Die übrigen Einladungen konnten nicht abgelehnt werden.",
       "activateError": "Der Wechsel zu dieser Organisation war nicht möglich. Versuche es erneut, bevor du fortfährst.",
       "activateRetry": "Wechsel erneut versuchen"
+    },
+    "Assistant": {
+      "metadataTitle": "Assistenten einrichten",
+      "later": "Später",
+      "skip": "Überspringen",
+      "continue": "Weiter"
+    }
+  },
+  "PublicNewsletter": {
+    "archive": "Archiv",
+    "subscribe": "Abonnieren",
+    "emptyTitle": "Noch keine Ausgaben",
+    "emptyDescription": "Veröffentlichte Ausgaben erscheinen hier.",
+    "loadMore": "Mehr laden",
+    "loadError": "Ausgaben konnten nicht geladen werden. Versuche es erneut.",
+    "unavailable": "Dieses Archiv ist nicht mehr verfügbar. Lade die Seite neu.",
+    "metadataTitle": "Archiv von {name}",
+    "metadataDescription": "Lies frühere Ausgaben von {name}.",
+    "backToArchive": "Zurück zum Archiv",
+    "issueContent": "Newsletter-Ausgabe: {subject}",
+    "Signup": {
+      "title": "{name} abonnieren",
+      "description": "Erhalte neue Ausgaben direkt in dein Postfach.",
+      "email": "E-Mail-Adresse",
+      "name": "Name (optional)",
+      "consent": "Ich bin damit einverstanden, diesen Newsletter zu erhalten. Du kannst dich jederzeit abmelden.",
+      "website": "Webseite",
+      "archive": "Archiv durchstöbern",
+      "success": "Prüfe dein Postfach, um dein Abonnement zu bestätigen",
+      "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+      "invalidName": "Verwende einen Namen mit höchstens 200 Zeichen.",
+      "consentRequired": "Stimme dem Erhalt des Newsletters zu, um ihn zu abonnieren.",
+      "invalid": "Prüfe die markierten Felder und versuche es erneut.",
+      "rateLimit": "Zu viele Anmeldeversuche. Warte ein paar Minuten und versuche es erneut.",
+      "unavailable": "Dieser Newsletter ist nicht verfügbar. Lade die Seite neu und versuche es erneut.",
+      "error": "Anmeldung fehlgeschlagen. Versuche es erneut."
     }
   }
 }

@@ -1,11 +1,15 @@
 "use client";
 
+import type { CreateProjectVideoJobRequest } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { AlertTriangle, Columns2, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,39 +17,48 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
+import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
+import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
+  startVideoGeneration,
+  writeStudioAssetCaption,
 } from "@/lib/actions/image-studio/action";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 
 import {
+  clampToModel,
   curatedModels,
+  modelById,
   modelIdForRepeat,
   resolveModel,
   settingsOf,
+  supportsVariation,
+  videoModelsFor,
 } from "./catalog";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+  STUDIO_COMPOSER_GUTTER_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
+import { StudioFailedSubmission } from "./studio-failed-submission";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
+import {
+  StudioModeSwitch,
+  StudioVideoComposer,
+  type StudioVideoDraft,
+  videoDraftFor,
+} from "./studio-video-composer";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -60,10 +73,13 @@ import {
 import {
   type GenerationRequest,
   type QueuedGeneration,
-  type QueueErrorCode,
   useGenerationQueue,
 } from "./use-generation-queue";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
+
+type VideoAspectRatio = NonNullable<
+  NonNullable<CreateProjectVideoJobRequest["settings"]>["aspectRatio"]
+>;
 
 const EMPTY_STUDIO_STATE: StudioState = {
   assets: [],
@@ -74,11 +90,17 @@ const EMPTY_STUDIO_STATE: StudioState = {
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
 
+interface StudioCaptionDraft {
+  text: string;
+  suggestion?: string;
+  previousText?: string;
+}
+
 /**
  * The studio.
  *
  * An empty studio offers style briefs in the center. Once generation starts,
- * results fill the feed and the styles sit above the composer below it. Models
+ * results fill the feed and the styles move into the composer's toolbar. Models
  * and generation settings remain summaries that open on demand.
  *
  * There is no conversational assistant here, by design. Generating images is a
@@ -97,7 +119,7 @@ export function ImageStudio({
   initialState,
   labels,
   projectId,
-  canScheduleSocial = false,
+  projectScopePrompt,
 }: {
   /**
    * The model catalog, read once by the page.
@@ -116,8 +138,7 @@ export function ImageStudio({
    * project before anything is sent.
    */
   projectId: string | null;
-  /** Social beta members can send a lightbox image into the composer. */
-  canScheduleSocial?: boolean;
+  projectScopePrompt?: React.ReactNode;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -144,6 +165,15 @@ export function ImageStudio({
     initialSelectedAssetId ? { mode: "single" } : null,
   );
   const [prompt, setPrompt] = useState("");
+  const [hasNewerSettings, setHasNewerSettings] = useState(false);
+  const [composerKey, setComposerKey] = useState(0);
+  const [parentAssetId, setParentAssetId] = useState<
+    string | null | undefined
+  >();
+  const [templateUndo, setTemplateUndo] = useState<{
+    prompt: string;
+    target: StudioTarget;
+  } | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
@@ -151,20 +181,30 @@ export function ImageStudio({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
-  /** A batch from the workspace view, held while its project is picked. */
-  const [awaitingProject, setAwaitingProject] = useState<
-    GenerationRequest[] | null
-  >(null);
+  const [captionByAssetId, setCaptionByAssetId] = useState<
+    Record<string, StudioCaptionDraft>
+  >({});
 
-  const [creatingProjectFor, setCreatingProjectFor] = useState<
-    GenerationRequest[] | null
-  >(null);
+  // Video: a second composer over the same gallery, shown only when Core
+  // offers a video model.
+  const hasVideo = catalog.videoModels.length > 0;
+  const [mode, setMode] = useState<"image" | "video">("image");
+  const [videoSource, setVideoSource] = useState<StudioAsset | null>(null);
+  const [videoDraft, setVideoDraft] = useState<StudioVideoDraft | null>(null);
+  const [videoBusy, startVideoTransition] = useTransition();
+  const videoModels = videoModelsFor(catalog, videoSource ? "image" : "text");
+  const activeVideoDraft =
+    videoDraft && videoModels.some((model) => model.id === videoDraft.modelId)
+      ? videoDraft
+      : videoModels[0]
+        ? videoDraftFor(videoModels[0])
+        : null;
 
   const [target, setTarget] = useState<StudioTarget>(() => {
     // The curated five, in Core's order. Only the opening selection: every one
     // of them can be unselected, the rest of the catalog can be added, and
-    // "Select all" still means all 152. Nothing below treats these five as
-    // special after this line.
+    // bulk selection is bounded by the 12-image purchase ceiling. Nothing
+    // below treats these five as special after this line.
     return {
       modelIds: curatedModels(catalog).map((model) => model.id),
       settings: {
@@ -227,11 +267,28 @@ export function ImageStudio({
   });
 
   const queue = useGenerationQueue({
-    onAccepted: useCallback(() => void refresh(), [refresh]),
+    onAccepted: useCallback(
+      ({ remaining }: { remaining: number }) => {
+        void refresh();
+        // Work started from "Everything" belongs to the project it was sent
+        // to: once the last request is in, the page moves there, so the
+        // sidebar's project switcher says where you are. Not before, because
+        // the page remounts per project and would drop what is still queued.
+        if (projectId === null && pickedProjectId && remaining === 0)
+          router.replace(switchScopeHref(pathname, pickedProjectId), {
+            scroll: false,
+          });
+      },
+      [refresh, projectId, pickedProjectId, router, pathname],
+    ),
   });
 
   const checkedAssets = useMemo(
-    () => state.assets.filter((asset) => checkedIds.includes(asset.id)),
+    () =>
+      checkedIds.flatMap((id) => {
+        const asset = state.assets.find((asset) => asset.id === id);
+        return asset ? [asset] : [];
+      }),
     [checkedIds, state.assets],
   );
 
@@ -266,10 +323,42 @@ export function ImageStudio({
       toast.error(labels.scheduleFailed);
       return;
     }
-    writeSocialComposePrefill(asset.projectId, { media: [result.value] });
+    const text = captionByAssetId[asset.id]?.text.trim();
+    writeSocialComposePrefill(asset.projectId, {
+      media: [result.value],
+      ...(text ? { text } : {}),
+    });
     router.push(
       `/social?projectId=${encodeURIComponent(asset.projectId)}&compose=new`,
     );
+  }
+
+  async function writeCaption(asset: StudioAsset) {
+    const textAtStart = captionByAssetId[asset.id]?.text;
+    const result = await writeStudioAssetCaption({
+      projectId: asset.projectId,
+      assetId: asset.id,
+    });
+    if (!result.ok) {
+      toast.error(labels.writeCaptionFailed);
+      return;
+    }
+    setCaptionByAssetId((current) => {
+      const caption = current[asset.id];
+      // Offer replacements; even clearing the text while waiting is an edit.
+      const preserveText =
+        caption?.text.trim() || caption?.text !== textAtStart;
+      return {
+        ...current,
+        [asset.id]: preserveText
+          ? {
+              ...caption,
+              text: caption?.text ?? "",
+              suggestion: result.value.text,
+            }
+          : { text: result.value.text },
+      };
+    });
   }
 
   /**
@@ -285,6 +374,12 @@ export function ImageStudio({
     from: "asset" | "job",
     reroll = false,
   ) {
+    if (
+      from === "asset" &&
+      !reroll &&
+      !supportsVariation(catalog, source.model)
+    )
+      return;
     const id = crypto.randomUUID();
     const request: QueuedGeneration = {
       id,
@@ -319,14 +414,18 @@ export function ImageStudio({
    *
    * It writes the brief and the frame and stops there: no submission, nothing
    * locked, and the caret goes into the prompt box, because the value of a
-   * template is the edit that follows it. Undoing one is retyping — the text is
-   * ordinary editable text, which is why this is not a mode.
+   * template is the edit that follows it. Replacing a typed brief keeps one
+   * undo snapshot until the next edit, settings change, or submission.
    *
    * The frame is set unconditionally. A model that cannot honour it is already
    * clamped per leg when the batch is built (`clampToModel`), which is the same
    * rule any other frame choice goes through.
    */
   function applyTemplate(template: StudioTemplate) {
+    setHasNewerSettings(true);
+    setTemplateUndo(
+      (current) => current ?? (prompt.trim() ? { prompt, target } : null),
+    );
     setPrompt(template.prompt);
     setTarget((current) => ({
       ...current,
@@ -337,6 +436,8 @@ export function ImageStudio({
 
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
+    setHasNewerSettings(true);
+    setTemplateUndo(null);
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
@@ -350,10 +451,11 @@ export function ImageStudio({
    *
    * References decide it when there are any, since Core takes them only from
    * the project the generation runs in. Otherwise the open project does, and
-   * in the workspace view the batch waits in `awaitingProject` while the
-   * person picks one.
+   * in the workspace view the batch waits while the person picks one in the
+   * header's project selector. Closing it leaves the brief untouched.
    */
   function handleGenerate(requests: GenerationRequest[]) {
+    setTemplateUndo(null);
     const referenceProjectIds = new Set(
       checkedAssets.map((asset) => asset.projectId),
     );
@@ -362,16 +464,65 @@ export function ImageStudio({
       return;
     }
     const target = [...referenceProjectIds][0] ?? activeProjectId;
-    if (target) sendTo(target, requests);
-    else setAwaitingProject(requests);
+    if (target) {
+      sendTo(target, requests);
+      return;
+    }
+    openProjectScope({
+      required: true,
+      reason: t("pickForGeneration"),
+      onSelect: (picked) => {
+        setPickedProjectId(picked);
+        sendTo(picked, requests);
+      },
+    });
   }
 
   function sendTo(target: string, requests: GenerationRequest[]) {
+    setTemplateUndo(null);
     setActionError(null);
     queue.enqueue(
       requests.map((request) => ({ ...request, projectId: target })),
     );
     setPrompt("");
+    setHasNewerSettings(false);
+  }
+
+  function canEditRequest(request: QueuedGeneration) {
+    const model = modelById(catalog, request.modelId);
+    if (!model || request.projectId !== activeProjectId) return false;
+    const { referenceAssetIds, parentAssetId, settings } = request;
+    if (
+      referenceAssetIds.some(
+        (id) =>
+          !state.assets.some(
+            (asset) => asset.id === id && asset.projectId === request.projectId,
+          ),
+      ) ||
+      (parentAssetId !== null &&
+        !state.assets.some(
+          (asset) =>
+            asset.id === parentAssetId && asset.projectId === request.projectId,
+        )) ||
+      (referenceAssetIds.length > 0 &&
+        (!model.editEndpoint || model.maxReferences < referenceAssetIds.length))
+    ) {
+      return false;
+    }
+    const restored = clampToModel(model, settings);
+    return (
+      restored.aspectRatio === settings.aspectRatio &&
+      restored.resolution === settings.resolution &&
+      restored.outputFormat === settings.outputFormat &&
+      (restored.seed ?? null) === (settings.seed ?? null)
+    );
+  }
+
+  function clearReferences() {
+    setTemplateUndo(null);
+    setCheckedIds([]);
+    setParentAssetId(undefined);
+    setHasNewerSettings(true);
   }
 
   function handleCancelJob(jobId: string) {
@@ -397,6 +548,55 @@ export function ImageStudio({
     });
   }
 
+  /** Open the video composer on a gallery image. */
+  function animate(asset: StudioAsset) {
+    setVideoSource(asset);
+    setVideoDraft(null);
+    setMode("video");
+    setViewing(null);
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }
+
+  function handleGenerateVideo() {
+    const projectForVideo = videoSource?.projectId ?? activeProjectId;
+    if (!projectForVideo || !activeVideoDraft) return;
+    const brief = prompt.trim();
+    // One key per press, reused if the same press is retried.
+    const idempotencyKey = `ui:${crypto.randomUUID()}`;
+    setActionError(null);
+    startVideoTransition(async () => {
+      const result = await startVideoGeneration({
+        projectId: projectForVideo,
+        modelId: activeVideoDraft.modelId,
+        prompt: brief,
+        settings: {
+          durationSeconds: activeVideoDraft.settings.durationSeconds,
+          resolution: activeVideoDraft.settings.resolution,
+          // Empty for an image-to-video model: its frame is the still's.
+          ...(activeVideoDraft.settings.aspectRatio
+            ? {
+                aspectRatio: activeVideoDraft.settings
+                  .aspectRatio as VideoAspectRatio,
+              }
+            : {}),
+        },
+        sourceAssetId: videoSource?.id ?? null,
+        sessionId: null,
+        idempotencyKey,
+      });
+      if (!result.ok) {
+        setActionError(
+          result.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE
+            ? labels.errorInsufficientCredits
+            : result.message,
+        );
+        return;
+      }
+      setPrompt("");
+      await refresh();
+    });
+  }
+
   function errorMessage(code: StudioErrorCode | null) {
     switch (code) {
       case "session_expired":
@@ -410,25 +610,7 @@ export function ImageStudio({
     }
   }
 
-  function queueMessage(code: QueueErrorCode | null) {
-    switch (code) {
-      case "insufficient_credits":
-        return labels.errorInsufficientCredits;
-      case "unreachable":
-        return labels.errorUnreachable;
-      default:
-        return null;
-    }
-  }
-
-  // The queue's own code first: where this page has wording of its own, it is
-  // translated, and Core's `message` is English.
-  const problem =
-    actionError ??
-    queueMessage(queue.lastErrorCode) ??
-    queue.lastError ??
-    errorMessage(studio.error) ??
-    null;
+  const problem = actionError ?? errorMessage(studio.error) ?? null;
 
   /**
    * How long each finished version took, from the jobs the state already
@@ -449,7 +631,8 @@ export function ImageStudio({
   const showsNothing =
     state.assets.length === 0 &&
     activeJobs.length === 0 &&
-    queue.queued.length === 0;
+    queue.queued.length === 0 &&
+    queue.failed.length === 0;
 
   // Chat-style feed: the scroller is `flex-col-reverse`, so scrollTop 0 is the
   // newest image and prepending older pages never moves what is on screen. The
@@ -473,23 +656,83 @@ export function ImageStudio({
     // Re-armed per page: a page that does not fill the viewport must fire again.
   }, [hasOlder, state.assets.length]);
 
-  const composer = (
-    <StudioComposer
-      busy={pending}
-      catalog={catalog}
+  const dock = useSteadyDock(promptRef);
+
+  const modeSwitch = hasVideo ? (
+    <StudioModeSwitch
       labels={labels}
-      onApplyTemplate={applyTemplate}
-      onClearReferences={() => setCheckedIds([])}
-      onGenerate={handleGenerate}
-      onPromptChange={setPrompt}
-      onTargetChange={setTarget}
-      prompt={prompt}
-      promptRef={promptRef}
-      referenceAssets={checkedAssets}
-      target={target}
-      showTemplates={!showsNothing}
+      mode={mode}
+      onModeChange={(next) => {
+        setMode(next);
+        if (next === "image") setVideoSource(null);
+      }}
     />
-  );
+  ) : null;
+
+  const composer =
+    mode === "video" && activeVideoDraft ? (
+      <StudioVideoComposer
+        busy={videoBusy}
+        canGenerate={(videoSource?.projectId ?? activeProjectId) !== null}
+        catalog={catalog}
+        draft={activeVideoDraft}
+        labels={labels}
+        modeSwitch={modeSwitch}
+        onClearSource={() => {
+          setVideoSource(null);
+          setVideoDraft(null);
+        }}
+        onDraftChange={setVideoDraft}
+        onGenerate={handleGenerateVideo}
+        onPromptChange={(value) => {
+          setTemplateUndo(null);
+          setPrompt(value);
+        }}
+        prompt={prompt}
+        promptRef={promptRef}
+        source={videoSource}
+      />
+    ) : (
+      <StudioComposer
+        key={composerKey}
+        modeSwitch={modeSwitch}
+        busy={pending}
+        catalog={catalog}
+        labels={labels}
+        onApplyTemplate={applyTemplate}
+        onClearReferences={clearReferences}
+        onCopiesChange={() => {
+          setTemplateUndo(null);
+          setHasNewerSettings(true);
+        }}
+        onGenerate={handleGenerate}
+        onPromptChange={(value) => {
+          setTemplateUndo(null);
+          setPrompt(value);
+        }}
+        onTargetChange={(update) => {
+          setTemplateUndo(null);
+          setTarget(update);
+          setHasNewerSettings(true);
+        }}
+        parentAssetId={parentAssetId}
+        prompt={prompt}
+        promptRef={promptRef}
+        referenceAssets={checkedAssets}
+        target={target}
+        showTemplates={!showsNothing}
+        onUndoTemplate={
+          templateUndo
+            ? () => {
+                setPrompt(templateUndo.prompt);
+                setTarget(templateUndo.target);
+                setTemplateUndo(null);
+                promptRef.current?.focus();
+              }
+            : undefined
+        }
+      />
+    );
 
   return (
     <div
@@ -500,24 +743,18 @@ export function ImageStudio({
         STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
     >
-      {problem ? (
-        <Notice
-          closeLabel={labels.close}
-          onDismiss={
-            queue.lastError || queue.lastErrorCode
-              ? queue.clearError
-              : undefined
-          }
-        >
-          {problem}
-        </Notice>
-      ) : null}
+      {problem ? <Notice closeLabel={labels.close}>{problem}</Notice> : null}
 
       <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
         <div
           className={cn(
             "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
-            showsNothing ? "justify-center" : "justify-end",
+            // The column cancels the page pad so the prompt docks to the
+            // edge; the gallery takes the composer's gutter back. The empty
+            // state's carousel stays edge to edge on purpose.
+            showsNothing
+              ? "justify-center"
+              : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
           <div ref={topRef} />
@@ -531,6 +768,7 @@ export function ImageStudio({
             <StudioTemplateCarousel
               labels={labels}
               onApplyTemplate={applyTemplate}
+              projectAction={projectScopePrompt}
             />
           ) : (
             <StudioGallery
@@ -547,18 +785,58 @@ export function ImageStudio({
               onReroll={(asset) => repeat(asset, "asset", true)}
               onReusePrompt={reusePrompt}
               onVariation={(asset) => repeat(asset, "asset")}
-              onToggleSelect={(assetId) =>
+              onToggleSelect={(assetId) => {
+                setTemplateUndo(null);
+                setParentAssetId(undefined);
+                setHasNewerSettings(true);
                 setCheckedIds((current) =>
                   current.includes(assetId)
                     ? current.filter((id) => id !== assetId)
                     : [...current, assetId],
-                )
-              }
+                );
+              }}
               queued={queue.queued}
               selectedIds={checkedIds}
-              showProject={projectId === null}
             />
           )}
+
+          {queue.failed.map((failure) => (
+            <StudioFailedSubmission
+              key={failure.request.id}
+              failure={failure}
+              hasNewerDraft={prompt.trim().length > 0 || hasNewerSettings}
+              labels={labels}
+              onDismiss={() => queue.dismissFailed(failure.request.id)}
+              onRetry={() => queue.retry(failure.request.id)}
+              onEdit={
+                canEditRequest(failure.request)
+                  ? () => {
+                      if (prompt.trim().length > 0 || hasNewerSettings) return;
+                      const { request } = failure;
+                      setTemplateUndo(null);
+                      setPrompt(request.prompt);
+                      setTarget({
+                        modelIds: [request.modelId],
+                        settings: request.settings,
+                      });
+                      setCheckedIds(request.referenceAssetIds);
+                      setParentAssetId(request.parentAssetId);
+                      setHasNewerSettings(true);
+                      // A saved failure is one leg, even if its batch had copies.
+                      setComposerKey((current) => current + 1);
+                      queue.dismissFailed(request.id);
+                      requestAnimationFrame(() => promptRef.current?.focus());
+                    }
+                  : undefined
+              }
+            />
+          ))}
+
+          {queue.failed.length > 0 ? (
+            <p className="text-muted-foreground text-xs">
+              {t("savedRequestsInTab")}
+            </p>
+          ) : null}
 
           {queue.waitingForSlot ? (
             <p className="text-muted-foreground text-xs leading-relaxed">
@@ -588,7 +866,12 @@ export function ImageStudio({
       </div>
 
       {checkedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-3 gap-y-2",
+            STUDIO_COMPOSER_GUTTER_CLASS,
+          )}
+        >
           <span className="grow" />
           <span className="text-muted-foreground text-xs tabular-nums">
             {t("selectedCount", { count: checkedIds.length })}
@@ -603,64 +886,20 @@ export function ImageStudio({
             <Columns2 aria-hidden />
             {labels.compareSelected}
           </Button>
-          <Button onClick={() => setCheckedIds([])} size="sm" variant="ghost">
+          <Button onClick={clearReferences} size="sm" variant="ghost">
             {labels.clearSelection}
           </Button>
         </div>
       ) : null}
 
-      {/* The composer is the anchor, so the question sits over the brief it
-      is about. Dismissing it leaves the brief untouched. */}
-      <Popover
-        onOpenChange={(open) => {
-          if (!open) setAwaitingProject(null);
-        }}
-        open={awaitingProject !== null}
-      >
-        <PopoverAnchor asChild>
-          <div>{composer}</div>
-        </PopoverAnchor>
-        <PopoverContent
-          align="end"
-          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
-          side="top"
+      <div className="relative shrink-0" ref={dock.slotRef}>
+        <div
+          className="bg-background absolute inset-x-0 bottom-0 pt-2"
+          ref={dock.dockRef}
         >
-          <p className="border-border shrink-0 border-b px-3 py-2 text-sm font-medium">
-            {t("pickForGeneration")}
-          </p>
-          <ProjectScopeMenu
-            includeWorkspace={false}
-            onCreate={() => setCreatingProjectFor(awaitingProject)}
-            onDone={() => setAwaitingProject(null)}
-            onSelect={(picked) => {
-              if (picked && awaitingProject) {
-                setPickedProjectId(picked);
-                sendTo(picked, awaitingProject);
-              }
-            }}
-            selectedProjectId={null}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <InlineCreateProjectModal
-        open={creatingProjectFor !== null}
-        onOpenChange={(open) => {
-          if (!open) setCreatingProjectFor(null);
-        }}
-        onCreated={({ projectId: createdId }) => {
-          if (creatingProjectFor) {
-            setPickedProjectId(createdId);
-            sendTo(createdId, creatingProjectFor);
-            setCreatingProjectFor(null);
-          }
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          promptRef.current?.focus();
-        }}
-        creationSource="project_switcher"
-      />
+          {composer}
+        </div>
+      </div>
 
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
@@ -669,11 +908,17 @@ export function ImageStudio({
           creditsByAssetId={credits}
           elapsedByAssetId={elapsed}
           labels={labels}
+          onAnimate={
+            videoModelsFor(catalog, "image").length > 0 ? animate : undefined
+          }
           onClose={() => setViewing(null)}
           onRegenerate={(asset) => repeat(asset, "asset")}
-          onSchedule={canScheduleSocial ? scheduleAsset : undefined}
+          onSchedule={scheduleAsset}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
+            setParentAssetId(undefined);
+            setHasNewerSettings(true);
+            setTemplateUndo(null);
             setCheckedIds([asset.id]);
             setPrompt("");
             setTarget((current) => ({
@@ -683,11 +928,101 @@ export function ImageStudio({
             setViewing(null);
             requestAnimationFrame(() => promptRef.current?.focus());
           }}
+          onWriteCaption={writeCaption}
+          caption={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]?.text
+              : undefined
+          }
+          captionSuggestion={
+            lightboxAssets.length === 1
+              ? captionByAssetId[lightboxAssets[0].id]?.suggestion
+              : undefined
+          }
+          onCaptionSuggestionResolve={(useSuggestion) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => {
+              const caption = current[asset.id];
+              if (caption?.suggestion === undefined) return current;
+              return {
+                ...current,
+                [asset.id]: useSuggestion
+                  ? { text: caption.suggestion, previousText: caption.text }
+                  : { ...caption, suggestion: undefined },
+              };
+            });
+          }}
+          onUndoCaption={
+            lightboxAssets.length === 1 &&
+            captionByAssetId[lightboxAssets[0].id]?.previousText !== undefined
+              ? () => {
+                  const assetId = lightboxAssets[0].id;
+                  setCaptionByAssetId((current) => {
+                    const caption = current[assetId];
+                    if (caption?.previousText === undefined) return current;
+                    return {
+                      ...current,
+                      [assetId]: {
+                        ...caption,
+                        text: caption.previousText,
+                        previousText: undefined,
+                      },
+                    };
+                  });
+                }
+              : undefined
+          }
+          onCaptionChange={(text) => {
+            const asset = lightboxAssets[0];
+            if (!asset) return;
+            setCaptionByAssetId((current) => ({
+              ...current,
+              [asset.id]: {
+                ...current[asset.id],
+                text,
+                previousText: undefined,
+              },
+            }));
+          }}
           siblings={state.assets}
         />
       ) : null}
     </div>
   );
+}
+
+/**
+ * Keep the gallery still while the prompt grows.
+ *
+ * The feed is a bottom-anchored scroller, so anything that shrank it moved
+ * every image on screen: each new line of a brief, or a long template landing
+ * in the box. The composer is docked over the feed's bottom edge instead, in a
+ * slot as tall as the composer minus whatever the prompt has grown past its
+ * resting height. A growing brief then rises over the feed, the way a sheet
+ * would, and the feed's height only follows the composer's own rows.
+ */
+function useSteadyDock(promptRef: RefObject<HTMLTextAreaElement | null>) {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    const dock = dockRef.current;
+    if (!slot || !dock) return;
+    const sync = () => {
+      const prompt = promptRef.current;
+      const growth = prompt
+        ? prompt.offsetHeight -
+          Number.parseFloat(getComputedStyle(prompt).minHeight)
+        : 0;
+      slot.style.height = `${dock.offsetHeight - (growth > 0 ? growth : 0)}px`;
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, [promptRef]);
+  return { slotRef, dockRef };
 }
 
 /**
@@ -734,7 +1069,7 @@ function FailedJob({
         </p>
         {job.error ? (
           <details>
-            <summary className="hover:text-foreground focus-visible:ring-ring-halo w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-[3px]">
+            <summary className="hover:text-foreground focus-visible:ring-ring w-fit cursor-pointer rounded text-xs outline-none select-none focus-visible:ring-2">
               {labels.failedDetails}
             </summary>
             <p className="mt-1 font-mono text-xs break-words">{job.error}</p>

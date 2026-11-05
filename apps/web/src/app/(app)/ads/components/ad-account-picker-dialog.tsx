@@ -75,7 +75,7 @@ export function AdAccountPickerDialog({
         >
           {accounts.map((account) => (
             <li key={account.externalAccountId}>
-              <label className="hover:bg-quinary flex cursor-pointer items-start gap-3 rounded-md px-2 py-2">
+              <label className="hover:bg-accent transition-colors flex cursor-pointer items-start gap-3 rounded-md px-2 py-2">
                 <Checkbox
                   checked={selected.has(account.externalAccountId)}
                   className="mt-0.5"

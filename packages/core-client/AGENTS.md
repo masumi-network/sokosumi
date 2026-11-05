@@ -23,10 +23,10 @@ import { NotificationPreferenceSchema } from "@sokosumi/core-client/schemas";
 
 ## Regenerating
 
-| Command | Purpose |
-| --- | --- |
+| Command                                                 | Purpose                                                                            |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `pnpm --filter @sokosumi/core-client generate:snapshot` | Writes Core's OpenAPI snapshot (no running server) and regenerates `src/generated` |
-| `pnpm --filter @sokosumi/core-client generate` | Regenerates from a running Core at `http://localhost:8787/v1/openapi.json` |
+| `pnpm --filter @sokosumi/core-client generate`          | Regenerates from a running Core at `http://localhost:8787/v1/openapi.json`         |
 
 After regenerating, run `pnpm typecheck` to catch DTO drift in consumers. Do not chain typecheck into the generate script. Commit the regenerated files as-is.
 

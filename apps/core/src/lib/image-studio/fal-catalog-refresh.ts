@@ -6,7 +6,16 @@ import {
   fetchFalCatalogSources,
   normaliseFalCatalog,
 } from "./fal-catalog-fetch";
+import {
+  fetchFalVideoCatalogSources,
+  normaliseFalVideoCatalog,
+} from "./fal-video-catalog-fetch";
 import type { ImageModel } from "./image-model";
+import {
+  setResolvedVideoCatalog,
+  verifiedVideoEndpoints,
+} from "./video-catalog";
+import type { VideoModel } from "./video-model";
 
 /**
  * Keeping the resolved catalog current, without ever making anybody wait for it.
@@ -46,10 +55,11 @@ const CATALOG_TTL_MS = 6 * 60 * 60 * 1000;
 
 /** Versioned so a shape change cannot be read back as the old shape. */
 const REDIS_KEY = "image-studio:fal-catalog:v1";
+const VIDEO_REDIS_KEY = "image-studio:fal-video-catalog:v1";
 
-interface SharedCatalogEntry {
+interface SharedCatalogEntry<Model> {
   fetchedAt: string;
-  models: ImageModel[];
+  models: Model[];
 }
 
 /** When the in-process copy stops being trusted. Zero means "never refreshed". */
@@ -75,8 +85,12 @@ export async function ensureImageCatalogFresh(): Promise<void> {
   // unreachable Redis must not turn every page load into a failed connection.
   markFresh();
 
-  const shared = await readSharedCatalog();
+  const [shared, sharedVideo] = await Promise.all([
+    readSharedCatalog<ImageModel>(REDIS_KEY),
+    readSharedCatalog<VideoModel>(VIDEO_REDIS_KEY),
+  ]);
   if (shared) setResolvedImageCatalog(shared.models, shared.fetchedAt);
+  if (sharedVideo) setResolvedVideoCatalog(sharedVideo.models);
 }
 
 /**
@@ -108,6 +122,9 @@ export async function refreshImageCatalog(options?: {
         markFresh();
         return;
       }
+      // First, because it is a dozen reads and the image crawl is two hundred:
+      // a crawl that runs out of budget should not take the short one with it.
+      await refreshVideoCatalog(apiKey, options?.shouldContinue);
       const sources = await fetchFalCatalogSources({
         fetchImpl: fetch,
         apiKey,
@@ -121,7 +138,10 @@ export async function refreshImageCatalog(options?: {
         );
         return;
       }
-      await writeSharedCatalog({ fetchedAt: sources.fetchedAt, models });
+      await writeSharedCatalog(REDIS_KEY, {
+        fetchedAt: sources.fetchedAt,
+        models,
+      });
       outcome = true;
       console.info("[image-studio] catalog refreshed from fal", {
         models: models.length,
@@ -143,13 +163,49 @@ export async function refreshImageCatalog(options?: {
   return outcome;
 }
 
-async function readSharedCatalog(): Promise<SharedCatalogEntry | null> {
+/**
+ * Crawl fal's verified video endpoints, adopt and share the result.
+ *
+ * Its own try: a failed video crawl keeps the last good video catalog and must
+ * not stop the image crawl that follows it.
+ */
+async function refreshVideoCatalog(
+  apiKey: string,
+  shouldContinue: (() => boolean) | undefined,
+): Promise<void> {
+  try {
+    const sources = await fetchFalVideoCatalogSources(
+      { fetchImpl: fetch, apiKey, shouldContinue },
+      verifiedVideoEndpoints(),
+    );
+    const { models, exclusions } = normaliseFalVideoCatalog(sources);
+    if (!setResolvedVideoCatalog(models)) {
+      console.warn(
+        "[image-studio] video catalog refresh produced no usable models; keeping the previous catalog",
+        { excluded: exclusions.length },
+      );
+      return;
+    }
+    await writeSharedCatalog(VIDEO_REDIS_KEY, {
+      fetchedAt: sources.fetchedAt,
+      models,
+    });
+  } catch (error) {
+    console.warn("[image-studio] video catalog refresh failed", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
+async function readSharedCatalog<Model>(
+  key: string,
+): Promise<SharedCatalogEntry<Model> | null> {
   const redis = getRedisClient();
   if (!redis) return null;
   try {
-    const raw = await redis.get(REDIS_KEY);
+    const raw = await redis.get(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as SharedCatalogEntry;
+    const parsed = JSON.parse(raw) as SharedCatalogEntry<Model>;
     if (!Array.isArray(parsed?.models) || parsed.models.length === 0)
       return null;
     return parsed;
@@ -162,11 +218,14 @@ async function readSharedCatalog(): Promise<SharedCatalogEntry | null> {
   }
 }
 
-async function writeSharedCatalog(entry: SharedCatalogEntry): Promise<void> {
+async function writeSharedCatalog<Model>(
+  key: string,
+  entry: SharedCatalogEntry<Model>,
+): Promise<void> {
   const redis = getRedisClient();
   if (!redis) return;
   try {
-    await redis.set(REDIS_KEY, JSON.stringify(entry), "PX", CATALOG_TTL_MS);
+    await redis.set(key, JSON.stringify(entry), "PX", CATALOG_TTL_MS);
   } catch (error) {
     console.warn("[image-studio] shared catalog write failed", {
       error: error instanceof Error ? error.message : "unknown",

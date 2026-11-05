@@ -3,7 +3,6 @@ import { TaskVisibility } from "@sokosumi/database";
 import {
   requireOwnerForPersonalWorkspace,
   requireTaskAssignableCoworker,
-  requireTaskAssignableSokoBot,
   requireTaskMoveAccess,
 } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
@@ -13,6 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
+import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { mapTask } from "@/helpers/task";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import { serializableTransaction } from "@/lib/db/transaction";

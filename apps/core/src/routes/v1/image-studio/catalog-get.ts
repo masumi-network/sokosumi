@@ -5,6 +5,7 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { imageStudioCatalogSchema } from "@/schemas/project-image-studio.schema";
 
@@ -23,7 +24,7 @@ const route = createRoute({
   method: "get",
   path: "/catalog",
   description:
-    "The image studio model catalog: every model the studio can generate with, what each can do, and fal's published price for each. Not project-scoped — capabilities and prices are the same for every project — and deliberately not part of the polled project state, which clients read every few seconds.",
+    "The image studio model catalog: every image and video model the studio can generate with, what each can do, and the price for each. Not project-scoped — capabilities and prices are the same for every project — and deliberately not part of the polled project state, which clients read every few seconds.",
   tags: ["Image Studio"],
   responses: {
     200: jsonSuccessResponse(
@@ -49,6 +50,15 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     await ensureImageCatalogFresh();
 
     c.header("Cache-Control", CACHE_CONTROL);
-    return ok(c, imageStudioCatalogSchema.parse(getImageCatalog()));
+    const video = getVideoCatalog();
+    return ok(
+      c,
+      imageStudioCatalogSchema.parse({
+        ...getImageCatalog(),
+        defaultVideoModelId: video.defaultModelId,
+        defaultAnimateModelId: video.defaultAnimateModelId,
+        videoModels: video.models,
+      }),
+    );
   });
 }

@@ -165,7 +165,7 @@
           state.rooms = [Self.channel()]
           state.openRoom.room.timeline.reset(roomId: Self.roomId)
           state.openRoom.room.timeline.failInitialLoad(message: "Fixture has no server", generation: state.openRoom.room.timeline.generation)
-          return try await Self.render(ChatComposerView(userId: userId, organizationId: nil, roomId: Self.roomId)
+          return try await Self.render(ChatComposerView(userId: userId, draftScope: .init(organizationId: nil), roomId: Self.roomId)
             .environmentObject(state).environmentObject(AuthState())
             .environmentObject(ComposeUploads(savedDraft: saved)).environmentObject(ComposerAttachmentIngress()),
             size: NSSize(width: 560, height: draft.isEmpty ? 200 : 380), dark: dark)

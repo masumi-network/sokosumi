@@ -51,6 +51,7 @@ const TASK_FIELDS = {
   tagClassificationAttempts: true,
   tagClassificationState: true,
   tagClassificationLease: true,
+  updatedAt: true,
 } satisfies Prisma.TaskSelect;
 
 // A create must never wait on the provider. Production measures 310-435ms per
@@ -271,6 +272,7 @@ async function runPendingTaskTags(
           data: {
             tagClassificationState: "failed",
             tagClassificationLease: null,
+            updatedAt: task.updatedAt,
           },
         });
         outcome = recovered.count ? "failed" : "stale";
@@ -288,6 +290,9 @@ async function runPendingTaskTags(
           tagClassificationLease: lease,
           tagClassificationAttempts: { increment: 1 },
           tagClassificationAvailableAt: new Date(Date.now() + LEASE_MS),
+          // Tagging is bookkeeping, not a change to the Task: keep its
+          // updatedAt, or a backfill floats every old Task to "just touched".
+          updatedAt: task.updatedAt,
         },
       });
       if (!claimed.count) {
@@ -338,6 +343,7 @@ async function runPendingTaskTags(
               tagClassificationState: "complete",
               tagClassificationLease: null,
               tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+              updatedAt: task.updatedAt,
             },
           });
           outcome = applied.count ? "completed" : "stale";
@@ -356,6 +362,7 @@ async function runPendingTaskTags(
               : "pending",
           tagClassificationLease: null,
           tagClassificationAvailableAt: new Date(Date.now() + LEASE_MS),
+          updatedAt: task.updatedAt,
         },
       });
       if (!released.count) {

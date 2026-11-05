@@ -42,7 +42,7 @@ export function AccountNoticeToast() {
     const borderColor =
       notice.tone === "destructive"
         ? "var(--semantic-destructive)"
-        : "var(--semantic-warning)";
+        : "var(--border)";
 
     toast(copy.title, {
       id: ACCOUNT_NOTICE_TOAST_ID,

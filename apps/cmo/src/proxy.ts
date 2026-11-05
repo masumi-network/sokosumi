@@ -1,7 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { getAuth, renewSession } from "./lib/auth";
+import { getAuth, hasSessionCookie, renewSession } from "./lib/auth";
 import { CMO_SIGN_IN_ERROR } from "./lib/sign-in-errors";
+
+/**
+ * The marketing site (public/site, from the cmo-website repo), served as is.
+ * Create account and sign in live on the unlinked /login for now.
+ */
+export const LANDING_PATH = "/site/index.html";
+
+/**
+ * A visit to the home page with no session sees the marketing site. A sign-in
+ * error still goes to the page, which hands it to /login.
+ */
+export function showsLanding(url: URL, signedIn: boolean): boolean {
+  return url.pathname === "/" && !signedIn && !url.searchParams.has("error");
+}
 
 /**
  * Renews Sokosumi access before a page renders. When renewal changes the
@@ -36,7 +50,11 @@ export async function proxy(request: NextRequest) {
     });
   }
   const cookies = renewal.headers.getSetCookie();
-  if (cookies.length === 0) return NextResponse.next();
+  if (cookies.length === 0) {
+    return showsLanding(request.nextUrl, hasSessionCookie(auth, request))
+      ? NextResponse.rewrite(new URL(LANDING_PATH, request.url))
+      : NextResponse.next();
+  }
 
   const target = request.nextUrl.clone();
   // CMO ended the session (a ban, a revoked token, a failed refresh).

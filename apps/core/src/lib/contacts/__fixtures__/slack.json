@@ -1,0 +1,161 @@
+{
+  "authTest": {
+    "ok": true,
+    "user_id": "U0OWNER",
+    "team_id": "T0YH",
+    "user": "patrick",
+    "team": "Yellowhouse"
+  },
+  "conversations": {
+    "channels": [
+      { "id": "D0NINA", "is_im": true, "user": "U0NINA" },
+      { "id": "D0BOT", "is_im": true, "user": "U0BOT" },
+      { "id": "D0BOB", "is_im": true, "user": "U0BOB" },
+      {
+        "id": "C0SMALL",
+        "is_channel": true,
+        "is_private": true,
+        "name": "acme-pilot"
+      },
+      { "id": "C0GENERAL", "is_channel": true, "name": "general" }
+    ],
+    "response_metadata": { "next_cursor": "" }
+  },
+  "members": {
+    "C0SMALL": { "members": ["U0OWNER", "U0NINA", "U0LUKAS"] },
+    "C0GENERAL": {
+      "members": ["U01", "U02", "U03", "U04", "U05", "U06", "U07", "U08", "U09"]
+    }
+  },
+  "history": {
+    "D0NINA": {
+      "messages": [
+        {
+          "type": "message",
+          "user": "U0NINA",
+          "text": "Sounds good",
+          "ts": "1792494000.000200"
+        },
+        {
+          "type": "message",
+          "user": "U0OWNER",
+          "text": "Sending the deck",
+          "ts": "1792490400.000100"
+        },
+        {
+          "type": "message",
+          "user": "U0NINA",
+          "text": "Hi!",
+          "ts": "1792144800.000100"
+        }
+      ],
+      "has_more": false
+    },
+    "D0BOT": {
+      "messages": [
+        {
+          "type": "message",
+          "user": "U0BOT",
+          "bot_id": "B01",
+          "text": "Reminder",
+          "ts": "1792494000.000300"
+        },
+        {
+          "type": "message",
+          "user": "U0OWNER",
+          "text": "thanks",
+          "ts": "1792494100.000300"
+        }
+      ]
+    },
+    "D0BOB": {
+      "messages": [
+        {
+          "type": "message",
+          "user": "U0OWNER",
+          "text": "lunch?",
+          "ts": "1792494000.000400"
+        },
+        {
+          "type": "message",
+          "user": "U0BOB",
+          "text": "yes",
+          "ts": "1792494060.000400"
+        }
+      ]
+    },
+    "C0SMALL": {
+      "messages": [
+        {
+          "type": "message",
+          "subtype": "channel_join",
+          "user": "U0LUKAS",
+          "ts": "1792486000.000100"
+        },
+        {
+          "type": "message",
+          "user": "U0LUKAS",
+          "text": "Specs attached",
+          "ts": "1792487000.000100"
+        },
+        {
+          "type": "message",
+          "user": "U0OWNER",
+          "text": "Thanks Lukas",
+          "ts": "1792488000.000100"
+        }
+      ]
+    }
+  },
+  "users": {
+    "U0NINA": {
+      "user": {
+        "id": "U0NINA",
+        "team_id": "T0ACME",
+        "real_name": "Nina Keller",
+        "is_bot": false,
+        "deleted": false,
+        "profile": {
+          "real_name": "Nina Keller",
+          "title": "Head of Partnerships",
+          "email": "nina.keller@acme-robotics.com",
+          "phone": ""
+        }
+      }
+    },
+    "U0BOT": {
+      "user": {
+        "id": "U0BOT",
+        "team_id": "T0YH",
+        "real_name": "Standup Bot",
+        "is_bot": true,
+        "profile": { "real_name": "Standup Bot" }
+      }
+    },
+    "U0BOB": {
+      "user": {
+        "id": "U0BOB",
+        "team_id": "T0YH",
+        "real_name": "Bob Teammate",
+        "is_bot": false,
+        "profile": {
+          "real_name": "Bob Teammate",
+          "email": "bob@yellowhouse.gmbh"
+        }
+      }
+    },
+    "U0LUKAS": {
+      "user": {
+        "id": "U0LUKAS",
+        "team_id": "T0ACME",
+        "real_name": "Lukas Meier",
+        "is_bot": false,
+        "profile": {
+          "real_name": "Lukas Meier",
+          "title": "CTO",
+          "phone": "+41 44 555 66 77"
+        }
+      }
+    }
+  }
+}

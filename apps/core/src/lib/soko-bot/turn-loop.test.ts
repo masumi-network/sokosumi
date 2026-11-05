@@ -138,10 +138,57 @@ describe("latestExchange", () => {
     expect(block).toContain(`Owner: ${offer.userMessage}`);
   });
 
-  it("stays out when the last turn was not chat or is a day old", () => {
+  it("repeats a post the bot made on its own, without Core's prompt", () => {
+    const block = latestExchange(
+      {
+        recentTurns: [
+          {
+            ...offer,
+            source: "INGEST",
+            userMessage: "New mail arrived that looks important…",
+            finalAnswer:
+              "DigitalOcean — masumi-payment-dev: deployment failed.",
+          },
+        ],
+      },
+      now,
+    ).join("\n");
+    expect(block).toContain(
+      "You, posted on your own (ingest): DigitalOcean — masumi-payment-dev: deployment failed.",
+    );
+    expect(block).not.toContain("Owner:");
+  });
+
+  it("repeats every post the bot made on its own since the owner last wrote", () => {
+    const post = (source: string, finalAnswer: string) => ({
+      ...offer,
+      source,
+      finalAnswer,
+    });
+    const block = latestExchange(
+      {
+        recentTurns: [
+          offer,
+          post("INGEST", "Make — s_New_Registration: two recent errors."),
+          post("INGEST", "DigitalOcean — masumi-payment-dev: deploy failed."),
+          post("SCHEDULE", "End of day: one Task completed."),
+        ],
+      },
+      now,
+    ).join("\n");
+    expect(block).not.toContain("Owner:");
+    expect(block).not.toContain("Want me to replace");
+    for (const line of [
+      "You, posted on your own (ingest): Make — s_New_Registration: two recent errors.",
+      "You, posted on your own (ingest): DigitalOcean — masumi-payment-dev: deploy failed.",
+      "You, posted on your own (schedule): End of day: one Task completed.",
+    ])
+      expect(block).toContain(line);
+  });
+
+  it("stays out when the last turn is a day old or missing", () => {
     const exchange = (turns: unknown[]) =>
       latestExchange({ recentTurns: turns }, now);
-    expect(exchange([{ ...offer, source: "EVENT" }])).toEqual([]);
     expect(
       exchange([{ ...offer, completedAt: "2026-09-28T18:00:00Z" }]),
     ).toEqual([]);
@@ -178,6 +225,16 @@ beforeEach(() => {
 });
 
 describe("finishTurn", () => {
+  it("shows the message, not the JSON, when a plain turn replies in JSON", async () => {
+    await finish(
+      '{"kind":"REPORT","message":"Team trials now lead.","question":null,"observationToolCallIds":[]}',
+      false,
+    );
+    expect(buildActionResponseMock.mock.calls[0][2]).toBe(
+      "Team trials now lead.",
+    );
+  });
+
   it("keeps plain prose as the bot's message on a turn that could act", async () => {
     await finish("Here is the draft for your review.", true);
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({

@@ -79,6 +79,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     task: t("Row.kind.task"),
     coworker: t("Row.kind.coworker"),
     sokoBot: t("Row.kind.sokoBot"),
+    contacts: t("Row.kind.contacts"),
     topUp: t("Row.kind.topUp"),
     unattributed: t("Row.kind.unattributed"),
   };

@@ -54,7 +54,7 @@ async function readSkill(
   return { name, description, path: skillPath };
 }
 
-export async function listSkills(): Promise<{
+async function listSkills(): Promise<{
   skillsDir: string;
   skills: SkillInfo[];
 }> {

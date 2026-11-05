@@ -1,7 +1,7 @@
 "use client";
 
 import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
-import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
+import { CheckCheck, Loader2, Sunrise } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,94 +9,64 @@ import {
   type ReactNode,
   useEffect,
   useEffectEvent,
-  useId,
   useTransition,
 } from "react";
 import { toast } from "sonner";
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
-import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
-import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
+import { CHAT_CATCH_UP_PATH } from "@/app/chat/utils/chat-route-base";
 import { useMarkFeatureSeen } from "@/app/components/sidebar/components/feature-badges";
 import {
-  SIDEBAR_FEATURE_LABEL_CLASS,
-  SidebarFeatureLabel,
-} from "@/app/components/sidebar/components/sidebar-feature-label";
-import { RailAttentionPill } from "@/components/chat/chat-room-sidebar-row";
-import { RowCountMark } from "@/components/chat/mention-count-pill";
+  NeedsYouPill,
+  RowCountMark,
+} from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   resolveUnreadThreadsAttention,
   roomUnreadReads,
 } from "@/components/chat/room-attention";
 import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
-import {
-  UnreadThreadsList,
-  useUnreadThreadsQuery,
-} from "@/components/chat/unread-threads-list";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRailSelectionBar,
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ICON_ACTION_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
+} from "@/components/ui/sidebar-classes";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useSidebarFlyout } from "@/hooks/use-sidebar-flyout";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
-/** A row at rest, as the room rows draw theirs. */
-const THREADS_ROW_CLASS =
-  "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+/**
+ * The Unreads chip: a word, not an icon, so it says what it filters. Its
+ * pseudo-element keeps the target at 44px on phones and 28px from md, as the
+ * icon buttons beside it do.
+ */
+const UNREADS_CHIP_CLASS =
+  "text-muted-foreground border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex h-7 items-center rounded-full border px-2 text-xs font-medium whitespace-nowrap transition-colors before:absolute before:-inset-2 before:content-[''] md:h-6 md:before:-inset-0.5";
 
-interface ChatUnreadNavRowsProps {
-  /** The sidebar's live rooms. The rows read these and nothing of their own. */
-  rooms: readonly ChatRoom[];
-  currentUserId: string;
-  /** When false, render plain links (page-mounted list outside a Sheet). */
-  dismissSheetOnNavigate?: boolean;
+interface ChatUnreadsFilterChipProps {
   /** The All unreads filter: the list below shows only rooms with unread. */
   unreadOnly: boolean;
   onUnreadOnlyChange: (unreadOnly: boolean) => void;
 }
 
 /**
- * The two entries above the channel list that gather every room's unread
- * (SOK-1159): Threads, the one place Thread unread drains to zero, and All
- * unreads, a filter on the list below that keeps only rooms with unread.
- * While the filter is on, Mark all as read stands on its row, in the slot a
- * section heading keeps its `+`.
- *
- * Neither is a room, so neither has a room menu, and both stay on the
- * collapsed rail as permanent items. Threads carries the same one number a
- * room row does, in the same column: the `@` pill where a Thread names the
- * reader, the muted count of unread Threads otherwise, nothing at zero. On
- * the rail it wears the room rows' edge pill. On the desktop it opens the
- * unread Threads in a popover beside it, each naming its room; on the phone
- * it goes to the Threads page.
- *
- * On the phone the list this sits in is the Chats tab, so both land there,
- * above the rooms, with no tab of their own.
+ * The All unreads filter's switch (⌘⇧U): the Unreads chip. The sidebar's
+ * Chats heading carries it; the phone's Chats page, which has no such
+ * heading, keeps it at the end of the Catch up row.
  */
-export function ChatUnreadNavRows({
-  rooms,
-  currentUserId,
-  dismissSheetOnNavigate = true,
+export function ChatUnreadsFilterChip({
   unreadOnly,
   onUnreadOnlyChange,
-}: ChatUnreadNavRowsProps) {
+}: ChatUnreadsFilterChipProps) {
   const t = useTranslations("App.Channels.UnreadNav");
-  const tChannels = useTranslations("App.Channels");
-  const pathname = usePathname();
-  const { isMobile, state: sidebarState } = useSidebar();
+  const { isMobile } = useSidebar();
   // The filter's keyboard path (SOK-1201), split by platform as every web
   // hotkey here is: ⌘⇧U on Apple, Ctrl+Shift+U elsewhere. Below the mobile
   // breakpoint there is no physical keyboard to press it.
@@ -139,28 +109,58 @@ export function ChatUnreadNavRows({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showsShortcut, isApplePlatform]);
 
-  const { threadCount, mentionCount, rail } =
-    resolveUnreadThreadsAttention(rooms);
-  const wrapLink = (link: ReactNode) =>
-    dismissSheetOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link;
+  // A mode, not a place: on, it takes the primary tint the app uses for what
+  // is on. Before React reads the remembered filter, the boot script's mark
+  // tints it the same way.
+  return (
+    <button
+      type="button"
+      aria-pressed={unreadOnly}
+      aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
+      title={showsShortcut ? shortcutHint : t("allUnreads")}
+      data-filter-on={unreadOnly ? "true" : undefined}
+      onClick={toggleUnreadOnly}
+      className={cn(
+        UNREADS_CHIP_CLASS,
+        unreadOnly
+          ? "bg-quinary text-foreground hover:bg-quinary active:bg-quinary"
+          : "chat-unreads-boot:bg-quinary chat-unreads-boot:text-foreground",
+      )}
+    >
+      {t("allUnreads")}
+    </button>
+  );
+}
 
-  const threadsActive = pathname === CHAT_THREADS_PATH;
-  const hasCount = threadCount > 0;
-  const [isMarking, startMarking] = useTransition();
-  // Every desktop row, at zero too: the panel then says the reader is caught
-  // up, so the row answers the pointer the same way whatever it holds.
-  const hasPanel = !isMobile;
-  const { open, setOpen, rowProps, contentProps } = useSidebarFlyout({
-    enabled: hasPanel,
-  });
-  const panelHeadingId = useId();
-  // Read ahead of the pointer, so the panel opens onto rows, not a spinner.
-  // At zero there is nothing to read: the rooms already say it.
-  useUnreadThreadsQuery({ rooms, enabled: hasPanel && hasCount });
-  const markAllTargets = rooms
+/** The rooms Mark all as read reads: those with anything unread to clear. */
+function markAllReadTargets(rooms: readonly ChatRoom[]) {
+  return rooms
     .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
     .filter((target) => target.readRoom || target.lookThreads);
-  const showMarkAll = unreadOnly && markAllTargets.length > 0;
+}
+
+interface ChatMarkAllReadButtonProps {
+  /** The sidebar's live rooms; it clears what these hold unread. */
+  rooms: readonly ChatRoom[];
+  /** Shown only while the All unreads filter is on. */
+  unreadOnly: boolean;
+}
+
+/**
+ * Mark all as read: it clears what the All unreads filter lists, so it shows
+ * only while the filter is on and something is unread, just before the
+ * Unreads chip, wherever the chip stands.
+ */
+export function ChatMarkAllReadButton({
+  rooms,
+  unreadOnly,
+}: ChatMarkAllReadButtonProps) {
+  const t = useTranslations("App.Channels.UnreadNav");
+  const [isMarking, startMarking] = useTransition();
+  const markAllTargets = markAllReadTargets(rooms);
+  if (!unreadOnly || markAllTargets.length === 0) {
+    return null;
+  }
 
   function handleMarkAllRead() {
     startMarking(async () => {
@@ -173,231 +173,173 @@ export function ChatUnreadNavRows({
     });
   }
 
-  const threadsRowContent = (
-    <>
-      <SidebarRowSlot>
-        <MessagesSquare className="size-4" aria-hidden />
-        {rail ? (
-          <span className="sr-only hidden group-data-[collapsible=icon]:block">
-            {rail === "mention"
-              ? tChannels("RoomMentions.railMention")
-              : tChannels("RoomUnread.railUnread")}
-          </span>
-        ) : null}
-      </SidebarRowSlot>
-      <span
-        className={cn(
-          SIDEBAR_ROW_LABEL_CLASS,
-          SIDEBAR_FEATURE_LABEL_CLASS,
-          hasCount && "text-foreground font-semibold",
-        )}
-      >
-        <SidebarFeatureLabel
-          label={t("threads")}
-          feature={AnnouncedFeature.THREADS}
-        />
-      </span>
-      {hasCount ? (
-        <span className="group-data-[collapsible=icon]:hidden sr-only">
-          {mentionCount > 0
-            ? `${t("mentions", { count: mentionCount })}, `
-            : null}
-          {threadCount > ROOM_COUNT_CAP
-            ? t("unreadThreadsCapped", { max: ROOM_COUNT_CAP })
-            : t("unreadThreads", { count: threadCount })}
-        </span>
-      ) : null}
-      {/* Holds the name clear of the count, drawn in the room pill's column. */}
-      {hasCount ? (
-        <span
-          aria-hidden
-          className="group-data-[collapsible=icon]:hidden size-4 shrink-0 [@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7"
-        />
-      ) : null}
-    </>
-  );
-
-  // A link to the Threads page everywhere. On the phone that is all it is:
-  // the Chats list fills the screen and leaves no side for a panel.
-  const threadsRow = (
-    <SidebarMenuButton
-      asChild
-      isActive={threadsActive}
-      // On the rail the panel names the row, so a tooltip would race it to
-      // the same spot. Without a panel the tooltip is all that names it.
-      tooltip={hasPanel ? undefined : t("threads")}
+  return (
+    <button
+      type="button"
+      aria-label={t("markAllRead")}
+      title={t("markAllRead")}
+      disabled={isMarking}
+      aria-busy={isMarking}
+      onClick={handleMarkAllRead}
+      className={cn(SIDEBAR_ICON_ACTION_CLASS, "text-foreground")}
     >
-      {wrapLink(
-        <Link
-          {...rowProps}
-          href={CHAT_THREADS_PATH}
-          aria-current={threadsActive ? "page" : undefined}
-          className={THREADS_ROW_CLASS}
-        >
-          {threadsRowContent}
-        </Link>,
+      {isMarking ? (
+        <Loader2
+          className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
+          aria-hidden
+        />
+      ) : (
+        <CheckCheck className="size-4 md:size-3.5" aria-hidden />
       )}
-    </SidebarMenuButton>
+    </button>
   );
+}
+
+interface ChatUnreadNavRowsProps {
+  /** The sidebar's live rooms. The row reads these and nothing of its own. */
+  rooms: readonly ChatRoom[];
+  /** What Mark all as read clears: `rooms`, and Pinned rooms of elsewhere. */
+  markAllRooms: readonly ChatRoom[];
+  /** When false, render plain links (page-mounted list outside a Sheet). */
+  dismissSheetOnNavigate?: boolean;
+  /** The All unreads filter: the list below shows only rooms with unread. */
+  unreadOnly: boolean;
+  /**
+   * Given, the Unreads chip stands at this row's end: the phone's Chats page.
+   * Left out where the sidebar's Chats heading carries the chip.
+   */
+  onUnreadOnlyChange?: (unreadOnly: boolean) => void;
+}
+
+/**
+ * One entry for everything the reader missed, first under the Chats heading:
+ * Catch up opens the written overview and the unread Threads (tabs of one
+ * page). Its count is what waits on the reader (the needs-you pill), else the
+ * Threads mark: the `@` pill where a Thread names them, the muted count of
+ * unread Threads otherwise. While the All unreads filter is on, Mark all as
+ * read stands at its end in the count's place, beside the Unreads chip where
+ * the row carries it. Where the Chats heading carries the chip, Mark all as
+ * read goes with it, and the row keeps neither.
+ */
+export function ChatUnreadNavRows({
+  rooms,
+  markAllRooms,
+  dismissSheetOnNavigate = true,
+  unreadOnly,
+  onUnreadOnlyChange,
+}: ChatUnreadNavRowsProps) {
+  const t = useTranslations("App.Channels.UnreadNav");
+  const pathname = usePathname();
+  const showsChip = onUnreadOnlyChange !== undefined;
+
+  const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);
+  const wrapLink = (link: ReactNode) =>
+    dismissSheetOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link;
+
+  const catchUpActive = pathname.startsWith(CHAT_CATCH_UP_PATH);
+  const tSignals = useTranslations("App.Channels.Signals");
+  // Everything waiting on the reader, across the rooms they have not muted.
+  const needsYouTotal = rooms.reduce(
+    (sum, room) =>
+      room.mutedAt == null ? sum + (room.unreadNeedsYouCount ?? 0) : sum,
+    0,
+  );
+  const showMarkAll =
+    showsChip && unreadOnly && markAllReadTargets(markAllRooms).length > 0;
+  // While the filter is on, the list below is the count; the row makes room
+  // for Mark all instead (where the row carries the chip; on the heading,
+  // Mark all sits beside it there).
+  const showCount = !unreadOnly && (needsYouTotal > 0 || threadCount > 0);
 
   return (
     <SidebarMenu className="gap-0" aria-label={t("label")}>
       <SidebarMenuItem className="relative">
-        <div className="relative">
-          {rail ? <RailAttentionPill variant={rail} /> : null}
-          {threadsActive ? <SidebarRailSelectionBar /> : null}
-          {hasPanel ? (
-            // The Projects row's flyout (`useSidebarFlyout`): a click still
-            // opens the page, the pointer or the arrow keys open the list
-            // beside the row, so the reader checks their Threads without
-            // leaving the room they are in.
-            <Popover open={open} onOpenChange={setOpen} modal={false}>
-              <PopoverAnchor asChild>{threadsRow}</PopoverAnchor>
-              <PopoverContent
-                side="right"
-                align="start"
-                sideOffset={8}
-                aria-labelledby={panelHeadingId}
-                className="app-scrollbar flex max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 flex-col gap-2 overflow-y-auto p-2"
-                {...contentProps}
-                // Following a row opens its Thread in its room; the panel has
-                // done its job there.
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest("a")) {
-                    setOpen(false);
-                  }
-                }}
-              >
-                <p
-                  id={panelHeadingId}
-                  className="px-2 pt-1 text-sm font-semibold"
-                >
-                  {t("threads")}
-                </p>
-                <UnreadThreadsList
-                  rooms={rooms}
-                  roomsLive
-                  currentUserId={currentUserId}
-                  variant="flyout"
-                />
-                <div className="bg-border h-px" />
-                <Link
-                  href={CHAT_THREADS_PATH}
-                  className="text-muted-foreground ring-sidebar-ring press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
-                >
-                  {t("allThreads")}
-                </Link>
-              </PopoverContent>
-            </Popover>
-          ) : (
-            threadsRow
-          )}
-          {hasCount ? (
-            <span
-              aria-hidden
-              data-slot="unread-threads-count"
-              className="group-data-[collapsible=icon]:hidden pointer-events-none absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center md:size-7"
+        <SidebarMenuButton asChild isActive={catchUpActive}>
+          {wrapLink(
+            <Link
+              href={CHAT_CATCH_UP_PATH}
+              aria-current={catchUpActive ? "page" : undefined}
+              className={SIDEBAR_ROW_LINK_CLASS}
+              data-testid="chat-catch-up-row"
             >
-              <RowCountMark mentionCount={mentionCount} count={threadCount} />
-            </span>
-          ) : null}
-        </div>
-      </SidebarMenuItem>
-      <SidebarMenuItem className="relative">
-        {/* A mode, not a place: grey fill says "the page you are on", so
-            the filter takes the primary tint the app uses for what is on
-            and for the reader instead. Like a selected row it holds still
-            under the pointer and the press, expanded and on the rail. The
-            classes go on the button primitive, whose merge lets them replace
-            its own hover fill; on the child they would only sit beside it,
-            and the grey would win. Before React reads the remembered filter,
-            the boot script's mark tints it the same way, so it does not
-            flip from off to on as the page hydrates. */}
-        <SidebarMenuButton
-          asChild
-          tooltip={showsShortcut ? shortcutHint : t("allUnreads")}
-          className={cn(
-            unreadOnly
-              ? [
-                  "bg-primary-quaternary text-primary-variant font-medium",
-                  "hover:bg-primary-quaternary hover:text-primary-variant",
-                  "active:bg-primary-quaternary active:text-primary-variant",
-                  "group-data-[collapsible=icon]:hover:bg-primary-quaternary group-data-[collapsible=icon]:active:bg-primary-quaternary",
-                ]
-              : [
-                  THREADS_ROW_CLASS,
-                  "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant chat-unreads-boot:font-medium",
-                  // The rail's hover and press selectors outrank the plain
-                  // boot tint, so they need their own, as the on state does.
-                  "chat-unreads-boot:group-data-[collapsible=icon]:hover:bg-primary-quaternary chat-unreads-boot:group-data-[collapsible=icon]:active:bg-primary-quaternary",
-                ],
-          )}
-        >
-          <button
-            type="button"
-            aria-pressed={unreadOnly}
-            aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
-            // The rail's tooltip names the shortcut; the expanded sidebar
-            // hides that tooltip, so the row names it on hover instead.
-            title={
-              showsShortcut && sidebarState !== "collapsed"
-                ? shortcutHint
-                : undefined
-            }
-            data-filter-on={unreadOnly ? "true" : undefined}
-            onClick={toggleUnreadOnly}
-          >
-            <SidebarRowSlot>
-              <Inbox className="size-4" aria-hidden />
-            </SidebarRowSlot>
-            <span
-              className={cn(
-                SIDEBAR_ROW_LABEL_CLASS,
-                SIDEBAR_FEATURE_LABEL_CLASS,
-              )}
-            >
-              <SidebarFeatureLabel
-                label={t("allUnreads")}
-                feature={AnnouncedFeature.UNREADS}
-              />
-            </span>
-            {unreadOnly ? (
-              <span className="sr-only">{t("filterOn")}</span>
-            ) : null}
-            {/* Mark all stands over the row's end, so the label stops short
-                of it rather than running underneath. */}
-            {showMarkAll ? (
+              <SidebarRowSlot>
+                <Sunrise aria-hidden />
+              </SidebarRowSlot>
               <span
-                aria-hidden
-                data-slot="mark-all-spacer"
-                className="group-data-[collapsible=icon]:hidden size-7 shrink-0"
-              />
-            ) : null}
-          </button>
-        </SidebarMenuButton>
-        {showMarkAll ? (
-          <div className="group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 -translate-y-1/2">
-            <button
-              type="button"
-              aria-label={t("markAllRead")}
-              title={t("markAllRead")}
-              disabled={isMarking}
-              aria-busy={isMarking}
-              onClick={handleMarkAllRead}
-              className={cn(
-                CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
-                "text-primary-variant",
-              )}
-            >
-              {isMarking ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
+                className={cn(
+                  SIDEBAR_ROW_LABEL_CLASS,
+                  (needsYouTotal > 0 || mentionCount > 0) &&
+                    "text-foreground font-semibold",
+                )}
+              >
+                {tSignals("catchUp")}
+              </span>
+              {needsYouTotal > 0 ? (
+                <span className="sr-only">
+                  {tSignals("needsYouCount", { count: needsYouTotal })}
+                </span>
+              ) : null}
+              {threadCount > 0 ? (
+                <span className="sr-only">
+                  {mentionCount > 0
+                    ? `${t("mentions", { count: mentionCount })}, `
+                    : null}
+                  {threadCount > ROOM_COUNT_CAP
+                    ? t("unreadThreadsCapped", { max: ROOM_COUNT_CAP })
+                    : t("unreadThreads", { count: threadCount })}
+                </span>
+              ) : null}
+              {showCount ? (
+                <span
                   aria-hidden
-                />
-              ) : (
-                <CheckCheck className="size-4 md:size-3.5" aria-hidden />
-              )}
-            </button>
+                  data-slot="catch-up-count"
+                  className="flex size-7 shrink-0 items-center justify-center"
+                >
+                  {needsYouTotal > 0 ? (
+                    <NeedsYouPill count={needsYouTotal} />
+                  ) : (
+                    <RowCountMark
+                      mentionCount={mentionCount}
+                      count={threadCount}
+                    />
+                  )}
+                </span>
+              ) : null}
+              {/* Holds the label clear of the buttons drawn over the end: the
+                  same boxes, unseen, so the hole is as wide as the chip's
+                  word is in the reader's language. */}
+              {showMarkAll || showsChip ? (
+                <span
+                  aria-hidden
+                  data-slot="catch-up-end-spacer"
+                  className="invisible flex shrink-0 items-center"
+                >
+                  {showMarkAll ? (
+                    <span
+                      data-slot="catch-up-end-spacer-action"
+                      className="size-7"
+                    />
+                  ) : null}
+                  {showsChip ? (
+                    <span className={UNREADS_CHIP_CLASS}>
+                      {t("allUnreads")}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </Link>,
+          )}
+        </SidebarMenuButton>
+        {onUnreadOnlyChange ? (
+          <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center">
+            <ChatMarkAllReadButton
+              rooms={markAllRooms}
+              unreadOnly={unreadOnly}
+            />
+            <ChatUnreadsFilterChip
+              unreadOnly={unreadOnly}
+              onUnreadOnlyChange={onUnreadOnlyChange}
+            />
           </div>
         ) : null}
       </SidebarMenuItem>

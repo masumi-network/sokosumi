@@ -124,13 +124,24 @@ describe("sanitizeMarkdown", () => {
 
   it("keeps mention Direct chip identity on spans", () => {
     const sanitized = sanitizeMarkdown(
-      '<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
+      '<span class="text-foreground font-medium whitespace-nowrap" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
     );
 
     expect(sanitized).toContain('data-direct-kind="coworker"');
     expect(sanitized).toContain('data-direct-id="cow_1"');
     expect(sanitized).toContain("whitespace-nowrap");
     expect(sanitized).toContain("@Elena");
+  });
+
+  it("drops text-primary from saved mention chips, which then inherit the text colour", () => {
+    // The primary is a fill only. Chips saved before the change carry the
+    // class; without it they render like new chips.
+    const sanitized = sanitizeMarkdown(
+      '<span class="text-primary font-medium" data-direct-kind="user" data-direct-id="u_1">@Ana</span>',
+    );
+
+    expect(sanitized).not.toContain("text-primary");
+    expect(sanitized).toContain("font-medium");
   });
 
   it("keeps markdown blockquote markers that sanitize-html would encode", () => {
@@ -172,7 +183,7 @@ describe("sanitizeMarkdown", () => {
 
   it("drops an authored mark and keeps its text", () => {
     expect(
-      sanitizeMarkdown('a <mark class="bg-primary-tertiary">found</mark> word'),
+      sanitizeMarkdown('a <mark class="bg-quaternary">found</mark> word'),
     ).toBe("a found word");
   });
 

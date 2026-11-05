@@ -59,7 +59,12 @@ let labelId = "";
 /** One extracted document, ready for a suggestion run. */
 async function createResource(input: {
   name: string;
-  extractionState: "INDEXED" | "PARTIAL" | "UNSUPPORTED";
+  extractionState:
+    | "INDEXED"
+    | "PARTIAL"
+    | "UNSUPPORTED"
+    | "QUARANTINED"
+    | "PENDING";
 }): Promise<string> {
   const resource = await prisma.fileResource.create({
     data: {
@@ -293,17 +298,32 @@ describe.skipIf(!enabled)("the suggestion backfill sweep", () => {
     expect(await suggestJobsFor(resourceId)).toHaveLength(1);
   });
 
-  it("leaves a document with no readable text alone", async () => {
-    // Five of ten production rows are UNSUPPORTED — mp4, svg, zip. There is
-    // nothing for the model to have an opinion about, and asking anyway is the
-    // whole per-document cost of this sweep spent on nothing.
+  it("gives a document with no readable text its one run, judged on metadata", async () => {
+    // Five of ten production rows are UNSUPPORTED — mp4, svg, zip. They are
+    // labelled from their name, type, size and folder rather than left with
+    // no labels for good.
     const resourceId = await createResource({
       name: "clip.mp4",
       extractionState: "UNSUPPORTED",
     });
 
     await backfillMissingSuggestionJobs();
-    expect(await suggestJobsFor(resourceId)).toHaveLength(0);
+    expect(await suggestJobsFor(resourceId)).toHaveLength(1);
+  });
+
+  it("leaves a quarantined document and one still extracting alone", async () => {
+    const quarantined = await createResource({
+      name: "suspect.exe",
+      extractionState: "QUARANTINED",
+    });
+    const extracting = await createResource({
+      name: "pending.pdf",
+      extractionState: "PENDING",
+    });
+
+    await backfillMissingSuggestionJobs();
+    expect(await suggestJobsFor(quarantined)).toHaveLength(0);
+    expect(await suggestJobsFor(extracting)).toHaveLength(0);
   });
 
   it("does not duplicate work that is already queued", async () => {

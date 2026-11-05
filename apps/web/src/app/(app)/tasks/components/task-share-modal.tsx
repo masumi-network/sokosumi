@@ -174,7 +174,7 @@ export function TaskShareModal({
             <div className="divide-y rounded-md border">
               <div
                 className={cn(
-                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-[background-color,opacity,transform]",
+                  "press hover:bg-accent flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-[background-color,opacity,transform]",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -189,12 +189,12 @@ export function TaskShareModal({
                   </p>
                 </div>
                 {taskShare?.token ? (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 ) : null}
               </div>
               <div
                 className={cn(
-                  "press hover:bg-card-background flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-[background-color,opacity,transform]",
+                  "press hover:bg-accent flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-[background-color,opacity,transform]",
                   {
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
@@ -209,7 +209,7 @@ export function TaskShareModal({
                   </p>
                 </div>
                 {!taskShare?.token ? (
-                  <Check className="text-semantic-success size-4" />
+                  <Check className="text-foreground size-4" />
                 ) : null}
               </div>
             </div>

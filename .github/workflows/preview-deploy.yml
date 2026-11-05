@@ -40,7 +40,11 @@ jobs:
       cancel-in-progress: false
       queue: max
     permissions:
-      contents: read
+      # Write: a fork PR deploys from `preview-fork/pr-<number>`, which this
+      # job points at the approved SHA. Vercel refused env vars scoped to
+      # `refs/pull/<number>/head`. GitHub starts no workflow run for a ref
+      # GITHUB_TOKEN writes.
+      contents: write
       pull-requests: write
       issues: write
     runs-on: ubuntu-latest
@@ -50,6 +54,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           # Privileged (VERCEL_TOKEN). Default branch only — never a PR tree.
+          # A fork PR deploys only the head SHA its `/deploy` comment names;
+          # Vercel builds that commit, this job never checks it out.
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
@@ -129,7 +135,10 @@ jobs:
   closed:
     name: Closed preview
     # workflow_run is default-branch YAML. Skip failed/cancelled signals and
-    # fork heads. The script re-checks the PR is closed and same-repo.
+    # fork heads: a fork's signal has no trusted PR number. The script
+    # re-checks the PR is closed and targets this repo. A fork PR's preview
+    # (from an approved `/deploy <network> <sha>`) is removed by the daily
+    # `reconcile` job instead.
     # Match the signal by path: its run-name (the PR number) replaces
     # workflow_run.name, so a name check never matches.
     if: >
@@ -177,6 +186,8 @@ jobs:
 
   renew:
     name: Renew preview expiry
+    # Fork heads are skipped here and in the script: a push to a fork never
+    # renews or deploys its preview. Its database expires after 24 hours.
     # Known gap: pull_request workflows do not run while a PR has merge
     # conflicts, so PR synchronize never fires and pushes to a conflicted PR
     # do not renew. Its preview DB expires after PREVIEW_TTL_MS (24h); resolve
@@ -271,7 +282,8 @@ jobs:
       queue: max
     environment: preview-database
     permissions:
-      contents: read
+      # Write: deletes a closed fork PR's `preview-fork/pr-<number>` branch.
+      contents: write
       pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 40

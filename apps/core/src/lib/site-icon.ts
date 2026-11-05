@@ -43,6 +43,15 @@ const STANDARD_ICON_RELS = new Set(["icon", "shortcut icon", "shortcut"]);
  */
 const ASSUMED_APPLE_ICON_SIZE = 180;
 
+/** How far from square an image may be and still read as a logo. */
+const MAX_LOGO_ASPECT = 1.25;
+const SHARE_CARD_DIMENSIONS: Record<string, "width" | "height"> = {
+  "og:image:width": "width",
+  "og:image:height": "height",
+  "twitter:image:width": "width",
+  "twitter:image:height": "height",
+};
+
 interface IconCandidate {
   url: string;
   /** Largest declared square dimension in px, or 0 when unknown. */
@@ -94,7 +103,8 @@ function attr(tag: string, name: string): string | undefined {
 
 /**
  * Pull icon candidates out of page HTML: apple-touch-icon and `<link rel=icon>`
- * (ranked by declared size), then og:image as a lower-priority fallback.
+ * (ranked by declared size), then og:image as a lower-priority fallback when
+ * its declared size is about square.
  * Relative hrefs are resolved against `baseUrl`.
  */
 export function parseIconCandidates(
@@ -142,6 +152,11 @@ export function parseIconCandidates(
     });
   }
 
+  // A share card is a wide banner (1.91:1 by convention), so cropped to a
+  // square logo it shows a sliver of the picture. Only a card whose declared
+  // size is about square stands in for a logo.
+  const shareCards: string[] = [];
+  const declared: Record<string, number> = {};
   for (const match of head.matchAll(/<meta\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi)) {
     const tag = match[0];
     const prop = (
@@ -149,16 +164,31 @@ export function parseIconCandidates(
       attr(tag, "name") ??
       ""
     ).toLowerCase();
-    if (prop !== "og:image" && prop !== "twitter:image") continue;
     const content = attr(tag, "content");
     if (!content) continue;
-    try {
-      candidates.push({
-        url: new URL(content, baseUrl).toString(),
-        size: 0,
-        priority: 1,
-      });
-    } catch {}
+    if (prop === "og:image" || prop === "twitter:image") {
+      shareCards.push(content);
+      continue;
+    }
+    const dimension = SHARE_CARD_DIMENSIONS[prop];
+    const value = Number.parseInt(content, 10);
+    if (dimension && value > 0) declared[dimension] ??= value;
+  }
+  const { width, height } = declared;
+  const squareCard =
+    width !== undefined &&
+    height !== undefined &&
+    Math.max(width, height) / Math.min(width, height) <= MAX_LOGO_ASPECT;
+  if (squareCard) {
+    for (const content of shareCards) {
+      try {
+        candidates.push({
+          url: new URL(content, baseUrl).toString(),
+          size: Math.min(width, height),
+          priority: 1,
+        });
+      } catch {}
+    }
   }
 
   return candidates;

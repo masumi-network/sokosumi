@@ -57,7 +57,7 @@ function mention(
 }
 
 function hoverChip(kind: "human" | "coworker", id: string, label: string) {
-  return `<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
+  return `<span class="text-foreground font-medium whitespace-nowrap" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
 }
 
 describe("formatRoomMarkdownMentions", () => {
@@ -114,7 +114,7 @@ describe("formatRoomMarkdownMentions", () => {
     expect(formatted).toContain("@Elena");
     expect(formatted).toContain("@Alice Smith");
     expect(formatted).toContain(
-      'class="text-primary font-medium whitespace-nowrap"',
+      'class="text-foreground font-medium whitespace-nowrap"',
     );
   });
 
@@ -128,7 +128,7 @@ describe("formatRoomMarkdownMentions", () => {
     });
 
     expect(formatted).toBe("@missing:ghost hey");
-    expect(formatted).not.toContain("text-primary");
+    expect(formatted).not.toContain("text-foreground");
   });
 
   it("leaves a departed roster mention unstyled", () => {
@@ -142,7 +142,7 @@ describe("formatRoomMarkdownMentions", () => {
 
     expect(formatted).toBe(`@${human.id}:alice-smith please look`);
     expect(formatted).not.toContain("data-direct-kind");
-    expect(formatted).not.toContain("text-primary");
+    expect(formatted).not.toContain("text-foreground");
   });
 
   it("does not highlight bare @words or email local-parts", () => {
@@ -155,7 +155,7 @@ describe("formatRoomMarkdownMentions", () => {
     });
 
     expect(formatted).toBe("ping @nobody and alice@example.com");
-    expect(formatted).not.toContain("text-primary");
+    expect(formatted).not.toContain("text-foreground");
   });
 
   it("highlights only resolved mentions when mixed with bare @words", () => {
@@ -170,7 +170,7 @@ describe("formatRoomMarkdownMentions", () => {
 
     expect(formatted).toContain(hoverChip("coworker", coworker.id, "Elena"));
     expect(formatted).toContain("and @nobody please");
-    expect(formatted.match(/text-primary/g)).toHaveLength(1);
+    expect(formatted.match(/text-foreground/g)).toHaveLength(1);
   });
 
   it("renders @all:all as a localized chip without member lookup", () => {
@@ -224,7 +224,7 @@ describe("parseMentionDirectChip", () => {
   it("rejects inert mention chips and Channel links", () => {
     const root = document.createElement("div");
     root.innerHTML =
-      '<span class="text-primary font-medium">@all</span> <a href="/chat/rooms/room-1">#general</a>';
+      '<span class="text-foreground font-medium">@all</span> <a href="/chat/rooms/room-1">#general</a>';
     const allChip = root.querySelector("span");
     const channelLink = root.querySelector("a");
     expect(allChip).not.toBeNull();

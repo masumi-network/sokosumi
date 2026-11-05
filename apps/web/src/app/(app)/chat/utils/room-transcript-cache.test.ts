@@ -1,7 +1,8 @@
-import type { ChatRoomMessage } from "@sokosumi/core-client";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
+import { rememberPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
@@ -327,6 +328,93 @@ describe("room open prefetched on click", () => {
     expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
   });
 
+  function provisional() {
+    return vi.fn(() => ({
+      activeOrganization: { id: "workspace", slug: null },
+      rooms: [],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [],
+      messagesNextCursor: null,
+      loadHistoryOnClient: true,
+    }));
+  }
+
+  it("paints a room from the click's read before its page registers", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    const props = provisional();
+    cache.prefetch("room", props);
+    await vi.waitFor(() => expect(cache.get("room")).toBeDefined());
+    const entry = cache.get("room")!;
+    expect(entry.resolved).toBe(true);
+    expect(entry.transcript.messages).toEqual([message(90)]);
+    expect(entry.bootstrap.selectedRoomId).toBe("room");
+
+    // The room's mount read is the click's read, not a second request.
+    await cache.refresh("room", entry.lifetime, () => true);
+    expect(fetchRoomMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not paint a room whose click read was refused", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(null);
+    const props = provisional();
+    cache.prefetch("room", props);
+    await vi.waitFor(() => expect(fetchRoomMessages).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(props).not.toHaveBeenCalled();
+    expect(cache.get("room")).toBeUndefined();
+  });
+
+  it("keeps the page's bootstrap when it registers before the click's read", async () => {
+    const { cache, seed } = opening();
+    let land: (page: typeof head) => void = () => {};
+    vi.mocked(fetchRoomMessages).mockReturnValue(
+      new Promise((resolve) => {
+        land = resolve;
+      }),
+    );
+    const props = provisional();
+    cache.prefetch("room", props);
+    seed();
+    land(head);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(props).not.toHaveBeenCalled();
+    expect(cache.get("room")?.bootstrap.activeOrganization).toBeNull();
+  });
+
+  it("hands the click's open-at-unread read to one visit", async () => {
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetchUnreadWindow("room");
+    expect(vi.mocked(fetchRoomMessages).mock.calls[0]?.[2]).toEqual({
+      openAtUnread: true,
+    });
+
+    await expect(cache.takeUnreadWindow("room")).resolves.toEqual(head);
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
+  it("drops a click's open-at-unread read after the open window or an eviction", () => {
+    vi.useFakeTimers();
+    const { cache } = opening();
+    vi.mocked(fetchRoomMessages).mockResolvedValue(head);
+    cache.prefetchUnreadWindow("room");
+    vi.advanceTimersByTime(10_001);
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+
+    cache.prefetchUnreadWindow("room");
+    cache.evict("room");
+    expect(cache.takeUnreadWindow("room")).toBeUndefined();
+  });
+
   it("does not hand an old click's read to a later open", async () => {
     vi.useFakeTimers();
     const { cache, seed } = opening();
@@ -335,5 +423,62 @@ describe("room open prefetched on click", () => {
     vi.advanceTimersByTime(10_001);
     await cache.refresh("room", seed(), () => true);
     expect(fetchRoomMessages).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("RoomTranscriptCache.forWorkspace", () => {
+  beforeEach(() => {
+    rememberPinnedRooms("", []);
+  });
+
+  function cacheWithOpenRoom(starredAt: Date | null) {
+    const cache = new RoomTranscriptCache(new QueryClient(), "reader", "org-2");
+    const entry = cache.seed({
+      activeOrganization: null,
+      rooms: [
+        {
+          id: "room",
+          organizationId: "org-2",
+          kind: "channel",
+          discoverability: "public",
+          myAccess: "member",
+          coworkerMembers: [],
+          sokoBotMembers: [],
+          starredAt,
+        } as Partial<ChatRoom> as ChatRoom,
+      ],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [message(1)],
+      messagesNextCursor: null,
+    });
+    cache.client.setQueryData(cache.key("room"), entry);
+    return { cache, entry };
+  }
+
+  it("keeps a pinned room painted on a switch to a third workspace", () => {
+    const { cache, entry } = cacheWithOpenRoom(
+      new Date("2026-08-01T00:00:00.000Z"),
+    );
+
+    expect(cache.forWorkspace("org-3", "room").get("room")).toBe(entry);
+  });
+
+  it("keeps a room pinned since it opened painted on a switch", () => {
+    const { cache, entry } = cacheWithOpenRoom(null);
+    rememberPinnedRooms("reader", [{ id: "room" } as ChatRoom]);
+
+    expect(cache.forWorkspace("org-3", "room").get("room")).toBe(entry);
+  });
+
+  it("drops an unpinned room on a switch to a third workspace", () => {
+    const { cache } = cacheWithOpenRoom(null);
+
+    expect(cache.forWorkspace("org-3", "room").get("room")).toBeUndefined();
   });
 });

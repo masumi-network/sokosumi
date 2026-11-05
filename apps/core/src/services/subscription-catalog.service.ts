@@ -9,11 +9,6 @@ import type Stripe from "stripe";
 import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
 
-/**
- * Port of the web app's subscription catalog
- * (`apps/web/src/lib/stripe/subscription-catalog.ts`) for core's invoice
- * credit engine.
- */
 export interface SubscriptionCatalogPlan {
   credits: number;
   currency: string;

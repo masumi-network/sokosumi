@@ -22,7 +22,10 @@ const organizationSeatActionSchema = z.object({
 
 function parseSeatActionError(error: unknown): ActionError {
   if (error instanceof Error) {
-    const errorWithStatus = error as Error & { status?: unknown };
+    const errorWithStatus = error as Error & {
+      body?: { kind?: string };
+      status?: unknown;
+    };
     if (errorWithStatus.status === "FORBIDDEN") {
       return {
         code: CommonErrorCode.UNAUTHORIZED,
@@ -40,6 +43,7 @@ function parseSeatActionError(error: unknown): ActionError {
     ) {
       return {
         code: CommonErrorCode.BAD_INPUT,
+        kind: errorWithStatus.body?.kind,
         message: error.message,
       };
     }

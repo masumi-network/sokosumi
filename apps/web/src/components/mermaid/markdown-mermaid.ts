@@ -4,7 +4,8 @@ import { unified } from "unified";
 interface MarkdownNode {
   type: string;
   lang?: string | null;
-  value?: string;
+  // @m2d/mdast augments svg.value with Promise<RenderResult>. Code fences stay strings.
+  value?: string | Promise<unknown>;
   children?: MarkdownNode[];
   // unist points are independently optional: `mdast-util-to-hast` builds
   // `position` from `pointStart`/`pointEnd`, either of which can be undefined.
@@ -60,7 +61,7 @@ export function prepareMermaidMarkdown({
           .trim() ?? "";
       tokens.set(token, {
         raw,
-        source: node.value ?? "",
+        source: typeof node.value === "string" ? node.value : "",
         overLimit: tokens.size >= 8,
         complete: Boolean(
           fence &&
@@ -72,7 +73,11 @@ export function prepareMermaidMarkdown({
     }
     node.children?.forEach(collect);
   }
-  collect(unified().use(remarkParse).parse(source));
+  // A mermaid fence names its language. Without the word there is none to
+  // find, and most messages skip a second full parse.
+  if (/mermaid/i.test(source)) {
+    collect(unified().use(remarkParse).parse(source));
+  }
   protectedSource += source.slice(cursor);
   const blocks = new Map<number, MermaidSource>();
   let delta = 0;

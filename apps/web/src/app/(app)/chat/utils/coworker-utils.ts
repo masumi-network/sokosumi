@@ -1,10 +1,6 @@
-/**
- * Get suggestions based on coworker ID
- */
-
 import type { Coworker as CoreCoworker } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import type { ChatComposeKind, Coworker } from "@/app/chat/utils/types";
+import type { Coworker } from "@/app/chat/utils/types";
 
 export type CoworkerCapability = "chat" | "tasks";
 
@@ -47,51 +43,6 @@ export function coworkerCanChat(coworker: CoworkerAvailability): boolean {
     coworkerHasCapability(coworker, "chat") &&
     hasRunnableChatEndpoint(coworker)
   );
-}
-
-export function coworkerCanHandleTasks(
-  coworker: CoworkerAvailability,
-): boolean {
-  return isActiveCoworker(coworker) && coworkerHasCapability(coworker, "tasks");
-}
-
-export function filterCoworkersForComposeKind(
-  coworkers: Coworker[],
-  composeKind: ChatComposeKind,
-): Coworker[] {
-  if (composeKind === "task") {
-    return coworkers.filter(coworkerCanHandleTasks);
-  }
-
-  return coworkers.filter(coworkerCanChat);
-}
-
-export const DEFAULT_COWORKER_SLUG = "elena";
-
-export function findCoworkerBySlugOrId(
-  coworkers: Coworker[],
-  slugOrId: string,
-): Coworker | null {
-  const normalized = slugOrId.trim().toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-  return (
-    coworkers.find((coworker) => coworker.slug?.toLowerCase() === normalized) ??
-    coworkers.find((coworker) => coworker.id.toLowerCase() === normalized) ??
-    null
-  );
-}
-
-export function findDefaultCoworker(
-  coworkers: Coworker[],
-  preferredSlug: string = DEFAULT_COWORKER_SLUG,
-): Coworker | null {
-  const preferred = findCoworkerBySlugOrId(coworkers, preferredSlug);
-  if (preferred) {
-    return preferred;
-  }
-  return coworkers[0] ?? null;
 }
 
 const DEFAULT_COWORKER_AVATARS: Record<string, string> = {

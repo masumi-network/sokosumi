@@ -40,9 +40,12 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { startTurn, reconcileTurn },
 }));
 
+const { loadRoomContextMessages } = vi.hoisted(() => ({
+  loadRoomContextMessages: vi.fn(),
+}));
 vi.mock("./chat-room-mention-context", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./chat-room-mention-context")>()),
-  loadRoomContextMessages: vi.fn().mockResolvedValue([]),
+  loadRoomContextMessages,
 }));
 
 import {
@@ -91,6 +94,7 @@ function input(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  loadRoomContextMessages.mockResolvedValue([]);
   findMember.mockResolvedValue({ id: "member-a" });
   claim.mockResolvedValue(true);
   placeholder.mockResolvedValue("response-a");
@@ -102,6 +106,9 @@ describe("Soko Bot mention dispatch", () => {
     await runSokoBotMentionDispatch(input());
     expect(startTurn).toHaveBeenCalledWith(
       expect.objectContaining({
+        // The mentioned bot itself: in a DM with Joseph it is Joseph, even
+        // when the owner's Cuso lives in the same workspace.
+        sokoBotId: "bot-a",
         userId: "user-a",
         workspaceId: "workspace-a",
         message: "Please answer",
@@ -110,6 +117,25 @@ describe("Soko Bot mention dispatch", () => {
           mentionId: "mention-a",
           responseMessageId: "response-a",
         }),
+      }),
+    );
+  });
+  it("shows the bot what was said in a direct chat before the new message", async () => {
+    loadRoomContextMessages.mockResolvedValue([
+      {
+        senderName: "Joseph",
+        isCoworker: false,
+        isSokoBot: true,
+        content: "Make — s_New_Registration: two recent errors.",
+      },
+    ]);
+    await runSokoBotMentionDispatch(
+      input({ content: "stop messaging me about these", metadata: null }),
+    );
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "CONTEXT (last 1 messages in this chat):\n- Joseph (personal assistant): Make — s_New_Registration: two recent errors.\n\nNew message:\nstop messaging me about these",
       }),
     );
   });
@@ -233,7 +259,7 @@ describe("a shared Soko Bot mention", () => {
     });
   });
 
-  it("keeps a personal bot's teammate turn on its owner", async () => {
+  it("keeps a personal bot's teammate turn on its owner and that bot", async () => {
     const base = sharedInput();
     await runSokoBotMentionDispatch({
       ...base,
@@ -244,7 +270,8 @@ describe("a shared Soko Bot mention", () => {
     });
     const [turn] = startTurn.mock.calls[0];
     expect(turn.userId).toBe("user-a");
-    expect(turn).not.toHaveProperty("sokoBotId");
+    // The id names the mentioned bot itself, not just its owner.
+    expect(turn.sokoBotId).toBe(base.mention.sokoBot.id);
     expect(turn.message).toMatch(/^Ben \(a teammate, not your owner\) asked:/);
   });
 });

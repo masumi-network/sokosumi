@@ -9,6 +9,6 @@ describe("logo", () => {
 
     expect(html).toContain('<img alt="" class="logo-mark"');
     expect(html).toContain('src="/logo.svg"');
-    expect(html).toMatch(/\/>CMO\.XYZ<\/span>$/);
+    expect(html).toMatch(/\/>CMO\.xyz<\/span>$/);
   });
 });

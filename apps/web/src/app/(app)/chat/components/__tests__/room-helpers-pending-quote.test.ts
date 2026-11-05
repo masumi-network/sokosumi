@@ -39,11 +39,11 @@ function userMessage(
 }
 
 describe("pendingQuoteFromMessage", () => {
-  it("extracts image attachment and text snippet via shared helper", () => {
+  it("extracts every image attachment and text snippet via shared helper", () => {
     const pending = pendingQuoteFromMessage(
       userMessage({
         content:
-          "launch risk notes\n[launch.png](https://blob.example/launch.png)",
+          "launch risk notes\n[launch.png](https://blob.example/launch.png)\n[risk.png](https://blob.example/risk.png)",
       }),
     );
 
@@ -51,11 +51,18 @@ describe("pendingQuoteFromMessage", () => {
       messageId: "550e8400-e29b-41d4-a716-446655440000",
       authorName: "Ada",
       snippet: "launch risk notes",
-      attachment: {
-        fileName: "launch.png",
-        url: "https://blob.example/launch.png",
-        mediaKind: "image",
-      },
+      attachments: [
+        {
+          fileName: "launch.png",
+          url: "https://blob.example/launch.png",
+          mediaKind: "image",
+        },
+        {
+          fileName: "risk.png",
+          url: "https://blob.example/risk.png",
+          mediaKind: "image",
+        },
+      ],
     });
   });
 
@@ -67,19 +74,21 @@ describe("pendingQuoteFromMessage", () => {
     );
 
     expect(pending.snippet).toBe("see");
-    expect(pending.attachment).toEqual({
-      fileName: "brief.pdf",
-      url: "https://blob.example/brief.pdf",
-      mediaKind: "file",
-    });
+    expect(pending.attachments).toEqual([
+      {
+        fileName: "brief.pdf",
+        url: "https://blob.example/brief.pdf",
+        mediaKind: "file",
+      },
+    ]);
   });
 
-  it("keeps attachment null for text-only messages", () => {
+  it("keeps no attachments for text-only messages", () => {
     const pending = pendingQuoteFromMessage(
       userMessage({ content: "plain text only" }),
     );
 
     expect(pending.snippet).toBe("plain text only");
-    expect(pending.attachment).toBeNull();
+    expect(pending.attachments).toEqual([]);
   });
 });

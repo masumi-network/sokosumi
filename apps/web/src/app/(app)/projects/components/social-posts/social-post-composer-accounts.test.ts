@@ -5,7 +5,7 @@ import {
 } from "./social-post-composer-accounts";
 
 function account(id: string, status: "active" | "disconnected" = "active") {
-  return { id, status };
+  return { id, status, provider: "x" };
 }
 
 describe("social-post-composer-accounts", () => {
@@ -46,5 +46,16 @@ describe("social-post-composer-accounts", () => {
         null,
       ),
     ).toEqual(["connection-1"]);
+  });
+  it("drops disabled providers from remembered and default accounts", () => {
+    const disabled = { id: "disabled", provider: "tiktok", status: "active" };
+    const enabled = account("x");
+    expect(
+      initialCreateConnectionIds([disabled, enabled], ["disabled"]),
+    ).toEqual(["x"]);
+    expect(initialCreateConnectionIds([disabled], ["disabled"])).toEqual([]);
+    expect(initialCreateConnectionIds([disabled, enabled], null)).toEqual([
+      "x",
+    ]);
   });
 });

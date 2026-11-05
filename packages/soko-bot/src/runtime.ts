@@ -38,6 +38,12 @@ export interface SokoBotContextPacket {
      */
     unsureRoute?: SokoBotRoute;
     /**
+     * What Core noticed about a typed message, in plain words: a guess the
+     * route is unsure of, a likely reference to earlier messages, a
+     * preference it saved. Context to weigh, never a limit on the turn.
+     */
+    hints?: string[];
+    /**
      * Who is on the other side of this turn. The turn always runs as the
      * owner — their bot, their credits — so `actor` is the owner whatever
      * happens, and this is the only field that tells a colleague asking in a

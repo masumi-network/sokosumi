@@ -1,0 +1,54 @@
+{
+  "value": [
+    {
+      "id": "AAMkAGI2RCV1",
+      "conversationId": "AAQkAGI2conv1",
+      "subject": "Contract draft",
+      "receivedDateTime": "2026-10-20T08:00:00Z",
+      "from": {
+        "emailAddress": {
+          "name": "Ana Silva",
+          "address": "Ana.Silva@lawfirm.pt"
+        }
+      },
+      "toRecipients": [
+        {
+          "emailAddress": {
+            "name": "Patrick Tobler",
+            "address": "patrick@yellowhouse.gmbh"
+          }
+        }
+      ],
+      "internetMessageHeaders": [
+        { "name": "From", "value": "Ana Silva <Ana.Silva@lawfirm.pt>" }
+      ],
+      "body": {
+        "contentType": "html",
+        "content": "<div>Dear Patrick,<br>please find the draft attached.<br><br>Ana Silva<br>Partner, Silva &amp; Costa Advogados<br>+351 21 000 0000</div>"
+      },
+      "webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGI2RCV1"
+    },
+    {
+      "id": "AAMkAGI2RCV2",
+      "conversationId": "AAQkAGI2conv2",
+      "subject": "Your weekly digest",
+      "receivedDateTime": "2026-10-19T08:00:00Z",
+      "from": {
+        "emailAddress": {
+          "name": "Product Digest",
+          "address": "digest@news.saasproduct.com"
+        }
+      },
+      "toRecipients": [
+        { "emailAddress": { "address": "patrick@yellowhouse.gmbh" } }
+      ],
+      "internetMessageHeaders": [
+        {
+          "name": "List-Unsubscribe",
+          "value": "<mailto:unsub@news.saasproduct.com>"
+        }
+      ],
+      "body": { "contentType": "text", "content": "Digest" }
+    }
+  ]
+}

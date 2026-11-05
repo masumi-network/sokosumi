@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getProjectWorkspaceLabels,
@@ -141,6 +141,53 @@ describe("the project detail layout", () => {
     expect(nav.parentElement?.contains(aside)).toBe(false);
   });
 
+  it("keeps the two-row grid on a tab without panels", () => {
+    const { container } = renderShell();
+
+    const grid = container.firstElementChild?.firstElementChild as HTMLElement;
+    // Design, Memory and Bots: no third row, no placement, the rail capped.
+    expect(grid.className).not.toContain("grid-rows");
+    expect(grid.children).toHaveLength(3);
+    const tabsBlock = screen.getByRole("navigation", {
+      name: "Project sections",
+    }).parentElement as HTMLElement;
+    expect(tabsBlock.className).not.toContain("row-span");
+    expect(screen.getByRole("complementary").className).not.toContain(
+      "xl:max-w-none",
+    );
+  });
+
+  it("puts the panels under the Properties from xl up, after the content below", () => {
+    const { container } = render(
+      <ProjectWorkspaceShell
+        createdAt="Yesterday"
+        labels={LABELS}
+        projectId="p1"
+        projectName="Example project"
+        updatedAt="Today"
+        panels={<p>panels</p>}
+      >
+        <p>area content</p>
+      </ProjectWorkspaceShell>,
+    );
+
+    const grid = container.firstElementChild?.firstElementChild as HTMLElement;
+    expect(grid.classList).toContain("xl:grid-rows-[auto_auto_1fr]");
+    const panels = screen.getByText("panels").parentElement as HTMLElement;
+    expect(panels.parentElement).toBe(grid);
+    expect(panels.classList).toContain("xl:col-start-2");
+    expect(panels.classList).toContain("xl:row-start-3");
+    // Last in the DOM, so a phone reaches the tab's content first.
+    expect(grid.lastElementChild).toBe(panels);
+    const tabsBlock = screen.getByRole("navigation", {
+      name: "Project sections",
+    }).parentElement as HTMLElement;
+    expect(tabsBlock.classList).toContain("xl:row-span-2");
+    expect(screen.getByRole("complementary").classList).toContain(
+      "xl:max-w-none",
+    );
+  });
+
   it("marks the current tab", () => {
     renderShell();
 
@@ -173,6 +220,24 @@ describe("the project detail layout", () => {
 });
 
 describe("getProjectWorkspaceLabels", () => {
+  beforeEach(() => {
+    listSharedMock.mockResolvedValue(null);
+    activeOrganizationMock.mockResolvedValue(null);
+  });
+
+  it("has no Newsletter tab: Newsletter is its own section", async () => {
+    listSharedMock.mockResolvedValue([]);
+    activeOrganizationMock.mockResolvedValue("org-1");
+    renderShell(await getProjectWorkspaceLabels());
+
+    expect(
+      screen.queryByRole("link", { name: /newsletter/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link").map((link) => link.getAttribute("href")),
+    ).not.toContain("/projects/p1/newsletter");
+  });
+
   it("offers the Bots tab when Core lists shared bots in an organization", async () => {
     listSharedMock.mockResolvedValue([]);
     activeOrganizationMock.mockResolvedValue("org-1");

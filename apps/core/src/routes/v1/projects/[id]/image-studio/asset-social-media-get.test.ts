@@ -98,7 +98,7 @@ describe("GET /projects/{id}/image-studio/assets/{assetId}/social-media", () => 
     });
   });
 
-  it("hides Social from a caller outside the beta", async () => {
+  it("allows preparing Social media outside the Ads beta", async () => {
     mocks.beta.mockRejectedValue(
       new HTTPException(403, {
         message: "Social is only available to utxo AG workspace members",
@@ -109,8 +109,8 @@ describe("GET /projects/{id}/image-studio/assets/{assetId}/social-media", () => 
       `/${PROJECT_ID}/image-studio/assets/${ASSET_ID}/social-media`,
     );
 
-    expect(response.status).toBe(403);
-    expect(mocks.ensure).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.ensure).toHaveBeenCalled();
   });
 
   it("returns 404 when the image is gone", async () => {

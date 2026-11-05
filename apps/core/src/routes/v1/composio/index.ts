@@ -12,13 +12,11 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
-import prisma from "@/lib/db/prisma";
 import {
   OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireFirstPartyUserAuthContext } from "@/middleware/auth";
 import {
   completeComposioCallbackRequestSchema,
   completeComposioCallbackResponseSchema,
@@ -63,8 +61,9 @@ export function mountComposioCallback(
   app: Pick<OpenAPIHonoWithAuth, "openapi">,
 ): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
-    await requireSocialBetaAccess(userContext.userId, prisma);
+    // CMO redeems its connects with its first-party token; Web with a session.
+    const userContext = requireFirstPartyUserAuthContext(c.var.authContext);
+
     const { connectionId, sessionUri } = c.req.valid("json");
 
     try {

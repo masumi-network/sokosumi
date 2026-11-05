@@ -50,7 +50,7 @@ struct DecisionCardView: View {
     .frame(maxWidth: resultCardMaxWidth, alignment: .leading)
     .background(.background, in: .rect(cornerRadius: 8))
     .overlay(RoundedRectangle(cornerRadius: 8)
-      .strokeBorder(decision.isPending ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.12)))
+      .strokeBorder(Color.primary.opacity(decision.isPending ? 0.3 : 0.12)))
     .alert(Text(LocalizedStringResource("decision.error", defaultValue: "Could not resolve the approval.", table: chatResultsTable,
                                         comment: "Alert title when approving or rejecting a Soko Bot's decision failed.")),
            isPresented: Binding(get: { failure != nil }, set: {
@@ -108,7 +108,7 @@ struct DecisionCardView: View {
       } label: {
         actionLabel(.accept)
       }
-      .buttonStyle(.borderedProminent)
+      .buttonStyle(.brandPrimary)
       .disabled(resolve == nil || inFlight != nil || !decision.canAccept)
       Button {
         press(.reject)

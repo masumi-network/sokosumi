@@ -6,6 +6,13 @@ export function chatRoomHref(roomId: string): string {
   return `${CHAT_APP_ROUTE_PREFIX}/rooms/${roomId}`;
 }
 
+/** The room id of a room page path (`/chat/rooms/{id}`, query ignored). */
+export function roomIdFromPath(
+  path: string | null | undefined,
+): string | undefined {
+  return path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+}
+
 /**
  * Asks a room to open its edit dialog, on the room's own URL.
  *
@@ -51,6 +58,8 @@ export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
 
 /** Every unread Thread across the reader's rooms (SOK-1159). */
 export const CHAT_THREADS_PATH = `${CHAT_APP_ROUTE_PREFIX}/threads` as const;
+/** The reader's "while you were away" across every room (chat signals). */
+export const CHAT_CATCH_UP_PATH = `${CHAT_APP_ROUTE_PREFIX}/catch-up` as const;
 
 /** Welcome home (notices land here). */
 export const CHAT_WELCOME_PATH = "/" as const;

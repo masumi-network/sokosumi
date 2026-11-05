@@ -42,12 +42,12 @@ describe("PostingConsistency", () => {
     expect(
       screen.getByRole("heading", { name: "Posting consistency" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Posts per day" })).toHaveClass(
+    expect(screen.getByRole("radio", { name: "Posts per day" })).toHaveClass(
       "h-11",
       "md:h-8",
     );
     expect(
-      screen.getByRole("button", { name: "Engagement per day" }),
+      screen.getByRole("radio", { name: "Engagement per day" }),
     ).toHaveClass("h-11", "md:h-8");
     expect(screen.getByText("Current streak")).toBeVisible();
     expect(screen.getByText("Longest streak")).toBeVisible();
@@ -72,7 +72,7 @@ describe("PostingConsistency", () => {
         selectedUntil={null}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Engagement per day" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Engagement per day" }));
     expect(screen.getByText("Unknown")).toBeVisible();
     const unknown = document.querySelector('[title$="engagement unavailable"]');
     const zero = document.querySelector('[title$="0 interactions"]');

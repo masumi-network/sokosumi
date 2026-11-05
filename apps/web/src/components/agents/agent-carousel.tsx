@@ -103,8 +103,6 @@ function AgentCarousel({
         return;
       }
 
-      // Check if this is primarily horizontal scroll (deltaX is significant)
-      // and ignore if it's primarily vertical scroll
       const absDeltaX = Math.abs(event.deltaX);
       const absDeltaY = Math.abs(event.deltaY);
 
@@ -209,7 +207,7 @@ function AgentCarousel({
                 onClick={() => api?.scrollTo(index)}
                 className={cn(
                   "size-2 rounded-full transition-colors",
-                  current === index ? "bg-primary" : "bg-quaternary",
+                  current === index ? "bg-foreground" : "bg-quaternary",
                 )}
               />
             );

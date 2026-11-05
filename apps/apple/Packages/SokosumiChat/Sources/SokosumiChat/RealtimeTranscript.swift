@@ -2,13 +2,6 @@ import CoreAPI
 import Foundation
 
 // Live `chat_room_message` application for the open room (SOK-976).
-//
-// Mirrors web `merge-room-messages` + `apply-chat-room-message-id-envelope`
-// (ADR 0014), scoped to top-level room messages or one thread parent;
-// field patches merge through RealtimeMessagePatch. Full DTOs merge; an id envelope
-// on the focused room refetches history instead of inventing a fake row.
-// Own confirmed send and the Ably create dedupe to one bubble by client
-// turn id (ADR 0004).
 
 public enum ChatRoomMessageRealtimeEventType: String, Equatable, Sendable {
   case create

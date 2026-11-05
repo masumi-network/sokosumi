@@ -1,13 +1,14 @@
 /**
- * Answers the two raw reads a room summary makes about what is unread.
+ * Answers the raw reads a room summary makes about what is unread.
  *
  * Both go through `$queryRawUnsafe`, so a test that mocks it with one value
  * would hand count rows to the unread Threads read. `rows` answers the count;
  * `threads` answers the unread Threads read, which runs only for rooms whose
  * counts show Thread unread.
  *
- * The two reads are told apart by a column only the second selects. It is the
- * one place a test depends on the SQL's text; keep it here.
+ * The two reads are told apart by a column only the second selects. The
+ * needs-you count reads the chat signal table and answers nothing here. It is
+ * the one place a test depends on the SQL's text; keep it here.
  */
 export function answerRoomUnreadReads(
   queryRawUnsafeMock: {
@@ -17,6 +18,10 @@ export function answerRoomUnreadReads(
   threads: Array<Record<string, unknown>> = [],
 ): void {
   queryRawUnsafeMock.mockImplementation(async (sql: string) =>
-    sql.includes('"firstUnreadReplyId"') ? threads : rows,
+    sql.includes('"chat_message_signal"')
+      ? []
+      : sql.includes('"firstUnreadReplyId"')
+        ? threads
+        : rows,
   );
 }

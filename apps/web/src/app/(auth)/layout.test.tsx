@@ -33,13 +33,14 @@ vi.mock("@/components/masumi-logos", () => ({
 }));
 vi.mock("./components/auth-background", () => ({
   __esModule: true,
-  default: () => null,
+  default: () => <aside>Sokosumi pitch</aside>,
 }));
 
 import AuthLayout from "./layout";
 
-async function renderAt(pathname: string) {
+async function renderAt(pathname: string, search = "") {
   requestHeaders.set("x-pathname", pathname);
+  requestHeaders.set("x-search-params", search);
   render(await AuthLayout({ children: <p>page</p> }));
 }
 
@@ -67,4 +68,13 @@ describe("AuthLayout", () => {
       expect(screen.getByText("page")).toBeInTheDocument();
     },
   );
+
+  it("leaves Sokosumi's pitch out when signing in for another product", async () => {
+    await renderAt("/signin", "client_id=cmo&exp=1&sig=abc");
+    expect(screen.queryByText("Sokosumi pitch")).not.toBeInTheDocument();
+
+    getSessionMock.mockResolvedValue(null);
+    await renderAt("/signin");
+    expect(screen.getByText("Sokosumi pitch")).toBeInTheDocument();
+  });
 });

@@ -13,6 +13,7 @@ import { acceptOrganizationInviteLink } from "@/lib/actions/organization/invite-
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
+import { setupAssistantPath } from "@/lib/workspace-gate";
 import {
   itemsForBatchAccept,
   type PendingInvitesBatchMode,
@@ -83,7 +84,7 @@ export function PendingInvitesQueue({
       organizationSlug: input.organizationSlug,
       acceptedJoinToken: input.acceptedJoinToken,
     });
-    router.replace(returnUrl);
+    router.replace(setupAssistantPath(returnUrl));
     router.refresh();
   }
 
@@ -271,7 +272,7 @@ export function PendingInvitesQueue({
           return (
             <li
               key={`${item.kind}:${key}`}
-              className="border-input flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="border-border flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex min-w-0 items-center gap-3">
                 {showBatchActions ? (

@@ -9,6 +9,8 @@ import { serializableTransaction } from "@/lib/db/transaction";
 
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
 export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
+/** Consecutive failed runs after which a schedule switches itself off. */
+export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
 
 export class SokoBotScheduleNotFoundError extends Error {}
 export class SokoBotScheduleValidationError extends Error {}
@@ -28,6 +30,9 @@ export interface CreateSokoBotScheduleInput {
   prompt: string;
   /** The writing turn's tools, when the bot wrote it; see the schema. */
   capabilityNames?: readonly string[];
+  /** Work the schedule watches; it is removed once that work finishes. */
+  taskId?: string;
+  jobId?: string;
 }
 
 const MAX_ONE_TIME_LEAD_MS = 366 * 24 * 60 * 60 * 1_000;
@@ -172,6 +177,33 @@ async function requireSharedBotScheduleSeat(
   );
 }
 
+/** A watched Task or Job must be work of this workspace. */
+async function requireWatchedWork(
+  input: Pick<CreateSokoBotScheduleInput, "taskId" | "jobId" | "workspaceId">,
+  db: Prisma.TransactionClient | typeof prisma,
+) {
+  if (input.taskId) {
+    const task = await db.task.findFirst({
+      where: { id: input.taskId, workspaceId: input.workspaceId },
+      select: { id: true },
+    });
+    if (!task)
+      throw new SokoBotScheduleValidationError(
+        "The Task to watch is not in this workspace",
+      );
+  }
+  if (input.jobId) {
+    const job = await db.job.findFirst({
+      where: { id: input.jobId, workspaceId: input.workspaceId },
+      select: { id: true },
+    });
+    if (!job)
+      throw new SokoBotScheduleValidationError(
+        "The Job to watch is not in this workspace",
+      );
+  }
+}
+
 /**
  * Recurring prompts a Soko Bot runs on cron. Shared by the owner's console
  * and the bot's own `*_schedule` tools, so a bot can set up its own
@@ -214,6 +246,8 @@ export async function createSokoBotSchedule(
           select: { id: true },
         });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
+  await requireWatchedWork(input, db);
+  const link = { taskId: input.taskId ?? null, jobId: input.jobId ?? null };
   const mutate = async (tx: Prisma.TransactionClient) => {
     // Same name = same follow-up: a model retrying or re-planning updates
     // the existing schedule instead of stacking duplicates.
@@ -235,6 +269,7 @@ export async function createSokoBotSchedule(
           prompt: prompt.slice(0, 20_000),
           nextRunAt,
           capabilityNames: [...(input.capabilityNames ?? [])],
+          ...link,
         },
       });
     }
@@ -258,6 +293,7 @@ export async function createSokoBotSchedule(
         prompt: prompt.slice(0, 20_000),
         nextRunAt,
         capabilityNames: [...(input.capabilityNames ?? [])],
+        ...link,
       },
     });
   };
@@ -429,7 +465,11 @@ export async function deleteSokoBotSchedule(
 /** Bot-facing view: what runs, when, and what it will be asked. */
 export function listSokoBotSchedules(sokoBotId: string) {
   return prisma.sokoBotSchedule.findMany({
-    where: { sokoBotId },
+    // A one-time schedule that already ran is history, not a follow-up.
+    where: {
+      sokoBotId,
+      NOT: { runOnce: true, enabled: false, lastRunAt: { not: null } },
+    },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -441,6 +481,118 @@ export function listSokoBotSchedules(sokoBotId: string) {
       prompt: true,
       nextRunAt: true,
       lastRunAt: true,
+      taskId: true,
+      jobId: true,
     },
   });
+}
+
+/** How long a disabled schedule and a settled run stay visible. */
+export const SOKO_BOT_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
+/** A spent one-time schedule waits this long, so its run's reply still names it. */
+export const SPENT_ONE_TIME_GRACE_MS = 60 * 60 * 1_000;
+const PURGE_BATCH = 200;
+const RUN_PURGE_BATCH = 1_000;
+const ACTIVE_RUN_STATUSES = ["PENDING", "CLAIMED", "RUNNING"] as const;
+const SETTLED_RUN_STATUSES = ["COMPLETED", "FAILED", "DEAD_LETTER"] as const;
+
+export interface SokoBotSchedulePurgeResult {
+  spentOneTime: number;
+  watchedWorkFinished: number;
+  failedRecurring: number;
+  settledRuns: number;
+}
+
+/**
+ * Removes schedules nobody will run again, so a bot that sets many one-time
+ * follow-ups does not leave a disabled row behind for each:
+ *
+ * - one-time schedules whose run completed, after a short grace, or after
+ *   the retention window when the run failed (kept for an admin retry);
+ * - schedules watching a Task or Job that finished;
+ * - recurring schedules the failure budget switched off, after retention.
+ *
+ * A schedule someone paused stays: that is a choice, not a leftover. Built-in
+ * rhythms and schedules with a run in flight are never touched. Each call
+ * removes at most one batch per rule; the next cron tick takes the rest.
+ */
+export async function purgeSokoBotSchedules(
+  now = new Date(),
+): Promise<SokoBotSchedulePurgeResult> {
+  const graceCutoff = new Date(now.getTime() - SPENT_ONE_TIME_GRACE_MS);
+  const retentionCutoff = new Date(
+    now.getTime() - SOKO_BOT_SCHEDULE_RETENTION_MS,
+  );
+  const idle = {
+    systemKey: null,
+    runs: { none: { status: { in: [...ACTIVE_RUN_STATUSES] } } },
+  } satisfies Prisma.SokoBotScheduleWhereInput;
+  const purge = async (where: Prisma.SokoBotScheduleWhereInput) => {
+    const due = await prisma.sokoBotSchedule.findMany({
+      where: { ...idle, ...where },
+      select: { id: true },
+      orderBy: { id: "asc" },
+      take: PURGE_BATCH,
+    });
+    if (!due.length) return 0;
+    const deleted = await prisma.sokoBotSchedule.deleteMany({
+      where: { ...idle, ...where, id: { in: due.map((row) => row.id) } },
+    });
+    return deleted.count;
+  };
+  const spentOneTime = await purge({
+    runOnce: true,
+    enabled: false,
+    lastRunAt: { not: null },
+    OR: [
+      {
+        updatedAt: { lt: graceCutoff },
+        runs: { every: { status: "COMPLETED" } },
+      },
+      { updatedAt: { lt: retentionCutoff } },
+    ],
+  });
+  const watchedWorkFinished = await purge({
+    OR: [
+      {
+        task: {
+          OR: [
+            { status: { in: ["COMPLETED", "CANCELED"] } },
+            { archivedAt: { not: null } },
+          ],
+        },
+      },
+      {
+        job: {
+          events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+        },
+      },
+    ],
+  });
+  const failedRecurring = await purge({
+    runOnce: false,
+    enabled: false,
+    consecutiveFailures: { gte: MAX_CONSECUTIVE_SCHEDULE_FAILURES },
+    updatedAt: { lt: retentionCutoff },
+  });
+  const oldRuns = await prisma.sokoBotScheduleRun.findMany({
+    where: {
+      status: { in: [...SETTLED_RUN_STATUSES] },
+      scheduledFor: { lt: retentionCutoff },
+    },
+    select: { id: true },
+    orderBy: { scheduledFor: "asc" },
+    take: RUN_PURGE_BATCH,
+  });
+  const settledRuns = oldRuns.length
+    ? (
+        await prisma.sokoBotScheduleRun.deleteMany({
+          where: {
+            id: { in: oldRuns.map((run) => run.id) },
+            status: { in: [...SETTLED_RUN_STATUSES] },
+          },
+        })
+      ).count
+    : 0;
+  return { spentOneTime, watchedWorkFinished, failedRecurring, settledRuns };
 }

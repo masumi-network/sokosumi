@@ -17,7 +17,6 @@ import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
   requireRightOnWorkWithoutOwner,
-  requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import {
   lockCalendarScope,
@@ -39,6 +38,7 @@ import {
   isOperationIdUniqueConstraintError,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
+import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import {

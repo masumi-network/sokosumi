@@ -8,6 +8,7 @@ import {
   isJevRequestRejection,
   LABEL_EVALUATION_CEILINGS,
   labelExcerptFromChunks,
+  labelExcerptFromMetadata,
   PROVIDER_FRAMING_TOKEN_ALLOWANCE,
   RELATED_PAIR_CEILINGS,
   SEARCH_PAIR_CEILINGS,
@@ -148,6 +149,43 @@ describe("buildJevRelatedPairRequest", () => {
     if (isJevRequestRejection(result)) throw new Error("unexpected rejection");
     const body = result.body as { seeds: string[] };
     expect(body.seeds).toHaveLength(3);
+  });
+});
+
+describe("labelExcerptFromMetadata", () => {
+  it("describes a text-less file by its name, type, size, folder and project", () => {
+    expect(
+      labelExcerptFromMetadata({
+        displayName: "q4-launch-promo.mp4",
+        mimeType: "video/mp4",
+        sizeBytes: 48 * 1024 * 1024,
+        folderPath: "Marketing/Videos",
+        projectName: "Q4 Campaign",
+      }),
+    ).toBe(
+      [
+        "No text could be read from this file. What is known about it:",
+        "File name: q4-launch-promo.mp4",
+        "Media type: video/mp4",
+        "Size: 48.0 MB",
+        "Folder: Marketing/Videos",
+        "Project: Q4 Campaign",
+      ].join("\n"),
+    );
+  });
+
+  it("leaves out what the catalog does not know", () => {
+    expect(
+      labelExcerptFromMetadata({
+        displayName: "IMG_4821",
+        mimeType: null,
+        sizeBytes: 512,
+        folderPath: null,
+        projectName: null,
+      }),
+    ).toBe(
+      "No text could be read from this file. What is known about it:\nFile name: IMG_4821\nSize: 512 B",
+    );
   });
 });
 

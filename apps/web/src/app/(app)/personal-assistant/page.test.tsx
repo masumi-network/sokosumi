@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const chatStateMock = vi.fn();
 const consoleMock = vi.fn();
+const loadAdsMock = vi.fn();
 
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
@@ -23,7 +25,12 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
     getMyUsage: async () => null,
     listIntegrations: async () => null,
     searchIntegrationCatalog: async () => [],
+    listVersions: async () => [],
+    listSkills: async () => [],
   },
+}));
+vi.mock("@/lib/soko-bot/load-bot-ad-accounts", () => ({
+  loadBotAdAccounts: (...a: unknown[]) => loadAdsMock(...a),
 }));
 vi.mock("./components/console/console.client", () => ({
   SokoBotConsole: (props: { canManage: boolean }) => {
@@ -37,16 +44,20 @@ vi.mock("./components/create-state.client", () => ({
 
 import SokoBotPage from "./page";
 
-async function renderWith(viewerCanManage: boolean): Promise<void> {
+async function renderWith(
+  viewerCanManage: boolean,
+  params: Record<string, string> = { view: "advanced" },
+): Promise<void> {
   chatStateMock.mockResolvedValue({
     bot: { id: "bot-1", versionId: null, viewerCanManage },
   });
-  render(await SokoBotPage({ searchParams: Promise.resolve({}) }));
+  render(await SokoBotPage({ searchParams: Promise.resolve(params) }));
 }
 
 describe("SokoBotPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadAdsMock.mockResolvedValue([]);
   });
 
   it.each([true, false])(
@@ -62,4 +73,28 @@ describe("SokoBotPage", () => {
       );
     },
   );
+
+  it("hands the console the ad accounts across the workspace's Projects", async () => {
+    await renderWith(true);
+    expect(loadAdsMock).toHaveBeenCalledWith({ projectId: null });
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ads: { accounts: [], projectId: null } }),
+    );
+  });
+
+  it("skips the ad accounts outside Advanced, where they are not shown", async () => {
+    await renderWith(true, {});
+    expect(loadAdsMock).not.toHaveBeenCalled();
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ads: null }),
+    );
+  });
+
+  it("still renders the console when the ad accounts cannot be loaded", async () => {
+    loadAdsMock.mockRejectedValue(new Error("down"));
+    await renderWith(true);
+    expect(consoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ads: null }),
+    );
+  });
 });

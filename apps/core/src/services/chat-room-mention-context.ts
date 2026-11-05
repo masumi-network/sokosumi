@@ -1,4 +1,4 @@
-import { chatRoomFileLinks } from "@sokosumi/utils";
+import { chatRoomFileLinks, chatRoomQuotePromptLine } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 
@@ -34,12 +34,12 @@ function formatContextLine(message: RoomContextMessage): string {
  */
 export function roomMessagePromptText(
   content: string,
-  quote: { authorName: string; snippet: string } | null,
+  quote: Parameters<typeof chatRoomQuotePromptLine>[0] | null,
 ): string {
   if (!quote) {
     return content;
   }
-  const quoted = `> ${quote.authorName}: ${quote.snippet.replace(/\s+/g, " ").trim()}`;
+  const quoted = chatRoomQuotePromptLine(quote);
   return content.trim().length === 0 ? quoted : `${quoted}\n\n${content}`;
 }
 
@@ -79,6 +79,20 @@ export function buildRoomMentionPrompt(params: {
 
   const contextLines = params.contextMessages.map(formatContextLine);
   return `CONTEXT (last ${params.contextMessages.length} messages in #${params.roomName}):\n${contextLines.join("\n")}\n\n${messageBlock}`;
+}
+
+/**
+ * A direct chat with an assistant, prefixed with what was said there last:
+ * the assistant's own briefings and inbox posts included, so "stop telling me
+ * about these" has something to point at.
+ */
+export function buildDirectMessagePrompt(params: {
+  content: string;
+  contextMessages: readonly RoomContextMessage[];
+}): string {
+  if (params.contextMessages.length === 0) return params.content;
+  const contextLines = params.contextMessages.map(formatContextLine);
+  return `CONTEXT (last ${params.contextMessages.length} messages in this chat):\n${contextLines.join("\n")}\n\nNew message:\n${params.content}`;
 }
 
 export async function loadRoomContextMessages(params: {

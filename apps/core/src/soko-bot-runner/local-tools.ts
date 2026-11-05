@@ -32,27 +32,52 @@ export function workspacePath(relative = "."): string {
   return resolved;
 }
 
-/** Commands get a plain environment: nothing the runner was started with. */
-function commandEnv(): NodeJS.ProcessEnv {
+/**
+ * Where the sandbox says which CAs to trust. Its firewall terminates TLS for
+ * Core to add the turn token, so a script without these fails with
+ * SELF_SIGNED_CERT_IN_CHAIN (and a bot then turned verification off).
+ */
+const CA_TRUST_VARIABLES = [
+  "NODE_EXTRA_CA_CERTS",
+  "NODE_USE_SYSTEM_CA",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "REQUESTS_CA_BUNDLE",
+  "CURL_CA_BUNDLE",
+] as const;
+
+/**
+ * Commands get a plain environment: nothing the runner was started with but
+ * the CA trust, plus what the caller passes on purpose (never a secret).
+ */
+function commandEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const trust = Object.fromEntries(
+    CA_TRUST_VARIABLES.flatMap((name) => {
+      const value = process.env[name];
+      return value ? [[name, value]] : [];
+    }),
+  );
   return {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
     LANG: "C.UTF-8",
     TERM: "dumb",
+    ...trust,
+    ...extra,
   };
 }
 
-export function runCommand(input: {
-  command: string;
-  timeoutSeconds?: number;
-}): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+export function runCommand(
+  input: { command: string; timeoutSeconds?: number },
+  env: Record<string, string> = {},
+): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   const timeoutMs = (input.timeoutSeconds ?? DEFAULT_BASH_TIMEOUT_S) * 1_000;
   return new Promise((resolve) => {
     // Its own process group: a timeout kills the pipeline bash started, not
     // just bash, whose children would otherwise hold the output open forever.
     const child = spawn("bash", ["-lc", input.command], {
       cwd: WORKSPACE,
-      env: commandEnv(),
+      env: commandEnv(env),
       detached: true,
     });
     let timedOut = false;

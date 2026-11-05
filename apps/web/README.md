@@ -39,7 +39,7 @@ apps/web
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 24.x
+- [Node.js](https://nodejs.org/) 26.x
 - [pnpm](https://pnpm.io/)
 
 ## URLs

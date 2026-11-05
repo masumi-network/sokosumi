@@ -5,6 +5,7 @@ import {
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { CHAT_SIGNAL_TAGS } from "@/lib/chat-signals/tags";
 import { chatResultDescriptorSchema } from "@/schemas/chat-result-descriptor.schema";
 import {
   chatRoomPresenceSchema,
@@ -116,18 +117,23 @@ const chatRoomUserParticipantSchema = z
   })
   .openapi("ChatRoomUserParticipant");
 
+const personFields = {
+  id: z.string().openapi({ example: "user_123" }),
+  name: z.string().openapi({ example: "Jane Doe" }),
+  email: z.string().openapi({ example: "jane@example.com" }),
+  image: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/avatar.png" }),
+};
+
 /** A human a Direct was started for who is no longer in it. Not a roster entry. */
 const chatRoomFormerUserMemberSchema = z
-  .object({
-    id: z.string().openapi({ example: "user_123" }),
-    name: z.string().openapi({ example: "Jane Doe" }),
-    email: z.string().openapi({ example: "jane@example.com" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/avatar.png" }),
-  })
+  .object(personFields)
   .openapi("ChatRoomFormerUserMember");
+
+/** Someone the reader may start a Personal Direct with (ADR-0059). */
+export const chatPersonSchema = z.object(personFields).openapi("ChatPerson");
 
 const chatRoomCoworkerParticipantSchema = z
   .object({
@@ -179,6 +185,16 @@ export const chatRoomSchema = z
       description:
         "Host organization display name. Required for guest rows in list; may be null for personal directs.",
       example: "Acme Corp",
+    }),
+    organizationLogo: z.string().nullable().optional().openapi({
+      description:
+        "Host organization logo, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://example.com/acme.png",
+    }),
+    organizationWebsiteUrl: z.string().nullable().optional().openapi({
+      description:
+        "Host organization website, on rooms of the sidebar's lists only. Null when it has none, and for personal rooms.",
+      example: "https://acme.com",
     }),
     name: z.string().openapi({ example: "Launch Room" }),
     slug: z.string().nullable().openapi({
@@ -260,6 +276,11 @@ export const chatRoomSchema = z
     unreadMentionCount: z.number().int().min(0).openapi({
       description:
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
+      example: 1,
+    }),
+    unreadNeedsYouCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Unread messages that ask something of the viewer: a question or a decision Jev read as addressed to them (chat signals). Cleared by reading, like unread.",
       example: 1,
     }),
     starredAt: dateTimeSchema.nullable().openapi({
@@ -424,7 +445,7 @@ export const createChatRoomRequestSchema = z
       .object({
         kind: z.literal("direct").openapi({
           description:
-            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
+            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
@@ -566,7 +587,21 @@ const chatRoomMessageQuoteSchema = z
     snippet: z.string().openapi({
       example: "Can you summarize this launch risk?",
     }),
-    attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+    attachment: chatRoomMessageQuoteAttachmentSchema
+      .nullable()
+      .optional()
+      .openapi({
+        deprecated: true,
+        description:
+          "One attachment for shipped Mac builds: the first image, else the first file. Use `attachments`.",
+      }),
+    attachments: z
+      .array(chatRoomMessageQuoteAttachmentSchema)
+      .optional()
+      .openapi({
+        description:
+          "Every file and image linked in the quoted message, in body order. Absent on an older quote that had none.",
+      }),
     roomId: z.string().uuid().optional().openapi({
       description:
         "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
@@ -677,6 +712,46 @@ export const removeChatRoomMessageUnfurlRequestSchema = z
   })
   .openapi("RemoveChatRoomMessageUnfurlRequest");
 
+export const chatSignalTagSchema = z
+  .enum(CHAT_SIGNAL_TAGS)
+  .openapi("ChatSignalTag", {
+    description:
+      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only), `bug` (reports something broken), `review` (asks for feedback on something specific).",
+  });
+
+/**
+ * Viewer-neutral, because it rides on realtime message events every member
+ * receives: a client derives "needs you" from `addressedUserIds` and the
+ * `question` / `needsDecision` tags.
+ */
+export const chatMessageSignalSchema = z
+  .object({
+    tags: z.array(chatSignalTagSchema).openapi({
+      description:
+        "Tags that apply: Jev's probability at or above the threshold, with readers' corrections on top. A guide for sorting and highlighting; it never hides a message.",
+    }),
+    probabilities: z
+      .partialRecord(chatSignalTagSchema, z.number().min(0).max(1))
+      .openapi({ description: "Jev's probability per tag, as it answered." }),
+    addressedUserIds: z.array(z.string()).openapi({
+      description:
+        "Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.",
+    }),
+    commitmentDueAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a commitment said it would be done (end of that UTC day). Null without a commitment or a date.",
+    }),
+    loopClosedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a reader closed this open loop, by making a Task of it or dismissing it.",
+    }),
+    loopTaskId: z.string().uuid().nullable(),
+    correctedTags: z.array(chatSignalTagSchema).openapi({
+      description: "Tags a reader corrected by hand.",
+    }),
+  })
+  .openapi("ChatMessageSignal");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -721,6 +796,10 @@ export const chatRoomMessageSchema = z
     skills: z.array(chatRoomMessageSkillSchema).max(3).optional().openapi({
       description:
         "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.",
+    }),
+    signal: z.union([chatMessageSignalSchema, z.null()]).optional().openapi({
+      description:
+        "Jev's reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.",
     }),
   })
   .openapi("ChatRoomMessage");

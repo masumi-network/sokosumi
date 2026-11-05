@@ -13,8 +13,8 @@ describe("getAgentCategoryStyles", () => {
     // Two different tokens. With the same value in both fields the assertion
     // below cannot tell a correct read from one that swapped light and dark.
     const styles = {
-      light: { color: "text-status-working" },
-      dark: { color: "text-semantic-success" },
+      light: { color: "text-foreground" },
+      dark: { color: "text-muted-foreground" },
     };
     const agent = createMockCoreAgent({
       categories: [

@@ -21,7 +21,7 @@ export function NotificationToaster() {
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--primary)",
+          "--normal-border": "var(--border)",
         } as React.CSSProperties
       }
       toastOptions={{
@@ -30,7 +30,7 @@ export function NotificationToaster() {
           toast: "items-center gap-3",
           title: "w-full min-w-0",
           content: "min-w-0 flex-1",
-          icon: "text-primary",
+          icon: "text-foreground",
           actionButton:
             // The toast ground follows the theme, so the action button has to
             // invert against it. --primary-foreground is the label that rides on

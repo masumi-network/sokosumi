@@ -15,6 +15,7 @@ import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
+import { isNewsletterEnabled } from "@/lib/newsletter-access.server";
 import {
   getCalendarRange,
   getLatestCalendarDate,
@@ -26,17 +27,24 @@ import {
   taskService,
   type WorkspaceCalendarPage,
 } from "@/lib/services/task.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import {
+  availableCalendarTypes,
+  type CalendarType,
+  calendarTypesQuery,
+  isSocialOnly,
+  parseCalendarTypes,
+  selectedCalendarTypes,
+} from "./calendar-types";
 
 export interface CalendarPageSearchParams {
   assigneeId?: string;
   assigneeUserId?: string;
   date?: string;
   projectId?: string;
-  sourceId?: string;
   scope?: string;
-  socialOnly?: string;
+  /** The Show filter: comma-separated `CalendarType`s. */
+  types?: string;
   status?: string;
   postStatus?: string;
   provider?: string;
@@ -49,11 +57,11 @@ export interface LoadedWorkspaceCalendarPage {
   currentUserId: string | null;
   workspaceId: string;
   calendarKey: string;
-  includeSocialPosts: boolean;
   coworkerOptions: CoworkerOption[];
   initialDate: string;
   items: WorkspaceCalendarEntry[];
   latestDate: string;
+  newsletterEnabled: boolean;
   pagination: WorkspaceCalendarPage["pagination"];
   project: Project | null;
   projectOptions: ProjectFilterOption[];
@@ -66,17 +74,17 @@ export function resolveCalendarPageQuery(
   status: string | undefined,
   view?: string,
   timezone?: string,
-  latestScheduledSocialPostAt?: Date | null,
+  latestScheduledFeatureAt?: Date | null,
 ) {
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
   const now = new Date();
   const calendarTimezone = isValidTimezone(timezone) ? timezone : "UTC";
-  const latestScheduledCalendarDate = latestScheduledSocialPostAt
+  const latestScheduledCalendarDate = latestScheduledFeatureAt
     ? new Date(
         utcToDateTimeLocalInTimezone(
-          latestScheduledSocialPostAt,
+          latestScheduledFeatureAt,
           calendarTimezone,
         ),
       )
@@ -98,28 +106,50 @@ export function resolveCalendarPageQuery(
       ? { from, to: new Date(from.getTime() + 90 * 24 * 60 * 60 * 1000) }
       : getCalendarRange(initialDate);
 
-  return { calendarStatus, latestCalendarDate, initialDate, range };
+  return {
+    calendarStatus,
+    calendarTimezone,
+    latestCalendarDate,
+    initialDate,
+    range,
+  };
+}
+
+function laterScheduledAt(left: Date | null, right: Date | null): Date | null {
+  if (!left) return right;
+  if (!right) return left;
+  return left > right ? left : right;
+}
+
+function latestSourceScheduledAt(
+  sources: WorkspaceCalendarSource[],
+  selectedProjectId: string | null,
+  field: "latestScheduledSocialPostAt" | "latestScheduledNewsletterIssueAt",
+): Date | null {
+  return sources.reduce<Date | null>((latest, source) => {
+    if (
+      selectedProjectId &&
+      source.sourceId !== `project:${selectedProjectId}`
+    ) {
+      return latest;
+    }
+    const scheduledAt = source[field];
+    if (!scheduledAt) return latest;
+    const date =
+      scheduledAt instanceof Date ? scheduledAt : new Date(scheduledAt);
+    return !latest || date > latest ? date : latest;
+  }, null);
 }
 
 export async function loadCalendarPageContext(
   activeOrganizationId: string | null,
-  options: {
-    requireSources?: boolean;
-    includeSocialPosts?: boolean;
-    scope?: "owned" | "workspace";
-  } = {},
+  options: { scope?: "owned" | "workspace" } = {},
 ) {
   const [sources, coworkerOptions] = await Promise.all([
-    taskService
-      .getWorkspaceCalendarSources(
-        options.includeSocialPosts
-          ? { includeSocialPosts: "true", scope: options.scope }
-          : undefined,
-      )
-      .catch((error: unknown) => {
-        if (options.requireSources) throw error;
-        return [];
-      }),
+    taskService.getWorkspaceCalendarSources({
+      includeSocialPosts: "true",
+      scope: options.scope,
+    }),
     listTaskAssigneeOptions(activeOrganizationId),
   ]);
 
@@ -143,75 +173,99 @@ function projectOptionFromProject(project: Project): ProjectFilterOption {
 export async function loadWorkspaceCalendarPage({
   projectId: routeProjectId,
   searchParams,
+  types,
 }: {
   projectId?: string;
   searchParams: Promise<CalendarPageSearchParams>;
+  /** An embed's fixed features; otherwise the URL's `types`, default every one. */
+  types?: readonly CalendarType[];
 }): Promise<LoadedWorkspaceCalendarPage> {
   await connection();
-  const [session, includeSocialPosts] = await Promise.all([
-    getSession(),
-    hasCurrentUserSocialBetaAccess(),
-  ]);
-  const params = await searchParams;
+  const session = await getSession();
+  const requested = await searchParams;
   const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
-  const scope = params.scope === "owned" ? "owned" : "workspace";
-  const [{ sources, coworkerOptions }, project] = await Promise.all([
-    loadCalendarPageContext(activeOrganizationId, {
-      requireSources: !routeProjectId || includeSocialPosts,
-      includeSocialPosts,
-      scope,
-    }),
-    routeProjectId
-      ? projectService.getProjectById(routeProjectId)
-      : Promise.resolve(null),
-  ]);
+  const scope: "owned" | "workspace" =
+    requested.scope === "owned" ? "owned" : "workspace";
+  const [{ sources, coworkerOptions }, project, newsletterEnabled] =
+    await Promise.all([
+      loadCalendarPageContext(activeOrganizationId, { scope }),
+      routeProjectId
+        ? projectService.getProjectById(routeProjectId)
+        : Promise.resolve(null),
+      isNewsletterEnabled(),
+    ]);
   if (routeProjectId && !project) {
     notFound();
   }
-  const selectedSourceId = routeProjectId
-    ? `project:${routeProjectId}`
-    : params.projectId
-      ? `project:${params.projectId}`
-      : params.sourceId;
-  const socialPostsVisible =
-    includeSocialPosts &&
-    !params.assigneeId &&
-    !params.assigneeUserId &&
-    !Object.values(TaskStatus).some((status) => status === params.status);
-  const latestScheduledSocialPostAt = socialPostsVisible
-    ? sources.reduce<Date | null>((latest, source) => {
-        if (selectedSourceId && source.sourceId !== selectedSourceId) {
-          return latest;
-        }
-        const scheduledAt = source.latestScheduledSocialPostAt;
-        return scheduledAt && (!latest || scheduledAt > latest)
-          ? scheduledAt
-          : latest;
-      }, null)
-    : null;
-  const { calendarStatus, latestCalendarDate, initialDate, range } =
-    resolveCalendarPageQuery(
-      params.date,
-      params.status,
-      params.view,
-      params.timezone,
-      latestScheduledSocialPostAt,
-    );
+  // Resolve the Project before Show availability: Core drops Follow-ups under
+  // a Project and Marketing under scope=owned, so the page must not ask for them.
+  const selectedProjectId = routeProjectId ?? requested.projectId ?? null;
+  const availableTypes = availableCalendarTypes(newsletterEnabled, {
+    projectId: selectedProjectId,
+    scope,
+  });
+  const selectedTypes: readonly CalendarType[] =
+    types ??
+    selectedCalendarTypes(parseCalendarTypes(requested.types), availableTypes);
+  // Social posts alone have no agenda list; a month grid is shown instead.
+  const params =
+    requested.view === "agenda" && isSocialOnly(selectedTypes)
+      ? { ...requested, view: undefined }
+      : requested;
+  const hasTaskOnlyFilter = Boolean(
+    params.assigneeId ||
+      params.assigneeUserId ||
+      Object.values(TaskStatus).some((status) => status === params.status),
+  );
+  const latestScheduledFeatureAt = hasTaskOnlyFilter
+    ? null
+    : laterScheduledAt(
+        selectedTypes.includes("social")
+          ? latestSourceScheduledAt(
+              sources,
+              selectedProjectId,
+              "latestScheduledSocialPostAt",
+            )
+          : null,
+        selectedTypes.includes("newsletter")
+          ? latestSourceScheduledAt(
+              sources,
+              selectedProjectId,
+              "latestScheduledNewsletterIssueAt",
+            )
+          : null,
+      );
+  const {
+    calendarStatus,
+    calendarTimezone,
+    latestCalendarDate,
+    initialDate,
+    range,
+  } = resolveCalendarPageQuery(
+    params.date,
+    params.status,
+    params.view,
+    params.timezone,
+    latestScheduledFeatureAt,
+  );
   const latestDate = format(latestCalendarDate, "yyyy-MM-dd");
+  const typesQuery = calendarTypesQuery(selectedTypes);
+  const calendarQuery = {
+    ...range,
+    types: typesQuery,
+    timeZone: calendarTimezone,
+    agendaOnly: params.view === "agenda" ? ("true" as const) : undefined,
+    assigneeId: params.assigneeId,
+    assigneeUserId: params.assigneeUserId,
+    limit: params.view === "agenda" ? 10 : 100,
+    scope,
+    status: calendarStatus,
+  };
 
   if (project) {
     const { items, pagination } = await projectService.getProjectCalendar(
       project.id,
-      {
-        ...range,
-        agendaOnly: params.view === "agenda" ? "true" : undefined,
-        includeSocialPosts: includeSocialPosts ? "true" : undefined,
-        assigneeId: params.assigneeId,
-        assigneeUserId: params.assigneeUserId,
-        limit: params.view === "agenda" ? 10 : 100,
-        scope,
-        status: calendarStatus,
-      },
+      calendarQuery,
     );
     const sourceId = `project:${project.id}`;
     const projectSource = sources.find(
@@ -220,14 +274,14 @@ export async function loadWorkspaceCalendarPage({
 
     return {
       activeOrganizationId,
-      includeSocialPosts,
       currentUserId: session?.user?.id ?? null,
       workspaceId: project.workspaceId,
-      calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
+      calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}-${typesQuery}`,
       coworkerOptions,
       initialDate,
       items,
       latestDate,
+      newsletterEnabled,
       pagination,
       project,
       projectOptions: [projectOptionFromProject(project)],
@@ -238,16 +292,8 @@ export async function loadWorkspaceCalendarPage({
 
   const [{ items, pagination }, allProjectOptions] = await Promise.all([
     taskService.getWorkspaceCalendar({
-      ...range,
-      agendaOnly: params.view === "agenda" ? "true" : undefined,
-      includeSocialPosts: includeSocialPosts ? "true" : undefined,
-      assigneeId: params.assigneeId,
-      assigneeUserId: params.assigneeUserId,
-      limit: params.view === "agenda" ? 10 : 100,
+      ...calendarQuery,
       projectId: params.projectId,
-      sourceId: params.sourceId,
-      scope,
-      status: calendarStatus,
     }),
     getProjectFilterOptions(params.projectId),
   ]);
@@ -267,14 +313,14 @@ export async function loadWorkspaceCalendarPage({
 
   return {
     activeOrganizationId,
-    includeSocialPosts,
     currentUserId: session?.user?.id ?? null,
     workspaceId,
-    calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
+    calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}-${typesQuery}`,
     coworkerOptions,
     initialDate,
     items,
     latestDate,
+    newsletterEnabled,
     pagination,
     project: null,
     projectOptions: allProjectOptions.filter((project) =>

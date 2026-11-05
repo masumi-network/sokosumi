@@ -1,9 +1,15 @@
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
+/**
+ * From source, not `@sokosumi/utils`. The package entry resolves to `dist`,
+ * so a status added in source but not yet built would miss this guard.
+ * Same reason as `curated-vocabulary-migration.test.ts`.
+ */
+import { USER_TRANSITION_TASK_STATUSES } from "../../../../utils/src/task-status-transitions.js";
 import {
   HistoryKind as PrismaHistoryKind,
   NotificationKind as PrismaNotificationKind,
+  TaskStatus as PrismaTaskStatus,
   VendorMemberRole as PrismaVendorMemberRole,
 } from "../../generated/prisma/enums.js";
 import { InvitationStatus } from "../invitation.js";
@@ -20,6 +26,8 @@ import { MemberRole } from "../organization.js";
  * This file only guards mirrors that still live outside Prisma codegen:
  * - `SokosumiJobStatus` (no Prisma enum)
  * - Database `MemberRole` / `InvitationStatus` value locks
+ * - Task status strings are inside this guard: `USER_TRANSITION_TASK_STATUSES`
+ *   equals Prisma `TaskStatus` minus `CREATED`.
  */
 describe("status enum drift guard", () => {
   it("Prisma HistoryKind covers TASK, JOB and IMAGE and excludes legacy CONVERSATION", () => {
@@ -86,5 +94,13 @@ describe("status enum drift guard", () => {
       DISPUTE_PENDING: "dispute_pending",
       DISPUTE_RESOLVED: "dispute_resolved",
     });
+  });
+
+  it("USER_TRANSITION_TASK_STATUSES equals Prisma TaskStatus minus CREATED", () => {
+    expect([...USER_TRANSITION_TASK_STATUSES]).toEqual(
+      Object.values(PrismaTaskStatus).filter(
+        (status) => status !== PrismaTaskStatus.CREATED,
+      ),
+    );
   });
 });

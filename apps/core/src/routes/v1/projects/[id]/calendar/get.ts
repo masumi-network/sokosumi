@@ -6,7 +6,6 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -18,6 +17,7 @@ import {
   getCalendarAccessWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
+  requestsFeatures,
 } from "@/routes/v1/workspaces/calendar/read";
 import {
   projectCalendarQuerySchema,
@@ -39,7 +39,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/calendar",
     description:
-      "List the Task Schedule Runs of a Project: planned ones and the ones that created their Task",
+      "List the Calendar of a Project: Task Schedule Runs (planned ones and the ones that created their Task) and Queued Tasks, plus the features asked for with `types`",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -63,9 +63,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
-    if (c.req.valid("query").includeSocialPosts === "true") {
+    if (requestsFeatures(c.req.valid("query"))) {
       requireInteractiveUserAuthContext(c.var.authContext);
-      await requireSocialBetaAccess(userContext.userId, prisma);
     }
 
     const workspace = requireWorkspaceContext(c.var.workspaceContext);

@@ -41,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: memberFindUniqueMock,
     },
     chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
       findFirst: messageFindFirstMock,
     },
     $transaction: prismaTransactionMock,
@@ -98,7 +99,6 @@ function message(overrides: Record<string, unknown> = {}) {
     reactions: [],
     replies: [],
     pins: [],
-    _count: { replies: 0 },
     ...overrides,
   };
 }

@@ -1,7 +1,11 @@
 import { Prisma } from "@sokosumi/database";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
+import { waitUntil } from "@vercel/functions";
 
 import { getComposio } from "@/clients/composio.client";
+import { adProviderForToolkit } from "@/config/ads-providers";
+import { getEnv } from "@/config/env";
+import { socialProviderForToolkit } from "@/config/social-providers";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { assertSokoBotIntegrationReplace } from "@/helpers/soko-bot-management";
@@ -11,6 +15,7 @@ import {
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
+import { scheduleContactCapture } from "@/services/contact-capture.service";
 import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
 import {
   composioEntityId,
@@ -54,7 +59,11 @@ export async function requireBot(
   return bot;
 }
 
-/** Composio-managed auth config per toolkit, created on first use. */
+/**
+ * Composio-managed auth config per toolkit, created on first use. Composio
+ * offers no managed auth for some social toolkits (X), so those fall back to
+ * the auth config Project socials use.
+ */
 async function ensureAuthConfigId(toolkit: string): Promise<string> {
   const composio = requireComposio();
   const existing = await composio.authConfigs.list({ toolkit });
@@ -63,6 +72,9 @@ async function ensureAuthConfigId(toolkit: string): Promise<string> {
       item.toolkit.slug.toLowerCase() === toolkit && item.isComposioManaged,
   );
   if (managed) return managed.id;
+  const social = socialProviderForToolkit(toolkit);
+  const socialAuthConfigId = social && getEnv()[social.authConfigEnv];
+  if (socialAuthConfigId) return socialAuthConfigId;
   const created = await composio.authConfigs.create(toolkit, {
     type: "use_composio_managed_auth",
     name: `sokosumi-${toolkit}`,
@@ -79,6 +91,12 @@ export async function connectSokoBotIntegration(input: {
   selector?: SokoBotSelector;
 }): Promise<{ redirectUrl: string }> {
   const provider = resolveProvider(input.provider);
+  const adProvider = adProviderForToolkit(provider.id);
+  if (adProvider) {
+    throw new SokoBotIntegrationError(
+      `${adProvider.name} is connected on the Project's Ads page; your Soko Bot uses that account`,
+    );
+  }
   const bot = await requireBot(input.userId, input.workspaceId, input.selector);
   // Resolving proved the caller reaches a shared bot; it has no owner.
   const sharedBot = isSharedSokoBot(bot);
@@ -275,6 +293,33 @@ export async function finalizeSokoBotIntegration(input: {
       "Connection changed; retry finalizing OAuth",
     );
   }
+  // Contacts start filling from this account: a new account gets a fresh
+  // 12-month backfill on the next capture run.
+  if (status === "ACTIVE")
+    await scheduleContactCapture({
+      integrationId: row.id,
+      provider: provider.id,
+      reset: replacing,
+    }).catch((error: unknown) => {
+      console.error("Scheduling contact capture failed", {
+        integrationId: row.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
+  // The request that needed this app is finished now, without asking again.
+  if (status === "ACTIVE")
+    waitUntil(
+      import("@/services/soko-bot-watches.service")
+        .then(({ followUpConnectedApp }) =>
+          followUpConnectedApp(bot.id, provider.id),
+        )
+        .catch((error: unknown) => {
+          console.error("Soko Bot app-connected follow-up failed", {
+            sokoBotId: bot.id,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }),
+    );
   // Preserve the existing replacement policy, but only revoke after the new
   // account is active and persisted. Never delete unrelated upstream accounts.
   if (replacing) {

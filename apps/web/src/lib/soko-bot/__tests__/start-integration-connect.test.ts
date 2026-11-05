@@ -24,7 +24,9 @@ describe("startSokoBotConnect", () => {
 
   it("stores a shared bot for the callback and leaves for Composio", async () => {
     connectMock.mockResolvedValue({ ok: true, value: { redirectUrl: "r" } });
-    await expect(startSokoBotConnect("gmail", BOT_ID)).resolves.toBeNull();
+    await expect(
+      startSokoBotConnect("gmail", { botId: BOT_ID }),
+    ).resolves.toBeNull();
     expect(connectMock).toHaveBeenCalledWith({
       provider: "gmail",
       returnUrl: `https://app.test/personal-assistant/integrations/return?provider=gmail&botId=${BOT_ID}`,
@@ -39,7 +41,20 @@ describe("startSokoBotConnect", () => {
   it("stays in the tab and returns Core's refusal", async () => {
     const error = { code: "FORBIDDEN", message: "no" };
     connectMock.mockResolvedValue({ ok: false, error });
-    await expect(startSokoBotConnect("gmail", BOT_ID)).resolves.toBe(error);
+    await expect(startSokoBotConnect("gmail", { botId: BOT_ID })).resolves.toBe(
+      error,
+    );
     expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("asks the return page to land on a given path", async () => {
+    connectMock.mockResolvedValue({ ok: true, value: { redirectUrl: "r" } });
+    await startSokoBotConnect("gmail", { returnTo: "/chat/rooms/room-1" });
+    expect(connectMock).toHaveBeenCalledWith({
+      provider: "gmail",
+      returnUrl:
+        "https://app.test/personal-assistant/integrations/return?provider=gmail&next=%2Fchat%2Frooms%2Froom-1",
+      botId: undefined,
+    });
   });
 });

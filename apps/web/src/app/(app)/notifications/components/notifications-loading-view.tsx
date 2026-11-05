@@ -1,4 +1,9 @@
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /** The message widths the bones use, so no two rows read as one block. */
 const ROW_WIDTHS = ["w-[82%]", "w-[68%]", "w-[90%]", "w-[74%]", "w-[60%]"];
@@ -67,9 +72,11 @@ function NotificationsFilterSkeleton(): React.ReactElement {
 /** List card bones for Instant `loading.tsx`. */
 export function NotificationsListSkeleton(): React.ReactElement {
   return (
-    <div className="bg-card-background border-border overflow-hidden rounded-xl border">
-      <NotificationsFilterSkeleton />
-      <NotificationsSkeletonRows />
+    <div className={HOLDER_CLASS}>
+      <div className={cn(HOLDER_ITEM_CLASS, "overflow-hidden")}>
+        <NotificationsFilterSkeleton />
+        <NotificationsSkeletonRows />
+      </div>
     </div>
   );
 }

@@ -70,10 +70,6 @@ async function collectText(
 }
 
 describe("withConversationCommitPolicy", () => {
-  it("exports conversation max retries of 2", () => {
-    expect(COWORKER_CONVERSATION_MAX_RETRIES).toBe(2);
-  });
-
   it("returns the protocol stream without opening extra attempts on good output", async () => {
     const openStream = vi.fn(async () =>
       streamResult(

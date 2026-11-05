@@ -23,8 +23,8 @@ describe("YouPageSkeleton", () => {
     const { container } = render(<YouPageSkeleton />);
     const shell = container.firstElementChild;
 
-    expect(shell?.className).toContain("mx-auto");
-    expect(shell?.className).toContain("md:max-w-4xl");
+    expect(shell?.className).toContain("w-full");
+    expect(shell?.className).not.toContain("max-w-");
     expect(shell?.className).toContain("py-6");
     expect(shell?.className).not.toContain("max-w-lg");
     expect(shell?.className).not.toContain("items-center");

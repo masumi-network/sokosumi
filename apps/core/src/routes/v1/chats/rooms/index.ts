@@ -50,6 +50,7 @@ import mountGetChatRoomThreadsUnreadCount from "./[id]/threads/unread-count/get.
 import mountPostChatRoomUnread from "./[id]/unread/post.js";
 import mountGetChannelSlugAvailability from "./channel-slug-availability/get.js";
 import mountDiscoverableChatRooms from "./discoverable/get.js";
+import mountGetElsewhereChatRooms from "./elsewhere/get.js";
 import mountGetChatRooms from "./get.js";
 import mountPostChatRoom from "./post.js";
 import mountPutStarredChatRooms from "./starred/put.js";
@@ -58,8 +59,9 @@ const app = new OpenAPIHonoWithAuth();
 
 mountGetChatRooms(app);
 mountPostChatRoom(app);
-// Static `/discoverable`, `/channel-slug-availability` and `/starred` before `/{id}`.
+// Static `/discoverable`, `/elsewhere`, `/channel-slug-availability` and `/starred` before `/{id}`.
 mountDiscoverableChatRooms(app);
+mountGetElsewhereChatRooms(app);
 mountGetChannelSlugAvailability(app);
 mountPutStarredChatRooms(app);
 // Static `stream` segment under `/{id}` — mount before generic `/{id}` if needed.

@@ -1,5 +1,5 @@
+import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
-import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
@@ -22,8 +22,9 @@ interface AppShellLoadingFrameProps {
 
 export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
-    <BreadcrumbOverrideProvider>
+    <>
       <AppSidebarFallback />
+      <SidebarEdgeHandle />
       <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
         <div
           className="flex min-w-0 flex-1 flex-col overflow-clip"
@@ -57,6 +58,6 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
           </main>
         </div>
       </div>
-    </BreadcrumbOverrideProvider>
+    </>
   );
 }

@@ -1,15 +1,28 @@
 import type { SocialPost } from "@sokosumi/core-client";
+import {
+  socialPostProviderLabel,
+  socialProvidersForWorkspace,
+  socialProviderUnavailableMessage,
+} from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
 
 import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
   return {
+    useLocale: () => "en",
+    useTimeZone: () => "Europe/Prague",
     useFormatter: () => createTestFormatter(),
-    useTranslations: () => (key: string, values?: { date?: string }) =>
-      key === "failedAt" ? `Failed ${values?.date ?? ""}` : key,
+    useTranslations: () => (key: string, values?: Record<string, string>) => {
+      if (key === "failedAt") return `Failed ${values?.date ?? ""}`;
+      if (key === "failures.providerComingSoon") {
+        return `${values?.provider} is coming soon. Available now: ${values?.providers}.`;
+      }
+      return key;
+    },
   };
 });
 
@@ -32,6 +45,15 @@ const POST: SocialPost = {
   text: "Hello",
   firstComment: null,
   media: [],
+  threadParts: [],
+  quotedPostId: null,
+  quotedPost: null,
+  needsAttentionReason: null,
+  threadPartCount: 1,
+  publishedThreadPartCount: 1,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
+  publishingThreadPartPosition: null,
   status: "PUBLISHED",
   scheduledAt: null,
   timezone: null,
@@ -40,6 +62,7 @@ const POST: SocialPost = {
     externalHandle: "sokosumi",
     displayName: "Sokosumi",
     avatarUrl: null,
+    subscriptionType: null,
     status: "active",
   },
   creator: { kind: "user", id: "user-1", name: "Alice" },
@@ -67,6 +90,39 @@ const POST: SocialPost = {
 };
 
 describe("SocialPostPreviewDialog", () => {
+  it("shows a waiting badge for a due quote", () => {
+    render(
+      <SocialPostPreviewDialog
+        open
+        post={{
+          ...POST,
+          status: "SCHEDULED",
+          waitingForQuotedPost: true,
+          publishedExternalId: null,
+        }}
+        onOpenChange={() => undefined}
+        onCompose={() => undefined}
+      />,
+    );
+    expect(
+      screen.getByTestId("social-post-status-SCHEDULED"),
+    ).toHaveTextContent("quote.waiting");
+  });
+  it.each([
+    ["2026-10-05T12:00:00Z", "Central European Summer Time (Prague)"],
+    ["2026-01-15T12:00:00Z", "Central European Standard Time (Prague)"],
+  ])("names the displayed zone for the scheduled date %s", (date, label) => {
+    render(
+      <SocialPostPreviewDialog
+        open
+        post={{ ...POST, scheduledAt: new Date(date) }}
+        onOpenChange={() => undefined}
+        onCompose={() => undefined}
+      />,
+    );
+    expect(screen.getByText(label)).toBeVisible();
+  });
+
   it("gives phone-sized targets to refresh and footer actions", () => {
     render(
       <SocialPostPreviewDialog
@@ -150,6 +206,64 @@ describe("SocialPostPreviewDialog", () => {
       screen.queryByText("Internal authorization failure text"),
     ).not.toBeInTheDocument();
   });
+
+  it.each([null, "utxo"])(
+    "formats the exact Core coming-soon reason for workspace %s",
+    (organizationSlug) => {
+      const enabledProviders = socialProvidersForWorkspace({
+        organizationSlug,
+      });
+      render(
+        <SocialProviderAvailabilityProvider enabledProviders={enabledProviders}>
+          <SocialPostPreviewDialog
+            open
+            post={{
+              ...POST,
+              provider: "tiktok",
+              status: "FAILED",
+              lastError: socialProviderUnavailableMessage("tiktok", {
+                organizationSlug: null,
+              }),
+            }}
+            onOpenChange={() => undefined}
+            onCompose={() => undefined}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+
+      expect(
+        screen.getByTestId("social-post-preview-failure"),
+      ).toHaveTextContent(
+        `TikTok is coming soon. Available now: ${new Intl.ListFormat("en", {
+          type: "conjunction",
+        }).format(enabledProviders.map(socialPostProviderLabel))}.`,
+      );
+    },
+  );
+
+  it.each(["instagram", "facebook"] as const)(
+    "does not show a stale Coming soon reason for released %s",
+    (provider) => {
+      render(
+        <SocialPostPreviewDialog
+          open
+          post={{
+            ...POST,
+            provider,
+            status: "FAILED",
+            publishedUrl: null,
+            lastError: `${socialPostProviderLabel(provider)} is coming soon. Available now: X, YouTube, and LinkedIn.`,
+          }}
+          onOpenChange={() => undefined}
+          onCompose={() => undefined}
+        />,
+      );
+      expect(
+        screen.getByTestId("social-post-preview-failure"),
+      ).toHaveTextContent("failures.generic");
+      expect(screen.queryByText(/is coming soon/)).not.toBeInTheDocument();
+    },
+  );
 
   it("shows the miss reason without a failure time", () => {
     render(

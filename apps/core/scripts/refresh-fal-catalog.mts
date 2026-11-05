@@ -1,5 +1,6 @@
 /**
- * Regenerate `src/lib/image-studio/fal-catalog-snapshot.json`.
+ * Regenerate `src/lib/image-studio/fal-catalog-snapshot.json` and
+ * `fal-video-catalog-snapshot.json`.
  *
  * The snapshot is the studio's cold-start catalog: it is what a fresh instance
  * serves before any provider call, and what it keeps serving if fal is
@@ -21,15 +22,21 @@ import {
   fetchFalCatalogSources,
   normaliseFalCatalog,
 } from "../src/lib/image-studio/fal-catalog-fetch.js";
+import {
+  fetchFalVideoCatalogSources,
+  normaliseFalVideoCatalog,
+} from "../src/lib/image-studio/fal-video-catalog-fetch.js";
+import { verifiedVideoEndpoints } from "../src/lib/image-studio/video-catalog.js";
 
-const SNAPSHOT_PATH = join(
+const STUDIO_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
   "..",
   "src",
   "lib",
   "image-studio",
-  "fal-catalog-snapshot.json",
 );
+const SNAPSHOT_PATH = join(STUDIO_DIR, "fal-catalog-snapshot.json");
+const VIDEO_SNAPSHOT_PATH = join(STUDIO_DIR, "fal-video-catalog-snapshot.json");
 
 async function main(): Promise<void> {
   const apiKey = process.env.FAL_KEY;
@@ -68,6 +75,43 @@ async function main(): Promise<void> {
   await writeFile(SNAPSHOT_PATH, `${JSON.stringify(snapshot, null, 2)}\n`);
   process.stderr.write(
     `wrote ${models.length} models (${exclusions.length} excluded) to ${SNAPSHOT_PATH}\n`,
+  );
+
+  const videoSources = await fetchFalVideoCatalogSources(
+    {
+      fetchImpl: fetch,
+      apiKey,
+      onProgress: (message) => process.stderr.write(`${message}\n`),
+    },
+    verifiedVideoEndpoints(),
+  );
+  const video = normaliseFalVideoCatalog(videoSources);
+  if (video.models.length === 0) {
+    throw new Error("The video crawl produced no models; refusing to write.");
+  }
+  await writeFile(
+    VIDEO_SNAPSHOT_PATH,
+    `${JSON.stringify(
+      {
+        generatedAt: videoSources.fetchedAt.slice(0, 10),
+        generatedAtExact: videoSources.fetchedAt,
+        source:
+          "GET https://api.fal.ai/v1/models?category=text-to-video and category=image-to-video, filtered to the hand-verified endpoints, GET /v1/models/pricing, GET https://fal.ai/api/openapi/queue/openapi.json",
+        endpointsListed: videoSources.models.length,
+        modelsKept: video.models.length,
+        exclusions: video.exclusions.sort((left, right) =>
+          left.endpointId.localeCompare(right.endpointId),
+        ),
+        models: video.models.sort((left, right) =>
+          left.id.localeCompare(right.id),
+        ),
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  process.stderr.write(
+    `wrote ${video.models.length} video models to ${VIDEO_SNAPSHOT_PATH}\n`,
   );
 }
 

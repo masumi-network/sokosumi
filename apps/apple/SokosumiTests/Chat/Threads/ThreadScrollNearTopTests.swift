@@ -28,7 +28,7 @@
                                                                   baseURL: #require(URL(string: "https://example.com"))), reusing: nil)
         let host = NSHostingView(rootView: ReplyThreadContent(messages: [parent], preparedTranscript: prepared,
                                                               preparationScope: scope, preparedHasMore: false)
-            .modifier(ComposerAttachmentPane(userId: state.currentUserId, organizationId: state.selection?.workspace.organizationId,
+            .modifier(ComposerAttachmentPane(userId: state.currentUserId, draftScope: state.draftScope(roomId: parent.roomId),
                                              roomId: parent.roomId, parentMessageId: parent.id))
             .environmentObject(state).environmentObject(AuthState()))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)

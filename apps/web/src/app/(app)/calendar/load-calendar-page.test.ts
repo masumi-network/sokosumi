@@ -7,11 +7,14 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
-const hasSocialBetaAccessMock = vi.fn();
+const isNewsletterEnabledMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
+// Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
+vi.mock("temporal-polyfill", () => import("temporal-polyfill/implementation"));
+
+vi.mock("@/lib/newsletter-access.server", () => ({
+  isNewsletterEnabled: () => isNewsletterEnabledMock(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -129,25 +132,17 @@ describe("loadCalendarPageContext", () => {
     ]);
   });
 
-  it("returns empty sources when optional sources fail to load", async () => {
-    getWorkspaceCalendarSourcesMock.mockRejectedValue(new Error("offline"));
-    const result = await loadCalendarPageContext(null);
-    expect(result.sources).toEqual([]);
-  });
-
   it("propagates failures to load authoritative calendar sources", async () => {
     getWorkspaceCalendarSourcesMock.mockRejectedValue(new Error("offline"));
 
-    await expect(
-      loadCalendarPageContext(null, { requireSources: true }),
-    ).rejects.toThrow("offline");
+    await expect(loadCalendarPageContext(null)).rejects.toThrow("offline");
   });
 });
 
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockResolvedValue(false);
+    isNewsletterEnabledMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -185,28 +180,155 @@ describe("loadWorkspaceCalendarPage", () => {
     });
   });
 
+  it("asks Core for every feature, never the deprecated Social flag", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),
+    });
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        types: "tasks,social,newsletter,contacts,marketing",
+        timeZone: "Europe/Berlin",
+      }),
+    );
+    const [[calendarQuery]] = getWorkspaceCalendarMock.mock.calls;
+    expect(calendarQuery).not.toHaveProperty("includeSocialPosts");
+    // The sources endpoint is unchanged.
+    expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledWith({
+      includeSocialPosts: "true",
+      scope: "workspace",
+    });
+    expect(result).not.toHaveProperty("includeSocialPosts");
+  });
+
+  it("drops Follow-ups from the Core query under a Project, as Core does", async () => {
+    await loadWorkspaceCalendarPage({
+      projectId: PROJECT.id,
+      searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),
+    });
+    expect(getProjectCalendarMock).toHaveBeenCalledWith(
+      PROJECT.id,
+      expect.objectContaining({
+        types: "tasks,social,newsletter,marketing",
+        timeZone: "Europe/Berlin",
+      }),
+    );
+  });
+
+  it("drops Marketing from the Core query under scope=owned, as Core does", async () => {
+    await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({
+        scope: "owned",
+        timezone: "Europe/Berlin",
+      }),
+    });
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        types: "tasks,social,newsletter,contacts",
+        scope: "owned",
+      }),
+    );
+  });
+
+  it("places all-day items in UTC until the browser reports its zone", async () => {
+    await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "Not/AZone" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "UTC" }),
+    );
+  });
+
+  it("reports whether the workspace has Newsletter, for the Show filter", async () => {
+    isNewsletterEnabledMock.mockResolvedValue(false);
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(result.newsletterEnabled).toBe(false);
+  });
+
+  it("reads the Project from the header scope", async () => {
+    await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
+    );
+  });
+
+  it("loads a month, not the agenda, when Social posts are the only feature", async () => {
+    await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({
+        types: "social",
+        view: "agenda",
+        timezone: "UTC",
+      }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agendaOnly: undefined, limit: 100 }),
+    );
+  });
+
   it.each([
-    [undefined, false],
-    [undefined, true],
-    [PROJECT.id, false],
-    [PROJECT.id, true],
-  ] as const)(
-    "preserves Social eligibility for project %s with access %s",
-    async (projectId, allowed) => {
-      hasSocialBetaAccessMock.mockResolvedValue(allowed);
-      const result = await loadWorkspaceCalendarPage({
-        projectId,
-        searchParams: Promise.resolve({}),
+    ["newsletter,contacts", "newsletter,contacts"],
+    [undefined, "tasks,social,newsletter,contacts,marketing"],
+    ["bogus", "tasks,social,newsletter,contacts,marketing"],
+  ])(
+    "asks Core only for the selected features (types=%s)",
+    async (types, query) => {
+      await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({ types }),
       });
-      expect(result.includeSocialPosts).toBe(allowed);
-      const query = expect.objectContaining({
-        includeSocialPosts: allowed ? "true" : undefined,
-      });
-      if (projectId)
-        expect(getProjectCalendarMock).toHaveBeenCalledWith(projectId, query);
-      else expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(query);
+
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ types: query }),
+      );
     },
   );
+
+  it("leaves Newsletter out when the workspace has none", async () => {
+    isNewsletterEnabledMock.mockResolvedValue(false);
+
+    await loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ types: "tasks,social,contacts,marketing" }),
+    );
+  });
+
+  it("lets an embed's fixed features win over the URL, and keeps Social's month", async () => {
+    await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({
+        types: "tasks,contacts",
+        view: "agenda",
+        timezone: "UTC",
+      }),
+      types: ["social"],
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        types: "social",
+        agendaOnly: undefined,
+        limit: 100,
+      }),
+    );
+  });
+
+  it("keys the page on the selected features so a change remounts it", async () => {
+    const key = async (types: string | undefined) =>
+      (
+        await loadWorkspaceCalendarPage({
+          searchParams: Promise.resolve({ types }),
+        })
+      ).calendarKey;
+
+    expect(await key("contacts")).not.toBe(await key(undefined));
+  });
 
   it.each([undefined, PROJECT.id])(
     "loads the first ten Agenda occurrences for project %s",
@@ -234,7 +356,6 @@ describe("loadWorkspaceCalendarPage", () => {
         assigneeId: "coworker-1",
         date: "2026-06-18",
         projectId: "project-1",
-        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),
@@ -244,7 +365,6 @@ describe("loadWorkspaceCalendarPage", () => {
       expect.objectContaining({
         assigneeId: "coworker-1",
         projectId: "project-1",
-        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),
@@ -265,7 +385,6 @@ describe("loadWorkspaceCalendarPage", () => {
         assigneeId: "coworker-1",
         date: "2026-06-18",
         projectId: "project-2",
-        sourceId: "workspace:workspace-1",
         scope: "owned",
         status: "READY",
       }),
@@ -284,7 +403,6 @@ describe("loadWorkspaceCalendarPage", () => {
       PROJECT.id,
       expect.not.objectContaining({
         projectId: expect.anything(),
-        sourceId: expect.anything(),
       }),
     );
     expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
@@ -315,7 +433,6 @@ describe("loadWorkspaceCalendarPage", () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2026-01-10T12:00:00Z"));
-      hasSocialBetaAccessMock.mockResolvedValue(true);
       getWorkspaceCalendarSourcesMock.mockResolvedValue([
         { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
         {
@@ -356,7 +473,6 @@ describe("loadWorkspaceCalendarPage", () => {
           searchParams: Promise.resolve({
             date: "2026-12-31",
             projectId: routeProjectId ? "project-2" : PROJECT.id,
-            sourceId: routeProjectId ? "workspace:workspace-1" : undefined,
           }),
         });
 
@@ -399,7 +515,6 @@ describe("loadWorkspaceCalendarPage", () => {
     });
 
     it.each([
-      { sourceId: "workspace:workspace-1" },
       { assigneeId: "coworker-1" },
       { assigneeUserId: "user-1" },
       { status: "READY" },
@@ -412,13 +527,46 @@ describe("loadWorkspaceCalendarPage", () => {
       expect(result.initialDate).toBe("2026-03-01");
     });
 
-    it("keeps the default for callers without Social access", async () => {
-      hasSocialBetaAccessMock.mockResolvedValue(false);
+    it("includes the full Social horizon", async () => {
       const result = await loadWorkspaceCalendarPage({
         searchParams: Promise.resolve({ date: "2027-03-15" }),
       });
 
+      expect(result.latestDate).toBe("2027-02-01");
+      expect(result.initialDate).toBe("2027-02-01");
+    });
+
+    it("ignores Social posts when Social is not selected", async () => {
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({
+          date: "2027-03-15",
+          types: "tasks,newsletter",
+        }),
+      });
+
       expect(result.latestDate).toBe("2026-03-01");
+      expect(result.initialDate).toBe("2026-03-01");
+    });
+
+    it("extends the limit to the latest Newsletter issue when Newsletter is selected", async () => {
+      getWorkspaceCalendarSourcesMock.mockResolvedValue([
+        { sourceId: "workspace:workspace-1", sourceType: "WORKSPACE" },
+        {
+          sourceId: "project:project-1",
+          sourceType: "PROJECT",
+          latestScheduledSocialPostAt: new Date("2026-12-31T12:00:00Z"),
+          latestScheduledNewsletterIssueAt: new Date("2027-06-15T12:00:00Z"),
+        },
+      ]);
+      const result = await loadWorkspaceCalendarPage({
+        searchParams: Promise.resolve({
+          date: "2027-07-01",
+          types: "newsletter",
+        }),
+      });
+
+      expect(result.latestDate).toBe("2027-06-01");
+      expect(result.initialDate).toBe("2027-06-01");
     });
 
     it("propagates a project horizon load failure", async () => {

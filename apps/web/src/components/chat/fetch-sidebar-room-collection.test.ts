@@ -60,6 +60,30 @@ describe("sidebar collection GET requests", () => {
     expect(page?.nextCursor).toBeNull();
   });
 
+  it("answers Elsewhere rooms as a plain list, with their dates", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      response([
+        {
+          id: "room-1",
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          starredAt: null,
+          mutedAt: null,
+          userMembers: [],
+        },
+      ]),
+    );
+    const rooms = await fetchSidebarRoomCollection("elsewhere");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/chat/rooms?collection=elsewhere",
+    );
+    expect(rooms?.[0]).toMatchObject({
+      id: "room-1",
+      updatedAt: new Date(timestamp),
+    });
+  });
+
   it("restores invitation dates", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(

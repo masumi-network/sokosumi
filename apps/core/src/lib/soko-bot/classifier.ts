@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import type {
   SokoBotCapability,
   SokoBotRoute,
+  SokoBotTurnSignals,
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
@@ -44,7 +45,7 @@ const MIN_CONFIRMATION_CONFIDENCE = 0.85;
 
 const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   DIRECT_RESPONSE:
-    "Conversation, a question, or work the assistant does on its own without changing anything in Sokosumi or for other people: greetings, explanations, status of tasks or jobs, connected Project social accounts and social posts, what is on the calendar or in the inbox, what is in files, tables, chats or memory, and research it does itself on the web right now, reading pages, analysing data, scratch files it keeps for itself in its own workspace or running commands there. Nothing in Sokosumi is created or changed and nothing is sent to anyone.",
+    "Conversation, a question, or work the assistant does on its own without changing anything in Sokosumi or for other people: greetings, explanations, status of tasks or jobs, connected Project social accounts and social posts, Project ad accounts, campaigns (including one campaign's details) and Market keywords, what is on the calendar or in the inbox, what is in files, tables, chats or memory, and research it does itself on the web right now, reading pages, analysing data, scratch files it keeps for itself in its own workspace or running commands there. Nothing in Sokosumi is created or changed and nothing is sent to anyone.",
   CLARIFY:
     "Nothing can be acted on yet: the owner refuses or postpones the action they mention (do not, not yet, wait until), is thinking aloud (what if, should we, do you think), quotes someone else, gives a bare confirmation with nothing in the previous reply or pending proposals to confirm, or leaves out what is needed (which task, what outcome, or who when it names neither a person nor a role). Asking the assistant to stop, cancel or forget something is not a refusal; that is a change.",
   DELEGATE_TASK:
@@ -52,7 +53,7 @@ const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   HIRE_AGENT:
     "Explicitly asks to hire, book or run a marketplace Agent. This spends the owner's credits, so choose it only when the owner plainly asks for an Agent.",
   MANAGE_WORK:
-    "Asks for a concrete change the assistant makes itself: draft, create or edit a Project social post (LinkedIn, X and the like), schedule or reschedule it, cancel it or publish it now; update, move, unassign, archive or cancel existing Tasks or Jobs, or reassign them to a person or to a role (whoever does design, the research person), whom the assistant finds itself; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; write or save a file for the owner (it goes to their Files, also called Drive), or generate an image; create or change calendar events or email through a connected account; remember something or forget something it was told.",
+    "Asks for a concrete change the assistant makes itself: draft, create or edit a Project social post (LinkedIn, X and the like), schedule or reschedule it, cancel it or publish it now; create a paused Google Ads campaign (search or display) in a Project's ad account, or pause, resume, change the budget of, edit or delete a Project ad campaign; update, move, unassign, archive or cancel existing Tasks or Jobs, or reassign them to a person or to a role (whoever does design, the research person), whom the assistant finds itself; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; write or save a file for the owner (it goes to their Files, also called Drive), or generate an image; create or change calendar events or email through a connected account; remember something or forget something it was told.",
   MIXED:
     "Asks for two or more independent actions that belong to different routes above in one message, for example hiring an Agent and also creating a Task.",
 };
@@ -63,6 +64,7 @@ const WRITE_SCOPE_CRITERIA = {
     "the assistant's own reminders, check-ins or recurring prompt schedules, including its daily stand-up and weekly wrap; not social media posts or calendar events",
   SOCIAL:
     "creating, editing, scheduling, rescheduling, canceling or publishing a Project social media post",
+  ADS: "creating a Project ad campaign (Google Ads search or display), or pausing, resuming, changing the budget of, editing or deleting one, including its ads, keywords, images or targeting",
   CHAT: "posting a message in a chat room or channel, or messaging or asking a person in chat (not by email)",
   FILE: "writing or saving a file or document for the owner, into their Files (Drive), or generating an image",
   INTEGRATION:
@@ -82,8 +84,30 @@ const CONFIRMATION_INSTRUCTIONS =
 const WITHDRAWAL_INSTRUCTIONS =
   "Does the latest message call off or replace the pending proposal the assistant made earlier (cancel that, no, don't do that, instead do …, forget that)?";
 
+/**
+ * Soft reads of the message, asked in the same call as the route. They only
+ * add context — a hint, a saved preference, a smaller Task list — and never
+ * narrow what a person's turn may do.
+ */
+const SIGNAL_INSTRUCTIONS = {
+  refersToEarlier:
+    "Does the latest message point back at something said earlier in the conversation (these, that, the ones above, it) rather than standing on its own?",
+  statesPreference:
+    "Does the latest message tell the assistant how to behave from now on: a lasting preference such as what to stop or keep telling the owner, what to always or never do, or how to write?",
+  aboutMail:
+    "Is the latest message about the owner's email, inbox, calendar, or notifications and alerts the assistant posted?",
+  aboutTasks:
+    "Is the latest message about Tasks, Coworkers or Agent Jobs on the Taskboard?",
+} as const;
+
 export function routeQuestions(hasPendingProposals: boolean) {
   return {
+    ...Object.fromEntries(
+      Object.entries(SIGNAL_INSTRUCTIONS).map(([key, instructions]) => [
+        key,
+        { type: "boolean" as const, instructions },
+      ]),
+    ),
     route: {
       type: "choice" as const,
       instructions: ROUTE_INSTRUCTIONS,
@@ -207,6 +231,10 @@ const routeAnswersSchema = z.object({
   writeScope: choiceAnswer,
   confirmsPending: z.object({ probability }).optional(),
   withdrawsPending: z.object({ probability }).optional(),
+  refersToEarlier: z.object({ probability }).optional(),
+  statesPreference: z.object({ probability }).optional(),
+  aboutMail: z.object({ probability }).optional(),
+  aboutTasks: z.object({ probability }).optional(),
 });
 export type RouteAnswers = z.infer<typeof routeAnswersSchema>;
 
@@ -300,6 +328,31 @@ function percent(probability: number): string {
  * Anything malformed or unsure falls to CLARIFY, which only grants reads.
  */
 export function classificationFromAnswers(
+  message: string,
+  answers: RouteAnswers,
+  pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,
+): TurnClassification {
+  const signals = signalsFromAnswers(answers);
+  const classification = routedClassification(message, answers, pendingIntents);
+  return signals ? { ...classification, signals } : classification;
+}
+
+/** Missing when Jev answered none of the signal questions. */
+function signalsFromAnswers(
+  answers: RouteAnswers,
+): SokoBotTurnSignals | undefined {
+  const { refersToEarlier, statesPreference, aboutMail, aboutTasks } = answers;
+  if (!refersToEarlier && !statesPreference && !aboutMail && !aboutTasks)
+    return undefined;
+  return {
+    refersToEarlier: refersToEarlier?.probability ?? 0,
+    statesPreference: statesPreference?.probability ?? 0,
+    aboutMail: aboutMail?.probability ?? 0,
+    aboutTasks: aboutTasks?.probability ?? 0,
+  };
+}
+
+function routedClassification(
   message: string,
   answers: RouteAnswers,
   pendingIntents: NonNullable<ClassifierContextSummary["pendingIntents"]>,

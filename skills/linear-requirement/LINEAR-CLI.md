@@ -1,5 +1,11 @@
 # Linear CLI — Requirement Issues
 
+**Retired for this repo.** This repo no longer files work in Linear. Specs and tickets are Sokosumi Tasks. Load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/SKILL.md) and follow [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md).
+
+Do **not** call Linear CLI or Linear MCP for new Sokosumi monorepo work. Canonical Linear publish recipes remain in this folder for historical installs only. Do not use them for this repository.
+
+---
+
 Run **only after** the user approves the draft in chat.
 
 Creates or updates **one** Linear issue with `## Requirement`. No child issues.
@@ -27,17 +33,17 @@ Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
 
 Every `linear issue create` must include **all** of:
 
-| Flag | Default |
-|------|---------|
-| `--title` | user-approved **product** title (no `feat:` / `fix:` prefix) |
-| `--description-file` | approved requirement (`## Requirement`) |
-| `--team` | `SOK` |
-| `--project` | `sokosumi-6357694ddd23` (Sōkosumi marketplace) |
-| `--state` | `Triage` |
-| `--priority` | `3` (Medium) |
-| `--label` | exactly one of `Feature`, `Bug`, or `Improvement` |
-| `--no-interactive` | always |
-| `--no-use-default-template` | always |
+| Flag                        | Default                                                      |
+| --------------------------- | ------------------------------------------------------------ |
+| `--title`                   | user-approved **product** title (no `feat:` / `fix:` prefix) |
+| `--description-file`        | approved requirement (`## Requirement`)                      |
+| `--team`                    | `SOK`                                                        |
+| `--project`                 | `sokosumi-6357694ddd23` (Sōkosumi marketplace)               |
+| `--state`                   | `Triage`                                                     |
+| `--priority`                | `3` (Medium)                                                 |
+| `--label`                   | exactly one of `Feature`, `Bug`, or `Improvement`            |
+| `--no-interactive`          | always                                                       |
+| `--no-use-default-template` | always                                                       |
 
 **Do not pass `--assignee` on create** unless the user explicitly asked for an assignee during intake.
 

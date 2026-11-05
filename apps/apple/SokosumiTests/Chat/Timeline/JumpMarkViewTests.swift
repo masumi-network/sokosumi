@@ -378,8 +378,8 @@
         return try fittedBitmap(of: host, in: window)
       }
 
-      /// Web's wash with the rail at the row's leading edge: the rail is the accent at full strength, the wash
-      /// under the text a light tint of it, and the rows around the mark stay on the window background.
+      /// Web's wash with the rail at the row's leading edge: the rail is the foreground at full strength, the wash
+      /// under the text a light step of it, and the rows around the mark stay on the window background.
       @Test(arguments: [false, true])
       func rendersTheMarkOverTheWindowBackground(dark: Bool) async throws {
         let bitmap = try await Self.render(dark: dark)
@@ -394,8 +394,8 @@
             + abs(color.blueComponent - corner.blueComponent)
         }
         let middle = bitmap.pixelsHigh / 2
-        #expect(try difference(atX: 1, row: middle) > 0.4, "The rail draws in the accent.")
-        #expect(try (0.04 ... 0.4).contains(difference(atX: 8, row: middle)), "The wash is a tint.")
+        #expect(try difference(atX: 1, row: middle) > 0.4, "The rail draws in the foreground.")
+        #expect(try (0.04 ... 0.4).contains(difference(atX: 8, row: middle)), "The wash is a light step.")
         #expect(try difference(atX: 1, row: Int(14 * scale)) < 0.02, "The first row is not marked.")
         #expect(try difference(atX: 1, row: bitmap.pixelsHigh - Int(14 * scale)) < 0.02, "The last row is not marked.")
       }

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { NEWSLETTER_EMBED_PATH } from "@/config/document-security-headers";
 import { RESET_PASSWORD_PATH } from "@/lib/reset-password-token";
 
 interface TelemetryBoundaryProps {
@@ -15,5 +16,7 @@ export function TelemetryBoundary({ children }: TelemetryBoundaryProps) {
     pathname === RESET_PASSWORD_PATH ||
     pathname.startsWith(`${RESET_PASSWORD_PATH}/`);
 
-  return isResetPasswordPath ? null : children;
+  return isResetPasswordPath || NEWSLETTER_EMBED_PATH.test(pathname)
+    ? null
+    : children;
 }

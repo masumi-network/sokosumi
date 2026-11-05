@@ -1,7 +1,13 @@
 // Needs Chrome. Run: node --test .agents/skills/create-new-in-sokosumi/render.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -31,6 +37,18 @@ function run(name, fragment, out = join(work, `${name}.png`), env = {}) {
   });
   return { status: result.status, stderr: result.stderr, out };
 }
+
+describe("template.html", () => {
+  it("only uses tokens defined in globals.css", () => {
+    const read = (path) => readFileSync(join(import.meta.dirname, path), "utf8");
+    const globals = read("../../../apps/web/src/app/globals.css");
+    const used = read("template.html").matchAll(/var\(--([a-z0-9-]+)/g);
+    const missing = [...new Set([...used].map((match) => match[1]))].filter(
+      (token) => !globals.includes(`--${token}:`),
+    );
+    assert.deepEqual(missing, []);
+  });
+});
 
 describe("render.mjs", () => {
   it("renders a clean fragment into a directory that does not exist yet", () => {

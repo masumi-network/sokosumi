@@ -33,6 +33,12 @@ export interface UserAuthenticationContext {
   /** Credential class used to authenticate this request. */
   authenticationMethod?: "session" | "api_key" | "oauth";
   /**
+   * An OAuth token from a first-party client (`skipConsent`, ADR 0046), such
+   * as CMO or the Apple app: a person signed in right there, so the routes
+   * that use {@link requireFirstPartyUserAuthContext} accept it.
+   */
+  firstPartyClient?: boolean;
+  /**
    * Admin user id when this session impersonates another user (Better Auth
    * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
    * effective (target) user.
@@ -203,7 +209,7 @@ export function isAgentAuthContext(
  * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
  * | {@link requireOwnerUserContext} | Session only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
  * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker. |
- * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat, Social beta) must follow the effective user. |
+ * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat) must follow the effective user. |
  *
  * Middleware (`coworkerContextMiddleware`) only **attaches** validated
  * `X-Context-*` headers. Policy lives in these helpers — not per-handler
@@ -272,8 +278,8 @@ export function requireUserContext(
  * `null` for a standalone coworker key, whose access is decided by the Task
  * collaboration helpers instead of user-scoped gates.
  *
- * Use where a route accepts both user-scoped gates (organization seat,
- * Social beta) and standalone coworker actors: the gates apply to the
+ * Use where a route accepts both user-scoped gates (organization seats)
+ * and standalone coworker actors: the gates apply to the
  * effective user whenever one exists.
  */
 export function resolveUserContext(
@@ -406,6 +412,26 @@ export function requireInteractiveUserAuthContext(
   }
 
   return userAuthContext;
+}
+
+/**
+ * Like {@link requireInteractiveUserAuthContext}, but a first-party client's
+ * OAuth token passes too. Routes opt in one by one, so a stolen CMO or Apple
+ * token can only do what those routes do, and can never mint a credential.
+ */
+export function requireFirstPartyUserAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  const userAuthContext = requireUserAuthContext(authContext);
+
+  if (
+    userAuthContext.authenticationMethod === "oauth" &&
+    userAuthContext.firstPartyClient === true
+  ) {
+    return userAuthContext;
+  }
+
+  return requireInteractiveUserAuthContext(authContext);
 }
 
 /** Requires a browser-backed interactive admin session for sensitive actions. */
@@ -607,6 +633,7 @@ async function verifyOAuthToken(
       organizationId: null,
       role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
+      ...(client.skipConsent ? { firstPartyClient: true } : {}),
     },
   });
   return true;

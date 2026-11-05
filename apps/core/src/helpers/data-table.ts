@@ -305,6 +305,22 @@ function suppliedIds(rows: readonly { id?: string }[]): string[] {
 function assertEditable(table: { archivedAt: Date | null }) {
   if (table.archivedAt) throw conflict("Restore this table before editing");
 }
+function isLastUpdated(
+  columns: readonly { id: string; type: string }[],
+  columnId: string,
+): boolean {
+  return columns.some(
+    (column) => column.id === columnId && column.type === "last_updated",
+  );
+}
+/** A last_updated column has no stored value, so there is nothing to filter. */
+function assertFilterable(
+  columns: readonly { id: string; type: string }[],
+  filters: readonly { columnId: string }[],
+) {
+  if (filters.some((filter) => isLastUpdated(columns, filter.columnId)))
+    throw unprocessableEntity("A Last updated column cannot be filtered");
+}
 
 export async function createDataTable(
   actor: TableActor,
@@ -516,6 +532,12 @@ export async function mutateDataTable(
                 "A populated column cannot change type or options. Add a new column instead.",
               );
           }
+          if (
+            previous?.type !== "last_updated" &&
+            column.type === "last_updated"
+          )
+            // Raw SQL, so stripping stale nulls leaves each row's updatedAt alone.
+            await tx.$executeRaw`UPDATE table_row SET "values" = "values" - ${column.id}, "evidence" = "evidence" - ${column.id} WHERE "tableId" = ${id}::uuid`;
           if (previous)
             await tx.tableColumn.update({
               where: { id: column.id },
@@ -926,6 +948,7 @@ export async function queryTableRows(
     (query.sort && !columnIds.has(query.sort.columnId))
   )
     throw unprocessableEntity("Unknown view column");
+  assertFilterable(table.columns, query.filters);
   const scope = await scopeForTask(actor, id, prisma);
   const terms = [
     PrismaRaw.sql`r."tableId" = ${id}::uuid`,
@@ -966,9 +989,13 @@ export async function queryTableRows(
   const [count] = await prisma.$queryRaw<Array<{ total: number }>>(
     PrismaRaw.sql`SELECT COUNT(*)::integer AS total FROM table_row r WHERE ${PrismaRaw.join(terms, " AND ")}`,
   );
-  const sort = query.sort
-    ? PrismaRaw.sql`COALESCE(r.values -> ${query.sort.columnId}, 'null'::jsonb)`
-    : PrismaRaw.sql`r.position`;
+  const byUpdatedAt =
+    !!query.sort && isLastUpdated(table.columns, query.sort.columnId);
+  const sort = byUpdatedAt
+    ? PrismaRaw.sql`r."updatedAt"`
+    : query.sort
+      ? PrismaRaw.sql`COALESCE(r.values -> ${query.sort.columnId}, 'null'::jsonb)`
+      : PrismaRaw.sql`r.position`;
   const direction =
     query.sort?.direction === "desc" ? PrismaRaw.sql`DESC` : PrismaRaw.sql`ASC`;
   if (query.cursor) {
@@ -980,9 +1007,12 @@ export async function queryTableRows(
       throw unprocessableEntity("Invalid row cursor");
     const operator =
       query.sort?.direction === "desc" ? PrismaRaw.sql`<` : PrismaRaw.sql`>`;
-    const cursorValue = query.sort
-      ? PrismaRaw.sql`${JSON.stringify(tableValuesSchema.parse(cursor.values)[query.sort.columnId] ?? null)}::jsonb`
-      : PrismaRaw.sql`${cursor.position}::double precision`;
+    // Read from the row itself, so the comparison keeps the column's own type and precision.
+    const cursorValue = byUpdatedAt
+      ? PrismaRaw.sql`(SELECT c."updatedAt" FROM table_row c WHERE c.id = ${cursor.id}::uuid)`
+      : query.sort
+        ? PrismaRaw.sql`${JSON.stringify(tableValuesSchema.parse(cursor.values)[query.sort.columnId] ?? null)}::jsonb`
+        : PrismaRaw.sql`${cursor.position}::double precision`;
     terms.push(
       PrismaRaw.sql`(${sort}, r.id) ${operator} (${cursorValue}, ${cursor.id}::uuid)`,
     );
@@ -1027,6 +1057,7 @@ export async function saveTableView(
         (definition.sort && !columns.has(definition.sort.columnId))
       )
         throw unprocessableEntity("Unknown view column");
+      assertFilterable(table.columns, definition.filters);
       if (!input.id && table.views.length >= 50)
         throw unprocessableEntity("A table supports at most 50 saved views");
       const previous = input.id
@@ -1221,6 +1252,14 @@ export async function createTableEnrichment(
         )
       )
         throw unprocessableEntity("Unknown output column");
+      if (
+        input.columnIds.some((columnId) =>
+          isLastUpdated(table.columns, columnId),
+        )
+      )
+        throw unprocessableEntity(
+          "A Last updated column is filled automatically",
+        );
       const count = await tx.tableRow.count({
         where: { tableId: id, id: { in: input.rowIds }, archivedAt: null },
       });

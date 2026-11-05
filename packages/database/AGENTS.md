@@ -6,7 +6,7 @@
 
 **Package Name**: `@sokosumi/database`
 **Purpose**: Shared database layer providing Prisma client factory, repositories, helpers, and types
-**Runtime**: Node.js 24.x
+**Runtime**: Node.js 26.x
 **Location**: `packages/database/` within the pnpm workspace
 
 ## Layout
@@ -64,7 +64,7 @@ const user = await userRepository.getUserById("user-id", prisma);
 ### Helpers Export (`@sokosumi/database/helpers`)
 
 - **Purpose**: Prisma-backed domain helpers (job status, credit buckets, billing plan resolution, etc.)
-- **Note**: Credit *conversion* (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
+- **Note**: Credit _conversion_ (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
 
 ```typescript
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
@@ -107,7 +107,7 @@ export const userRepository = {
 
 - **`@default(uuid(7))`**: Primary keys on `String` ids use Prisma’s UUID v7 default for new rows when no `id` is provided. Do not switch back to `cuid()` or plain `uuid()` without an explicit migration and product decision.
 - **`@db.Uuid`**: `Workspace.id`, `Job.workspaceId`, and `Task.workspaceId` use native PostgreSQL `UUID` where the database has been migrated. Do not drop `@db.Uuid` (or change those columns to untyped `text`) without a coordinated SQL migration.
-- **Better Auth**: Web and Core Better Auth configs set `advanced.database.generateId: "uuid"` so adapter inserts use UUID-shaped ids compatible with these columns. Keep Prisma defaults and Better Auth `generateId` aligned when changing either.
+- **Better Auth**: Core's Better Auth config (`apps/core/src/lib/auth.ts`) sets `advanced.database.generateId: "uuid"` so adapter inserts use UUID-shaped ids compatible with these columns. Keep Prisma defaults and Better Auth `generateId` aligned when changing either.
 - **Legacy data**: Bulk rekey or type-change migrations are separate from schema defaults; see migration history and team runbooks before altering id strategy for existing rows.
 
 ### Migrations
@@ -122,15 +122,15 @@ export const userRepository = {
 
 ## Package-Specific Commands
 
-| Command                      | Purpose                       |
-| ---------------------------- | ----------------------------- |
-| `pnpm --filter @sokosumi/database lint` | Lint package code             |
-| `pnpm --filter @sokosumi/database format` | Format code with Biome        |
-| `pnpm prisma:generate`       | Generate Prisma client        |
-| `pnpm prisma:migrate:dev`    | Create new migration          |
-| `pnpm prisma:migrate:deploy` | Apply migrations (production / Core Vercel build) |
-| `pnpm prisma:migrate:reset`  | Reset database (dev only)     |
-| `pnpm prisma:studio`         | Open Prisma Studio            |
+| Command                                   | Purpose                                           |
+| ----------------------------------------- | ------------------------------------------------- |
+| `pnpm --filter @sokosumi/database lint`   | Lint package code                                 |
+| `pnpm --filter @sokosumi/database format` | Format code with Biome                            |
+| `pnpm prisma:generate`                    | Generate Prisma client                            |
+| `pnpm prisma:migrate:dev`                 | Create new migration                              |
+| `pnpm prisma:migrate:deploy`              | Apply migrations (production / Core Vercel build) |
+| `pnpm prisma:migrate:reset`               | Reset database (dev only)                         |
+| `pnpm prisma:studio`                      | Open Prisma Studio                                |
 
 ## Usage in Apps
 

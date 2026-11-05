@@ -52,7 +52,7 @@ public extension ChatService {
   }
 
   func createChannel(client: Client, draft: ChannelDraft, roster: ChatRecipientRoster, currentUserId: String, organizationSlug: String) async throws -> Components.Schemas.ChatRoom {
-    guard draft.isValid, !roster.membersLoadFailed else { throw ChatServiceError.unexpectedResponse("Complete the channel details and load participants first.") }
+    guard draft.isValid, !roster.humansLoadFailed else { throw ChatServiceError.unexpectedResponse("Complete the channel details and load participants first.") }
     let recipients = draft.selectedRecipients(roster: roster, currentUserId: currentUserId)
     let topic = draft.topic.trimmingCharacters(in: .whitespacesAndNewlines)
     let body = Components.Schemas.CreateChatRoomRequest.Case1Payload(

@@ -2,7 +2,7 @@
 
 import type { MouseEvent, PointerEvent, ReactElement, ReactNode } from "react";
 import { createContext, use, useState } from "react";
-
+import { FileMediaDialog } from "@/app/drive/components/drive-file-viewer";
 import {
   driveItemActionsClass,
   driveItemArticleClass,
@@ -13,6 +13,7 @@ import { DocumentViewer } from "@/components/ui/document-viewer";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 
 const DriveItemNameA11yContext = createContext(false);
 
@@ -111,34 +112,53 @@ interface DriveFilePreviewApi {
 interface DriveFilePreviewProps {
   name: string;
   fileUrl: string;
-  isImage: boolean;
-  documentKind: "office" | "pdf" | "text" | null;
+  sizeBytes: number | null;
+  /** The file's detail view, when the catalog knows the file. */
+  detailsHref: string | null;
   children: (api: DriveFilePreviewApi) => ReactNode;
 }
 
+/** Vercel Blob answers `?download=1` with an attachment. */
+export function forcedDownloadUrl(url: string): string {
+  const parsed = new URL(url);
+  parsed.searchParams.set("download", "1");
+  return parsed.toString();
+}
+
+/**
+ * How a file opens from its row. Every file opens: images and documents in
+ * their viewers, video and audio in a player, and anything else in a dialog
+ * with its name, size and a Download button.
+ */
 export function DriveFilePreview({
   name,
   fileUrl,
-  isImage,
-  documentKind,
+  sizeBytes,
+  detailsHref,
   children,
 }: DriveFilePreviewProps): ReactElement {
-  const isPreviewable = isImage || documentKind !== null;
+  const { isImage, isVideo, isAudio, documentKind } = classifyFilePreview(
+    fileUrl,
+    name,
+  );
   const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
+  const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
 
   function activate() {
     if (isImage) {
       setOpenImageSrc(fileUrl);
     } else if (documentKind) {
       setIsDocumentViewerOpen(true);
+    } else {
+      setIsMediaDialogOpen(true);
     }
   }
 
   return (
     <>
       {children({
-        activate: isPreviewable ? activate : undefined,
+        activate,
         nameEl: <DriveItemName name={name} />,
         viewers: (
           <>
@@ -156,6 +176,17 @@ export function DriveFilePreview({
                 url={fileUrl}
                 fileName={name}
                 kind={documentKind}
+              />
+            ) : null}
+            {isMediaDialogOpen ? (
+              <FileMediaDialog
+                fileName={name}
+                sizeBytes={sizeBytes}
+                url={fileUrl}
+                downloadUrl={forcedDownloadUrl(fileUrl)}
+                detailsHref={detailsHref}
+                media={isVideo ? "video" : isAudio ? "audio" : null}
+                onClose={() => setIsMediaDialogOpen(false)}
               />
             ) : null}
           </>

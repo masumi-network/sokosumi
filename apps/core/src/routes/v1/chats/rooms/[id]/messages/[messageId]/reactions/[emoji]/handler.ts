@@ -11,6 +11,7 @@ import {
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  withChatRoomReplyCount,
 } from "../../../../../helpers";
 import { assertChatRoomContentMessage } from "../../../../../membership-status";
 import { requireWritableChatRoom } from "../../../../../writable-chat-room";
@@ -93,5 +94,7 @@ export async function setChatRoomMessageReaction(params: {
     await publishChatRoomMessageRealtime(message, "reaction");
   }
 
-  return chatRoomMessageSchema.parse(mapChatRoomMessage(message, userId));
+  return chatRoomMessageSchema.parse(
+    mapChatRoomMessage(await withChatRoomReplyCount(prisma, message), userId),
+  );
 }

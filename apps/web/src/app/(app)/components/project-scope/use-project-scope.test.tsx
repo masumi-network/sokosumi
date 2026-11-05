@@ -284,7 +284,7 @@ describe("project scope persistence", () => {
     expect(remounted.result.current.projectId).toBe("p-1");
   });
 
-  it("keeps Everything after explicitly clearing the scope", () => {
+  it("keeps All projects after explicitly clearing the scope", () => {
     mocks.search.current = new URLSearchParams("projectId=p-1");
     const view = renderHook(() => useProjectScope());
     mocks.search.current = new URLSearchParams();
@@ -295,7 +295,7 @@ describe("project scope persistence", () => {
     expect(view.result.current.hrefFor("/tasks")).toBe("/tasks");
   });
 
-  it("can choose Everything while a chat is open", () => {
+  it("can choose All projects while a chat is open", () => {
     mocks.search.current = new URLSearchParams("projectId=p-1");
     const view = renderHook(() => useProjectScopeSwitch());
     mocks.pathname.current = "/chat/room-1";

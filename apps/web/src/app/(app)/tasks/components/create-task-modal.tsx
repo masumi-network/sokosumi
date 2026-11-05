@@ -53,6 +53,8 @@ interface CreateTaskModalContextType {
   }) => void;
   handleClose: () => void;
   clearPromptOverride: () => void;
+  /** Told the new task's id; a chat commitment closes its loop with it. */
+  onTaskCreated?: (taskId: string) => void;
 }
 
 const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
@@ -81,6 +83,7 @@ interface CreateTaskModalProviderProps {
   initialAssigneeId?: string | null;
   initialProjectId?: string | null;
   initialPrompt?: string | null;
+  onTaskCreated?: (taskId: string) => void;
 }
 
 export function CreateTaskModalProvider({
@@ -90,6 +93,7 @@ export function CreateTaskModalProvider({
   initialAssigneeId = null,
   initialProjectId = null,
   initialPrompt = null,
+  onTaskCreated,
 }: CreateTaskModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
   const [assigneeOverrideId, setAssigneeOverrideId] = useState<string | null>(
@@ -171,6 +175,7 @@ export function CreateTaskModalProvider({
         handleOpenWithDefaults,
         handleClose,
         clearPromptOverride,
+        onTaskCreated,
       }}
     >
       {children}
@@ -231,6 +236,7 @@ export function CreateTaskModal({
     runAtOverride,
     formInstanceKey,
     clearPromptOverride,
+    onTaskCreated,
   } = useCreateTaskModal();
   const router = useRouter();
   const pathname = usePathname();
@@ -421,7 +427,8 @@ export function CreateTaskModal({
           onCancel={handleDismiss}
           onSubmittingChange={setIsDismissDisabled}
           onCreatedChange={setIsCreated}
-          onCreated={() => {
+          onCreated={(taskId) => {
+            onTaskCreated?.(taskId);
             router.refresh();
           }}
           onSuccess={(task) => {

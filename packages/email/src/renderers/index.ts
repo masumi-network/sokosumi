@@ -8,6 +8,12 @@ export {
 export { renderLowBalanceEmail } from "./billing.js";
 export { renderJobFailureNotificationEmail } from "./jobs.js";
 export {
+  renderNewsletterConfirmationEmail,
+  renderNewsletterConfirmPage,
+  renderNewsletterEmail,
+  renderNewsletterUnsubscribePage,
+} from "./newsletter.js";
+export {
   renderBillingFollowUpEmail,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,

@@ -2,27 +2,24 @@
 import Testing
 
 struct DirectConversationSelectionTests {
-  @Test func humanGroupsRequireOrganizationAndExcludeAI() {
-    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
+  /// Group Directs need no active Organization (SOK-1495): Core checks each person is reachable.
+  @Test func humanGroupsNeedNoOrganizationAndExcludeAI() {
+    var selection = DirectConversationSelection(currentUserId: "me")
+    #expect(selection.disabledReason(for: .human("bob")) == nil)
     selection.add(.human("alice"))
+    #expect(selection.disabledReason(for: .human("bob")) == nil)
     selection.add(.human("bob"))
     selection.add(.human("alice"))
     selection.add(.coworker("helper"))
     selection.add(.sokoBot("assistant"))
     #expect(selection.recipients == [.human("alice"), .human("bob")])
     #expect(selection.disabledReason(for: .coworker("helper")) != nil)
-
-    var personal = DirectConversationSelection(hasOrganization: false, currentUserId: "me")
-    personal.add(.human("alice"))
-    personal.add(.human("bob"))
-    #expect(personal.recipients == [.human("alice")])
-    personal.remove(.human("alice"))
-    personal.add(.human("bob"))
-    #expect(personal.recipients == [.human("bob")])
+    selection.remove(.human("alice"))
+    #expect(selection.recipients == [.human("bob")])
   }
 
   @Test func selectingAIReplacesOnlyTheSameKind() {
-    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
+    var selection = DirectConversationSelection(currentUserId: "me")
     selection.add(.coworker("first"))
     selection.add(.coworker("second"))
     selection.add(.human("alice"))
@@ -36,11 +33,10 @@ struct DirectConversationSelectionTests {
   }
 
   /// Web `isTargetDisabled` (`create-direct-dialog.tsx`:111-138): Message yourself takes no one else, and is
-  /// itself unavailable once anyone else is chosen. It needs no organization.
-  @Test(arguments: [false, true])
-  func messageYourselfIsExclusive(hasOrganization: Bool) {
+  /// itself unavailable once anyone else is chosen.
+  @Test func messageYourselfIsExclusive() {
     let exclusive = "Self-chat cannot include other recipients."
-    var selection = DirectConversationSelection(hasOrganization: hasOrganization, currentUserId: "me")
+    var selection = DirectConversationSelection(currentUserId: "me")
     #expect(selection.disabledReason(for: .human("me")) == nil)
     selection.add(.human("me"))
     #expect(selection.recipients == [.human("me")])
@@ -54,7 +50,7 @@ struct DirectConversationSelectionTests {
     #expect(!selection.isSelfDirect)
 
     for first in [DirectRecipient.human("ada"), .coworker("helper"), .sokoBot("bot")] {
-      var other = DirectConversationSelection(hasOrganization: hasOrganization, currentUserId: "me")
+      var other = DirectConversationSelection(currentUserId: "me")
       other.add(first)
       #expect(other.disabledReason(for: .human("me")) == exclusive)
       other.add(.human("me"))

@@ -12,6 +12,7 @@ import mountGetProject from "./get.js";
 import mountDeleteProjectJob from "./jobs/[jobId]/delete.js";
 import mountPostProjectJob from "./jobs/post.js";
 import mountPatchProject from "./patch.js";
+import mountGetProjectPostingInstructions from "./posting-instructions/get.js";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -24,6 +25,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   deliverCalendarInvalidationsNowMock,
   projectFindFirstMock,
+  socialPostCountMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
   taskScheduleOccurrenceFindFirstMock,
@@ -38,6 +40,7 @@ const {
 } = vi.hoisted(() => ({
   deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
+  socialPostCountMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
   taskScheduleOccurrenceFindFirstMock: vi.fn(),
@@ -69,6 +72,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,
       deleteMany: projectDeleteManyMock,
+    },
+    socialPost: {
+      count: socialPostCountMock,
     },
     job: {
       findFirst: jobFindFirstMock,
@@ -154,6 +160,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 describe("GET /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    socialPostCountMock.mockResolvedValue(0);
   });
 
   it("returns 404 when project is missing", async () => {
@@ -172,6 +179,29 @@ describe("GET /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { id: string } };
     expect(body.data.id).toBe(PROJECT_ID);
+  });
+
+  it("counts scheduled Social posts for the close warning", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    socialPostCountMock.mockResolvedValue(3);
+    const app = createApp();
+    mountGetProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { scheduledSocialPostCount: number };
+    };
+    expect(body.data.scheduledSocialPostCount).toBe(3);
+    expect(socialPostCountMock).toHaveBeenCalledWith({
+      where: {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        OR: [
+          { status: "SCHEDULED" },
+          { status: "NEEDS_APPROVAL", scheduledAt: { not: null } },
+        ],
+      },
+    });
   });
 });
 
@@ -222,6 +252,60 @@ describe("GET /projects/{id}/context-md", () => {
         label: "Mistral Medium",
         region: "eu",
       },
+    });
+  });
+});
+
+describe("GET /projects/{id}/posting-instructions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 404 when the project is outside the workspace", async () => {
+    projectFindFirstMock.mockResolvedValue(null);
+    const app = createApp();
+    mountGetProjectPostingInstructions(app);
+
+    const res = await app.request(
+      `http://localhost/${UNKNOWN_PROJECT_ID}/posting-instructions`,
+    );
+
+    expect(res.status).toBe(404);
+    expect(projectFindFirstMock).toHaveBeenCalledWith({
+      where: { id: UNKNOWN_PROJECT_ID, workspaceId: WORKSPACE_ID },
+      select: { postingInstructionsMd: true },
+    });
+  });
+
+  it("returns null when no instructions are set", async () => {
+    projectFindFirstMock.mockResolvedValue({ postingInstructionsMd: null });
+    const app = createApp();
+    mountGetProjectPostingInstructions(app);
+
+    const res = await app.request(
+      `http://localhost/${PROJECT_ID}/posting-instructions`,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      data: { postingInstructionsMd: null },
+    });
+  });
+
+  it("returns the markdown to a session user", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      postingInstructionsMd: "# Posting instructions\n\nTone: warm",
+    });
+    const app = createApp();
+    mountGetProjectPostingInstructions(app);
+
+    const res = await app.request(
+      `http://localhost/${PROJECT_ID}/posting-instructions`,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      data: { postingInstructionsMd: "# Posting instructions\n\nTone: warm" },
     });
   });
 });
@@ -482,6 +566,70 @@ describe("PATCH /projects/{id}", () => {
       }),
     });
 
+    expect(res.status).toBe(422);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("sets posting instructions and returns them on the project", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        postingInstructionsMd: "  Tone: warm\n\n## X\nOne hashtag\n",
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: {
+        projectRevision: { increment: 1 },
+        postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
+      },
+    });
+    const body = (await res.json()) as {
+      data: { postingInstructionsMd: string | null };
+    };
+    expect(body.data.postingInstructionsMd).toBe(
+      "Tone: warm\n\n## X\nOne hashtag",
+    );
+  });
+
+  it.each([null, "   \n"])(
+    "clears posting instructions for %j",
+    async (postingInstructionsMd) => {
+      projectUpdateManyMock.mockResolvedValue({ count: 1 });
+      projectFindFirstMock.mockResolvedValue(sampleProject);
+      const app = createApp();
+      mountPatchProject(app);
+      const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postingInstructionsMd }),
+      });
+      expect(res.status).toBe(200);
+      expect(projectUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ postingInstructionsMd: null }),
+        }),
+      );
+    },
+  );
+
+  it("rejects posting instructions over the length limit", async () => {
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postingInstructionsMd: "a".repeat(20_001) }),
+    });
     expect(res.status).toBe(422);
     expect(projectUpdateManyMock).not.toHaveBeenCalled();
   });

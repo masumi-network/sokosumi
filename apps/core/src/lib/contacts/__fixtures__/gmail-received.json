@@ -1,0 +1,102 @@
+{
+  "messages": [
+    {
+      "messageId": "19a0000000000001",
+      "threadId": "18f1a2b3c4d5e000",
+      "messageTimestamp": "2026-10-19T15:02:11Z",
+      "labelIds": ["INBOX", "CATEGORY_PERSONAL", "IMPORTANT"],
+      "sender": "Nina Keller <nina.keller@acme-robotics.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "Pilot pricing for Q3",
+      "messageText": "Hi Patrick,\n\ncould you send the pilot numbers before Thursday?\n\nThanks!\n\nNina Keller\nHead of Partnerships | Acme Robotics AG\nT: +41 79 123 45 67\nlinkedin.com/in/ninakeller\n\nOn Mon, Oct 14, 2026 at 9:00 Patrick Tobler <patrick@yellowhouse.gmbh> wrote:\n> Hi Nina,\n> Patrick Tobler\n> CEO, Yellowhouse GmbH",
+      "payload": {
+        "headers": [
+          {
+            "name": "From",
+            "value": "Nina Keller <nina.keller@acme-robotics.com>"
+          },
+          { "name": "To", "value": "patrick@yellowhouse.gmbh" }
+        ]
+      }
+    },
+    {
+      "messageId": "19a0000000000002",
+      "threadId": "19a0000000000002",
+      "messageTimestamp": "2026-10-19T06:00:00Z",
+      "labelIds": ["INBOX"],
+      "sender": "The Weekly Founder <hello@weeklyfounder.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "Issue #212: pricing for pilots",
+      "messageText": "This week...",
+      "payload": {
+        "headers": [
+          {
+            "name": "List-Unsubscribe",
+            "value": "<https://weeklyfounder.com/u/abc>"
+          },
+          { "name": "Precedence", "value": "bulk" }
+        ]
+      }
+    },
+    {
+      "messageId": "19a0000000000003",
+      "threadId": "19a0000000000003",
+      "messageTimestamp": "2026-10-18T06:00:00Z",
+      "labelIds": ["INBOX", "CATEGORY_PROMOTIONS"],
+      "sender": "Lena from Shopper <lena@shopper-deals.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "50% off this weekend",
+      "messageText": "Deals"
+    },
+    {
+      "messageId": "19a0000000000004",
+      "threadId": "19a0000000000004",
+      "messageTimestamp": "2026-10-18T05:00:00Z",
+      "labelIds": ["INBOX"],
+      "sender": "Mail Delivery Subsystem <mailer-daemon@googlemail.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "Delivery Status Notification (Failure)",
+      "messageText": "Address not found"
+    },
+    {
+      "messageId": "19a0000000000005",
+      "threadId": "19a0000000000005",
+      "messageTimestamp": "2026-10-17T09:00:00Z",
+      "labelIds": ["INBOX", "UNREAD"],
+      "sender": "Cold Caller <cold@prospecting-agency.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "Quick question",
+      "messageText": "Do you have 15 minutes?"
+    },
+    {
+      "messageId": "19a0000000000006",
+      "threadId": "19a0000000000006",
+      "messageTimestamp": "2026-10-16T09:00:00Z",
+      "labelIds": ["INBOX"],
+      "sender": "Bob Teammate <bob@yellowhouse.gmbh>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "Lunch?",
+      "messageText": "12:30?"
+    },
+    {
+      "messageId": "19a0000000000007",
+      "threadId": "19a0000000000007",
+      "messageTimestamp": "2026-10-16T08:00:00Z",
+      "labelIds": ["INBOX"],
+      "sender": "GitHub <notifications@github.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "[sokosumi] PR merged",
+      "messageText": "merged"
+    },
+    {
+      "messageId": "19a0000000000008",
+      "threadId": "19a0000000000008",
+      "messageTimestamp": "2026-10-15T08:00:00Z",
+      "labelIds": ["INBOX"],
+      "sender": "Jordan <jordan@sales.linkedin.com>",
+      "to": "patrick@yellowhouse.gmbh",
+      "subject": "Grow your network",
+      "messageText": "Hi"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 import {
   preparePreviewResources,
   previewMetadata,
+  vercelErrorDetail,
 } from "./preview-resources.ts";
 
 const NETWORKS = ["mainnet", "preprod"];
@@ -50,9 +51,14 @@ export const VERCEL_PROJECTS = {
   },
 };
 
+// Full SHA only: a short prefix can be brute-forced by a fork pushing a
+// colliding commit between the approval and the deploy.
+const FULL_SHA = /^[0-9a-f]{40}$/;
+
 /**
- * Parse `<command> <mainnet|preprod> [mainnet|preprod]` or `<command> all`
- * from the first line of a PR comment.
+ * Parse `<command> <mainnet|preprod> [mainnet|preprod] [sha]` or
+ * `<command> all [sha]` from the first line of a PR comment. `sha` is the
+ * full head commit the commenter approves, or null.
  */
 export function parseNetworkCommand(body, command) {
   const firstLine = String(body ?? "")
@@ -65,13 +71,15 @@ export function parseNetworkCommand(body, command) {
   }
 
   const rest = tokens.slice(1).map((token) => token.toLowerCase());
-  if (rest.length === 0) {
+  const shas = [...new Set(rest.filter((token) => FULL_SHA.test(token)))];
+  const unique = [...new Set(rest.filter((token) => !FULL_SHA.test(token)))];
+  if (unique.length === 0 || shas.length > 1) {
     return { kind: "usage" };
   }
+  const sha = shas[0] ?? null;
 
-  const unique = [...new Set(rest)];
   if (unique.length === 1 && unique[0] === "all") {
-    return { kind: "run", networks: [...NETWORKS] };
+    return { kind: "run", networks: [...NETWORKS], sha };
   }
 
   if (unique.some((token) => !NETWORKS.includes(token))) {
@@ -81,13 +89,14 @@ export function parseNetworkCommand(body, command) {
   return {
     kind: "run",
     networks: NETWORKS.filter((network) => unique.includes(network)),
+    sha,
   };
 }
 
 export function parseDeployComment(body) {
   const parsed = parseNetworkCommand(body, "/deploy");
   return parsed.kind === "run"
-    ? { kind: "deploy", networks: parsed.networks }
+    ? { kind: "deploy", networks: parsed.networks, sha: parsed.sha }
     : parsed;
 }
 
@@ -105,6 +114,8 @@ export function usageMessage() {
     "`/deploy all`",
     "",
     "Deploys web + core for the named network(s), plus CMO on mainnet, at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "",
+    "On a pull request from a fork, add the full 40-character head commit SHA you reviewed (for example `/deploy preprod <sha>`). The preview builds that commit with preview secrets, so review the whole diff at that commit first. Commits pushed later never deploy on their own.",
     "",
     "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
   ].join("\n");
@@ -164,6 +175,21 @@ export function hasPreviewRelevantChanges(files) {
   );
 }
 
+const VERCEL_CONFIG_FILE = /(^|\/)(vercel\.(json|[cm]?[jt]s)|now\.json)$/;
+
+/**
+ * Whether any changed file is a Vercel project config Vercel reads from Git.
+ * Renaming one away counts: without it, Vercel builds every branch.
+ */
+export function changesVercelConfig(files) {
+  return files.some((file) =>
+    (typeof file === "string"
+      ? [file]
+      : [file?.filename, file?.previous_filename]
+    ).some((name) => typeof name === "string" && VERCEL_CONFIG_FILE.test(name)),
+  );
+}
+
 export function noPreviewChangesMessage() {
   return [
     "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, or `packages/`.",
@@ -211,11 +237,8 @@ export async function createGitDeployment({
   const payload = await response.json().catch(() => undefined);
   if (!response.ok) {
     // Vercel's error body names the cause; without it the log shows only a status.
-    const reason = [payload?.error?.code, payload?.error?.message]
-      .filter(Boolean)
-      .join(": ");
     throw new Error(
-      `Vercel deploy failed for ${target.name} (${response.status})${reason ? `: ${reason}` : ""}`,
+      `Vercel deploy failed for ${target.name} (${response.status})${vercelErrorDetail(payload)}`,
     );
   }
   return payload;
@@ -296,9 +319,13 @@ export async function githubJson(fetchImpl, token, url, init = {}) {
   }
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(`GitHub ${response.status}: ${JSON.stringify(payload)}`);
+    throw githubError(response.status, payload);
   }
   return payload;
+}
+
+export function githubError(status, payload) {
+  return new Error(`GitHub ${status}: ${JSON.stringify(payload)}`);
 }
 
 /**
@@ -351,10 +378,198 @@ function failedDeployments(targets, deployments) {
   });
 }
 
+/**
+ * The branch a preview deploys from and scopes its Core env vars to. A fork's
+ * branch does not exist in this repository, and its name can equal one of
+ * ours (even `main`). Vercel refused env vars scoped to `refs/pull/<n>/head`
+ * with a 400, most likely because it scopes them only to branches of the
+ * connected repository. So a fork deploys from a branch of ours that
+ * `/deploy` points at the approved SHA (see pointForkPreviewBranch).
+ */
+export function previewRef(pullRequest) {
+  return isSameRepoPullRequest(pullRequest)
+    ? pullRequest.head.ref
+    : forkPreviewBranch(pullRequest.number);
+}
+
+/** Reserved for the preview workflow: never push a branch under `preview-fork/`. */
+export const FORK_PREVIEW_BRANCH_PREFIX = "preview-fork/pr-";
+
+export function forkPreviewBranch(pullNumber) {
+  return `${FORK_PREVIEW_BRANCH_PREFIX}${pullNumber}`;
+}
+
+/**
+ * Create or force-move this repository's fork preview branch to `sha`, the
+ * head commit the commenter approved. No workflow runs on that ref: GitHub
+ * starts no run for a ref written with GITHUB_TOKEN. Vercel builds only
+ * `main` on its own (`git.deploymentEnabled`); a fork that flips that only
+ * builds this same approved commit.
+ */
+export async function pointForkPreviewBranch({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  branch,
+  sha,
+}) {
+  const refs = `https://api.github.com/repos/${repoOwner}/${repoName}/git/refs`;
+  const headers = {
+    ...githubHeaders(githubToken),
+    "Content-Type": "application/json",
+  };
+  const created = await fetchImpl(refs, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+  });
+  if (created.ok) {
+    return;
+  }
+  // 422: the branch exists from an earlier `/deploy`. Move it, also after a
+  // force-push to the fork.
+  if (created.status !== 422) {
+    throw githubError(
+      created.status,
+      await created.json().catch(() => undefined),
+    );
+  }
+  const moved = await githubJson(
+    fetchImpl,
+    githubToken,
+    `${refs}/heads/${branch}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha, force: true }),
+    },
+  );
+  if (moved?.object?.sha !== sha) {
+    throw new Error(`GitHub did not move ${branch} to the approved commit`);
+  }
+}
+
+/** Delete the fork preview branch. A missing branch counts as deleted. */
+export async function deleteForkPreviewBranch({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  branch,
+}) {
+  const response = await fetchImpl(
+    `https://api.github.com/repos/${repoOwner}/${repoName}/git/refs/heads/${branch}`,
+    { method: "DELETE", headers: githubHeaders(githubToken) },
+  );
+  // GitHub answers 422 "Reference does not exist" for a deleted branch.
+  if (response.ok || response.status === 404 || response.status === 422) {
+    return;
+  }
+  throw githubError(
+    response.status,
+    await response.json().catch(() => undefined),
+  );
+}
+
+/** Opens the one bot comment that lists a fork PR's preview URLs. */
+export const FORK_PREVIEW_COMMENT_MARKER = "<!-- sokosumi-fork-preview -->";
+const ACTIONS_BOT_LOGIN = "github-actions[bot]";
+
+/** The branch alias Vercel assigned the deployment, else its own URL. */
+export function previewUrl(deployment) {
+  const aliases = deployment.alias ?? [];
+  const host =
+    aliases.find((alias) => alias.includes("-git-")) ??
+    aliases[0] ??
+    deployment.url;
+  return host ? `https://${host}` : null;
+}
+
+/**
+ * The fork preview comment: one row per Vercel project, the newest deploy
+ * replacing that project's row in `previous` (the comment's current body).
+ */
+export function forkPreviewCommentBody(deployments, sha, previous = "") {
+  const rows = new Map();
+  for (const line of previous.split("\n")) {
+    const name = line.match(/^\| `([^`|]+)` \|/)?.[1];
+    if (name) {
+      rows.set(name, line);
+    }
+  }
+  for (const deployment of deployments) {
+    rows.set(
+      deployment.name,
+      `| \`${deployment.name}\` | ${previewUrl(deployment) ?? "none"} | ${deployment.readyState} | ${sha} |`,
+    );
+  }
+  return [
+    FORK_PREVIEW_COMMENT_MARKER,
+    "**Fork preview**",
+    "",
+    "Vercel does not comment on pull requests from forks, so `/deploy` lists the previews here. Each row shows that project's latest deploy and the approved commit it built.",
+    "",
+    "| Project | Preview | State | Commit |",
+    "| --- | --- | --- | --- |",
+    ...[...rows.keys()].sort().map((name) => rows.get(name)),
+  ].join("\n");
+}
+
+/**
+ * Post the fork preview comment, or edit the one this workflow posted
+ * earlier. Only a comment by the Actions bot counts: anyone can paste the
+ * marker, and its rows would otherwise carry over.
+ */
+export async function upsertForkPreviewComment({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  issueNumber,
+  deployments,
+  sha,
+}) {
+  const repo = `https://api.github.com/repos/${repoOwner}/${repoName}`;
+  const perPage = 100;
+  let existing;
+  for (let page = 1; !existing; page += 1) {
+    const payload = await githubJson(
+      fetchImpl,
+      githubToken,
+      `${repo}/issues/${issueNumber}/comments?per_page=${perPage}&page=${page}`,
+    );
+    if (!Array.isArray(payload)) {
+      break;
+    }
+    existing = payload.find(
+      (comment) =>
+        comment.user?.login === ACTIONS_BOT_LOGIN &&
+        comment.body?.startsWith(FORK_PREVIEW_COMMENT_MARKER),
+    );
+    if (payload.length < perPage) {
+      break;
+    }
+  }
+  const body = forkPreviewCommentBody(deployments, sha, existing?.body);
+  await githubJson(
+    fetchImpl,
+    githubToken,
+    existing
+      ? `${repo}/issues/comments/${existing.id}`
+      : `${repo}/issues/${issueNumber}/comments`,
+    {
+      method: existing ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    },
+  );
+}
+
 export function previewGitSource(pullRequest, repoId) {
   return {
     repoId: repoId ?? pullRequest.base.repo.id,
-    ref: pullRequest.head.ref,
+    ref: previewRef(pullRequest),
     sha: pullRequest.head.sha,
     meta: previewMetadata({
       repoId: repoId ?? pullRequest.base.repo.id,
@@ -363,7 +578,7 @@ export function previewGitSource(pullRequest, repoId) {
   };
 }
 
-function isSameRepoPullRequest(pullRequest) {
+export function isSameRepoPullRequest(pullRequest) {
   return pullRequest.head.repo?.id === pullRequest.base.repo.id;
 }
 
@@ -436,9 +651,13 @@ export async function settlePreviewDeployments(options) {
 
 /**
  * Shared flow for PR comment commands: parse `command.name`, require write
- * access and a same-repository PR, react with eyes, then call `command.run`.
+ * access and a same-repository PR (or, with `command.allowFork`, a fork PR at
+ * a named head SHA), react with eyes, then call `command.run`.
  * `run` reacts with rocket itself on success. A thrown error becomes a
  * `<subject> failed: …` reply.
+ *
+ * The fork PR's comment must name its full head SHA: the commenter approves
+ * that reviewed commit, and a push after the review no longer matches.
  */
 export async function runPullRequestCommand(options, command) {
   const {
@@ -528,7 +747,8 @@ export async function runPullRequestCommand(options, command) {
     throw new Error(`Pull request ${issueNumber} was not found`);
   }
 
-  if (!isSameRepoPullRequest(pullRequest)) {
+  const fork = !isSameRepoPullRequest(pullRequest);
+  if (fork && !command.allowFork) {
     await comment(
       `${command.subject} is only available for branches in this repository, not forks.`,
     );
@@ -538,6 +758,23 @@ export async function runPullRequestCommand(options, command) {
   if (pullRequest.state !== "open") {
     await comment("Preview commands require an open pull request.");
     return { kind: "closed" };
+  }
+
+  // Neither reply names the head SHA: pasting it would approve commits
+  // pushed after the commenter's review.
+  if (fork && !parsed.sha) {
+    await comment(
+      `This pull request comes from a fork, and its preview builds with preview secrets. Review the code, then comment \`${command.name} ${parsed.networks.join(" ")} <sha>\` with the full 40-character SHA of the head commit you reviewed.`,
+    );
+    return { kind: "sha-required" };
+  }
+
+  // Also checked on same-repo PRs that name one: the SHA is an approval.
+  if (parsed.sha && parsed.sha !== pullRequest.head.sha) {
+    await comment(
+      `\`${parsed.sha}\` is not this pull request's head commit. Review the commits pushed since, then comment again with the SHA of the head commit you reviewed.`,
+    );
+    return { kind: "sha-mismatch" };
   }
 
   try {
@@ -575,6 +812,7 @@ export async function runPreviewDeployComment(options) {
     subject: "Preview deploy",
     action: "trigger preview deployments",
     usage: usageMessage(),
+    allowFork: true,
     run: async ({ networks, pullRequest, comment, react }) => {
       const files = await (listFiles
         ? listFiles()
@@ -592,12 +830,38 @@ export async function runPreviewDeployComment(options) {
         await comment(noPreviewChangesMessage());
         return { kind: "skip" };
       }
+      const fork = !isSameRepoPullRequest(pullRequest);
+      if (!fork && pullRequest.head.ref.startsWith("preview-fork/")) {
+        await comment(
+          "Branches under `preview-fork/` are reserved for fork previews. Push this change to another branch and open a new pull request to preview it.",
+        );
+        return { kind: "reserved-branch" };
+      }
+      // Vercel reads `git.deploymentEnabled` from the pushed commit, so a fork's
+      // config could start builds on our branch in projects nobody approved.
+      if (fork && (isTruncatedFileList(files) || changesVercelConfig(files))) {
+        await comment(
+          "This pull request comes from a fork and changes a Vercel config file such as `vercel.json`, or has too many changed files to check. A fork preview builds from a branch of this repository, where that file could start builds nobody approved, so it gets no preview.",
+        );
+        return { kind: "fork-vercel-config" };
+      }
+      // Before the env vars: Vercel refused them for a ref that is not a branch.
+      if (fork) {
+        await (options.pointBranch ?? pointForkPreviewBranch)({
+          fetchImpl,
+          githubToken,
+          repoOwner,
+          repoName,
+          branch: previewRef(pullRequest),
+          sha: pullRequest.head.sha,
+        });
+      }
       await (options.prepareResources ?? preparePreviewResources)(
         {
           ...options,
           repoId: repoId ?? pullRequest.base.repo.id,
           pullNumber: pullRequest.number,
-          ref: pullRequest.head.ref,
+          ref: previewRef(pullRequest),
           vercelToken,
           teamId,
         },
@@ -613,6 +877,25 @@ export async function runPreviewDeployComment(options) {
         pollDeployment,
       });
       await react("rocket");
+      // Vercel comments only on PRs whose branch it built; a fork builds ours.
+      // The deploy is done, so a failed comment must not report it failed.
+      if (fork) {
+        try {
+          await (options.upsertPreviewComment ?? upsertForkPreviewComment)({
+            fetchImpl,
+            githubToken,
+            repoOwner,
+            repoName,
+            issueNumber,
+            deployments: result.deployments,
+            sha: pullRequest.head.sha,
+          });
+        } catch (error) {
+          console.warn(
+            `Fork preview comment failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
       return result;
     },
   });

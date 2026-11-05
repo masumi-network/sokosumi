@@ -77,6 +77,9 @@ async function handle(
         ? { proactiveDailyLimit: input.dailyLimit }
         : {}),
       ...(input.timezone ? { ingestTimezone: input.timezone } : {}),
+      ...(input.mailAutoRead !== undefined
+        ? { mailAutoRead: input.mailAutoRead }
+        : {}),
     },
   });
   if (input.timezone) await retimeSystemSchedules(bot.id, input.timezone);

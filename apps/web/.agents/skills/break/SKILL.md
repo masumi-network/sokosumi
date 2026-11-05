@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Break
 
-This skill takes one component and renders it on a fresh page under every scenario that can actually reach it. That page is the deliverable: a visual report the user scrolls through, every scenario side by side, with the breaks marked.
+This skill takes one component and renders it on a harness page under every scenario that can actually reach it. That page is the deliverable: a visual report the user scrolls through, every scenario side by side, with the breaks marked.
 
 It observes rather than judges. A finding here is something that visibly broke on the page, named in the vocabulary of the domain skill that owns the fix. Reviewing code against a standard is `interface-review` and `better-interface`; exploring design alternatives is `variant`; working through a component's product states one at a time is `state-machine`.
 
@@ -30,7 +30,7 @@ Write the kept scenarios down before building, one line each. Then say which axe
 
 ## 3. Build the harness page
 
-One throwaway page renders the component once per scenario in a single column, with a short text label above each instance.
+The harness page renders the component once per scenario in a single column, with a short text label above each instance.
 
 A scratch route inside the app holds the real component, imported from the project and untouched. The route inherits the app's layout, fonts, global styles and providers for free.
 
@@ -52,10 +52,10 @@ Then mark each break you did see on the page, a one-line note under that scenari
 
 Report findings as a table, broken scenarios first:
 
-| Scenario | Observed | Owner |
-| --- | --- | --- |
+| Scenario                            | Observed                                      | Owner               |
+| ----------------------------------- | --------------------------------------------- | ------------------- |
 | One unbreakable 60-character string | Overflows the card, no wrap and no truncation | `better-typography` |
-| Zero items | Blank region with no message | `better-writing` |
+| Zero items                          | Blank region with no message                  | `better-writing`    |
 
 This skill owns no domain rules and issues no verdict.
 
@@ -69,17 +69,17 @@ The page is half the report, so it outlives the findings table. Leave it running
 
 ## Before you finish
 
-| Mistake | Fix |
-| --- | --- |
-| Every axis run against every component | Keep only the axes whose cue matches, and say which you dropped |
-| A predicted failure reported as observed | Render it, or leave it out |
-| A scenario missing the content it was fed | The harness is broken, not the component; make the page client code and reload once |
-| A rebuilt lookalike component in the harness | Import the real component from the project |
-| The harness restyles or re-themes the component | The app's layout, fonts and tokens as they are; labels and widths are all the page adds |
-| A browser launched, debugged or screenshotted per scenario | One load and one look, or hand the URL over and skip the look |
-| Findings phrased as taste | Report what was visible on the page, or nothing |
-| A break reported without an owner | Name the domain skill whose rules diagnose it |
-| A clean run padded with suggestions | "Everything survived" plus the scenario list is the report |
-| The viewport resized scenario by scenario | Widths are fixed containers on the page; one load shows them all |
-| A break in the table but unmarked on the page | Note it under the scenario's label; the page reads as the report on its own |
-| Page deleted in the same turn as the report | The page is half the report; delete only on the user's word |
+| Mistake                                                    | Fix                                                                                     |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Every axis run against every component                     | Keep only the axes whose cue matches, and say which you dropped                         |
+| A predicted failure reported as observed                   | Render it, or leave it out                                                              |
+| A scenario missing the content it was fed                  | The harness is broken, not the component; make the page client code and reload once     |
+| A rebuilt lookalike component in the harness               | Import the real component from the project                                              |
+| The harness restyles or re-themes the component            | The app's layout, fonts and tokens as they are; labels and widths are all the page adds |
+| A browser launched, debugged or screenshotted per scenario | One load and one look, or hand the URL over and skip the look                           |
+| Findings phrased as taste                                  | Report what was visible on the page, or nothing                                         |
+| A break reported without an owner                          | Name the domain skill whose rules diagnose it                                           |
+| A clean run padded with suggestions                        | "Everything survived" plus the scenario list is the report                              |
+| The viewport resized scenario by scenario                  | Widths are fixed containers on the page; one load shows them all                        |
+| A break in the table but unmarked on the page              | Note it under the scenario's label; the page reads as the report on its own             |
+| Page deleted in the same turn as the report                | The page is half the report; delete only on the user's word                             |

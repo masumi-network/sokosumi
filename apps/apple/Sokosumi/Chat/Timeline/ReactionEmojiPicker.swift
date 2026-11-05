@@ -89,7 +89,7 @@ import SwiftUI
           .schemeStableSymbolGlyph(.primary)
           .frame(maxWidth: .infinity)
           .frame(height: 30)
-          .background(selectedCategory == category ? Color.accentColor.opacity(0.16) : .clear, in: .rect(cornerRadius: 6))
+          .background(selectedCategory == category ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 6))
           .contentShape(.rect)
       }
       .buttonStyle(.plain)

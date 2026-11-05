@@ -389,7 +389,7 @@ export function ProjectBrandCard({
               {t("brandCard.removeDialog.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               loading={isRemoving}
               onClick={(event) => {
                 event.preventDefault();

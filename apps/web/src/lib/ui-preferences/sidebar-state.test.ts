@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  clampSidebarWidth,
   parseSidebarStateCookieHeader,
+  parseSidebarWidthCookieHeader,
   SIDEBAR_BOOT_SCRIPT,
   SIDEBAR_BOOT_STOP_GLOBAL,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_USER_WIDTH_VAR,
   serializeSidebarStateCookie,
+  serializeSidebarWidthCookie,
 } from "./sidebar-state";
 
 function clearCookie() {
@@ -150,5 +156,53 @@ describe("sidebar boot script", () => {
     await flushObservers();
 
     expect(sidebar.getAttribute("data-state")).toBe("expanded");
+  });
+});
+
+describe("sidebar width", () => {
+  afterEach(() => {
+    document.cookie =
+      "sidebar_width=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.documentElement.style.removeProperty(SIDEBAR_USER_WIDTH_VAR);
+    stopBootScript();
+  });
+
+  it("clamps to the resizable range", () => {
+    expect(clampSidebarWidth(10)).toBe(SIDEBAR_MIN_WIDTH);
+    expect(clampSidebarWidth(9999)).toBe(SIDEBAR_MAX_WIDTH);
+    expect(clampSidebarWidth(250.4)).toBe(250);
+  });
+
+  it("round-trips through the cookie", () => {
+    expect(serializeSidebarWidthCookie(300)).toBe(
+      "sidebar_width=300; path=/; max-age=604800",
+    );
+    expect(parseSidebarWidthCookieHeader("a=b; sidebar_width=300")).toBe(300);
+  });
+
+  it("ignores a width outside the range or not a number", () => {
+    expect(parseSidebarWidthCookieHeader("")).toBeNull();
+    expect(parseSidebarWidthCookieHeader("sidebar_width=50")).toBeNull();
+    expect(parseSidebarWidthCookieHeader("sidebar_width=9999")).toBeNull();
+    expect(parseSidebarWidthCookieHeader("sidebar_width=wide")).toBeNull();
+    expect(parseSidebarWidthCookieHeader("x_sidebar_width=300")).toBeNull();
+  });
+
+  it("is applied before paint by the boot script, shown or hidden", () => {
+    document.cookie = "sidebar_width=300; path=/";
+    runBootScript();
+
+    expect(
+      document.documentElement.style.getPropertyValue(SIDEBAR_USER_WIDTH_VAR),
+    ).toBe("300px");
+  });
+
+  it("is not applied by the boot script when the cookie is out of range", () => {
+    document.cookie = "sidebar_width=9999; path=/";
+    runBootScript();
+
+    expect(
+      document.documentElement.style.getPropertyValue(SIDEBAR_USER_WIDTH_VAR),
+    ).toBe("");
   });
 });

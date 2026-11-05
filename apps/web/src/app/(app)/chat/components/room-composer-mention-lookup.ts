@@ -74,6 +74,7 @@ export function mentionLookupMapsFromCatalog(
         caption: null,
         image: data.image,
         avatarSeed: null,
+        avatarStyleId: data.avatarStyleId,
         // Owner and scope are not on the mention catalog, and nothing reading
         // this lookup asks; null claims no owner for a bot that may be shared.
         ownerUserId: null,

@@ -30,10 +30,19 @@ Optional, per network:
 - `COMPOSIO_API_KEY` — brokers OAuth for Gmail, Outlook and Calendar
   integrations. Without it, integrations are unavailable and the rest of the
   bot still works.
-- `FAL_KEY` — generates the mascot pool. Without it the pool stays empty, so
-  the avatar picker offers no pictures and the sidebar shows a plain icon
-  instead of the bot faces. `/sync/soko-bot-avatars` keeps the pool topped up
-  every 30 minutes and is a no-op while the key is unset.
+- Avatars: the pool and the studio draw through `AI_GATEWAY_API_KEY` and store
+  to `BLOB_READ_WRITE_TOKEN`. Without either the pool stays empty, the picker
+  offers no pictures and the sidebar shows a plain icon.
+  `/sync/soko-bot-avatars` keeps the pool topped up every 30 minutes and is a
+  no-op while they are unset; `/sync/soko-bot-avatar-renders` renders kept looks
+  every minute.
+- `AVATAR_FFMPEG_URL` and `AVATAR_FFMPEG_SHA256` (set together) — where a
+  deployed instance fetches the ffmpeg that encodes avatar loops: a gzip of a
+  static linux-x64 build and its sha256. The function does not ship ffmpeg (80 MB
+  unzipped); each instance unpacks it into `/tmp` on first use and refuses a
+  download that does not match the hash. Unset, it uses the pinned ffmpeg-static
+  release on GitHub; point it at our own Blob store so runtime does not depend
+  on GitHub.
 - `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
@@ -48,7 +57,10 @@ Optional, per network:
   one that claims an unconfirmed change; and `find_agents` sends the
   request. Replies can quote mail, calendar and Tasks, so this applies to
   EU-pinned versions too: their answers are written in the EU, these checks
-  are not.
+  are not. Mail triage (`mail-triage.ts`) sends each ingested mail's sender,
+  subject and snippet to Jev to tag it urgent, notable or bulk, and the bot's
+  `evaluate_with_jev` tool sends the state the bot writes, under the same
+  exception.
 - The agent model is the turn's version model. The default, GPT-6 Luna
   (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
   second owner-approved exception (2026-09-29), for the agent role only:
@@ -69,7 +81,7 @@ Optional, per network:
   route classifier's with `soko-bot:router-eval`; results appear under Admin →
   Soko Bots → Model evaluations.
 
-Environment changes only apply to the *next* build, so redeploy after setting
+Environment changes only apply to the _next_ build, so redeploy after setting
 them.
 
 ## Move the avatar pool prefix

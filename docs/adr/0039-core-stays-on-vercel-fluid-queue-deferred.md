@@ -75,7 +75,7 @@ A consumer-placement spike ran while a queue was still the proposal, then
 Amendment 2 reversed the proposal. Keep the findings; do not re-shop.
 
 - [`routes/sync/handler.ts`](../../apps/core/src/routes/sync/handler.ts)
-  already *is* a drain-with-deadline loop (cron-secret auth, lease, async-ack
+  already _is_ a drain-with-deadline loop (cron-secret auth, lease, async-ack
   200, `waitUntil`, `abortSignal` / `msRemaining()` / `shouldContinue()`).
   Worst-case gap between overlapping ticks is about **25s**
   (`LOCK_TIMEOUT` 120s minus `LOCK_TIMEOUT_BUFFER` 25s against a 60s cron).
@@ -115,9 +115,9 @@ Amendment 2 reversed the proposal. Keep the findings; do not re-shop.
   Spent.
 - **Vercel Queues in push mode** — fire-and-forget only. See Spent.
 - **Replace the generated Core client with Hono RPC (`hc<AppType>`)** —
-  **rejected**. `apps/web/package.json` has **no dependency on
-  `@sokosumi/core`**; the client is 18 committed files under
-  `apps/web/src/lib/clients/generated/core/`. `hc<AppType>` requires a
+  **rejected**. `apps/web/package.json` depends on `@sokosumi/core-client`,
+  not `@sokosumi/core`; the client is 18 committed files under
+  `packages/core-client/src/generated`. `hc<AppType>` requires a
   `workspace:*` on Core, putting Core's 131k LOC in front of every web
   typecheck and Core's tree — including `@sokosumi/database` — into web's
   install graph. The [Database Access](../agents/architecture.md#database-access)
@@ -144,10 +144,10 @@ Amendment 2 reversed the proposal. Keep the findings; do not re-shop.
   is created.
 - Core stays on Vercel Fluid. Do not reopen the container question without
   new evidence.
-- `generate:core:snapshot`, the 18 generated files, and the DTO-drift
-  typecheck step all stay. Web keeps no dependency on `@sokosumi/core`.
-  Since SOK-1222 the generated client lives in `packages/core-client` and
-  regenerates with `pnpm --filter @sokosumi/core-client generate:snapshot`.
+- `pnpm --filter @sokosumi/core-client generate:snapshot`, the 18 generated
+  files under `packages/core-client/src/generated`, and the DTO-drift
+  typecheck step all stay. Web depends on `@sokosumi/core-client`, not
+  `@sokosumi/core`.
 - `neverthrow` needs no work. The convention in
   [`.cursor/rules/neverthrow.mdc`](../../.cursor/rules/neverthrow.mdc) stands.
 - If a queue is revisited, start from Spent rather than from scratch.

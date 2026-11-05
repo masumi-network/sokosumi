@@ -149,6 +149,8 @@ export const taskScheduleAssigneesSchema = z
         name: z.string().nullable(),
         avatarSeed: z.string().nullable(),
         avatarImageUrl: z.string().nullable(),
+        /** The style of the bot's claimed avatar, null when it has none. */
+        avatarStyleId: z.string().nullable().optional(),
       })
       .nullable(),
   })

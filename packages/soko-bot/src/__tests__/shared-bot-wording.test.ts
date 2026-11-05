@@ -21,7 +21,7 @@ const OFFERED_TO_SHARED = [
   "end-of-day",
   "monday-plan",
   "monthly-review",
-  "memory-cleanup",
+  "dreaming",
 ];
 
 describe("shared Soko Bot rhythms", () => {

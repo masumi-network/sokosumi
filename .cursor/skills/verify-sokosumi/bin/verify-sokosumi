@@ -71,7 +71,7 @@ Usage: verify-sokosumi <command> [options]
 Commands:
   launch              Bootstrap .env, start the portless HTTPS proxy on 443, then start
                       Core (core.sokosumi) and Web (web.sokosumi) for this worktree.
-                      Uses with-db.mjs when .cursor/cloud-agent-db.env exists.
+                      Uses with-db.mjs when .agent-db/db.env exists.
   doctor              Read-only health check (named URLs, OpenAPI, sign-in page, fixture probe,
                       VERIFY_SOKOSUMI_* credential presence).
   credentials-status  Print whether VERIFY_SOKOSUMI_EMAIL / PASSWORD (or login_* aliases) are set.
@@ -398,8 +398,8 @@ function fixture_probe() {
   echo "fixture_auth=fail email=$email (Core POST /auth/sign-in/email → HTTP $http_status)"
   echo "warn: demo fixtures missing or Core auth rejected credentials."
   if cloud_agent_db; then
-    echo "warn: cloud-agent DB: node scripts/cloud-agent-db/provision.mjs"
-    echo "warn: or seed: node scripts/cloud-agent-db/with-db.mjs -- pnpm cloud-agent-db:seed-auth"
+    echo "warn: cloud-agent DB: node scripts/agent-db/provision.mjs"
+    echo "warn: or seed: node scripts/agent-db/with-db.mjs -- pnpm agent-db:seed-auth"
   else
     echo "warn: coworker / shared Neon: verify-sokosumi sign-in --method vault, or features/sign-up.md"
     echo "warn: do not seed alice@sokosumi.test onto a shared or preprod Neon"
@@ -458,7 +458,8 @@ function require_agent_browser() {
 }
 
 function cloud_agent_db() {
-  [[ -f "$REPO_ROOT/.cursor/cloud-agent-db.env" ]]
+  # .cursor/cloud-agent-db.env is the layout before .agent-db/
+  [[ -f "$REPO_ROOT/.agent-db/db.env" || -f "$REPO_ROOT/.cursor/cloud-agent-db.env" ]]
 }
 
 function vault_profile() {

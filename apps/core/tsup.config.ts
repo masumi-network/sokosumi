@@ -4,7 +4,7 @@ export default defineConfig([
   {
     entry: ["src/index.ts"],
     format: ["esm"],
-    target: "node20",
+    target: "node26",
     outDir: "dist",
     // Both builds share `dist`; the build script clears it once up front so
     // neither can delete the other's output.
@@ -28,6 +28,7 @@ export default defineConfig([
     // `node`, so it carries every dependency in one file.
     entry: { "soko-bot-runner": "src/soko-bot-runner/index.ts" },
     format: ["esm"],
+    // vercel/sandbox/universal still runs Node 24, so this bundle stays on that target.
     target: "node24",
     platform: "node",
     outDir: "dist",

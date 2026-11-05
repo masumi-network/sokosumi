@@ -23,6 +23,7 @@ import {
   FolderInput,
   FolderPlus,
   Folders,
+  Link2,
   ListFilter,
   MoreHorizontal,
   Pencil,
@@ -30,9 +31,10 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  parseAsArrayOf,
   parseAsBoolean,
   parseAsString,
   parseAsStringLiteral,
@@ -59,6 +61,11 @@ import {
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
+import { DriveRecentsTagFilter } from "@/app/drive/components/drive-recents-tag-filter";
+import {
+  DriveShareDialog,
+  type DriveShareItem,
+} from "@/app/drive/components/drive-share-dialog";
 import {
   DriveSortControl,
   DriveSortMenuItems,
@@ -112,7 +119,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
@@ -125,7 +131,6 @@ import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,
   driveWorkspaceRootLabel,
-  listDriveItems,
 } from "@/lib/utils/drive-file-list.client";
 import {
   isDriveFileUploadDuplicate,
@@ -133,8 +138,10 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
-import { classifyFilePreview } from "@/lib/utils/file-preview";
-import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  type FileStore,
+  fetchWorkspaceFolders,
+} from "@/lib/utils/file-search.client";
 import {
   FILES_SORT_BY_VALUES,
   FILES_SORT_ORDER_VALUES,
@@ -172,6 +179,7 @@ function withoutLegacyDriveScopeParam(
 function driveNavParams(params: URLSearchParams): URLSearchParams {
   const next = withoutLegacyDriveScopeParam(params);
   next.delete("archived");
+  next.delete("tags");
   return next;
 }
 
@@ -290,8 +298,8 @@ function DrivePageWorkspace({
     sortBy: filesSortByParser,
     sortOrder: filesSortOrderParser,
     archived: parseAsBoolean.withDefault(false),
+    tags: parseAsArrayOf(parseAsString).withDefault([]),
   });
-  const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesViewMode, setFilesViewMode] =
@@ -299,6 +307,7 @@ function DrivePageWorkspace({
   const isMobile = useIsMobile();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [shareItem, setShareItem] = useState<DriveShareItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
   /**
    * Which folder is narrowing the catalog, if any.
@@ -320,11 +329,17 @@ function DrivePageWorkspace({
   const [snapshotFolder, setSnapshotFolder] = useState<string | null>(null);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [itemToMove, setItemToMove] = useState<DriveItem | null>(null);
+  /** Files ticked in the catalog, moved together. */
+  const [filesToMove, setFilesToMove] = useState<
+    { pathname: string; name: string }[]
+  >([]);
+  const [moveNewFolderName, setMoveNewFolderName] = useState("");
   const [selectedDestination, setSelectedDestination] = useState<string | null>(
     null,
   );
   const [movingItem, setMovingItem] = useState(false);
-  const [allFolders, setAllFolders] = useState<DriveItem[]>([]);
+  /** Every folder path in the store, nested ones included. */
+  const [allFolders, setAllFolders] = useState<string[]>([]);
   const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -497,11 +512,6 @@ function DrivePageWorkspace({
   const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
     myDrive: t("myDrive"),
     organizationFallback: t("organizationDriveFallback"),
-  });
-
-  useRegisterBreadcrumbOverride({
-    pathname,
-    segments: [{ label: t("breadcrumb"), href: "/drive" }],
   });
 
   function handleSearchChange(value: string) {
@@ -1030,6 +1040,7 @@ function DrivePageWorkspace({
         taskId: null,
         assigneeId: null,
         archived: null,
+        tags: null,
       },
       { history: "push" },
     );
@@ -1169,9 +1180,41 @@ function DrivePageWorkspace({
 
   function openMoveDialog(item: DriveItem) {
     setItemToMove(item);
+    setFilesToMove([]);
+    setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
     void loadAllFolders();
+  }
+
+  function openMoveFilesDialog(files: { pathname: string; name: string }[]) {
+    setItemToMove(null);
+    setFilesToMove(files);
+    setMoveNewFolderName("");
+    setSelectedDestination(null);
+    setMoveDialogOpen(true);
+    void loadAllFolders();
+  }
+
+  /** Moving several ticked files: each on its own, failures reported once. */
+  async function moveFiles(targetFolderPath: string) {
+    const results = await Promise.allSettled(
+      filesToMove.map((file) =>
+        patchDriveFilesMove({
+          client: getBrowserCoreClient(),
+          body: {
+            sourcePathname: file.pathname,
+            targetFolderPath,
+            itemType: "file",
+          },
+          throwOnError: true,
+        }),
+      ),
+    );
+    const failed = results.filter((result) => result.status === "rejected");
+    if (failed.length > 0)
+      toast.error(t("moveFilesPartialError", { count: failed.length }));
+    else toast.success(t("movedFiles", { count: filesToMove.length }));
   }
 
   async function loadAllFolders() {
@@ -1181,8 +1224,8 @@ function DrivePageWorkspace({
     const requestedWorkspaceId = activeOrganizationId;
     setLoadingAllFolders(true);
     try {
-      const loaded = await listDriveItems({
-        ...driveStore,
+      const loaded = await fetchWorkspaceFolders({
+        store: driveStore,
         signal: controller.signal,
       });
       if (
@@ -1192,7 +1235,7 @@ function DrivePageWorkspace({
         return;
       }
 
-      setAllFolders(loaded.filter((item) => item.type === "folder"));
+      setAllFolders(loaded);
     } catch (err) {
       if (controller.signal.aborted) {
         return;
@@ -1212,7 +1255,20 @@ function DrivePageWorkspace({
   }
 
   async function handleMoveConfirm() {
-    if (!itemToMove || selectedDestination === null) {
+    if (selectedDestination === null) return;
+    if (!itemToMove) {
+      if (filesToMove.length === 0) return;
+      setMovingItem(true);
+      try {
+        await moveFiles(selectedDestination);
+        setMoveDialogOpen(false);
+        setFilesToMove([]);
+        setSelectedDestination(null);
+        await refreshDriveItems();
+        setRecentsReloadToken((token) => token + 1);
+      } finally {
+        setMovingItem(false);
+      }
       return;
     }
 
@@ -1300,7 +1356,7 @@ function DrivePageWorkspace({
   const facetAncestors = currentFolder ? currentFolder.split("/") : [];
 
   const availableDestinations = (() => {
-    if (!itemToMove) return [];
+    if (!itemToMove && filesToMove.length === 0) return [];
 
     const destinations: Array<{ path: string; label: string }> = [];
 
@@ -1323,9 +1379,9 @@ function DrivePageWorkspace({
 
     // Use allFolders (loaded on dialog open) instead of items (current folder only)
     // to enable cross-branch moves
-    const foldersToShow = allFolders.filter((folder) => {
-      // Exclude the item being moved
-      const folderPath = folder.name;
+    const foldersToShow = allFolders.filter((folderPath) => {
+      if (destinations.some((dest) => dest.path === folderPath)) return false;
+      if (!itemToMove) return true;
       const itemPath =
         itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name;
 
@@ -1336,8 +1392,7 @@ function DrivePageWorkspace({
 
       // For folders, exclude descendants to prevent moving into own subtree
       if (itemToMove.type === "folder") {
-        const folderPathNormalized = folder.name;
-        if (folderPathNormalized.startsWith(`${itemToMove.name}/`)) {
+        if (folderPath.startsWith(`${itemToMove.name}/`)) {
           return false;
         }
       }
@@ -1345,13 +1400,10 @@ function DrivePageWorkspace({
       return true;
     });
 
-    foldersToShow.forEach((folder) => {
-      const folderPath = folder.name;
-      // Build a readable label from the folder path
-      const segments = folderPath.split("/");
+    foldersToShow.forEach((folderPath) => {
       destinations.push({
         path: folderPath,
-        label: segments.join(" / "),
+        label: folderPath.split("/").join(" / "),
       });
     });
 
@@ -1511,6 +1563,23 @@ function DrivePageWorkspace({
         size="sm"
         variant="ghost"
         className="gap-1.5"
+        data-testid="files-share-folder"
+        aria-label={t("shareFolderAction", { name: folderName })}
+        onClick={() =>
+          setShareItem({
+            target: { kind: "folder", folderPath: facetFolder },
+            name: folderName,
+          })
+        }
+      >
+        <Link2 className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("shareAction")}</span>
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="gap-1.5"
         data-testid="files-rename-folder"
         aria-label={t("renameFolderAction", { name: folderName })}
         onClick={() => {
@@ -1547,6 +1616,16 @@ function DrivePageWorkspace({
       </Button>
     </>
   ) : null;
+
+  const recentsTagFilter = (
+    <DriveRecentsTagFilter
+      store={driveStore}
+      selected={driveNavQuery.tags}
+      onChange={(labelIds) =>
+        void setDriveNavQuery({ tags: labelIds.length > 0 ? labelIds : null })
+      }
+    />
+  );
 
   const filesSortControl = (
     <DriveSortControl
@@ -1687,6 +1766,7 @@ function DrivePageWorkspace({
                     )}
                   />
                 </div>
+                {recentsTagFilter}
               </div>
             )}
             {isTablesView && (
@@ -1781,7 +1861,7 @@ function DrivePageWorkspace({
                 taskIdParam !== null ? (
                   <span
                     aria-hidden
-                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
                   />
                 ) : null}
               </Button>
@@ -1819,6 +1899,7 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
+          {recentsTagFilter}
         </div>
       )}
 
@@ -1833,10 +1914,12 @@ function DrivePageWorkspace({
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
+          tagLabelIds={driveNavQuery.tags}
           reloadToken={recentsReloadToken}
           viewMode={layoutMode}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
+          onShareFile={setShareItem}
           onRenameFile={handleRename}
           onOpenCopyDialog={(item) => {
             setTaskFileToCopy({
@@ -1902,7 +1985,7 @@ function DrivePageWorkspace({
                     onActivate={navigateToTasksRoot}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
-                      <Folders className="text-primary size-5" />
+                      <Folders className="text-foreground size-5" />
                     </div>
                     <DriveItemName
                       name={t("tasksFolder")}
@@ -2019,10 +2102,6 @@ function DrivePageWorkspace({
 
               if (item.kind === "task-file" && item.type === "task-file") {
                 const extension = getExtensionFromUrl(item.name);
-                const { isImage, documentKind } = classifyFilePreview(
-                  item.fileUrl,
-                  item.name,
-                );
                 const searchContext =
                   item.taskName != null
                     ? [
@@ -2039,8 +2118,8 @@ function DrivePageWorkspace({
                     key={`task-file-${item.id}`}
                     name={item.name}
                     fileUrl={item.fileUrl}
-                    isImage={isImage}
-                    documentKind={documentKind}
+                    sizeBytes={item.size ?? null}
+                    detailsHref={null}
                   >
                     {({ activate, nameEl, viewers }) => (
                       <DriveItemCard
@@ -2182,8 +2261,18 @@ function DrivePageWorkspace({
             onOpen: navigateToTasksRoot,
           }}
           reloadToken={catalogReloadToken}
+          onShareFile={setShareItem}
+          onMoveFiles={openMoveFilesDialog}
         />
       ) : null}
+
+      <DriveShareDialog
+        store={allFilesStore}
+        item={shareItem}
+        onOpenChange={(open) => {
+          if (!open) setShareItem(null);
+        }}
+      />
 
       {!isTasksView && isWorkspaceView && (
         <ListMobileCreateFab
@@ -2215,7 +2304,7 @@ function DrivePageWorkspace({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("deleteDialogCancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
+              className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               onClick={(event) => {
                 event.preventDefault();
                 void handleDeleteConfirm();
@@ -2271,8 +2360,11 @@ function DrivePageWorkspace({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {itemToMove &&
-                t("moveDialogTitle", { itemName: itemToMove.name })}
+              {itemToMove
+                ? t("moveDialogTitle", { itemName: itemToMove.name })
+                : filesToMove.length === 1
+                  ? t("moveDialogTitle", { itemName: filesToMove[0].name })
+                  : t("moveFilesDialogTitle", { count: filesToMove.length })}
             </DialogTitle>
             <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
           </DialogHeader>
@@ -2286,11 +2378,14 @@ function DrivePageWorkspace({
                 <button
                   key={dest.path}
                   type="button"
-                  onClick={() => setSelectedDestination(dest.path)}
+                  onClick={() => {
+                    setMoveNewFolderName("");
+                    setSelectedDestination(dest.path);
+                  }}
                   className={cn(
-                    "text-foreground press hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
-                      "bg-muted border-primary",
+                      "bg-muted border-foreground",
                   )}
                 >
                   <Folder className="text-muted-foreground size-4 shrink-0" />
@@ -2298,6 +2393,31 @@ function DrivePageWorkspace({
                 </button>
               ))
             )}
+          </div>
+          {/* A folder exists once something is in it, so moving into a new
+              name creates it. */}
+          <div className="flex items-center gap-2">
+            <FolderPlus
+              aria-hidden
+              className="text-muted-foreground size-4 shrink-0"
+            />
+            <Input
+              value={moveNewFolderName}
+              aria-label={t("moveNewFolderLabel")}
+              placeholder={t("moveNewFolderPlaceholder")}
+              onChange={(event) => {
+                const name = event.target.value;
+                setMoveNewFolderName(name);
+                const trimmed = name.trim().replaceAll("/", " ");
+                setSelectedDestination(
+                  trimmed
+                    ? currentFolder
+                      ? `${currentFolder}/${trimmed}`
+                      : trimmed
+                    : null,
+                );
+              }}
+            />
           </div>
           <DialogFooter>
             <Button

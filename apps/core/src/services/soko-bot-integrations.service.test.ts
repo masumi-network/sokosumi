@@ -69,10 +69,17 @@ import {
 } from "./soko-bot-integration-connection.service";
 import {
   activeIntegrationsForBot,
+  createInboxDraft,
+  fetchInboxAttachment,
+  fetchInboxMessage,
   fetchInboxMessages,
   fetchInboxPage,
   listIntegrationTools,
+  modifyInboxMessages,
   revokeSokoBotIntegrationAccounts,
+  runIntegrationTool,
+  searchSokoBotIntegrationCatalog,
+  withOwnerReplies,
 } from "./soko-bot-integrations.service";
 
 const input = {
@@ -304,6 +311,231 @@ describe("Soko Bot OAuth replacement", () => {
     });
     expect(page.nextPageToken).toBe("page-3");
     expect(page.messages).toHaveLength(1);
+  });
+
+  it("marks mail the owner answered later in its thread, and drops their own sent mail", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        successful: true,
+        data: {
+          messages: [
+            {
+              messageId: "s1",
+              threadId: "t1",
+              messageTimestamp: "2026-11-03T10:30:00Z",
+            },
+            {
+              messageId: "s0",
+              threadId: "t2",
+              messageTimestamp: "2026-11-03T08:00:00Z",
+            },
+          ],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const mail = (
+      id: string,
+      threadId: string,
+      receivedAt: string,
+      labels: string[] = [],
+    ) => ({
+      provider: "gmail",
+      id,
+      threadId,
+      from: "ada@example.com",
+      to: [],
+      subject: id,
+      snippet: "",
+      receivedAt,
+      unread: true,
+      labels,
+    });
+
+    const result = await withOwnerReplies(
+      integration,
+      [
+        mail("answered", "t1", "2026-11-03T10:00:00.000Z"),
+        mail("after-reply", "t2", "2026-11-03T09:00:00.000Z"),
+        mail("s1", "t1", "2026-11-03T10:30:00.000Z", ["SENT"]),
+      ],
+      new Date("2026-11-03T00:00:00Z"),
+    );
+
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args.query).toContain("in:sent");
+    expect(result.map((m) => [m.id, m.repliedAt ?? null])).toEqual([
+      ["answered", "2026-11-03T10:30:00.000Z"],
+      ["after-reply", null],
+    ]);
+  });
+
+  it("marks Gmail mail read and archived by removing its labels", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ successful: true, data: {} }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    await modifyInboxMessages(integration, ["m1", "m2"], {
+      read: true,
+      archive: true,
+    });
+    expect(fetchMock.mock.calls[0][0]).toContain("GMAIL_BATCH_MODIFY_MESSAGES");
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args).toEqual({
+      messageIds: ["m1", "m2"],
+      removeLabelIds: ["UNREAD", "INBOX"],
+    });
+  });
+
+  it("drafts a reply in its thread and returns the draft id", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ successful: true, data: { id: "d1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const draftId = await createInboxDraft(integration, {
+      to: ["a@acme.com", "b@acme.com"],
+      subject: "Re: hi",
+      body: "Thanks",
+      threadId: "t1",
+    });
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args).toEqual({
+      recipient_email: "a@acme.com",
+      extra_recipients: ["b@acme.com"],
+      thread_id: "t1",
+      body: "Thanks",
+    });
+    expect(draftId).toBe("d1");
+  });
+
+  it("refuses mailbox writes for Outlook", async () => {
+    mocks.findMany.mockResolvedValue([{ ...existing, provider: "outlook" }]);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    await expect(
+      modifyInboxMessages(integration, ["m1"], { read: true }),
+    ).rejects.toThrow("can only be read");
+  });
+
+  it("lists Gmail attachments from attachmentList and nested payload parts", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: {
+            messageId: "m1",
+            messageText: "See attached",
+            attachmentList: [
+              {
+                filename: "invoice-42.pdf",
+                mimeType: "application/pdf",
+                attachmentId: "att-1",
+                size: 2048,
+              },
+            ],
+            payload: {
+              parts: [
+                { mimeType: "text/plain", filename: "", body: { size: 12 } },
+                {
+                  mimeType: "multipart/mixed",
+                  parts: [
+                    {
+                      filename: "receipt.png",
+                      mimeType: "image/png",
+                      body: { attachmentId: "att-2", size: 99 },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const message = await fetchInboxMessage(integration, "m1");
+    expect(message.attachments).toEqual([
+      {
+        id: "att-1",
+        filename: "invoice-42.pdf",
+        mimeType: "application/pdf",
+        size: 2048,
+      },
+      { id: "att-2", filename: "receipt.png", mimeType: "image/png", size: 99 },
+    ]);
+  });
+
+  it("downloads an attachment from the file link Composio returns", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: {
+            file: {
+              name: "invoice.pdf",
+              mimetype: "application/pdf",
+              s3url: "https://files.example/invoice.pdf",
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        arrayBuffer: async () => new TextEncoder().encode("%PDF").buffer,
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const bytes = await fetchInboxAttachment(integration, {
+      messageId: "m1",
+      attachmentId: "att-1",
+      filename: "invoice.pdf",
+    });
+    expect(fetchMock.mock.calls[0][0]).toContain("GMAIL_GET_ATTACHMENT");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).arguments).toEqual({
+      message_id: "m1",
+      attachment_id: "att-1",
+      file_name: "invoice.pdf",
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      "https://files.example/invoice.pdf",
+    );
+    expect(bytes.toString()).toBe("%PDF");
+  });
+
+  it("reads an attachment returned inline as base64url", async () => {
+    mocks.findMany.mockResolvedValue([existing]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          successful: true,
+          data: { data: Buffer.from("hello?").toString("base64url") },
+        }),
+      }),
+    );
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const bytes = await fetchInboxAttachment(integration, {
+      messageId: "m1",
+      attachmentId: "att-1",
+      filename: "a.txt",
+    });
+    expect(bytes.toString()).toBe("hello?");
   });
 
   it("searches Outlook without $filter or $orderby and applies since itself", async () => {
@@ -807,5 +1039,65 @@ describe("Composio 401/5xx vs not-found", () => {
     await expect(
       listIntegrationTools(githubIntegration, { limit: 10 }),
     ).rejects.toMatchObject({ kind: "NOT_FOUND" });
+  });
+});
+
+describe("ad toolkits stay off the Soko Bot", () => {
+  const googleAdsIntegration = {
+    ...githubIntegration,
+    provider: {
+      ...githubIntegration.provider,
+      id: "googleads",
+      name: "Google Ads",
+    },
+  };
+  const refusal =
+    /Google Ads is used through the Project's ad account: start with list_ad_accounts/;
+
+  it("leaves ad toolkits out of the catalog", async () => {
+    const managed = { composioManagedAuthSchemes: ["OAUTH2"] };
+    mocks.toolkitGet.mockResolvedValue([
+      { slug: "GOOGLEADS", name: "Google Ads", ...managed },
+      { slug: "metaads", name: "Meta Ads", ...managed },
+      { slug: "github", name: "GitHub", ...managed },
+      // Needs the owner's own OAuth app or API key: no one-click connect.
+      { slug: "selfhosted", name: "Self-hosted", authSchemes: ["API_KEY"] },
+    ]);
+    const entries = await searchSokoBotIntegrationCatalog("");
+    expect(entries.map((entry) => entry.provider)).toEqual(["github"]);
+  });
+
+  it("refuses to list an ad toolkit's tools", async () => {
+    await expect(
+      listIntegrationTools(googleAdsIntegration, { limit: 10 }),
+    ).rejects.toThrow(refusal);
+    expect(mocks.getRawComposioTools).not.toHaveBeenCalled();
+  });
+
+  it("refuses to run a tool of an ad toolkit", async () => {
+    await expect(
+      runIntegrationTool(googleAdsIntegration, "GOOGLEADS_SEARCH", {}),
+    ).rejects.toThrow(refusal);
+  });
+
+  it("refuses a GOOGLEADS_ or METAADS_ tool whatever the integration", async () => {
+    await expect(
+      runIntegrationTool(githubIntegration, "googleads_search", {}),
+    ).rejects.toThrow(refusal);
+    await expect(
+      runIntegrationTool(githubIntegration, "METAADS_CREATE_CAMPAIGN", {}),
+    ).rejects.toThrow(/Meta Ads is used through the Project's ad account/);
+  });
+
+  it("still runs other toolkits' tools", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ successful: true, data: { ok: true } }),
+      ),
+    );
+    await expect(
+      runIntegrationTool(githubIntegration, "GITHUB_LIST_REPOS", {}),
+    ).resolves.toEqual({ ok: true });
   });
 });

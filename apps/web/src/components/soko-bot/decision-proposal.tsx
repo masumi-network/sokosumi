@@ -54,7 +54,7 @@ export async function DecisionProposal({
         </p>
       ) : null}
       {!summary.acceptable ? (
-        <p role="status" className="text-semantic-warning text-xs">
+        <p role="status" className="text-foreground text-xs">
           {t("incomplete")}
         </p>
       ) : null}

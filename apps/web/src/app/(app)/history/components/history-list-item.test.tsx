@@ -41,6 +41,7 @@ const labels: HistoryListItemLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
+    contacts: "Find people",
     topUp: "Top up",
     unattributed: "Other",
   },
@@ -69,6 +70,7 @@ describe("HistoryListItem", () => {
       title: "Summarise the report",
       taskId: "task-1",
       taskEventId: "event-1",
+      taskArchived: false,
     });
 
     // The bug this surface was rebuilt for: a year-old entry that reads
@@ -87,6 +89,7 @@ describe("HistoryListItem", () => {
       consumedAt: "2025-08-19T10:00:00.000Z" as unknown as Date,
       taskId: "task-1",
       taskEventId: "event-1",
+      taskArchived: false,
     });
 
     expect(screen.getByText("Aug 19, 2025")).toBeInTheDocument();
@@ -215,6 +218,9 @@ describe("HistoryListItem", () => {
       credits: 1000,
       title: "Credit top up",
       bucketSource: "STRIPE_TOPUP",
+      refundedJobId: null,
+      refundedAgentId: null,
+      refundedTaskId: null,
     });
 
     expect(screen.getByText("Credit top up")).toBeInTheDocument();
@@ -244,6 +250,9 @@ describe("HistoryListItem", () => {
       credits: 200,
       title: "Refund",
       bucketSource: "REFUND",
+      refundedJobId: null,
+      refundedAgentId: null,
+      refundedTaskId: null,
     });
 
     expect(screen.getByText("Refund")).toBeInTheDocument();

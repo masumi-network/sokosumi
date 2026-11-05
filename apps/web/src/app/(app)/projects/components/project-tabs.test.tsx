@@ -37,6 +37,32 @@ describe("activeProjectTabId", () => {
   it("does not match a sibling project whose id merely starts the same", () => {
     expect(activeProjectTabId("/projects/p10/studio", TABS)).toBeNull();
   });
+
+  it("matches a tab whose href carries a query by its path", () => {
+    const tabs = [
+      {
+        id: "issues",
+        href: "/newsletter/issues?projectId=p1",
+        label: "Issues",
+      },
+      {
+        id: "signup-form",
+        href: "/newsletter/signup-form?projectId=p1",
+        label: "Signup form",
+      },
+      {
+        id: "settings",
+        href: "/newsletter/settings?projectId=p1",
+        label: "Settings",
+      },
+    ];
+    expect(activeProjectTabId("/newsletter/settings", tabs)).toBe("settings");
+    expect(activeProjectTabId("/newsletter/issues/i1", tabs)).toBe("issues");
+    expect(activeProjectTabId("/newsletter/signup-form", tabs)).toBe(
+      "signup-form",
+    );
+    expect(activeProjectTabId("/newsletter/subscribers", tabs)).toBeNull();
+  });
 });
 
 describe("ProjectTabs", () => {

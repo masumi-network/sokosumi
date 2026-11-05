@@ -1,37 +1,46 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { CalendarSourceType } from "@sokosumi/database";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
+import {
+  type AuthenticationContext,
+  requireInteractiveUserAuthContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
+  CALENDAR_TYPES,
+  type CalendarType,
   workspaceCalendarSourceSchema,
   workspaceCalendarSourcesQuerySchema,
+  workspaceCalendarSourcesResponseSchema,
 } from "@/schemas/workspace-calendar.schema";
 import { canCreateTaskSchedules } from "@/services/task-schedule.service";
-import { scheduledSocialPostWhere } from "../social-post-range.js";
+import {
+  scheduledNewsletterIssueWhere,
+  scheduledSocialPostWhere,
+} from "../social-post-range.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/calendar/sources",
     description:
-      "List workspace and Project Calendar sources, including sources only available for event display and filtering",
+      "List workspace and Project Calendar sources, including sources only available for event display and filtering, and the features this viewer may show",
     tags: ["Workspaces"],
     request: { query: workspaceCalendarSourcesQuerySchema },
     responses: {
       200: jsonSuccessResponse(
-        z.array(workspaceCalendarSourceSchema),
-        "Workspace Calendar sources with scheduling availability",
+        workspaceCalendarSourcesResponseSchema,
+        "Workspace Calendar sources with scheduling availability and feature list",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -41,6 +50,29 @@ const route = withCoworkerContextHeaderParameters(
   }),
 );
 
+/** Features the Show filter may offer this viewer. */
+async function featuresForViewer(
+  authContext: AuthenticationContext,
+  workspaceId: string,
+): Promise<CalendarType[]> {
+  if (
+    authContext.actor !== "user" ||
+    authContext.authenticationMethod !== "session"
+  ) {
+    return ["tasks"];
+  }
+  const available = new Set<CalendarType>([
+    "tasks",
+    "social",
+    "contacts",
+    "marketing",
+  ]);
+  if (await isNewsletterWorkspaceEnabled(workspaceId)) {
+    available.add("newsletter");
+  }
+  return CALENDAR_TYPES.filter((type) => available.has(type));
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
@@ -49,42 +81,58 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const includeSocialPosts = query.includeSocialPosts === "true";
     if (includeSocialPosts) {
       requireInteractiveUserAuthContext(c.var.authContext);
-      await requireSocialBetaAccess(userContext.userId, prisma);
     }
     const workspaceId = workspaceContext.workspaceId;
-    const isSchedulable = await canCreateTaskSchedules(c.var);
-
-    const [workspace, projects, latestPostDates] = await Promise.all([
-      prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        select: {
-          organization: { select: { name: true, logo: true } },
-          user: { select: { name: true, image: true } },
-        },
-      }),
-      prisma.project.findMany({
-        where: { workspaceId },
-        orderBy: [{ name: "asc" }, { id: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          logo: true,
-          closingAt: true,
-          closedAt: true,
-        },
-      }),
-      includeSocialPosts
-        ? prisma.socialPost.groupBy({
-            by: ["projectId"],
-            where: scheduledSocialPostWhere(
-              workspaceId,
-              userContext.userId,
-              query.scope,
-            ),
-            _max: { scheduledAt: true },
-          })
-        : [],
+    const [isSchedulable, features] = await Promise.all([
+      canCreateTaskSchedules(c.var),
+      featuresForViewer(c.var.authContext, workspaceId),
     ]);
+    const includeNewsletterHorizon =
+      includeSocialPosts && features.includes("newsletter");
+
+    const [workspace, projects, latestPostDates, latestIssueDates] =
+      await Promise.all([
+        prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: {
+            organization: { select: { name: true, logo: true } },
+            user: { select: { name: true, image: true } },
+          },
+        }),
+        prisma.project.findMany({
+          where: { workspaceId },
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            closingAt: true,
+            closedAt: true,
+          },
+        }),
+        includeSocialPosts
+          ? prisma.socialPost.groupBy({
+              by: ["projectId"],
+              where: scheduledSocialPostWhere(
+                workspaceId,
+                userContext.userId,
+                query.scope,
+              ),
+              _max: { scheduledAt: true },
+            })
+          : [],
+        includeNewsletterHorizon
+          ? prisma.newsletterIssue.groupBy({
+              by: ["projectId"],
+              where: scheduledNewsletterIssueWhere(
+                workspaceId,
+                userContext.userId,
+                query.scope,
+              ),
+              _max: { scheduledAt: true },
+            })
+          : [],
+      ]);
     if (!workspace) {
       throw notFound("Workspace not found");
     }
@@ -92,6 +140,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceOwner = workspace.organization ?? workspace.user;
     const latestPostByProject = new Map(
       latestPostDates.map((post) => [post.projectId, post._max.scheduledAt]),
+    );
+    const latestIssueByProject = new Map(
+      latestIssueDates.map((issue) => [
+        issue.projectId,
+        issue._max.scheduledAt,
+      ]),
     );
     const sources = [
       workspaceCalendarSourceSchema.parse({
@@ -127,10 +181,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   latestPostByProject.get(project.id) ?? null,
               }
             : {}),
+          ...(includeNewsletterHorizon
+            ? {
+                latestScheduledNewsletterIssueAt:
+                  latestIssueByProject.get(project.id) ?? null,
+              }
+            : {}),
         }),
       ),
     ];
 
-    return ok(c, sources);
+    return ok(c, { sources, features });
   });
 }

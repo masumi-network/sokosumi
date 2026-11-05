@@ -21,7 +21,7 @@ export function toLocalDateKey(date: Date, timeZone: string): string {
   }).format(date);
 }
 
-function getLocalTimeParts(
+export function getLocalTimeParts(
   date: Date,
   timeZone: string,
 ): { hour: number; minute: number } {
@@ -77,7 +77,10 @@ function getTimezoneOffsetMs(date: Date, timeZone: string): number {
   return asUtc - date.getTime();
 }
 
-function zonedDateTimeLocalToUtc(value: string, timeZone: string): Date | null {
+export function zonedDateTimeLocalToUtc(
+  value: string,
+  timeZone: string,
+): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!match) {
     return null;

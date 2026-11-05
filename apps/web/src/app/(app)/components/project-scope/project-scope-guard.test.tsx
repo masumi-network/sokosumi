@@ -28,9 +28,8 @@ vi.mock("@/lib/auth/auth.client", () => ({
     error: null,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({
-  loadMoreProjects: vi.fn(),
-  loadPinnedProjects: vi.fn(),
+vi.mock("@/lib/project-scope-list.client", () => ({
+  fetchScopeList: vi.fn(),
 }));
 
 import { ProjectScopeGuard } from "./project-scope-guard";

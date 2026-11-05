@@ -36,6 +36,7 @@ vi.mock("next-intl", () => ({
 vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: vi.fn(),
   prepareStudioAssetSocialMedia: vi.fn(),
+  writeStudioAssetCaption: vi.fn(),
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -62,11 +63,10 @@ vi.mock("./use-studio-state", () => ({
 
 vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
+    failed: [],
     queued: [],
     enqueue: mocks.enqueue,
     waitingForSlot: false,
-    lastError: null,
-    clearError: vi.fn(),
   }),
 }));
 
@@ -217,7 +217,7 @@ describe("actions on a result", () => {
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue("a red fox");
     expect(prompt).toHaveFocus();
-    expect(screen.getByText("2:3 · 2K · png")).toBeInTheDocument();
+    expect(screen.getByText("1:1 · 2K · png")).toBeInTheDocument();
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 });

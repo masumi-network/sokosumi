@@ -164,7 +164,8 @@ describe("TaskScheduleRow", () => {
     const user = userEvent.setup();
     renderRow();
 
-    await user.click(screen.getByRole("button", { name: "edit" }));
+    await user.click(screen.getByRole("button", { name: "more" }));
+    await user.click(screen.getByRole("menuitem", { name: "edit" }));
 
     expect(
       screen.getByRole("dialog", { name: "schedule dialog" }),
@@ -177,7 +178,7 @@ describe("TaskScheduleRow", () => {
     );
   });
 
-  it("opens from anywhere on the row, with the edit left clickable", () => {
+  it("opens from anywhere on the row, with the actions left clickable", () => {
     renderRow();
 
     // One link per row, stretched over it — not a link per element.
@@ -186,8 +187,8 @@ describe("TaskScheduleRow", () => {
       screen.getByRole("link", { name: "Weekly report" }).className,
     ).toMatch(/after:inset-0/);
     expect(
-      screen.getByRole("button", { name: "edit" }).parentElement?.parentElement
-        ?.className,
+      screen.getByRole("button", { name: "runNow" }).parentElement
+        ?.parentElement?.className,
     ).toMatch(/z-10/);
   });
 
@@ -208,8 +209,12 @@ describe("TaskScheduleRow", () => {
     await user.tab();
     expect(screen.getByRole("link", { name: "Weekly report" })).toHaveFocus();
     await user.tab();
-    expect(screen.getByRole("button", { name: "edit" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "runNow" })).toHaveFocus();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "more" })).toHaveFocus();
     await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("menuitem", { name: "edit" }));
 
     expect(
       screen.getByRole("dialog", { name: "schedule dialog" }),

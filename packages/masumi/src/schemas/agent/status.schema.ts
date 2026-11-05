@@ -28,7 +28,6 @@ export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
 >;
 
-// Helper function to create a conditional required field validation
 function requireFieldWhenStatus<T extends Record<string, unknown>>(
   status: string,
   fieldName: string,

@@ -1,9 +1,11 @@
 import crypto from "node:crypto";
 
 import {
+  FileSourceKind,
   type Prisma,
   ProjectImageJobKind,
   ProjectImageJobStatus,
+  ProjectImageMediaType,
 } from "@sokosumi/database";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
@@ -12,12 +14,16 @@ import {
   convertCreditsToCents,
   readImageDimensionsFromBytes,
 } from "@sokosumi/utils";
-import { put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
+import {
+  DriveFileDownloadError,
+  downloadDriveFile,
+} from "@/helpers/drive-file-download";
 import {
   notFound,
   tooManyRequests,
@@ -45,7 +51,7 @@ import {
 import {
   buildFalInput,
   cancelQueued,
-  downloadImage,
+  downloadMedia,
   falModelForKind,
   fetchQueueResult,
   fetchQueueStatus,
@@ -57,8 +63,20 @@ import {
   applyStudioBrandPrompt,
   loadStudioBrand,
 } from "@/lib/image-studio/studio-brand";
+import {
+  findVideoModelForEndpoint,
+  videoModel,
+} from "@/lib/image-studio/video-catalog";
+import {
+  buildFalVideoInput,
+  creditsPerVideo,
+  defaultVideoSettings,
+  type VideoModel,
+  type VideoSettings,
+  validateVideoSettings,
+} from "@/lib/image-studio/video-model";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { publishImageToFiles } from "@/services/image-studio-files.service";
+import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -115,6 +133,11 @@ export interface CreateImageJobInput {
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
+  /**
+   * Files in this workspace sent as references after the assets: a brand's
+   * product photos. The caller checks the person may open them.
+   */
+  referenceFileIds?: string[];
   /** The version being refined, when the user started from a selection. */
   parentAssetId: string | null;
   idempotencyKey: string;
@@ -151,8 +174,12 @@ function readSettings(value: Prisma.JsonValue): ImageJobSettings {
  * refresh land between the estimate and the debit, and the person would be
  * charged a number they were never shown.
  */
-interface ReserveImageJobInput extends CreateImageJobInput {
-  settings: ImageJobSettings;
+interface ReserveImageJobInput
+  extends Omit<CreateImageJobInput, "settings" | "modelId"> {
+  kind: ProjectImageJobKind;
+  /** The provider endpoint the job is sent to. */
+  model: string;
+  settings: ImageJobSettings | VideoSettings;
   /** Null for a personal workspace; otherwise the pot being charged. */
   organizationId: string | null;
   /** Credits (= cents) to debit for this one image. */
@@ -285,11 +312,6 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       );
     }
 
-    const kind =
-      input.referenceAssetIds.length > 0
-        ? ProjectImageJobKind.EDIT
-        : ProjectImageJobKind.GENERATE;
-
     // A quote, not a charge. The studio charges when it delivers an image, so this
     // transaction takes no money and writes no consumption rows — `insertAsset` is
     // the only place a debit happens.
@@ -310,11 +332,12 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         workspaceId: input.workspaceId,
         sessionId: input.sessionId,
         requestedByUserId: input.userId,
-        kind,
-        model: falModelForKind(kind, input.modelId),
+        kind: input.kind,
+        model: input.model,
         prompt: input.prompt,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
+        referenceFileIds: input.referenceFileIds ?? [],
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
@@ -439,20 +462,32 @@ const SETTLE_LEASE_MS = 180_000;
  */
 async function buildReferenceUrls(job: {
   projectId: string;
+  workspaceId: string;
   referenceAssetIds: string[];
+  referenceFileIds: string[];
 }): Promise<string[]> {
-  if (job.referenceAssetIds.length === 0) return [];
-  if (
-    job.referenceAssetIds.length > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB
-  ) {
+  const count = job.referenceAssetIds.length + job.referenceFileIds.length;
+  if (count === 0) return [];
+  if (count > LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB) {
     throw unprocessableEntity(
       `At most ${LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB} reference images are allowed.`,
     );
   }
-  const assets = await prisma.projectImageAsset.findMany({
-    where: { id: { in: job.referenceAssetIds }, projectId: job.projectId },
-    select: { id: true, blobPathname: true, contentType: true, bytes: true },
-  });
+  const assets =
+    job.referenceAssetIds.length === 0
+      ? []
+      : await prisma.projectImageAsset.findMany({
+          where: {
+            id: { in: job.referenceAssetIds },
+            projectId: job.projectId,
+          },
+          select: {
+            id: true,
+            blobPathname: true,
+            contentType: true,
+            bytes: true,
+          },
+        });
   if (assets.length !== job.referenceAssetIds.length) {
     throw notFound("A reference image was not found in this project");
   }
@@ -476,7 +511,47 @@ async function buildReferenceUrls(job: {
       }),
     );
   }
+  for (const fileId of job.referenceFileIds) {
+    urls.push(await uploadFileReference(job.workspaceId, fileId));
+  }
   return urls;
+}
+
+/** A workspace image File, sent to fal the way an asset reference is. */
+async function uploadFileReference(
+  workspaceId: string,
+  fileId: string,
+): Promise<string> {
+  const file = await prisma.fileResource.findFirst({
+    where: {
+      id: fileId,
+      workspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+    },
+    select: { sourceId: true, mimeType: true },
+  });
+  if (!file?.mimeType?.startsWith("image/"))
+    throw notFound("A reference image was not found in this workspace");
+  const url = (await head(file.sourceId)).url;
+  const download = () =>
+    downloadDriveFile(url, {
+      maxBytes: LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES,
+      timeoutMs: 30_000,
+      acceptsMimeType: (mime) => mime.startsWith("image/"),
+    });
+  // One retry: a live test once got a passing error status for a stored
+  // photo, and nothing is charged before the job is sent.
+  const { bytes, mimeType } = await download().catch(async (error) => {
+    if (!(error instanceof DriveFileDownloadError)) throw error;
+    if (error.reason !== "unavailable") throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    return await download();
+  });
+  return await uploadReference({
+    bytes,
+    contentType: mimeType,
+    fileName: `${fileId}.${mimeType.split("/")[1] ?? "png"}`,
+  });
 }
 
 function webhookUrl(): string | null {
@@ -512,13 +587,11 @@ export async function createImageJob(input: CreateImageJobInput) {
   // provider and were lost at settlement.
   requireStudioBlobToken();
 
+  const references =
+    input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
   let settings: ImageJobSettings;
   try {
-    settings = resolveImageSettings(
-      input.modelId,
-      input.settings,
-      input.referenceAssetIds.length,
-    );
+    settings = resolveImageSettings(input.modelId, input.settings, references);
   } catch (error) {
     throw unprocessableEntity(
       error instanceof Error ? error.message : "Invalid image settings",
@@ -537,12 +610,121 @@ export async function createImageJob(input: CreateImageJobInput) {
     );
   }
 
-  const { job, created } = await reserveJob({
-    ...input,
+  const kind =
+    references > 0 ? ProjectImageJobKind.EDIT : ProjectImageJobKind.GENERATE;
+  const { modelId, ...request } = input;
+  return await reserveAndSend({
+    ...request,
+    kind,
+    model: falModelForKind(kind, modelId),
     settings,
     organizationId: access.organizationId,
     chargedCredits,
   });
+}
+
+export interface CreateVideoJobInput {
+  modelId?: string;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  sessionId: string | null;
+  prompt: string;
+  /** Missing fields take the model's defaults. */
+  settings: Partial<VideoSettings>;
+  /** A gallery image to animate. Null makes a video from the prompt alone. */
+  sourceAssetId: string | null;
+  idempotencyKey: string;
+}
+
+/**
+ * Create (or replay) a video job and, when this caller owns the lease, send it.
+ *
+ * The same row, lease, quote, webhook and settlement as an image: a video is one
+ * more thing the studio buys from fal, so it takes the same fences against
+ * buying it twice and the same charge-on-delivery.
+ */
+export async function createVideoJob(input: CreateVideoJobInput) {
+  const access = await requireProjectAccess({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  });
+  requireStudioBlobToken();
+
+  const hasSource = input.sourceAssetId !== null;
+  let model: VideoModel;
+  let settings: VideoSettings;
+  let chargedCredits: number;
+  try {
+    model = videoModel(input.modelId, hasSource ? "image" : "text");
+    settings = validateVideoSettings(
+      model,
+      { ...defaultVideoSettings(model), ...input.settings },
+      hasSource,
+    );
+    chargedCredits = creditsPerVideo(model, settings);
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Invalid video settings",
+      { kind: "invalid_video_settings" },
+    );
+  }
+
+  if (input.sourceAssetId) {
+    const source = await prisma.projectImageAsset.findFirst({
+      where: { id: input.sourceAssetId, projectId: input.projectId },
+      select: { mediaType: true },
+    });
+    if (!source) throw notFound("The image to animate was not found");
+    if (source.mediaType !== ProjectImageMediaType.IMAGE)
+      throw unprocessableEntity("Only an image can be animated.", {
+        kind: "invalid_video_settings",
+      });
+  }
+
+  return await reserveAndSend({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    sessionId: input.sessionId,
+    prompt: input.prompt,
+    idempotencyKey: input.idempotencyKey,
+    kind: hasSource
+      ? ProjectImageJobKind.IMAGE_TO_VIDEO
+      : ProjectImageJobKind.TEXT_TO_VIDEO,
+    model: model.endpoint,
+    settings,
+    referenceAssetIds: input.sourceAssetId ? [input.sourceAssetId] : [],
+    parentAssetId: null,
+    organizationId: access.organizationId,
+    chargedCredits,
+  });
+}
+
+function isVideoKind(kind: ProjectImageJobKind): boolean {
+  return (
+    kind === ProjectImageJobKind.TEXT_TO_VIDEO ||
+    kind === ProjectImageJobKind.IMAGE_TO_VIDEO
+  );
+}
+
+function readVideoSettings(value: Prisma.JsonValue): VideoSettings {
+  const raw =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    aspectRatio: typeof raw.aspectRatio === "string" ? raw.aspectRatio : "",
+    durationSeconds:
+      typeof raw.durationSeconds === "number" ? raw.durationSeconds : 0,
+    resolution: typeof raw.resolution === "string" ? raw.resolution : "",
+  };
+}
+
+/** Reserve the row, then send it if this caller holds the lease. */
+async function reserveAndSend(input: ReserveImageJobInput) {
+  const { job, created } = await reserveJob(input);
   if (!created) return job;
 
   if (!(await claimForSubmission(job.id))) {
@@ -582,21 +764,32 @@ async function sendClaimedJob(jobId: string) {
       buildReferenceUrls(job),
       loadStudioBrand(job.projectId),
     ]);
-    const settings = readSettings(job.settings);
     preflightReason = "request_not_supported";
     // Brand is for fal only. The stored prompt stays the brief. A missing
     // Design or Memory is ignored so a brand read never blocks a generation.
-    input = buildFalInput(
-      {
-        prompt: applyStudioBrandPrompt(job.prompt, brand),
-        aspectRatio: settings.aspectRatio,
-        resolution: settings.resolution,
-        outputFormat: settings.outputFormat,
-        seed: settings.seed,
-        imageUrls,
-      },
-      job.model,
-    );
+    const prompt = applyStudioBrandPrompt(job.prompt, brand);
+    if (isVideoKind(job.kind)) {
+      const model = findVideoModelForEndpoint(job.model);
+      if (!model) throw new Error("Unsupported video model endpoint.");
+      input = buildFalVideoInput(model, {
+        prompt,
+        settings: readVideoSettings(job.settings),
+        imageUrl: imageUrls[0] ?? null,
+      });
+    } else {
+      const settings = readSettings(job.settings);
+      input = buildFalInput(
+        {
+          prompt,
+          aspectRatio: settings.aspectRatio,
+          resolution: settings.resolution,
+          outputFormat: settings.outputFormat,
+          seed: settings.seed,
+          imageUrls,
+        },
+        job.model,
+      );
+    }
   } catch (error) {
     console.warn("[image-studio] a generation could not be prepared", {
       jobId: job.id,
@@ -808,12 +1001,12 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // this dependency; fetching its bytes is the other half, and it is the half
   // that was failing. Clearing on the metadata read reset the clock of an
   // outage that had not ended, on every reconcile, so it could never run out.
-  // {@link settleWithImage} clears it once the bytes are actually stored.
+  // {@link settleWithMedia} clears it once the bytes are actually stored.
   //
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
-  const produced = result.images[0]!;
-  await settleWithImage(job.id, produced.url, {
+  const produced = result.media[0]!;
+  await settleWithMedia(job.id, produced.url, {
     width: produced.width,
     height: produced.height,
   });
@@ -1028,7 +1221,7 @@ export async function failImageJob(
  * Idempotent on the job: `ProjectImageAsset.jobId` is unique, so a webhook and
  * a poll arriving together produce one asset and one of them loses the insert.
  */
-export async function settleWithImage(
+export async function settleWithMedia(
   jobId: string,
   sourceUrl: string,
   /**
@@ -1045,6 +1238,7 @@ export async function settleWithImage(
     include: { asset: { select: { id: true } } },
   });
   if (!job || job.asset) return;
+  const video = isVideoKind(job.kind);
   // An uncertain job is still settleable. The callback that arrives after an
   // outage is exactly the case this has to accept, and it is the one the
   // webhook takes.
@@ -1142,12 +1336,19 @@ export async function settleWithImage(
     return;
   }
 
-  let downloaded: Awaited<ReturnType<typeof downloadImage>>;
+  let downloaded: Awaited<ReturnType<typeof downloadMedia>>;
   try {
-    downloaded = await downloadImage(
-      sourceUrl,
-      LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES,
-    );
+    downloaded = video
+      ? await downloadMedia(
+          sourceUrl,
+          LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
+          "video/mp4",
+        )
+      : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
+    // A CDN that calls an mp4 `application/octet-stream` would make it
+    // unplayable in the gallery and unattachable in Social.
+    if (video && !downloaded.contentType.startsWith("video/"))
+      downloaded = { ...downloaded, contentType: "video/mp4" };
   } catch (error) {
     // fal has already produced the image, so it has already been paid for. A
     // failed download is our problem, not a verdict on the job: leave the row
@@ -1172,8 +1373,8 @@ export async function settleWithImage(
   // stored 0x0 until this read the bytes.
   const dimensions =
     readProviderSize(providerSize) ??
-    readImageDimensionsFromBytes(downloaded.bytes);
-  if (!dimensions) {
+    (video ? null : readImageDimensionsFromBytes(downloaded.bytes));
+  if (!dimensions && !video) {
     // Not a failure: the column holds 0 and the client falls back to the rendered
     // image's intrinsic size. Logged because a format nothing can read is worth
     // knowing about.
@@ -1248,6 +1449,12 @@ export async function settleWithImage(
       },
       blobPathname: blob.pathname,
       contentType: downloaded.contentType,
+      mediaType: video
+        ? ProjectImageMediaType.VIDEO
+        : ProjectImageMediaType.IMAGE,
+      durationSeconds: video
+        ? readVideoSettings(job.settings).durationSeconds
+        : null,
       width: dimensions?.width ?? 0,
       height: dimensions?.height ?? 0,
       bytes: downloaded.bytes.byteLength,
@@ -1259,9 +1466,8 @@ export async function settleWithImage(
     throw error;
   }
   // Only the settler that stored the asset gets here, so this runs once per job.
-  await publishImageToFiles({
+  await publishStudioAssetToFiles({
     jobId: job.id,
-    projectId: project.id,
     workspaceId: project.workspaceId,
     organizationId: project.organizationId,
     userId: job.requestedByUserId,
@@ -1305,6 +1511,8 @@ async function insertAsset(input: {
   };
   blobPathname: string;
   contentType: string;
+  mediaType: ProjectImageMediaType;
+  durationSeconds: number | null;
   width: number;
   height: number;
   bytes: number;
@@ -1394,6 +1602,8 @@ async function insertAsset(input: {
         settings: input.job.settings ?? {},
         blobPathname: input.blobPathname,
         contentType: input.contentType,
+        mediaType: input.mediaType,
+        durationSeconds: input.durationSeconds,
         width: input.width,
         height: input.height,
         bytes: input.bytes,

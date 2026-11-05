@@ -11,7 +11,10 @@ import categoriesRouter from "./categories/index.js";
 import chatRoomInviteLinksRouter from "./chat-room-invite-links/index.js";
 import chatsRouter from "./chats/index.js";
 import checkoutRouter from "./checkout/index.js";
+import cmoRouter from "./cmo/index.js";
 import composioRouter from "./composio/index.js";
+import contactListsRouter from "./contact-lists/index.js";
+import contactsRouter from "./contacts/index.js";
 import couponsRouter from "./coupons/index.js";
 import coworkersRouter from "./coworkers/index.js";
 import creditCostsRouter from "./credit-costs/index.js";
@@ -24,11 +27,14 @@ import imageStudioRouter from "./image-studio/index.js";
 import imageStudioAgentV1Router from "./image-studio-agent/index.js";
 import invitationsRouter from "./invitations/index.js";
 import jobsRouter from "./jobs/index.js";
+import newsletterRouter from "./newsletter/index.js";
 import notificationsRouter from "./notifications/index.js";
 import organizationInviteLinksRouter from "./organization-invite-links/index.js";
 import organizationsRouter from "./organizations/index.js";
 import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
+import publicNewsletterRouter from "./public/newsletter/index.js";
+import publicNewslettersRouter from "./public/newsletters/index.js";
 import realtimeRouter from "./realtime/index.js";
 import shareRouter from "./share/index.js";
 import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
@@ -98,25 +104,34 @@ app.openAPIRegistry.registerComponent("parameters", "SokosumiClient", {
   },
 });
 
-app.use(
-  "*",
-  cors({
-    origin: (origin) => resolveCorsAllowOrigin(origin),
-    allowHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Request-Id",
-      "X-Organization-Slug",
-      "X-Context-User-Id",
-      "X-Context-Organization-Id",
-      CALENDAR_CLIENT_VERSION_HEADER,
-    ],
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: TIME.CORS_MAX_AGE,
-    credentials: true,
-  }),
-);
+const apiCors = cors({
+  origin: (origin) => resolveCorsAllowOrigin(origin),
+  allowHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Request-Id",
+    "X-Organization-Slug",
+    "X-Context-User-Id",
+    "X-Context-Organization-Id",
+    CALENDAR_CLIENT_VERSION_HEADER,
+  ],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  exposeHeaders: ["Content-Length"],
+  maxAge: TIME.CORS_MAX_AGE,
+  credentials: true,
+});
+const newsletterSignupCors = cors({
+  origin: "*",
+  allowHeaders: ["Content-Type"],
+  allowMethods: ["POST", "OPTIONS"],
+  maxAge: TIME.CORS_MAX_AGE,
+});
+app.use("*", (c, next) => {
+  const signup =
+    (c.req.method === "POST" || c.req.method === "OPTIONS") &&
+    /^\/(?:v1\/)?public\/newsletters\/[^/]+\/subscribe\/?$/.test(c.req.path);
+  return (signup ? newsletterSignupCors : apiCors)(c, next);
+});
 
 app.doc31("/openapi.json", {
   openapi: "3.1.0",
@@ -147,6 +162,8 @@ app.route("/categories", categoriesRouter);
 app.route("/chats", chatsRouter);
 app.route("/checkout", checkoutRouter);
 app.route("/composio", composioRouter);
+app.route("/contact-lists", contactListsRouter);
+app.route("/contacts", contactsRouter);
 app.route("/coupons", couponsRouter);
 app.route("/credit-costs", creditCostsRouter);
 app.route("/developer", developerRouter);
@@ -156,15 +173,19 @@ app.route("/exports", exportsRouter);
 app.route("/history", historyRouter);
 app.route("/image-studio-agent", imageStudioAgentV1Router);
 app.route("/image-studio", imageStudioRouter);
+app.route("/newsletter", newsletterRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/organization-invite-links", organizationInviteLinksRouter);
 app.route("/chat-room-invite-links", chatRoomInviteLinksRouter);
 app.route("/projects", projectsRouter);
+app.route("/public/newsletter", publicNewsletterRouter);
+app.route("/public/newsletters", publicNewslettersRouter);
 app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
+app.route("/cmo", cmoRouter);
 app.route("/soko-bot-runtime", sokoBotRuntimeRouter);
 app.route("/soko-bots", sokoBotsRouter);
 app.route("/coworkers", coworkersRouter);

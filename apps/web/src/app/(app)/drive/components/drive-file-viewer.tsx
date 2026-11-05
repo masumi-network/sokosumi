@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, ExternalLink, FileText, XIcon } from "lucide-react";
+import { getExtensionFromUrl } from "@sokosumi/utils";
+import { Download, ExternalLink, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -17,9 +18,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { formatBytes } from "@/lib/utils/format-bytes";
 
 /**
  * One file, opened from its row, in the same viewer a task's files open in.
@@ -30,14 +33,15 @@ import type { FileStore } from "@/lib/utils/file-search.client";
  * task output uses — so a file looks the same wherever it is opened from.
  *
  * Everything is read through the authorized same-origin content route, never a
- * storage URL. Office files, video, audio and anything unknown fall to a dialog
- * with the same header, because the Office embed needs a public URL this route
+ * storage URL. Office files, video, audio and anything unknown fall to
+ * `FileMediaDialog`, because the Office embed needs a public URL this route
  * deliberately is not.
  */
 export interface DriveFileViewerFile {
   id: string;
   displayName: string;
   mimeType: string | null;
+  sizeBytes?: number | null;
 }
 
 export function DriveFileViewer({
@@ -84,34 +88,48 @@ export function DriveFileViewer({
   }
 
   return (
-    <FallbackViewer
-      file={file}
-      store={store}
+    <FileMediaDialog
+      fileName={file.displayName}
+      sizeBytes={file.sizeBytes ?? null}
       url={url}
-      isVideo={kind.isVideo}
-      isAudio={kind.isAudio}
+      downloadUrl={contentUrl({ resourceId: file.id, store, download: true })}
+      detailsHref={`/drive/files/${file.id}`}
+      media={kind.isVideo ? "video" : kind.isAudio ? "audio" : null}
       onClose={onClose}
     />
   );
 }
 
-function FallbackViewer({
-  file,
-  store,
-  url,
-  isVideo,
-  isAudio,
-  onClose,
-}: {
-  file: DriveFileViewerFile;
-  store: FileStore;
+export interface FileMediaDialogProps {
+  fileName: string;
+  sizeBytes: number | null;
+  /** Where the bytes are read from, inline. */
   url: string;
-  isVideo: boolean;
-  isAudio: boolean;
+  /** The same bytes as an attachment. */
+  downloadUrl: string;
+  /** The file's detail view, when the catalog knows the file. */
+  detailsHref: string | null;
+  /** Played in place. Anything else is offered as a download. */
+  media: "video" | "audio" | null;
   onClose: () => void;
-}) {
+}
+
+/**
+ * Video and audio play here. Every other type gets its name, its size and a
+ * Download button, so no file is a row that does nothing when opened.
+ */
+export function FileMediaDialog({
+  fileName,
+  sizeBytes,
+  url,
+  downloadUrl,
+  detailsHref,
+  media,
+  onClose,
+}: FileMediaDialogProps) {
   const t = useTranslations("App.Drive.Files");
-  const download = contentUrl({ resourceId: file.id, store, download: true });
+  const sizeLabel = formatBytes(sizeBytes);
+  const extension = getExtensionFromUrl(fileName) || "file";
 
   return (
     <Dialog
@@ -122,35 +140,43 @@ function FallbackViewer({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+        className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden overscroll-contain p-0 sm:max-w-3xl"
         data-testid="drive-file-viewer"
       >
         <div className="border-border flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:py-4 sm:pr-6 sm:pl-6">
           <div className="flex min-w-0 items-center gap-2">
-            <FileText
-              className="text-muted-foreground size-4 shrink-0"
-              aria-hidden
-            />
-            <DialogTitle className="truncate text-base font-medium">
-              {file.displayName}
-            </DialogTitle>
+            <span className="size-5 shrink-0" aria-hidden>
+              <FileTypeIcon extension={extension} />
+            </span>
+            <div className="flex min-w-0 flex-col">
+              <DialogTitle className="truncate text-base font-medium">
+                {fileName}
+              </DialogTitle>
+              {sizeLabel ? (
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {sizeLabel}
+                </span>
+              ) : null}
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <Button
-              asChild
-              variant="outline"
-              size="icon"
-              className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
-            >
-              <Link
-                href={`/drive/files/${file.id}`}
-                aria-label={t("viewerDetails")}
-                title={t("viewerDetails")}
+            {detailsHref ? (
+              <Button
+                asChild
+                variant="outline"
+                size="icon"
+                className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
               >
-                <ExternalLink className="size-3.5" aria-hidden />
-                <span className="hidden sm:inline">{t("viewerDetails")}</span>
-              </Link>
-            </Button>
+                <Link
+                  href={detailsHref}
+                  aria-label={t("viewerDetails")}
+                  title={t("viewerDetails")}
+                >
+                  <ExternalLink className="size-3.5" aria-hidden />
+                  <span className="hidden sm:inline">{t("viewerDetails")}</span>
+                </Link>
+              </Button>
+            ) : null}
             <Button
               asChild
               variant="outline"
@@ -158,8 +184,8 @@ function FallbackViewer({
               className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
             >
               <a
-                download={file.displayName}
-                href={download}
+                download={fileName}
+                href={downloadUrl}
                 aria-label={t("previewDownload")}
                 title={t("previewDownload")}
               >
@@ -185,31 +211,37 @@ function FallbackViewer({
           {t("sheetDescription")}
         </DialogDescription>
         <div className="flex min-h-64 items-center justify-center p-6">
-          {isVideo ? (
+          {media === "video" ? (
             <video
               src={url}
               controls
+              playsInline
               preload="metadata"
+              aria-label={fileName}
               className="max-h-[70dvh] w-full rounded-lg bg-scrim-soft"
             />
-          ) : isAudio ? (
+          ) : media === "audio" ? (
             <audio
               src={url}
               controls
               preload="metadata"
+              aria-label={fileName}
               className="w-full"
-              aria-label={file.displayName}
             />
           ) : (
             <div className="flex flex-col items-center gap-3 text-center">
-              <FileText className="text-muted-foreground size-9" aria-hidden />
+              <span className="size-10" aria-hidden>
+                <FileTypeIcon extension={extension} />
+              </span>
               <p className="text-muted-foreground max-w-xs text-sm">
                 {t("viewerNoPreview")}
               </p>
               <Button asChild>
-                <a download={file.displayName} href={download}>
+                <a download={fileName} href={downloadUrl}>
                   <Download className="size-4" aria-hidden />
-                  {t("previewDownload")}
+                  {sizeLabel
+                    ? t("viewerDownloadWithSize", { size: sizeLabel })
+                    : t("previewDownload")}
                 </a>
               </Button>
             </div>

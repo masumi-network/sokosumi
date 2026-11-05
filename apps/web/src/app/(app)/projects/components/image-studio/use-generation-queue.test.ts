@@ -104,7 +104,7 @@ describe("useGenerationQueue", () => {
     // Still queued, not dropped: this is the difference between a batch of
     // four and a batch of three that nobody was told about.
     expect(result.current.queued).toHaveLength(1);
-    expect(result.current.lastError).toBeNull();
+    expect(result.current.failed).toEqual([]);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
@@ -114,7 +114,7 @@ describe("useGenerationQueue", () => {
     expect(startImageGeneration).toHaveBeenCalledTimes(2);
   });
 
-  it("drops a request that will never work, and says why", async () => {
+  it("saves a rejected request without automatically retrying it", async () => {
     startImageGeneration.mockResolvedValue({
       ok: false,
       kind: "image_studio_unsupported_model_settings",
@@ -130,7 +130,9 @@ describe("useGenerationQueue", () => {
     });
 
     await waitFor(() =>
-      expect(result.current.lastError).toBe("That model cannot produce 9:16."),
+      expect(result.current.failed[0]?.message).toBe(
+        "That model cannot produce 9:16.",
+      ),
     );
     expect(result.current.queued).toHaveLength(0);
     // Retrying a rejection is how a queue turns into a loop against Core.
@@ -138,7 +140,7 @@ describe("useGenerationQueue", () => {
     expect(result.current.waitingForSlot).toBe(false);
   });
 
-  it("treats a transport failure as permanent for that request", async () => {
+  it("saves a transport failure for manual same-key retry", async () => {
     startImageGeneration.mockRejectedValue(new Error("network"));
 
     const { result } = renderHook(() =>
@@ -152,9 +154,9 @@ describe("useGenerationQueue", () => {
     // A code rather than a sentence, so the page can say it in the reader's
     // language; Core never answered, so there is no message of its own to show.
     await waitFor(() =>
-      expect(result.current.lastErrorCode).toBe("unreachable"),
+      expect(result.current.failed[0]?.code).toBe("unreachable"),
     );
-    expect(result.current.lastError).toBeNull();
+    expect(result.current.failed[0]?.message).toBeNull();
     expect(result.current.queued).toHaveLength(0);
     expect(startImageGeneration).toHaveBeenCalledTimes(1);
   });
@@ -180,7 +182,7 @@ describe("useGenerationQueue", () => {
 });
 
 describe("not enough credits", () => {
-  it("drops the whole batch, not just the request that hit the wall", async () => {
+  it("holds the whole remaining batch, rather than submitting it against the same wall", async () => {
     startImageGeneration.mockResolvedValue(brokeK);
 
     const { result } = renderHook(() =>
@@ -192,7 +194,7 @@ describe("not enough credits", () => {
     });
 
     await waitFor(() =>
-      expect(result.current.lastErrorCode).toBe("insufficient_credits"),
+      expect(result.current.failed[0]?.code).toBe("insufficient_credits"),
     );
     // One attempt, and the other two are gone. Sending them would hit the same
     // wall and say so three times over.
@@ -201,7 +203,7 @@ describe("not enough credits", () => {
     expect(result.current.waitingForSlot).toBe(false);
     // A code, so the page can say "not enough credits" in the reader's
     // language rather than forwarding Core's English sentence.
-    expect(result.current.lastError).toBeNull();
+    expect(result.current.failed[0]?.message).toBeNull();
   });
 
   it("clears on the next attempt, so a top-up can be tried straight away", async () => {
@@ -215,15 +217,15 @@ describe("not enough credits", () => {
       result.current.enqueue([request("1")]);
     });
     await waitFor(() =>
-      expect(result.current.lastErrorCode).toBe("insufficient_credits"),
+      expect(result.current.failed[0]?.code).toBe("insufficient_credits"),
     );
 
     startImageGeneration.mockResolvedValue(accepted);
     act(() => {
-      result.current.enqueue([request("2")]);
+      result.current.retry("1");
     });
 
     await waitFor(() => expect(result.current.queued).toHaveLength(0));
-    expect(result.current.lastErrorCode).toBeNull();
+    expect(result.current.failed).toEqual([]);
   });
 });

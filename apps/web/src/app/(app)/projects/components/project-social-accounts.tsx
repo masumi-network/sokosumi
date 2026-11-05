@@ -1,6 +1,9 @@
 "use client";
 
-import type { ProjectSocialConnection } from "@sokosumi/core-client";
+import type {
+  ProjectSocialConnection,
+  SocialQueueSlots,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Link2,
@@ -12,11 +15,15 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { SocialAccountsSkeleton } from "@/app/social/components/social-loading-skeleton";
 import { EmptyState } from "@/components/common/empty-state";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
-import { SOCIAL_PROVIDERS } from "@/components/social-providers";
+import {
+  SOCIAL_PROVIDERS,
+  socialProvidersEnabledFirst,
+} from "@/components/social-providers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
@@ -47,15 +56,20 @@ import {
   useComposioConnection,
 } from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
+import { ProjectSocialQueueSlots } from "./social-posts/project-social-queue-slots";
 import type { SocialReconnection } from "./social-posts/social-reconnection";
 
 interface ProjectSocialAccountsProps {
+  queueSlots?: SocialQueueSlots;
   connections: ProjectSocialConnection[];
   projectId: string;
   /** Closing or closed projects cannot add or replace accounts. */
   connectDisabled?: boolean;
   reconnections?: SocialReconnection[];
-  onReconnected?: (connection: ProjectSocialConnection) => void;
+  onReconnected?: (
+    connection: ProjectSocialConnection,
+    previousConnectionId?: string,
+  ) => void;
 }
 
 interface PendingConfirmation {
@@ -138,10 +152,13 @@ function isExpiredIntentError(error: ActionError): boolean {
 export function ProjectSocialAccounts({
   connections,
   projectId,
+  queueSlots,
   connectDisabled = false,
   reconnections,
   onReconnected,
 }: ProjectSocialAccountsProps) {
+  const { enabledProviders, isProviderEnabled } =
+    useSocialProviderAvailability();
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
   const postsT = useTranslations("App.Projects.SocialPosts");
@@ -161,7 +178,12 @@ export function ProjectSocialAccounts({
   >(null);
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmation | null>(null);
-  const isBusy = pendingAction !== null;
+  const [refreshing, startRefresh] = useTransition();
+  const isBusy = pendingAction !== null || refreshing;
+
+  function refreshAccounts(): void {
+    startRefresh(() => router.refresh());
+  }
 
   useMountEffect(() => {
     isMountedRef.current = true;
@@ -221,18 +243,25 @@ export function ProjectSocialAccounts({
     socialConnectionId?: string,
     provider?: ProjectSocialConnection["provider"],
   ): Promise<void> {
+    const targetProvider =
+      provider ??
+      connections.find((connection) => connection.id === socialConnectionId)
+        ?.provider;
+    if (!targetProvider || !isProviderEnabled(targetProvider)) return;
     const outcome = await connect({
       onStart: () => {
         setFeedback(null);
         setPendingAction(action);
-        setPendingTarget(provider ?? socialConnectionId ?? null);
+        setPendingTarget(socialConnectionId ?? provider ?? null);
       },
       initiate: () =>
         initiateProjectSocialConnection({
           projectId,
           action,
           ...(provider ? { provider } : {}),
-          ...(socialConnectionId ? { socialConnectionId } : {}),
+          ...(action !== "connect" && socialConnectionId
+            ? { socialConnectionId }
+            : {}),
         }),
       finalize: (connectionId) =>
         finalizeProjectSocialConnection({ projectId, connectionId }),
@@ -254,7 +283,9 @@ export function ProjectSocialAccounts({
           account: accountName(outcome.value, t("unknownHandle")),
         }),
       });
-      if (action === "reconnect") onReconnected?.(outcome.value);
+      if (action === "reconnect" || reconnections) {
+        onReconnected?.(outcome.value, socialConnectionId);
+      }
     } else if (outcome.kind === "timeout") {
       showFeedback({ kind: "error", message: t("errors.timeout") });
     } else if (outcome.kind === "failed") {
@@ -263,7 +294,7 @@ export function ProjectSocialAccounts({
     // Replacing disconnects the old account when it starts, so the list is
     // stale however the flow ended.
     if (action === "replace" || outcome.kind === "connected") {
-      router.refresh();
+      refreshAccounts();
     }
     finishAction();
   }
@@ -355,7 +386,7 @@ export function ProjectSocialAccounts({
           message: t("warning.providerRevocationFailed"),
         });
       }
-      router.refresh();
+      refreshAccounts();
     } catch {
       showFeedback({ kind: "error", message: t("errors.disconnect") });
     } finally {
@@ -367,7 +398,7 @@ export function ProjectSocialAccounts({
   async function handleStartOver(
     connection: ProjectSocialConnection,
   ): Promise<void> {
-    if (connectDisabled) return;
+    if (connectDisabled || !isProviderEnabled(connection.provider)) return;
     if (disconnectInFlightRef.current || isBusy) {
       showFeedback({ kind: "error", message: t("errors.inFlight") });
       return;
@@ -400,7 +431,7 @@ export function ProjectSocialAccounts({
     if (!disconnected) return;
 
     await startOAuth("connect", undefined, connection.provider);
-    router.refresh();
+    refreshAccounts();
   }
 
   function requestConfirmation(
@@ -471,14 +502,31 @@ export function ProjectSocialAccounts({
                 </p>
               ) : null}
             </div>
+            {!isProviderEnabled(connection.provider) ? (
+              <Badge variant="secondary">{t("comingSoon")}</Badge>
+            ) : null}
             <Button
               type="button"
               size="sm"
               variant="outline"
               className="h-11 md:h-8"
-              disabled={isBusy || connectDisabled}
+              disabled={
+                isBusy ||
+                connectDisabled ||
+                !isProviderEnabled(connection.provider)
+              }
               loading={pendingTarget === connection.id}
-              onClick={() => void startOAuth("reconnect", connection.id)}
+              onClick={() =>
+                void startOAuth(
+                  connection.status === "disconnected"
+                    ? "connect"
+                    : "reconnect",
+                  connection.id,
+                  connection.status === "disconnected"
+                    ? connection.provider
+                    : undefined,
+                )
+              }
             >
               <RefreshCw className="size-4" aria-hidden />
               {t("reconnect")}
@@ -521,9 +569,9 @@ export function ProjectSocialAccounts({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {SOCIAL_PROVIDERS.map((provider) => {
+            {socialProvidersEnabledFirst(enabledProviders).map((provider) => {
               const { id, name, Icon } = provider;
-              const comingSoon = "comingSoon" in provider;
+              const comingSoon = !isProviderEnabled(provider.id);
               return (
                 <DropdownMenuItem
                   key={id}
@@ -542,11 +590,23 @@ export function ProjectSocialAccounts({
                     className={cn("size-4", comingSoon && "grayscale")}
                     aria-hidden
                   />
-                  {name}
-                  {comingSoon ? (
-                    <span className="text-muted-foreground ml-auto pl-4 text-xs">
-                      {t("comingSoon")}
+                  {id === "linkedin" && !comingSoon ? (
+                    <span className="flex flex-col">
+                      {name}
+                      <span
+                        className="text-muted-foreground text-xs"
+                        data-testid="linkedin-personal-only"
+                      >
+                        {t("linkedinPersonalOnly")}
+                      </span>
                     </span>
+                  ) : (
+                    name
+                  )}
+                  {comingSoon ? (
+                    <Badge variant="secondary" className="ms-auto">
+                      {t("comingSoon")}
+                    </Badge>
                   ) : null}
                 </DropdownMenuItem>
               );
@@ -560,9 +620,7 @@ export function ProjectSocialAccounts({
           className={
             feedback.kind === "error"
               ? "text-destructive text-sm"
-              : feedback.kind === "warning"
-                ? "text-semantic-warning text-sm"
-                : "text-semantic-success text-sm"
+              : "text-foreground text-sm"
           }
           role={feedback.kind === "error" ? "alert" : "status"}
         >
@@ -570,13 +628,20 @@ export function ProjectSocialAccounts({
         </p>
       ) : null}
 
-      {listedConnections.length > 0 ? (
+      {refreshing || (isBusy && listedConnections.length === 0) ? (
+        <div role="status" aria-busy="true" aria-label={postsT("loading")}>
+          <div aria-hidden>
+            <SocialAccountsSkeleton />
+          </div>
+        </div>
+      ) : listedConnections.length > 0 ? (
         <ul className="divide-y rounded-lg border">
           {listedConnections.map((connection) => {
             const provider = SOCIAL_PROVIDERS.find(
               ({ id }) => id === connection.provider,
             );
             const providerName = provider?.name ?? connection.provider;
+            const comingSoon = !isProviderEnabled(connection.provider);
             const formattedHandle = formatHandle(
               connection.externalHandle,
               connection.provider,
@@ -591,6 +656,7 @@ export function ProjectSocialAccounts({
               canReconnect || connection.status === "pending";
             const canStartOver = connection.status === "pending";
             const canReplace =
+              !comingSoon &&
               !connectDisabled &&
               (connection.status === "active" || canReconnect);
             const canDisconnect = connection.status !== "disconnected";
@@ -612,10 +678,18 @@ export function ProjectSocialAccounts({
                   <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     {secondaryHandle ? <span>{secondaryHandle}</span> : null}
                     <span>{t("account", { provider: providerName })}</span>
+                    {connection.provider === "linkedin" ? (
+                      <span data-testid="linkedin-personal-profile">
+                        {t("personalProfile")}
+                      </span>
+                    ) : null}
+                    {comingSoon ? (
+                      <Badge variant="secondary">{t("comingSoon")}</Badge>
+                    ) : null}
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
-                        isWarningStatus && "text-semantic-warning-label",
+                        isWarningStatus && "text-foreground",
                       )}
                     >
                       {isWarningStatus ? (
@@ -642,7 +716,7 @@ export function ProjectSocialAccounts({
                       variant="outline"
                       size="sm"
                       className="h-11 md:h-8"
-                      disabled={isBusy || connectDisabled}
+                      disabled={isBusy || connectDisabled || comingSoon}
                       loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
@@ -657,7 +731,7 @@ export function ProjectSocialAccounts({
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={isBusy || connectDisabled}
+                      disabled={isBusy || connectDisabled || comingSoon}
                       loading={isRowPending && pendingAction === "startOver"}
                       onClick={() => {
                         void handleStartOver(connection);
@@ -741,6 +815,13 @@ export function ProjectSocialAccounts({
           />
         </div>
       )}
+
+      {queueSlots ? (
+        <ProjectSocialQueueSlots
+          projectId={projectId}
+          queueSlots={queueSlots}
+        />
+      ) : null}
 
       <AlertDialog
         open={pendingConfirmation !== null}

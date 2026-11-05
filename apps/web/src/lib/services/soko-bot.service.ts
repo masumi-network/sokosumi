@@ -11,6 +11,10 @@ import type {
   SimulateSokoBotTaskEventRequest,
   SokoBot,
   SokoBotAvatar,
+  SokoBotAvatarChange,
+  SokoBotAvatarDraftResult,
+  SokoBotAvatarState,
+  SokoBotAvatarStudio,
   SokoBotDailyStats,
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
@@ -147,6 +151,7 @@ export const sokoBotService = {
       paused?: boolean;
       dailyLimit?: number;
       timezone?: string;
+      mailAutoRead?: boolean;
     },
     botId?: string,
   ): Promise<SokoBot> {
@@ -191,13 +196,22 @@ export const sokoBotService = {
     return response.data;
   },
 
-  /** Null when there is no bot, integrations are off, or nothing is missing. */
-  async getConnectPromptState(): Promise<SokoBotConnectPromptState | null> {
+  /**
+   * Null when there is no bot, integrations are off, or nothing is missing.
+   * `untilAnyConnected` also hides it once any integration is connected.
+   */
+  async getConnectPromptState({
+    untilAnyConnected = false,
+  }: {
+    untilAnyConnected?: boolean;
+  } = {}): Promise<SokoBotConnectPromptState | null> {
     const [bot, { configured, integrations }] = await Promise.all([
       this.getMine(),
       this.listIntegrations(),
     ]);
     if (!bot || !configured) return null;
+    if (untilAnyConnected && integrations.some((i) => i.status === "ACTIVE"))
+      return null;
     const offers = connectOffers(integrations);
     return offers.length > 0
       ? { botId: bot.id, botName: bot.name ?? "Soko Bot", offers }
@@ -298,6 +312,52 @@ export const sokoBotService = {
   /** Posts the bot's first message in its direct room (once). */
   async introduce(roomId: string): Promise<{ messageId: string }> {
     const response = await coreClient.introduceMySokoBot({ roomId });
+    return response.data;
+  },
+
+  /** The look, newest draft and render progress of the caller's bot, or of shared bot `botId`. */
+  async getAvatarStudio(botId?: string): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.getSokoBotAvatarStudio(botId);
+    return response.data;
+  },
+
+  /** One change to the look, as a draft. A refusal is a draft-less answer with a note. */
+  async createAvatarDraft(
+    change: SokoBotAvatarChange,
+    draftId?: string,
+    botId?: string,
+  ): Promise<SokoBotAvatarDraftResult> {
+    const response = await coreClient.createSokoBotAvatarDraft(
+      { change, draftId },
+      botId,
+    );
+    return response.data;
+  },
+
+  /** Makes the draft the bot's avatar; its states render in the background. */
+  async keepAvatarDraft(
+    draftId: string,
+    botId?: string,
+  ): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.keepSokoBotAvatarDraft(draftId, botId);
+    return response.data;
+  },
+
+  /** Drops every open draft; the studio comes back showing the kept look. */
+  async discardAvatarDrafts(botId?: string): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.discardSokoBotAvatarDrafts(botId);
+    return response.data;
+  },
+
+  /** Redoes one state's animation; the old loop plays until the new one is ready. */
+  async regenerateAvatarState(
+    state: SokoBotAvatarState,
+    botId?: string,
+  ): Promise<SokoBotAvatarStudio> {
+    const response = await coreClient.regenerateSokoBotAvatarState(
+      state,
+      botId,
+    );
     return response.data;
   },
 

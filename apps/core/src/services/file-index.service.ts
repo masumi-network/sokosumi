@@ -314,7 +314,9 @@ export async function runExtractionJob(
 
   // Suggestions are separate work: a document is searchable as soon as its
   // text lands, whether or not anything has an opinion about its category.
-  if (extraction.chunks.length > 0) {
+  // A file with no text is still labelled, from its metadata; only one held
+  // back as unsafe is not.
+  if (extraction.state !== FileExtractionState.QUARANTINED) {
     await enqueueFileIndexJob({
       resourceId: resource.id,
       pipeline: FileIndexJobPipeline.SUGGEST,

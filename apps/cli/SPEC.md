@@ -1,12 +1,14 @@
 # SPEC
 
 ## §G GOAL
+
 [REPORTED: user direction, 2026-09-24] Developer CLI + repo Skill onboard an existing remote agent as a private Sokosumi Coworker in a selected Workspace; Hermes first. MPS is the first Sokosumi payment path; prove Coworker wallet receipt before global waitlist; platform admins approve listing. Cardano x402 buyers enter through Sokosumi after MVP. [REPORTED: user direction, 2026-10-05] Preprod adds private self-service creation for own Vendor admins; organization Workspace access requires its owner/admin approval. This defines target behavior, not shipped features.
 
 ## §C CONSTRAINTS
+
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
-- package identity ∈ {published npm name: `@masumi_network/sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; published public to npm (live `1.0.0`, repo `1.0.1`) via `files:[dist]` + `publishConfig.access:public`. [PR #5325]
+- package identity ∈ {published npm name: `@masumi_network/sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; published public to npm (live `1.1.0`, repo `1.1.0`) via `files:[dist]` + `publishConfig.access:public`. [PR #5325]
 - [REPORTED: user decision, 2026-09-24] Coworker registration → Sokosumi Preprod only; Mainnet registration → “Preprod only”; unrelated CLI commands remain network-configurable.
 - [REPORTED: user direction, 2026-10-05] Coworker create on Preprod → platform admin or admin of selected Vendor. Mainnet create → platform admin only. New Coworker remains private; participant cannot set priority or whitelist.
 - [REPORTED: user decision, 2026-09-24] Registration selects an existing Workspace and uses existing access control; report workspace availability only after `GRANTED`. A private Coworker stays unavailable outside granted workspaces until platform approval.
@@ -58,6 +60,7 @@
 [VERIFIED: ADR 0005, 2026-09-21] Runtime identity/invocation contract approved: runtime bearer ∈ `coworker_*` only; developer OAuth/user API keys ⊥ runtime Core calls; session grant ⊥ identity; no short-lived developer-delegation JWT. Chat transport, general x402 purchase, and seller settlement interfaces still need their own approved contracts before implementation.
 
 ## §V INVARIANTS
+
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
 V2: provider key ∉ argv & ∉ logs.
 V3: target → matching API URL, auth URL, public OAuth client ID, vault entry.
@@ -71,7 +74,7 @@ V10: API-key input ∉ argv. Target-coded prefix selects target locally. Legacy 
 V11: OAuth credentials save before user-key mint. Mint failure preserves OAuth session and supports retry.
 V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. CLI never mints locally.
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
-[CORRECTION, REPORTED: user clarification, 2026-09-24] Earlier V14 said Workspace connect later. User specified private Workspace-only access at registration. Current CLI does not yet attach Workspace access.
+[CORRECTION, REPORTED: user clarification, 2026-09-24] Earlier V14 said Workspace connect later. User specified private Workspace-only access at registration. `coworkers register` and `coworkers connect` attach Workspace access via `grantCoworkerWorkspaceAccess` [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts:358`, `apps/cli/src/cli/commands/coworkers.ts:474`].
 V14: Signed-in TUI ∈ {Vendors, Workspaces, Sign out}. ⊥ Register preset menu {pi-sokosumi, Eve, Hermes, OpenClaw}. Coworker create remains headless `coworkers register` until T41. Headless registration selects Workspace; `GRANTED` permits use, `PENDING` reports approval requested. ⊥ Hire Agent.
 V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
 V16: hosted target OAuth launch/refresh → registered target client ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) by default; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override; resolved ID stays consistent through refresh.

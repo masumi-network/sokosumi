@@ -44,6 +44,11 @@ const requestBodySchema = z
         "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
       example: true,
     }),
+    tagDirectMessages: z.boolean().optional().openapi({
+      description:
+        "Whether Jev may read this person's person-to-person Directs (chat signals). A Direct is read only when every human in it turned this on.",
+      example: false,
+    }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
       // One write per cell, inside one transaction, so the body cannot ask for
@@ -61,6 +66,7 @@ const requestBodySchema = z
         data.marketingOptIn !== undefined ||
         data.pushOptIn !== undefined ||
         data.showRoomUnreadCount !== undefined ||
+        data.tagDirectMessages !== undefined ||
         (data.notificationPreferences !== undefined &&
           data.notificationPreferences.length > 0)
       );
@@ -71,6 +77,7 @@ const requestBodySchema = z
         "marketingOptIn",
         "pushOptIn",
         "showRoomUnreadCount",
+        "tagDirectMessages",
         "notificationPreferences",
       ],
     },
@@ -136,6 +143,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       // reader who never chose is shown the count.
       ...(body.showRoomUnreadCount !== undefined && {
         hideRoomUnreadCount: !body.showRoomUnreadCount,
+      }),
+      ...(body.tagDirectMessages !== undefined && {
+        tagDirectMessages: body.tagDirectMessages,
       }),
     };
 

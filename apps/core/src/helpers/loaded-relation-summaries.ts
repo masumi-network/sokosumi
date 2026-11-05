@@ -128,6 +128,8 @@ interface SokoBotLoadedRelation {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
+  /** The claimed avatar's style, null when the bot has none. */
+  avatar: { styleId: string } | null;
   userId: string | null;
   user: UserSummaryFields | null;
 }
@@ -137,6 +139,7 @@ export interface SokoBotSummaryFields {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
+  avatarStyleId: string | null;
   /** Null for a shared bot: it has no owner. */
   owner: UserSummaryFields | null;
 }
@@ -166,6 +169,7 @@ export function sokoBotSummaryFromLoadedRelation(
     name: sokoBot.name,
     avatarSeed: sokoBot.avatarSeed,
     avatarImageUrl: sokoBot.avatarImageUrl,
+    avatarStyleId: sokoBot.avatar?.styleId ?? null,
     owner: isPersonalSokoBot(sokoBot)
       ? userSummaryFromLoadedRelation(
           `${context} sokoBot owner`,

@@ -44,6 +44,7 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
 }));
 
 vi.mock("@/hooks/use-mobile", () => ({
+  MOBILE_BREAKPOINT: 768,
   useIsMobile: () => false,
 }));
 

@@ -26,6 +26,7 @@ import SwiftUI
           Spacer()
           Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
           Button("Save") { save(text, url) }
+            .buttonStyle(.brandPrimary)
             .keyboardShortcut(.defaultAction)
             .disabled(ComposerLink.normalizedURL(url) == nil)
         }

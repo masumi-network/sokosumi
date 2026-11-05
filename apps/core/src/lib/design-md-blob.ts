@@ -1,15 +1,34 @@
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import {
   buildAdHocDesignMdPathname,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
   buildUserDesignMdPathname,
+  isDesignMdBlobUrl,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 
+import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
+
+/** A stored DESIGN.md's text; null when it is not ours or does not load. */
+export async function readDesignMdContent(
+  url: string | null,
+): Promise<string | null> {
+  if (!url || !isDesignMdBlobUrl(url)) return null;
+  try {
+    const response = await ssrfSafeFetch(url, {
+      maxResponseBytes: LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
+    });
+    if (!response.ok) return null;
+    return await response.text();
+  } catch {
+    return null;
+  }
+}
 
 export interface UploadDesignMdContentOptions {
   content: string;

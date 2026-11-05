@@ -9,7 +9,6 @@ import {
   backfillOrgPeriodIdempotencySentinels,
   deleteCoveredMemberPeriodTombstones,
   ensureOrgPeriodIdempotencySentinel,
-  orgPeriodFingerprintExists,
   parseMemberPeriodReferenceId,
   SENTINEL_FACE_CENTS,
   SENTINEL_REFERENCE_NOTE,
@@ -581,22 +580,5 @@ describe("deleteCoveredMemberPeriodTombstones", () => {
 
     assert.equal(result.deleted, 1);
     assert.equal(deleteManyMock.mock.calls.length, 0);
-  });
-});
-
-describe("orgPeriodFingerprintExists", () => {
-  it("checks exact referenceId via batched period lookup", async () => {
-    const findManyMock = vi
-      .fn()
-      .mockResolvedValue([{ referenceId: "org:org-1:in_1:subscription" }]);
-    const exists = await orgPeriodFingerprintExists(
-      { creditBucket: { findMany: findManyMock } } as never,
-      "org:org-1:in_1:subscription",
-    );
-    assert.equal(exists, true);
-    assert.deepEqual(findManyMock.mock.calls[0]?.[0].where, {
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      referenceId: { in: ["org:org-1:in_1:subscription"] },
-    });
   });
 });

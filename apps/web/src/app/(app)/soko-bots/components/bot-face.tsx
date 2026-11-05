@@ -1,23 +1,31 @@
+import type { SokoBotAvatarView } from "@sokosumi/core-client";
+
 import { AuroraOrb } from "@/components/aurora-orb";
+import { AvatarFace } from "@/components/soko-bot/avatar-face";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { isCraftedAvatar } from "@/lib/soko-bot/avatar";
 import { cn } from "@/lib/utils";
 
-/** A bot's mascot, or its seeded orb when it predates mascots. */
+/** A bot's avatar face, or its seeded orb when it predates mascots. */
 export function BotFace({
   bot,
   ownerId,
   className,
 }: {
-  bot: { avatarImageUrl: string | null; avatarSeed: string | null };
+  bot: {
+    avatarImageUrl: string | null;
+    avatarSeed: string | null;
+    avatar?: SokoBotAvatarView | null;
+  };
   ownerId: string;
   className?: string;
 }) {
   if (bot.avatarImageUrl) {
     return (
-      <img
+      <AvatarFace
         src={bot.avatarImageUrl}
-        alt=""
-        className={cn("shrink-0 rounded-full object-cover", className)}
+        crafted={isCraftedAvatar(bot.avatar)}
+        className={className}
       />
     );
   }

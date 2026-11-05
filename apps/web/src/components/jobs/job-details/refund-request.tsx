@@ -365,7 +365,7 @@ export default function RequestRefundButton({
                           href="https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary flex items-center gap-1 hover:underline"
+                          className="text-foreground flex items-center gap-1 underline underline-offset-4"
                         >
                           {t("learnMore")}
                           <ExternalLink className="size-3" />

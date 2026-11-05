@@ -1,30 +1,29 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import * as Sentry from "@sentry/node";
-import { MemberRole } from "@sokosumi/database";
 import {
-  assertOrganizationSubscriptionChangeAllowed,
   ensurePurchasedSeatsSufficient,
-  OrganizationSubscriptionExclusivityError,
   resolvePurchasedSeats,
-  unassignSeatsOverPurchasedCapacity,
 } from "@sokosumi/database/helpers";
-import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { badRequest, internalServerError } from "@/helpers/error";
+import { badRequest, paymentRequired } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { resolveMemberOrganizationById } from "@/helpers/organization";
+import {
+  isCancellationScheduled,
+  releaseSeatReduction,
+  resolveSubscriptionForSeatChange,
+  retrieveStripeSeatSubscription,
+  scheduleSeatReduction,
+} from "@/helpers/organization-subscription-seats";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import {
   organizationSubscriptionSeatsSchema,
   updateOrganizationSubscriptionSeatsSchema,
 } from "@/schemas/subscription.schema";
-import { SEAT_CHANGE_CONFLICT_MESSAGE } from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -38,7 +37,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/subscription/seats",
   description:
-    "Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`). Local free subscriptions return the stored seat count without changing it. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
+    "Change the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions, adding seats is invoiced right away (`proration_behavior: always_invoice`) and cancels any pending reduction. Removing seats schedules the lower count for the next renewal without a refund: `seats` stays the same until then and `scheduledReduction` holds the new count. Sending the current count cancels a pending reduction. Local free subscriptions return the stored seat count without changing it. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
   tags: ["Organizations"],
   request: {
     params,
@@ -56,6 +55,7 @@ const route = createRoute({
       "The purchased seat count after the update",
       {
         data: {
+          scheduledReduction: null,
           seats: 3,
         },
         meta: {
@@ -65,65 +65,51 @@ const route = createRoute({
       },
     ),
     400: jsonErrorResponse(
-      "Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity",
+      "Bad Request - No active subscription, invalid seat count, enterprise contract exclusivity, or a reduction while the plan is ending or another change is scheduled",
     ),
     401: jsonErrorResponse("Unauthorized"),
+    402: jsonErrorResponse(
+      "Payment Required - Stripe could not collect the payment; the seat count is unchanged",
+    ),
     403: jsonErrorResponse(
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization not found"),
-    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 /**
- * Pushes the new quantity to the first Stripe subscription item, invoicing
+ * Pushes the higher quantity to the first Stripe subscription item, invoicing
  * the proration immediately. Runs outside any Prisma transaction — Stripe
  * calls must never run inside an interactive transaction.
+ *
+ * `error_if_incomplete` makes Stripe answer 402 and leave the subscription
+ * unchanged when it cannot collect the payment, so retrying is safe.
  */
-async function increaseStripeSubscriptionSeats(
+async function addStripeSubscriptionSeats(
   stripeSubscriptionId: string,
+  seatItemId: string,
   seats: number,
 ): Promise<void> {
-  const stripeSubscription =
-    await stripeClient.retrieveSubscriptionWithItems(stripeSubscriptionId);
-
-  const firstItem = stripeSubscription.items.data[0];
-  if (!firstItem) {
-    throw internalServerError(
-      "Unable to update organization subscription seats: missing Stripe subscription item",
+  try {
+    await stripeClient.updateSubscriptionItemQuantity(
+      stripeSubscriptionId,
+      seatItemId,
+      seats,
     );
+  } catch (error) {
+    if (
+      error instanceof Stripe.errors.StripeError &&
+      error.statusCode === 402
+    ) {
+      throw paymentRequired(
+        "The payment could not be collected. Update your payment method and try again.",
+        { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_PAYMENT_FAILED },
+      );
+    }
+    throw error;
   }
-
-  await stripeClient.updateSubscriptionItemQuantity(
-    stripeSubscriptionId,
-    firstItem.id,
-    seats,
-  );
-}
-
-/**
- * Serializable so the purchased-seat write and the overflow unassign commit
- * as one unit (SOK-1007): a concurrent seat assignment cannot read the old
- * capacity, pass its check and land after the reduction.
- */
-async function persistPurchasedSeatsAndUnassignOverflow(params: {
-  subscriptionId: string;
-  organizationId: string;
-  seats: number;
-}): Promise<void> {
-  await serializableTransaction(async (tx) => {
-    await tx.subscription.update({
-      where: { id: params.subscriptionId },
-      data: { seats: params.seats },
-    });
-    await unassignSeatsOverPurchasedCapacity(
-      params.organizationId,
-      params.seats,
-      tx,
-    );
-  }, SEAT_CHANGE_CONFLICT_MESSAGE);
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -132,38 +118,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { seats } = c.req.valid("json");
 
-    const { organization } = await resolveMemberOrganizationById({
-      id,
+    const { subscription } = await resolveSubscriptionForSeatChange({
+      organizationId: id,
       userId: userContext.userId,
-      tx: prisma,
-      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
     });
-
-    try {
-      await assertOrganizationSubscriptionChangeAllowed(
-        organization.id,
-        prisma,
-      );
-    } catch (error) {
-      if (error instanceof OrganizationSubscriptionExclusivityError) {
-        throw badRequest(error.message, {
-          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
-        });
-      }
-      throw error;
-    }
-
-    const subscription =
-      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-        organization.id,
-        prisma,
-      );
-    if (!subscription) {
-      throw badRequest(
-        "An active organization subscription is required before updating seats.",
-        { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
-      );
-    }
 
     try {
       ensurePurchasedSeatsSufficient(seats);
@@ -177,66 +135,76 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const currentSeats = resolvePurchasedSeats(subscription.seats);
 
-    if (!subscription.stripeSubscriptionId) {
+    if (
+      !subscription.stripeSubscriptionId ||
+      (currentSeats === seats && !subscription.stripeScheduleId)
+    ) {
       return ok(
         c,
         organizationSubscriptionSeatsSchema.parse({
+          scheduledReduction: null,
           seats: currentSeats,
         }),
       );
     }
 
-    if (currentSeats === seats) {
-      return ok(
-        c,
-        organizationSubscriptionSeatsSchema.parse({
-          seats: currentSeats,
-        }),
-      );
-    }
+    const { seatItem, stripeSubscription } =
+      await retrieveStripeSeatSubscription(subscription.stripeSubscriptionId);
 
-    await increaseStripeSubscriptionSeats(
-      subscription.stripeSubscriptionId,
-      seats,
-    );
-
-    try {
-      await persistPurchasedSeatsAndUnassignOverflow({
-        subscriptionId: subscription.id,
-        organizationId: organization.id,
-        seats,
-      });
-    } catch (error) {
-      try {
-        await persistPurchasedSeatsAndUnassignOverflow({
-          subscriptionId: subscription.id,
-          organizationId: organization.id,
-          seats,
-        });
-      } catch {
-        // Last-resort cleanup after both persist attempts failed. Stripe
-        // already bills the new seat count, so the overflow has to go even
-        // though the seat write did not land. Its own failure is reported and
-        // then dropped: the caller needs the error that explains the failed
-        // persist, not whatever the cleanup hit on top of it.
-        try {
-          await serializableTransaction(async (tx) => {
-            await unassignSeatsOverPurchasedCapacity(
-              organization.id,
-              seats,
-              tx,
-            );
-          }, SEAT_CHANGE_CONFLICT_MESSAGE);
-        } catch (cleanupError) {
-          Sentry.captureException(cleanupError, {
-            tags: { context: "organization_seat_reduction_cleanup" },
-            extra: { organizationId: organization.id, seats },
-          });
-        }
-        throw error;
+    if (seats < currentSeats) {
+      if (isCancellationScheduled(stripeSubscription)) {
+        throw badRequest(
+          "This plan is ending, and its seats end with it. Seats can be removed after resuming the plan.",
+          { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED },
+        );
       }
+
+      const { reduction, scheduleId } = await scheduleSeatReduction(
+        stripeSubscription,
+        seats,
+      );
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { stripeScheduleId: scheduleId },
+      });
+
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          scheduledReduction: reduction,
+          seats: currentSeats,
+        }),
+      );
     }
 
-    return ok(c, organizationSubscriptionSeatsSchema.parse({ seats }));
+    if (seats > currentSeats) {
+      await addStripeSubscriptionSeats(
+        subscription.stripeSubscriptionId,
+        seatItem.id,
+        seats,
+      );
+      // Not retried: the webhook for this quantity change writes the same seat
+      // count, and repeating this request is safe once Stripe has it.
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { seats },
+      });
+    }
+
+    // After the charge, so a declined card leaves the pending reduction alone.
+    if (await releaseSeatReduction(stripeSubscription)) {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { stripeScheduleId: null },
+      });
+    }
+
+    return ok(
+      c,
+      organizationSubscriptionSeatsSchema.parse({
+        scheduledReduction: null,
+        seats,
+      }),
+    );
   });
 }

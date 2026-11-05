@@ -152,7 +152,9 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables DataTable[]
+  dataTables   DataTable[]
+  contacts     Contact[]
+  contactLists ContactList[]
 
   calendarRevision Int @default(0)
 
@@ -165,6 +167,8 @@ model Workspace {
   jobs                     Job[]
   tasks                    Task[]
   socialPosts              SocialPost[]
+  newsletters              Newsletter[]
+  newsletterIssues         NewsletterIssue[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
   projectIdentifierAliases ProjectIdentifierAlias[]
@@ -188,6 +192,7 @@ model Workspace {
   fileLabels         WorkspaceLabel[]
   fileLineages       FileLineage[]
   fileCollections    FileCollection[]
+  driveShares        DriveShare[]
   fileAdmissions     FileAuthorizationAdmission[]
   fileResultWindows  FileResultWindow[]
 
@@ -459,9 +464,16 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  /// What the website runs on when it is a shop system Cuso can measure
+  /// (only "shopify" today), learned once from the site; null otherwise.
+  sitePlatform            String?
   logo                    String?
   designMdUrl             String?
   designMdExtractionId    String?
+  /// Markdown guidance for drafting this Project's social posts (tone,
+  /// hashtags, CTAs, optional `##` per-platform sections). Separate from
+  /// project memory (contextMd) and DESIGN.md.
+  postingInstructionsMd   String?
 
   projectRevision  Int       @default(0)
   calendarRevision Int       @default(0)
@@ -476,10 +488,20 @@ model Project {
   closeOperation   ProjectCloseOperation?
   events           ProjectEvent[]
   stars            ProjectStar[]
+  hides            ProjectHide[]
 
   socialConnections       ProjectSocialConnection[]
   socialPosts             SocialPost[]
+  socialQueueSlots        ProjectSocialQueueSlot[]
+  socialComments          SocialComment[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
+
+  brandBrain              BrandBrain?
+  newsletter              Newsletter?
+  newsletterSendingDomain NewsletterSendingDomain?
+  newsletterIssues        NewsletterIssue[]
+
+  marketingStrategies MarketingStrategy[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -554,6 +576,29 @@ model ProjectStar {
   @@map("project_star")
 }
 
+/// One user's Hide on one project: the per-user opposite of a ProjectStar,
+/// personal and never shared, and membership does not change (ADR 0036).
+/// Hiding deletes the user's star on the project and starring deletes the
+/// hide, so the two never coexist. Reads drop a Hidden project from the
+/// Projects list's Open view, the Project switcher and Recent activity;
+/// Needs you ignores it.
+model ProjectHide {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  hiddenAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  // Same reason as ProjectStar: the unique key leads with userId.
+  @@index([projectId])
+  @@map("project_hide")
+}
+
 model ProjectSocialConnection {
   id                            String    @id @default(uuid(7)) @db.Uuid
   projectId                     String    @db.Uuid
@@ -564,6 +609,8 @@ model ProjectSocialConnection {
   displayName                   String?
   /// Public Blob copy of the profile picture (provider CDN URLs expire).
   avatarUrl                     String?
+  /// X subscription tier read from the provider at connect/reconnect and account sync; null when unknown or not X
+  subscriptionType              String?
   composioConnectedAccountId    String
   status                        String
   activeExternalAccountKey      String?
@@ -598,6 +645,9 @@ model SocialAccountPost {
   connectionId      String    @db.Uuid
   externalId        String
   text              String
+  contentType       String    @default("unknown")
+  postKind          String    @default("unknown")
+  media             Json      @default("[]")
   publishedAt       DateTime?
   url               String?
   metrics           Json
@@ -807,12 +857,18 @@ model SocialPost {
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
 
   /// Social provider key, e.g. "x".
-  provider String
-  text     String
+  provider     String
+  text         String
   /// Optional comment posted once after the post, on networks Composio supports.
   firstComment String?
   /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
-  media    Json   @default("[]")
+  media        Json    @default("[]")
+
+  quotedPostId         String?      @db.Uuid
+  quotedPost           SocialPost?  @relation("SocialPostQuotes", fields: [quotedPostId], references: [id], onDelete: SetNull)
+  quotingPosts         SocialPost[] @relation("SocialPostQuotes")
+  /// Quote dependency failure. Retained by a SQL delete trigger when the FK is cleared.
+  needsAttentionReason String?
 
   status      SocialPostStatus @default(DRAFT)
   scheduledAt DateTime?
@@ -835,13 +891,15 @@ model SocialPost {
   scheduledByCoworkerId String?
   scheduledByCoworker   Coworker? @relation("SocialPostScheduledByCoworker", fields: [scheduledByCoworkerId], references: [id], onDelete: Restrict)
 
-  canceledAt          DateTime?
-  publishedAt         DateTime?
-  publishedExternalId String?
-  publishedUrl        String?
+  canceledAt                   DateTime?
+  publishedAt                  DateTime?
+  publishedExternalId          String?
+  publishedUrl                 String?
+  /// In-flight X thread part (1 is the main post). Unconfirmed creates must never be retried blindly.
+  publishingThreadPartPosition Int?
   /// Latest lifetime metrics and refresh state; no history or credentials.
-  statistics          Json?
-  lastError           String?
+  statistics                   Json?
+  lastError                    String?
 
   /// Publish attempts made so far (scheduler and publish-now alike).
   attemptCount   Int       @default(0)
@@ -855,19 +913,114 @@ model SocialPost {
   /// Optimistic-lock counter bumped on every edit/schedule/cancel.
   revision Int @default(0)
 
-  attempts SocialPostPublishAttempt[]
+  /// The Marketing strategy version whose calendar planned this post (ADR
+  /// 0062). Approving another version cancels its unpublished posts.
+  marketingStrategyId String?            @db.Uuid
+  marketingStrategy   MarketingStrategy? @relation(fields: [marketingStrategyId], references: [id], onDelete: SetNull)
+  /// What the plan intends with it: its calendar entry's id, title, format,
+  /// hook, brief, why, approach, pillar and campaign, validated by
+  /// `socialPostPlanningSchema` in `@sokosumi/soko-bot`.
+  planning            Json?
+
+  attempts    SocialPostPublishAttempt[]
+  comments    SocialComment[]
+  threadParts SocialPostThreadPart[]
 
   @@index([projectId, status, scheduledAt])
+  @@index([workspaceId, projectId, createdAt, id], map: "social_post_workspaceId_projectId_createdAt_id_idx")
   @@index([status, scheduledAt])
   @@index([status, nextAttemptAt])
   @@index([workspaceId, scheduledAt])
   @@index([socialConnectionId])
+  @@index([quotedPostId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
   @@index([scheduledByCoworkerId])
+  @@index([marketingStrategyId])
   @@map("social_post")
+}
+
+/// One named weekly time a Project uses as a posting-queue slot.
+/// weekday 0–6 (Sunday=0) and minutesFromMidnight 0–1439 are CHECKed in SQL.
+model ProjectSocialQueueSlot {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name                String
+  weekday             Int
+  minutesFromMidnight Int
+  timezone            String
+
+  @@unique([projectId, weekday, minutesFromMidnight], map: "project_social_queue_slot_project_id_weekday_minutes_key")
+  @@index([projectId])
+  @@map("project_social_queue_slot")
+}
+
+enum SocialCommentStatus {
+  /// Seen, not handled yet.
+  NEW
+  REPLIED
+  /// Spam, a bot, or a thread a reply would not help.
+  SKIPPED
+  /// Needs the owner: a complaint, refund, legal or press question.
+  OWNER
+}
+
+/// A comment someone left on one of the Project's published Social posts, as
+/// Cuso's daily reply round read it, and what he did with it. One row per
+/// provider comment, so nothing is answered twice.
+model SocialComment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId    String     @db.Uuid
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  socialPostId String     @db.Uuid
+  socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+
+  provider          String
+  externalCommentId String
+  authorName        String?
+  authorExternalId  String?
+  text              String
+  commentedAt       DateTime?
+
+  status          SocialCommentStatus @default(NEW)
+  reply           String?
+  replyExternalId String?
+  /// Why it was skipped or handed to the owner.
+  note            String?
+  handledAt       DateTime?
+
+  @@unique([provider, externalCommentId])
+  @@index([projectId, status])
+  @@index([socialPostId])
+  @@map("social_comment")
+}
+
+/// Additional X posts in one account's thread; position 1 remains on SocialPost.
+/// The position range CHECK lives in SQL because Prisma cannot express CHECKs.
+model SocialPostThreadPart {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  postId         String     @db.Uuid
+  post           SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  position       Int
+  text           String
+  /// Same Drive attachment shape as SocialPost.media.
+  media          Json       @default("[]")
+  externalPostId String?
+  publishedAt    DateTime?
+  error          String?
+
+  @@unique([postId, position], map: "social_post_thread_part_postId_position_key")
+  @@map("social_post_thread_part")
 }
 
 model SocialPostPublishAttempt {
@@ -882,7 +1035,7 @@ model SocialPostPublishAttempt {
   actorUserId     String?
   startedAt       DateTime  @default(now())
   finishedAt      DateTime?
-  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked"
+  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked" | "project_closed"
   outcome         String?
   /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
   errorKind       String?
@@ -1537,6 +1690,7 @@ model Job {
 
   events             JobEvent[]
   sokoBotDelegations SokoBotDelegation[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   purchase JobPurchase?
 
@@ -2138,6 +2292,42 @@ model SokoBotTaskWatch {
   @@map("soko_bot_task_watch")
 }
 
+/// A background check the bot set (wait_for): something to wait on and what
+/// to do once it is done. The events sync checks it every minute and, when the
+/// target settles or `expiresAt` passes, runs `then` as a background run of
+/// the turn that set it, with that turn's tools, posted where it was asked.
+model SokoBotWatch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String      @db.Uuid
+  sokoBot   SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// The turn that set it; the follow-up runs as its background run.
+  turnId    String      @db.Uuid
+  turn      SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  /// studio_job | background_run | chat_reply | app_connected
+  kind      String
+  /// The Studio job, the run's turn, the chat room, or the app's provider.
+  targetId  String
+  projectId String?
+  /// What the bot will do once the target is done.
+  then      String
+  expiresAt DateTime
+
+  /// WAITING until it fires; then FIRED with what it found, or EXPIRED for
+  /// an app nobody connected.
+  status      String    @default("WAITING")
+  outcome     String?
+  firedAt     DateTime?
+  firedTurnId String?   @db.Uuid
+
+  @@index([status, createdAt])
+  @@index([sokoBotId, status])
+  @@map("soko_bot_watch")
+}
+
 enum SokoBotIntegrationStatus {
   PENDING
   ACTIVE
@@ -2176,6 +2366,7 @@ model SokoBotIntegration {
   cursor                   Json?
   lastIngestAt             DateTime?
   lastErrorAt              DateTime?
+  contactCaptureState      ContactCaptureState?
 
   @@unique([sokoBotId, provider])
   @@index([status])
@@ -2238,6 +2429,7 @@ enum SokoBotToolCallStatus {
 /// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
 /// owner, or whitelist. Runtime access uses short-lived signed turn grants.
 model SokoBot {
+  contactInteractions  ContactInteraction[]     @relation("ContactInteractionSokoBot")
   eventInbox           SokoBotEventInbox[]      @relation("EventInboxBot")
   designatedEventInbox SokoBotEventInbox[]      @relation("EventInboxHandler")
   taskActionClaims     SokoBotTaskActionClaim[]
@@ -2282,13 +2474,16 @@ model SokoBot {
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
+  marketingStrategies   MarketingStrategy[]
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
   labRuns               SokoBotLabRun[]
   installedSkills       SokoBotInstalledSkill[]
   integrations          SokoBotIntegration[]
+  mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
+  watches               SokoBotWatch[]
   nudges                SokoBotNudge[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
@@ -2301,6 +2496,9 @@ model SokoBot {
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
   proactiveDailyLimit Int       @default(20)
+  /// Each mail check marks the mail Jev tags bulk as read in the owner's
+  /// mailbox; urgent and notable mail stays unread for them.
+  mailAutoRead        Boolean   @default(false)
   /// Last morning briefing sent; one per local day.
   lastBriefingAt      DateTime?
 
@@ -2402,10 +2600,102 @@ model SokoBotAvatar {
   /// Every read filters on it; the pool cron sweeps stale ones.
   reservedAt DateTime?
 
+  /// The style that drew it (an id in Core's style registry). `mascot` is the
+  /// legacy recipe: read, never drawn again.
+  styleId        String  @default("mascot")
+  styleVersion   Int     @default(1)
+  /// What the look is made of: `{ creature, accessories[], typed[] }`. Null for
+  /// legacy rows.
+  look           Json?
+  /// The avatar this look was edited from, if any. Not a relation: the parent
+  /// may be swept first.
+  parentAvatarId String? @db.Uuid
+
+  /// Set while the look is private to one bot: a draft, or the tombstone of a
+  /// kept look the bot has replaced. Such a row is never part of the pool, and
+  /// it is swept once `draftExpiresAt` passes unless a bot has claimed it.
+  /// Plain columns, not a relation: the sweep owns their lifetime.
+  draftForSokoBotId String?   @db.Uuid
+  draftExpiresAt    DateTime?
+
+  /// The combination of creature, coat, scene details and accessory this look
+  /// is, so no two bots share a face. Set for pool and claimed looks only
+  /// (a draft gets it when a bot keeps it, a replaced look loses it), so the
+  /// unique below covers exactly what a bot can hold or be offered. Null for
+  /// legacy rows.
+  traitKey String?
+
+  /// Drawn by the pool, not for one bot. A pool look taken as a draft goes back
+  /// to the pool when the draft expires; a look drawn for a bot is deleted.
+  fromPool Boolean @default(false)
+
+  /// When and by whom the look was kept. Read by the per-user daily keep cap,
+  /// so the row stays (as a tombstone, without renders) for the cap window
+  /// after the bot replaces the look.
+  keptAt       DateTime?
+  keptByUserId String?
+
+  renders SokoBotAvatarRender[]
+
   @@unique([subject, background, seed])
+  @@unique([styleId, styleVersion, traitKey])
   @@index([claimedAt])
   @@index([requestedByUserId, createdAt])
+  @@index([keptByUserId, keptAt])
+  @@index([draftForSokoBotId])
   @@map("soko_bot_avatar")
+}
+
+enum SokoBotAvatarState {
+  IDLE
+  THINKING
+  WORKING
+  DONE
+  NEEDS_YOU
+  OFFLINE
+}
+
+enum SokoBotAvatarRenderStatus {
+  PENDING
+  STILL_READY
+  /// Claimed for the paid video call; no provider operation stored yet.
+  VIDEO_SUBMITTING
+  VIDEO_SUBMITTED
+  READY
+  /// The submit call may have been billed and its outcome is unknown. Never
+  /// resubmitted: the still stays.
+  SUBMISSION_UNCERTAIN
+  FAILED
+}
+
+/// One state of a kept avatar: a still and a looping animation. The cron walks
+/// each row PENDING → STILL_READY → VIDEO_SUBMITTED → READY (ADR 0039: no queue).
+model SokoBotAvatarRender {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  avatarId String             @db.Uuid
+  avatar   SokoBotAvatar      @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+  state    SokoBotAvatarState
+
+  status       SokoBotAvatarRenderStatus @default(PENDING)
+  stillUrl     String?
+  loopUrl      String?
+  loopLargeUrl String?
+
+  /// Paid attempts at the current step, counted when the lease is taken.
+  attempts          Int       @default(0)
+  /// Whoever holds this is the only worker allowed to spend on the row.
+  leaseUntil        DateTime?
+  /// The Gateway's opaque video operation, stored as soon as the submit returns.
+  providerOperation Json?
+  submittedAt       DateTime?
+  lastError         String?
+
+  @@unique([avatarId, state])
+  @@index([status, leaseUntil])
+  @@map("soko_bot_avatar_render")
 }
 
 model SokoBotLegacyMessage {
@@ -2538,14 +2828,17 @@ model SokoBotTurn {
   responseContract      Json?
   deliveries            SokoBotDelivery[]
 
-  contextSnapshot  SokoBotContextSnapshot?
-  events           SokoBotEvent[]
-  runtimeEvents    SokoBotRuntimeEvent[]
-  toolCalls        SokoBotToolCall[]
-  delegations      SokoBotDelegation[]
-  pendingDecisions SokoBotPendingDecision[]
-  memoryRevisions  SokoBotMemoryRevision[]
-  scheduleRun      SokoBotScheduleRun?
+  contextSnapshot     SokoBotContextSnapshot?
+  events              SokoBotEvent[]
+  runtimeEvents       SokoBotRuntimeEvent[]
+  toolCalls           SokoBotToolCall[]
+  delegations         SokoBotDelegation[]
+  watches             SokoBotWatch[]
+  pendingDecisions    SokoBotPendingDecision[]
+  memoryRevisions     SokoBotMemoryRevision[]
+  scheduleRun         SokoBotScheduleRun?
+  /// Marketing strategy versions this turn wrote.
+  marketingStrategies MarketingStrategy[]
 
   @@unique([sokoBotId, clientTurnId])
   @@unique([sokoBotId, eveSessionId, eveTurnId])
@@ -2848,6 +3141,12 @@ model SokoBotDelegation {
   lastSeenEventId String?
   lastSeenEventAt DateTime?
 
+  /// What the bot will do once this work completes ("give the findings to
+  /// Alex"). The events sync hands it back on the wake that reports the result.
+  followUp       String?
+  /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
+  followUpTurnId String? @db.Uuid
+
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
@@ -2972,10 +3271,19 @@ model SokoBotSchedule {
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
 
+  /// The Task or Job this schedule follows. Core removes the schedule once
+  /// that work finishes; the result itself wakes the bot through the events sync.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  jobId  String?
+  job    Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
   runs SokoBotScheduleRun[]
 
   @@unique([sokoBotId, systemKey])
   @@index([enabled, nextRunAt])
+  @@index([taskId])
+  @@index([jobId])
   @@index([requestedByUserId, createdAt(sort: Desc)])
   @@map("soko_bot_schedule")
 }
@@ -3143,6 +3451,8 @@ model Task {
   files              TaskFile[]
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
+  newsletterIssues   NewsletterIssue[]
+  sokoBotSchedules   SokoBotSchedule[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -4140,6 +4450,7 @@ model ChatRoom {
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
   sharedSokoBot    SokoBot?                  @relation("SokoBotSharedRoom")
+  messageSignals   ChatMessageSignal[]
 
   // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
   // Prisma cannot express CHECK constraints.
@@ -4311,6 +4622,7 @@ model ChatRoomMessage {
   pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
   attachedSkills       ChatRoomMessageSkill[]
+  signal               ChatMessageSignal?
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -4762,6 +5074,10 @@ model TableColumn {
   options     Json      @default("[]")
   position    Int
   version     Int       @default(1)
+  /// Display width in pixels, shared by everyone on the table; null uses the type's default.
+  width       Int?
+  /// Wrap long values onto more lines; null uses the type's default.
+  wrap        Boolean?
 
   @@index([tableId, position])
   @@map("table_column")
@@ -4871,6 +5187,15 @@ enum ProjectImageJobKind {
   GENERATE
   /// Image to image. Routes to the `/edit` endpoint, which takes `image_urls`.
   EDIT
+  /// Text to video. Routes to a video model's endpoint with a prompt only.
+  TEXT_TO_VIDEO
+  /// Image to video: animates one gallery image, sent as the model's still.
+  IMAGE_TO_VIDEO
+}
+
+enum ProjectImageMediaType {
+  IMAGE
+  VIDEO
 }
 
 enum ProjectImageJobStatus {
@@ -5009,6 +5334,9 @@ model ProjectImageJob {
   /// Assets whose bytes were sent as references. Stored as ids, never as URLs:
   /// a URL in this column would be a durable public handle on a private asset.
   referenceAssetIds String[] @db.Uuid
+  /// Files (a brand's product photos) sent as references after the assets,
+  /// readable by the person who asked. Ids for the same reason as above.
+  referenceFileIds  String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 
@@ -5166,13 +5494,17 @@ model ProjectImageAsset {
 
   /// Private blob pathname. Not a URL: the bytes are only reachable through
   /// the authorized streaming route, which re-checks access per request.
-  blobPathname String
-  contentType  String
-  width        Int
-  height       Int
-  bytes        Int
+  blobPathname    String
+  contentType     String
+  /// What the bytes are. A video plays in the gallery and attaches to Social as one.
+  mediaType       ProjectImageMediaType @default(IMAGE)
+  /// Requested length of a video. Null for images.
+  durationSeconds Int?
+  width           Int
+  height          Int
+  bytes           Int
   /// sha256 of the stored bytes.
-  checksum     String
+  checksum        String
 
   review ProjectImageReview?
 
@@ -5466,11 +5798,14 @@ model FileResource {
   lineageId String?      @db.Uuid
   lineage   FileLineage? @relation(fields: [lineageId], references: [id], onDelete: SetNull)
 
-  versions  FileVersion[]
-  labels    FileLabel[]
-  links     FileProjectLink[]
-  overrides FileFieldOverride[]
-  jobs      FileIndexJob[]
+  versions               FileVersion[]
+  labels                 FileLabel[]
+  links                  FileProjectLink[]
+  overrides              FileFieldOverride[]
+  jobs                   FileIndexJob[]
+  shares                 DriveShare[]
+  /// The Marketing strategy pieces written as this file.
+  marketingStrategyFiles MarketingStrategyFile[]
 
   @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
   @@index([workspaceId, lifecycle, updatedAt])
@@ -5940,4 +6275,67 @@ model FileResultWindow {
   @@index([workspaceId, actorFingerprint])
   @@index([expiresAt])
   @@map("file_result_window")
+}
+
+enum DriveShareKind {
+  FILE
+  FOLDER
+}
+
+/// A public link to one Drive file or folder of a store, optionally behind a
+/// password. One link per item: revoking deletes the row, so a new link gets
+/// a new token. A file link follows its catalog entry through moves; a folder
+/// link names the folder path and is rebased when the folder moves.
+model DriveShare {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  token String @unique
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceScope FileSourceScope
+  /// The store's owner: the user for a personal Drive, the organization otherwise.
+  ownerId     String
+
+  kind       DriveShareKind
+  resourceId String?        @unique @db.Uuid
+  resource   FileResource?  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  /// Normalized folder path within the store, for a FOLDER link.
+  folderPath String?
+
+  /// `scrypt$<salt>$<hash>`, both base64url; null when the link has no password.
+  passwordHash    String?
+  /// Wrong passwords since the last right one; enough of them lock the link.
+  failedUnlocks   Int       @default(0)
+  unlockLockedAt  DateTime?
+  createdByUserId String
+
+  @@unique([workspaceId, sourceScope, ownerId, folderPath])
+  @@index([workspaceId, sourceScope, ownerId])
+  @@map("drive_share")
+}
+
+/// A draft the bot wrote in the owner's mailbox. Sending one is allowed only
+/// in a later turn, from the owner's own chat, after the owner saw it.
+model SokoBotMailDraft {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  provider     String
+  /// The provider's draft id.
+  draftId      String
+  to           String[]
+  subject      String
+  turnId       String
+  sentAt       DateTime?
+  sentByTurnId String?
+
+  @@unique([sokoBotId, draftId])
+  @@map("soko_bot_mail_draft")
 }

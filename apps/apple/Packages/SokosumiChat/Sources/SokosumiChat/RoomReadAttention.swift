@@ -28,9 +28,15 @@ public final class RoomReadAttention: ObservableObject {
     }
   }
 
+  /// What the last read handled: the content, and whether it read the room or only Looked the open Thread.
   private struct Marker: Equatable {
     let roomId: String
     let content: Content
+    let readsRoom: Bool
+
+    func covers(_ next: Self) -> Bool {
+      roomId == next.roomId && content == next.content && (readsRoom || !next.readsRoom)
+    }
   }
 
   /// What a room holds about what is unread in it (web `RoomReadOverlay`): both halves of `unreadCount`
@@ -163,28 +169,52 @@ public final class RoomReadAttention: ObservableObject {
     return true
   }
 
+  /// The automatic read's inputs: what the reader has in front of them when it is considered.
+  public struct AutomaticReadInputs: Sendable {
+    public let room: Components.Schemas.ChatRoom
+    public let content: Content
+    /// The newest history is loaded and no jump window stands in for it.
+    public let historyReadable: Bool
+    /// The transcript is at its end (SOK-1481).
+    public let atEnd: Bool
+
+    public init(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, atEnd: Bool) {
+      self.room = room
+      self.content = content
+      self.historyReadable = historyReadable
+      self.atEnd = atEnd
+    }
+  }
+
   /// With a thread open this Looks it first. `threadLooked` runs as soon as a Look reaches Core, whatever
-  /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts.
+  /// happens to the room read after it (web's `onThreadLooked`), so the Threads trigger re-counts. The room is read
+  /// only while its transcript is at its end (SOK-1481); away from it the open Thread is still Looked.
   @discardableResult
-  public func readIfNeeded(room: Components.Schemas.ChatRoom, content: Content, historyReadable: Bool, client: Client, organizationSlug: String?,
-                           threadLooked: () -> Void = {}) async throws -> Bool {
-    let next = Marker(roomId: room.id, content: content)
-    if marker != next || !historyReadable {
+  public func readIfNeeded(_ inputs: AutomaticReadInputs, client: Client, organizationSlug: String?, threadLooked: () -> Void = {}) async throws -> Bool {
+    let next = Marker(roomId: inputs.room.id, content: inputs.content, readsRoom: inputs.atEnd)
+    if marker?.covers(next) != true || !inputs.historyReadable {
       marker = nil
     }
-    guard isVisible, historyReadable, marker != next else { return false }
+    guard isVisible, inputs.historyReadable, marker == nil, inputs.atEnd || inputs.content.parentMessageId != nil else { return false }
     marker = next
     let attempt = generation
-    let lookError = await lookThread(roomId: room.id, content: content, client: client, organizationSlug: organizationSlug)
-    if content.parentMessageId != nil, lookError == nil {
+    let lookError = await lookThread(roomId: inputs.room.id, content: inputs.content, client: client, organizationSlug: organizationSlug)
+    if inputs.content.parentMessageId != nil, lookError == nil {
       threadLooked()
     }
     guard attempt == generation, marker == next, isVisible, !Task.isCancelled else {
       clearMarker(matching: next)
       return false
     }
+    guard inputs.atEnd else {
+      if let lookError {
+        clearMarker(matching: next)
+        throw lookError
+      }
+      return false
+    }
     do {
-      guard try await readRoom(room, optimistic: true, client: client, organizationSlug: organizationSlug) else { return false }
+      guard try await readRoom(inputs.room, optimistic: true, client: client, organizationSlug: organizationSlug) else { return false }
     } catch {
       clearMarker(matching: next)
       throw error

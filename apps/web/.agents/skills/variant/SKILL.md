@@ -14,13 +14,13 @@ It produces candidates and never ranks them. Reviewing existing UI is `interface
 
 Each variant is a different answer to the same brief, on an axis this collection owns:
 
-| Axis | Owner | What varies |
-| --- | --- | --- |
-| Structure | `better-layout` | Grouping, order, column count, what collapses |
-| Density | `better-layout` | Spacing scale, how much fits |
-| Emphasis | `better-colors` | Where filled color goes, what recedes |
-| Type | `better-typography` | Scale steps, weight contrast, measure |
-| Voice | `better-writing` | Labels, tone, how much copy |
+| Axis      | Owner               | What varies                                   |
+| --------- | ------------------- | --------------------------------------------- |
+| Structure | `better-layout`     | Grouping, order, column count, what collapses |
+| Density   | `better-layout`     | Spacing scale, how much fits                  |
+| Emphasis  | `better-colors`     | Where filled color goes, what recedes         |
+| Type      | `better-typography` | Scale steps, weight contrast, measure         |
+| Voice     | `better-writing`    | Labels, tone, how much copy                   |
 
 Pick **one primary axis** and give each variant a different position on it. The axis names the picker's group heading. Secondary choices follow from it rather than varying on their own. A dense variant may need a smaller type step, and that is coherence, not a second axis.
 
@@ -87,9 +87,9 @@ Load the page once in a browser already at hand and flip through every variant. 
 
 Then hand the decision over:
 
-| Variant | Axis position | Right when | Costs |
-| --- | --- | --- | --- |
-| Quiet | Lowest visual weight | The page is used daily | Least memorable |
+| Variant   | Axis position            | Right when                 | Costs               |
+| --------- | ------------------------ | -------------------------- | ------------------- |
+| Quiet     | Lowest visual weight     | The page is used daily     | Least memorable     |
 | Editorial | Largest type, most space | The moment deserves weight | Eats vertical space |
 
 Say where the picker is running, which key flips it and which width you judged at. The answer can change between 375px and 1440px.
@@ -98,20 +98,20 @@ Never mark a favourite in the table. Asked directly, answer from how often the p
 
 ## 6. Promote one, delete the rest
 
-On a choice, build that variant properly where it belongs, following the project's own conventions. Then delete the other variants, the picker and the guarded import. Search for the variant names and the `__variant` param, and check the diff leaves nothing of the harness behind.
+On a choice, build that variant properly where it belongs, following the project's own conventions. Then delete the other variants, the picker and the hosting page's import of the variants. Search for the variant names and the `__variant` param, and check the diff leaves nothing of the harness behind.
 
 Asked for another round instead, keep the harness and run **Name the axis before writing code** again, taking new positions around the direction you leaned toward.
 
 ## Before you finish
 
-| Mistake | Fix |
-| --- | --- |
-| Variants differ only in accent color or copy | Move one to a different position on the primary axis, or cut it |
-| Every axis varies at once | Vary one; let the rest follow from it |
-| Judged on a blank route | Host them on the page that will contain the piece |
-| Lorem ipsum, three rows, "Jane Doe" | Real copy and the item count the page will really carry |
-| The boldest variant skips keyboard or focus | Clear the floor or drop the direction |
-| A favourite marked in the table | State each variant's cost and let the user choose |
-| Picker restyled with the project's tokens | Keep it visibly outside the design system |
-| One long row of tabs, one per variant | A grouped list beside the piece that scrolls on its own; a select above it where the list does not fit |
-| Harness left behind after promotion | Delete it and search for the names and the param |
+| Mistake                                      | Fix                                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Variants differ only in accent color or copy | Move one to a different position on the primary axis, or cut it                                        |
+| Every axis varies at once                    | Vary one; let the rest follow from it                                                                  |
+| Judged on a blank route                      | Host them on the page that will contain the piece                                                      |
+| Lorem ipsum, three rows, "Jane Doe"          | Real copy and the item count the page will really carry                                                |
+| The boldest variant skips keyboard or focus  | Clear the floor or drop the direction                                                                  |
+| A favourite marked in the table              | State each variant's cost and let the user choose                                                      |
+| Picker restyled with the project's tokens    | Keep it visibly outside the design system                                                              |
+| One long row of tabs, one per variant        | A grouped list beside the piece that scrolls on its own; a select above it where the list does not fit |
+| Harness left behind after promotion          | Delete it and search for the names and the param                                                       |

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   botFindFirstMock,
   delegationFindFirstMock,
+  delegationFindManyMock,
   delegationUpdateMock,
   taskFindFirstMock,
   taskUpdateMock,
@@ -11,6 +12,7 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   delegationFindFirstMock: vi.fn(),
+  delegationFindManyMock: vi.fn(),
   delegationUpdateMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock("@/lib/db/transaction", () => ({
       sokoBotDelegation: {
         // What the cursor actually held, which is not the Task's status.
         findUnique: async () => ({ lastSeenStatus: "READY" }),
+        findMany: delegationFindManyMock,
         update: delegationUpdateMock,
       },
     }),
@@ -74,6 +77,7 @@ describe("simulateSokoBotTaskEvent", () => {
     });
     taskEventCreateMock.mockResolvedValue({});
     delegationUpdateMock.mockResolvedValue({});
+    delegationFindManyMock.mockResolvedValue([]);
     startTurnMock.mockResolvedValue({ turnId: "turn_1" });
   });
 
@@ -117,6 +121,35 @@ describe("simulateSokoBotTaskEvent", () => {
       where: { id: "del_1" },
       data: { lastSeenStatus: "FAILED" },
     });
+  });
+
+  it("hands over the follow-up plan once the Task completes", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      { id: "del_1", followUp: "Give the export to Alex." },
+    ]);
+    taskUpdateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000001",
+      name: "Export the ledger",
+      status: "COMPLETED",
+    });
+
+    await simulateSokoBotTaskEvent({ ...INPUT, status: "COMPLETED" });
+
+    const { message, eventBatch } = startTurnMock.mock.calls[0]![0];
+    expect(message).toContain('Your plan: "Give the export to Alex."');
+    expect(eventBatch[0].followUpDelegationIds).toEqual(["del_1"]);
+  });
+
+  it("shows a pending plan without handing it over while the Task failed", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      { id: "del_1", followUp: "Give the export to Alex." },
+    ]);
+
+    await simulateSokoBotTaskEvent(INPUT);
+
+    const { message, eventBatch } = startTurnMock.mock.calls[0]![0];
+    expect(message).toContain("Your plan for when it completes");
+    expect(eventBatch[0].followUpDelegationIds).toBeUndefined();
   });
 
   it("puts the cursor back when the turn is refused", async () => {

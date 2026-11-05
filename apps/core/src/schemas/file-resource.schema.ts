@@ -96,6 +96,11 @@ export const fileResourceSchema = z
     mimeType: z.string().nullable(),
     sizeBytes: z.number().int().nullable(),
     sourceKind: fileSourceKindSchema,
+    pathname: z.string().nullable().openapi({
+      description:
+        "The Drive pathname of an uploaded file, for `DELETE /v1/drive/files/delete`. Null for every other source.",
+      example: "drive/organizations/org_123/report.pdf",
+    }),
     sourceTaskId: z.string().nullable(),
     sourceProjectId: z.string().nullable(),
     updatedAt: dateTimeSchema,

@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { ComposioApiError } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
-import { classifyPublishError } from "./social-post-publish-errors";
+import {
+  classifyPublishError,
+  shouldRequestReauthorization,
+} from "./social-post-publish-errors";
 
 describe("classifyPublishError", () => {
   it.each([
@@ -226,5 +229,50 @@ describe("classifyPublishError", () => {
     expect(classifyPublishError(null, "x").summary).toBe(
       "Unexpected error while publishing",
     );
+  });
+});
+
+describe("shouldRequestReauthorization", () => {
+  it.each([
+    [
+      "provider 401",
+      new ComposioToolError({
+        message: "LinkedIn publish failed",
+        providerMessage: "Invalid access token",
+        providerStatus: 401,
+      }),
+      true,
+    ],
+    [
+      "provider token expired",
+      new ComposioToolError({
+        message: "X publish failed",
+        providerMessage: "The token expired",
+      }),
+      true,
+    ],
+    [
+      "provider rejection",
+      new ComposioToolError({
+        message: "X publish failed",
+        providerMessage: "Unprocessable entity",
+        providerStatus: 422,
+      }),
+      false,
+    ],
+    [
+      "Composio 401",
+      new ComposioApiError(401, undefined, "publish X post failed (401)"),
+      false,
+    ],
+    [
+      "Composio 403",
+      new ComposioApiError(403, undefined, "publish X post failed (403)"),
+      false,
+    ],
+  ])("%s -> %s", (_name, error, expected) => {
+    expect(
+      shouldRequestReauthorization(error, classifyPublishError(error, "x")),
+    ).toBe(expected);
   });
 });

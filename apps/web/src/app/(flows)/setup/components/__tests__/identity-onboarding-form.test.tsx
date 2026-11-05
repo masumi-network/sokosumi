@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
+import { SETUP_ASSISTANT_PATH, setupAssistantPath } from "@/lib/workspace-gate";
 
 const toastErrorMock = vi.fn();
 const updateUserMock = vi.fn();
@@ -192,7 +193,9 @@ describe("IdentityOnboardingForm", () => {
       } else {
         await waitFor(() => {
           expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
-          expect(locationReplaceMock).toHaveBeenCalledWith("/");
+          expect(locationReplaceMock).toHaveBeenCalledWith(
+            SETUP_ASSISTANT_PATH,
+          );
         });
       }
       expect(updateUserMock).not.toHaveBeenCalled();
@@ -340,7 +343,7 @@ describe("IdentityOnboardingForm", () => {
       expect(updateUserMock).not.toHaveBeenCalled();
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
   });
 
@@ -529,7 +532,9 @@ describe("IdentityOnboardingForm", () => {
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
     await waitFor(() => {
-      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+      expect(locationReplaceMock).toHaveBeenCalledWith(
+        setupAssistantPath(CHAT_INVITE),
+      );
     });
   });
 
@@ -542,7 +547,9 @@ describe("IdentityOnboardingForm", () => {
     await user.click(await screen.findByTestId("wizard-complete"));
 
     await waitFor(() => {
-      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+      expect(locationReplaceMock).toHaveBeenCalledWith(
+        setupAssistantPath(CHAT_INVITE),
+      );
     });
   });
 
@@ -607,7 +614,7 @@ describe("IdentityOnboardingForm", () => {
     resolveActivate();
 
     await waitFor(() => {
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
   });
 
@@ -622,7 +629,7 @@ describe("IdentityOnboardingForm", () => {
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith("org-1");
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
     expect(
@@ -643,7 +650,7 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledTimes(2);
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
@@ -664,7 +671,7 @@ describe("IdentityOnboardingForm", () => {
       expect(toastErrorMock).toHaveBeenCalledWith(
         "Could not switch into that organization",
       );
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
   });
 
@@ -728,7 +735,7 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
@@ -744,7 +751,7 @@ describe("IdentityOnboardingForm", () => {
 
     await waitFor(() => {
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
-      expect(locationReplaceMock).toHaveBeenCalledWith("/");
+      expect(locationReplaceMock).toHaveBeenCalledWith(SETUP_ASSISTANT_PATH);
     });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });

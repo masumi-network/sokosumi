@@ -128,7 +128,7 @@ describe("SocialPostMetrics", () => {
     },
   );
 
-  it("says when numbers have not been fetched and when a refresh failed", () => {
+  it("says when numbers have not been fetched and when stats failed to load", () => {
     render(
       <SocialPostMetrics
         statistics={{
@@ -141,7 +141,7 @@ describe("SocialPostMetrics", () => {
     );
     expect(screen.getByText("Statistics have not been fetched.")).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Failed to refresh statistics",
+      en.App.Projects.SocialPosts.statistics.loadFailed,
     );
   });
 
@@ -165,7 +165,7 @@ describe("SocialPostMetrics", () => {
         screen.queryByText("Statistics have not been fetched."),
       ).not.toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent(
-        "Failed to refresh statistics",
+        en.App.Projects.SocialPosts.statistics.loadFailed,
       );
     },
   );
@@ -192,7 +192,7 @@ describe("SocialPostMetrics", () => {
       screen.queryByText("Statistics have not been fetched."),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Failed to refresh statistics",
+      en.App.Projects.SocialPosts.statistics.loadFailed,
     );
   });
 
@@ -213,9 +213,12 @@ describe("SocialPostMetrics", () => {
         }}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Failed to refresh statistics",
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(
+      en.App.Projects.SocialPosts.statistics.loadFailed,
     );
+    // The line wears a small decorative icon, like the other load errors.
+    expect(status.querySelector("svg[aria-hidden]")).not.toBeNull();
     expect(screen.queryByText("Views")).not.toBeInTheDocument();
     expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
   });

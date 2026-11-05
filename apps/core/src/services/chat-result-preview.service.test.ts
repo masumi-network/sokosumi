@@ -11,11 +11,14 @@ const {
   studioJob,
   asset,
   socialPost,
+  socialPosts,
+  socialProviderEnabled,
   projectAccess,
   liveFiles,
+  fileResources,
   job,
-  blobs,
   projects,
+  reportMessage,
 } = vi.hoisted(() => ({
   workspace: vi.fn(),
   readTask: vi.fn(),
@@ -25,22 +28,32 @@ const {
   studioJob: vi.fn(),
   asset: vi.fn(),
   socialPost: vi.fn(),
+  socialPosts: vi.fn(),
+  socialProviderEnabled: vi.fn(),
   projectAccess: vi.fn(),
   liveFiles: vi.fn(),
+  fileResources: vi.fn(),
   job: vi.fn(),
-  blobs: vi.fn(),
   projects: vi.fn(),
+  reportMessage: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    workspace: { findFirst: workspace },
+    workspace: {
+      findFirst: workspace,
+      findMany: async () => {
+        const row = await workspace();
+        return row ? [row] : [];
+      },
+    },
     project: { findMany: projects },
+    socialPost: { findMany: socialPosts },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
     sokoBotPendingDecision: { findFirst: decision },
     job: { findFirst: job },
-    blob: { findMany: blobs },
-    fileResource: { findMany: vi.fn().mockResolvedValue([]) },
+    fileResource: { findMany: fileResources },
+    chatRoomMessage: { findFirst: reportMessage },
   },
 }));
 vi.mock("@/helpers/access-control", () => ({
@@ -49,7 +62,9 @@ vi.mock("@/helpers/access-control", () => ({
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
-  requireSocialBetaAccess: vi.fn(),
+  requireSocialBetaAccess: vi
+    .fn()
+    .mockRejectedValue(new Error("Outside Ads beta")),
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: projectAccess,
@@ -60,6 +75,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: socialPost,
+  isSocialPostProviderEnabled: socialProviderEnabled,
 }));
 vi.mock("@/services/file-search.service", () => ({
   loadLiveResources: liveFiles,
@@ -80,6 +96,7 @@ describe("authorized chat results", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     liveFiles.mockResolvedValue([]);
+    fileResources.mockResolvedValue([]);
     workspace.mockResolvedValue({
       id: "workspace",
       userId: "owner",
@@ -247,7 +264,7 @@ describe("authorized chat results", () => {
       await hydrateChatResultSnapshots([followUp], "someone-else"),
     ).toEqual([{ id: followUp.data.id, state: "unavailable" }]);
   });
-  it("reads scheduled posts through beta and project access", async () => {
+  it("reads scheduled posts through project access outside the Ads beta", async () => {
     socialPost.mockResolvedValue({
       text: "Our launch",
       status: "SCHEDULED",
@@ -282,11 +299,202 @@ describe("authorized chat results", () => {
       { ...actor, projectId: "project" },
       expect.anything(),
     );
-    projectAccess.mockRejectedValue(new Error("db offline"));
+    projects.mockRejectedValue(new Error("db offline"));
     await expect(
       hydrateChatResultSnapshots([snapshot], "owner"),
     ).rejects.toThrow("db offline");
-    projectAccess.mockReset();
+    projects.mockReset();
+  });
+  it.each([true, false])(
+    "keeps human approval and rejection permissions live when provider enabled is %s",
+    async (providerEnabled) => {
+      socialPost.mockResolvedValue({
+        text: "Draft from Soko",
+        status: "NEEDS_APPROVAL",
+        provider: "x",
+        revision: 3,
+        canApprove: providerEnabled,
+        canReject: true,
+        socialConnection: null,
+        scheduledAt: null,
+        publishedAt: null,
+        timezone: null,
+        media: [],
+      });
+      const snapshot = await resolveChatResultReference({
+        reference: { kind: "social_post", id: "post", projectId: "project" },
+        actor,
+      });
+      expect(snapshot.data).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        social: {
+          projectId: "project",
+          postId: "post",
+          revision: 3,
+          canApprove: providerEnabled,
+          canReject: true,
+        },
+      });
+
+      // The page read re-derives approval from the live row.
+      projects.mockResolvedValue([{ id: "project", workspaceId: "workspace" }]);
+      const livePost = {
+        id: "post",
+        projectId: "project",
+        workspaceId: "workspace",
+        text: "Draft from Soko",
+        provider: "x",
+        status: "NEEDS_APPROVAL",
+        revision: 3,
+        scheduledAt: null,
+        publishedAt: null,
+        timezone: null,
+        media: [],
+        project: { workspace: { organization: null } },
+        socialConnection: null,
+      };
+      socialPosts.mockResolvedValue([livePost]);
+      socialProviderEnabled.mockReturnValue(providerEnabled);
+      const [pending] = await hydrateChatResultSnapshots([snapshot], "owner");
+      expect(pending).toMatchObject({
+        status: "NEEDS_APPROVAL",
+        social: {
+          revision: 3,
+          canApprove: providerEnabled,
+          canReject: true,
+        },
+      });
+      socialPosts.mockResolvedValue([
+        { ...livePost, status: "DRAFT", revision: 4 },
+      ]);
+      const [hydrated] = await hydrateChatResultSnapshots([snapshot], "owner");
+      expect(hydrated).toMatchObject({
+        status: "DRAFT",
+        social: { revision: 4, canApprove: false, canReject: false },
+      });
+      projects.mockReset();
+    },
+  );
+  it("shows the live post content that matches the revision a human approves", async () => {
+    const oldMedia = {
+      pathname: "drive/users/owner/before.png",
+      fileUrl: "https://store.public.blob.vercel-storage.com/before.png",
+      name: "before.png",
+      size: 10,
+      mimeType: "image/png",
+      kind: "image",
+    };
+    const post = {
+      id: "post",
+      projectId: "project",
+      workspaceId: "workspace",
+      text: "Before editing",
+      provider: "x",
+      status: "NEEDS_APPROVAL",
+      revision: 3,
+      canApprove: true,
+      canReject: true,
+      scheduledAt: capturedAt,
+      publishedAt: null,
+      timezone: "UTC",
+      media: [oldMedia],
+      project: { workspace: { organization: null } },
+      socialConnection: {
+        provider: "x",
+        externalHandle: "before",
+        displayName: "Before",
+        avatarUrl: "https://example.test/before.png",
+      },
+    };
+    socialPost.mockResolvedValue(post);
+    fileResources.mockResolvedValue([{ id: "old-file" }]);
+    liveFiles.mockResolvedValue([
+      {
+        id: "old-file",
+        displayName: oldMedia.name,
+        mimeType: oldMedia.mimeType,
+        sizeBytes: oldMedia.size,
+      },
+    ]);
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "social_post", id: "post", projectId: "project" },
+      actor,
+      capturedAt,
+    });
+    const scheduledAt = new Date("2026-10-07T11:00:00Z");
+    const newMedia = {
+      ...oldMedia,
+      pathname: "drive/users/owner/after.png",
+      fileUrl: "https://store.public.blob.vercel-storage.com/after.png",
+      name: "after.png",
+    };
+    projects.mockResolvedValue([{ id: "project", workspaceId: "workspace" }]);
+    socialPosts.mockResolvedValue([
+      {
+        ...post,
+        text: "After editing",
+        provider: "linkedin",
+        revision: 4,
+        scheduledAt,
+        timezone: "Europe/Berlin",
+        media: [newMedia],
+        socialConnection: {
+          provider: "linkedin",
+          externalHandle: "after",
+          displayName: "After",
+          avatarUrl: "https://example.test/after.png",
+        },
+      },
+    ]);
+    fileResources.mockResolvedValue([
+      {
+        id: "new-file",
+        workspaceId: "workspace",
+        sourceId: newMedia.pathname,
+      },
+    ]);
+    liveFiles.mockResolvedValue([
+      {
+        id: "new-file",
+        displayName: newMedia.name,
+        mimeType: newMedia.mimeType,
+        sizeBytes: newMedia.size,
+      },
+    ]);
+    socialProviderEnabled.mockReturnValue(true);
+
+    const [hydrated] = await hydrateChatResultSnapshots([snapshot], "owner");
+
+    expect(hydrated).toMatchObject({
+      id: snapshot.data.id,
+      capturedAt: capturedAt.toISOString(),
+      title: "After editing",
+      summary: "After editing",
+      destination: "linkedin · after",
+      scheduledAt: scheduledAt.toISOString(),
+      timezone: "Europe/Berlin",
+      social: {
+        provider: "linkedin",
+        revision: 4,
+        canApprove: true,
+        canReject: true,
+        timestamp: scheduledAt.toISOString(),
+        account: {
+          handle: "after",
+          displayName: "After",
+          avatarUrl: "https://example.test/after.png",
+        },
+      },
+      outputs: [
+        {
+          name: "after.png",
+          openHref: "/drive/files/new-file?scope=me",
+          previewHref: "/api/drive/files/new-file/content?scope=me",
+        },
+      ],
+    });
+    expect(JSON.stringify(hydrated)).not.toContain("old-file");
+    projects.mockReset();
   });
   it.each(["FAILED", "CANCELLED", "QUEUED"])(
     "shows %s studio state without invented outputs",
@@ -341,83 +549,113 @@ describe("authorized chat results", () => {
       },
     ]);
   });
+  const jobRow = (state: Record<string, unknown>) => ({
+    id: "job",
+    name: null,
+    agentId: "agent",
+    agent: { name: "Researcher", icon: null },
+    input: null,
+    inputSchema: null,
+    result: null,
+    events: [],
+    ...state,
+  });
   it.each([
     {
-      status: "FAILED",
-      result: null,
-      input: "Research the launch",
+      status: "failed",
       events: [
         {
           status: "FAILED",
           result: "Provider could not read the uploaded document",
+          blobs: [],
+          links: [],
         },
       ],
-      expected: "Provider could not read the uploaded document",
+      summary: "Provider could not read the uploaded document",
     },
     {
-      status: "RUNNING",
-      result: null,
-      input: "Research the launch",
+      status: "completed",
+      result: "## Findings\n\n**Attention** is on the [hero](https://x.io).",
       events: [],
-      expected: "Research the launch",
+      summary: "Findings\nAttention is on the hero.",
     },
-    {
-      status: "processing",
-      result: null,
-      input: "Research the launch",
-      events: [
-        { status: "RUNNING", result: null },
-        { status: "FAILED", result: "An earlier attempt failed" },
-      ],
-      expected: "Research the launch",
-    },
-  ])(
-    "retains the available work or failure summary for $status jobs",
-    async (state) => {
-      job.mockResolvedValue({
-        id: "job",
-        name: null,
-        agentId: "agent",
-        agent: { name: "Researcher" },
-        ...state,
-      });
-      blobs.mockResolvedValue([]);
-      const snapshot = await resolveChatResultReference({
-        reference: { kind: "job", id: "job" },
-        actor,
-        previewId: id,
-      });
-      expect(snapshot.data.summary).toBe(state.expected);
-    },
-  );
+    { status: "processing", events: [], summary: null },
+  ])("summarizes a $status job as plain text", async (state) => {
+    job.mockResolvedValue(jobRow(state));
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "job", id: "job" },
+      actor,
+      previewId: id,
+    });
+    expect(snapshot.data.summary).toBe(state.summary);
+  });
+
+  it("labels the hire input with the Agent's field names instead of raw JSON", async () => {
+    job.mockResolvedValue(
+      jobRow({
+        status: "payment_pending",
+        input: JSON.stringify({
+          input_url: "https://nmkr.io",
+          study_type: "web",
+          empty: "",
+        }),
+        inputSchema: JSON.stringify({
+          input_data: [{ id: "input_url", type: "url", name: "Website URL" }],
+        }),
+      }),
+    );
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "job", id: "job" },
+      actor,
+    });
+    expect(snapshot.data.summary).toBeNull();
+    expect(snapshot.data.details).toEqual([
+      { label: "Website URL", value: "https://nmkr.io" },
+      { label: "Study type", value: "web" },
+    ]);
+  });
 
   it("shows delegated job outputs without exposing object URLs", async () => {
-    job.mockResolvedValue({
-      id: "job",
-      name: "Research",
-      agentId: "agent",
-      agent: { name: "Researcher" },
-      status: "COMPLETED",
-      result: "Report ready",
-    });
-    blobs.mockResolvedValue([
-      {
-        id: "pdf",
-        status: "READY",
-        fileUrl: "https://stored.example/pdf",
-        name: "report.pdf",
-        mimeType: "application/pdf",
-        size: null,
-      },
-      {
-        id: "png",
-        status: "READY",
-        fileUrl: "https://stored.example/png",
-        name: "chart.png",
-        mimeType: "image/png",
-        size: 42n,
-      },
-    ]);
+    job.mockResolvedValue(
+      jobRow({
+        name: "Research",
+        status: "completed",
+        result: "Report ready",
+        events: [
+          {
+            status: "COMPLETED",
+            result: "Report ready",
+            links: [],
+            blobs: [
+              {
+                id: "pdf",
+                status: "READY",
+                fileUrl: "https://stored.example/pdf",
+                name: "report.pdf",
+                mimeType: "application/pdf",
+                size: null,
+              },
+              {
+                id: "png",
+                status: "READY",
+                fileUrl: "https://stored.example/png",
+                name: "chart.png",
+                mimeType: "image/png",
+                size: 42n,
+              },
+              {
+                id: "pending",
+                status: "PENDING",
+                fileUrl: null,
+                name: "later.png",
+                mimeType: "image/png",
+                size: null,
+              },
+            ],
+          },
+        ],
+      }),
+    );
     const snapshot = await resolveChatResultReference({
       reference: { kind: "job", id: "job" },
       actor,
@@ -430,6 +668,18 @@ describe("authorized chat results", () => {
       previewHref: "/api/jobs/job/files/pdf/content",
       downloadHref: "/api/jobs/job/files/pdf/content?download=true",
     });
+    expect(JSON.stringify(snapshot)).not.toContain("stored.example");
+  });
+
+  it("keeps a job card live after the turn that recorded it", async () => {
+    job.mockResolvedValue(jobRow({ status: "processing" }));
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "job", id: "job" },
+      actor,
+    });
+    job.mockResolvedValue(jobRow({ status: "completed", result: "Done" }));
+    const [live] = await hydrateChatResultSnapshots([snapshot], "owner");
+    expect(live).toMatchObject({ status: "completed", summary: "Done" });
   });
   it.each(["application/pdf", "text/plain", "audio/mpeg", "video/mp4"])(
     "offers authorized content for %s previews",
@@ -505,20 +755,72 @@ describe("authorized chat results", () => {
     ).toEqual([{ id: snapshot.data.id, state: "unavailable" }]);
   });
 
-  it("keeps long recorded results within the existing tool ledger budget", async () => {
-    job.mockResolvedValue({
-      id: "job",
-      agentId: "agent",
-      agent: { name: "Researcher" },
-      status: "COMPLETED",
-      result: "漢".repeat(4000),
+  it("shows Cuso's report card from his shared room, reverted once it is", async () => {
+    const report = {
+      kind: "weekly",
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: ["Two more LinkedIn posts a week"],
+      results: "No provider metrics yet.",
+    };
+    reportMessage.mockResolvedValue({
+      metadata: { cmo_report: report },
+      room: { sharedSokoBot: { projectId: "project-1" } },
     });
-    blobs.mockResolvedValue(
-      Array.from({ length: 12 }, () => ({
-        name: "漢".repeat(500),
-        mimeType: "application/pdf",
-        size: null,
-      })),
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "cmo_report", id },
+      actor,
+    });
+    expect(reportMessage.mock.calls[0]?.[0].where).toMatchObject({
+      id,
+      deletedAt: null,
+      room: { sharedSokoBot: { workspaceId: "workspace" } },
+    });
+    expect(snapshot.data).toMatchObject({
+      kind: "cmo_report",
+      title: "Week 1",
+      status: "Weekly",
+      summary: "No provider metrics yet.",
+      sourceHref: "/projects/project-1",
+      details: [{ label: "Changed", value: "Two more LinkedIn posts a week" }],
+    });
+    reportMessage.mockResolvedValue({
+      metadata: {
+        cmo_report: { ...report, revertedAt: "2026-10-06T11:00:00Z" },
+      },
+      room: { sharedSokoBot: { projectId: "project-1" } },
+    });
+    expect(await hydrateChatResultSnapshots([snapshot], "owner")).toMatchObject(
+      [{ title: "Week 1", status: "Reverted" }],
+    );
+    reportMessage.mockResolvedValue(null);
+    expect(await hydrateChatResultSnapshots([snapshot], "owner")).toEqual([
+      { id: snapshot.data.id, state: "unavailable" },
+    ]);
+  });
+
+  it("keeps long recorded results within the existing tool ledger budget", async () => {
+    job.mockResolvedValue(
+      jobRow({
+        status: "completed",
+        result: "漢".repeat(4000),
+        events: [
+          {
+            status: "COMPLETED",
+            result: null,
+            links: [],
+            blobs: Array.from({ length: 12 }, (_, index) => ({
+              id: `blob-${index}`,
+              status: "READY",
+              fileUrl: "https://stored.example/file",
+              name: "漢".repeat(500),
+              mimeType: "application/pdf",
+              size: null,
+            })),
+          },
+        ],
+      }),
     );
     const snapshot = await resolveChatResultReference({
       reference: { kind: "job", id: "job" },
@@ -527,7 +829,7 @@ describe("authorized chat results", () => {
     expect(
       chatResultSnapshotSchema.safeParse(persistedToolResult(snapshot)).success,
     ).toBe(true);
-    expect(snapshot.data.summary).toBe("漢".repeat(1000));
+    expect(snapshot.data.summary).toBe(`${"漢".repeat(599)}…`);
     expect(snapshot.data.outputs.length).toBeGreaterThan(0);
     expect(snapshot.data.outputs.length).toBeLessThan(12);
   });

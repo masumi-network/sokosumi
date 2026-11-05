@@ -12,13 +12,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ImageViewer } from "@/components/ui/image-viewer";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { resolveModel } from "./catalog";
+import { resolveModel, supportsVariation } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
+  assetFileExtension,
   formatElapsed,
+  isVideoAsset,
   type StudioAsset,
   type StudioCatalog,
   type StudioLabels,
@@ -40,11 +44,18 @@ export function StudioLightbox({
   creditsByAssetId,
   elapsedByAssetId,
   labels,
+  onAnimate,
   onClose,
   onRegenerate,
   onSchedule,
   onSelect,
   onUseAsReference,
+  onWriteCaption,
+  caption,
+  captionSuggestion,
+  onCaptionChange,
+  onCaptionSuggestionResolve,
+  onUndoCaption,
   siblings,
 }: {
   assets: StudioAsset[];
@@ -54,6 +65,8 @@ export function StudioLightbox({
   /** How long the provider took per version, in milliseconds. */
   elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
+  /** Opens the video composer on this image. Absent when no video model exists. */
+  onAnimate?: (asset: StudioAsset) => void;
   onClose: () => void;
   onRegenerate: (asset: StudioAsset) => void;
   /** Opens Social with this image attached. Absent when Social is not available. */
@@ -61,6 +74,15 @@ export function StudioLightbox({
   /** Step to another image while showing one; arrows and swipes live in the viewer. */
   onSelect: (assetId: string) => void;
   onUseAsReference: (asset: StudioAsset) => void;
+  /** Writes post text from the image prompt. Always available. */
+  onWriteCaption: (asset: StudioAsset) => Promise<void>;
+  /** Client-held caption for the open image. Absent until one is written. */
+  caption?: string;
+  /** Generated alternative, kept separate from the reader's text until accepted. */
+  captionSuggestion?: string;
+  onCaptionChange: (text: string) => void;
+  onCaptionSuggestionResolve?: (useSuggestion: boolean) => void;
+  onUndoCaption?: () => void;
   /** Every image the viewer can step through, in gallery order. */
   siblings: StudioAsset[];
 }) {
@@ -72,12 +94,12 @@ export function StudioLightbox({
     format.dateTime(new Date(value), "dateTime");
   const single = assets.length === 1 ? assets[0] : null;
   const [scheduling, setScheduling] = useState(false);
+  const [writingCaption, setWritingCaption] = useState(false);
 
   if (assets.length === 0) return null;
 
   if (single) {
     const url = assetContentUrl(single);
-    const ext = single.settings?.outputFormat ?? "png";
     return (
       <ImageViewer
         activeSrc={url}
@@ -91,6 +113,76 @@ export function StudioLightbox({
               formatDate={formatDate}
               labels={labels}
             />
+            <div aria-busy={writingCaption || undefined}>
+              {caption !== undefined ? (
+                <div className="mt-4">
+                  <label
+                    className="text-muted-foreground text-xs"
+                    htmlFor="studio-asset-caption"
+                  >
+                    {labels.captionLabel}
+                  </label>
+                  <Textarea
+                    aria-label={labels.captionLabel}
+                    className="mt-1.5"
+                    id="studio-asset-caption"
+                    maxLength={500}
+                    onChange={(event) => onCaptionChange(event.target.value)}
+                    value={caption}
+                  />
+                  {onUndoCaption ? (
+                    <Button onClick={onUndoCaption} size="sm" variant="ghost">
+                      {labels.undoCaption}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+              {captionSuggestion !== undefined ? (
+                <section
+                  aria-label={labels.captionSuggestionLabel}
+                  className="border-border mt-3 space-y-2 rounded-md border p-3"
+                >
+                  <p className="text-sm font-medium">
+                    {labels.captionSuggestionLabel}
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {captionSuggestion}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => onCaptionSuggestionResolve?.(true)}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      {labels.useCaption}
+                    </Button>
+                    <Button
+                      onClick={() => onCaptionSuggestionResolve?.(false)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {labels.keepCaption}
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
+              {writingCaption ? (
+                <div aria-hidden="true" className="mt-4 space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+              ) : null}
+            </div>
+            <p
+              aria-atomic="true"
+              className={cn(
+                "text-foreground text-sm",
+                writingCaption && "mt-2",
+              )}
+              role="status"
+            >
+              {writingCaption ? labels.writingCaption : null}
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {onSchedule ? (
                 <Button
@@ -105,26 +197,54 @@ export function StudioLightbox({
                 </Button>
               ) : null}
               <Button
-                onClick={() => onRegenerate(single)}
+                loading={writingCaption}
+                onClick={() => {
+                  setWritingCaption(true);
+                  void onWriteCaption(single).finally(() =>
+                    setWritingCaption(false),
+                  );
+                }}
                 size="sm"
                 variant="secondary"
               >
-                {labels.regenerate}
+                {labels.writeCaption}
               </Button>
-              <Button
-                onClick={() => onUseAsReference(single)}
-                size="sm"
-                variant="secondary"
-              >
-                {labels.refine}
-              </Button>
+              {supportsVariation(catalog, single.model) ? (
+                <Button
+                  onClick={() => onRegenerate(single)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {labels.regenerate}
+                </Button>
+              ) : null}
+              {isVideoAsset(single) ? null : (
+                <Button
+                  onClick={() => onUseAsReference(single)}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {labels.refine}
+                </Button>
+              )}
+              {onAnimate && !isVideoAsset(single) ? (
+                <Button
+                  onClick={() => onAnimate(single)}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {labels.animate}
+                </Button>
+              ) : null}
             </div>
           </>
         }
         images={siblings.map((asset) => ({
           src: assetContentUrl(asset),
           alt: asset.prompt,
-          downloadFilename: `v${asset.version}.${asset.settings?.outputFormat ?? ext}`,
+          downloadFilename: `v${asset.version}.${assetFileExtension(asset)}`,
+          isVideo: isVideoAsset(asset),
         }))}
         onActiveSrcChange={(src) => {
           const next = siblings.find((asset) => assetContentUrl(asset) === src);
@@ -206,7 +326,7 @@ function ImagePane({
 }) {
   return (
     <figure className="bg-muted relative flex min-h-0 flex-1 items-center justify-center p-3">
-      <StudioImage asset={asset} fit="contain" labels={labels} />
+      <StudioImage asset={asset} controls fit="contain" labels={labels} />
       <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded-md border px-2 py-0.5 text-xs">
         {labels.version} {asset.version}
       </figcaption>
@@ -248,17 +368,29 @@ function Metadata({
           </span>
         ) : null}
       </Field>
-      <Field label={labels.dimensions}>
-        <span className="tabular-nums">
-          {asset.width}×{asset.height} · {asset.settings?.aspectRatio ?? "—"} ·{" "}
-          {asset.settings?.resolution ?? "—"}
-        </span>
-      </Field>
-      <Field label={labels.seed}>
-        <span className="tabular-nums">
-          {asset.settings?.seed ?? labels.noSeed}
-        </span>
-      </Field>
+      {asset.video ? (
+        <Field label={labels.videoLength}>
+          <span className="tabular-nums">
+            {asset.video.durationSeconds}s · {asset.video.aspectRatio || "—"} ·{" "}
+            {asset.video.resolution}
+          </span>
+        </Field>
+      ) : (
+        <>
+          <Field label={labels.dimensions}>
+            <span className="tabular-nums">
+              {asset.width}×{asset.height} ·{" "}
+              {asset.settings?.aspectRatio ?? "—"} ·{" "}
+              {asset.settings?.resolution ?? "—"}
+            </span>
+          </Field>
+          <Field label={labels.seed}>
+            <span className="tabular-nums">
+              {asset.settings?.seed ?? labels.noSeed}
+            </span>
+          </Field>
+        </>
+      )}
       {elapsed === null ? null : (
         <Field label={labels.generationTime}>
           <span className="tabular-nums">{formatElapsed(elapsed)}</span>

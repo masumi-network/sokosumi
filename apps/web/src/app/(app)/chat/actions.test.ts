@@ -2,12 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 
-const { getThreadMock } = vi.hoisted(() => ({
+const {
+  createRoomMock,
+  getSessionMock,
+  getThreadMock,
+  invalidatePrivateSidebarChromeMock,
+} = vi.hoisted(() => ({
+  createRoomMock: vi.fn(),
+  getSessionMock: vi.fn(),
   getThreadMock: vi.fn(),
+  invalidatePrivateSidebarChromeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
+    createRoom: createRoomMock,
     getThread: getThreadMock,
   },
 }));
@@ -17,7 +26,7 @@ vi.mock("@/lib/services/user.service", () => ({
 
 vi.mock("@/lib/services/coworker.service", () => ({ coworkerService: {} }));
 vi.mock("@/lib/services/soko-bot.service", () => ({ sokoBotService: {} }));
-vi.mock("@/lib/auth/auth.server", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/auth.server", () => ({ getSession: getSessionMock }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next-intl/server", () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
@@ -26,10 +35,52 @@ vi.mock("@/app/chat/load-organization-members", () => ({
   loadOrganizationMembers: vi.fn(),
 }));
 vi.mock("@/app/components/private-sidebar-cache", () => ({
-  invalidatePrivateSidebarChrome: vi.fn(),
+  invalidatePrivateSidebarChrome: invalidatePrivateSidebarChromeMock,
 }));
 
-import { getRoomThreadAction } from "./actions";
+import {
+  ensureCoworkerDirectRoomAction,
+  ensureSokoBotDirectRoomAction,
+  getRoomThreadAction,
+} from "./actions";
+
+describe("direct room create-or-get", () => {
+  const room = { id: "room-1" };
+
+  beforeEach(() => {
+    createRoomMock.mockReset();
+    invalidatePrivateSidebarChromeMock.mockReset();
+    getSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org-1" },
+    });
+  });
+
+  it.each([
+    ["coworker", () => ensureCoworkerDirectRoomAction("coworker-1")],
+    ["Soko Bot", () => ensureSokoBotDirectRoomAction("bot-1")],
+  ])(
+    "opens an existing %s room without invalidating the page",
+    async (_kind, open) => {
+      createRoomMock.mockResolvedValue({ room, created: false });
+
+      await expect(open()).resolves.toEqual({ ok: true, value: room });
+      expect(invalidatePrivateSidebarChromeMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refreshes the sidebar cache when the room is new", async () => {
+    createRoomMock.mockResolvedValue({ room, created: true });
+
+    await expect(ensureCoworkerDirectRoomAction("coworker-1")).resolves.toEqual(
+      { ok: true, value: room },
+    );
+    expect(invalidatePrivateSidebarChromeMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      organizationId: "org-1",
+    });
+  });
+});
 
 describe("getRoomThreadAction", () => {
   beforeEach(() => {

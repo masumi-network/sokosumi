@@ -10,7 +10,11 @@ import { CoreApiRequestError } from "@/lib/clients/core.request";
 interface BackgroundChatReadPage {
   data: unknown;
   /** Present for list reads so the generated transformer shape holds. */
-  pagination?: { nextCursor: string | null; limit: number };
+  pagination?: {
+    nextCursor: string | null;
+    limit: number;
+    firstUnreadMessageId?: string | null;
+  };
 }
 
 /**

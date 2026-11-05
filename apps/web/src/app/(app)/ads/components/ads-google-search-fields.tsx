@@ -42,25 +42,6 @@ interface AdsGoogleSearchFieldsProps {
 }
 
 /**
- * The Search campaign's own sections, inside the create form: keywords and
- * the ad. They read and write the form around them.
- */
-export function AdsGoogleSearchFields({
-  projectId,
-  hasMarketProfile,
-}: AdsGoogleSearchFieldsProps) {
-  return (
-    <>
-      <AdsKeywordsSection
-        hasMarketProfile={hasMarketProfile}
-        projectId={projectId}
-      />
-      <AdsSearchAdSection />
-    </>
-  );
-}
-
-/**
  * The optional dates, which close the Basics section. A campaign that has
  * started keeps its start date: `startDateHint` says why, and the field stays
  * readable and focusable but cannot change.

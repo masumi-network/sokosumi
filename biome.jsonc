@@ -64,5 +64,13 @@
     "parser": {
       "tailwindDirectives": true
     }
+  },
+  "markdown": {
+    "parser": {
+      "frontmatter": true
+    },
+    "formatter": {
+      "formatEmbeds": false
+    }
   }
 }

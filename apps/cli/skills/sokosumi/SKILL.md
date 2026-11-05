@@ -13,7 +13,7 @@ compatibility: "Portable repo skill. The required artifact is SKILL.md."
 ## Load the Skill and CLI
 
 [CORRECTION, VERIFIED: `apps/cli/package.json`] The earlier private-package description was stale.
-The manifest defines `@masumi_network/sokosumi` version `1.0.2` with public npm access. It requires Node.js 24 and packages `dist` and `skills`.
+The manifest defines `@masumi_network/sokosumi` version `1.1.0` with public npm access. It requires Node.js 26 and packages `dist` and `skills`.
 Skill installation and CLI installation are separate. Build this checkout from the repository root with its dependencies:
 
 ```bash
@@ -66,12 +66,12 @@ Use returned IDs. Select the intended organization Workspace, Vendor, and existi
 
 [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`; Core `apps/core/src/routes/v1/coworkers/post.ts`, `apps/core/src/helpers/coworker-workspace-access.ts`]
 
-| Evidence | What it allows in this CLI |
-| --- | --- |
-| `user.platformRole` includes the exact `admin` role | Platform-admin provisioning and `admin` commands, subject to Core authorization |
-| Selected Vendor membership has `role: "admin"` | Provisioning a private Coworker on Preprod and the Vendor check for `coworkers connect` |
-| Selected organization appears in `workspaces list` | The Workspace membership check required by `coworkers connect` |
-| Organization role is `owner` or `admin` | Organization authority; it does not replace platform or Vendor authority |
+| Evidence                                            | What it allows in this CLI                                                              |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `user.platformRole` includes the exact `admin` role | Platform-admin provisioning and `admin` commands, subject to Core authorization         |
+| Selected Vendor membership has `role: "admin"`      | Provisioning a private Coworker on Preprod and the Vendor check for `coworkers connect` |
+| Selected organization appears in `workspaces list`  | The Workspace membership check required by `coworkers connect`                          |
+| Organization role is `owner` or `admin`             | Organization authority; it does not replace platform or Vendor authority                |
 
 `coworkers connect` requires both the Vendor and organization checks, including for a platform admin. Do not infer a CLI override from the platform role. Core has a broader platform-admin grant path, but this CLI command performs its own membership preflight.
 

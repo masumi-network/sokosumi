@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { parseTableInput, tableError, tableHistoryText } from "./table-value";
+import {
+  lastUpdatedFormat,
+  parseTableInput,
+  tableError,
+  tableHistoryText,
+  tableUrlLabel,
+} from "./table-value";
+
+describe("tableUrlLabel", () => {
+  it("shows host and path without scheme, www or trailing slash", () => {
+    expect(tableUrlLabel("https://www.linkedin.com/in/ada/")).toBe(
+      "linkedin.com/in/ada",
+    );
+    expect(tableUrlLabel("https://example.com/")).toBe("example.com");
+    expect(tableUrlLabel("not a url")).toBe("not a url");
+  });
+});
 
 describe("typed grid input", () => {
   it("keeps unknown separate from false and zero", () => {
@@ -68,4 +84,14 @@ describe("history text", () => {
       "Archived",
     );
   });
+});
+
+it("names the year of a Last updated time only outside this year", () => {
+  const now = new Date("2026-10-21T12:00:00Z");
+  expect(lastUpdatedFormat(new Date("2026-01-02T12:00:00Z"), now)).toBe(
+    "dateTime",
+  );
+  expect(lastUpdatedFormat(new Date("2025-06-02T12:00:00Z"), now)).toBe(
+    "dateTimeWithYear",
+  );
 });

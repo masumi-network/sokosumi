@@ -1,0 +1,178 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createTranslator, NextIntlClientProvider } from "next-intl";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import messages from "@/messages/en.json";
+
+const mocks = vi.hoisted(() => ({
+  enabled: vi.fn(),
+  getProject: vi.fn(),
+  listProjects: vi.fn(),
+  getSettings: vi.fn(),
+  requireScope: vi.fn(),
+  hasAnyScopeProject: vi.fn(),
+  openScopeCreate: vi.fn(),
+  setScopeCreateOpen: vi.fn(),
+}));
+
+vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("next/navigation", () => ({
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
+  redirect: (path: string) => {
+    throw new Error(`REDIRECT:${path}`);
+  },
+  usePathname: () => "/newsletter",
+}));
+vi.mock("next-intl/server", () => ({
+  getTranslations: async (namespace: "App.Newsletter") =>
+    createTranslator({ locale: "en", messages, namespace }),
+}));
+vi.mock("@/lib/services/newsletter.service", () => ({
+  newsletterService: {
+    isEnabled: mocks.enabled,
+    getSettings: mocks.getSettings,
+  },
+}));
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    getProjectById: mocks.getProject,
+    listProjects: mocks.listProjects,
+  },
+}));
+
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: (request: object) => mocks.requireScope(request),
+  openScopeCreate: mocks.openScopeCreate,
+  setScopeCreateOpen: mocks.setScopeCreateOpen,
+}));
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  usePrefetchScopeProjects: () => () => undefined,
+  useHasAnyScopeProject: mocks.hasAnyScopeProject,
+}));
+
+import NewsletterPage, { generateMetadata } from "./page";
+
+const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const PAGE = messages.App.Newsletter;
+
+function props(searchParams: Record<string, string | string[]> = {}) {
+  return { searchParams: Promise.resolve(searchParams) };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.hasAnyScopeProject.mockReturnValue({
+    isPending: false,
+    hasProjects: true,
+  });
+  mocks.enabled.mockResolvedValue(true);
+  mocks.getProject.mockResolvedValue({ id: PROJECT_ID, name: "Launch" });
+  mocks.getSettings.mockResolvedValue(null);
+  mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
+});
+
+describe("NewsletterPage", () => {
+  it("returns notFound before reading anything when disabled", async () => {
+    mocks.enabled.mockResolvedValue(false);
+    await expect(
+      NewsletterPage(props({ projectId: PROJECT_ID })),
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(mocks.getProject).not.toHaveBeenCalled();
+    expect(mocks.listProjects).not.toHaveBeenCalled();
+    expect(mocks.getSettings).not.toHaveBeenCalled();
+  });
+
+  it("uses the translated page title for metadata", async () => {
+    await expect(generateMetadata()).resolves.toEqual({ title: "Newsletter" });
+  });
+
+  it("opens the issues of an existing newsletter", async () => {
+    mocks.getSettings.mockResolvedValue({ id: "n1", name: "Weekly" });
+    await expect(
+      NewsletterPage(props({ projectId: PROJECT_ID })),
+    ).rejects.toThrow(`REDIRECT:/newsletter/issues?projectId=${PROJECT_ID}`);
+    expect(mocks.getSettings).toHaveBeenCalledWith(PROJECT_ID);
+  });
+
+  it("opens setup while the project has no newsletter", async () => {
+    await expect(
+      NewsletterPage(props({ projectId: PROJECT_ID })),
+    ).rejects.toThrow(`REDIRECT:/newsletter/settings?projectId=${PROJECT_ID}`);
+  });
+
+  it("offers project selection without opening the selector on navigation", async () => {
+    const user = userEvent.setup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterPage(props())}
+      </NextIntlClientProvider>,
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: PAGE.pickProject }),
+    ).toBeInTheDocument();
+    // Sample issues stay visible until the page's button opens the selector.
+    const backdrop = screen.getByTestId("newsletter-backdrop");
+    expect(backdrop).toHaveAttribute("aria-hidden", "true");
+    expect(backdrop).toHaveTextContent(PAGE.backdrop.launch.subject);
+    expect(screen.getByTestId("newsletter-no-project")).toContainElement(
+      backdrop,
+    );
+    expect(mocks.requireScope).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", { name: "Select project" });
+    await user.click(button);
+    expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: PAGE.description, required: true }),
+    );
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+    expect(mocks.listProjects).not.toHaveBeenCalled();
+    expect(mocks.getSettings).not.toHaveBeenCalled();
+  });
+
+  it("offers project creation in an empty workspace", async () => {
+    const user = userEvent.setup();
+    mocks.hasAnyScopeProject.mockReturnValue({
+      isPending: false,
+      hasProjects: false,
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterPage(props())}
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+    expect(mocks.requireScope).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", { name: "Create project" });
+    await user.click(button);
+
+    expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: PAGE.description, required: true }),
+    );
+    expect(mocks.openScopeCreate).toHaveBeenCalledExactlyOnceWith(button);
+  });
+
+  it("says an unknown project is unavailable instead of redirecting", async () => {
+    const user = userEvent.setup();
+    mocks.getProject.mockResolvedValue(null);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        {await NewsletterPage(props({ projectId: PROJECT_ID }))}
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByText(PAGE.pickUnavailable)).toBeInTheDocument();
+    expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
+    expect(mocks.requireScope).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", { name: "Select project" });
+    await user.click(button);
+    expect(mocks.requireScope).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: PAGE.pickUnavailable, required: true }),
+    );
+    expect(mocks.openScopeCreate).not.toHaveBeenCalled();
+    expect(mocks.getSettings).not.toHaveBeenCalled();
+  });
+});

@@ -61,13 +61,13 @@ Example prompt responses, from the current live build:
 
 ### Status
 
-| Area | Status |
-| --- | --- |
-| Product and positioning | Locked |
-| Voice and tone | Locked |
-| Typeface | Locked |
-| Colors, logo, graphic language, colorway, agent avatars | Open |
-| Layout, elevation, shapes, components | Blocked, waiting on visual identity |
+| Area                                                    | Status                              |
+| ------------------------------------------------------- | ----------------------------------- |
+| Product and positioning                                 | Locked                              |
+| Voice and tone                                          | Locked                              |
+| Typeface                                                | Locked                              |
+| Colors, logo, graphic language, colorway, agent avatars | Open                                |
+| Layout, elevation, shapes, components                   | Blocked, waiting on visual identity |
 
 The Colors, Layout, Elevation & Depth, Shapes, and Components sections are intentionally omitted until those decisions exist. Do not invent brand colors or shapes. Do not treat any current build or demo colors or shapes as final. If a placeholder is needed to keep building, use a neutral system default and flag it clearly as temporary in code and comments.
 

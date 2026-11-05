@@ -161,14 +161,6 @@ export const ADMISSION_LOCK_KEY = 8_143_072_901_553_001n;
 /** How long an admission row is kept after its window has passed. */
 const ADMISSION_RETENTION_DAYS = 30;
 
-export type AdmissionDenial =
-  | "epoch-changed"
-  | "shared-global-rate"
-  | "shared-global-token-budget"
-  | "shared-workspace-token-budget"
-  | "shared-workspace-daily-tokens"
-  | "shared-workspace-daily-spend";
-
 export interface AdmissionGrant {
   id: string;
   /**

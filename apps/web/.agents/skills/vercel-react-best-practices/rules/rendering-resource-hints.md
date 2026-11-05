@@ -73,13 +73,13 @@ function Navigation() {
 
 **When to use each:**
 
-| API | Use case |
-|-----|----------|
-| `prefetchDNS` | Third-party domains you'll connect to later |
-| `preconnect` | APIs or CDNs you'll fetch from immediately |
-| `preload` | Critical resources needed for current page |
-| `preloadModule` | JS modules for likely next navigation |
-| `preinit` | Stylesheets/scripts that must execute early |
-| `preinitModule` | ES modules that must execute early |
+| API             | Use case                                    |
+| --------------- | ------------------------------------------- |
+| `prefetchDNS`   | Third-party domains you'll connect to later |
+| `preconnect`    | APIs or CDNs you'll fetch from immediately  |
+| `preload`       | Critical resources needed for current page  |
+| `preloadModule` | JS modules for likely next navigation       |
+| `preinit`       | Stylesheets/scripts that must execute early |
+| `preinitModule` | ES modules that must execute early          |
 
 Reference: [React DOM Resource Preloading APIs](https://react.dev/reference/react-dom#resource-preloading-apis)

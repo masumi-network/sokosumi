@@ -1,5 +1,9 @@
 "use server";
 
+import type {
+  OrganizationSubscriptionSeats,
+  OrganizationSubscriptionSeatsPreview,
+} from "@sokosumi/core-client";
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
@@ -51,22 +55,50 @@ export async function upgradeOrganizationSubscription({
   });
 }
 
-const updateOrganizationSubscriptionSeatsSchema = z.object({
+const organizationSubscriptionSeatsActionSchema = z.object({
   organizationId: z.string().min(1),
   seats: z.number().int().min(1),
 });
 
-interface UpdateOrganizationSubscriptionSeatsParameters
+interface OrganizationSubscriptionSeatsActionParameters
   extends AuthenticatedRequest {
   organizationId: string;
   seats: number;
 }
 
+export const previewOrganizationSubscriptionSeats = withSession<
+  OrganizationSubscriptionSeatsActionParameters,
+  ActionResultDto<OrganizationSubscriptionSeatsPreview, ActionError>
+>(async ({ organizationId, seats }) => {
+  const parsed = organizationSubscriptionSeatsActionSchema.safeParse({
+    organizationId,
+    seats,
+  });
+  if (!parsed.success) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+      }),
+    );
+  }
+
+  try {
+    const { data } = await coreClient.getOrganizationSubscriptionSeatsPreview(
+      parsed.data.organizationId,
+      parsed.data.seats,
+    );
+
+    return toActionResult(ok(data));
+  } catch (error) {
+    return toActionResult(err(toSubscriptionSeatsActionError(error)));
+  }
+});
+
 export const updateOrganizationSubscriptionSeats = withSession<
-  UpdateOrganizationSubscriptionSeatsParameters,
-  ActionResultDto<{ seats: number }, ActionError>
+  OrganizationSubscriptionSeatsActionParameters,
+  ActionResultDto<OrganizationSubscriptionSeats, ActionError>
 >(async ({ organizationId, seats, session }) => {
-  const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
+  const parsed = organizationSubscriptionSeatsActionSchema.safeParse({
     organizationId,
     seats,
   });
@@ -89,7 +121,7 @@ export const updateOrganizationSubscriptionSeats = withSession<
       organizationId: parsed.data.organizationId,
     });
 
-    return toActionResult(ok({ seats: data.seats }));
+    return toActionResult(ok(data));
   } catch (error) {
     return toActionResult(err(toSubscriptionSeatsActionError(error)));
   }

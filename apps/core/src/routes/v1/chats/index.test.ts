@@ -29,6 +29,25 @@ describe("chats routes OpenAPI contract", () => {
     expect(doc.paths?.["/threads/earlier"]?.get).toBeDefined();
   });
 
+  it("exposes the chat signal reads and corrections", () => {
+    const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
+
+    expect(doc.paths?.["/signals/needs-you"]?.get).toBeDefined();
+    expect(doc.paths?.["/signals/open-loops"]?.get).toBeDefined();
+    expect(doc.paths?.["/signals/summary"]?.get).toBeDefined();
+    expect(doc.paths?.["/signals/rooms/{id}/catch-up"]?.get).toBeDefined();
+    expect(doc.paths?.["/signals/rooms/{id}/decisions"]?.get).toBeDefined();
+    expect(
+      doc.paths?.["/signals/messages/{messageId}/corrections"]?.put,
+    ).toBeDefined();
+    expect(
+      doc.paths?.["/signals/messages/{messageId}/loop"]?.put,
+    ).toBeDefined();
+    expect(
+      doc.paths?.["/signals/messages/{messageId}/routing"]?.get,
+    ).toBeDefined();
+  });
+
   it("exposes the chat skill search", () => {
     const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
 

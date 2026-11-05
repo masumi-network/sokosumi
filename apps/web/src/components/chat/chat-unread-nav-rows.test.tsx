@@ -11,7 +11,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
-import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
+import {
+  ChatMarkAllReadButton,
+  ChatUnreadNavRows,
+  ChatUnreadsFilterChip,
+} from "./chat-unread-nav-rows";
 
 const { markAllActionMock, notifyMock } = vi.hoisted(() => ({
   markAllActionMock: vi.fn(),
@@ -33,7 +37,6 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const { navigation, sidebarMock } = vi.hoisted(() => ({
   navigation: { pathname: "/chat/rooms/room-1" },
   sidebarMock: {
-    state: "expanded" as "expanded" | "collapsed",
     isMobile: false,
   },
 }));
@@ -58,25 +61,21 @@ vi.mock("@/components/ui/sidebar", async () => ({
     "@/components/ui/sidebar",
   )),
   // The primitive's `cn` merge, reduced to the part these rows rely on: the
-  // row's own classes land on the element it renders. Its rail tooltip
-  // lands there as data-tooltip.
+  // row's own classes land on the element it renders.
   SidebarMenuButton: ({
     children,
     asChild,
     className,
-    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
     className?: string;
-    tooltip?: string;
   }) =>
     asChild === true && isValidElement<{ className?: string }>(children) ? (
       cloneElement(children, {
         className: [children.props.className, className]
           .filter(Boolean)
           .join(" "),
-        ...(tooltip ? { "data-tooltip": tooltip } : {}),
       })
     ) : (
       <>{children}</>
@@ -86,7 +85,6 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
-  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -98,17 +96,6 @@ vi.mock("@/components/ui/sheet", () => ({
     asChild?: boolean;
   }) =>
     asChild === true && isValidElement(children) ? children : <>{children}</>,
-}));
-
-// A marker, not the list: what it fetches and draws belongs to
-// `unread-threads-list`. These rows decide where it opens and what it reads.
-const { prefetchMock } = vi.hoisted(() => ({ prefetchMock: vi.fn() }));
-
-vi.mock("@/components/chat/unread-threads-list", () => ({
-  UnreadThreadsList: ({ rooms }: { rooms: ChatRoom[] }) => (
-    <div data-testid="unread-threads-list" data-room-count={rooms.length} />
-  ),
-  useUnreadThreadsQuery: (options: unknown) => prefetchMock(options),
 }));
 
 function unreadThread(id: string, unreadMentionCount = 0) {
@@ -132,7 +119,7 @@ function renderRows(
     <NextIntlClientProvider locale="en" messages={messages}>
       <ChatUnreadNavRows
         rooms={rooms}
-        currentUserId="user-1"
+        markAllRooms={rooms}
         dismissSheetOnNavigate={false}
         unreadOnly={filter.unreadOnly ?? false}
         onUnreadOnlyChange={filter.onUnreadOnlyChange ?? vi.fn()}
@@ -141,14 +128,9 @@ function renderRows(
   );
 }
 
-/** The Threads row: the popover trigger on the desktop, a link on the phone. */
-function threadsRow() {
-  const row = [
-    ...screen.queryAllByRole("button"),
-    ...screen.queryAllByRole("link"),
-  ].find((candidate) => candidate.textContent?.includes("Threads"));
-  if (!row) throw new Error("no Threads row");
-  return row;
+/** The one Catch up row. */
+function catchUpRow() {
+  return screen.getByTestId("chat-catch-up-row");
 }
 
 beforeEach(() => {
@@ -156,54 +138,58 @@ beforeEach(() => {
   sidebarMock.isMobile = false;
   markAllActionMock.mockResolvedValue({ ok: true, value: null });
   navigation.pathname = "/chat/rooms/room-1";
-  sidebarMock.state = "expanded";
 });
 
 describe("ChatUnreadNavRows", () => {
-  it("stays a link to the Threads page, with the list beside it on the desktop", async () => {
-    const rooms = [makeRoom({ unreadThreadCount: 1 })];
-    renderRows(rooms);
-
-    const row = threadsRow();
-    expect(row).toHaveAttribute("href", "/chat/threads");
-    expect(row).toHaveAttribute("aria-expanded", "false");
-    // Read ahead, so the panel opens onto rows rather than a spinner.
-    expect(prefetchMock).toHaveBeenCalledWith({ rooms, enabled: true });
-
-    row.focus();
-    await userEvent.keyboard("{ArrowRight}");
-
-    expect(screen.getByTestId("unread-threads-list")).toHaveAttribute(
-      "data-room-count",
-      "1",
-    );
-    expect(screen.getByRole("link", { name: "All threads" })).toHaveAttribute(
-      "href",
-      "/chat/threads",
-    );
-    expect(row).toHaveAttribute("aria-expanded", "true");
-  });
-
-  it("opens the panel at zero too, without reading ahead", async () => {
-    renderRows([]);
-
-    const row = threadsRow();
-    expect(row).toHaveAttribute("aria-expanded", "false");
-    expect(prefetchMock).toHaveBeenCalledWith({ rooms: [], enabled: false });
-
-    row.focus();
-    await userEvent.keyboard("{ArrowRight}");
-
-    expect(screen.getByTestId("unread-threads-list")).toBeInTheDocument();
-  });
-
-  it("goes to the Threads page on the phone, which has no side to open into", () => {
-    sidebarMock.isMobile = true;
+  it("is one link to Catch up, which holds the overview and the Threads", () => {
     renderRows([makeRoom({ unreadThreadCount: 1 })]);
 
-    const row = threadsRow();
-    expect(row).toHaveAttribute("href", "/chat/threads");
-    expect(row).not.toHaveAttribute("aria-expanded");
+    expect(catchUpRow()).toHaveAttribute("href", "/chat/catch-up");
+    expect(screen.queryByRole("link", { name: /Threads/ })).toBeNull();
+  });
+
+  it("leads with what needs the reader, over the Threads count", () => {
+    const { container } = renderRows([
+      makeRoom({ id: "a", unreadNeedsYouCount: 2 }),
+      makeRoom({
+        id: "b",
+        unreadThreadCount: 1,
+        unreadThreads: [unreadThread("b1")],
+      }),
+    ]);
+
+    expect(
+      container.querySelector('[data-slot="catch-up-count"]'),
+    ).toHaveTextContent("2");
+    expect(catchUpRow()).toHaveTextContent("2 messages need you");
+  });
+
+  it("holds the label clear of the end controls at the translated width", () => {
+    const first = renderRows([]);
+    let spacer = first.container.querySelector(
+      '[data-slot="catch-up-end-spacer"]',
+    );
+
+    // The Unreads chip is a word, so its width is the locale's. The hole the
+    // label stops at carries the same word, unseen, rather than a width
+    // measured against English.
+    expect(spacer).toHaveAttribute("aria-hidden", "true");
+    expect(spacer?.className).toMatch(/\binvisible\b/);
+    expect(spacer).toHaveTextContent("Unreads");
+    expect(spacer?.className).not.toMatch(/\bw-\d+/);
+    first.unmount();
+
+    const { container } = renderRows(
+      [makeRoom({ id: "channel", unreadCount: 2, channelUnreadCount: 2 })],
+      { unreadOnly: true },
+    );
+    spacer = container.querySelector('[data-slot="catch-up-end-spacer"]');
+    // With Mark all as read beside the chip, the hole holds its box too.
+    expect(
+      spacer?.querySelector('[data-slot="catch-up-end-spacer-action"]'),
+    ).not.toBeNull();
+    expect(catchUpRow()).toHaveAccessibleName(/Catch up/);
+    expect(catchUpRow()).not.toHaveAccessibleName(/Unreads/);
   });
 
   it("toggles the All unreads filter rather than navigating", async () => {
@@ -211,10 +197,44 @@ describe("ChatUnreadNavRows", () => {
     renderRows([], { onUnreadOnlyChange });
 
     const toggle = screen.getByRole("button", { name: "Unreads" });
+    // A text chip: the name is what the reader sees, not an icon's label.
+    expect(toggle).toHaveTextContent("Unreads");
+    expect(toggle).not.toHaveAttribute("aria-label");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(toggle);
 
     expect(onUnreadOnlyChange).toHaveBeenCalledWith(true);
+  });
+
+  // The phone's Chats page: Pinned rooms of other workspaces are on screen, so
+  // the button clears them, and the row's counts stay on the active workspace.
+  it("clears what `markAllRooms` holds, and counts only `rooms`", async () => {
+    const pinned = makeRoom({
+      id: "pinned-elsewhere",
+      unreadCount: 2,
+      channelUnreadCount: 2,
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatUnreadNavRows
+          rooms={[]}
+          markAllRooms={[pinned]}
+          dismissSheetOnNavigate={false}
+          unreadOnly
+          onUnreadOnlyChange={vi.fn()}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mark all as read" }),
+    );
+
+    await waitFor(() =>
+      expect(markAllActionMock).toHaveBeenCalledWith([
+        { roomId: "pinned-elsewhere", readRoom: true, lookThreads: false },
+      ]),
+    );
   });
 
   it("offers Mark all as read only while the filter is on", async () => {
@@ -237,15 +257,11 @@ describe("ChatUnreadNavRows", () => {
     unmount();
 
     renderRows(rooms, { unreadOnly: true });
-    const toggle = screen.getByRole("button", { name: /^Unreads/ });
+    const toggle = screen.getByRole("button", { name: "Unreads" });
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     // A mode, not the page the reader is on: tinted, never the grey fill.
     expect(toggle).toHaveAttribute("data-filter-on", "true");
-    expect(toggle.className).toContain("bg-primary-quaternary");
-    // The label keeps clear of the button standing over the row's end.
-    expect(
-      toggle.querySelector('[data-slot="mark-all-spacer"]'),
-    ).not.toBeNull();
+    expect(toggle.className).toContain("bg-quinary");
     await userEvent.click(
       screen.getByRole("button", { name: "Mark all as read" }),
     );
@@ -276,9 +292,9 @@ describe("ChatUnreadNavRows", () => {
     ]);
 
     expect(
-      container.querySelector('[data-slot="unread-threads-count"]'),
+      container.querySelector('[data-slot="catch-up-count"]'),
     ).toHaveTextContent("3");
-    expect(threadsRow()).toHaveTextContent("3 unread threads");
+    expect(catchUpRow()).toHaveTextContent("3 unread threads");
   });
 
   it("draws the @ pill when a Thread names the reader", () => {
@@ -289,11 +305,11 @@ describe("ChatUnreadNavRows", () => {
       }),
     ]);
 
-    const count = container.querySelector('[data-slot="unread-threads-count"]');
+    const count = container.querySelector('[data-slot="catch-up-count"]');
     expect(
       count?.querySelector('[data-slot="mention-pill"]'),
     ).toHaveTextContent("1");
-    expect(threadsRow()).toHaveTextContent("1 mention, 2 unread threads");
+    expect(catchUpRow()).toHaveTextContent("1 mention, 2 unread threads");
   });
 
   it("shows no count when nothing is unread, or only in a muted room", () => {
@@ -305,17 +321,96 @@ describe("ChatUnreadNavRows", () => {
       }),
     ]);
 
+    expect(container.querySelector('[data-slot="catch-up-count"]')).toBeNull();
+  });
+
+  // In the sidebar the Chats heading carries the chip, so the row is a plain
+  // Sidebar row: Catch up, then its count. Nothing is drawn over its end, so
+  // nothing holds the label clear.
+  it("leaves the chip to the Chats heading when the row is not given the toggle", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatUnreadNavRows
+          rooms={[makeRoom({ id: "a", unreadNeedsYouCount: 3 })]}
+          markAllRooms={[makeRoom({ id: "a", unreadNeedsYouCount: 3 })]}
+          dismissSheetOnNavigate={false}
+          unreadOnly={false}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Unreads" })).toBeNull();
     expect(
-      container.querySelector('[data-slot="unread-threads-count"]'),
+      container.querySelector('[data-slot="catch-up-end-spacer"]'),
     ).toBeNull();
+    expect(
+      container.querySelector('[data-slot="catch-up-count"]'),
+    ).toHaveTextContent("3");
+    expect(catchUpRow()).toHaveAccessibleName(
+      /^Catch up.*3 messages need you$/,
+    );
+  });
+
+  // Mark all as read goes where the chip goes: on the heading, not this row.
+  it("leaves Mark all as read to the Chats heading with the chip", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatUnreadNavRows
+          rooms={[makeRoom({ id: "a", unreadCount: 2, channelUnreadCount: 2 })]}
+          markAllRooms={[
+            makeRoom({ id: "a", unreadCount: 2, channelUnreadCount: 2 }),
+          ]}
+          dismissSheetOnNavigate={false}
+          unreadOnly
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Mark all as read" }),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-slot="catch-up-end-spacer"]'),
+    ).toBeNull();
+  });
+
+  it("offers the heading's Mark all as read only while the filter is on", async () => {
+    const rooms = [
+      makeRoom({ id: "channel", unreadCount: 2, channelUnreadCount: 2 }),
+      makeRoom({ id: "read", channelUnreadCount: 0 }),
+    ];
+    const { rerender } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatMarkAllReadButton rooms={rooms} unreadOnly={false} />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Mark all as read" }),
+    ).toBeNull();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ChatMarkAllReadButton rooms={rooms} unreadOnly />
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mark all as read" }),
+    );
+
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith({ collections: ["active"] }),
+    );
+    expect(markAllActionMock).toHaveBeenCalledWith([
+      { roomId: "channel", readRoom: true, lookThreads: false },
+    ]);
   });
 
   it("marks the entry the reader is on", () => {
     sidebarMock.isMobile = true;
-    navigation.pathname = "/chat/threads";
+    navigation.pathname = "/chat/catch-up";
     renderRows([]);
 
-    expect(threadsRow()).toHaveAttribute("aria-current", "page");
+    expect(catchUpRow()).toHaveAttribute("aria-current", "page");
   });
 
   describe("keyboard shortcut (SOK-1201)", () => {
@@ -360,11 +455,11 @@ describe("ChatUnreadNavRows", () => {
       const onUnreadOnlyChange = vi.fn();
       renderRows([], { onUnreadOnlyChange });
 
-      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+      expect(screen.getByRole("button", { name: "Unreads" })).toHaveAttribute(
         "aria-keyshortcuts",
         "Meta+Shift+U",
       );
-      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+      expect(screen.getByRole("button", { name: "Unreads" })).toHaveAttribute(
         "title",
         "Unreads (⌘⇧U)",
       );
@@ -384,7 +479,7 @@ describe("ChatUnreadNavRows", () => {
       const onUnreadOnlyChange = vi.fn();
       renderRows([], { onUnreadOnlyChange });
 
-      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+      expect(screen.getByRole("button", { name: "Unreads" })).toHaveAttribute(
         "aria-keyshortcuts",
         "Control+Shift+U",
       );
@@ -436,17 +531,32 @@ describe("ChatUnreadNavRows", () => {
       expect(onUnreadOnlyChange).not.toHaveBeenCalled();
     });
 
-    it("leaves the shortcut to the rail's tooltip when collapsed", () => {
+    // The chip on its own, as the Chats heading mounts it, keeps the same
+    // keyboard path.
+    it("binds the shortcut on the chip the Chats heading carries", async () => {
       mockUserAgent(
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
       );
-      sidebarMock.state = "collapsed";
-      renderRows([]);
+      const onUnreadOnlyChange = vi.fn();
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <ChatUnreadsFilterChip
+            unreadOnly
+            onUnreadOnlyChange={onUnreadOnlyChange}
+          />
+        </NextIntlClientProvider>,
+      );
 
-      const toggle = screen.getByRole("button", { name: /^Unreads/ });
-      expect(toggle).toHaveAttribute("aria-keyshortcuts");
-      expect(toggle).toHaveAttribute("data-tooltip", "Unreads (⌘⇧U)");
-      expect(toggle).not.toHaveAttribute("title");
+      const chip = screen.getByRole("button", { name: "Unreads" });
+      expect(chip).toHaveAttribute("aria-pressed", "true");
+      expect(chip).toHaveAttribute("aria-keyshortcuts", "Meta+Shift+U");
+      expect(chip).toHaveAttribute("title", "Unreads (⌘⇧U)");
+      expect(chip).toHaveAttribute("data-filter-on", "true");
+
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).toHaveBeenCalledWith(false);
+      await userEvent.click(chip);
+      expect(onUnreadOnlyChange).toHaveBeenLastCalledWith(false);
     });
 
     it("stays unbound below the mobile breakpoint", () => {
@@ -458,7 +568,7 @@ describe("ChatUnreadNavRows", () => {
       renderRows([], { onUnreadOnlyChange });
 
       expect(
-        screen.getByRole("button", { name: /^Unreads/ }),
+        screen.getByRole("button", { name: "Unreads" }),
       ).not.toHaveAttribute("aria-keyshortcuts");
       pressUnreadsShortcut({ metaKey: true, shiftKey: true });
       expect(onUnreadOnlyChange).not.toHaveBeenCalled();

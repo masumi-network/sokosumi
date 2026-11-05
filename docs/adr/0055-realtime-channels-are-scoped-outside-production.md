@@ -5,11 +5,11 @@
 
 **Every Ably channel name carries the deployment's environment unless the deployment is production.** Production keeps today's names byte for byte. Previews and local development insert a scope part after the first segment:
 
-| Deployment | Room channel |
-| --- | --- |
-| Production (`VERCEL_ENV=production`) | `chat_rooms:room_{roomId}` |
-| Preview | `chat_rooms:preview:{network}:branch_{encodedRef}:room_{roomId}` |
-| Anything else (local, unknown) | `chat_rooms:development:{network}:room_{roomId}` |
+| Deployment                           | Room channel                                                     |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| Production (`VERCEL_ENV=production`) | `chat_rooms:room_{roomId}`                                       |
+| Preview                              | `chat_rooms:preview:{network}:branch_{encodedRef}:room_{roomId}` |
+| Anything else (local, unknown)       | `chat_rooms:development:{network}:room_{roomId}`                 |
 
 `{network}` is `mainnet` or `preprod`. `{encodedRef}` is the exact Git ref, URL-encoded, as the user notification channel already does it.
 

@@ -1,12 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -29,6 +23,7 @@ import {
   markOrganizationChatRoomReadAction,
   markThreadReadAction,
   mockStreamMessages,
+  renderWithQueryClient,
   roomsClientBaseProps,
   sampleMessage,
   useChatRoomRealtimeMock,
@@ -246,7 +241,7 @@ describe("RoomsClient read visibility", () => {
         async (_roomId: string, parentId?: string | null) =>
           page(parentId ? [reply] : [parent]),
       );
-      render(<RoomsClient {...baseProps} messages={[parent]} />);
+      renderWithQueryClient(<RoomsClient {...baseProps} messages={[parent]} />);
       await act(async () => {});
       if (surface === "thread") {
         fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
@@ -268,7 +263,9 @@ describe("RoomsClient read visibility", () => {
     fetchRoomMessagesMock
       .mockReturnValueOnce(stalled.promise)
       .mockResolvedValue(page([sampleMessage("second snapshot")]));
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(33_000);
     });
@@ -293,7 +290,7 @@ describe("RoomsClient read visibility", () => {
     fetchRoomMessagesMock
       .mockReturnValueOnce(previousVisit.promise)
       .mockResolvedValue(page([sampleMessage("fresh visit")]));
-    const view = render(
+    const view = renderWithQueryClient(
       <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
     );
     await act(async () => {
@@ -347,7 +344,7 @@ describe("RoomsClient read visibility", () => {
       (_roomId: string, parentId?: string | null) =>
         parentId ? previousVisit.promise : Promise.resolve(page([parent])),
     );
-    render(<RoomsClient {...baseProps} messages={[parent]} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} messages={[parent]} />);
     fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
     await act(async () => {});
     await act(async () => {
@@ -389,7 +386,7 @@ describe("RoomsClient read visibility", () => {
       async (_roomId: string, parentId?: string | null) =>
         parentId ? page([{ ...reply, content: "updated thread reply" }]) : null,
     );
-    render(<RoomsClient {...baseProps} messages={[parent]} />);
+    renderWithQueryClient(<RoomsClient {...baseProps} messages={[parent]} />);
     fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
     await act(async () => {});
     await act(async () => {
@@ -405,7 +402,9 @@ describe("RoomsClient read visibility", () => {
   ) {
     const visibilitySpy = vi.spyOn(document, "visibilityState", "get");
     visibilitySpy.mockReturnValue("visible");
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await waitFor(() => {
       expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(1);
     });
@@ -445,14 +444,16 @@ describe("RoomsClient read visibility", () => {
 
   it("does not mark a room read when mounted in a hidden tab", async () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
-    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    renderWithQueryClient(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
     await act(async () => {});
     expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
   });
 
   it("marks a final answer read when its message ID is unchanged", async () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messages={[sampleMessage("partial answer")]}
@@ -474,7 +475,7 @@ describe("RoomsClient read visibility", () => {
       id: "newer-message",
       createdAt: new Date("2026-07-01T12:05:00.000Z"),
     };
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messages={[sampleMessage(""), newerMessage]}
@@ -497,7 +498,7 @@ describe("RoomsClient read visibility", () => {
     async (surface) => {
       vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
       const initialMessages = [sampleMessage("Initial message")];
-      const { rerender } = render(
+      const { rerender } = renderWithQueryClient(
         <RoomsClient {...baseProps} messages={initialMessages} />,
       );
       if (surface === "thread") {
@@ -549,7 +550,7 @@ describe("RoomsClient read visibility", () => {
 
   it("ignores thought metadata changes on the same message", async () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <RoomsClient {...baseProps} messages={[sampleMessage("answer")]} />,
     );
     await act(async () => {});
@@ -573,7 +574,7 @@ describe("RoomsClient read visibility", () => {
     const visibilitySpy = vi
       .spyOn(document, "visibilityState", "get")
       .mockReturnValue("visible");
-    render(
+    renderWithQueryClient(
       <RoomsClient
         {...baseProps}
         messages={[{ ...sampleMessage(), threadReplyCount: 1 }]}
@@ -640,7 +641,9 @@ describe("RoomsClient read visibility", () => {
     const seen = vi.fn();
     window.addEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, seen);
     try {
-      render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+      renderWithQueryClient(
+        <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+      );
       await act(async () => {});
 
       const options = useChatRoomRealtimeMock.mock.calls.at(-1)?.[0];

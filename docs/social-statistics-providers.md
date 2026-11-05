@@ -8,14 +8,14 @@ and unit; account totals do not inherit the post publication-date filter.
 
 ## Supported reads
 
-| Provider | Account metrics | Published history | Limits |
-| --- | --- | --- | --- |
-| X | Followers, following, posts, media, lists, and posts liked where returned | Account's own timeline; engagement and additional public counters | Native timeline exposes up to 3,200 recent posts; inaccessible/deleted content is excluded |
-| Instagram | Followers, following, media count, and available 28-day insights | Own Business/Creator media with base engagement, media insights, and available Reels metrics | Insights depend on scopes, account thresholds, and media type |
-| Facebook | Page followers/likes and available daily insight totals | Own Page's published posts with engagement and available post insights | Daily sums are not distinct 28-day audience totals |
-| YouTube | Channel subscribers, public video count, lifetime views, and available Analytics | Uploaded-video playlist with published dates and batch video counters | Subscriber totals may be hidden or rounded; Analytics requires a separate read scope |
-| TikTok | Followers, following, total received likes, and video count | Accessible public videos and their returned counters | Display API and `video.list` permissions govern history availability |
-| LinkedIn | Explicitly unavailable for existing personal connections | Explicitly unavailable | Organization analytics require organization identity and scopes; personal publishing permission does not grant personal history reads |
+| Provider  | Account metrics                                                                  | Published history                                                                            | Limits                                                                                                                                |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| X         | Followers, following, posts, media, lists, and posts liked where returned        | Account's own timeline; engagement and additional public counters                            | Native timeline exposes up to 3,200 recent posts; inaccessible/deleted content is excluded                                            |
+| Instagram | Followers, following, media count, and available 28-day insights                 | Own Business/Creator media with base engagement, media insights, and available Reels metrics | Insights depend on scopes, account thresholds, and media type                                                                         |
+| Facebook  | Page followers/likes and available daily insight totals                          | Own Page's published posts with engagement and available post insights                       | Daily sums are not distinct 28-day audience totals                                                                                    |
+| YouTube   | Channel subscribers, public video count, lifetime views, and available Analytics | Uploaded-video playlist with published dates and batch video counters                        | Subscriber totals may be hidden or rounded; Analytics requires a separate read scope                                                  |
+| TikTok    | Followers, following, total received likes, and video count                      | Accessible public videos and their returned counters                                         | Display API and `video.list` permissions govern history availability                                                                  |
+| LinkedIn  | Explicitly unavailable for existing personal connections                         | Explicitly unavailable                                                                       | Organization analytics require organization identity and scopes; personal publishing permission does not grant personal history reads |
 
 The catalogs define the accepted profile, analytics, and history tool arguments:
 [X](https://docs.composio.dev/toolkits/twitter),

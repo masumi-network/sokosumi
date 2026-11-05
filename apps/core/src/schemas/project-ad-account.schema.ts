@@ -1,12 +1,17 @@
 import { z } from "@hono/zod-openapi";
-
+import {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
+  GOOGLE_DISPLAY_IMAGE_ROLES,
+  GOOGLE_KEYWORD_MATCH_TYPES,
+  type GoogleDisplayImageRole,
+} from "@sokosumi/utils";
 import {
   PROJECT_AD_PROVIDERS,
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { dateTimeSchema } from "@/helpers/datetime";
+
 import {
-  AD_CAMPAIGN_SETTABLE_STATUSES,
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
   GOOGLE_CAMPAIGN_NOT_EDITABLE_REASONS,
@@ -14,10 +19,7 @@ import {
   GOOGLE_DISPLAY_IMAGE_MAX_BYTES,
   GOOGLE_DISPLAY_IMAGE_MAX_LABEL,
   GOOGLE_DISPLAY_IMAGE_MIME_TYPES,
-  GOOGLE_DISPLAY_IMAGE_ROLES,
-  GOOGLE_KEYWORD_MATCH_TYPES,
   GOOGLE_MAX_IDS,
-  type GoogleDisplayImageRole,
   type GoogleLocationLookup,
   isNewDisplayImage,
   META_CAMPAIGN_OBJECTIVES,

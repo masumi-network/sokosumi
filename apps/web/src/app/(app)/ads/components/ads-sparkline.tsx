@@ -44,7 +44,7 @@ export function AdsSparkline({ values, label }: AdsSparklineProps) {
   return (
     <svg
       aria-label={label}
-      className="text-primary shrink-0"
+      className="text-foreground shrink-0"
       height={HEIGHT}
       role="img"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}

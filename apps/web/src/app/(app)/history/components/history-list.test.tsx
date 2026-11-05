@@ -7,6 +7,11 @@ vi.mock("./history-list-item", () => ({
     <span>{item.title}</span>
   ),
 }));
+vi.mock("./history-soko-bot-group", () => ({
+  HistorySokoBotGroup: ({ items }: { items: { id: string }[] }) => (
+    <span>{`group of ${items.length}`}</span>
+  ),
+}));
 vi.mock("@/lib/utils/datetime.client", () => ({
   useLocalizedDateTime: () => ({
     formatMonthYear: (date: string | Date) =>
@@ -67,5 +72,35 @@ describe("HistoryList month headings", () => {
     ]);
     const list = screen.getByRole("list");
     expect(within(list).getAllByText(/^[abc]$/)).toHaveLength(3);
+  });
+});
+
+describe("HistoryList Soko Bot days", () => {
+  it("shows a busy bot day as one row, so the Tasks around it stay visible", () => {
+    const turn = (id: string, at: string) =>
+      ({
+        ...item(id, at),
+        kind: "sokoBot",
+        sokoBotId: "joseph",
+      }) as TransactionHistoryItem;
+    render(
+      <HistoryList
+        history={[
+          turn("t1", "2026-10-23T16:00:00Z"),
+          item("task", "2026-10-23T15:00:00Z"),
+          turn("t2", "2026-10-23T14:00:00Z"),
+          turn("t3", "2026-10-23T09:00:00Z"),
+        ]}
+        nextCursor={null}
+        filterResetKey="k"
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        labels={labels}
+        activeOrganizationId={null}
+      />,
+    );
+    const rows = within(screen.getByRole("list"))
+      .getAllByRole("listitem")
+      .map((row) => row.textContent);
+    expect(rows).toEqual(["group of 3", "task"]);
   });
 });

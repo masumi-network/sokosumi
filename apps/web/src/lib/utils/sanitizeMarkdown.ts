@@ -101,7 +101,7 @@ const MARKDOWN_GENERATED_TAGS = [
   "tr",
 ];
 
-const SPAN_CLASSES = ["text-primary", "font-medium", "whitespace-nowrap"];
+const SPAN_CLASSES = ["text-foreground", "font-medium", "whitespace-nowrap"];
 // Intentionally omit autoplay — product requires user-started playback.
 const MEDIA_ATTRIBUTES = ["src", "controls", "loop", "muted"];
 

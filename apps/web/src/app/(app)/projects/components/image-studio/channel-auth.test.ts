@@ -16,6 +16,9 @@ describe("sessionIdFromUrl", () => {
       "/eve/v1/session/wrun_1/stream",
       "/eve/v1/session/wrun_1/cancel",
       "/eve/v1/session/wrun_1/clear",
+      // eve 0.87 renamed retirement from /reset to /end. An old client still
+      // names a session on /reset, and missing that id is a fail-open.
+      "/eve/v1/session/wrun_1/end",
       "/eve/v1/session/wrun_1/reset",
       "/eve/v1/session/wrun_1/compact",
     ]) {

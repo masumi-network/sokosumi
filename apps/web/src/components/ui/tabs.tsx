@@ -4,6 +4,10 @@ import * as React from "react"
 import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+} from "./tabs-classes"
 
 function Tabs({
   className,
@@ -42,7 +46,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring-halo focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-quinary text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,background-color,transform] duration-150 ease-out press focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-quinary text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,background-color,transform] duration-150 ease-out press focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -62,12 +66,6 @@ function TabsContent({
     />
   )
 }
-
-/** Segmented-control styling for a TabsList / TabsTrigger pair. */
-const SEGMENTED_TABS_LIST_CLASS_NAME =
-  "bg-card-background flex w-full items-center gap-1 self-start rounded-lg p-1"
-const SEGMENTED_TAB_TRIGGER_CLASS_NAME =
-  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
 
 export {
   Tabs,

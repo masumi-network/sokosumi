@@ -1,18 +1,28 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import messages from "@/messages/en.json";
 
 const {
   adsServiceMock,
-  hasSocialBetaAccessMock,
+  hasAnyScopeProjectMock,
   notFoundMock,
   projectServiceMock,
+  requireScopeMock,
+  openScopeCreateMock,
+  setScopeCreateOpenMock,
 } = vi.hoisted(() => ({
   adsServiceMock: { listAccounts: vi.fn() },
-  hasSocialBetaAccessMock: vi.fn(),
+  hasAnyScopeProjectMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
   projectServiceMock: { getProjectById: vi.fn() },
+  requireScopeMock: vi.fn(),
+  openScopeCreateMock: vi.fn(),
+  setScopeCreateOpenMock: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -32,16 +42,21 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
 
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: hasSocialBetaAccessMock,
+// The selector itself lives in the header; this file only sees what the page
+// asks it for. The tabs read the URL through nuqs, and the backdrop reads
+// client translations. This file is about which state the page chooses.
+vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
+  openProjectScope: requireScopeMock,
+  openScopeCreate: openScopeCreateMock,
+  setScopeCreateOpen: setScopeCreateOpenMock,
 }));
 
-// The picker reaches for the sidebar switcher's list, and the tabs read the
-// URL through nuqs. This file is about which state the page chooses.
-vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
-  ProjectScopePicker: ({ body, testId }: { body: string; testId: string }) => (
-    <div data-testid={testId}>{body}</div>
-  ),
+vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
+  useHasAnyScopeProject: hasAnyScopeProjectMock,
+}));
+
+vi.mock("./components/ads-no-project-backdrop", () => ({
+  AdsNoProjectBackdrop: () => <div data-testid="ads-backdrop" />,
 }));
 
 vi.mock("./components/ads-tabs", () => ({
@@ -102,36 +117,62 @@ const PROJECT = { id: "project-1", name: "Launch plan" };
 
 async function visit(searchParams: Record<string, string | undefined> = {}) {
   const { default: AdsPage } = await import("./page");
-  render(await AdsPage({ searchParams: Promise.resolve(searchParams) }));
+  render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {await AdsPage({ searchParams: Promise.resolve(searchParams) })}
+    </NextIntlClientProvider>,
+  );
 }
 
 describe("AdsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasSocialBetaAccessMock.mockResolvedValue(true);
+    hasAnyScopeProjectMock.mockReturnValue({
+      isPending: false,
+      hasProjects: true,
+    });
     adsServiceMock.listAccounts.mockResolvedValue([]);
   });
 
-  it("stays hidden outside the beta, reading nothing", async () => {
-    hasSocialBetaAccessMock.mockResolvedValue(false);
-    const { default: AdsPage } = await import("./page");
-
-    await expect(
-      AdsPage({ searchParams: Promise.resolve({ projectId: "project-1" }) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-    expect(notFoundMock).toHaveBeenCalled();
-    expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
-    expect(adsServiceMock.listAccounts).not.toHaveBeenCalled();
-  });
-
-  it("asks which project to work in when no scope is set", async () => {
+  it("offers project selection without opening the selector on navigation", async () => {
+    const user = userEvent.setup();
     await visit();
 
     expect(screen.getByTestId("ads-no-project")).toHaveTextContent(
       "App.Ads.pickBody",
     );
+    expect(requireScopeMock).not.toHaveBeenCalled();
+    // Sample ads remain visible while the page's button opens the selector.
+    expect(screen.getByTestId("ads-no-project")).toContainElement(
+      screen.getByTestId("ads-backdrop"),
+    );
+    const button = screen.getByRole("button", { name: "Select project" });
+    await user.click(button);
+    expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
+    );
+    expect(openScopeCreateMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId("ads-tabs")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
+  });
+
+  it("offers project creation in an empty workspace", async () => {
+    const user = userEvent.setup();
+    hasAnyScopeProjectMock.mockReturnValue({
+      isPending: false,
+      hasProjects: false,
+    });
+    await visit();
+
+    expect(screen.getByTestId("ads-backdrop")).toBeInTheDocument();
+    expect(requireScopeMock).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", { name: "Create project" });
+    await user.click(button);
+
+    expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ reason: "App.Ads.pickBody", required: true }),
+    );
+    expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
@@ -142,6 +183,7 @@ describe("AdsPage", () => {
   });
 
   it("offers another project instead of 404ing on a scope this workspace lost", async () => {
+    const user = userEvent.setup();
     projectServiceMock.getProjectById.mockResolvedValue(null);
 
     await visit({ projectId: "project-gone" });
@@ -149,6 +191,17 @@ describe("AdsPage", () => {
     expect(screen.getByTestId("ads-no-project")).toHaveTextContent(
       "App.Ads.pickUnavailable",
     );
+    expect(requireScopeMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ads-backdrop")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Select project" });
+    await user.click(button);
+    expect(requireScopeMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        reason: "App.Ads.pickUnavailable",
+        required: true,
+      }),
+    );
+    expect(openScopeCreateMock).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 

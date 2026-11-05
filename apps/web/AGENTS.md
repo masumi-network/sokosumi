@@ -96,6 +96,7 @@ Prefer `toActionResult` over inventing another Ok/Err helper.
 ### Component Patterns
 
 - Use Shadcn UI components from `src/components/ui/`
+- Adding a shadcn component or block: load [shadcn-add](.agents/skills/shadcn-add/SKILL.md); upstream classes break our guards until adapted
 - Implement responsive design with Tailwind CSS
 - Follow the established component structure pattern
 
@@ -121,7 +122,7 @@ The web app uses the shared Biome configuration from the repo root. See [shared 
 
 #### Environment Variables
 
-**Critical**: Never use `process.env` directly in web app code.
+Do not read `process.env` directly in web app code.
 
 - **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:
@@ -183,17 +184,17 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 ## App-Specific Commands
 
-| Command           | Purpose                   |
-| ----------------- | ------------------------- |
-| `pnpm web:dev`       | Start development server on `:3000` |
-| `pnpm portless:dev`  | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
-| `pnpm portless:web`  | Web only via portless (still injects Core's named URL) |
-| `pnpm web:build`  | Build for production      |
-| `pnpm web:start`  | Test production build     |
-| `pnpm --filter web lint` | Run Biome lint rules for the web app |
-| `pnpm --filter web check` | Run full Biome checks for the web app |
-| `pnpm web:test`   | Run web app tests         |
-| `pnpm --filter web format` | Format code with Biome |
+| Command                    | Purpose                                                                     |
+| -------------------------- | --------------------------------------------------------------------------- |
+| `pnpm web:dev`             | Start development server on `:3000`                                         |
+| `pnpm portless:dev`        | Web + Core via portless (repo root; named `https://web.sokosumi.localhost`) |
+| `pnpm portless:web`        | Web only via portless (still injects Core's named URL)                      |
+| `pnpm web:build`           | Build for production                                                        |
+| `pnpm web:start`           | Test production build                                                       |
+| `pnpm --filter web lint`   | Run Biome lint rules for the web app                                        |
+| `pnpm --filter web check`  | Run full Biome checks for the web app                                       |
+| `pnpm web:test`            | Run web app tests                                                           |
+| `pnpm --filter web format` | Format code with Biome                                                      |
 
 ## App-Specific Testing
 
@@ -252,12 +253,12 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 
 #### Not Core REST DTOs (do not add to `/v1` OpenAPI entity schemas)
 
-| Category | Examples | Canonical home | Rule |
-| -------- | -------- | -------------- | ---- |
-| Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
-| UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
-| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
-| Localized view models | `TaskWithCoworker` | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
+| Category                   | Examples                                             | Canonical home                                                                     | Rule                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stable API error kinds     | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind`           | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`)                    | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map.                                                                              |
+| UI-only display values     | `expired` invitation status                          | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
+| Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils`                                                                  | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5).                                                                                               |
+| Localized view models      | `TaskWithCoworker`                                   | Feature folders next to UI                                                         | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos).                                                                                                                                                                                  |
 
 **Decision test:** If a value is (a) a stable error `kind`, (b) UI-derived display state, (c) Better Auth `/auth` shape, or (d) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
 
@@ -355,16 +356,17 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ### Styling
 
+- **Brand direction**: The [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide) is the design system (Iris Flower primary with Neutral 950 text, shared neutrals, no glow or blur), and `globals.css` carries its values. Iris is a fill, never text or a thin mark on the page. Preview it at `/admin/design-system`. See [Web UI conventions](../../docs/agents/web-ui.md).
 - Use semantic tokens from `globals.css`. No raw Tailwind palette colors, no hex/rgb/hsl
-  literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
-  (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
+  literals, no opacity modifiers on color utilities. Use the neutral steps
+  (`border-border` / `bg-quinary` / `bg-muted`) and add a token when none fits, in both theme
   blocks and in the `@theme inline` bridge. Guard:
-  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See `.cursor/rules/color-tokens.mdc`.
+  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See [Color tokens](../../.cursor/rules/color-tokens.mdc).
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
-- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
+- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See [Dynamic Type](../../.cursor/rules/dynamic-type.mdc) and `apps/web/src/lib/utils/dynamic-type.ts`.
 - **Font sizes**: Never set a literal font size in product UI: no arbitrary `text-[…]` in any unit (`text-[10px]`; `text-[0.8125rem]` is the same off-scale 13px), no `text-[length:…]` or `text-(length:…)`, and no literal `font-size`/`fontSize` in px, rem or em (`font-size: 12px`, `fontSize: "0.875rem"`, `fontSize: 14`). Use a scale step: `text-2xs` (11px, dense meta and badges only) through `text-4xl`. They are rem, so type scales with root. `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails each spelling and lists the few exceptions with their reason.
-- **Whole pixels**: Never a fractional `px` on a layout or border length (`p-[1.5px]`, `padding: 1.5px`, `border: "0.2px solid …"`). A 1x display has no half pixel, so the browser rounds a `1.5px` border to 1px on one edge and 2px on the other. Blur radii, keyframe translations and unitless scale factors stay continuous. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
+- **Whole pixels**: Never a fractional `px` on a layout or border length (`p-[1.5px]`, `padding: 1.5px`, `border: "0.2px solid …"`). A 1x display has no half pixel, so the browser rounds a `1.5px` border to 1px on one edge and 2px on the other. Shadow radii, keyframe translations and unitless scale factors stay continuous. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 
 ## Development Workflow
 
@@ -378,16 +380,24 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 ```typescript
 // src/app/(app)/new-page/page.tsx
-import { Metadata } from 'next';
+import type { Metadata } from "next";
+
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: 'New Page',
+  title: "New Page",
 };
 
 export default function NewPage() {
   return (
-    <div className="container mx-auto p-4">
-      {/* Server Component content */}
+    <div className={cn(HOLDER_CLASS, "flex w-full flex-col gap-2")}>
+      <div className={cn(HOLDER_ITEM_CLASS, "px-4 py-3")}>
+        {/* Server Component content */}
+      </div>
     </div>
   );
 }
@@ -399,11 +409,18 @@ export default function NewPage() {
 // src/lib/actions/new-action.ts
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { ok, type Result } from "neverthrow";
+import {
+  toActionResult,
+  type ActionResultDto,
+} from "@/lib/actions/action-result";
 
-export async function createNewItem(data: FormData) {
-  // Server action logic
-  revalidatePath("/path");
+// wire: { ok: true; value: T } | { ok: false; error: E }
+export async function createNewItem(): Promise<
+  ActionResultDto<{ id: string }, ActionError>
+> {
+  const result: Result<{ id: string }, ActionError> = ok({ id: "…" });
+  return toActionResult(result);
 }
 ```
 
@@ -512,7 +529,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

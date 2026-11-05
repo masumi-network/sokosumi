@@ -297,7 +297,6 @@ export const makeZodSchemaFromJobInputSchema = (
     return z.string().optional();
   }
 
-  // Handle boolean types (BOOLEAN, CHECKBOX)
   if (isBooleanType(type)) {
     return makeZodSchemaForBooleanType(
       jobInputSchema as InputCheckboxSchemaType,
@@ -305,12 +304,10 @@ export const makeZodSchemaFromJobInputSchema = (
     );
   }
 
-  // Handle string-based types (STRING, TEXT, EMAIL, PASSWORD, URL, SEARCH)
   if (isStringBasedType(type)) {
     return makeZodSchemaForStringType(jobInputSchema, t);
   }
 
-  // Handle remaining types with specific handlers
   switch (type) {
     case InputType.TEXTAREA:
       return makeZodSchemaForTextareaType(

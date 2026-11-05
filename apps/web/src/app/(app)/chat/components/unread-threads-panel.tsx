@@ -82,7 +82,7 @@ export function UnreadThreadsPanel({
         // offset puts the badge where the bell's sits.
         <CornerCountBadge
           data-testid="unread-threads-badge"
-          className="bg-primary-solid text-primary-solid-foreground -top-0.75 -right-0.75"
+          className="bg-primary text-primary-foreground -top-0.75 -right-0.75"
         >
           {roomCountLabel(unreadCount)}
         </CornerCountBadge>

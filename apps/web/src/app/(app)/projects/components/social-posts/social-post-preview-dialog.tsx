@@ -3,8 +3,9 @@
 import type { SocialPost } from "@sokosumi/core-client";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTimeZone, useTranslations } from "next-intl";
 import { useState } from "react";
+import { TimezoneLabel } from "@/components/timezone-label";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,11 +15,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
+import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import { refreshProjectSocialPostStatistics } from "@/lib/actions/project/action";
 import type { SocialPostComposerMode } from "./social-post-composer-dialog";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
 import { SocialPostPreviewFailure } from "./social-post-preview-failure";
+import { SocialPostStatusBadge } from "./social-post-status-badge";
 
 export function SocialPostPreviewDialog({
   post,
@@ -35,8 +39,10 @@ export function SocialPostPreviewDialog({
   actions?: React.ReactNode;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const { isProviderEnabled } = useSocialProviderAvailability();
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
+  const displayTimezone = useTimeZone() ?? DEFAULT_TIME_ZONE;
   const [statisticsPost, setStatisticsPost] = useState<SocialPost | null>(null);
   const [refreshingPostId, setRefreshingPostId] = useState<string | null>(null);
   const [statisticsErrorPostId, setStatisticsErrorPostId] = useState<
@@ -70,16 +76,38 @@ export function SocialPostPreviewDialog({
         <DialogHeader>
           <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
           <DialogDescription>
-            {post?.scheduledAt
-              ? formatter.dateTime(post.scheduledAt, "dateTime")
-              : post
-                ? t(`status.${post.status}`)
-                : null}
+            {post?.scheduledAt ? (
+              <>
+                {formatter.dateTime(post.scheduledAt, "dateTime")} ·{" "}
+                <TimezoneLabel
+                  timeZone={displayTimezone}
+                  at={post.scheduledAt}
+                />
+              </>
+            ) : post ? (
+              t(
+                post.waitingForQuotedPost
+                  ? "quote.waiting"
+                  : `status.${post.status}`,
+              )
+            ) : null}
           </DialogDescription>
         </DialogHeader>
+        {post &&
+        (post.waitingForQuotedPost || post.status === "NEEDS_APPROVAL") ? (
+          <SocialPostStatusBadge
+            status={post.status}
+            label={t(
+              post.waitingForQuotedPost
+                ? "quote.waiting"
+                : "status.NEEDS_APPROVAL",
+            )}
+            waitingForQuotedPost={post.waitingForQuotedPost}
+          />
+        ) : null}
         {post?.connectionNeedsReconnect ? (
           <p
-            className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+            className="text-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
             data-testid="social-post-needs-reconnect"
             role="status"
           >
@@ -106,6 +134,11 @@ export function SocialPostPreviewDialog({
             }
             className="max-h-[70dvh] overflow-y-auto"
             media={post.media}
+            quotedPost={post.quotedPost}
+            threadParts={post.threadParts}
+            publishedExternalId={
+              post.threadPartCount > 1 ? post.publishedExternalId : undefined
+            }
             provider={post.provider}
             text={post.text}
             timestamp={post.publishedAt ?? post.scheduledAt}
@@ -126,7 +159,7 @@ export function SocialPostPreviewDialog({
               {t("statistics.refresh")}
             </Button>
             {statisticsErrorPostId === post.id ? (
-              <p role="alert" className="text-semantic-warning text-sm">
+              <p role="alert" className="text-foreground text-sm">
                 {t("statistics.refreshFailed")}
               </p>
             ) : null}
@@ -162,7 +195,9 @@ export function SocialPostPreviewDialog({
                   </a>
                 </Button>
               ) : null}
-              {post.canSchedule ? (
+              {post.canSchedule &&
+              !post.canApprove &&
+              isProviderEnabled(post.provider) ? (
                 <Button
                   type="button"
                   className="min-h-11 md:min-h-10"

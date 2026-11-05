@@ -1,0 +1,125 @@
+/* The funnel: bands narrowing toward the sale, each with its job and number. */
+.fn {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fn-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.fn-band {
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: var(--fn-width);
+  min-height: 64px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: color-mix(
+    in srgb,
+    var(--brand, var(--accent)) var(--fn-tint),
+    var(--background)
+  );
+  color: var(--foreground);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.fn-band.dark {
+  color: var(--background);
+}
+
+.fn-band b {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.fn-info {
+  display: grid;
+  gap: 4px;
+}
+
+.fn-goal {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.fn-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.fn-icons {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.fn-proposals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fn-proposals li {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.fn-proposals p {
+  margin: 0;
+}
+
+.fn-proposal-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .fn-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .fn-info {
+    padding: 0 8px 12px;
+    text-align: center;
+  }
+
+  .fn-meta {
+    justify-content: center;
+  }
+}
+
+.fn-proposal-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.fn-proposals .fn-proposal-add {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}

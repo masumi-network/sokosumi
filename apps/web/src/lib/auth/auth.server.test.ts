@@ -11,6 +11,7 @@ const SESSION_COOKIE =
   "sokosumi-localhost-preprod.session_token=session-token-value";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 
 vi.mock("@sentry/nextjs", () => ({
   captureMessage: (...args: unknown[]) => captureMessageMock(...args),

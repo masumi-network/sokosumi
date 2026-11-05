@@ -26,10 +26,19 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 - [`image-studio/deployment.md`](./image-studio/deployment.md) — which project carries which key, branch-scoped preview setup, and deploy side effects
 
+## Contacts
+
+- [`contacts/design.md`](./contacts/design.md) — team CRM design: one contacts set per workspace, shared lists, channels, and Core-owned models
+
 ## Features
 
 - [`features/task-tags.md`](./features/task-tags.md) — Core task-tag vocabulary, `/sync/task-tags` worker (50 queued + 200 historical), spend bounds, and production-log caution
+- [`features/ads-management.md`](./features/ads-management.md) — Project Google Ads and Meta Ads through Composio, plus market keywords
 - [`intelligent-files/implementation-plan.md`](./intelligent-files/implementation-plan.md) — shipped Files catalog (`FileResource` / `FileVersion` / `FileChunk`; Core Jev; `FILES_JEV_ENABLED` default `"true"`)
+
+## Social statistics
+
+- [`social-statistics-providers.md`](./social-statistics-providers.md) — per-provider account metrics and published-history reads
 
 ## Native tables
 

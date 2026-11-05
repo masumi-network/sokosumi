@@ -27,7 +27,10 @@ interface DocumentSecurityHeaderOptions {
    * `pnpm portless` serve plain http, so the caller decides.
    */
   includeHsts: boolean;
+  pathname?: string;
 }
+
+export const NEWSLETTER_EMBED_PATH = /^\/n\/[^/]+\/embed\/?$/;
 
 /**
  * The document security headers, in one list.
@@ -52,10 +55,12 @@ export function documentSecurityHeaders(
       key: "Permissions-Policy",
       value: "camera=(), microphone=(), geolocation=()",
     },
-    // DENY, not SAMEORIGIN: nothing embeds the app. The iframes in
+    // Only the public newsletter signup embed accepts inbound framing. The iframes in
     // offer-card, document-viewer and image-viewer are outbound (third-party
     // documents) or `about:blank`, so none of them load an app document.
-    { key: "X-Frame-Options", value: "DENY" },
+    ...(options.pathname && NEWSLETTER_EMBED_PATH.test(options.pathname)
+      ? []
+      : [{ key: "X-Frame-Options", value: "DENY" }]),
     // No `preload`: combined with `includeSubDomains` a preload submission is
     // very hard to reverse.
     ...(options.includeHsts
@@ -66,6 +71,22 @@ export function documentSecurityHeaders(
           },
         ]
       : []),
+  ];
+}
+
+export function documentSecurityHeaderRules(
+  options: DocumentSecurityHeaderOptions,
+) {
+  const headers = documentSecurityHeaders(options);
+  return [
+    {
+      source: "/:path*",
+      headers: headers.filter(({ key }) => key !== "X-Frame-Options"),
+    },
+    {
+      source: "/:path((?!n/[^/]+/embed/?$).*)",
+      headers: [{ key: "X-Frame-Options", value: "DENY" }],
+    },
   ];
 }
 

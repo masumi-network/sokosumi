@@ -20,6 +20,11 @@ export interface StartSokoBotTurnInput {
     purpose: string;
     designatedHandlerBotId: string | null;
     delegationIds?: string[];
+    /**
+     * Delegations whose follow-up plan this turn carries out. Claimed with
+     * the turn, so a plan reaches exactly one turn; a lost claim aborts it.
+     */
+    followUpDelegationIds?: string[];
     status: string;
     taskCursorAt?: Date;
     delegationEventAt?: Date;
@@ -41,10 +46,13 @@ export interface StartSokoBotTurnInput {
     title: string;
     destinationRoomId: string | null;
   };
-  /** Set when a chat-room mention started the turn; the reply lands there. */
+  /**
+   * Set when a chat-room mention started the turn; the reply lands there. A
+   * follow-up carries only who asked, so it keeps that person's grant.
+   */
   chat?: {
-    mentionId: string;
-    responseMessageId: string;
+    mentionId?: string;
+    responseMessageId?: string;
     /** Teammate who asked; turns they trigger are read-only. */
     askedByUserId?: string | null;
     /**
@@ -62,6 +70,11 @@ export interface StartSokoBotTurnInput {
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth?: number;
   };
+  /**
+   * The bot's own schedule this run belongs to. The turn may update or delete
+   * that schedule even when its route has no schedule tools.
+   */
+  ownScheduleId?: string;
   scheduleReservation?: {
     runId: string;
     attempt: number;

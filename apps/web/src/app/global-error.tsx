@@ -14,7 +14,7 @@ import {
 
 const nextErrorBodyStyles = `
 body{color:#000;background:#fff;margin:0;font-family:system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-@media (prefers-color-scheme:dark){body{color:#fff;background:#121212}}
+@media (prefers-color-scheme:dark){body{color:#fff;background:#0c0c0c}}
 .page{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
 .card{width:100%;max-width:28rem;padding:1.5rem;border:1px solid #e0e0e0;border-radius:0.75rem}
 @media (prefers-color-scheme:dark){.card{border-color:#333}}
@@ -37,7 +37,7 @@ function applyStoredThemeToBody() {
       (theme !== "light" &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-    document.body.style.background = isDark ? "#121212" : "#fff";
+    document.body.style.background = isDark ? "#0c0c0c" : "#fff";
     document.body.style.color = isDark ? "#fff" : "#000";
   } catch {
     // localStorage may be unavailable

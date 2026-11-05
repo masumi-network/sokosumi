@@ -24,6 +24,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type SocialAccountMetric,
+  type SocialAccountPostMedia,
   type SocialAccountStatistics,
   socialAccountMetricSchema,
   socialAccountPostSchema,
@@ -96,6 +97,24 @@ function mapAccountPosts(
       },
     ];
   });
+}
+
+type PersistedSocialAccountPostMedia = {
+  kind: SocialAccountPostMedia["kind"];
+  url: string;
+  thumbnailUrl: string | null;
+};
+
+function persistPostMedia(
+  media: SocialAccountPostMedia[],
+): Prisma.InputJsonValue {
+  return media.map(
+    (item): PersistedSocialAccountPostMedia => ({
+      kind: item.kind,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl,
+    }),
+  );
 }
 
 function parseStoredPostMetrics(
@@ -174,6 +193,7 @@ function accountFromRecord(record: StatisticsConnection) {
     externalHandle: record.externalHandle,
     displayName: record.displayName,
     avatarUrl: record.avatarUrl,
+    subscriptionType: record.subscriptionType,
     status: record.status,
     connectedAt: record.connectedAt,
     disconnectedAt: record.disconnectedAt,
@@ -464,6 +484,7 @@ export async function refreshSocialAccountStatistics(
   let snapshot: SocialAccountStatistics;
   const preservePostMetrics = new Set<string>();
   let profileMeasured = false;
+  let subscriptionType: string | null = null;
   let headFetchedAt: Date | null = null;
   let posts: ReturnType<
     typeof socialAccountStatisticsProviderPageSchema.parse
@@ -483,6 +504,7 @@ export async function refreshSocialAccountStatistics(
     );
     input.signal?.throwIfAborted();
     const fetchedAt = new Date().toISOString();
+    subscriptionType = record.provider === "x" ? page.subscriptionType : null;
     const measuredProfile =
       page.accountMetrics !== null &&
       page.accountMetrics.some((metric) => metric.value !== null);
@@ -580,6 +602,7 @@ export async function refreshSocialAccountStatistics(
       },
       data: {
         statistics,
+        ...(subscriptionType !== null ? { subscriptionType } : {}),
         ...(headFetchedAt ? { performanceHeadFetchedAt: headFetchedAt } : {}),
       },
     });
@@ -609,6 +632,9 @@ export async function refreshSocialAccountStatistics(
       const stored = storedByExternalId.get(post.externalId);
       const data = {
         text: post.text,
+        contentType: post.contentType,
+        postKind: post.postKind,
+        media: persistPostMedia(post.media),
         publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
         url: post.url,
         metrics: mergePostMetrics(
@@ -636,7 +662,14 @@ export async function refreshSocialAccountStatistics(
         // All-null insights keep stored counters and their original age.
         // Partial insights keep any stored counter the fetch did not measure.
         update: preservePostMetrics.has(post.externalId)
-          ? { text: data.text, publishedAt: data.publishedAt, url: data.url }
+          ? {
+              text: data.text,
+              contentType: data.contentType,
+              postKind: data.postKind,
+              media: data.media,
+              publishedAt: data.publishedAt,
+              url: data.url,
+            }
           : data,
       });
       if (preservePostMetrics.has(post.externalId)) continue;
@@ -677,7 +710,12 @@ export async function refreshSocialAccountStatistics(
       where: { connectionId: record.id },
     });
     return {
-      account: { ...account, statistics: snapshot, postCount },
+      account: {
+        ...account,
+        subscriptionType: subscriptionType ?? account.subscriptionType,
+        statistics: snapshot,
+        postCount,
+      },
       importedPostCount: new Set(posts.map((post) => post.externalId)).size,
     };
   }, "Account statistics changed during refresh. Reload the account.");

@@ -23,7 +23,9 @@ export interface OrganizationExitChatRevocationResult {
  * Organization exit (chat): hard-leave every room owned by the organization.
  *
  * Deletes the user's room memberships and read states for that org's rooms
- * (channels and org directs, including external). Records channel "left"
+ * (Channels, including External ones it hosts, and the Coworker and Soko Bot
+ * Directs of its workspace; Personal Directs have no Organization and stay).
+ * Records channel "left"
  * status messages. Soft-archives channels left with zero humans, except a
  * shared Soko Bot's room. Hard-deletes directs left with zero humans
  * (soft-archive would keep `directKey` and block create-or-get; product

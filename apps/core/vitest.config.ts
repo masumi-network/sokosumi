@@ -15,6 +15,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 const optInPostgresFiles = [
   "src/services/image-studio-recovery.postgres.test.ts",
   "src/helpers/calendar-erasure.postgres.test.ts",
+  "src/helpers/calendar-feature-invalidation.postgres.test.ts",
   "src/helpers/project-activity.postgres.test.ts",
   "src/routes/v1/projects/get.postgres.test.ts",
   "src/services/soko-bot-integrations.service.postgres.test.ts",
@@ -22,6 +23,7 @@ const optInPostgresFiles = [
   "src/services/file-search.postgres.test.ts",
   "src/services/file-suggestions.postgres.test.ts",
   "src/services/file-suggestion-backfill.postgres.test.ts",
+  "src/services/file-metadata-labels.postgres.test.ts",
   "src/services/file-table-index.postgres.test.ts",
   "src/services/file-collections.postgres.test.ts",
   "src/services/file-related.postgres.test.ts",
@@ -129,7 +131,7 @@ export default defineConfig({
       process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true"
         ? ["src/test/postgres-worker-databases.ts"]
         : [],
-    /** Same cap as web, for the same reason — see `apps/web/vitest.config.ts`. */
+    /** Same cap as web, for the same reason — see `apps/web/vitest.config.mts`. */
     maxWorkers: process.env.CI ? undefined : "50%",
   },
 });

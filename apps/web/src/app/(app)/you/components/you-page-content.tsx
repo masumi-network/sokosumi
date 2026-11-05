@@ -8,7 +8,7 @@ import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
+import { isNewsletterEnabled } from "@/lib/newsletter-access.server";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import { YouPageClient } from "./you-page.client";
@@ -28,7 +28,7 @@ export async function YouPageContent() {
     { showVendors: showDeveloperVendors },
     creditsResult,
     { members },
-    socialBetaEnabled,
+    newsletterEnabled,
   ] = await Promise.all([
     getTranslations("App.Header.Plan"),
     getDeveloperVendorAdminAccess(),
@@ -37,7 +37,7 @@ export async function YouPageContent() {
       userId: session.user.id,
       activeOrganizationId,
     }),
-    hasCurrentUserSocialBetaAccess(),
+    isNewsletterEnabled(),
   ]);
 
   const credits = mapAccountCreditsChrome(creditsResult);
@@ -64,7 +64,7 @@ export async function YouPageContent() {
         activeOrganizationId,
         showDeveloperVendors,
       }}
-      socialBetaEnabled={socialBetaEnabled}
+      newsletterEnabled={newsletterEnabled}
     />
   );
 }

@@ -1,6 +1,7 @@
 import { gateway, type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 import { z } from "zod";
 import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
+import { holdModelStream } from "./stream-model-call";
 
 /** Public Gateway catalog checked 2026-09-26. Add exact IDs only after review.
  * Virtual aliases and direct-provider objects cannot bypass regional routing.
@@ -55,10 +56,12 @@ export function sokoBotRegionMiddleware(options: {
       assertSokoBotInferenceRegion(result.providerMetadata, options);
       return result;
     },
-    async wrapStream() {
-      // All Soko Bot inference uses generateText. Do not allow streamed tool
-      // calls to escape before their routing metadata has been inspected.
-      throw new SokoBotModelPolicyError();
+    wrapStream({ doStream }) {
+      // A streamed tool call must not escape before the routing metadata in
+      // the stream's finish has been inspected.
+      return holdModelStream(doStream, (finish) =>
+        assertSokoBotInferenceRegion(finish?.providerMetadata, options),
+      );
     },
   };
 }

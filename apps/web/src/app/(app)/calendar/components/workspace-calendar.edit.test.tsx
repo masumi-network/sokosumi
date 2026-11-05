@@ -56,6 +56,7 @@ const {
   pushMock,
   refreshMock,
   toastErrorMock,
+  toastSuccessMock,
 } = vi.hoisted(() => ({
   calendarRealtimeBridgeMock: vi.fn(),
   changeTaskScheduleRunMock: vi.fn(),
@@ -69,6 +70,7 @@ const {
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
@@ -139,6 +141,7 @@ vi.mock("next-intl", async () => {
   const formatter = createTestFormatter({ locale: "en-US" });
   return {
     useFormatter: () => formatter,
+    useLocale: () => "en",
     useTranslations: () => (key: string, values?: Record<string, string>) => {
       if (key === "event.accessibleName") {
         return `${values?.task}, ${values?.source}`;
@@ -156,6 +159,7 @@ vi.mock("sonner", () => ({
   toast: {
     error: (...args: unknown[]) => toastErrorMock(...args),
     info: vi.fn(),
+    success: (...args: unknown[]) => toastSuccessMock(...args),
   },
 }));
 
@@ -251,6 +255,12 @@ const RUN_AT_ITEM: WorkspaceCalendarItem = {
 
 const SOCIAL_POST: SocialPostCalendarItem = {
   kind: "socialPost",
+  quotedPostId: null,
+  needsAttentionReason: null,
+  threadPartCount: 1,
+  publishedThreadPartCount: 0,
+  failedThreadPartPosition: null,
+  partiallyPublished: false,
   revision: 4,
   id: "social:post-1",
   postId: "post-1",
@@ -380,7 +390,7 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.dayCellClass).toContain("motion-safe:ease-out");
   });
 
-  it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {
+  it("follows the Project scope in pagination and has no project filter of its own", async () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
         <WorkspaceCalendar
@@ -395,9 +405,9 @@ describe("WorkspaceCalendar editing", () => {
     const topLevelSections = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
       sections: Array<{ id: string }>;
     };
-    expect(topLevelSections.sections.map((section) => section.id)).toContain(
-      "source",
-    );
+    expect(
+      topLevelSections.sections.map((section) => section.id),
+    ).not.toContain("source");
 
     await waitFor(() =>
       expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
@@ -529,80 +539,10 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
-  it("prefills the active Workspace source on the workspace Calendar", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: null }),
-    );
-  });
-
-  it("does not prefill an unschedulable Workspace source", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES.map((source) =>
-            source.sourceType === "WORKSPACE"
-              ? { ...source, isSchedulable: false }
-              : source,
-          )}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: undefined }),
-    );
-  });
-
   it("prefills the active Project source on the workspace Calendar", async () => {
     const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: "project-1" }),
-    );
-  });
-
-  it("prefills a Project source supplied through the source filter", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=project%3Aproject-1">
         <WorkspaceCalendar
           coworkers={[{ id: "coworker-1", name: "Ada" }]}
           initialDate="2030-01-02"
@@ -1102,6 +1042,56 @@ describe("WorkspaceCalendar editing", () => {
       await request.promise;
     });
     await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+  });
+
+  it("reports quotes moved by a drag and refreshes the calendar", async () => {
+    const request = createDeferred<{
+      ok: true;
+      value: { id: string; movedQuotes: { id: string; scheduledAt: Date }[] };
+    }>();
+    scheduleProjectSocialPostMock.mockReturnValue(request.promise);
+    renderCalendar({ items: [SOCIAL_POST] });
+
+    const props = fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps;
+    const revert = vi.fn();
+    const droppedAt = new Date("2030-01-04T14:00:00.000Z");
+
+    await act(async () => {
+      props.eventDrop?.({
+        event: { id: SOCIAL_POST.id, start: droppedAt },
+        revert,
+      });
+    });
+
+    expect(scheduleProjectSocialPostMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      postId: "post-1",
+      scheduledAt: droppedAt.toISOString(),
+      revision: 4,
+    });
+    const optimistic = (
+      fullCalendarMock.mock.calls.at(-1)?.[0] as FullCalendarProps
+    ).events?.find((candidate) => candidate.id === SOCIAL_POST.id);
+    expect(optimistic?.start).toBe(droppedAt.toISOString());
+    expect(revert).not.toHaveBeenCalled();
+
+    await act(async () => {
+      request.resolve({
+        ok: true,
+        value: {
+          id: "post-1",
+          movedQuotes: [
+            {
+              id: "quote-1",
+              scheduledAt: new Date(droppedAt.getTime() + 60_000),
+            },
+          ],
+        },
+      });
+      await request.promise;
+    });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    expect(toastSuccessMock).toHaveBeenCalledWith("movedQuotes");
   });
 
   it("retires a confirmed social move when fresh server items arrive", async () => {

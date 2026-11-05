@@ -20,6 +20,7 @@ import {
   imageDimensions,
   providerChoosesOutputSize,
 } from "./image-model";
+import { getVideoCatalog } from "./video-catalog";
 
 const settings = {
   aspectRatio: "1:1",
@@ -36,7 +37,15 @@ describe("resolved image catalog", () => {
     expect(catalog.models.length).toBeGreaterThan(100);
     expect(catalog.refreshedAt).toBeNull();
     expect(catalog.snapshotDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(imageStudioCatalogSchema.safeParse(catalog).success).toBe(true);
+    const video = getVideoCatalog();
+    expect(
+      imageStudioCatalogSchema.safeParse({
+        ...catalog,
+        defaultVideoModelId: video.defaultModelId,
+        defaultAnimateModelId: video.defaultAnimateModelId,
+        videoModels: video.models,
+      }).success,
+    ).toBe(true);
   });
 
   it("no longer rides inside the polled project state", () => {

@@ -19,6 +19,34 @@ describe("ApplePwaHead", () => {
     expect(existsSync(file)).toBe(true);
   });
 
+  it("gives every device a splash for both themes and orientations", () => {
+    render(<ApplePwaHead />);
+    const splashes = [
+      ...document.querySelectorAll('link[rel="apple-touch-startup-image"]'),
+    ];
+
+    expect(splashes).toHaveLength(92);
+    for (const splash of splashes) {
+      const href = splash.getAttribute("href") ?? "";
+      const media = splash.getAttribute("media") ?? "";
+      expect(existsSync(join(process.cwd(), "public", href.slice(1)))).toBe(
+        true,
+      );
+      expect(media.includes("prefers-color-scheme: dark")).toBe(
+        href.endsWith("-dark.jpg"),
+      );
+    }
+  });
+
+  it("colors the browser chrome like the page background", () => {
+    render(<ApplePwaHead />);
+    const colors = [
+      ...document.querySelectorAll('meta[name="theme-color"]'),
+    ].map((meta) => meta.getAttribute("content"));
+
+    expect(colors).toEqual(["#ffffff", "#0c0c0c"]);
+  });
+
   it("names the home screen after the manifest, not the page title", () => {
     render(<ApplePwaHead />);
     const title = document

@@ -23,7 +23,8 @@ export function channelKindIcon(discoverability?: Discoverability) {
 
 /**
  * The kind glyph on its own, for a caller that already owns the box around it
- * — a sidebar row, where the box is the row's `SidebarRowSlot`.
+ * — a sidebar row, where the box is the row's `SidebarRowSlot`. The box sizes
+ * it, so it names no size of its own.
  */
 export function ChannelKindGlyph({
   discoverability,
@@ -37,11 +38,18 @@ export function ChannelKindGlyph({
   return (
     <Icon
       data-slot="channel-glyph"
-      className={cn("size-4 shrink-0", className)}
+      className={cn("shrink-0", className)}
       aria-hidden
     />
   );
 }
+
+/**
+ * The box a room's leading mark sits in beside its title, and the glyph size
+ * inside it: this kind glyph, and a Direct's icon or face in the room header.
+ */
+export const CHAT_TITLE_MARK_CLASS =
+  "inline-flex size-7 shrink-0 items-center justify-center md:size-5 [&_svg]:size-4.5 md:[&_svg]:size-3.5";
 
 /**
  * Slack-like: `#` for public, lock for private, globe for external/matched,
@@ -55,18 +63,11 @@ export function ChannelDiscoverabilityIcon({
 }: ChannelDiscoverabilityIconProps) {
   return (
     <span
-      className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center md:size-5 [&_svg]:size-4.5 md:[&_svg]:size-3.5",
-        className,
-      )}
+      className={cn(CHAT_TITLE_MARK_CLASS, className)}
       {...props}
       aria-hidden
     >
-      {/* The box sizes the glyph, so it brings no size of its own. */}
-      <ChannelKindGlyph
-        discoverability={discoverability}
-        className="size-auto"
-      />
+      <ChannelKindGlyph discoverability={discoverability} />
     </span>
   );
 }

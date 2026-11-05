@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import { TaskCanonicalUrl } from "@/app/tasks/components/task-canonical-url";
@@ -21,6 +22,7 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   // Uuid, `SOK-12`, or `SOK-12-some-slug`: Core resolves all three.
+  await connection();
   const { taskId } = await params;
 
   // Happy path is active-workspace scoped: one Core read. Only probe workspace

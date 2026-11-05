@@ -82,7 +82,7 @@ describe("getNotificationIndicator", () => {
 describe("getNotificationIndicatorClassName", () => {
   it("maps tones to semantic utility classes", () => {
     expect(getNotificationIndicatorClassName("primary")).toContain(
-      "bg-primary-solid",
+      "bg-primary",
     );
     expect(getNotificationIndicatorClassName("warning")).toContain(
       "bg-semantic-warning",

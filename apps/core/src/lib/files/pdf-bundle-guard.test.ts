@@ -40,7 +40,7 @@ import { describe, expect, it } from "vitest";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const REPO_ROOT = path.resolve(PACKAGE_ROOT, "../..");
-const SCRIPT = path.join(PACKAGE_ROOT, "scripts", "check-pdfjs-bundle.mjs");
+const SCRIPT = path.join(PACKAGE_ROOT, "scripts", "check-bundle-includes.mjs");
 
 function run(cwd: string) {
   return spawnSync(process.execPath, [SCRIPT], { cwd, encoding: "utf8" });
@@ -120,7 +120,7 @@ describe("the pdfjs packaging guard", () => {
      */
     const elsewhere = mkdtempSync(`${tmpdir()}/pdfjs-guard-`);
     try {
-      const copied = `${elsewhere}/check-pdfjs-bundle.mjs`;
+      const copied = `${elsewhere}/check-bundle-includes.mjs`;
       copyFileSync(SCRIPT, copied);
 
       /**
@@ -178,7 +178,7 @@ describe("the pdfjs packaging guard", () => {
     try {
       // A tree the script can run in: the real script, the real
       // node_modules symlink, and a vercel.json keeping only main's half.
-      const copied = `${withoutOurHalf}/check-pdfjs-bundle.mjs`;
+      const copied = `${withoutOurHalf}/check-bundle-includes.mjs`;
       copyFileSync(SCRIPT, copied);
       symlinkSync(
         path.join(PACKAGE_ROOT, "node_modules"),
@@ -233,7 +233,7 @@ describe("the pdfjs packaging guard", () => {
      */
     const withoutMainsHalf = mkdtempSync(`${tmpdir()}/pdfjs-runner-`);
     try {
-      const copied = `${withoutMainsHalf}/check-pdfjs-bundle.mjs`;
+      const copied = `${withoutMainsHalf}/check-bundle-includes.mjs`;
       copyFileSync(SCRIPT, copied);
       symlinkSync(
         path.join(PACKAGE_ROOT, "node_modules"),
@@ -318,7 +318,7 @@ describe("the pdfjs packaging guard", () => {
     ) as { scripts: Record<string, string> };
 
     expect(manifest.scripts["vercel-build"]).toContain(
-      "check-pdfjs-bundle.mjs",
+      "check-bundle-includes.mjs",
     );
   });
 });

@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, SokoBotAvatarState } from "@sokosumi/database";
 import { getFirstName } from "@sokosumi/utils";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotOwnerOf } from "@/helpers/soko-bot-owner";
@@ -8,6 +8,15 @@ export const chatRoomSokoBotSelect = {
   id: true,
   name: true,
   avatarImageUrl: true,
+  avatar: {
+    select: {
+      styleId: true,
+      renders: {
+        where: { state: { in: ["IDLE", "WORKING"] } },
+        select: { state: true, loopUrl: true },
+      },
+    },
+  },
   avatarSeed: true,
   userId: true,
   projectId: true,
@@ -20,6 +29,10 @@ export interface ChatRoomSokoBotRow {
   id: string;
   name: string | null;
   avatarImageUrl: string | null;
+  avatar: {
+    styleId: string;
+    renders: { state: SokoBotAvatarState; loopUrl: string | null }[];
+  } | null;
   avatarSeed: string | null;
   userId: string | null;
   projectId: string | null;
@@ -58,12 +71,18 @@ export function mapChatRoomSokoBotParticipant(
   bot: ChatRoomSokoBotRow,
 ): ChatRoomSokoBotParticipant {
   const owner = sokoBotOwnerOf(bot);
+  const loopOf = (state: SokoBotAvatarState) =>
+    bot.avatar?.renders.find((render) => render.state === state)?.loopUrl ??
+    null;
   return {
     id: bot.id,
     name: sokoBotDisplayName(bot),
     caption: sokoBotCaption(bot),
     image: bot.avatarImageUrl ?? null,
     avatarSeed: sokoBotAvatarSeedFor(bot),
+    avatarStyleId: bot.avatar?.styleId ?? null,
+    idleLoopUrl: loopOf("IDLE"),
+    workingLoopUrl: loopOf("WORKING"),
     ownerUserId: owner.kind === "personal" ? owner.userId : null,
     scope: owner.kind === "personal" ? "personal" : owner.scope,
     sharedRoomId: bot.sharedRoomId,

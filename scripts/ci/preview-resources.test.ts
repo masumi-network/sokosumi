@@ -7,7 +7,7 @@ import {
   renewOpenPreview,
   resolvePreviewPullNumber,
 } from "./preview-lifecycle.ts";
-import { preparePreviewResources } from "./preview-resources.ts";
+import { preparePreviewResources, vercelRequest } from "./preview-resources.ts";
 import { deployTargets, runPreviewDeployComment } from "./vercel-deploy.mjs";
 
 interface Branch {
@@ -27,6 +27,7 @@ function setup() {
   ];
   const envs: Record<string, unknown>[] = [];
   const deployments: Record<string, unknown>[] = [];
+  const gitRefs: { ref: string }[] = [];
   const pull = {
     number: 7,
     state: "open",
@@ -39,7 +40,10 @@ function setup() {
     const body = JSON.parse(String(init.body ?? "{}"));
     calls.push({ url, method, body });
     const json = (value: unknown) => Response.json(value);
-    if (url.host === "api.github.com") return json(pull);
+    if (url.host === "api.github.com")
+      return json(
+        url.pathname.includes("/git/matching-refs/") ? gitRefs : pull,
+      );
     if (url.host === "console.neon.tech") {
       if (url.pathname.endsWith("/branches")) {
         if (method === "POST") {
@@ -124,7 +128,7 @@ function setup() {
     neonFetchImpl: fetchImpl,
     fetchImpl,
   };
-  return { options, calls, branches, envs, deployments, pull };
+  return { options, calls, branches, envs, deployments, pull, gitRefs };
 }
 
 test("bare /deploy replies with help without touching Neon or Vercel", async () => {
@@ -403,6 +407,8 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
     .map((call) => call.url.pathname);
   assert.ok(removed.includes("/v13/deployments/dpl-ours"));
   assert.ok(removed.some((path) => path.endsWith("/branches/br-preview")));
+  // A same-repo PR's branch is the author's, never ours to delete.
+  assert.ok(!removed.some((path) => path.includes("/git/refs")));
   assert.ok(
     !removed.some((path) =>
       /dpl-production|dpl-other|env-prod|br-production|br-legacy/.test(path),
@@ -414,6 +420,31 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
   );
   // Expired DBs are still found through their Vercel environment ownership marker.
   assert.deepEqual(await previewCleanupInventory(options), [7]);
+});
+
+test("closed fork PRs are cleaned up and listed by the daily inventory", async () => {
+  const { options, calls, branches, pull } = setup();
+  await preparePreviewResources(
+    { ...options, ref: "preview-fork/pr-7" },
+    deployTargets(["preprod"]),
+  );
+  pull.head.repo.id = 100;
+  pull.state = "closed";
+  assert.deepEqual(await previewCleanupInventory(options), [7]);
+  await cleanupClosedPreview(options);
+  const deleted = calls
+    .filter((call) => call.method === "DELETE")
+    .map((call) => call.url.pathname);
+  // The git branch goes first; the env marker rediscovers the PR if it fails.
+  assert.equal(
+    deleted[0],
+    "/repos/owner/repo/git/refs/heads/preview-fork/pr-7",
+  );
+  assert.ok(deleted.some((path) => path.endsWith("/br-preview")));
+  assert.deepEqual(
+    branches.map((branch) => branch.id),
+    ["br-production"],
+  );
 });
 
 test("cleanup deletes owned credentials after the git branch is renamed", async () => {
@@ -467,7 +498,11 @@ test("daily inventory skips a missing PR and still includes later closed PRs", a
   const lookedUp: number[] = [];
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
-    if (url.host !== "api.github.com") return options.fetchImpl(input, init);
+    if (
+      url.host !== "api.github.com" ||
+      url.pathname.includes("/git/matching-refs/")
+    )
+      return options.fetchImpl(input, init);
     const number = Number(url.pathname.split("/").at(-1));
     lookedUp.push(number);
     return number === 6
@@ -506,7 +541,11 @@ test("daily inventory skips open PRs and drains a backlog in bounded batches", a
   const lookedUp: number[] = [];
   const fetchImpl: typeof fetch = (input, init) => {
     const url = new URL(String(input));
-    if (url.host !== "api.github.com") return options.fetchImpl(input, init);
+    if (
+      url.host !== "api.github.com" ||
+      url.pathname.includes("/git/matching-refs/")
+    )
+      return options.fetchImpl(input, init);
     const number = Number(url.pathname.split("/").at(-1));
     lookedUp.push(number);
     return Promise.resolve(
@@ -711,5 +750,51 @@ test("resolvePreviewPullNumber fails when no PR can be resolved", async () => {
       },
     }),
     /A valid PR number is required/,
+  );
+});
+
+test("Vercel errors carry Vercel's code and message, never the rest of the body", async () => {
+  const fetchImpl: typeof fetch = async () =>
+    Response.json(
+      {
+        error: { code: "bad_request", message: "Branch not found" },
+        value: "postgres://secret",
+      },
+      { status: 400 },
+    );
+  await assert.rejects(
+    vercelRequest(
+      { fetchImpl, vercelToken: "vercel-key", teamId: "team-test" },
+      "/v10/projects/prj/env",
+      { method: "POST" },
+    ),
+    (error: Error) =>
+      error.message ===
+        "Vercel POST /v10/projects/prj/env failed (400): bad_request: Branch not found" &&
+      !error.message.includes("secret"),
+  );
+});
+
+test("inventory finds a fork preview branch whose /deploy failed before its env vars", async () => {
+  const { options, calls, pull, gitRefs } = setup();
+  gitRefs.push(
+    { ref: "refs/heads/preview-fork/pr-7" },
+    { ref: "refs/heads/preview-fork/pr-7-copy" },
+  );
+  pull.head.repo.id = 100;
+  pull.state = "closed";
+  assert.deepEqual(await previewCleanupInventory(options), [7]);
+  assert.ok(
+    calls.some((call) =>
+      call.url.pathname.endsWith("/git/matching-refs/heads/preview-fork/pr-"),
+    ),
+  );
+  await cleanupClosedPreview(options);
+  assert.ok(
+    calls.some(
+      (call) =>
+        call.method === "DELETE" &&
+        call.url.pathname.endsWith("/git/refs/heads/preview-fork/pr-7"),
+    ),
   );
 });

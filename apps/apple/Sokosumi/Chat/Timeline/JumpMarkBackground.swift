@@ -20,7 +20,7 @@
         ZStack(alignment: .leading) {
           wash.scaleEffect(x: 0.55 + 0.45 * drawing.open, y: 1)
           RoundedRectangle(cornerRadius: 3)
-            .fill(Color.accentColor)
+            .fill(.primary)
             .frame(width: 3)
             .scaleEffect(x: 1, y: 0.15 + 0.85 * drawing.open)
             .padding(.vertical, 3)
@@ -31,14 +31,14 @@
       .accessibilityHidden(true)
     }
 
-    /// Web mixes the primary into the row at 16 / 11 / 10 % across it, and runs dark stronger (26 / 20 / 18 %):
-    /// a light accent over a dark ground lifts far less than a saturated one over white.
+    /// Web mixes the foreground into the row at 8 / 6 / 5 % across it, and runs dark stronger (12 / 9 / 8 %):
+    /// white lifts a dark ground less than black darkens a white one.
     private var wash: some View {
       let dark = colorScheme == .dark
       return LinearGradient(stops: [
-        .init(color: .accentColor.opacity(dark ? 0.26 : 0.16), location: 0),
-        .init(color: .accentColor.opacity(dark ? 0.2 : 0.11), location: 0.45),
-        .init(color: .accentColor.opacity(dark ? 0.18 : 0.1), location: 1)
+        .init(color: .primary.opacity(dark ? 0.12 : 0.08), location: 0),
+        .init(color: .primary.opacity(dark ? 0.09 : 0.06), location: 0.45),
+        .init(color: .primary.opacity(dark ? 0.08 : 0.05), location: 1)
       ], startPoint: .leading, endPoint: .trailing)
     }
 

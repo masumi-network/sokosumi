@@ -7,11 +7,7 @@
  * and holds no other jump step.
  */
 
-import {
-  CHAT_MESSAGE_LIST_ATTRIBUTE,
-  CHAT_MESSAGE_LIST_ROOM,
-  CHAT_MESSAGE_LIST_THREAD,
-} from "@/app/chat/chat-message-list";
+import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 
 /**
  * The longest a landed row stays marked. A reader scroll cuts it short.
@@ -218,20 +214,4 @@ export function highlightListMessage(list: string, messageId: string): boolean {
     document.querySelector(`[${CHAT_MESSAGE_LIST_ATTRIBUTE}="${list}"]`),
     messageId,
   );
-}
-
-/**
- * Land on a message in the open thread. False when the thread does not hold
- * it, which is the caller's cue to load a window around it.
- */
-export function highlightThreadMessage(messageId: string): boolean {
-  return highlightListMessage(CHAT_MESSAGE_LIST_THREAD, messageId);
-}
-
-/**
- * Land on a message in the room transcript. False when the message is not in
- * the loaded page.
- */
-export function highlightRoomTranscriptMessage(messageId: string): boolean {
-  return highlightListMessage(CHAT_MESSAGE_LIST_ROOM, messageId);
 }

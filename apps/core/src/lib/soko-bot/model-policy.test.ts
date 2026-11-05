@@ -1,4 +1,9 @@
-import { generateText, tool, wrapLanguageModel } from "ai";
+import {
+  generateText,
+  simulateReadableStream,
+  tool,
+  wrapLanguageModel,
+} from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -10,6 +15,7 @@ import {
   sokoBotModelRequest,
   sokoBotRegionMiddleware,
 } from "./model-policy";
+import { streamModelCall } from "./stream-model-call";
 
 describe("Soko Bot EU model policy", () => {
   it("rejects explicit regional mismatch before the SDK executes a returned tool call", async () => {
@@ -68,6 +74,74 @@ describe("Soko Bot EU model policy", () => {
       }),
     ).rejects.toThrow("not approved");
     expect(execute).not.toHaveBeenCalled();
+  });
+  it("holds a streamed tool call back until the stream's routing is checked", async () => {
+    const execute = vi.fn();
+    const routedTo = (geoRegion: string) =>
+      wrapLanguageModel({
+        model: new MockLanguageModelV3({
+          doStream: async () => ({
+            stream: simulateReadableStream({
+              chunks: [
+                {
+                  type: "tool-call" as const,
+                  toolCallId: "call-one",
+                  toolName: "mutate",
+                  input: "{}",
+                },
+                {
+                  type: "finish" as const,
+                  finishReason: {
+                    unified: "tool-calls" as const,
+                    raw: "tool-calls",
+                  },
+                  usage: {
+                    inputTokens: {
+                      total: 1,
+                      noCache: 1,
+                      cacheRead: undefined,
+                      cacheWrite: undefined,
+                    },
+                    outputTokens: { total: 1, text: 1, reasoning: undefined },
+                  },
+                  providerMetadata: {
+                    gateway: {
+                      routing: {
+                        modelAttempts: [
+                          {
+                            providerAttempts: [
+                              {
+                                provider: "vertex",
+                                inferenceEndpoint: { geoRegion },
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                  },
+                },
+              ],
+            }),
+          }),
+        }),
+        middleware: sokoBotRegionMiddleware({
+          model: "google/gemini-3.6-flash",
+          role: "agent",
+        }),
+      });
+    const call = (geoRegion: string) =>
+      streamModelCall({
+        model: routedTo(geoRegion),
+        prompt: "Synthetic task",
+        maxRetries: 0,
+        tools: { mutate: tool({ inputSchema: z.object({}), execute }) },
+      });
+
+    await expect(call("us")).rejects.toThrow("not approved");
+    expect(execute).not.toHaveBeenCalled();
+    await call("eu");
+    expect(execute).toHaveBeenCalledOnce();
   });
   it.each(["agent", "judge"] as const)(
     "pins %s requests with no SDK retries",

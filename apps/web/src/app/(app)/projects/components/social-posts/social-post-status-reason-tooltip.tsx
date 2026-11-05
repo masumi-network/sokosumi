@@ -29,7 +29,7 @@ export function SocialPostStatusReasonTooltip({
         <span
           aria-describedby={descriptionId}
           aria-label={label}
-          className="inline-flex rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
+          className="inline-flex rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           data-testid="social-post-status-reason"
           onClick={(event) => {
             event.preventDefault();

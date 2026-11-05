@@ -4,6 +4,7 @@ const {
   agentCountMock,
   agentFindManyMock,
   billingMock,
+  brandBrainFindUniqueMock,
   coworkerCountMock,
   coworkerFindManyMock,
   creditCostFindManyMock,
@@ -26,6 +27,7 @@ const {
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   billingMock: vi.fn(),
+  brandBrainFindUniqueMock: vi.fn(),
   coworkerCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
@@ -54,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
+    brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
     creditCost: { findMany: creditCostFindManyMock },
     job: { count: jobCountMock, findMany: jobFindManyMock },
@@ -79,6 +82,7 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   ContextPacketBuilder,
   SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+  triggerHints,
 } from "./context-packet";
 
 const NOW = new Date("2026-08-18T10:00:00.000Z");
@@ -376,6 +380,35 @@ describe("ContextPacketBuilder", () => {
     if (turns.length > 0) expect(turns.at(-1)?.id).toBe("turn-0");
   });
 
+  it("keeps the last eight turns of the conversation even when Tasks must give way", async () => {
+    const longText = "x".repeat(3_000);
+    const blockers = Array.from({ length: 5 }, (_, index) => ({
+      fromTask: { id: `blocker-${index}`, name: longText, status: "RUNNING" },
+    }));
+    taskFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => ({
+        ...task(`task-${index}`, longText),
+        events: [{ status: "RUNNING", comment: longText, createdAt: NOW }],
+        linksTo: blockers,
+        _count: { linksTo: 5 },
+      })),
+    );
+    recentTurnFindManyMock.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) =>
+        recentTurn(`turn-${index}`, longText, longText),
+      ),
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.byteSize).toBeLessThanOrEqual(
+      SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+    );
+    // The bot can list Tasks again; it cannot read the conversation back.
+    expect(result.packet.tasks.length).toBeLessThan(24);
+    expect(result.packet.recentTurns.map((turn) => turn.id)).toEqual(
+      Array.from({ length: 8 }, (_, index) => `turn-${7 - index}`),
+    );
+  });
+
   it("keeps the newest reply long enough to hold the question it ended with", async () => {
     const long = `${"Research. ".repeat(150)}Want me to replace the row?`;
     // Newest first, as the query returns them.
@@ -598,6 +631,48 @@ describe("ContextPacketBuilder", () => {
     );
   });
 
+  it("gives a Project bot its Project's Brand Brain", async () => {
+    const sharedScope = {
+      sokoBotId: buildInput().sokoBotId,
+      workspaceId: buildInput().workspaceId,
+      projectId: "project-1",
+    };
+    projectFindManyMock.mockResolvedValue([project("project-1")]);
+    brandBrainFindUniqueMock.mockResolvedValue({
+      body: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: ["Founders"],
+        products: ["Rockets"],
+        competitors: [],
+        channels: [],
+        questions: [],
+      },
+    });
+
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      sharedScope,
+    });
+
+    expect(brandBrainFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { projectId: "project-1" } }),
+    );
+    expect(result.packet.projects[0]).toMatchObject({
+      id: "project-1",
+      brandBrain: {
+        summary: "Acme sells rockets.",
+        audience: ["Founders"],
+      },
+    });
+  });
+
+  it("gives a personal assistant no Brand Brain", async () => {
+    await new ContextPacketBuilder().build(buildInput());
+
+    expect(brandBrainFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("loads only public Tasks and Jobs for teammate audience packets", async () => {
     await new ContextPacketBuilder().build({
       ...buildInput(),
@@ -698,6 +773,28 @@ describe("ContextPacketBuilder", () => {
 
     for (const secret of secretValues) expect(serialized).not.toContain(secret);
     expect(serialized).toContain("[Sensitive value removed]");
+  });
+
+  it("names every Project past the detailed ones, so the owner can name any", async () => {
+    projectFindManyMock
+      .mockResolvedValueOnce([project("project-new")])
+      .mockResolvedValueOnce([{ id: "project-quiet", name: "Outreach" }]);
+    projectCountMock.mockResolvedValue(2);
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.projects).toEqual([
+      expect.objectContaining({ id: "project-new", status: expect.anything() }),
+      { id: "project-quiet", name: "Outreach", trust: "untrusted-data" },
+    ]);
+    expect(projectFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [expect.anything(), { id: { notIn: ["project-new"] } }],
+        },
+        take: 100,
+      }),
+    );
   });
 
   it("deterministically drops least-relevant tails under hard byte budget", async () => {
@@ -936,6 +1033,18 @@ describe("ContextPacketBuilder", () => {
             { chatMention: { message: { roomId: "room-one" } } },
             // What a background run reported into this room.
             { parentTurnId: { not: null }, destinationRoomId: "room-one" },
+            // What the bot posted here on its own: an inbox check, a schedule.
+            {
+              chatMentionId: null,
+              destinationRoomId: "room-one",
+              deliveries: {
+                some: {
+                  purpose: "FINAL",
+                  status: "PUBLISHED",
+                  roomId: "room-one",
+                },
+              },
+            },
           ],
         }),
       }),
@@ -955,5 +1064,61 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.sourceCoverage?.calendar.availability).toBe(
       "NOT_FETCHED",
     );
+  });
+});
+
+describe("triggerHints", () => {
+  const typed = (classification: object, extra: object = {}) =>
+    triggerHints({
+      userId: "user-1",
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      sharedScope: null,
+      source: "CHAT",
+      classification: { ...CLASSIFICATION, ...classification },
+      personAsked: true,
+      ...extra,
+    });
+
+  it("leaves an unsure route to the trigger, without telling the bot to act anyway", () => {
+    // "every tool is available" on a CLARIFY at 51% made the bot guess the
+    // client in the ambiguous-request scenario and create a Task.
+    expect(typed({ route: "CLARIFY", confidence: 0.51 })).toEqual([]);
+  });
+
+  it("turns likely signals into context, and a saved preference into a note", () => {
+    const hints = typed(
+      {
+        signals: {
+          refersToEarlier: 0.9,
+          statesPreference: 0.95,
+          aboutMail: 0.8,
+          aboutTasks: 0.05,
+        },
+      },
+      { capturedPreference: "Do not flag Make scenario errors." },
+    );
+    expect(hints.join("\n")).toMatch(/points back at earlier messages/);
+    expect(hints.join("\n")).toMatch(/about mail/);
+    expect(hints.join("\n")).toMatch(
+      /Saved to your memory's preferences .*"Do not flag Make scenario errors\."/,
+    );
+  });
+
+  it("adds nothing for a sure route, or for a turn nobody typed", () => {
+    expect(typed({})).toEqual([]);
+    expect(
+      typed(
+        {
+          signals: {
+            refersToEarlier: 0.9,
+            statesPreference: 0,
+            aboutMail: 0,
+            aboutTasks: 0,
+          },
+        },
+        { personAsked: false },
+      ),
+    ).toEqual([]);
   });
 });

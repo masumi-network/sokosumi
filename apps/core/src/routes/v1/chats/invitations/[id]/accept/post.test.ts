@@ -186,7 +186,6 @@ beforeEach(() => {
     mentionsAsSource: [],
     reactions: [],
     replies: [],
-    _count: { replies: 0 },
   });
 });
 

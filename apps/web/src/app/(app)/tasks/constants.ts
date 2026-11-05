@@ -1,6 +1,14 @@
 export const TASKS_ROUTE_REFRESH_DEBOUNCE_MS = 500;
 
 /**
+ * The board re-renders the whole page on a task event, about a dozen Core
+ * reads. Agents send events all day, so it waits for a quiet moment, and
+ * never longer than the max wait.
+ */
+export const TASKS_BOARD_REFRESH_DEBOUNCE_MS = 2_000;
+export const TASKS_BOARD_REFRESH_MAX_WAIT_MS = 10_000;
+
+/**
  * Task detail outer shell (auth + share): centered max-w-[80rem] (Linear-like
  * ~790px text column + 56px gap + 400px sidebar). Keep task-specific
  * `pb-8 md:px-4` so Instant loading matches.

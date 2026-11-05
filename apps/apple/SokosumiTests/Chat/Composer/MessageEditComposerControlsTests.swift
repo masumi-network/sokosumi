@@ -57,7 +57,7 @@
         #expect(abs(cancel.rect.width - save.rect.width) <= 2 * scale, "Both are the same size: \(cancel.rect), \(save.rect).")
         #expect(save.rect.minX - cancel.rect.maxX >= 2 * scale, "They do not touch.")
         #expect(Self.frameRight(fixture, bitmap: bitmap) - save.rect.maxX >= 8 * scale, "Save keeps its padding from the border.")
-        #expect(save.coloredPixels > 20, "Save carries the accent colour (\(save.coloredPixels) coloured pixels).")
+        #expect(save.coloredPixels > 20, "Save carries the Iris fill (\(save.coloredPixels) coloured pixels).")
         #expect(cancel.coloredPixels < save.coloredPixels / 4, "Cancel is grey (\(cancel.coloredPixels) vs \(save.coloredPixels)).")
       }
 
@@ -137,11 +137,11 @@
           return controls
         }
         let enabled = try await controls("changed", draft: "Original, fixed")
-        #expect(enabled[1].coloredPixels > 20, "Save carries the accent on a changed draft (\(enabled[1].coloredPixels) coloured pixels).")
+        #expect(enabled[1].coloredPixels > 20, "Save carries the Iris fill on a changed draft (\(enabled[1].coloredPixels) coloured pixels).")
         for (state, draft) in [("unchanged", "Original"), ("padded", "  Original  "), ("empty", ""), ("over-limit", Self.overLimit)] {
           let disabled = try await controls(state, draft: draft)
           #expect(disabled[1].strength < enabled[1].strength * 0.8, "\(state): Save dims (\(enabled[1].strength) → \(disabled[1].strength)).")
-          #expect(disabled[1].coloredPixels < enabled[1].coloredPixels / 4, "\(state): Save loses the accent (\(disabled[1].coloredPixels)).")
+          #expect(disabled[1].coloredPixels < enabled[1].coloredPixels / 4, "\(state): Save loses the fill (\(disabled[1].coloredPixels)).")
           #expect(disabled[0].strength > enabled[0].strength * 0.8, "\(state): Cancel stays enabled (\(enabled[0].strength) → \(disabled[0].strength)).")
         }
         let again = try await controls("changed-again", draft: "Original, fixed")

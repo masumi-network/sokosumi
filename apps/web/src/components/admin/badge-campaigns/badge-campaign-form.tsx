@@ -31,9 +31,6 @@ import { cn } from "@/lib/utils";
 const DURATION_DAYS = [7, 14, 21] as const;
 const DEFAULT_DURATION = "21";
 const CUSTOM_DURATION = "custom";
-/** The chosen length takes the tint the app uses for what is on. */
-const DURATION_ITEM_CLASS =
-  "data-[state=on]:bg-primary-quaternary data-[state=on]:text-primary-variant data-[state=on]:font-medium";
 
 /**
  * Dates are entered in the admin's own time zone and sent to Core as UTC. A
@@ -233,8 +230,6 @@ export function BadgeCampaignForm({
           <Label id={`${fieldId}-duration-label`}>{t("Form.runsFor")}</Label>
           <ToggleGroup
             type="single"
-            variant="outline"
-            size="lg"
             value={duration}
             onValueChange={handleDurationChange}
             aria-labelledby={`${fieldId}-duration-label`}
@@ -242,18 +237,11 @@ export function BadgeCampaignForm({
             className="w-full"
           >
             {DURATION_DAYS.map((days) => (
-              <ToggleGroupItem
-                key={days}
-                value={String(days)}
-                className={DURATION_ITEM_CLASS}
-              >
+              <ToggleGroupItem key={days} value={String(days)}>
                 {t("Form.weeks", { count: days / 7 })}
               </ToggleGroupItem>
             ))}
-            <ToggleGroupItem
-              value={CUSTOM_DURATION}
-              className={DURATION_ITEM_CLASS}
-            >
+            <ToggleGroupItem value={CUSTOM_DURATION}>
               {t("Form.custom")}
             </ToggleGroupItem>
           </ToggleGroup>

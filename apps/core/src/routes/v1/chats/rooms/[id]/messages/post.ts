@@ -32,6 +32,7 @@ import {
   chatRoomMessageSchema,
   createChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
+import { enqueueChatMessageSignal } from "@/services/chat-message-signals.service";
 import {
   resolveAttachedSkills,
   skillMetadata,
@@ -52,6 +53,7 @@ import {
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
+  withChatRoomReplyCount,
 } from "../../helpers";
 import { markChatRoomThreadRead } from "../../room-unread";
 import { requireWritableChatRoom } from "../../writable-chat-room";
@@ -239,7 +241,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return created(
         c,
-        chatRoomMessageSchema.parse(mapChatRoomMessage(message)),
+        chatRoomMessageSchema.parse(
+          mapChatRoomMessage(await withChatRoomReplyCount(prisma, message)),
+        ),
       );
     }
 
@@ -521,7 +525,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(
         c,
         chatRoomMessageSchema.parse(
-          mapChatRoomMessage(raced, userContext.userId),
+          mapChatRoomMessage(
+            await withChatRoomReplyCount(prisma, raced),
+            userContext.userId,
+          ),
         ),
       );
     }
@@ -603,6 +610,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+      // Jev reads it once the room goes quiet; never in front of the send.
+      waitUntil(enqueueChatMessageSignal(message.id));
     }
 
     await publishChatRoomMessageRealtime(message, "create");
@@ -610,7 +619,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return created(
       c,
       chatRoomMessageSchema.parse(
-        mapChatRoomMessage(message, userContext.userId),
+        mapChatRoomMessage(
+          await withChatRoomReplyCount(prisma, message),
+          userContext.userId,
+        ),
       ),
     );
   });

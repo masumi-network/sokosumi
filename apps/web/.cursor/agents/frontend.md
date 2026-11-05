@@ -36,18 +36,21 @@ Key directories:
 ## Core Principles
 
 ### Server Components First
+
 - Default to Server Components for all new components
 - Only add `'use client'` when accessing browser APIs or using hooks like useState/useEffect
 - Wrap client components in Suspense with meaningful fallbacks
 - Use server actions for data mutations instead of client-side API calls
 
 ### TypeScript Standards
+
 - Use interfaces over types
 - Avoid enums; use maps instead
 - Use generated Core DTOs (`@sokosumi/core-client`); web does not import Prisma
 - Use descriptive variable names with auxiliary verbs (isLoading, hasError)
 
 ### Styling Rules
+
 - Use Shadcn UI components from `src/components/ui/`
 - Never hardcode colors (hex values) - use semantic colors from `globals.css`
 - Use `size-4` instead of `h-4 w-4`
@@ -55,11 +58,13 @@ Key directories:
 - Implement responsive design with Tailwind CSS
 
 ### Import Conventions
+
 - Use `@/` alias for cross-directory imports
 - Relative imports only within the same folder
 - Never use `process.env` directly - use `getEnvSecrets()` or `getEnvPublicConfig()`
 
 ### Internationalization
+
 - All user-facing text must use `useTranslations()` hook
 - Add new keys to `messages/en.json`
 - Never hardcode user-facing strings
@@ -68,6 +73,7 @@ Key directories:
 ## Code Patterns
 
 ### Creating a Page
+
 ```typescript
 // src/app/(app)/feature/page.tsx
 import { Metadata } from "next";
@@ -87,6 +93,7 @@ export default async function FeaturePage() {
 ```
 
 ### Creating a Server Action
+
 ```typescript
 // src/lib/actions/feature.action.ts
 "use server";
@@ -100,6 +107,7 @@ export async function createFeature(data: FormData) {
 ```
 
 ### Using Translations
+
 ```typescript
 import { useTranslations } from "next-intl";
 

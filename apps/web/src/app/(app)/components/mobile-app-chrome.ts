@@ -4,6 +4,10 @@ import {
   isChatRoomPathname,
   isChatShellPathname,
 } from "@/app/chat/utils/chat-route-base";
+import {
+  PROJECT_SCOPE_PARAM,
+  scopedHref,
+} from "@/app/components/project-scope/project-scope-href";
 
 /** Exact paths that show the mobile tab bar. */
 const MOBILE_TAB_LIST_PATHS = [
@@ -12,7 +16,14 @@ const MOBILE_TAB_LIST_PATHS = [
   "/drive",
   "/calendar",
   "/schedules",
+  "/contacts",
   "/social",
+  "/newsletter",
+  "/newsletter/issues",
+  "/newsletter/subscribers",
+  "/newsletter/signup-form",
+  "/newsletter/analytics",
+  "/newsletter/settings",
   "/studio",
   "/projects",
   "/you",
@@ -36,10 +47,6 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
 
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
 
-const MAIN_APP_MOBILE_LIST_PATH_SET = new Set<string>(
-  MAIN_APP_MOBILE_LIST_PATHS,
-);
-
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
 
 const MOBILE_NON_TAB_HUB_LIST_PATH_SET = new Set<string>(
@@ -59,16 +66,6 @@ export interface MobileAppBackTarget {
   labelKey: MobileAppBackLabelKey;
 }
 
-/** True for exact main list routes. */
-export function isMainAppMobileChromePathname(
-  pathname: string | null | undefined,
-): boolean {
-  if (!pathname) {
-    return false;
-  }
-  return MAIN_APP_MOBILE_LIST_PATH_SET.has(pathname);
-}
-
 function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
   for (const root of MAIN_APP_MOBILE_LIST_PATHS) {
     if (pathname === root || pathname.startsWith(`${root}/`)) {
@@ -84,6 +81,7 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
+  searchParams?: SearchParamsLike,
 ): MobileAppBackTarget | null {
   if (!pathname) {
     return null;
@@ -92,12 +90,27 @@ export function resolveMobileAppBackTarget(
   if (!root) {
     return null;
   }
+  if (root === "/newsletter") {
+    if (MOBILE_TAB_LIST_PATH_SET.has(pathname)) {
+      return { href: "/", labelKey: "back" };
+    }
+    return {
+      href: scopedHref(
+        pathname.startsWith("/newsletter/issues/")
+          ? "/newsletter/issues"
+          : "/newsletter",
+        searchParams?.get?.(PROJECT_SCOPE_PARAM) ?? null,
+      ),
+      labelKey: "back",
+    };
+  }
   if (pathname === root) {
     if (
       root === "/agents" ||
       root === "/drive" ||
       root === "/calendar" ||
       root === "/schedules" ||
+      root === "/contacts" ||
       root === "/social" ||
       root === "/studio"
     ) {
@@ -159,7 +172,9 @@ export function shouldShowMobileBrandLeading(
   if (
     pathname === "/agents" ||
     pathname === "/social" ||
-    pathname === "/studio"
+    pathname === "/studio" ||
+    pathname === "/newsletter" ||
+    pathname.startsWith("/newsletter/")
   ) {
     return false;
   }

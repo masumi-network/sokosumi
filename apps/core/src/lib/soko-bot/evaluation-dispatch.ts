@@ -10,6 +10,17 @@ import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import type { ClassifierContextSummary } from "./classifier";
+import { holdModelStream, type ModelStreamFinish } from "./stream-model-call";
+
+type CallParams = Parameters<
+  NonNullable<LanguageModelMiddleware["wrapGenerate"]>
+>[0]["params"];
+
+interface MeteredCall<T> {
+  result: T;
+  usage: ModelStreamFinish["usage"];
+  providerMetadata: unknown;
+}
 
 const MAX_CALLS = 10;
 const MAX_INPUT = 32_768;
@@ -300,6 +311,131 @@ export function evaluationMiddleware(
   role: string,
 ): LanguageModelMiddleware {
   let step = 0;
+
+  /** Reserves, runs and settles one metered call, for either transport. */
+  async function dispatch<T>(
+    params: CallParams,
+    run: () => Promise<MeteredCall<T>>,
+  ): Promise<T> {
+    const binding = evaluationBinding();
+    const actor = actorStorage.getStore();
+    if (!binding || !actor)
+      throw new Error("Unscoped evaluation dispatch denied");
+    assertEvaluationActor(actor);
+    const routing = z
+      .object({
+        gateway: z.object({
+          inferenceRegion: z
+            .object({ scope: z.literal("zone"), geoRegion: z.literal("eu") })
+            .strict(),
+          only: z.array(z.string()).min(1),
+        }),
+      })
+      .safeParse(params.providerOptions);
+    const allowed = model.startsWith("google/")
+      ? ["vertex"]
+      : ["vertex", "bedrock"];
+    if (
+      !routing.success ||
+      routing.data.gateway.only.some(
+        (provider) => !allowed.includes(provider),
+      ) ||
+      params.tools?.some((tool) => tool.type !== "function") ||
+      params.prompt.some(
+        (message) =>
+          message.role !== "system" &&
+          message.content.some(
+            (part) => !["text", "tool-call", "tool-result"].includes(part.type),
+          ),
+      )
+    )
+      throw new Error("Evaluation routing or paid attachment denied");
+    const key = `${actor.clientTurnId}/${role}/${step++}`;
+    const inputBytes = Buffer.byteLength(JSON.stringify(params), "utf8") + 512;
+    await verifyPrice(model);
+    await reserveEvaluationCall({ actor, key, model, role, inputBytes });
+    let call: MeteredCall<T>;
+    try {
+      call = await run();
+    } catch (error) {
+      await settleEvaluationCall(
+        key,
+        null,
+        { reason: "transport uncertain" },
+        true,
+      );
+      throw error;
+    }
+    const metadata = z
+      .object({
+        gateway: z.object({
+          cost: z.union([z.string().trim().min(1), z.number()]),
+          routing: z.object({
+            finalProvider: z.string(),
+            modelAttempts: z
+              .array(
+                z.object({
+                  providerAttempts: z
+                    .array(
+                      z.object({
+                        provider: z.string(),
+                        inferenceEndpoint: z.object({
+                          geoRegion: z.literal("eu"),
+                        }),
+                      }),
+                    )
+                    .min(1),
+                }),
+              )
+              .min(1),
+          }),
+        }),
+      })
+      .safeParse(call.providerMetadata);
+    const cost = metadata.success ? Number(metadata.data.gateway.cost) : NaN;
+    const inputTokens = call.usage.inputTokens.total;
+    const outputTokens = call.usage.outputTokens.total;
+    const providers = model.startsWith("google/")
+      ? ["vertex"]
+      : ["vertex", "bedrock"];
+    const valid =
+      metadata.success &&
+      providers.includes(metadata.data.gateway.routing.finalProvider) &&
+      metadata.data.gateway.routing.modelAttempts.every((attempt) =>
+        attempt.providerAttempts.every((provider) =>
+          providers.includes(provider.provider),
+        ),
+      ) &&
+      Number.isFinite(cost) &&
+      cost >= 0 &&
+      cost <= RESERVATION_USD &&
+      typeof inputTokens === "number" &&
+      Number.isSafeInteger(inputTokens) &&
+      inputTokens >= 0 &&
+      inputTokens >= 0 &&
+      inputTokens <= MAX_INPUT &&
+      typeof outputTokens === "number" &&
+      Number.isSafeInteger(outputTokens) &&
+      outputTokens >= 0 &&
+      outputTokens >= 0 &&
+      outputTokens <= MAX_OUTPUT;
+    await settleEvaluationCall(
+      key,
+      Number.isFinite(cost) ? cost : null,
+      {
+        region: valid ? "eu" : "unverified",
+        provider: metadata.success
+          ? metadata.data.gateway.routing.finalProvider
+          : "unknown",
+        inputTokens: inputTokens ?? -1,
+        outputTokens: outputTokens ?? -1,
+      },
+      !valid,
+    );
+    if (!valid) throw new Error("Evaluation route, usage or cost unverified");
+    return call.result;
+  }
+
   return {
     async transformParams({ params }) {
       return {
@@ -310,130 +446,28 @@ export function evaluationMiddleware(
         ),
       };
     },
-    async wrapGenerate({ params, doGenerate }) {
-      const binding = evaluationBinding();
-      const actor = actorStorage.getStore();
-      if (!binding || !actor)
-        throw new Error("Unscoped evaluation dispatch denied");
-      assertEvaluationActor(actor);
-      const routing = z
-        .object({
-          gateway: z.object({
-            inferenceRegion: z
-              .object({ scope: z.literal("zone"), geoRegion: z.literal("eu") })
-              .strict(),
-            only: z.array(z.string()).min(1),
-          }),
-        })
-        .safeParse(params.providerOptions);
-      const allowed = model.startsWith("google/")
-        ? ["vertex"]
-        : ["vertex", "bedrock"];
-      if (
-        !routing.success ||
-        routing.data.gateway.only.some(
-          (provider) => !allowed.includes(provider),
-        ) ||
-        params.tools?.some((tool) => tool.type !== "function") ||
-        params.prompt.some(
-          (message) =>
-            message.role !== "system" &&
-            message.content.some(
-              (part) =>
-                !["text", "tool-call", "tool-result"].includes(part.type),
-            ),
-        )
-      )
-        throw new Error("Evaluation routing or paid attachment denied");
-      const key = `${actor.clientTurnId}/${role}/${step++}`;
-      const inputBytes =
-        Buffer.byteLength(JSON.stringify(params), "utf8") + 512;
-      await verifyPrice(model);
-      await reserveEvaluationCall({ actor, key, model, role, inputBytes });
-      let result;
-      try {
-        result = await doGenerate();
-      } catch (error) {
-        await settleEvaluationCall(
-          key,
-          null,
-          { reason: "transport uncertain" },
-          true,
-        );
-        throw error;
-      }
-      const metadata = z
-        .object({
-          gateway: z.object({
-            cost: z.union([z.string().trim().min(1), z.number()]),
-            routing: z.object({
-              finalProvider: z.string(),
-              modelAttempts: z
-                .array(
-                  z.object({
-                    providerAttempts: z
-                      .array(
-                        z.object({
-                          provider: z.string(),
-                          inferenceEndpoint: z.object({
-                            geoRegion: z.literal("eu"),
-                          }),
-                        }),
-                      )
-                      .min(1),
-                  }),
-                )
-                .min(1),
-            }),
-          }),
-        })
-        .safeParse(result.providerMetadata);
-      const cost = metadata.success ? Number(metadata.data.gateway.cost) : NaN;
-      const inputTokens = result.usage.inputTokens.total;
-      const outputTokens = result.usage.outputTokens.total;
-      const providers = model.startsWith("google/")
-        ? ["vertex"]
-        : ["vertex", "bedrock"];
-      const valid =
-        metadata.success &&
-        providers.includes(metadata.data.gateway.routing.finalProvider) &&
-        metadata.data.gateway.routing.modelAttempts.every((attempt) =>
-          attempt.providerAttempts.every((provider) =>
-            providers.includes(provider.provider),
-          ),
-        ) &&
-        Number.isFinite(cost) &&
-        cost >= 0 &&
-        cost <= RESERVATION_USD &&
-        typeof inputTokens === "number" &&
-        Number.isSafeInteger(inputTokens) &&
-        inputTokens >= 0 &&
-        inputTokens >= 0 &&
-        inputTokens <= MAX_INPUT &&
-        typeof outputTokens === "number" &&
-        Number.isSafeInteger(outputTokens) &&
-        outputTokens >= 0 &&
-        outputTokens >= 0 &&
-        outputTokens <= MAX_OUTPUT;
-      await settleEvaluationCall(
-        key,
-        Number.isFinite(cost) ? cost : null,
-        {
-          region: valid ? "eu" : "unverified",
-          provider: metadata.success
-            ? metadata.data.gateway.routing.finalProvider
-            : "unknown",
-          inputTokens: inputTokens ?? -1,
-          outputTokens: outputTokens ?? -1,
-        },
-        !valid,
-      );
-      if (!valid) throw new Error("Evaluation route, usage or cost unverified");
-      return result;
-    },
-    async wrapStream() {
-      throw new Error("Evaluation streaming denied");
-    },
+    wrapGenerate: ({ params, doGenerate }) =>
+      dispatch(params, async () => {
+        const result = await doGenerate();
+        return {
+          result,
+          usage: result.usage,
+          providerMetadata: result.providerMetadata,
+        };
+      }),
+    wrapStream: ({ params, doStream }) =>
+      dispatch(params, async () => {
+        let finish: ModelStreamFinish | undefined;
+        const result = await holdModelStream(doStream, (part) => {
+          finish = part;
+        });
+        if (!finish) throw new Error("Model stream ended without finishing");
+        return {
+          result,
+          usage: finish.usage,
+          providerMetadata: finish.providerMetadata,
+        };
+      }),
   };
 }
 

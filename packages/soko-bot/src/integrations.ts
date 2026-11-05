@@ -16,6 +16,12 @@ export interface SokoBotIntegrationProvider {
     listMessages?: string;
     getMessage?: string;
     listEvents?: string;
+    /** Adds and removes labels on many messages: read, unread, archive. */
+    modifyMessages?: string;
+    createDraft?: string;
+    sendDraft?: string;
+    /** Downloads one attachment of a message. */
+    getAttachment?: string;
   };
 }
 
@@ -29,6 +35,10 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
       tools: {
         listMessages: "GMAIL_FETCH_EMAILS",
         getMessage: "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID",
+        modifyMessages: "GMAIL_BATCH_MODIFY_MESSAGES",
+        createDraft: "GMAIL_CREATE_EMAIL_DRAFT",
+        sendDraft: "GMAIL_SEND_DRAFT",
+        getAttachment: "GMAIL_GET_ATTACHMENT",
       },
     },
     {
@@ -50,6 +60,34 @@ export const SOKO_BOT_INTEGRATION_PROVIDERS: readonly SokoBotIntegrationProvider
       },
     },
   ];
+
+/**
+ * Slack is a generic toolkit (the bot runs its tools through
+ * `run_integration_tool`), but Core also reads it to capture contacts: whom
+ * the owner talks with in direct messages and small channels. These are the
+ * Composio slugs that capture calls; Core feature-detects them and skips
+ * Slack when they are missing.
+ */
+export const SOKO_BOT_SLACK_CAPTURE_TOOLS = {
+  provider: "slack",
+  authTest: "SLACK_TEST_AUTH",
+  listConversations: "SLACK_LIST_CONVERSATIONS",
+  conversationMembers: "SLACK_RETRIEVE_CONVERSATION_MEMBERS_LIST",
+  conversationHistory: "SLACK_FETCH_CONVERSATION_HISTORY",
+  userInfo: "SLACK_RETRIEVE_DETAILED_USER_INFORMATION",
+} as const;
+
+/**
+ * X the same way: whom the owner writes with in direct messages, and which
+ * people they follow who follow them back.
+ */
+export const SOKO_BOT_X_CAPTURE_TOOLS = {
+  provider: "twitter",
+  me: "TWITTER_USER_LOOKUP_ME",
+  dmEvents: "TWITTER_GET_RECENT_DM_EVENTS",
+  followers: "TWITTER_FOLLOWERS_BY_USER_ID",
+  following: "TWITTER_FOLLOWING_BY_USER_ID",
+} as const;
 
 /** Toolkits whose mail is ingested and read through the dedicated inbox tools only. */
 export function isSokoBotEmailProvider(id: string): boolean {
@@ -112,10 +150,22 @@ export interface SokoBotInboxMessage {
   receivedAt: string;
   unread: boolean;
   labels: string[];
+  /** When the owner answered in this thread after it arrived, from their sent mail. */
+  repliedAt?: string;
+}
+
+export interface SokoBotInboxAttachment {
+  /** The provider's attachment id; pass it to save_email_attachment. */
+  id: string;
+  filename: string;
+  mimeType: string;
+  /** Bytes, when the provider says. */
+  size: number | null;
 }
 
 export interface SokoBotInboxMessageDetail extends SokoBotInboxMessage {
   body: string;
+  attachments: SokoBotInboxAttachment[];
 }
 
 export interface SokoBotCalendarEvent {

@@ -1,3 +1,8 @@
+import {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
+  type GoogleDisplayImageRole,
+  type GoogleKeywordMatchType,
+} from "@sokosumi/utils";
 import type { DriveFileRef } from "@/helpers/drive-file-ref";
 
 export const AD_RANGES = ["LAST_7_DAYS", "LAST_30_DAYS"] as const;
@@ -28,9 +33,6 @@ export const AD_CAMPAIGN_STATUSES = [
 ] as const;
 export type AdCampaignStatus = (typeof AD_CAMPAIGN_STATUSES)[number];
 
-/** The statuses a user may set; providers report more (see AD_CAMPAIGN_STATUSES). */
-export const AD_CAMPAIGN_SETTABLE_STATUSES = ["ACTIVE", "PAUSED"] as const;
-
 /** What a campaign update may change; at least one field is set. */
 export interface AdCampaignUpdate {
   status?: (typeof AD_CAMPAIGN_SETTABLE_STATUSES)[number];
@@ -54,10 +56,6 @@ export interface AdCampaignCreate {
   /** Decimal in the account currency. */
   dailyBudget: number;
 }
-
-export const GOOGLE_KEYWORD_MATCH_TYPES = ["BROAD", "PHRASE", "EXACT"] as const;
-export type GoogleKeywordMatchType =
-  (typeof GOOGLE_KEYWORD_MATCH_TYPES)[number];
 
 /** `OTHER` is any campaign type the builder cannot create or edit. */
 export const GOOGLE_CAMPAIGN_TYPES = ["SEARCH", "DISPLAY", "OTHER"] as const;
@@ -116,15 +114,6 @@ export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   sitelinks?: GoogleSitelink[];
   callouts?: string[];
 }
-
-/** LOGO is a square (1:1) logo, at least 128x128; it fills `square_logo_images`. */
-export const GOOGLE_DISPLAY_IMAGE_ROLES = [
-  "LANDSCAPE",
-  "SQUARE",
-  "LOGO",
-] as const;
-export type GoogleDisplayImageRole =
-  (typeof GOOGLE_DISPLAY_IMAGE_ROLES)[number];
 
 /** Image types Google accepts for a responsive display ad. */
 export const GOOGLE_DISPLAY_IMAGE_MIME_TYPES = [

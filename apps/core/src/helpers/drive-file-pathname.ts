@@ -28,8 +28,6 @@ export function parseDriveFilePathname(
     };
   }
 
-  // Organization drive - extract orgId from pathname
-  // pathname format: drive/organizations/{orgId}/{filename}
   const pathParts = pathname.split("/");
   if (
     pathParts.length < 4 ||

@@ -9,7 +9,6 @@ const projectServiceMock = {
   listProjects: vi.fn(),
   pinProject: vi.fn(),
   unpinProject: vi.fn(),
-  listPinnedProjects: vi.fn(),
 };
 
 // Mock only the session source and exercise the real `withSession` wrapper so
@@ -77,11 +76,17 @@ describe("loadMoreProjects", () => {
     });
 
     const { loadMoreProjects } = await import("./actions");
-    const result = await loadMoreProjects({ cursor: "project-0" });
+    const result = await loadMoreProjects({
+      cursor: "project-0",
+      state: "open",
+    });
 
+    // The Open view's later pages keep its Pins-first order.
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       cursor: "project-0",
       limit: 20,
+      state: "open",
+      pinnedFirst: true,
     });
     expect(result).toEqual({
       projects,
@@ -94,26 +99,11 @@ describe("loadMoreProjects", () => {
 
     const { loadMoreProjects } = await import("./actions");
 
-    await expect(loadMoreProjects({ cursor: "project-0" })).rejects.toThrow(
-      UnAuthenticatedError,
-    );
+    await expect(
+      loadMoreProjects({ cursor: "project-0", state: "open" }),
+    ).rejects.toThrow(UnAuthenticatedError);
     expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
   });
-  it.each([
-    { userId: "user-1", organizationId: "org-2" },
-    { userId: "user-2", organizationId: "org-1" },
-    { userId: "user-1", organizationId: null },
-  ])(
-    "rejects a stale sidebar scope before reading projects: %j",
-    async (expectedScope) => {
-      const { loadMoreProjects } = await import("./actions");
-      await expect(
-        loadMoreProjects({ cursor: null, expectedScope }),
-      ).rejects.toThrow("Project workspace changed");
-      expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
-    },
-  );
-
   it("accepts the current personal workspace with a bounded page", async () => {
     getSessionResultMock.mockResolvedValue(
       ok({ user: { id: "user-1" }, session: { activeOrganizationId: null } }),
@@ -124,14 +114,16 @@ describe("loadMoreProjects", () => {
     });
     const { loadMoreProjects } = await import("./actions");
     await expect(
-      loadMoreProjects({
-        cursor: null,
-        expectedScope: { userId: "user-1", organizationId: null },
-      }),
-    ).resolves.toEqual({ projects: [], nextCursor: null });
+      loadMoreProjects({ cursor: null, state: "closed" }),
+    ).resolves.toEqual({
+      projects: [],
+      nextCursor: null,
+    });
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       cursor: null,
       limit: 20,
+      state: "closed",
+      pinnedFirst: false,
     });
   });
 });
@@ -186,30 +178,5 @@ describe("project Pin actions", () => {
       pinProjectAction({ projectId: "project-1" }),
     ).rejects.toThrow();
     expect(projectServiceMock.pinProject).not.toHaveBeenCalled();
-  });
-
-  it("lists the reader's Pins", async () => {
-    projectServiceMock.listPinnedProjects.mockResolvedValue([buildProject()]);
-
-    const { loadPinnedProjects } = await import("./actions");
-
-    await expect(
-      loadPinnedProjects({
-        expectedScope: { userId: "user-1", organizationId: "org-1" },
-      }),
-    ).resolves.toHaveLength(1);
-  });
-
-  it("refuses a Pin list belonging to a workspace the reader has left", async () => {
-    const { loadPinnedProjects } = await import("./actions");
-
-    // The guard exists so a Pin list cannot outlive an org switch: the rows
-    // would be another workspace's projects rendered as this one's.
-    await expect(
-      loadPinnedProjects({
-        expectedScope: { userId: "user-1", organizationId: "org-2" },
-      }),
-    ).rejects.toThrow("Project workspace changed");
-    expect(projectServiceMock.listPinnedProjects).not.toHaveBeenCalled();
   });
 });

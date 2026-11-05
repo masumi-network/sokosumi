@@ -3,7 +3,13 @@ import {
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
 } from "@sokosumi/soko-bot";
-import { generateText, stepCountIs, tool, wrapLanguageModel } from "ai";
+import {
+  generateText,
+  simulateReadableStream,
+  stepCountIs,
+  tool,
+  wrapLanguageModel,
+} from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import {
   afterAll,
@@ -15,6 +21,7 @@ import {
   vi,
 } from "vitest";
 import { z } from "zod";
+import { streamModelCall } from "./stream-model-call";
 
 const config = vi.hoisted(() => ({ raw: "" }));
 const EVALUATION_DATABASE_HOST = "127.0.0.1";
@@ -343,67 +350,90 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         }),
       ).not.toThrow();
     });
-    async function dispatch(mode = "ok", role = "agent") {
+    async function dispatch(
+      mode = "ok",
+      role = "agent",
+      transport: "generate" | "stream" = "generate",
+    ) {
       let calls = 0;
-      const mock = new MockLanguageModelV3({
-        modelId: model,
-        doGenerate: async (options) => {
-          calls++;
-          expect(options.maxOutputTokens).toBe(2048);
-          expect(
-            (
-              await db.sokoBotEvaluationAllowance.findUniqueOrThrow({
-                where: { id: "preview-evaluation" },
-              })
-            ).calls,
-          ).toMatchObject([{ state: "RESERVED" }]);
-          if (mode === "transport") throw new Error("uncertain transport");
-          return {
-            content: [{ type: "text", text: "synthetic" }],
-            finishReason: { unified: "stop", raw: "stop" },
-            warnings: [],
-            usage: {
-              inputTokens: {
-                total: 100,
-                noCache: 100,
-                cacheRead: undefined,
-                cacheWrite: undefined,
-              },
-              outputTokens: { total: 20, text: 20, reasoning: undefined },
+      const answer = async (
+        options: Parameters<MockLanguageModelV3["doGenerate"]>[0],
+      ): Promise<Awaited<ReturnType<MockLanguageModelV3["doGenerate"]>>> => {
+        calls++;
+        expect(options.maxOutputTokens).toBe(2048);
+        expect(
+          (
+            await db.sokoBotEvaluationAllowance.findUniqueOrThrow({
+              where: { id: "preview-evaluation" },
+            })
+          ).calls,
+        ).toMatchObject([{ state: "RESERVED" }]);
+        if (mode === "transport") throw new Error("uncertain transport");
+        return {
+          content: [{ type: "text", text: "synthetic" }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage: {
+            inputTokens: {
+              total: 100,
+              noCache: 100,
+              cacheRead: undefined,
+              cacheWrite: undefined,
             },
-            providerMetadata:
-              mode === "missing"
-                ? undefined
-                : {
-                    gateway: {
-                      cost:
-                        mode === "cost"
-                          ? ".13"
-                          : mode === "blank"
-                            ? " "
-                            : ".001",
-                      routing: {
-                        finalProvider: "vertex",
-                        modelAttempts: [
-                          {
-                            providerAttempts: [
-                              {
-                                provider: "vertex",
-                                inferenceEndpoint: {
-                                  geoRegion: mode === "region" ? "us" : "eu",
-                                },
+            outputTokens: { total: 20, text: 20, reasoning: undefined },
+          },
+          providerMetadata:
+            mode === "missing"
+              ? undefined
+              : {
+                  gateway: {
+                    cost:
+                      mode === "cost" ? ".13" : mode === "blank" ? " " : ".001",
+                    routing: {
+                      finalProvider: "vertex",
+                      modelAttempts: [
+                        {
+                          providerAttempts: [
+                            {
+                              provider: "vertex",
+                              inferenceEndpoint: {
+                                geoRegion: mode === "region" ? "us" : "eu",
                               },
-                            ],
-                          },
-                        ],
-                      },
+                            },
+                          ],
+                        },
+                      ],
                     },
                   },
+                },
+        };
+      };
+      const mock = new MockLanguageModelV3({
+        modelId: model,
+        doGenerate: answer,
+        doStream: async (options) => {
+          const { finishReason, usage, providerMetadata } =
+            await answer(options);
+          return {
+            stream: simulateReadableStream({
+              chunks: [
+                { type: "text-start" as const, id: "0" },
+                { type: "text-delta" as const, id: "0", delta: "synthetic" },
+                { type: "text-end" as const, id: "0" },
+                {
+                  type: "finish" as const,
+                  finishReason,
+                  usage,
+                  providerMetadata,
+                },
+              ],
+            }),
           };
         },
       });
+      const call = transport === "stream" ? streamModelCall : generateText;
       const run = () =>
-        generateText({
+        call({
           model: wrapLanguageModel({
             model: mock,
             middleware: fence.evaluationMiddleware(model, role),
@@ -422,10 +452,14 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         count: () => calls,
       };
     }
-    it.each(["agent", "judge"])(
-      "%s SDK receives capped output and durable verified cost before returning",
-      async (role) => {
-        const test = await dispatch("ok", role);
+    it.each([
+      ["agent", "generate"],
+      ["judge", "generate"],
+      ["agent", "stream"],
+    ] as const)(
+      "%s SDK receives capped output and durable verified cost before returning (%s)",
+      async (role, transport) => {
+        const test = await dispatch("ok", role, transport);
         await test.run();
         expect(test.count()).toBe(1);
         expect(
@@ -692,10 +726,18 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         expect(observedSizes.every((size) => size <= 32768)).toBe(true);
       },
     );
-    it.each(["transport", "missing", "cost", "blank", "region"])(
-      "uncertain %s blocks subsequent dispatch durably",
-      async (mode) => {
-        const test = await dispatch(mode);
+    it.each([
+      ["transport", "generate"],
+      ["missing", "generate"],
+      ["cost", "generate"],
+      ["blank", "generate"],
+      ["region", "generate"],
+      ["transport", "stream"],
+      ["region", "stream"],
+    ] as const)(
+      "uncertain %s blocks subsequent dispatch durably (%s)",
+      async (mode, transport) => {
+        const test = await dispatch(mode, "agent", transport);
         await expect(test.run()).rejects.toThrow();
         expect(test.count()).toBe(1);
         const next = await dispatch();

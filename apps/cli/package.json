@@ -1,6 +1,6 @@
 {
   "name": "@masumi_network/sokosumi",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Developer CLI for Sokosumi Coworker builders",
   "type": "module",
   "license": "MIT",
@@ -28,15 +28,15 @@
     "test:ci": "tsx --test --test-force-exit \"test/**/*.test.ts\""
   },
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "dependencies": {
-    "@napi-rs/keyring": "2.1.1",
+    "@napi-rs/keyring": "2.1.2",
     "ink": "8.0.0",
     "react": "19.3.1"
   },
   "devDependencies": {
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2"

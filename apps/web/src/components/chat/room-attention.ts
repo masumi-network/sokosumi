@@ -12,6 +12,8 @@ export interface RoomAttentionCounts {
   /** Thread unread: what a Look clears. */
   threadUnreadCount?: number;
   unreadMentionCount: number;
+  /** Unread messages Jev read as asking the reader something (chat signals). */
+  unreadNeedsYouCount?: number;
   markedUnread?: boolean;
 }
 
@@ -64,6 +66,12 @@ export function resolveRoomAttention(options: {
    */
   channelUnreadCount?: number;
   unreadMentionCount: number;
+  /**
+   * Unread messages that ask the reader something: a question or a decision
+   * Jev read as addressed to them. It outranks the `@` pill, because a
+   * mention says the reader was named and this says they are waited on.
+   */
+  unreadNeedsYouCount?: number;
   markedUnread?: boolean;
   isMuted?: boolean;
   showUnreadCount?: boolean;
@@ -71,26 +79,38 @@ export function resolveRoomAttention(options: {
    * The badge counts mentions. False in a Direct of two, where Core counts
    * every message toward it: the reader was written to, not named, so that
    * row draws no mention pill and shows the same muted count a channel does.
-   * The badge still bolds the row and marks the rail there.
+   * The badge still bolds the row there.
    */
   badgeCountsMentions?: boolean;
 }): {
   bold: boolean;
-  /** What was addressed to the reader. Drives bold and the rail pill. */
+  /** What was addressed to the reader. Drives bold. */
   badgeCount: number;
   /** What the row draws as its `@` pill: the badge, where it counts mentions. */
   mentionCount: number;
+  /** What the row draws as its needs-you pill, in the one-number slot. */
+  needsYouCount: number;
   unreadTextCount: number;
 } {
   // Muted suppression stays one early return, so the count cannot drift from
   // the two fields that already obey it.
   if (options.isMuted === true) {
-    return { bold: false, badgeCount: 0, mentionCount: 0, unreadTextCount: 0 };
+    return {
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      needsYouCount: 0,
+      unreadTextCount: 0,
+    };
   }
 
   const channelUnread = options.channelUnreadCount ?? options.unreadCount;
+  const needsYouCount = options.unreadNeedsYouCount ?? 0;
+  // One number per row: a needs-you pill stands in for the `@` pill too.
   const mentionCount =
-    options.badgeCountsMentions === false ? 0 : options.unreadMentionCount;
+    needsYouCount > 0 || options.badgeCountsMentions === false
+      ? 0
+      : options.unreadMentionCount;
 
   return {
     // A User mention inside a Thread is the one escalation that reaches the
@@ -100,13 +120,17 @@ export function resolveRoomAttention(options: {
     bold:
       channelUnread > 0 ||
       options.unreadMentionCount > 0 ||
+      needsYouCount > 0 ||
       options.markedUnread === true,
-    badgeCount: options.unreadMentionCount,
+    badgeCount: options.unreadMentionCount + needsYouCount,
     mentionCount,
+    needsYouCount,
     // One number per row. A mention pill stands alone: beside it the message
     // count was a second number, and bold already says there is more.
     unreadTextCount:
-      options.showUnreadCount === true && mentionCount === 0
+      options.showUnreadCount === true &&
+      mentionCount === 0 &&
+      needsYouCount === 0
         ? channelUnread
         : 0,
   };
@@ -144,6 +168,7 @@ export function keepRoomUnreadState<T extends RoomUnreadState>(
     unreadThreadMentionCount: held.unreadThreadMentionCount,
     unreadThreads: held.unreadThreads,
     unreadMentionCount: held.unreadMentionCount,
+    unreadNeedsYouCount: held.unreadNeedsYouCount,
     markedUnread: held.markedUnread,
   };
 }
@@ -166,6 +191,7 @@ export function roomAttentionAfterRead(
     channelUnreadCount: 0,
     threadUnreadCount,
     unreadMentionCount: 0,
+    unreadNeedsYouCount: 0,
     markedUnread: false,
   };
 }
@@ -176,8 +202,8 @@ export type SectionAttention = "mention" | "unread" | null;
 /**
  * A section's attention is its loudest room's, by the same rules a row
  * follows, so a closed heading cannot disagree with the rooms under it.
- * Mention wins, as it does on the Rail attention pill. A pending invitation
- * is addressed to the reader, so it counts as a mention.
+ * Mention wins. A pending invitation is addressed to the reader, so it counts
+ * as a mention.
  */
 export function resolveSectionAttention(
   rooms: ReadonlyArray<RoomAttentionCounts & { mutedAt?: unknown }>,
@@ -189,6 +215,7 @@ export function resolveSectionAttention(
       unreadCount: room.unreadCount,
       channelUnreadCount: room.channelUnreadCount,
       unreadMentionCount: room.unreadMentionCount,
+      unreadNeedsYouCount: room.unreadNeedsYouCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != null,
     });
@@ -215,15 +242,12 @@ interface RoomUnreadSummary extends RoomAttentionCounts {
  * "4 more unread threads" row. A muted room lists no Thread in the sidebar,
  * so it adds none here either. `mentionCount` is every unread reply naming
  * the reader across those Threads, past each room's three listed ones too.
- * The rail mark follows the same one rule as a room's: a mention outranks
- * unread.
  */
 export function resolveUnreadThreadsAttention(
   rooms: readonly RoomUnreadSummary[],
 ): {
   threadCount: number;
   mentionCount: number;
-  rail: "mention" | "unread" | null;
 } {
   let threadCount = 0;
   let mentionCount = 0;
@@ -236,11 +260,25 @@ export function resolveUnreadThreadsAttention(
       room.unreadThreadMentionCount ??
       listed.reduce((sum, thread) => sum + (thread.unreadMentionCount ?? 0), 0);
   }
-  return {
-    threadCount,
-    mentionCount,
-    rail: mentionCount > 0 ? "mention" : threadCount > 0 ? "unread" : null,
-  };
+  return { threadCount, mentionCount };
+}
+
+/**
+ * What the sidebar's Chats heading holds while it is folded: its sections'
+ * attention, and the unread Threads Catch up counts. A section's own heading
+ * leaves a Thread-only room quiet, as that room's row is; but Catch up sits
+ * under this heading too, and folding hides its count, so the heading says
+ * what that count did. An unread Thread naming the reader is a mention.
+ */
+export function resolveChatsAttention(
+  rooms: readonly (RoomUnreadSummary & { mutedAt?: unknown })[],
+  options: { hasPendingInvitation?: boolean } = {},
+): SectionAttention {
+  const sections = resolveSectionAttention(rooms, options);
+  if (sections === "mention") return sections;
+  const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);
+  if (mentionCount > 0) return "mention";
+  return sections ?? (threadCount > 0 ? "unread" : null);
 }
 
 /**
@@ -271,4 +309,10 @@ export function roomUnreadReads(room: RoomUnreadSummary): {
       !isMuted &&
       (room.unreadThreadCount ?? room.unreadThreads?.length ?? 0) > 0,
   };
+}
+
+/** Whether a read would still change this room. */
+export function roomHasUnread(room: RoomUnreadSummary): boolean {
+  const { readRoom, lookThreads } = roomUnreadReads(room);
+  return readRoom || lookThreads;
 }

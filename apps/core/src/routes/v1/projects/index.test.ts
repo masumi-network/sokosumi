@@ -153,6 +153,38 @@ function expandSchemaReferences(
 }
 
 describe("projects routes OpenAPI contract", () => {
+  it("mounts newsletter settings and subscriber operations", () => {
+    const document = projectsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Projects API", version: "1.0.0" },
+    });
+    const base = "/{id}/newsletter";
+    const operations = [
+      ["get", base, "200"],
+      ["put", base, "200"],
+      ["get", `${base}/subscribers`, "200"],
+      ["post", `${base}/subscribers`, "201"],
+      ["post", `${base}/subscribers/import`, "200"],
+      ["patch", `${base}/subscribers/{subscriberId}`, "200"],
+      ["delete", `${base}/subscribers/{subscriberId}`, "204"],
+    ] as const;
+    for (const [method, path, status] of operations) {
+      const operation = document.paths?.[path]?.[method];
+      expect(operation, `${method.toUpperCase()} ${path}`).toBeDefined();
+      expect(operation?.responses).toEqual(
+        expect.objectContaining({
+          [status]: expect.anything(),
+          401: expect.anything(),
+          403: expect.anything(),
+          404: expect.anything(),
+          422: expect.anything(),
+        }),
+      );
+      expect(operation?.parameters).toContainEqual({
+        $ref: "#/components/parameters/ContextUserId",
+      });
+    }
+  });
   it("mounts credential-free Project social connection operations", () => {
     const document = projectsRouter.getOpenAPI31Document({
       openapi: "3.1.0",

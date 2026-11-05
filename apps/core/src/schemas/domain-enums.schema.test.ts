@@ -27,19 +27,13 @@ import {
   blobStatusSchema,
   channelSchema,
   INVITATION_DB_STATUS_VALUES,
-  invitationStatusSchema,
   jobTypeSchema,
   MEMBER_ROLE_VALUES,
-  memberRoleNullableSchema,
-  memberRoleSchema,
   noticeKindSchema,
   onChainJobStatusSchema,
   paymentTypeSchema,
   riskClassificationSchema,
-  STRIPE_SUBSCRIPTION_STATUS_VALUES,
   sokosumiJobStatusSchema,
-  stripeSubscriptionStatusNullableSchema,
-  stripeSubscriptionStatusSchema,
   taskEventStatusSchema,
   taskPrioritySchema,
   taskScheduleEndsModeSchema,
@@ -168,51 +162,6 @@ describe("domain enum schemas", () => {
     expect([...INVITATION_DB_STATUS_VALUES].sort()).toEqual(
       Object.values(InvitationStatus).sort(),
     );
-  });
-
-  it("memberRoleSchema accepts all member roles and rejects unknown values", () => {
-    for (const role of MEMBER_ROLE_VALUES) {
-      expect(memberRoleSchema.parse(role)).toBe(role);
-    }
-
-    expect(() => memberRoleSchema.parse("superadmin")).toThrow();
-  });
-
-  it("invitationStatusSchema accepts all database statuses and rejects unknown values", () => {
-    for (const status of INVITATION_DB_STATUS_VALUES) {
-      expect(invitationStatusSchema.parse(status)).toBe(status);
-    }
-
-    expect(() => invitationStatusSchema.parse("expired")).toThrow();
-    expect(() => invitationStatusSchema.parse("unknown")).toThrow();
-  });
-
-  it("memberRoleNullableSchema accepts member roles and null, rejects unknown values", () => {
-    for (const role of MEMBER_ROLE_VALUES) {
-      expect(memberRoleNullableSchema.parse(role)).toBe(role);
-    }
-
-    expect(memberRoleNullableSchema.parse(null)).toBeNull();
-    expect(() => memberRoleNullableSchema.parse("superadmin")).toThrow();
-  });
-
-  it("stripeSubscriptionStatusSchema accepts Stripe statuses and rejects unknown values", () => {
-    for (const status of STRIPE_SUBSCRIPTION_STATUS_VALUES) {
-      expect(stripeSubscriptionStatusSchema.parse(status)).toBe(status);
-    }
-
-    expect(() => stripeSubscriptionStatusSchema.parse("unknown")).toThrow();
-  });
-
-  it("stripeSubscriptionStatusNullableSchema accepts Stripe statuses and null", () => {
-    for (const status of STRIPE_SUBSCRIPTION_STATUS_VALUES) {
-      expect(stripeSubscriptionStatusNullableSchema.parse(status)).toBe(status);
-    }
-
-    expect(stripeSubscriptionStatusNullableSchema.parse(null)).toBeNull();
-    expect(() =>
-      stripeSubscriptionStatusNullableSchema.parse("unknown"),
-    ).toThrow();
   });
 });
 

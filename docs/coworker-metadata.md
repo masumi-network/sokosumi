@@ -39,11 +39,11 @@ optional and only enriches the UI.
 }
 ```
 
-| Key | Required | Type | Purpose |
-| --- | --- | --- | --- |
-| `channels` | ✅ | object (string → string) | Contact channels keyed by provider |
-| `profile` | — | object | Model / hosting / capabilities / examples |
-| `offers` | — | array | Pre-filled task offers (cards + previews) |
+| Key        | Required | Type                     | Purpose                                   |
+| ---------- | -------- | ------------------------ | ----------------------------------------- |
+| `channels` | ✅       | object (string → string) | Contact channels keyed by provider        |
+| `profile`  | —        | object                   | Model / hosting / capabilities / examples |
+| `offers`   | —        | array                    | Pre-filled task offers (cards + previews) |
 
 ---
 
@@ -60,7 +60,7 @@ A map of provider id → value. Keys are free-form; common ones are `email` and
 ```
 
 > ⚠️ Values are plain strings. Use a bare address — **not** a Markdown link.
-> ✅ `"email": "hannah@example.com"`
+> ✅`"email": "hannah@example.com"`
 > ❌ `"email": "[hannah@example.com](mailto:hannah@example.com)"`
 
 ---
@@ -78,12 +78,12 @@ Shown in the agent selection UI. All fields optional.
 }
 ```
 
-| Field | Type | Renders as |
-| --- | --- | --- |
-| `llm` | string[] | Model chips, each with an auto-detected brand icon |
-| `hosting` | string | A chip with an auto-detected region flag |
-| `capabilities` | string[] | Capability tags |
-| `examples` | string[] | Example prompts |
+| Field          | Type     | Renders as                                         |
+| -------------- | -------- | -------------------------------------------------- |
+| `llm`          | string[] | Model chips, each with an auto-detected brand icon |
+| `hosting`      | string   | A chip with an auto-detected region flag           |
+| `capabilities` | string[] | Capability tags                                    |
+| `examples`     | string[] | Example prompts                                    |
 
 ### Model icons are automatic
 
@@ -91,20 +91,20 @@ You write the model name as a string; the icon is matched by a keyword in it
 (case-insensitive, first match wins). The **text you write is what's shown** —
 write it nicely (`"Claude 3.5 Sonnet"`), the icon is derived.
 
-| If the string contains… | Icon |
-| --- | --- |
-| `gpt`, `chatgpt`, `openai`, `dall-e`, `sora` | OpenAI |
-| `claude`, `anthropic` | Claude |
-| `mistral`, `mixtral`, `codestral` | Mistral |
-| `gemini`, `gemma`, `bard`, `palm`, `google` | Gemini |
-| `llama`, `meta` | Llama / Meta |
-| `deepseek` | DeepSeek |
-| `grok`, `xai` | Grok / xAI |
-| `qwen`, `tongyi`, `alibaba` | Qwen |
-| `cohere`, `command-r` | Cohere Command R |
-| `perplexity`, `sonar`, `pplx` | Perplexity |
-| `amazon`, `bedrock`, `titan` | Amazon Titan |
-| `phi`, `copilot`, `microsoft` | Microsoft |
+| If the string contains…                      | Icon             |
+| -------------------------------------------- | ---------------- |
+| `gpt`, `chatgpt`, `openai`, `dall-e`, `sora` | OpenAI           |
+| `claude`, `anthropic`                        | Claude           |
+| `mistral`, `mixtral`, `codestral`            | Mistral          |
+| `gemini`, `gemma`, `bard`, `palm`, `google`  | Gemini           |
+| `llama`, `meta`                              | Llama / Meta     |
+| `deepseek`                                   | DeepSeek         |
+| `grok`, `xai`                                | Grok / xAI       |
+| `qwen`, `tongyi`, `alibaba`                  | Qwen             |
+| `cohere`, `command-r`                        | Cohere Command R |
+| `perplexity`, `sonar`, `pplx`                | Perplexity       |
+| `amazon`, `bedrock`, `titan`                 | Amazon Titan     |
+| `phi`, `copilot`, `microsoft`                | Microsoft        |
 
 No match → the chip shows just the text (no icon). To add a provider, extend
 `BRAND_RULES` in `apps/web/src/components/agents/tag-icon.tsx`.
@@ -129,14 +129,14 @@ Each entry is one task card. Only `title` and `prompt` are required.
 }
 ```
 
-| Field | Required | Type | Purpose |
-| --- | --- | --- | --- |
-| `title` | ✅ | string | Card title |
-| `prompt` | ✅ | string | Pre-filled into the task editor when picked |
-| `category` | — | string | Drives icon / accent color / placeholder mock |
-| `description` | — | string | Short blurb on the card and in the preview |
-| `deliverable` | — | string | "What you get" line in the preview |
-| `outputs` | — | array | Example outputs shown in the preview |
+| Field         | Required | Type   | Purpose                                       |
+| ------------- | -------- | ------ | --------------------------------------------- |
+| `title`       | ✅       | string | Card title                                    |
+| `prompt`      | ✅       | string | Pre-filled into the task editor when picked   |
+| `category`    | —        | string | Drives icon / accent color / placeholder mock |
+| `description` | —        | string | Short blurb on the card and in the preview    |
+| `deliverable` | —        | string | "What you get" line in the preview            |
+| `outputs`     | —        | array  | Example outputs shown in the preview          |
 
 ### `category`
 
@@ -144,16 +144,16 @@ Known categories get a themed icon, accent color, and placeholder mock. Spell
 them exactly. Any other string still works but renders **neutral** (generic icon,
 muted color).
 
-| `category` | Icon | Accent | Placeholder mock |
-| --- | --- | --- | --- |
-| `Research` | bar chart | chart-1 | bar-chart skeleton |
-| `Planning` | checklist | chart-4 | checklist |
-| `Coordination` | people | chart-5 | checklist |
-| `Engineering` | code | chart-3 | code block |
-| `Presentations` | slides | chart-2 | slide |
-| `Prototyping` | boxes | chart-1 | wireframe |
-| `Writing` | pen | chart-3 | text lines |
-| `Social` | clapperboard | chart-2 | video frame |
+| `category`      | Icon         | Accent  | Placeholder mock   |
+| --------------- | ------------ | ------- | ------------------ |
+| `Research`      | bar chart    | chart-1 | bar-chart skeleton |
+| `Planning`      | checklist    | chart-4 | checklist          |
+| `Coordination`  | people       | chart-5 | checklist          |
+| `Engineering`   | code         | chart-3 | code block         |
+| `Presentations` | slides       | chart-2 | slide              |
+| `Prototyping`   | boxes        | chart-1 | wireframe          |
+| `Writing`       | pen          | chart-3 | text lines         |
+| `Social`        | clapperboard | chart-2 | video frame        |
 
 The placeholder mock is only shown when there's no real file output (i.e. a
 `text` output or no `outputs`). With a real file, the thumbnail reflects the file
@@ -171,24 +171,24 @@ and the default tab.
 { "type": "pdf", "url": "https://…/file.pdf", "label": "Competitive brief" }
 ```
 
-| Field | Required | Type | Purpose |
-| --- | --- | --- | --- |
-| `type` | ✅ | enum (see below) | What kind of output it is |
-| `url` | — | string | Link to a hosted file |
-| `text` | — | string | Inline content (Markdown for `text`, HTML for `html`) |
-| `label` | — | string | Tab / chip name (defaults to the type) |
+| Field   | Required | Type             | Purpose                                               |
+| ------- | -------- | ---------------- | ----------------------------------------------------- |
+| `type`  | ✅       | enum (see below) | What kind of output it is                             |
+| `url`   | —        | string           | Link to a hosted file                                 |
+| `text`  | —        | string           | Inline content (Markdown for `text`, HTML for `html`) |
+| `label` | —        | string           | Tab / chip name (defaults to the type)                |
 
 ### Output types
 
-| `type` | Renders as | Provide |
-| --- | --- | --- |
-| `pdf` | inline PDF viewer | `url` |
-| `image` | image | `url` |
-| `slides` | presentation (Office viewer) | `url` (pptx) |
-| `doc` | document (Office viewer) | `url` (docx) |
-| `sheet` | spreadsheet (Office viewer) | `url` (xlsx/csv) |
-| `text` | rendered **Markdown** | `text` |
-| `html` | **sandboxed iframe** (scripts run) | `url` or `text` |
+| `type`   | Renders as                         | Provide          |
+| -------- | ---------------------------------- | ---------------- |
+| `pdf`    | inline PDF viewer                  | `url`            |
+| `image`  | image                              | `url`            |
+| `slides` | presentation (Office viewer)       | `url` (pptx)     |
+| `doc`    | document (Office viewer)           | `url` (docx)     |
+| `sheet`  | spreadsheet (Office viewer)        | `url` (xlsx/csv) |
+| `text`   | rendered **Markdown**              | `text`           |
+| `html`   | **sandboxed iframe** (scripts run) | `url` or `text`  |
 
 ### Prefer the canonical `type` value
 
@@ -203,15 +203,15 @@ Unknown strings still fail validation.
 
 Map your file to the canonical kind (or use a listed alias):
 
-| Your file | Use `type` |
-| --- | --- |
-| Word (`.docx`) | `doc` |
-| PowerPoint (`.pptx`) | `slides` |
-| Excel / CSV (`.xlsx` / `.csv`) | `sheet` |
-| Image (`.png` / `.jpg` / …) | `image` |
-| PDF | `pdf` |
-| Markdown / plain text | `text` |
-| Web page / interactive HTML | `html` |
+| Your file                      | Use `type` |
+| ------------------------------ | ---------- |
+| Word (`.docx`)                 | `doc`      |
+| PowerPoint (`.pptx`)           | `slides`   |
+| Excel / CSV (`.xlsx` / `.csv`) | `sheet`    |
+| Image (`.png` / `.jpg` / …)    | `image`    |
+| PDF                            | `pdf`      |
+| Markdown / plain text          | `text`     |
+| Web page / interactive HTML    | `html`     |
 
 ### `url` vs `text`
 

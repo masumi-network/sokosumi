@@ -1,5 +1,10 @@
 import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
-import type { SokoBotCapability } from "../policy.js";
+import {
+  isSokoBotCmoCapability,
+  SOKO_BOT_CMO_CAPABILITIES,
+  type SokoBotCapability,
+} from "../policy.js";
+import { cmoV1 } from "./cmo-v1.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -31,6 +36,14 @@ import { v22 } from "./v22.js";
 import { v23 } from "./v23.js";
 import { v24 } from "./v24.js";
 import { v25 } from "./v25.js";
+import { v26 } from "./v26.js";
+import { v27 } from "./v27.js";
+import { v28 } from "./v28.js";
+import { v29 } from "./v29.js";
+import { v30 } from "./v30.js";
+import { v31 } from "./v31.js";
+import { v32 } from "./v32.js";
+import { v33 } from "./v33.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -59,8 +72,24 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v23,
   v24,
   v25,
+  v26,
+  v27,
+  v28,
+  v29,
+  v30,
+  v31,
+  v32,
+  v33,
 ];
-export const DEFAULT_SOKO_BOT_VERSION_ID = "v25";
+export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
+
+/**
+ * Versions of other products built on Soko Bots (CMO's Cuso). Kept out of
+ * `SOKO_BOT_VERSIONS` so the personal-assistant fleet can never be promoted
+ * or migrated onto them; a bot is pinned to one at creation.
+ */
+export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [cmoV1];
+export const CMO_SOKO_BOT_VERSION_ID = cmoV1.id;
 
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };
@@ -68,7 +97,9 @@ export { getSokoBotSkill, SOKO_BOT_SKILLS };
 export function getSokoBotVersion(
   id: string | null | undefined,
 ): SokoBotVersion {
-  const version = SOKO_BOT_VERSIONS.find((candidate) => candidate.id === id);
+  const version = [...SOKO_BOT_VERSIONS, ...SOKO_BOT_PRODUCT_VERSIONS].find(
+    (candidate) => candidate.id === id,
+  );
   if (version) return version;
   const fallback = SOKO_BOT_VERSIONS.find(
     (candidate) => candidate.id === DEFAULT_SOKO_BOT_VERSION_ID,
@@ -99,12 +130,33 @@ export function composeSystemPrompt(
   ].join("\n\n");
 }
 
-/** Route ceiling ∩ version allowlist; a version narrows, it never widens. */
+const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+
+/** Whether the version teaches the bot to attach result cards. */
+export function versionShowsResultCards(
+  version: Pick<SokoBotVersion, "skills">,
+): boolean {
+  return version.skills.some((id) => RESULT_CARD_SKILLS.has(id));
+}
+
+/**
+ * Route ceiling ∩ version allowlist; a version narrows, it never widens. The
+ * one exception is a product's own tools: a CMO bot always carries its Brand
+ * Brain and strategy tools, and no other bot ever does.
+ */
 export function applyVersionCapabilities(
   version: SokoBotVersion,
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
-  if (!version.capabilities) return [...capabilities];
-  const allowed = new Set<SokoBotCapability>(version.capabilities);
-  return capabilities.filter((capability) => allowed.has(capability));
+  const routed = capabilities.filter(
+    (capability) => !isSokoBotCmoCapability(capability),
+  );
+  const allowed = version.capabilities
+    ? routed.filter((capability) =>
+        (version.capabilities as readonly string[]).includes(capability),
+      )
+    : routed;
+  return version.profile === "cmo"
+    ? [...allowed, ...SOKO_BOT_CMO_CAPABILITIES]
+    : allowed;
 }

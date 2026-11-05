@@ -37,6 +37,7 @@ const targetOrganization = {
   stripeCustomerId: null,
 };
 
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));

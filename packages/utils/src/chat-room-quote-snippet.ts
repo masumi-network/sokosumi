@@ -12,57 +12,69 @@ export interface ChatRoomQuoteAttachment {
 
 export interface ChatRoomQuoteSnippetParts {
   snippet: string;
+  /** Every file link of the message in body order; a file linked twice is one entry. */
+  attachments: ChatRoomQuoteAttachment[];
+  /**
+   * The one attachment a shipped Mac build draws: the first image, else the
+   * first file. Goes when those builds read `attachments`.
+   */
   attachment: ChatRoomQuoteAttachment | null;
 }
 
 /**
- * Plain-text quote body plus optional first file/image cue from markdown links.
- * Prefers the first image-like file link, else the first file-like link.
- * Snippet excludes the link captured as attachment.
+ * Plain-text quote body plus the file and image links lifted out of it.
+ * Snippet excludes every link captured as an attachment.
  */
 export function buildRoomQuoteSnippetParts(
   content: string,
 ): ChatRoomQuoteSnippetParts {
-  const attachmentMatch = findQuoteAttachmentMatch(content);
-  const contentForSnippet = attachmentMatch
-    ? `${content.slice(0, attachmentMatch.index)}${content.slice(attachmentMatch.index + attachmentMatch.match.length)}`
-    : content;
+  const attachmentsByUrl = new Map<string, ChatRoomQuoteAttachment>();
+  let contentForSnippet = "";
+  let cursor = 0;
 
+  for (const link of findMarkdownLinks(content)) {
+    const url = unescapeMarkdownLinkUrl(link.rawUrl);
+    if (!isFileLikeUrl(url)) {
+      continue;
+    }
+    contentForSnippet += content.slice(cursor, link.index);
+    cursor = link.index + link.match.length;
+    if (!attachmentsByUrl.has(url)) {
+      attachmentsByUrl.set(url, {
+        fileName: link.text,
+        url,
+        mediaKind: isImageUrl(url) ? "image" : "file",
+      });
+    }
+  }
+  contentForSnippet += content.slice(cursor);
+
+  const attachments = [...attachmentsByUrl.values()];
   return {
     snippet: cleanChatMessageText(contentForSnippet),
-    attachment: attachmentMatch?.attachment ?? null,
+    attachments,
+    attachment:
+      attachments.find((attachment) => attachment.mediaKind === "image") ??
+      attachments[0] ??
+      null,
   };
 }
 
-function findQuoteAttachmentMatch(content: string): {
-  attachment: ChatRoomQuoteAttachment;
-  match: string;
-  index: number;
-} | null {
-  const fileLinks = findMarkdownLinks(content)
-    .map((link) => ({
-      match: link.match,
-      index: link.index,
-      fileName: link.text,
-      url: unescapeMarkdownLinkUrl(link.rawUrl),
-    }))
-    .filter((link) => isFileLikeUrl(link.url));
-
-  const chosen =
-    fileLinks.find((link) => isImageUrl(link.url)) ?? fileLinks[0] ?? null;
-  if (!chosen) {
-    return null;
-  }
-
-  return {
-    match: chosen.match,
-    index: chosen.index,
-    attachment: {
-      fileName: chosen.fileName,
-      url: chosen.url,
-      mediaKind: isImageUrl(chosen.url) ? "image" : "file",
-    },
-  };
+/**
+ * A quote as one line of text for an AI reader. The snippet no longer holds
+ * file names, so a quote of images alone would otherwise read as empty.
+ */
+export function chatRoomQuotePromptLine(quote: {
+  authorName: string;
+  snippet: string;
+  attachments?: readonly { fileName: string }[];
+}): string {
+  const names = quote.attachments?.map((file) => file.fileName).join(", ");
+  const parts = [
+    quote.snippet.replace(/\s+/g, " ").trim(),
+    names ? `(attached: ${names})` : "",
+  ];
+  return `> ${quote.authorName}: ${parts.filter(Boolean).join(" ")}`;
 }
 
 /**

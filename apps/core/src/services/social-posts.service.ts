@@ -1,6 +1,15 @@
-import type { Prisma, SocialPostStatus } from "@sokosumi/database";
+import type {
+  Prisma,
+  ProjectSocialConnection,
+  SocialPostStatus,
+} from "@sokosumi/database";
+import {
+  type SocialPostPlanning,
+  socialPostPlanningSchema,
+} from "@sokosumi/soko-bot";
 import {
   CORE_API_ERROR_KINDS,
+  isSocialProviderEnabled,
   SOCIAL_POST_FIRST_COMMENT_MAX,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
@@ -14,9 +23,16 @@ import {
   socialPostMediaRequirementMessage,
   socialPostMeetsMediaRequirement,
   socialPostProviderLabel,
+  socialPostTextLength,
+  socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
+import {
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
+  socialProviderWorkspaceForProject,
+} from "@/config/social-providers";
 import { requireWorkspaceDriveFileUrl } from "@/helpers/drive-file-ref";
 import {
   badRequest,
@@ -29,21 +45,47 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
+import {
+  flagSocialPostQuotes,
+  isSocialPostWaitingForQuote,
+  type MovedSocialPostQuote,
+  mapSocialPostQuote,
+  moveSocialPostQuotes,
+  QUOTED_POST_CANCELLED,
+  requireSocialPostQuote,
+  socialPostQuotePublishDecision,
+  socialPostQuoteSelect,
+} from "@/helpers/social-post-quote";
+import {
+  SOCIAL_POST_THREAD_MAX_PARTS,
+  summarizeSocialPostThread,
+} from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
+import { socialPostFormattingError } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
   socialPostStatisticsSchema,
 } from "@/schemas/social-post-statistics.schema";
+import {
+  requireLockedOpenProject,
+  requireScopedProject,
+} from "@/services/project-social-connections.service";
+import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_REQUIRED_MESSAGE =
   "A social connection is required to schedule a post";
+const PROJECT_CLOSED_MESSAGE =
+  "Cannot schedule or approve Social posts in a closing or closed Project";
 
 const EDITABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 const SCHEDULABLE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
@@ -75,15 +117,22 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
   "DRAFT",
   "NEEDS_APPROVAL",
   "SCHEDULED",
+  "FAILED",
+  "MISSED",
 ];
 
 const socialPostInclude = {
+  threadParts: { orderBy: { position: "asc" } },
+  quotedPost: { select: socialPostQuoteSelect },
+  project: { select: socialProviderProjectSelect },
   socialConnection: {
     select: {
       id: true,
+      provider: true,
       externalHandle: true,
       displayName: true,
       avatarUrl: true,
+      subscriptionType: true,
       status: true,
     },
   },
@@ -130,6 +179,17 @@ export interface SocialPostSummary {
   text: string;
   firstComment: string | null;
   media: SocialPostMediaRef[];
+  quotedPostId: string | null;
+  quotedPost: ReturnType<typeof mapSocialPostQuote> | null;
+  needsAttentionReason: string | null;
+  waitingForQuotedPost?: boolean;
+  movedQuotes?: MovedSocialPostQuote[];
+  threadParts: SocialPostThreadPartSummary[];
+  threadPartCount: number;
+  publishedThreadPartCount: number;
+  failedThreadPartPosition: number | null;
+  partiallyPublished: boolean;
+  publishingThreadPartPosition: number | null;
   status: SocialPostStatus;
   scheduledAt: Date | null;
   timezone: string | null;
@@ -138,6 +198,7 @@ export interface SocialPostSummary {
     externalHandle: string | null;
     displayName: string | null;
     avatarUrl: string | null;
+    subscriptionType: string | null;
     status: string;
   } | null;
   creator: SocialPostCreator;
@@ -154,6 +215,9 @@ export interface SocialPostSummary {
   lastAttemptAt: Date | null;
   lastAttempt: SocialPostLastAttempt | null;
   revision: number;
+  /** The Marketing strategy version that planned it, and its planning record. */
+  marketingStrategyId?: string | null;
+  planning?: SocialPostPlanning | null;
   createdAt: Date;
   updatedAt: Date;
   canEdit: boolean;
@@ -175,6 +239,9 @@ interface ProjectScope {
 export interface ListSocialPostsInput extends ProjectScope {
   statuses?: readonly SocialPostStatus[];
   provider?: string;
+  quoteCandidates?: boolean;
+  excludePostId?: string;
+  search?: string;
   publishedFrom?: Date;
   publishedUntil?: Date;
   cursor?: string;
@@ -190,6 +257,21 @@ interface WorkspaceOwnerScope {
   organizationId: string | null;
 }
 
+export interface SocialPostThreadPartInput {
+  text: string;
+  media?: SocialPostMediaRef[];
+}
+
+interface SocialPostThreadPartSummary {
+  id: string;
+  position: number;
+  text: string;
+  media: SocialPostMediaRef[];
+  externalPostId: string | null;
+  publishedAt: Date | null;
+  error: string | null;
+}
+
 export interface CreateSocialPostInput
   extends ProjectScope,
     WorkspaceOwnerScope {
@@ -199,9 +281,13 @@ export interface CreateSocialPostInput
   text: string;
   firstComment?: string;
   media?: SocialPostMediaRef[];
+  threadParts?: SocialPostThreadPartInput[];
+  quotedPostId?: string | null;
   socialConnectionId?: string;
   scheduledAt?: Date;
   timezone?: string;
+  /** A Soko Bot keeps a link in the post body because the owner asked. */
+  linkInPost?: boolean;
 }
 
 export interface UpdateSocialPostInput
@@ -209,12 +295,20 @@ export interface UpdateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** The Soko Bot editing it: its writing is checked for formatting mistakes. */
+  sokoBotId?: string;
   postId: string;
   text?: string;
   firstComment?: string;
   media?: SocialPostMediaRef[];
+  threadParts?: SocialPostThreadPartInput[];
+  quotedPostId?: string | null;
   socialConnectionId?: string | null;
+  scheduledAt?: Date;
+  timezone?: string;
   revision: number;
+  /** A Soko Bot keeps a link in the post body because the owner asked. */
+  linkInPost?: boolean;
 }
 
 export interface ScheduleSocialPostInput extends ProjectScope {
@@ -238,6 +332,13 @@ export interface ApproveSocialPostInput extends ProjectScope {
   userId: string;
   postId: string;
   revision: number;
+}
+
+export interface ResumeSocialPostThreadInput extends ProjectScope {
+  userId: string;
+  postId: string;
+  revision: number;
+  confirmedNotPosted: true;
 }
 
 export interface RejectSocialPostInput extends ProjectScope {
@@ -277,11 +378,29 @@ function mapCreator(record: SocialPostRecord): SocialPostCreator {
   throw internalServerError("Social post has no creator");
 }
 
+/** The post's provider, and its connection's, are available to the owning Project. */
+export function isSocialPostProviderEnabled(
+  record: Pick<SocialPostRecord, "provider" | "project"> & {
+    socialConnection: { provider: string } | null;
+  },
+): boolean {
+  const workspace = socialProviderWorkspaceForProject(record.project);
+  return (
+    isSocialProviderEnabled(record.provider, workspace) &&
+    (!record.socialConnection ||
+      isSocialProviderEnabled(record.socialConnection.provider, workspace))
+  );
+}
+
 export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   const media = parseSocialPostMedia(record.media, record.id);
   const provider = isSocialPostProvider(record.provider)
     ? record.provider
     : null;
+  const quoteReady =
+    socialPostQuotePublishDecision(record, record.quotedPost, new Date())
+      .kind === "ready";
+  const providerEnabled = isSocialPostProviderEnabled(record);
   return {
     id: record.id,
     projectId: record.projectId,
@@ -289,6 +408,32 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     text: record.text,
     firstComment: record.firstComment,
     media,
+    quotedPostId: record.quotedPostId,
+    quotedPost: record.quotedPost
+      ? mapSocialPostQuote(record.quotedPost)
+      : null,
+    needsAttentionReason: record.needsAttentionReason,
+    waitingForQuotedPost: isSocialPostWaitingForQuote(
+      record,
+      record.quotedPost,
+      new Date(),
+    ),
+    threadParts: record.threadParts.map((part) => ({
+      id: part.id,
+      position: part.position,
+      text: part.text,
+      media: parseSocialPostMedia(part.media, part.id),
+      externalPostId: part.externalPostId,
+      publishedAt: part.publishedAt,
+      error:
+        part.error ??
+        (record.status === "FAILED" &&
+        record.publishingThreadPartPosition === part.position
+          ? record.lastError
+          : null),
+    })),
+    ...summarizeSocialPostThread(record),
+    publishingThreadPartPosition: record.publishingThreadPartPosition,
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
@@ -308,36 +453,36 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     lastAttemptAt: record.lastAttemptAt,
     lastAttempt: record.attempts[0] ?? null,
     revision: record.revision,
+    marketingStrategyId: record.marketingStrategyId ?? null,
+    planning: socialPostPlanningSchema.safeParse(record.planning).data ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    canEdit: EDITABLE_STATUSES.includes(record.status),
-    canSchedule: SCHEDULABLE_STATUSES.includes(record.status),
+    canEdit:
+      (EDITABLE_STATUSES.includes(record.status) ||
+        (record.status === "FAILED" && record.needsAttentionReason !== null) ||
+        canRepairDisabledPost(record)) &&
+      !hasStartedThread(record),
+    canSchedule:
+      providerEnabled &&
+      SCHEDULABLE_STATUSES.includes(record.status) &&
+      record.publishingThreadPartPosition == null,
     canCancel: CANCELABLE_STATUSES.includes(record.status),
     canPublishNow:
+      providerEnabled &&
       PUBLISH_NOW_STATUSES.includes(record.status) &&
+      record.publishingThreadPartPosition == null &&
+      quoteReady &&
       provider !== null &&
       socialPostMeetsMediaRequirement(provider, media),
-    canDuplicate: DUPLICATABLE_STATUSES.includes(record.status),
-    canApprove: record.status === "NEEDS_APPROVAL",
+    canDuplicate:
+      providerEnabled && DUPLICATABLE_STATUSES.includes(record.status),
+    canApprove: providerEnabled && record.status === "NEEDS_APPROVAL",
     canReject: record.status === "NEEDS_APPROVAL",
     connectionNeedsReconnect:
       RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
       record.socialConnection.status !== "active",
   };
-}
-
-async function requireScopedProject(
-  input: ProjectScope,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const project = await tx.project.findFirst({
-    where: { id: input.projectId, workspaceId: input.workspaceId },
-    select: { id: true },
-  });
-  if (!project) {
-    throw notFound("Project not found");
-  }
 }
 
 async function requireScopedPost(
@@ -362,6 +507,22 @@ function isSocialPostProvider(value: string): value is SocialPostProvider {
   return value in SOCIAL_POST_TEXT_LIMITS;
 }
 
+/** Failed disabled-provider posts can be rescued as drafts with an enabled account. */
+function canRepairDisabledPost(post: SocialPostRecord): boolean {
+  return (
+    (post.status === "FAILED" || post.status === "MISSED") &&
+    (!isSocialProviderEnabled(
+      post.provider,
+      socialProviderWorkspaceForProject(post.project),
+    ) ||
+      (post.socialConnection !== null &&
+        !isSocialProviderEnabled(
+          post.socialConnection.provider,
+          socialProviderWorkspaceForProject(post.project),
+        )))
+  );
+}
+
 function requireProvider(provider: string): SocialPostProvider {
   if (!isSocialPostProvider(provider)) {
     throw badRequest(`Unsupported social provider: ${provider}`);
@@ -373,17 +534,18 @@ function requireProvider(provider: string): SocialPostProvider {
 function requireFirstCommentWithinLimit(
   value: string | null | undefined,
   provider: string,
+  subscriptionType?: string | null,
 ): string | null {
   const trimmed = value?.trim() ?? "";
   if (trimmed.length === 0) return null;
   const scopedProvider = requireProvider(provider);
-  const limit = socialPostFirstCommentLimit(scopedProvider);
+  const limit = socialPostFirstCommentLimit(scopedProvider, subscriptionType);
   const cap = limit ?? SOCIAL_POST_FIRST_COMMENT_MAX;
-  if (trimmed.length > cap) {
+  if (socialPostTextLength(scopedProvider, trimmed) > cap) {
     throw badRequest(
       limit === null
-        ? `First comment must be at most ${cap} characters`
-        : `First comment must be at most ${cap} characters for ${provider}`,
+        ? `First comment must be at most ${cap.toLocaleString("en-US")} characters`
+        : `First comment must be at most ${cap.toLocaleString("en-US")} characters for ${provider}`,
     );
   }
   return trimmed;
@@ -393,23 +555,33 @@ function requireTextWithinLimit(
   text: string,
   provider: string,
   hasMedia: boolean,
+  subscriptionType?: string | null,
 ): string {
   const scopedProvider = requireProvider(provider);
   const label = socialPostProviderLabel(scopedProvider);
   const trimmed = text.trim();
-  const limit = SOCIAL_POST_TEXT_LIMITS[scopedProvider];
+  const limit = socialPostTextLimit(scopedProvider, subscriptionType);
   if (SOCIAL_POST_TEXT_REQUIRED[scopedProvider] && trimmed.length === 0) {
     throw badRequest(`${label} requires text`);
   }
   if (trimmed.length === 0 && !hasMedia) {
     throw badRequest("Text is required");
   }
-  if (trimmed.length > limit) {
+  if (socialPostTextLength(scopedProvider, trimmed) > limit) {
     throw badRequest(
-      `Text must be at most ${limit} characters for ${provider}`,
+      `Text must be at most ${limit.toLocaleString("en-US")} characters for ${label}`,
     );
   }
   return trimmed;
+}
+
+/** A Soko Bot's post that would show raw Markdown or a wall of hashtags. */
+function requireBotFormatting(
+  provider: string,
+  post: Parameters<typeof socialPostFormattingError>[1],
+): void {
+  const error = socialPostFormattingError(requireProvider(provider), post);
+  if (error) throw badRequest(error);
 }
 
 /** Publish and schedule refuse a post without the media the network needs. */
@@ -489,17 +661,88 @@ function mediaJson(media: SocialPostMediaRef[]): Prisma.InputJsonValue {
   return media.map((ref) => ({ ...ref }));
 }
 
+function requireThreadPartsAllowed(provider: string, partCount: number): void {
+  if (partCount > 0 && provider !== "x") {
+    throw badRequest("Thread parts are only supported for X accounts");
+  }
+  if (partCount >= SOCIAL_POST_THREAD_MAX_PARTS) {
+    throw badRequest(
+      `Threads allow at most ${SOCIAL_POST_THREAD_MAX_PARTS} parts including the main post`,
+    );
+  }
+}
+
+function normalizeThreadParts(
+  input: Omit<NormalizeMediaInput, "media"> & {
+    threadParts: readonly SocialPostThreadPartInput[];
+    subscriptionType?: string | null;
+  },
+): Prisma.SocialPostThreadPartCreateWithoutPostInput[] {
+  requireThreadPartsAllowed(input.provider, input.threadParts.length);
+  return input.threadParts.map((part, index) => {
+    const media = normalizeSocialPostMedia({
+      ...input,
+      media: part.media ?? [],
+    });
+    return {
+      position: index + 2,
+      text: requireTextWithinLimit(
+        part.text,
+        input.provider,
+        media.length > 0,
+        input.subscriptionType,
+      ),
+      media: mediaJson(media),
+    };
+  });
+}
+
+function requireStoredThreadParts(
+  post: SocialPostRecord,
+  provider: SocialPostProvider,
+  subscriptionType?: string | null,
+): void {
+  requireThreadPartsAllowed(provider, post.threadParts.length);
+  for (const part of post.threadParts) {
+    if (part.externalPostId) continue;
+    const media = parseSocialPostMedia(part.media, part.id);
+    requireTextWithinLimit(
+      part.text,
+      provider,
+      media.length > 0,
+      subscriptionType,
+    );
+    const validation = validateSocialPostMedia(provider, media);
+    if (!validation.ok) {
+      throw badRequest(mediaValidationMessage(provider, validation.reason));
+    }
+  }
+}
+
+function hasStartedThread(post: SocialPostRecord): boolean {
+  return (
+    post.threadParts.length > 0 &&
+    (post.publishedExternalId !== null ||
+      post.publishingThreadPartPosition != null ||
+      post.threadParts.some((part) => part.externalPostId !== null))
+  );
+}
+
 function requireFutureScheduledAt(scheduledAt: Date): void {
   if (scheduledAt.getTime() <= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS) {
     throw badRequest("Scheduled time must be in the future");
   }
 }
 
-interface ConnectionCandidate {
-  id: string;
-  provider: string;
-  status: string;
-}
+type ConnectionCandidate = Pick<
+  ProjectSocialConnection,
+  | "id"
+  | "projectId"
+  | "provider"
+  | "status"
+  | "subscriptionType"
+  | "composioConnectedAccountId"
+>;
 
 /** Loads a connection that belongs to the Project. Disconnected rows never qualify. */
 async function requireProjectConnection(
@@ -509,16 +752,29 @@ async function requireProjectConnection(
 ): Promise<ConnectionCandidate> {
   const connection = await tx.projectSocialConnection.findFirst({
     where: { id: socialConnectionId, projectId },
-    select: { id: true, provider: true, status: true },
+    select: {
+      id: true,
+      projectId: true,
+      provider: true,
+      status: true,
+      subscriptionType: true,
+      composioConnectedAccountId: true,
+      project: { select: socialProviderProjectSelect },
+    },
   });
   if (!connection) {
     throw notFound("Project social connection not found");
   }
   requireProvider(connection.provider);
+  requireSocialProviderEnabled(connection.provider, connection.project);
   if (connection.status === "disconnected") {
     throw conflict("Social connection is disconnected");
   }
-  return connection;
+  return {
+    ...connection,
+    // Keep the refreshed tier even when post validation rolls back this transaction.
+    subscriptionType: await resolveXSubscriptionType(connection),
+  };
 }
 
 async function requireActiveProjectConnection(
@@ -580,6 +836,16 @@ export async function listSocialPosts(
     workspaceId: input.workspaceId,
     ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
     ...(input.provider ? { provider: input.provider } : {}),
+    ...(input.quoteCandidates
+      ? {
+          provider: "x",
+          status: { in: ["SCHEDULED", "NEEDS_APPROVAL", "PUBLISHED"] },
+        }
+      : {}),
+    ...(input.excludePostId ? { id: { not: input.excludePostId } } : {}),
+    ...(input.search
+      ? { text: { contains: input.search, mode: "insensitive" } }
+      : {}),
     ...(input.publishedFrom || input.publishedUntil
       ? {
           publishedAt: {
@@ -601,17 +867,19 @@ export async function listSocialPosts(
     prisma.socialPost.findMany({
       where,
       include: socialPostInclude,
-      orderBy: upcoming
-        ? [{ scheduledAt: "asc" }, { id: "asc" }]
-        : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
-          ? [{ publishedAt: "desc" }, { id: "desc" }]
-          : attention
-            ? [
-                { lastAttemptAt: { sort: "desc", nulls: "last" } },
-                { scheduledAt: { sort: "desc", nulls: "last" } },
-                { id: "desc" },
-              ]
-            : [{ updatedAt: "desc" }, { id: "desc" }],
+      orderBy: input.quoteCandidates
+        ? [{ createdAt: "desc" }, { id: "desc" }]
+        : upcoming
+          ? [{ scheduledAt: "asc" }, { id: "asc" }]
+          : input.statuses?.length === 1 && input.statuses[0] === "PUBLISHED"
+            ? [{ publishedAt: "desc" }, { id: "desc" }]
+            : attention
+              ? [
+                  { lastAttemptAt: { sort: "desc", nulls: "last" } },
+                  { scheduledAt: { sort: "desc", nulls: "last" } },
+                  { id: "desc" },
+                ]
+              : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
       ...(cursor ? { cursor: { id: cursor }, skip } : {}),
     }),
@@ -634,7 +902,7 @@ export async function getSocialPost(
   input: GetSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  await requireScopedProject(input, { client: tx });
   return mapSocialPost(await requireScopedPost(input, tx));
 }
 
@@ -642,12 +910,24 @@ export async function createSocialPost(
   input: CreateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
+  if ((input.scheduledAt || input.quotedPostId) && tx === prisma) {
+    return serializableTransaction(
+      (tx) => createSocialPost(input, tx),
+      "Project changed while scheduling a Social post",
+    );
+  }
   if (input.coworkerId && input.sokoBotId) {
     throw badRequest(
       "A social post cannot have both a Coworker and Soko Bot creator",
     );
   }
-  await requireScopedProject(input, tx);
+  if (input.scheduledAt) {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  } else {
+    await requireScopedProject(input, { client: tx });
+  }
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
@@ -672,16 +952,39 @@ export async function createSocialPost(
     provider,
     media: input.media ?? [],
   });
-  const text = requireTextWithinLimit(input.text, provider, media.length > 0);
+  const text = requireTextWithinLimit(
+    input.text,
+    provider,
+    media.length > 0,
+    connection?.subscriptionType,
+  );
   const firstComment = requireFirstCommentWithinLimit(
     input.firstComment,
     provider,
+    connection?.subscriptionType,
   );
+  const threadParts = normalizeThreadParts({
+    ...input,
+    provider,
+    threadParts: input.threadParts ?? [],
+    subscriptionType: connection?.subscriptionType,
+  });
+  if (input.sokoBotId)
+    requireBotFormatting(provider, {
+      texts: [text, firstComment, ...threadParts.map((part) => part.text)],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
   const scheduled = input.scheduledAt !== undefined;
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
   }
   const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
+  await requireSocialPostQuote(
+    { ...input, provider, quotedPostId: input.quotedPostId ?? null },
+    tx,
+  );
 
   const post = await tx.socialPost.create({
     data: {
@@ -692,6 +995,10 @@ export async function createSocialPost(
       text,
       firstComment,
       media: mediaJson(media),
+      quotedPostId: input.quotedPostId ?? null,
+      ...(threadParts.length > 0
+        ? { threadParts: { create: threadParts } }
+        : {}),
       status: agentDraft ? "NEEDS_APPROVAL" : scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
@@ -710,17 +1017,50 @@ export async function updateSocialPost(
   input: UpdateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => updateSocialPost(input, tx),
+      "Project changed while editing a Social post",
+    );
+  }
+  await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
-  if (!EDITABLE_STATUSES.includes(post.status)) {
+  if (post.status === "SCHEDULED" || input.scheduledAt) {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  }
+  if (hasStartedThread(post)) {
+    throw conflict("A thread cannot be edited after publishing has started");
+  }
+  const repairingDisabledPost = canRepairDisabledPost(post);
+  const repairingQuote =
+    post.status === "FAILED" &&
+    post.needsAttentionReason !== null &&
+    input.quotedPostId !== undefined;
+  if (
+    !EDITABLE_STATUSES.includes(post.status) &&
+    !repairingDisabledPost &&
+    !repairingQuote
+  ) {
     throw conflict(
       "Only a draft, scheduled, or needs-approval post can be edited",
     );
   }
   requireRevision(post, input.revision);
+  if (input.scheduledAt) requireFutureScheduledAt(input.scheduledAt);
 
-  const data: Prisma.SocialPostUncheckedUpdateManyInput =
-    post.status === "SCHEDULED"
+  const data: Prisma.SocialPostUncheckedUpdateManyInput = repairingDisabledPost
+    ? {
+        status: "DRAFT",
+        scheduledAt: null,
+        scheduledByUserId: null,
+        scheduledByCoworkerId: null,
+        nextAttemptAt: null,
+        lastError: null,
+        attemptCount: 0,
+      }
+    : post.status === "SCHEDULED"
       ? {
           scheduledByUserId: input.userId,
           scheduledByCoworkerId: input.coworkerId ?? null,
@@ -732,14 +1072,21 @@ export async function updateSocialPost(
             ? { scheduledAt: new Date() }
             : {}),
         }
-      : {};
+      : post.status === "FAILED" || post.status === "MISSED"
+        ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
+        : {};
+  if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
+  if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
   let provider = currentProvider;
+  let subscriptionType = post.socialConnection?.subscriptionType;
   if (input.socialConnectionId === null) {
     if (post.status === "SCHEDULED") {
       throw badRequest("A scheduled post must keep a social connection");
     }
     data.socialConnectionId = null;
+    provider = "x";
+    subscriptionType = null;
   } else if (input.socialConnectionId !== undefined) {
     const connection =
       post.status === "SCHEDULED"
@@ -755,14 +1102,29 @@ export async function updateSocialPost(
           );
     data.socialConnectionId = connection.id;
     provider = requireProvider(connection.provider);
-  } else if (post.status === "SCHEDULED") {
-    await requireActiveProjectConnection(
-      input.projectId,
-      post.socialConnectionId,
-      tx,
-    );
+    subscriptionType = connection.subscriptionType;
+  } else if (
+    post.socialConnectionId &&
+    post.socialConnection?.status !== "disconnected"
+  ) {
+    const connection =
+      post.status === "SCHEDULED"
+        ? await requireActiveProjectConnection(
+            input.projectId,
+            post.socialConnectionId,
+            tx,
+          )
+        : await requireProjectConnection(
+            input.projectId,
+            post.socialConnectionId,
+            tx,
+          );
+    subscriptionType = connection.subscriptionType;
+  } else if (post.socialConnection) {
+    requireSocialProviderEnabled(post.socialConnection.provider, post.project);
   }
 
+  requireSocialProviderEnabled(provider, post.project);
   const providerChanged = provider !== currentProvider;
   if (providerChanged) {
     data.provider = provider;
@@ -777,50 +1139,160 @@ export async function updateSocialPost(
     });
     data.media = mediaJson(media);
   }
+  const text = requireTextWithinLimit(
+    input.text ?? post.text,
+    provider,
+    media.length > 0,
+    subscriptionType,
+  );
   if (
     input.text !== undefined ||
     input.media !== undefined ||
+    input.socialConnectionId !== undefined ||
     providerChanged
   ) {
-    data.text = requireTextWithinLimit(
-      input.text ?? post.text,
-      provider,
-      media.length > 0,
-    );
+    data.text = text;
     if (input.media === undefined) {
       const validation = validateSocialPostMedia(provider, media);
       if (!validation.ok) {
         throw badRequest(mediaValidationMessage(provider, validation.reason));
       }
     }
-    if (post.status === "SCHEDULED") {
+    if (
+      post.status === "SCHEDULED" ||
+      post.status === "FAILED" ||
+      post.status === "MISSED"
+    ) {
       requireMediaRequirement(provider, media);
     }
   }
 
+  const firstComment = requireFirstCommentWithinLimit(
+    input.firstComment !== undefined ? input.firstComment : post.firstComment,
+    provider,
+    subscriptionType,
+  );
   if (input.firstComment !== undefined || providerChanged) {
-    data.firstComment = requireFirstCommentWithinLimit(
-      input.firstComment !== undefined ? input.firstComment : post.firstComment,
+    data.firstComment = firstComment;
+  }
+
+  const threadParts =
+    input.threadParts !== undefined
+      ? normalizeThreadParts({
+          ...input,
+          provider,
+          threadParts: input.threadParts,
+          subscriptionType,
+        })
+      : undefined;
+  if (threadParts === undefined)
+    requireStoredThreadParts(post, provider, subscriptionType);
+  if (
+    input.sokoBotId &&
+    (input.text !== undefined ||
+      input.firstComment !== undefined ||
+      input.threadParts !== undefined ||
+      providerChanged)
+  )
+    requireBotFormatting(provider, {
+      texts: [
+        text,
+        firstComment,
+        ...(threadParts ?? post.threadParts).map((part) => part.text),
+      ],
+      body: text,
+      firstComment,
+      linkInPost: input.linkInPost,
+    });
+
+  const quotedPostId =
+    input.quotedPostId !== undefined ? input.quotedPostId : post.quotedPostId;
+  await requireSocialPostQuote(
+    {
+      ...input,
       provider,
+      quotedPostId,
+      scheduledAt:
+        post.status === "SCHEDULED" || input.scheduledAt
+          ? data.scheduledAt instanceof Date
+            ? data.scheduledAt
+            : post.scheduledAt
+          : null,
+      needsAttentionReason:
+        input.quotedPostId !== undefined ? null : post.needsAttentionReason,
+    },
+    tx,
+  );
+  if (input.quotedPostId !== undefined) {
+    data.quotedPostId = quotedPostId;
+    data.needsAttentionReason = null;
+    data.lastError = null;
+  }
+  let movedQuotes: MovedSocialPostQuote[] = [];
+  if (providerChanged || data.scheduledAt instanceof Date) {
+    movedQuotes = await moveSocialPostQuotes(
+      post,
+      {
+        provider,
+        scheduledAt:
+          data.scheduledAt instanceof Date
+            ? data.scheduledAt
+            : post.scheduledAt,
+      },
+      tx,
     );
   }
 
-  return mapSocialPost(
-    await writeWithRevision(input, input.revision, data, tx),
-  );
+  const updated = await writeWithRevision(input, input.revision, data, tx);
+  if (threadParts !== undefined) {
+    return {
+      ...mapSocialPost(
+        await tx.socialPost.update({
+          where: { id: post.id },
+          data: { threadParts: { deleteMany: {}, create: threadParts } },
+          include: socialPostInclude,
+        }),
+      ),
+      movedQuotes,
+    };
+  }
+
+  return { ...mapSocialPost(updated), movedQuotes };
 }
 
 export async function scheduleSocialPost(
   input: ScheduleSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => scheduleSocialPost(input, tx),
+      "Project changed while scheduling a Social post",
+    );
+  }
+  await requireLockedOpenProject(tx, input, {
+    closedMessage: PROJECT_CLOSED_MESSAGE,
+  });
   const post = await requireScopedPost(input, tx);
   if (!SCHEDULABLE_STATUSES.includes(post.status)) {
     throw conflict("This post can no longer be scheduled");
   }
   requireRevision(post, input.revision);
   requireFutureScheduledAt(input.scheduledAt);
+  if (post.publishingThreadPartPosition != null) {
+    throw conflict(
+      `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
+    );
+  }
+  if (
+    hasStartedThread(post) &&
+    input.socialConnectionId &&
+    input.socialConnectionId !== post.socialConnectionId
+  ) {
+    throw conflict(
+      "A partially published thread must keep its original X account",
+    );
+  }
   const media = parseSocialPostMedia(post.media, post.id);
   const currentProvider = requireProvider(post.provider);
   const connection = await requireActiveProjectConnection(
@@ -829,31 +1301,100 @@ export async function scheduleSocialPost(
     tx,
   );
   const provider = requireProvider(connection.provider);
-  const validation = validateSocialPostMedia(provider, media);
-  if (!validation.ok) {
-    throw badRequest(mediaValidationMessage(provider, validation.reason));
+  requireStoredThreadParts(post, provider, connection.subscriptionType);
+  if (!post.publishedExternalId) {
+    const validation = validateSocialPostMedia(provider, media);
+    if (!validation.ok) {
+      throw badRequest(mediaValidationMessage(provider, validation.reason));
+    }
+    requireTextWithinLimit(
+      post.text,
+      provider,
+      media.length > 0,
+      connection.subscriptionType,
+    );
+    requireMediaRequirement(provider, media);
   }
-  requireTextWithinLimit(post.text, provider, media.length > 0);
-  requireFirstCommentWithinLimit(post.firstComment, provider);
-  requireMediaRequirement(provider, media);
+  requireFirstCommentWithinLimit(
+    post.firstComment,
+    provider,
+    connection.subscriptionType,
+  );
 
+  if (!post.publishedExternalId)
+    await requireSocialPostQuote(
+      {
+        ...input,
+        provider,
+        quotedPostId: post.quotedPostId,
+        needsAttentionReason: post.needsAttentionReason,
+      },
+      tx,
+    );
+  const movedQuotes = await moveSocialPostQuotes(
+    post,
+    { provider, scheduledAt: input.scheduledAt },
+    tx,
+  );
+
+  return {
+    ...mapSocialPost(
+      await writeWithRevision(
+        input,
+        input.revision,
+        {
+          status:
+            post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
+          scheduledAt: input.scheduledAt,
+          timezone: input.timezone ?? post.timezone,
+          socialConnectionId: connection.id,
+          ...(provider !== currentProvider ? { provider } : {}),
+          scheduledByUserId: input.userId,
+          scheduledByCoworkerId: input.coworkerId ?? null,
+          lastError: null,
+          needsAttentionReason: null,
+          attemptCount: 0,
+          nextAttemptAt: null,
+        },
+        tx,
+      ),
+    ),
+    movedQuotes,
+  };
+}
+
+export async function resumeSocialPostThread(
+  input: ResumeSocialPostThreadInput,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<SocialPostSummary> {
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => resumeSocialPostThread(input, tx),
+      "Project changed while resuming a Social thread",
+    );
+  }
+  await requireLockedOpenProject(tx, input, {
+    closedMessage: PROJECT_CLOSED_MESSAGE,
+  });
+  const post = await requireScopedPost(input, tx);
+  requireRevision(post, input.revision);
+  if (
+    input.confirmedNotPosted !== true ||
+    post.status !== "FAILED" ||
+    post.provider !== "x" ||
+    post.threadParts.length === 0 ||
+    post.publishingThreadPartPosition == null ||
+    (post.leaseExpiresAt && post.leaseExpiresAt > new Date())
+  ) {
+    throw conflict(
+      "Only a failed X thread with an unconfirmed part can be resumed",
+    );
+  }
   return mapSocialPost(
     await writeWithRevision(
       input,
       input.revision,
-      {
-        status:
-          post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
-        scheduledAt: input.scheduledAt,
-        timezone: input.timezone ?? post.timezone,
-        socialConnectionId: connection.id,
-        ...(provider !== currentProvider ? { provider } : {}),
-        scheduledByUserId: input.userId,
-        scheduledByCoworkerId: input.coworkerId ?? null,
-        lastError: null,
-        attemptCount: 0,
-        nextAttemptAt: null,
-      },
+      { publishingThreadPartPosition: null },
       tx,
     ),
   );
@@ -863,7 +1404,13 @@ export async function cancelSocialPost(
   input: CancelSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => cancelSocialPost(input, tx),
+      "Post changed while cancelling a Social post",
+    );
+  }
+  await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
   if (post.status === "CANCELED") {
     return mapSocialPost(post);
@@ -875,30 +1422,42 @@ export async function cancelSocialPost(
   }
   requireRevision(post, input.revision);
 
-  return mapSocialPost(
-    await writeWithRevision(
-      input,
-      input.revision,
-      {
-        status: "CANCELED",
-        canceledAt: new Date(),
-      },
-      tx,
-    ),
+  const canceled = await writeWithRevision(
+    input,
+    input.revision,
+    {
+      status: "CANCELED",
+      canceledAt: new Date(),
+    },
+    tx,
   );
+  await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
+  return mapSocialPost(canceled);
 }
 
 export async function approveSocialPost(
   input: ApproveSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => approveSocialPost(input, tx),
+      "Project changed while approving a Social post",
+    );
+  }
+  await requireLockedOpenProject(tx, input, {
+    closedMessage: PROJECT_CLOSED_MESSAGE,
+  });
   const post = await requireScopedPost(input, tx);
   if (post.status !== "NEEDS_APPROVAL") {
     throw conflict("Only a post that needs approval can be approved");
   }
   requireRevision(post, input.revision);
   const due = post.scheduledAt;
+  requireSocialProviderEnabled(post.provider, post.project);
+  if (post.socialConnection) {
+    requireSocialProviderEnabled(post.socialConnection.provider, post.project);
+  }
   const schedule =
     due != null &&
     due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
@@ -908,55 +1467,71 @@ export async function approveSocialPost(
       post.socialConnectionId,
       tx,
     );
-  }
-
-  return mapSocialPost(
-    await writeWithRevision(
-      input,
-      input.revision,
+    await requireSocialPostQuote(
       {
-        status: schedule ? "SCHEDULED" : "DRAFT",
-        ...(schedule
-          ? {
-              scheduledByUserId: input.userId,
-              scheduledByCoworkerId: null,
-            }
-          : {}),
+        ...input,
+        provider: post.provider,
+        quotedPostId: post.quotedPostId,
+        needsAttentionReason: post.needsAttentionReason,
+        scheduledAt: due,
       },
       tx,
-    ),
+    );
+  }
+
+  const approved = await writeWithRevision(
+    input,
+    input.revision,
+    {
+      status: schedule ? "SCHEDULED" : "DRAFT",
+      ...(schedule
+        ? {
+            scheduledByUserId: input.userId,
+            scheduledByCoworkerId: null,
+          }
+        : {}),
+    },
+    tx,
   );
+  if (!schedule) await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
+  return mapSocialPost(approved);
 }
 
 export async function rejectSocialPost(
   input: RejectSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (tx === prisma) {
+    return serializableTransaction(
+      (tx) => rejectSocialPost(input, tx),
+      "Post changed while rejecting a Social post",
+    );
+  }
+  await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
   if (post.status !== "NEEDS_APPROVAL") {
     throw conflict("Only a post that needs approval can be rejected");
   }
   requireRevision(post, input.revision);
 
-  return mapSocialPost(
-    await writeWithRevision(
-      input,
-      input.revision,
-      {
-        status: "CANCELED",
-        canceledAt: new Date(),
-      },
-      tx,
-    ),
+  const rejected = await writeWithRevision(
+    input,
+    input.revision,
+    {
+      status: "CANCELED",
+      canceledAt: new Date(),
+    },
+    tx,
   );
+  await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
+  return mapSocialPost(rejected);
 }
 
 export async function duplicateSocialPost(
   input: DuplicateSocialPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  await requireScopedProject(input, { client: tx });
   const source = await requireScopedPost(input, tx);
   if (!DUPLICATABLE_STATUSES.includes(source.status)) {
     throw conflict(
@@ -965,29 +1540,64 @@ export async function duplicateSocialPost(
   }
 
   const provider = requireProvider(source.provider);
+  requireSocialProviderEnabled(provider, source.project);
+  if (source.socialConnection) {
+    requireSocialProviderEnabled(
+      source.socialConnection.provider,
+      source.project,
+    );
+  }
   const media = normalizeSocialPostMedia({
     userId: input.userId,
     organizationId: input.organizationId,
     provider,
     media: parseSocialPostMedia(source.media, source.id),
   });
-  const text = requireTextWithinLimit(source.text, provider, media.length > 0);
-  requireMediaRequirement(provider, media);
-  const socialConnectionId =
+  const connection =
     source.socialConnection && source.socialConnection.status !== "disconnected"
-      ? source.socialConnection.id
+      ? await requireProjectConnection(
+          input.projectId,
+          source.socialConnection.id,
+          tx,
+        )
       : null;
+  const text = requireTextWithinLimit(
+    source.text,
+    provider,
+    media.length > 0,
+    connection?.subscriptionType,
+  );
+  const threadParts = normalizeThreadParts({
+    ...input,
+    provider,
+    threadParts: source.threadParts.map((part) => ({
+      text: part.text,
+      media: parseSocialPostMedia(part.media, part.id),
+    })),
+    subscriptionType: connection?.subscriptionType,
+  });
+  requireMediaRequirement(provider, media);
+  const firstComment = requireFirstCommentWithinLimit(
+    source.firstComment,
+    provider,
+    connection?.subscriptionType,
+  );
 
   const post = await tx.socialPost.create({
     data: {
       projectId: input.projectId,
       workspaceId: input.workspaceId,
-      socialConnectionId,
+      socialConnectionId: connection?.id ?? null,
       provider,
       text,
-      firstComment: source.firstComment,
+      firstComment,
+      quotedPostId: source.quotedPostId,
+      needsAttentionReason: source.needsAttentionReason,
       media: mediaJson(media),
-      status: "DRAFT",
+      ...(threadParts.length > 0
+        ? { threadParts: { create: threadParts } }
+        : {}),
+      status: input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
     },
@@ -1002,7 +1612,19 @@ export async function recycleSocialAccountPost(
   input: RecycleSocialAccountPostInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input, tx);
+  if (input.delayDays && tx === prisma) {
+    return serializableTransaction(
+      (tx) => recycleSocialAccountPost(input, tx),
+      "Project changed while scheduling a Social post",
+    );
+  }
+  if (input.delayDays) {
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: PROJECT_CLOSED_MESSAGE,
+    });
+  } else {
+    await requireScopedProject(input, { client: tx });
+  }
   const accountPost = await tx.socialAccountPost.findFirst({
     where: {
       id: input.accountPostId,
@@ -1012,12 +1634,23 @@ export async function recycleSocialAccountPost(
       },
     },
     include: {
-      connection: { select: { id: true, status: true, provider: true } },
+      connection: {
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          project: { select: socialProviderProjectSelect },
+        },
+      },
     },
   });
   if (!accountPost) {
     throw notFound("Performance post not found");
   }
+  requireSocialProviderEnabled(
+    accountPost.connection.provider,
+    accountPost.connection.project,
+  );
 
   const match = await tx.socialPost.findFirst({
     where: {

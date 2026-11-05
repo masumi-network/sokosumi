@@ -9,15 +9,25 @@ const mocks = vi.hoisted(() => ({
   posts: vi.fn(),
   postCount: vi.fn(),
   latestPost: vi.fn(),
+  newsletterIssues: vi.fn(),
+  latestIssue: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // Not the newsletter beta org, so newsletter issues stay out of these reads.
+    workspace: { findUnique: async () => null },
     taskScheduleRun: { findMany: mocks.tasks, count: mocks.taskCount },
     task: { findMany: mocks.runAtTasks, count: mocks.runAtTaskCount },
     socialPost: {
       findMany: mocks.posts,
       count: mocks.postCount,
       aggregate: mocks.latestPost,
+    },
+    newsletterIssue: {
+      findMany: mocks.newsletterIssues,
+      count: mocks.newsletterIssues,
+      aggregate: mocks.latestIssue,
+      groupBy: mocks.newsletterIssues,
     },
   },
 }));
@@ -50,6 +60,12 @@ const post = {
   project: { name: "Launch project" },
   scheduledByUser: { name: "Albina", image: "https://example.com/albina.png" },
   attempts: [],
+  threadParts: [],
+  quotedPostId: null,
+  needsAttentionReason: null,
+  publishedExternalId: null,
+  publishingThreadPartPosition: null,
+  lastError: null,
   media: [
     {
       pathname: "drive/launch.png",
@@ -95,6 +111,8 @@ describe("Social posts in the calendar", () => {
     mocks.posts.mockResolvedValue([post]);
     mocks.postCount.mockResolvedValue(1);
     mocks.latestPost.mockResolvedValue({ _max: { scheduledAt: null } });
+    mocks.latestIssue.mockResolvedValue({ _max: { scheduledAt: null } });
+    mocks.newsletterIssues.mockResolvedValue([]);
   });
   afterEach(() => vi.useRealTimers());
   it("merges tasks and posts with stable pagination at the same timestamp", async () => {
@@ -144,6 +162,12 @@ describe("Social posts in the calendar", () => {
       OR: [{ effectiveScheduledAt: { gt: new Date(at) } }],
     });
   });
+  it("keeps newsletter issues off the Social calendar", async () => {
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items.map((item) => item.kind)).toEqual(["socialPost"]);
+    expect(result.pagination.total).toBe(1);
+    expect(mocks.newsletterIssues).not.toHaveBeenCalled();
+  });
   it("includes the latest attempt outcome and error kind, never the provider error", async () => {
     mocks.posts.mockResolvedValue([
       {
@@ -169,6 +193,59 @@ describe("Social posts in the calendar", () => {
     expect(JSON.stringify(result.items[0])).not.toContain("403");
     expect(JSON.stringify(result.items[0])).not.toContain("Duplicate");
   });
+  it("returns partial thread progress for calendar chips", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        publishedExternalId: "1907",
+        threadParts: [
+          { position: 2, externalPostId: null, error: "Thread part 2 failed" },
+          { position: 3, externalPostId: null, error: null },
+        ],
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      threadPartCount: 3,
+      publishedThreadPartCount: 1,
+      failedThreadPartPosition: 2,
+      partiallyPublished: true,
+    });
+  });
+
+  it("returns the quote indicator and attention reason for calendar items", async () => {
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        status: "FAILED",
+        quotedPostId: "77777777-7777-4777-8777-777777777777",
+        needsAttentionReason: "The post it quotes failed to publish",
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      quotedPostId: "77777777-7777-4777-8777-777777777777",
+      needsAttentionReason: "The post it quotes failed to publish",
+    });
+  });
+
+  it("derives the waiting state for a due quote whose target is not live", async () => {
+    vi.setSystemTime(new Date(at));
+    mocks.posts.mockResolvedValue([
+      {
+        ...post,
+        quotedPostId: "77777777-7777-4777-8777-777777777777",
+        quotedPost: { status: "SCHEDULED", publishedExternalId: null },
+      },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      waitingForQuotedPost: true,
+      status: "SCHEDULED",
+    });
+  });
+
   it("keeps posts visible when the scheduler is deleted and there are no attachments", async () => {
     mocks.posts.mockResolvedValue([
       { ...post, scheduledByUser: null, media: [] },
@@ -338,6 +415,53 @@ describe("Social posts in the calendar", () => {
         ),
       ).rejects.toThrow("Calendar browse range cannot extend");
       expect(mocks.latestPost).not.toHaveBeenCalled();
+      expect(mocks.latestIssue).not.toHaveBeenCalled();
     },
   );
+
+  it("extends the browse horizon for a far-future Newsletter issue", async () => {
+    mocks.latestIssue.mockResolvedValue({
+      _max: { scheduledAt: new Date("2027-06-15T12:00:00.000Z") },
+    });
+    await expect(
+      readWorkspaceCalendar(
+        workspaceId,
+        "user",
+        {
+          ...query,
+          types: ["newsletter"],
+          includeSocialPosts: false,
+          from: new Date("2027-05-30T08:00:00.000Z"),
+          to: new Date("2027-07-06T11:59:59.999Z"),
+          limit: 100,
+        },
+        { projectId },
+      ),
+    ).resolves.toMatchObject({ items: [] });
+    expect(mocks.latestPost).not.toHaveBeenCalled();
+    expect(mocks.latestIssue).toHaveBeenCalledWith({
+      where: {
+        workspaceId,
+        projectId,
+        status: { in: ["SCHEDULED", "SENDING"] },
+        scheduledAt: { not: null },
+      },
+      _max: { scheduledAt: true },
+    });
+  });
+
+  it("does not extend for Newsletter when Social is selected without posts", async () => {
+    mocks.latestIssue.mockResolvedValue({
+      _max: { scheduledAt: new Date("2027-06-15T12:00:00.000Z") },
+    });
+    await expect(
+      readWorkspaceCalendar(workspaceId, "user", {
+        ...query,
+        types: ["social"],
+        from: new Date("2027-05-01T00:00:00.000Z"),
+        to: new Date("2027-06-01T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow("Calendar browse range cannot extend");
+    expect(mocks.latestIssue).not.toHaveBeenCalled();
+  });
 });

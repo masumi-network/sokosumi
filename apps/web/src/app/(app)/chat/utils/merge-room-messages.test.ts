@@ -380,7 +380,7 @@ describe("mergeRoomMessages", () => {
         roomId: "source-room",
         authorName: "Alice",
         snippet: "Ship the launch notes",
-        attachment: null,
+        attachments: [],
       },
     };
 

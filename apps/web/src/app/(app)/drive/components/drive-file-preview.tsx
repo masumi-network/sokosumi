@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 import type { FileStore } from "@/lib/utils/file-search.client";
 
 /**
@@ -146,6 +147,8 @@ export function DriveFilePreview({
   const isText =
     TEXT_TYPES.has(type) &&
     (sizeBytes === null || sizeBytes <= MAX_TEXT_PREVIEW_BYTES);
+  // Played from the same authorized route, so nothing public is handed out.
+  const { isVideo, isAudio } = classifyFilePreview(source, displayName, type);
 
   const [text, setText] = useState<TextState>({ kind: "loading" });
 
@@ -210,6 +213,23 @@ export function DriveFilePreview({
           src={source}
           alt={displayName}
           className="max-h-[60dvh] w-full rounded-md object-contain"
+        />
+      ) : isVideo ? (
+        <video
+          src={source}
+          controls
+          playsInline
+          preload="metadata"
+          aria-label={displayName}
+          className="max-h-[60dvh] w-full rounded-md bg-scrim-soft"
+        />
+      ) : isAudio ? (
+        <audio
+          src={source}
+          controls
+          preload="metadata"
+          aria-label={displayName}
+          className="w-full"
         />
       ) : isText ? (
         text.kind === "loading" ? (

@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import "server-only";
 
 import type { SessionUser } from "@sokosumi/utils";
@@ -11,7 +12,9 @@ import {
 import {
   type AuthRedirectSearchParams,
   buildSignedOAuthQueryFromSearchParams,
+  type OAuthRequestBrand,
   oauthRequestAsksForNewAccount,
+  oauthRequestBrand,
   oauthRequestHasExpired,
   oauthRequestRequiresSignIn,
   readSearchParams,
@@ -26,6 +29,8 @@ export interface OAuthRequestClient {
   uri: string | undefined;
   /** https only. */
   logoUri: string | undefined;
+  /** The product's own look for Log in and Register, when it has one. */
+  brand?: OAuthRequestBrand | undefined;
 }
 
 interface OAuthRequest {
@@ -66,6 +71,8 @@ export async function readOAuthRequest(
   if (!query || !clientId) {
     return undefined;
   }
+  // The expiry check reads the clock, so it runs per request.
+  await connection();
   if (oauthRequestHasExpired(query)) {
     return {
       query,
@@ -85,7 +92,7 @@ export async function readOAuthRequest(
   const canHandBack = session != null && !oauthRequestRequiresSignIn(query);
   return {
     query,
-    client: toRequestClient(client),
+    client: withBrand(toRequestClient(client), query),
     canHandBack,
     accountToConfirm:
       canHandBack && oauthRequestAsksForNewAccount(query)
@@ -133,6 +140,14 @@ async function getSignedInOAuthClient(
   }
   const result = await getOAuthClientPublic(clientId);
   return result.isOk() ? toRequestClient(result.value) : undefined;
+}
+
+function withBrand(
+  client: OAuthRequestClient | undefined,
+  query: string,
+): OAuthRequestClient | undefined {
+  const brand = oauthRequestBrand(query);
+  return client && brand ? { ...client, brand } : client;
 }
 
 function toRequestClient(

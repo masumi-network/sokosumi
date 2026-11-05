@@ -63,4 +63,12 @@ describe("table CSV", () => {
       ["", "2"],
     ]);
   });
+  it("keeps the default row limit and accepts a caller's larger limit", () => {
+    const csv = `Email\n${"person@example.com\n".repeat(10_001)}`;
+    expect(() => parseTableCsv(csv)).toThrow("CSV exceeds 10,000 rows");
+    expect(parseTableCsv(csv, { maxRows: 50_000 })).toHaveLength(10_002);
+    expect(() => parseTableCsv("Email\na\nb", { maxRows: 1 })).toThrow(
+      "CSV exceeds 1 rows",
+    );
+  });
 });

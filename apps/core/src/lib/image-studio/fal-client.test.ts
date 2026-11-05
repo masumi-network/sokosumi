@@ -5,11 +5,11 @@ vi.mock("@/config/env", () => ({ getEnv: () => ({ FAL_KEY: "test-key" }) }));
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   buildFalInput,
-  downloadImage,
+  downloadMedia,
   falModelForKind,
   fetchQueueStatus,
   isAllowedMediaUrl,
-  parseImages,
+  parseMedia,
   queueRequestModel,
   submitToQueue,
 } from "@/lib/image-studio/fal-client";
@@ -243,10 +243,10 @@ describe("fetchQueueStatus", () => {
   });
 });
 
-describe("parseImages", () => {
+describe("parseMedia", () => {
   it("reads the payload shape the provider actually returns", () => {
     expect(
-      parseImages({
+      parseMedia({
         images: [
           {
             url: "https://v3b.fal.media/files/a.png",
@@ -269,7 +269,7 @@ describe("parseImages", () => {
 
   it("tolerates a payload with no dimensions, which this model sometimes sends", () => {
     expect(
-      parseImages({ images: [{ url: "https://v3b.fal.media/files/a.png" }] }),
+      parseMedia({ images: [{ url: "https://v3b.fal.media/files/a.png" }] }),
     ).toEqual([
       {
         url: "https://v3b.fal.media/files/a.png",
@@ -281,8 +281,8 @@ describe("parseImages", () => {
   });
 
   it("ignores anything that is not a usable image entry", () => {
-    expect(parseImages({ images: [null, {}, { url: "" }] })).toEqual([]);
-    expect(parseImages(null)).toEqual([]);
+    expect(parseMedia({ images: [null, {}, { url: "" }] })).toEqual([]);
+    expect(parseMedia(null)).toEqual([]);
   });
 });
 
@@ -306,12 +306,12 @@ describe("media URL allow-list", () => {
   });
 });
 
-describe("downloadImage", () => {
+describe("downloadMedia", () => {
   it("refuses a URL outside the allow-list before making any request", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     await expect(
-      downloadImage("https://internal.test/a.png", 1024),
+      downloadMedia("https://internal.test/a.png", 1024),
     ).rejects.toThrow(/allowed provider host/);
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
@@ -330,7 +330,7 @@ describe("downloadImage", () => {
     );
     // A permitted host must not be able to bounce us somewhere else.
     await expect(
-      downloadImage("https://v3b.fal.media/files/a.png", 1024),
+      downloadMedia("https://v3b.fal.media/files/a.png", 1024),
     ).rejects.toThrow(/allowed provider host/);
     vi.unstubAllGlobals();
   });
@@ -347,7 +347,7 @@ describe("downloadImage", () => {
       ),
     );
     await expect(
-      downloadImage("https://v3b.fal.media/files/a.png", 1024),
+      downloadMedia("https://v3b.fal.media/files/a.png", 1024),
     ).rejects.toThrow(/too many redirects/);
     vi.unstubAllGlobals();
   });
@@ -373,7 +373,7 @@ describe("downloadImage", () => {
     );
 
     await expect(
-      downloadImage("https://v3b.fal.media/files/a.png", 128),
+      downloadMedia("https://v3b.fal.media/files/a.png", 128),
     ).rejects.toThrow(/larger than 128 bytes/);
     // Enforced as bytes arrive: a lying header cannot make Core buffer an
     // unbounded response first and check afterwards.
@@ -393,7 +393,7 @@ describe("downloadImage", () => {
       ),
     );
     await expect(
-      downloadImage("https://v3b.fal.media/files/a.png", 1024),
+      downloadMedia("https://v3b.fal.media/files/a.png", 1024),
     ).resolves.toMatchObject({ contentType: "image/png" });
     vi.unstubAllGlobals();
   });

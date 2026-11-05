@@ -3,6 +3,9 @@ import * as z from "zod";
 /** Query parameter the console's route handlers read a shared bot's id from. */
 export const SOKO_BOT_ID_PARAM = "botId";
 
+/** Where the OAuth return page sends the owner instead of the console. */
+export const INTEGRATION_RETURN_TO_PARAM = "next";
+
 const botIdSchema = z.string().uuid();
 
 /**

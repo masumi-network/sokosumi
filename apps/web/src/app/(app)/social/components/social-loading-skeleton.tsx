@@ -28,7 +28,7 @@ export function SocialLoadingSkeleton({ label }: { label: string }) {
       {tab === "calendar" ? <CalendarPane /> : null}
       {tab === "drafts" ? <DraftsPane /> : null}
       {tab === "attention" ? <ListPane /> : null}
-      {tab === "accounts" ? <AccountsPane /> : null}
+      {tab === "accounts" ? <SocialAccountsSkeleton /> : null}
       {tab === "statistics" ? <StatisticsPane /> : null}
     </SocialLoadingChrome>
   );
@@ -135,6 +135,11 @@ function DraftsPane() {
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-20" />
             </div>
+            {/* Live draft cards put the platform mark on the right of the header. */}
+            <Skeleton
+              className="size-5 shrink-0 rounded-sm"
+              data-testid="social-loading-platform-mark"
+            />
           </div>
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-2/3" />
@@ -154,7 +159,10 @@ function ListPane() {
           className="border-border flex flex-col gap-2 rounded-lg border p-3"
         >
           <div className="flex items-center gap-2">
-            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <Skeleton
+              className="size-9 shrink-0 rounded-md border"
+              data-testid="social-loading-platform-mark"
+            />
             <Skeleton className="h-4 w-40" />
             <Skeleton className="ms-auto h-4 w-16" />
           </div>
@@ -166,7 +174,7 @@ function ListPane() {
   );
 }
 
-function AccountsPane() {
+export function SocialAccountsSkeleton() {
   return (
     <ul className="divide-y rounded-lg border pt-2">
       {Array.from({ length: 3 }, (_, row) => (
@@ -211,14 +219,17 @@ function PlaceholderPostCard() {
   return (
     <div className="border-border flex flex-col gap-1.5 rounded-md border p-1.5">
       <div className="flex items-center gap-1">
-        <Skeleton className="size-4 shrink-0 rounded-full" />
+        <Skeleton
+          className="size-4 shrink-0 rounded-sm"
+          data-testid="social-loading-platform-mark"
+        />
         <Skeleton className="h-3 min-w-0 flex-1" />
         <Skeleton className="h-3 w-10 shrink-0" />
       </div>
       <Skeleton className="h-3 w-full" />
       <Skeleton className="h-3 w-2/3" />
       <div className="flex items-center gap-1">
-        <Skeleton className="size-5 rounded-full" />
+        <Skeleton className="size-5 rounded-sm" />
         <Skeleton className="size-5 rounded-full" />
       </div>
     </div>

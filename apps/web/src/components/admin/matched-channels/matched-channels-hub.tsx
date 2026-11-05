@@ -137,7 +137,7 @@ export function MatchedChannelsHub() {
         <li key={channel.id}>
           <Link
             href={`/admin/matched-channels/${channel.id}`}
-            className="hover:bg-card-background flex flex-col gap-0.5 px-4 py-3 transition-colors"
+            className="hover:bg-accent flex flex-col gap-0.5 px-4 py-3 transition-colors"
           >
             <span className="font-medium">{channel.name}</span>
             <span className="text-muted-foreground text-xs">

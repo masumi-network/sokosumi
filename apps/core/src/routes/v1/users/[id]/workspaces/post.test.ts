@@ -107,8 +107,17 @@ describe("POST /users/{id}/workspaces", () => {
       name: "Ada Lovelace",
       organizationId: null,
       slug: null,
+      role: null,
+      memberCount: null,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: [
+        "x",
+        "youtube",
+        "linkedin",
+        "instagram",
+        "facebook",
+      ],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -141,8 +150,17 @@ describe("POST /users/{id}/workspaces", () => {
       name: "Acme Studio",
       organizationId: "org_1",
       slug: "acme-studio-abc123",
+      role: "owner",
+      memberCount: 1,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: [
+        "x",
+        "youtube",
+        "linkedin",
+        "instagram",
+        "facebook",
+      ],
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -182,8 +200,17 @@ describe("POST /users/{id}/workspaces", () => {
       name: "Acme",
       organizationId: "org_1",
       slug: "acme-abc123",
+      role: "owner",
+      memberCount: 1,
       logo: null,
       websiteUrl: null,
+      enabledSocialProviders: [
+        "x",
+        "youtube",
+        "linkedin",
+        "instagram",
+        "facebook",
+      ],
       preferred: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);

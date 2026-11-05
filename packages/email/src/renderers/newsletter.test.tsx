@@ -1,0 +1,379 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  renderNewsletterConfirmationEmail,
+  renderNewsletterConfirmPage,
+  renderNewsletterEmail,
+  renderNewsletterUnsubscribePage,
+} from "./newsletter.js";
+
+const UNSUBSCRIBE_URL =
+  "https://example.com/v1/public/newsletter/unsubscribe?token=signed-token";
+
+describe("newsletter rendering", () => {
+  it.each([
+    ["en", "Subscribe"],
+    ["de", "Abonnieren"],
+    ["es", "Suscribirse"],
+  ])(
+    "renders a public web footer in %s without email-only content or tracking",
+    async (locale, label) => {
+      const { html, text } = await renderNewsletterEmail({
+        mode: "web",
+        newsletter: {
+          name: "Weekly <script>bad</script>",
+          brand: { primaryColor: "#123456", footerText: "Thanks for reading" },
+        },
+        issue: {
+          subject: "Public issue",
+          previewText: "Inbox-only preview",
+          template: "TEXT",
+          content: [
+            {
+              type: "text",
+              text: "**News** [read](https://example.com/read) <script>bad</script>",
+            },
+          ],
+        },
+        subscribeUrl: "https://example.com/n/weekly",
+        locale,
+      });
+      expect(html).toContain(label);
+      expect(html).toContain('href="https://example.com/n/weekly"');
+      expect(html).toContain('href="https://example.com/read"');
+      // The public page's sandboxed frame only allows links that open a new tab.
+      for (const href of [
+        "https://example.com/n/weekly",
+        "https://example.com/read",
+      ])
+        expect(
+          html.match(new RegExp(`<a[^>]*href="${href}"[^>]*>`))?.[0],
+        ).toContain('target="_blank"');
+      expect(html).toContain("<strong>News</strong>");
+      expect(html).toContain("#123456");
+      expect(html).toContain("Thanks for reading");
+      expect(html).toContain("&lt;script&gt;");
+      expect(html).not.toContain("<script>");
+      expect(html).not.toContain("Inbox-only preview");
+      expect(html).not.toContain("unsubscribe");
+      expect(html).not.toContain("You received this email");
+      expect(html).not.toContain("token=");
+      expect(html).not.toContain("List-Unsubscribe");
+      expect(html).not.toContain("<img");
+      expect(text).toContain(label);
+    },
+  );
+
+  it.each(["http://localhost:3000/n/weekly", "javascript:alert(1)"])(
+    "validates web footer URLs: %s",
+    async (subscribeUrl) => {
+      const { html } = await renderNewsletterEmail({
+        mode: "web",
+        newsletter: { name: "Weekly", brand: {} },
+        issue: { subject: "News", template: "TEXT", content: [] },
+        subscribeUrl,
+      });
+      expect(html.includes(`href="${subscribeUrl}"`)).toBe(
+        subscribeUrl.startsWith("http:"),
+      );
+    },
+  );
+
+  it("keeps the preview unsubscribe placeholder without allowing unsafe URLs", async () => {
+    for (const unsubscribeUrl of ["#", "javascript:alert(1)"]) {
+      const { html } = await renderNewsletterEmail({
+        newsletter: { name: "Weekly", brand: {} },
+        issue: { subject: "Preview", template: "TEXT", content: [] },
+        unsubscribeUrl,
+      });
+      expect(html.includes('href="#"')).toBe(unsubscribeUrl === "#");
+      expect(html).not.toContain('href="javascript:');
+    }
+  });
+  it.each([
+    ["en", "Confirm subscription", "Your subscription is confirmed", "7 days"],
+    ["de", "Abonnement bestätigen", "Dein Abonnement ist bestätigt", "7 Tagen"],
+    ["es", "Confirmar suscripción", "Tu suscripción está confirmada", "7 días"],
+  ])(
+    "renders localized opt-in email and POST confirmation page in %s",
+    async (locale, title, confirmed, expiry) => {
+      const confirmUrl =
+        "https://example.com/v1/public/newsletter/confirm?token=signed-token";
+      const email = await renderNewsletterConfirmationEmail({
+        newsletter: {
+          name: "Weekly <script>bad</script>",
+          brand: { accentColor: "#123456" },
+        },
+        confirmUrl,
+        unsubscribeUrl: UNSUBSCRIBE_URL,
+        locale,
+      });
+      expect(email.html).toContain(title);
+      expect(email.html).toContain(
+        'href="https://example.com/v1/public/newsletter/confirm?token=signed-token"',
+      );
+      expect(email.html).toContain("#123456");
+      expect(email.html).not.toContain("<script>");
+      expect(email.text).toContain(expiry);
+      expect(email.text).toContain(confirmUrl);
+      expect(email.text).toContain(UNSUBSCRIBE_URL);
+      const page = await renderNewsletterConfirmPage({
+        name: "Weekly <script>",
+        actionUrl: "?token=signed-token",
+        confirmed: false,
+        locale,
+      });
+      expect(page).toContain(title);
+      expect(page).toContain('method="post"');
+      expect(page).toContain('action="?token=signed-token"');
+      expect(page).not.toContain("<script>");
+      const done = await renderNewsletterConfirmPage({
+        name: "Weekly",
+        actionUrl: "",
+        confirmed: true,
+        locale,
+      });
+      expect(done).toContain(confirmed);
+      expect(done).not.toContain("<form");
+    },
+  );
+
+  it("escapes user text, supports simple formatting, and includes a usable HTML and text footer", async () => {
+    const email = await renderNewsletterEmail({
+      newsletter: {
+        name: "News <script>bad</script>",
+        brand: {
+          logoUrl: "https://example.com/logo.png",
+          primaryColor: "#123456",
+          accentColor: "#654321",
+          fontFamily: "Georgia",
+          footerText: '<img src=x onerror="bad">',
+        },
+      },
+      issue: {
+        subject: "Subject <script>bad</script>",
+        previewText: "Preview <b>text</b>",
+        template: "IMAGES",
+        content: [
+          { type: "heading", text: "Hello <script>bad</script>", level: 1 },
+          { type: "heading", text: "Subheading", level: 2 },
+          {
+            type: "text",
+            text: "**Bold <unsafe>** and [read](https://example.com/read)\n\nSecond paragraph <iframe> [bad](javascript:alert(1))",
+          },
+          {
+            type: "image",
+            url: "https://example.com/image.png",
+            alt: '" <bad>',
+            href: "https://example.com/image",
+          },
+          {
+            type: "button",
+            label: "Go <bad>",
+            url: "https://example.com/button",
+          },
+          { type: "divider" },
+        ],
+      },
+      unsubscribeUrl: UNSUBSCRIBE_URL,
+    });
+    expect(email.html).not.toContain("<script>");
+    expect(email.html).not.toContain("<iframe>");
+    expect(email.html).toContain("&lt;script&gt;");
+    expect(email.html).toContain("<strong>Bold &lt;unsafe&gt;</strong>");
+    expect(email.html).toContain('href="https://example.com/read"');
+    expect(email.html).not.toContain('href="javascript:');
+    expect(email.html).toContain("<table");
+    expect(email.html).toContain("#123456");
+    expect(email.html).toContain("Georgia");
+    expect(email.html).toContain(UNSUBSCRIBE_URL);
+    expect(email.html).toContain(
+      "You received this email because you subscribed to",
+    );
+    expect(email.text).toContain(UNSUBSCRIBE_URL);
+    expect(email.text).toContain("Second paragraph");
+    expect(email.text).toContain("https://example.com/read");
+  });
+
+  it("renders the studio blocks and shared design while ignoring signup overrides", async () => {
+    const { html, text } = await renderNewsletterEmail({
+      newsletter: {
+        name: "News",
+        brand: {
+          accentColor: "#ffcc00",
+          backgroundColor: "#eeeeee",
+          buttonTextColor: "#111111",
+          buttonShape: "pill",
+          headerImageUrl: "https://example.com/banner.png",
+          headerAlign: "center",
+          logoUrl: "https://example.com/logo.png",
+          spacing: "roomy",
+          signupForm: {
+            accentColor: "#123456",
+            buttonTextColor: "#654321",
+            buttonShape: "square",
+            headerAlign: "left",
+            spacing: "compact",
+          },
+        },
+      },
+      issue: {
+        subject: "Studio",
+        template: "TEXT",
+        content: [
+          {
+            type: "image",
+            url: "https://example.com/half.png",
+            alt: "Half",
+            width: 50,
+            align: "right",
+          },
+          { type: "button", label: "Go", url: "https://example.com/go" },
+          {
+            type: "columns",
+            columns: [
+              {
+                text: "Left <b>col</b>",
+                imageUrl: "https://example.com/left.png",
+                alt: "Left image",
+              },
+              { text: "Right col" },
+            ],
+          },
+          { type: "spacer", size: "lg" },
+          {
+            type: "social",
+            links: [
+              { network: "linkedin", url: "https://linkedin.com/company/news" },
+              { network: "website", url: "https://example.com" },
+            ],
+          },
+          { type: "footer", text: "Sent from **Berlin**" },
+        ],
+      },
+      unsubscribeUrl: UNSUBSCRIBE_URL,
+      locale: "es",
+    });
+    expect(html).toContain("background-color:#eeeeee");
+    expect(html).toContain('src="https://example.com/banner.png"');
+    expect(html).toContain('width="268"');
+    expect(html).toContain("width:50%");
+    expect(html).toContain("margin:0 0 0 auto");
+    expect(html).toContain("border-radius:999px");
+    expect(html).toContain("color:#111111");
+    expect(html).toContain('alt="Left image"');
+    expect(html).toContain("Left &lt;b&gt;col&lt;/b&gt;");
+    expect(html).toContain("height:56px");
+    expect(html).toContain('href="https://linkedin.com/company/news"');
+    expect(html).toContain("Sitio web");
+    expect(html).toContain("<strong>Berlin</strong>");
+    expect(html).toContain("padding:44px");
+    expect(html).not.toContain("#123456");
+    expect(html).not.toContain("#654321");
+    expect(text).toContain("Right col");
+  });
+
+  it("keeps the earlier look when a design leaves the studio fields unset", async () => {
+    const { html } = await renderNewsletterEmail({
+      newsletter: { name: "News", brand: {} },
+      issue: {
+        subject: "Plain",
+        template: "BUTTONS",
+        content: [{ type: "button", label: "Go", url: "https://example.com" }],
+      },
+      unsubscribeUrl: "#",
+    });
+    expect(html).toContain("padding:32px");
+    expect(html).toContain("border-radius:4px");
+    expect(html).toContain("background-color:#f5f5f5");
+  });
+
+  it.each([
+    ["[" + "[\\".repeat(50_000), "[\\[\\[\\"],
+    ["[\\](https://" + "[!](https://".repeat(20_000), "[!](https://[!]"],
+    ["**" + "[".repeat(50_000), "**[[["],
+  ])(
+    "renders adversarial inline markup as plain text quickly",
+    async (text, sample) => {
+      const render = (content: string) =>
+        renderNewsletterEmail({
+          mode: "web",
+          newsletter: { name: "Weekly", brand: {} },
+          issue: {
+            subject: "News",
+            template: "TEXT",
+            content: [{ type: "text", text: content }],
+          },
+        });
+      const baseline = (await render("")).html;
+      const start = performance.now();
+      const { html } = await render(text);
+      expect(performance.now() - start).toBeLessThan(1000);
+      expect(html).toContain(sample);
+      expect(html).not.toContain("<strong>");
+      expect(html.split("<a ").length).toBe(baseline.split("<a ").length);
+    },
+  );
+
+  it("renders bold and links next to stray brackets", async () => {
+    const { html } = await renderNewsletterEmail({
+      mode: "web",
+      newsletter: { name: "Weekly", brand: {} },
+      issue: {
+        subject: "News",
+        template: "TEXT",
+        content: [
+          {
+            type: "text",
+            text: "**Hi** [ [docs](https://example.com/a?b=1#c) [x](https://example.com/[y])",
+          },
+        ],
+      },
+    });
+    expect(html).toContain("<strong>Hi</strong>");
+    expect(html).toMatch(
+      /<a[^>]*href="https:\/\/example.com\/a\?b=1#c"[^>]*>docs<\/a>/,
+    );
+    expect(html).not.toContain('href="https://example.com/[y]"');
+  });
+
+  it.each([
+    ["en", "Unsubscribe", "Confirm unsubscribe", "You are unsubscribed"],
+    ["de", "Abmelden", "Abmeldung bestätigen", "Du bist abgemeldet"],
+    [
+      "es",
+      "Cancelar suscripción",
+      "Confirmar cancelación de suscripción",
+      "Tu suscripción se ha cancelado",
+    ],
+  ])(
+    "localizes newsletter chrome in %s",
+    async (locale, label, confirm, confirmed) => {
+      const email = await renderNewsletterEmail({
+        newsletter: { name: "Weekly", brand: {} },
+        issue: { subject: "Hello", template: "TEXT", content: [] },
+        unsubscribeUrl: UNSUBSCRIBE_URL,
+        locale,
+      });
+      expect(email.html).toContain(label);
+      expect(email.text).toContain(UNSUBSCRIBE_URL);
+      const page = await renderNewsletterUnsubscribePage({
+        name: "Weekly <script>",
+        actionUrl: "?token=signed-token",
+        confirmed: false,
+        locale,
+      });
+      expect(page).toContain(confirm);
+      expect(page).toContain('method="post"');
+      expect(page).not.toContain("<script>");
+      expect(
+        await renderNewsletterUnsubscribePage({
+          name: "Weekly",
+          actionUrl: "",
+          confirmed: true,
+          locale,
+        }),
+      ).toContain(confirmed);
+    },
+  );
+});

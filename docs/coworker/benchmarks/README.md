@@ -18,36 +18,36 @@ pnpm bench:coworker-chat -- --coworker-slug elena --strict
 
 ## CLI flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--scenario` | `short` | `short` or `realistic` |
-| `--iterations` | `5` | Samples for the selected scenario (serial) |
-| `--coworker-slug` | `elena` | Coworker slug sent as `X-Coworker-Slug` |
-| `--user-id` | see env | Sokosumi user id sent as `X-Sokosumi-User-Id` |
+| Flag                | Default | Description                                          |
+| ------------------- | ------- | ---------------------------------------------------- |
+| `--scenario`        | `short` | `short` or `realistic`                               |
+| `--iterations`      | `5`     | Samples for the selected scenario (serial)           |
+| `--coworker-slug`   | `elena` | Coworker slug sent as `X-Coworker-Slug`              |
+| `--user-id`         | see env | Sokosumi user id sent as `X-Sokosumi-User-Id`        |
 | `--organization-id` | see env | Optional org id sent as `X-Sokosumi-Organization-Id` |
-| `--base-url` | see env | Coworker Responses base URL (without `/responses`) |
-| `--out` | — | Optional path to write the JSON report |
-| `--strict` | off | Exit non-zero when advisory thresholds are breached |
+| `--base-url`        | see env | Coworker Responses base URL (without `/responses`)   |
+| `--out`             | —       | Optional path to write the JSON report               |
+| `--strict`          | off     | Exit non-zero when advisory thresholds are breached  |
 
 ## Environment variables
 
 Bench-only variables. They are **not** in `apps/core/.env.example` or `src/config/env.ts`.
 
-| Variable | Required | Default | Purpose |
-|----------|----------|---------|---------|
-| `BENCH_COWORKER_RESPONSES_URL` | No* | — | Full Responses endpoint URL (highest priority) |
-| `BENCH_COWORKER_BASE_URL` | No* | — | Coworker Responses base URL; `/responses` is appended |
-| `COWORKERS_API_BASE_URL` | No* | — | Fallback base URL when the above are unset |
-| `DATABASE_URL` | No* | — | Look up `coworker.baseURL` by slug when no base URL env is set |
-| `BENCH_COWORKER_SLUG` | No | `elena` | Default coworker slug (`--coworker-slug` wins) |
-| `BENCH_SOKOSUMI_USER_ID` | No** | — | User id header; falls back to oldest user in DB |
-| `BENCH_SOKOSUMI_ORGANIZATION_ID` | No | — | Optional org id header |
-| `BENCH_COWORKER_SERVICE_KEY` | No | — | Optional Bearer token if the coworker API requires it |
-| `COWORKERS_API_SERVICE_KEY` | No | — | Alias for `BENCH_COWORKER_SERVICE_KEY` |
-| `BENCH_REQUEST_TIMEOUT_MS` | No | `25000` | Per-request abort timeout |
-| `BENCH_ITERATIONS` | No | `5` | Default iterations (`--iterations` wins) |
-| `BENCH_FIRST_TOKEN_P50_THRESHOLD_MS` | No | `1200` | Advisory first-token p50 threshold (ms) |
-| `BENCH_AGENT_ERROR_RATE_THRESHOLD` | No | `0.05` | Advisory agent-error-rate threshold (0–1) |
+| Variable                             | Required | Default | Purpose                                                        |
+| ------------------------------------ | -------- | ------- | -------------------------------------------------------------- |
+| `BENCH_COWORKER_RESPONSES_URL`       | No*      | —       | Full Responses endpoint URL (highest priority)                 |
+| `BENCH_COWORKER_BASE_URL`            | No*      | —       | Coworker Responses base URL; `/responses` is appended          |
+| `COWORKERS_API_BASE_URL`             | No*      | —       | Fallback base URL when the above are unset                     |
+| `DATABASE_URL`                       | No*      | —       | Look up `coworker.baseURL` by slug when no base URL env is set |
+| `BENCH_COWORKER_SLUG`                | No       | `elena` | Default coworker slug (`--coworker-slug` wins)                 |
+| `BENCH_SOKOSUMI_USER_ID`             | No**     | —       | User id header; falls back to oldest user in DB                |
+| `BENCH_SOKOSUMI_ORGANIZATION_ID`     | No       | —       | Optional org id header                                         |
+| `BENCH_COWORKER_SERVICE_KEY`         | No       | —       | Optional Bearer token if the coworker API requires it          |
+| `COWORKERS_API_SERVICE_KEY`          | No       | —       | Alias for `BENCH_COWORKER_SERVICE_KEY`                         |
+| `BENCH_REQUEST_TIMEOUT_MS`           | No       | `25000` | Per-request abort timeout                                      |
+| `BENCH_ITERATIONS`                   | No       | `5`     | Default iterations (`--iterations` wins)                       |
+| `BENCH_FIRST_TOKEN_P50_THRESHOLD_MS` | No       | `1200`  | Advisory first-token p50 threshold (ms)                        |
+| `BENCH_AGENT_ERROR_RATE_THRESHOLD`   | No       | `0.05`  | Advisory agent-error-rate threshold (0–1)                      |
 
 \*At least one endpoint source is required: `BENCH_COWORKER_RESPONSES_URL`, `BENCH_COWORKER_BASE_URL`, `COWORKERS_API_BASE_URL`, or `DATABASE_URL`.
 
@@ -84,20 +84,20 @@ See [sample-report.json](./sample-report.json) for a full example.
 
 Top-level fields:
 
-| Field | Description |
-|-------|-------------|
-| `benchmark` | Always `"bench-coworker-chat"` |
-| `version` | Schema version (`2`) |
-| `generatedAt` | ISO 8601 **UTC** timestamp |
-| `scenario` | Selected scenario: `short` or `realistic` |
-| `coworkerSlug` | Coworker slug used in requests |
-| `iterations` | Number of requested samples |
-| `metrics` | Aggregate p50/p95 latency, mean output tokens, and error rate |
-| `samples[]` | Per-iteration results |
-| `git.commit` / `git.ref` | Git context when available |
-| `config` | Endpoint, slug, base URL source, and timeout |
-| `thresholds` | Advisory limits used for PASS/WARN |
-| `thresholdStatus` | `pass` or `warn` for each advisory threshold |
+| Field                    | Description                                                   |
+| ------------------------ | ------------------------------------------------------------- |
+| `benchmark`              | Always `"bench-coworker-chat"`                                |
+| `version`                | Schema version (`2`)                                          |
+| `generatedAt`            | ISO 8601 **UTC** timestamp                                    |
+| `scenario`               | Selected scenario: `short` or `realistic`                     |
+| `coworkerSlug`           | Coworker slug used in requests                                |
+| `iterations`             | Number of requested samples                                   |
+| `metrics`                | Aggregate p50/p95 latency, mean output tokens, and error rate |
+| `samples[]`              | Per-iteration results                                         |
+| `git.commit` / `git.ref` | Git context when available                                    |
+| `config`                 | Endpoint, slug, base URL source, and timeout                  |
+| `thresholds`             | Advisory limits used for PASS/WARN                            |
+| `thresholdStatus`        | `pass` or `warn` for each advisory threshold                  |
 
 Aggregate metrics: `firstToken` (p50/p95), `totalDuration` (p50/p95), `outputTokens.mean`, `agentError.rate`.
 
@@ -107,10 +107,10 @@ Per-sample `samples[]`: `iteration`, `ok`, `firstTokenMs`, `totalDurationMs`, `o
 
 Default run **always exits 0**. Threshold comparison logs PASS or WARN to stderr.
 
-| Metric | Default threshold | Env override |
-|--------|-------------------|--------------|
-| First-token p50 (ms) | `<= 1200` | `BENCH_FIRST_TOKEN_P50_THRESHOLD_MS` |
-| Agent error rate | `< 0.05` (5%) | `BENCH_AGENT_ERROR_RATE_THRESHOLD` |
+| Metric               | Default threshold | Env override                         |
+| -------------------- | ----------------- | ------------------------------------ |
+| First-token p50 (ms) | `<= 1200`         | `BENCH_FIRST_TOKEN_P50_THRESHOLD_MS` |
+| Agent error rate     | `< 0.05` (5%)     | `BENCH_AGENT_ERROR_RATE_THRESHOLD`   |
 
 Use `--strict` for opt-in non-zero exit when any threshold is breached (for future CI gating).
 

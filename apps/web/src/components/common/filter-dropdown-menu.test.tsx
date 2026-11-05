@@ -18,6 +18,49 @@ const longTaskName =
   "Pararoot Visual Identity + Social Media Assets — Option A with an intentionally long title";
 
 describe("FilterDropdownMenu", () => {
+  it("uses a short selected label with a full tooltip and wrapping options", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const full = "Central European Summer Time (Prague)";
+    render(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        sections={[
+          {
+            id: "timezone",
+            label: "Time zone",
+            icon: Folder,
+            value: "Europe/Prague",
+            onChange,
+            options: [
+              {
+                value: "Europe/Prague",
+                label: full,
+                shortLabel: "GMT+2",
+                searchKeywords: ["Europe/Prague"],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByLabelText("Filter"));
+    const selected = screen.getByRole("button", { name: "Time zone GMT+2" });
+    await user.hover(selected);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(full);
+    await user.click(selected);
+    await user.type(screen.getByPlaceholderText("Search..."), "Europe/Prague");
+    expect(screen.getByRole("option", { name: full })).toBeVisible();
+    expect(screen.getByRole("option", { name: full })).toHaveTextContent(full);
+    expect(
+      screen.getByRole("option", { name: full }).querySelector("span"),
+    ).toHaveClass("whitespace-normal");
+    await user.click(screen.getByRole("option", { name: full }));
+    expect(onChange).toHaveBeenCalledWith("Europe/Prague");
+  });
+
   it("opts mobile sheet scroll area into shrinkable content width", () => {
     expect(filterDropdownMenuSource).toContain("shrinkContent");
     expect(filterDropdownMenuSource).toContain("max-w-[100vw]");

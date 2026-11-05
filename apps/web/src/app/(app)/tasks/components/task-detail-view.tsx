@@ -184,7 +184,7 @@ export async function TaskDetailView({
                           },
                           relatedTaskHrefBasePath,
                         )}
-                        className="text-primary hover:underline"
+                        className="text-foreground underline underline-offset-4"
                       >
                         {t("clonedFrom", { name: parentTask.name })}
                       </Link>
@@ -693,8 +693,6 @@ async function TaskDetailActionsSlot({
       labels={{
         edit: t("actions.edit"),
         archive: t("actions.archive"),
-        confirmArchive: t("actions.confirmArchive"),
-        confirmArchiveDescription: t("actions.confirmArchiveDescription"),
         archiveError: t("actions.archiveError"),
         reopenToReady: t("actions.reopenToReady"),
         reopenToReadyTitle: t("actions.reopenToReadyTitle"),

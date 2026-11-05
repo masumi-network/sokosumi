@@ -9,6 +9,8 @@ import {
 import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
+  requireSocialProviderEnabled,
+  socialProviderProjectSelect,
 } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -41,7 +43,13 @@ export async function completeComposioCallback(input: {
       authConfigId: true,
       callbackRedeemedAt: true,
       expiresAt: true,
-      project: { select: { closingAt: true, closedAt: true } },
+      project: {
+        select: {
+          closingAt: true,
+          closedAt: true,
+          ...socialProviderProjectSelect,
+        },
+      },
     },
   });
   if (intent) {
@@ -55,6 +63,10 @@ export async function completeComposioCallback(input: {
       intent.project.closedAt
     ) {
       throw notFound("Unknown or expired connection");
+    }
+
+    if (isProjectSocialProvider(intent.provider)) {
+      requireSocialProviderEnabled(intent.provider, intent.project);
     }
 
     const completion = await completeComposioAuth({

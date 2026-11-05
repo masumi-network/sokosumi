@@ -77,6 +77,11 @@ export const empty = (c: Context) => {
   return c.body(null, 204);
 };
 
+/** Fixed acknowledgments for public submissions that must not disclose state. */
+export function accepted<T>(c: Context, data: T) {
+  return c.json<T, 202>(data, 202);
+}
+
 /**
  * 422 with committed side-effect payload (e.g. OUT_OF_CREDITS pause event).
  * Does not throw — callers use this after the DB transaction has committed.

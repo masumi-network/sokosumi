@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 
 interface DaySeparatorProps {
@@ -21,9 +23,22 @@ export default function DaySeparator({
 
   return (
     <div className="flex items-center justify-center pt-2 pb-1">
-      <span className="text-muted-foreground bg-senary rounded-full px-3 py-1 text-xs font-medium">
+      <DayPill>
         {localCalendarReady ? formatDaySeparator(date) : "\u00a0"}
-      </span>
+      </DayPill>
     </div>
+  );
+}
+
+interface DayPillProps {
+  children: ReactNode;
+}
+
+/** The day label's pill, shared with the Unread divider. */
+export function DayPill({ children }: DayPillProps) {
+  return (
+    <span className="text-muted-foreground bg-senary rounded-full px-3 py-1 text-xs font-medium">
+      {children}
+    </span>
   );
 }

@@ -1,16 +1,39 @@
 import { z } from "@hono/zod-openapi";
 import {
   CalendarSourceType,
+  NewsletterIssueStatus,
   SocialPostStatus,
   TaskScheduleRunState,
   TaskStatus,
 } from "@sokosumi/database";
+import { CMO_CALENDAR_STATUSES } from "@sokosumi/soko-bot";
+import { isValidTimezone } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
-import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import {
+  socialPostProviderSchema,
+  socialPostQuoteSummaryShape,
+  socialPostThreadSummaryShape,
+} from "@/schemas/social-post.schema";
+
+export const CALENDAR_TYPES = [
+  "tasks",
+  "social",
+  "newsletter",
+  "contacts",
+  "marketing",
+] as const;
+export type CalendarType = (typeof CALENDAR_TYPES)[number];
+
+export const isCalendarType = (value: string): value is CalendarType =>
+  (CALENDAR_TYPES as readonly string[]).includes(value);
+
+export const calendarTypeSchema = z.enum(CALENDAR_TYPES).openapi({
+  description: "A Calendar feature the Show filter can include",
+});
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -26,8 +49,30 @@ const workspaceCalendarQueryObjectSchema = z.object({
   }),
   includeSocialPosts: z.enum(["true", "false"]).optional().openapi({
     description:
-      "Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.",
+      "Deprecated: use `types`. Include Social post entries. Omit for the existing task-only contract. Ignored when `types` is set. Requires an interactive user session.",
   }),
+  types: z
+    .string()
+    .transform((value) => [
+      ...new Set(value.split(",").map((entry) => entry.trim())),
+    ])
+    .optional()
+    .openapi({
+      param: { name: "types", in: "query" },
+      description:
+        "Comma-separated features to include. Omit for Tasks, plus Social posts when `includeSocialPosts` is true. Any type other than `tasks` requires an interactive user session. An unknown type is a 400.",
+      example: "tasks,social,newsletter",
+    }),
+  timeZone: z
+    .string()
+    .refine((value) => isValidTimezone(value), "timeZone must be an IANA name")
+    .optional()
+    .openapi({
+      param: { name: "timeZone", in: "query" },
+      description:
+        "IANA time zone that places all-day Contact follow-ups on their day. Defaults to UTC.",
+      example: "Europe/Berlin",
+    }),
   agendaOnly: z.enum(["true", "false"]).optional().openapi({
     description:
       "Agenda view: only future NEEDS_APPROVAL/SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.",
@@ -94,6 +139,13 @@ export const projectCalendarQuerySchema = workspaceCalendarQueryObjectSchema
 export const workspaceCalendarSourcesQuerySchema =
   workspaceCalendarQueryObjectSchema
     .pick({ includeSocialPosts: true, scope: true })
+    .extend({
+      includeSocialPosts:
+        workspaceCalendarQueryObjectSchema.shape.includeSocialPosts.openapi({
+          description:
+            "Include Social post entries. Omit for the existing task-only contract. Requires an interactive user session.",
+        }),
+    })
     .openapi("WorkspaceCalendarSourcesQuery");
 
 export const workspaceCalendarItemSchema = z
@@ -196,8 +248,25 @@ export const workspaceCalendarSourceSchema = z
       description:
         "Latest SCHEDULED or PUBLISHING Social post in this Project and requested scope. Present only when Social posts are included.",
     }),
+    latestScheduledNewsletterIssueAt: dateTimeSchema
+      .nullable()
+      .optional()
+      .openapi({
+        description:
+          "Latest SCHEDULED or SENDING Newsletter issue in this Project and requested scope. Present only when Social posts are included (interactive Calendar).",
+      }),
   })
   .openapi("WorkspaceCalendarSource");
+
+export const workspaceCalendarSourcesResponseSchema = z
+  .object({
+    sources: z.array(workspaceCalendarSourceSchema),
+    features: z.array(calendarTypeSchema).openapi({
+      description:
+        "Calendar features this viewer may show. Web offers only these in the Show filter.",
+    }),
+  })
+  .openapi("WorkspaceCalendarSourcesResponse");
 
 export const calendarIdentityLabelsRequestSchema = z
   .object({
@@ -223,6 +292,10 @@ export const socialPostCalendarItemSchema = z
     kind: z.literal("socialPost"),
     id: z.string(),
     postId: z.uuid(),
+    quotedPostId: socialPostQuoteSummaryShape.quotedPostId,
+    waitingForQuotedPost: socialPostQuoteSummaryShape.waitingForQuotedPost,
+    needsAttentionReason: socialPostQuoteSummaryShape.needsAttentionReason,
+    ...socialPostThreadSummaryShape,
     provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),
@@ -260,11 +333,76 @@ export const socialPostCalendarItemSchema = z
   })
   .openapi("SocialPostCalendarItem");
 
-// Keep dates outside the union so the generated client transforms both entry types.
+export const newsletterIssueCalendarItemSchema = z
+  .object({
+    kind: z.literal("newsletterIssue"),
+    id: z.string(),
+    scheduledAt: dateTimeSchema,
+    issueId: z.uuid(),
+    subject: z.string(),
+    status: z.enum(NewsletterIssueStatus),
+    projectName: z.string(),
+    sourceId: z.string(),
+    sourceProjectId: z.uuid(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.literal("PROJECT"),
+  })
+  .openapi("NewsletterIssueCalendarItem");
+
+export const contactFollowUpCalendarItemSchema = z
+  .object({
+    kind: z.literal("contactFollowUp"),
+    id: z.string(),
+    scheduledAt: dateTimeSchema,
+    contactId: z.uuid(),
+    name: z.string(),
+    organization: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+    nextStep: z.string().nullable(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    allDay: z.literal(true),
+    sourceId: z.string(),
+    sourceProjectId: z.null(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.literal("WORKSPACE"),
+  })
+  .openapi("ContactFollowUpCalendarItem");
+
+export const marketingPieceCalendarItemSchema = z
+  .object({
+    kind: z.literal("marketingPiece"),
+    id: z.string(),
+    scheduledAt: dateTimeSchema,
+    strategyId: z.uuid(),
+    entryId: z.string(),
+    title: z.string(),
+    channel: z.string(),
+    format: z.string(),
+    status: z.enum(CMO_CALENDAR_STATUSES),
+    fileId: z.string().nullable().openapi({
+      description: "The Project file the piece was written to, once it exists",
+    }),
+    projectName: z.string(),
+    sourceId: z.string(),
+    sourceProjectId: z.uuid(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.literal("PROJECT"),
+  })
+  .openapi("MarketingPieceCalendarItem");
+
+// Keep dates outside the union so the generated client transforms every entry type.
 export const workspaceCalendarEntrySchema = z
   .object({
     scheduledAt: dateTimeSchema,
     originalScheduledAt: dateTimeSchema.nullable().optional(),
   })
-  .and(z.union([workspaceCalendarItemSchema, socialPostCalendarItemSchema]))
+  .and(
+    z.union([
+      workspaceCalendarItemSchema,
+      socialPostCalendarItemSchema,
+      newsletterIssueCalendarItemSchema,
+      contactFollowUpCalendarItemSchema,
+      marketingPieceCalendarItemSchema,
+    ]),
+  )
   .openapi("WorkspaceCalendarEntry");

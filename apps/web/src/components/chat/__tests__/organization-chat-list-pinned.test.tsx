@@ -83,7 +83,8 @@ describe("OrganizationChatList Pinned section", () => {
 
   const TOGGLE = "App.Channels.reorderPinned";
   const DONE = "App.Channels.reorderPinnedDone";
-  const HANDLE = "App.Channels.Actions.reorderHandle";
+  // The handle names its room after the key.
+  const HANDLE = /^App\.Channels\.Actions\.reorderHandle /;
 
   function handleOf(label: string) {
     const row = screen

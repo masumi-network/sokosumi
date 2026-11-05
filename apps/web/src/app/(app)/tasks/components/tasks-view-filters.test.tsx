@@ -1,5 +1,6 @@
 import { TaskStatus } from "@sokosumi/core-client";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const filterDropdownMenuMock = vi.fn();
@@ -31,7 +32,8 @@ const labels = {
   emptyResults: "No results found.",
   all: "All",
   scopeLabel: "Scope",
-  scopeOwned: "My tasks",
+  scopeOwned: "Created by me",
+  assignedToMe: "My tasks",
   scopeWorkspace: "Workspace",
   coworkerLabel: "Coworker",
   statusLabel: "Status",
@@ -55,11 +57,16 @@ const labels = {
   },
 } as const;
 
-function renderTasksViewFilters(activeOrganizationId: string | null) {
+function renderTasksViewFilters(
+  activeOrganizationId: string | null,
+  userId: string | null = null,
+) {
   render(
     <TasksViewFilters
       activeOrganizationId={activeOrganizationId}
+      userId={userId}
       coworkerOptions={[
+        mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
         mockCoworkerOption({
           id: "coworker-1",
           slug: "elena",
@@ -87,6 +94,20 @@ describe("TasksViewFilters", () => {
   beforeEach(() => {
     filterDropdownMenuMock.mockClear();
     replaceMock.mockClear();
+  });
+
+  it("filters to the tasks assigned to the viewer in one click", async () => {
+    renderTasksViewFilters("org-1", "user-1");
+
+    await userEvent.click(screen.getByRole("button", { name: "My tasks" }));
+
+    expect(replaceMock).toHaveBeenCalledWith("/tasks?assigneeUserId=user-1");
+  });
+
+  it("hides My tasks when the viewer is not an assignee option", () => {
+    renderTasksViewFilters("org-1", "someone-else");
+
+    expect(screen.queryByRole("button", { name: "My tasks" })).toBeNull();
   });
 
   it("shows scope and coworker sections in workspace context", () => {

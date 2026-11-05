@@ -28,6 +28,7 @@ describe("getHistoryItemHref", () => {
       title: "Ship restyle",
       taskId: "task-1",
       taskEventId: "event-1",
+      taskArchived: false,
     };
     const job: TransactionHistoryItem = {
       ...base,
@@ -51,6 +52,8 @@ describe("getHistoryItemHref", () => {
     expect(getHistoryItemHref(task)).toBe("/tasks/task-1");
     expect(getHistoryItemHref(job)).toBe("/agents/agent-1/jobs/job-1");
     expect(getHistoryItemHref(image)).toBe("/studio?projectId=project-1");
+    // An archived task is a 404 everywhere: no link to nowhere.
+    expect(getHistoryItemHref({ ...task, taskArchived: true })).toBeNull();
   });
 
   it("has no destination for a consumption with no page behind it", () => {
@@ -73,6 +76,50 @@ describe("getHistoryItemHref", () => {
 
     expect(getHistoryItemHref(coworker)).toBeNull();
     expect(getHistoryItemHref(unattributed)).toBeNull();
+  });
+
+  it("opens the job or task a refund top up refunded", () => {
+    const refund = {
+      ...base,
+      kind: "topUp",
+      title: "Refund",
+      projectId: null,
+      bucketSource: "REFUND",
+      refundedJobId: null,
+      refundedAgentId: null,
+      refundedTaskId: null,
+    } as const;
+
+    expect(
+      getHistoryItemHref({
+        ...refund,
+        id: "tx-8",
+        refundedJobId: "job-1",
+        refundedAgentId: "agent-1",
+      }),
+    ).toBe("/agents/agent-1/jobs/job-1");
+    expect(
+      getHistoryItemHref({ ...refund, id: "tx-9", refundedTaskId: "task-1" }),
+    ).toBe("/tasks/task-1");
+    // Legacy studio refund: no job/task id, projectId from the refunded image.
+    expect(
+      getHistoryItemHref({
+        ...refund,
+        id: "tx-11",
+        projectId: "project-1",
+      }),
+    ).toBe("/studio?projectId=project-1");
+    // Job id without agent would otherwise fall through to /tasks — refuse.
+    expect(
+      getHistoryItemHref({
+        ...refund,
+        id: "tx-12",
+        refundedJobId: "job-1",
+        refundedAgentId: null,
+      }),
+    ).toBeNull();
+    // The refunded job or task is gone: no link to nowhere.
+    expect(getHistoryItemHref({ ...refund, id: "tx-10" })).toBeNull();
   });
 
   it("opens the console of the bot that spent, by id", () => {

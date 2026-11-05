@@ -14,16 +14,10 @@ const AGENTS_SYNC_LOCK_KEY = "agents-sync";
 // whenever already-synced registry rows require a full replay.
 export const AGENTS_SYNC_METADATA_KEY =
   "agents-sync-metadata:dynamic-pricing-v1";
-// The two readiness syncs no longer get the same treatment, because they no
-// longer do the same thing: the Cardano sync retries a fast failure and owns
-// its own ceiling (READINESS_BUDGET.totalTimeoutMs in
-// agent-sync.readiness.ts, 25s), while the x402 sync makes one pass and is
-// bounded from here.
-//
-// x402: a single pass, so this IS its attempt timeout. Deliberately left at
-// the value both rails used to share. Nothing about the Cardano retry work
-// asked for more here, and every second spent on this rail comes out of the
-// same cycle budget as the registry sync below.
+// x402 makes one pass, so this is its attempt timeout. Cardano readiness
+// owns its own ceiling (READINESS_BUDGET.totalTimeoutMs in
+// agent-sync.readiness.ts, 25s). Every second spent on this rail comes out
+// of the same cycle budget as the registry sync below.
 const X402_READINESS_SYNC_TIMEOUT_MS = 10_000;
 //
 // Both come out of the cycle budget, which is

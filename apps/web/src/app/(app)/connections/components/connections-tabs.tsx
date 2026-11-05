@@ -12,6 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 type ConnectionsTabValue = "connected-apps" | "mcp";
 
@@ -49,7 +50,7 @@ export function ConnectionsTabs({
       }}
       className="flex flex-col gap-5"
     >
-      <TabsList className={SEGMENTED_TABS_LIST_CLASS_NAME}>
+      <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
         <TabsTrigger
           value="connected-apps"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}

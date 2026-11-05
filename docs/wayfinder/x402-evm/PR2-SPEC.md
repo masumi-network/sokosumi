@@ -126,9 +126,9 @@ post-hoc auto-refund via the phased reconciler.
 ## 6. Rollout
 
 - Flag-free, like V2: the rail activates per-agent via availability (readiness
-  + pricing + whitelist). No `paymentRail` rows exist until an x402 agent is
-  hired; binary rollback is clean until the first x402 hire (new enum value
-  on `Job.paymentRail` is the fence — document in PR body).
+  - pricing + whitelist). No `paymentRail` rows exist until an x402 agent is
+    hired; binary rollback is clean until the first x402 hire (new enum value
+    on `Job.paymentRail` is the fence — document in PR body).
 - Operator prereqs: X402Network enabled + purchasing wallet funded with native
   gas and priced token per chain, `ChainIdLimit` covering targets, and either
   usable key budget or admin access. Preprod = testnets only.

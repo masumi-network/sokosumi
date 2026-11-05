@@ -111,6 +111,17 @@ export const unauthorized = (
 };
 
 /**
+ * 402 Payment Required
+ * The request needs a payment that could not be collected
+ */
+export const paymentRequired = (
+  message: string = "Payment Required",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(402, message, metadata);
+};
+
+/**
  * 403 Forbidden
  * The client does not have access rights to the content
  */
@@ -282,6 +293,7 @@ export function getErrorName(status: ContentfulStatusCode): string {
   const errorNames: Record<number, string> = {
     400: "BadRequest",
     401: "Unauthorized",
+    402: "PaymentRequired",
     403: "Forbidden",
     404: "NotFound",
     409: "Conflict",

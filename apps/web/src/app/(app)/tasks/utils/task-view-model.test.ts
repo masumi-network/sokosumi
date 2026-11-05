@@ -264,6 +264,30 @@ describe("mapTaskToTaskWithCoworker", () => {
     });
   });
 
+  it("carries the style of a claimed avatar so a crafted one can be cropped", () => {
+    const task = buildTask(TaskStatus.READY, {
+      assigneeId: null,
+      assigneeSokoBotId: "bot-1",
+      assignee: {
+        type: "sokoBot",
+        id: "bot-1",
+        sokoBot: {
+          id: "bot-1",
+          name: "Jarvis",
+          avatarSeed: null,
+          avatarImageUrl: "https://blob/idle.png",
+          avatarStyleId: "crafted-desk",
+          owner: null,
+        },
+      },
+    });
+
+    expect(map(task).assignee).toMatchObject({
+      image: "https://blob/idle.png",
+      avatarStyleId: "crafted-desk",
+    });
+  });
+
   it("uses the translated fallback when the soko bot has no name", () => {
     const task = buildTask(TaskStatus.READY, {
       assigneeId: null,

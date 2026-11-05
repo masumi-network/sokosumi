@@ -25,6 +25,8 @@ interface KanbanBoardProps {
     emptyColumn: string;
   };
   columnFooterById?: Partial<Record<KanbanColumnId, React.ReactNode>>;
+  /** Tasks not loaded yet per column, so the header counts the whole column. */
+  columnHiddenCountById?: Partial<Record<KanbanColumnId, number>>;
   isDragEnabled?: boolean;
   canDragTask?: (task: TaskWithCoworker) => boolean;
   compact?: boolean;
@@ -36,6 +38,7 @@ export function KanbanBoard({
   columns,
   labels,
   columnFooterById,
+  columnHiddenCountById,
   isDragEnabled = true,
   canDragTask = () => true,
   compact = false,
@@ -56,6 +59,7 @@ export function KanbanBoard({
             title={labels.columns[column.id]}
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}
+            hiddenCount={columnHiddenCountById?.[column.id] ?? 0}
             emptyLabel={labels.emptyColumn}
             footer={columnFooterById?.[column.id]}
             renderTask={(task) =>

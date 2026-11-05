@@ -11,6 +11,7 @@ import {
 } from "../room-helpers";
 
 const CURRENT_USER_ID = "self";
+const selfLabel = (name: string) => `${name} (you)`;
 
 function human(
   partial: Pick<ChatRoomUserParticipant, "id" | "name"> &
@@ -88,10 +89,10 @@ describe("direct room display order", () => {
       userMembers: [self, patrick, francis],
     });
 
-    expect(getRoomDisplayName(orderA, CURRENT_USER_ID, "You")).toBe(
+    expect(getRoomDisplayName(orderA, CURRENT_USER_ID, selfLabel)).toBe(
       "Francis Luz, Patrick Tobler",
     );
-    expect(getRoomDisplayName(orderB, CURRENT_USER_ID, "You")).toBe(
+    expect(getRoomDisplayName(orderB, CURRENT_USER_ID, selfLabel)).toBe(
       "Francis Luz, Patrick Tobler",
     );
   });
@@ -130,7 +131,7 @@ describe("direct room display order", () => {
       coworkerMembers: [aaron],
     });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe(
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, selfLabel)).toBe(
       "Ada, Zara, Aaron",
     );
   });
@@ -185,7 +186,7 @@ describe("Group name", () => {
       groupName: "Launch crew",
     });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe(
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, selfLabel)).toBe(
       "Launch crew",
     );
   });
@@ -196,24 +197,26 @@ describe("Group name", () => {
       isGroupDirect: true,
     });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Ben, Cara");
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, selfLabel)).toBe(
+      "Ben, Cara",
+    );
   });
 
-  it("leaves 1:1 and Self Directs as they were", () => {
+  it("leaves 1:1 Directs as they were and names a Self Direct after the viewer", () => {
     expect(
       getRoomDisplayName(
         directRoom({ userMembers: [self, ben] }),
         CURRENT_USER_ID,
-        "You",
+        selfLabel,
       ),
     ).toBe("Ben");
     expect(
       getRoomDisplayName(
         directRoom({ userMembers: [self], isSelfDirect: true }),
         CURRENT_USER_ID,
-        "You",
+        selfLabel,
       ),
-    ).toBe("You");
+    ).toBe("Me (you)");
   });
 });
 
@@ -233,13 +236,13 @@ describe("Direct whose peers have left", () => {
       ],
     });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Sarthi");
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, selfLabel)).toBe("Sarthi");
   });
 
   it("falls back to the stored name when no former profile is left", () => {
     const room = directRoom({ userMembers: [self] });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Direct");
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, selfLabel)).toBe("Direct");
   });
 
   it("keeps naming the people still in a group", () => {
@@ -250,6 +253,6 @@ describe("Direct whose peers have left", () => {
       ],
     });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Ada");
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, selfLabel)).toBe("Ada");
   });
 });

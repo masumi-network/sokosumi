@@ -1,0 +1,26 @@
+/// What a Project knows about the business it works for (Brand Brain in
+/// GLOSSARY.md, ADR 0062): one per Project. Every bot in the Project reads it,
+/// and any member of the Project's Workspace edits and confirms it. Its look
+/// is the Project's logo and DESIGN.md, not part of it.
+model BrandBrain {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  projectId String  @unique @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The Brand Brain, validated by the `@sokosumi/soko-bot` CMO schemas.
+  /// Until its essentials are saved it holds only the profile sections
+  /// researched so far, and nobody is shown it yet.
+  body      Json
+  /// When the essentials were last saved. A section saved alone, an answer
+  /// or a confirmation leaves it.
+  updatedAt DateTime?
+
+  /// The member who last confirmed it, and when. Editing clears neither.
+  confirmedAt       DateTime?
+  confirmedByUserId String?
+  confirmedBy       User?     @relation("BrandBrainConfirmedBy", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("brand_brain")
+}

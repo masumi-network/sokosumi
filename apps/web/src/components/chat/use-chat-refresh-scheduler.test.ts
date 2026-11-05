@@ -41,6 +41,7 @@ function mount(
     healthy: boolean;
     refreshOnMount: boolean;
     refreshOnRecovery: boolean;
+    refreshOnForeground: boolean;
   }> = {},
 ) {
   return renderHook(
@@ -52,6 +53,7 @@ function mount(
         fallbackIntervalMs: FALLBACK_MS,
         refreshOnMount: overrides.refreshOnMount ?? false,
         refreshOnRecovery: overrides.refreshOnRecovery ?? false,
+        refreshOnForeground: overrides.refreshOnForeground ?? false,
       }),
     {
       initialProps: {
@@ -113,6 +115,30 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(3);
   });
 
+  it("never reads on a timer without a fallback cadence, only when asked", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const { result, rerender } = renderHook(
+      (props: { healthy: boolean }) =>
+        useChatRefreshScheduler({
+          key: "elsewhere",
+          refresh,
+          healthy: props.healthy,
+        }),
+      { initialProps: { healthy: true } },
+    );
+
+    await tick(CHAT_HEALTHY_REFRESH_MS * 3);
+    rerender({ healthy: false });
+    await tick(CHAT_HEALTHY_REFRESH_MS * 3);
+    expect(refresh).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current();
+    });
+    await tick(CHAT_HEALTHY_REFRESH_MS * 3);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("starts no timer read while hidden and reads once on return", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     mount(refresh, { healthy: false });
@@ -167,6 +193,16 @@ describe("useChatRefreshScheduler", () => {
 
     await act(async () => goForeground());
     expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads on every return to the foreground when asked to, stale or not", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    mount(refresh, { refreshOnForeground: true });
+
+    await act(async () => goBackground("blur"));
+    await act(async () => goForeground());
+
+    expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("treats a visible but unfocused window as background", async () => {

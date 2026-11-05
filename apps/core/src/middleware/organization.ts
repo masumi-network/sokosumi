@@ -134,12 +134,6 @@ async function switchSessionToPersonalWorkspace(
  * `X-Organization-Slug` header, which rejects a caller who is not a member.
  *
  * This middleware should run after authMiddleware to ensure the user is authenticated.
- *
- * @example
- * ```typescript
- * app.use(authMiddleware);
- * app.use(organizationContextMiddleware);
- * ```
  */
 export const organizationContextMiddleware = createMiddleware<AuthEnv>(
   async (c, next) => {

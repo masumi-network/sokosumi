@@ -104,9 +104,11 @@ describe("Apple CI triggers", () => {
     assert.match(yaml, /cron: "17 3 \* \* \*"/);
 
     assert.doesNotMatch(publish, /needs:/);
+    // A tag push carries the release commit's message, so the tag test must
+    // come before the release-commit skip or Stable would be skipped too.
     assert.match(
       publish,
-      /if: github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'/,
+      /if: >-\s+github\.event_name == 'workflow_dispatch' \|\|\s+startsWith\(github\.ref, 'refs\/tags\/macos-v'\) \|\|\s+\(github\.event_name == 'push' &&\s+!startsWith\(github\.event\.head_commit\.message, 'chore\(main\): release macos'\)\)/,
     );
 
     const spmKey =
@@ -150,5 +152,23 @@ describe("CodeQL JS drafts", () => {
       yaml,
       /if: github\.event_name != 'pull_request' \|\| !github\.event\.pull_request\.draft/,
     );
+  });
+});
+
+// The CI legs' own draft guards are pinned in turbo-remote-cache.test.mjs.
+describe("PR CI drafts", () => {
+  it("skips draft PRs and re-runs on ready_for_review", async () => {
+    for (const file of ["ci.yml", "apple.yml"]) {
+      const yaml = await readRepoFile(".github", "workflows", file);
+      assert.match(
+        yaml,
+        /types: \[opened, synchronize, reopened, ready_for_review\]/,
+      );
+      // Apple's test and lint need `changes`, so they skip with it.
+      assert.match(
+        jobBlock(yaml, "changes"),
+        /if: .*!github\.event\.pull_request\.draft/,
+      );
+    }
   });
 });

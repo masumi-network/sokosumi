@@ -11,6 +11,9 @@ const post = {
   provider: "x" as const,
   externalId: "123",
   text: "Hello, world",
+  contentType: "text" as const,
+  postKind: "post" as const,
+  media: [],
   publishedAt: "2026-10-01T12:00:00.000Z",
   url: "https://x.com/launch/status/123",
   metrics: {

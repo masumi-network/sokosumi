@@ -1,11 +1,18 @@
-import type {
-  SokoBotCalendarEvent,
-  SokoBotInboxMessage,
+import {
+  SOKO_BOT_BRIEF_FORMAT,
+  type SokoBotCalendarEvent,
+  type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
-import { checkMailImportance } from "@/lib/soko-bot/mail-importance";
+import {
+  MAIL_TRIAGE_GUIDE,
+  type TriagedMail,
+  triagedMailLines,
+  triageMail,
+} from "@/lib/soko-bot/mail-triage";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
+import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -15,7 +22,9 @@ import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
   fetchInboxMessages,
+  withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
+import { autoReadBulkMail } from "@/services/soko-bot-mail-auto-read.service";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
@@ -24,7 +33,20 @@ const DELTA_INTERVAL_MS = HOUR_MS;
 /** The briefing summarises this much mail; a fresh connection starts here. */
 const LOOKBACK_MS = 24 * HOUR_MS;
 const BRIEFING_HOUR = 7;
-const MAX_MAIL_PER_PACKET = 20;
+/**
+ * An hourly check reads every mail since the last one, up to this many: the
+ * cursor moves past whatever it read, so a lower cap left the rest of a busy
+ * hour untriaged and unread for good.
+ */
+const MAX_MAIL_PER_CHECK = 100;
+/**
+ * Mail can land after mail with a later timestamp: a mailbox that collects
+ * another account's mail gets it in batches stamped with the original time.
+ * A check therefore looks this far behind the newest mail it saw and skips
+ * the ids it already handled, instead of trusting the timestamp alone.
+ */
+const LATE_MAIL_MS = 6 * HOUR_MS;
+const MAX_MAIL_PER_FETCH = 300;
 const MAX_MAIL_PER_BRIEFING = 40;
 const MAX_EVENTS_PER_PACKET = 15;
 
@@ -90,20 +112,26 @@ function fmtTime(iso: string, timeZone: string): string {
 export function buildIngestMessage(input: {
   kind: "briefing" | "delta";
   timeZone: string;
-  mail: SokoBotInboxMessage[];
+  mail: readonly TriagedMail[];
   events: SokoBotCalendarEvent[];
+  /** Contacts lines for the people on the calendar. */
+  people?: string[];
 }): string {
   const lines: string[] = [];
   if (input.kind === "briefing") {
     lines.push(
-      "Morning briefing time. Below is today's calendar and the mail of the last 24 hours. Give the owner a short briefing as described in your inbox skill: today's events, then a summary of the mail, what needs them first and the rest grouped in a line or two. Update memory follow-ups, and propose (do not start) any delegable work.",
+      `Morning briefing time. Below is today's calendar and the mail of the last 24 hours, triaged by Jev. Give the owner a short briefing as described in your inbox skill: today's events, then the mail: urgent first with what each needs and by when, notable mail one line each, bulk only as a count. Update memory follow-ups, and propose (do not start) any delegable work. ${SOKO_BOT_BRIEF_FORMAT}`,
     );
   } else {
     lines.push(
-      "New mail arrived that looks important enough to interrupt the owner. Tell them briefly what each one needs and by when, as described in your inbox skill. Leave out any that, on reading, can wait for tomorrow's briefing; if none is left, reply exactly `Nothing new worth flagging.`",
+      "New mail arrived that Jev triaged as urgent. Tell the owner briefly what each urgent one needs and by when, as described in your inbox skill, then any notable mail one line each under Notable. Leave out any that, on reading, can wait for tomorrow's briefing; if no urgent mail is left, reply exactly `Nothing new worth flagging.`",
     );
   }
-  lines.push("");
+  if (input.mail.some((item) => item.matchesRule))
+    lines.push(
+      "Some mail matches a saved rule of the owner's (listed first). For each, read it with `read_email` and do what the rule says, such as `save_email_attachment` into the folder it names, then say in one line what you filed where. Do nothing a rule does not ask for.",
+    );
+  lines.push(MAIL_TRIAGE_GUIDE, "");
   if (input.events.length > 0) {
     lines.push(`## Calendar (${input.timeZone})`);
     for (const event of input.events) {
@@ -119,17 +147,15 @@ export function buildIngestMessage(input: {
     }
     lines.push("");
   }
-  if (input.mail.length > 0) {
-    lines.push(
-      `## Mail (${input.mail.length}${input.mail.length >= (input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET) ? "+" : ""})`,
-    );
-    for (const message of input.mail) {
-      lines.push(
-        `- ${fmtTime(message.receivedAt, input.timeZone)} · ${message.unread ? "unread" : "read"} · from ${message.from} · **${message.subject || "(no subject)"}** — ${message.snippet.replace(/\s+/g, " ").slice(0, 160)} [${message.provider}:${message.id}]`,
-      );
-    }
-    lines.push("");
-  }
+  if (input.people?.length) lines.push(...input.people);
+  lines.push(
+    ...triagedMailLines({
+      timeZone: input.timeZone,
+      mail: input.mail,
+      limit:
+        input.kind === "briefing" ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
+    }),
+  );
   if (input.mail.length === 0 && input.events.length === 0) {
     lines.push("Nothing new in mail or calendar.");
   }
@@ -154,21 +180,21 @@ export async function buildIngestDeltaMessageForBot(
     mail.push(
       ...(await fetchInboxMessages(integration, {
         since,
-        limit: MAX_MAIL_PER_PACKET,
+        limit: MAX_MAIL_PER_CHECK,
       })),
     );
   }
   mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
-  const check = await checkMailImportance({
+  const triage = await triageMail({
     sokoBotId,
-    mail: mail.slice(0, MAX_MAIL_PER_PACKET),
+    mail: mail.slice(0, MAX_MAIL_PER_CHECK),
     source: "lab",
   });
-  check.log.emit();
+  triage.log.emit();
   return buildIngestMessage({
     kind: "delta",
     timeZone: bot.ingestTimezone,
-    mail: check.important ?? [],
+    mail: triage.mail,
     events: [],
   });
 }
@@ -209,6 +235,7 @@ export class SokoBotIngestSyncService {
         workspaceId: true,
         ingestTimezone: true,
         lastBriefingAt: true,
+        mailAutoRead: true,
       },
     });
     for (const bot of bots) {
@@ -240,6 +267,7 @@ export class SokoBotIngestSyncService {
       workspaceId: string;
       ingestTimezone: string;
       lastBriefingAt: Date | null;
+      mailAutoRead: boolean;
     },
     abortSignal: AbortSignal,
   ): Promise<"briefings" | "deltas" | "skipped"> {
@@ -262,19 +290,26 @@ export class SokoBotIngestSyncService {
     if (!briefing && dueMail.length === 0) return "skipped";
 
     const mail: SokoBotInboxMessage[] = [];
-    const cursors = new Map<string, { previous: string; newest: string }>();
+    const cursors = new Map<string, MailCursor>();
     const dayAgo = new Date(now.getTime() - LOOKBACK_MS);
     for (const integration of dueMail) {
       const previous = cursorDate(integration.cursor, "newestSeenAt");
       // The briefing summarises the whole last day, mail the hourly checks
       // already looked at included; a check reads only what is new.
-      const since = briefing ? dayAgo : (previous ?? dayAgo);
+      const since =
+        briefing || !previous
+          ? dayAgo
+          : new Date(previous.getTime() - LATE_MAIL_MS);
       let messages: SokoBotInboxMessage[];
       try {
-        messages = await fetchInboxMessages(integration, {
+        messages = await withOwnerReplies(
+          integration,
+          await fetchInboxMessages(integration, {
+            since,
+            limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_FETCH,
+          }),
           since,
-          limit: briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_PACKET,
-        });
+        );
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
         // bot must not treat an unreadable mailbox as an empty one.
@@ -285,17 +320,42 @@ export class SokoBotIngestSyncService {
         });
         continue;
       }
-      const fresh = messages.filter(
-        (message) =>
-          !message.receivedAt || new Date(message.receivedAt) > since,
-      );
+      // A cursor from before `seenIds` handled everything up to its newest.
+      const seen =
+        cursorIds(integration.cursor, "seenIds") ??
+        new Set(
+          messages
+            .filter((m) => previous && new Date(m.receivedAt) <= previous)
+            .map((m) => m.id),
+        );
+      const fresh = messages
+        .filter(
+          (message) =>
+            (briefing || !seen.has(message.id)) &&
+            (!message.receivedAt || new Date(message.receivedAt) > since),
+        )
+        .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+        .slice(0, briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK);
       mail.push(...fresh);
       const floor = (previous ?? since).toISOString();
       const newest =
         [...fresh.map((message) => message.receivedAt).filter(Boolean), floor]
           .sort()
           .at(-1) ?? floor;
-      cursors.set(integration.id, { previous: floor, newest });
+      // Ids outside a check's window can no longer come back, so the list
+      // stays as long as one window of mail. The briefing reads only part of
+      // the day and keeps the list whole.
+      const shown = new Set(fresh.map((message) => message.id));
+      const inWindow = (ids: Set<string>) =>
+        briefing
+          ? [...ids]
+          : messages.filter((m) => ids.has(m.id)).map((m) => m.id);
+      cursors.set(integration.id, {
+        previous: floor,
+        newest,
+        seenBefore: inWindow(seen),
+        seenAfter: inWindow(new Set([...seen, ...shown])),
+      });
     }
     mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 
@@ -317,6 +377,13 @@ export class SokoBotIngestSyncService {
       }
       events = events.slice(0, MAX_EVENTS_PER_PACKET);
     }
+    const people = events.length
+      ? await calendarPeopleBlock({
+          workspaceId: bot.workspaceId,
+          attendees: events.flatMap((event) => event.attendees),
+          timeZone: bot.ingestTimezone,
+        }).catch(() => [])
+      : [];
 
     // `consumed` is false when the mail was fetched but not shown to the bot:
     // the check is recorded, the mail stays unseen for the next open slot.
@@ -328,6 +395,7 @@ export class SokoBotIngestSyncService {
             lastIngestAt: now,
             cursor: {
               newestSeenAt: consumed ? cursor.newest : cursor.previous,
+              seenIds: consumed ? cursor.seenAfter : cursor.seenBefore,
               lastIngestAt: now.toISOString(),
             },
           },
@@ -360,24 +428,43 @@ export class SokoBotIngestSyncService {
         limit: gate.limit,
         mail: mail.length,
       });
+      // A capped bot is not woken, but its owner's bulk mail is still read.
+      if (bot.mailAutoRead && mail.length > 0) {
+        const tagged = await triageMail({
+          sokoBotId: bot.id,
+          mail: mail.slice(0, MAX_MAIL_PER_CHECK),
+          source: kind,
+        });
+        tagged.log.set({
+          outcome: "withheld",
+          mailAutoRead: await autoReadBulkMail(bot.id, tagged.mail),
+        });
+        tagged.log.emit();
+      }
       await stamp(false);
       return "skipped";
     }
-    // Between briefings only mail worth interrupting for wakes the bot; the
-    // rest, and everything when Jev is down, waits for the next briefing.
-    const check = briefing
-      ? null
-      : await checkMailImportance({
-          sokoBotId: bot.id,
-          mail: mail.slice(0, MAX_MAIL_PER_PACKET),
-          source: "ingest",
-        });
-    const packetMail = check
-      ? check.important
-      : mail.slice(0, MAX_MAIL_PER_BRIEFING);
-    if (!packetMail || (check && packetMail.length === 0)) {
-      check?.log.set({ outcome: "quiet" });
-      check?.log.emit();
+    // Jev tags every mail the bot is shown. Between briefings only urgent
+    // mail, or mail a saved rule of the owner's asks the bot to act on, wakes
+    // it; the rest, and everything when Jev is down, waits for the briefing.
+    const triage = await triageMail({
+      sokoBotId: bot.id,
+      mail: mail.slice(
+        0,
+        briefing ? MAX_MAIL_PER_BRIEFING : MAX_MAIL_PER_CHECK,
+      ),
+      source: kind,
+    });
+    if (bot.mailAutoRead)
+      triage.log.set({
+        mailAutoRead: await autoReadBulkMail(bot.id, triage.mail),
+      });
+    if (
+      !briefing &&
+      !triage.mail.some((item) => item.tag === "URGENT" || item.matchesRule)
+    ) {
+      triage.log.set({ outcome: "quiet" });
+      triage.log.emit();
       await stamp();
       return "skipped";
     }
@@ -386,26 +473,28 @@ export class SokoBotIngestSyncService {
       started = await sokoBotControlPlane.startTurn({
         ...starter,
         workspaceId: bot.workspaceId,
+        sokoBotId: bot.id,
         clientTurnId: `ingest:${kind}:${bot.id}:${now.toISOString().slice(0, 13)}`,
         message: buildIngestMessage({
           kind,
           timeZone: bot.ingestTimezone,
-          mail: packetMail,
+          mail: triage.mail,
           events,
+          people,
         }),
         source: "INGEST",
         presetRoute: SYSTEM_TURN_ROUTES[`ingest:${kind}`],
       });
       // The turn's answer shows whether the bot agreed: "Nothing new worth
       // flagging." after a wake means Jev let through mail that could wait.
-      check?.log.set({ outcome: "woke", turn: { id: started.turnId } });
+      triage.log.set({ outcome: "woke", turn: { id: started.turnId } });
     } catch (error) {
-      check?.log.set({
+      triage.log.set({
         outcome: error instanceof SokoBotBusyError ? "deferred" : "failed",
       });
       throw error;
     } finally {
-      check?.log.emit();
+      triage.log.emit();
     }
     await stamp();
     if (
@@ -427,6 +516,20 @@ export class SokoBotIngestSyncService {
     }
     return briefing ? "briefings" : "deltas";
   }
+}
+
+interface MailCursor {
+  previous: string;
+  newest: string;
+  seenBefore: string[];
+  seenAfter: string[];
+}
+
+function cursorIds(cursor: unknown, key: string): Set<string> | null {
+  if (!cursor || typeof cursor !== "object") return null;
+  const value = (cursor as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) return null;
+  return new Set(value.filter((id): id is string => typeof id === "string"));
 }
 
 function cursorDate(cursor: unknown, key: string): Date | null {

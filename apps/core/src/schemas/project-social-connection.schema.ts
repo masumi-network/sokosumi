@@ -31,6 +31,13 @@ export const projectSocialConnectionParamsSchema =
       }),
   });
 
+export const projectSocialConnectionSubscriptionSchema = z
+  .object({
+    subscriptionType: z.string().nullable(),
+    textLimit: z.number().int().positive(),
+  })
+  .openapi("ProjectSocialConnectionSubscription");
+
 export const projectSocialConnectionSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -39,6 +46,10 @@ export const projectSocialConnectionSchema = z
     provider: projectSocialProviderSchema,
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
     displayName: z.string().nullable().openapi({ example: "Sokosumi" }),
+    subscriptionType: z.string().nullable().openapi({
+      description: "X subscription tier; null when unknown or not X",
+      example: "Premium",
+    }),
     avatarUrl: z.string().url().nullable().openapi({
       description: "Profile picture copy in Sokosumi storage",
       example:
@@ -59,19 +70,28 @@ export const disconnectProjectSocialConnectionResponseSchema =
     })
     .openapi("DisconnectProjectSocialConnectionResponse");
 
+const socialConnectionCallbackUrlSchema = z.url().max(2048).optional().openapi({
+  description:
+    "Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.",
+  example: "https://app.cmo.xyz/connect/callback",
+});
+
 export const initiateProjectSocialConnectionRequestSchema = z
   .discriminatedUnion("action", [
     z.object({
       action: z.literal("connect"),
       provider: projectSocialProviderSchema,
+      callbackUrl: socialConnectionCallbackUrlSchema,
     }),
     z.object({
       action: z.literal("reconnect"),
       socialConnectionId: z.string().uuid(),
+      callbackUrl: socialConnectionCallbackUrlSchema,
     }),
     z.object({
       action: z.literal("replace"),
       socialConnectionId: z.string().uuid(),
+      callbackUrl: socialConnectionCallbackUrlSchema,
     }),
   ])
   .openapi("InitiateProjectSocialConnectionRequest");

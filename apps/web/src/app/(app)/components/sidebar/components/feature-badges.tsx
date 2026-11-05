@@ -25,6 +25,7 @@ import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { isPathActive } from "@/lib/utils/is-path-active";
 
 export type BadgeCampaignSummary = UserBadgeCampaigns["badgeCampaigns"][number];
 
@@ -48,9 +49,7 @@ const FEATURE_PATHS: Record<AnnouncedFeature, readonly string[]> = {
 };
 
 function isFeatureOpen(feature: AnnouncedFeature, pathname: string) {
-  return FEATURE_PATHS[feature].some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
+  return FEATURE_PATHS[feature].some((path) => isPathActive(pathname, path));
 }
 
 interface FeatureBadgesValue {
@@ -181,8 +180,10 @@ function useCampaigns(value: FeatureBadgesValue) {
   const query = useQuery({
     queryKey: ["badge-campaigns", value.userId],
     initialData: initial,
+    // Campaigns change rarely: a returning tab reads them again once they
+    // are a minute old, and an open one every ten minutes.
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 10 * 60_000,
     queryFn: async ({ signal }) => {
       const response = await fetchBackgroundJson(
         "/api/badge-campaigns",

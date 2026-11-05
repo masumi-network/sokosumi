@@ -24,7 +24,7 @@ export function AuthHeader({ mode, client, invitationId }: AuthHeaderProps) {
       {client ? <OAuthClientBackLink client={client} /> : null}
       <div className="flex items-end justify-center gap-2">
         <h1 className="text-2xl font-light text-balance tracking-tight">
-          {t("title")}
+          {client?.brand === "cmo" ? t("titleCmo") : t("title")}
         </h1>
         {mode === "signUp" && invitationId ? (
           <p className="text-sm text-muted-foreground italic">
@@ -33,9 +33,11 @@ export function AuthHeader({ mode, client, invitationId }: AuthHeaderProps) {
         ) : null}
       </div>
       <p className="text-sm text-muted-foreground">
-        {client
-          ? t("descriptionFor", { client: client.name })
-          : t("description")}
+        {client?.brand === "cmo"
+          ? t("descriptionCmo")
+          : client
+            ? t("descriptionFor", { client: client.name })
+            : t("description")}
       </p>
     </div>
   );

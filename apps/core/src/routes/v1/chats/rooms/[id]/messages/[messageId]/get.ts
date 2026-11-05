@@ -16,6 +16,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   requireChatRoomUserMembership,
+  withChatRoomReplyCount,
 } from "../../../helpers";
 
 const paramsSchema = z.object({
@@ -85,7 +86,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       chatRoomMessageSchema.parse(
-        mapChatRoomMessage(message, userContext.userId),
+        mapChatRoomMessage(
+          await withChatRoomReplyCount(prisma, message),
+          userContext.userId,
+        ),
       ),
     );
   });

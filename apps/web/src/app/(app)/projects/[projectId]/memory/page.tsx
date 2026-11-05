@@ -52,6 +52,7 @@ export default async function ProjectMemoryPage({
           closingAt={project.closingAt}
           projectId={project.id}
           projectRevision={project.projectRevision}
+          scheduledSocialPostCount={project.scheduledSocialPostCount}
         />
       }
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}

@@ -31,7 +31,7 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt";
+  sort?: "createdAt" | "updatedAt";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
 }
@@ -173,7 +173,8 @@ export const taskService = (() => {
     query?: GetWorkspacesCalendarSourcesData["query"],
   ): Promise<WorkspaceCalendarSource[]> {
     const result = await coreClient.getWorkspaceCalendarSources(query);
-    return result.data;
+    // Core returns { sources, features }; Web's Show filter (PR 2) will use features.
+    return result.data.sources;
   }
 
   async function getTaskById(taskId: string): Promise<Task | null> {

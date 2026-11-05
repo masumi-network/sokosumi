@@ -14,6 +14,15 @@ const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 const TRUNCATED_SOURCES_MAX_BYTES = 8_192;
 
 /**
+ * Postgres `jsonb` rejects NUL and a lone UTF-16 surrogate, so one such
+ * character in a mail failed the whole tool call ("invalid input syntax for
+ * type json") and a script paging that mailbox could not get past the page.
+ */
+function storableText(value: string): string {
+  return value.replaceAll("\u0000", "").toWellFormed();
+}
+
+/**
  * Redacts secrets and bounds size before anything the model produced or
  * received is written to a durable row. Every Soko Bot persistence path shares
  * this: tool calls, projected events, and the runtime event log all store
@@ -25,7 +34,8 @@ export function sanitizePersistedValue(
   seen = new WeakSet<object>(),
 ): RuntimeJsonValue {
   if (value === null || typeof value === "boolean") return value;
-  if (typeof value === "string") return redactSokoBotSensitiveText(value);
+  if (typeof value === "string")
+    return redactSokoBotSensitiveText(storableText(value));
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Date) return value.toISOString();
@@ -70,7 +80,8 @@ export function truncateUtf8(value: string, maxBytes: number): string {
       high = middle - 1;
     }
   }
-  return value.slice(0, low);
+  // A cut inside a surrogate pair leaves half of it; Postgres refuses that.
+  return value.slice(0, low).toWellFormed();
 }
 
 /**
@@ -101,12 +112,25 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
     return jsonInput(sanitized);
   }
   const sources = truncatedSources(sanitized);
-  const emptyWrapper = JSON.stringify({ truncated: true, preview: "" });
+  // A long Social post or thread passes the cap; result cards and post links
+  // still read its projectId back.
+  const kept =
+    sanitized &&
+    typeof sanitized === "object" &&
+    !Array.isArray(sanitized) &&
+    typeof sanitized.projectId === "string"
+      ? { projectId: sanitized.projectId.slice(0, 200) }
+      : {};
+  const emptyWrapper = JSON.stringify({
+    truncated: true,
+    ...kept,
+    preview: "",
+  });
   let preview = truncateUtf8(
     serialized,
     TOOL_RESULT_MAX_BYTES - Buffer.byteLength(emptyWrapper, "utf8"),
   );
-  let wrapper = { truncated: true, preview };
+  let wrapper = { truncated: true, ...kept, preview };
   while (
     Buffer.byteLength(JSON.stringify(wrapper), "utf8") > TOOL_RESULT_MAX_BYTES
   ) {
@@ -117,7 +141,7 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
       preview,
       Math.max(0, Buffer.byteLength(preview, "utf8") - excess - 1),
     );
-    wrapper = { truncated: true, preview };
+    wrapper = { truncated: true, ...kept, preview };
   }
   return jsonInput(sources.length ? { ...wrapper, sources } : wrapper);
 }

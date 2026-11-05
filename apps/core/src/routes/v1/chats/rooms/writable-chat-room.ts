@@ -4,10 +4,8 @@ import { forbidden } from "@/helpers/error";
 import { isRetiredSharedSokoBotRoom } from "@/helpers/shared-soko-bot-room";
 import type prisma from "@/lib/db/prisma";
 
-import {
-  isReadOnlyDirectRoom,
-  requireChatRoomUserWriteAccess,
-} from "./helpers";
+import { requireChatRoomUserWriteAccess } from "./helpers";
+import { isReadOnlyDirectRoom } from "./read-only-room";
 
 /**
  * Write access for adding to a room: a message, an upload, a Reaction. On top

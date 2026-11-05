@@ -812,8 +812,8 @@ export function CreateOrganizationWizard({
               <>
                 <div className="flex min-h-24 flex-none items-center justify-center">
                   {brand.status === "completed" ? (
-                    <div className="bg-primary-quinary border-primary-tertiary flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
-                      <Check className="text-primary animate-in fade-in-0 size-7 duration-200" />
+                    <div className="bg-muted border-border flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
+                      <Check className="text-foreground animate-in fade-in-0 size-7 duration-200" />
                     </div>
                   ) : brand.status === "failed" ? (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
@@ -821,7 +821,7 @@ export function CreateOrganizationWizard({
                     </div>
                   ) : (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
-                      <Loader2 className="text-primary size-6 animate-spin motion-reduce:animate-pulse" />
+                      <Loader2 className="text-foreground size-6 animate-spin motion-reduce:animate-pulse" />
                     </div>
                   )}
                 </div>
@@ -905,8 +905,8 @@ export function CreateOrganizationWizard({
                     row AND the email box, and with a two-line title it must
                     still fit the stage without scrolling. */}
                 <div className="flex min-h-14 flex-none items-center justify-center">
-                  <div className="bg-primary-quinary border-primary-tertiary flex size-14 items-center justify-center rounded-lg border">
-                    <Check className="text-primary animate-in fade-in-0 size-6 duration-200" />
+                  <div className="bg-muted border-border flex size-14 items-center justify-center rounded-lg border">
+                    <Check className="text-foreground animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>
                 <h2 className="mt-4 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
@@ -958,7 +958,7 @@ export function CreateOrganizationWizard({
                         }
                       >
                         {copied ? (
-                          <Check className="check-pop text-primary size-4" />
+                          <Check className="check-pop text-foreground size-4" />
                         ) : (
                           <Copy className="size-4" />
                         )}

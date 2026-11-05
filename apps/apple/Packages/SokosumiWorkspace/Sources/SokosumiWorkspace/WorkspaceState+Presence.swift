@@ -20,10 +20,6 @@ public extension WorkspaceState {
     }
   }
 
-  func presence(forUser userId: String, fallback: Components.Schemas.ChatRoomPresence) -> Components.Schemas.ChatRoomPresence {
-    presence.presence(forUser: userId, fallback: fallback)
-  }
-
   /// Pointer, key or scroll input: refreshes `lastActiveAt` on the shared
   /// throttle. Called from the platform adapter for every event, so it must
   /// stay cheap and publish nothing while idle presence is unchanged.

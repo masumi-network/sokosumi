@@ -5,10 +5,7 @@ import { useLayoutEffect, useState } from "react";
 
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
-import {
-  getFormatToolbarOpenPreference,
-  resolveFormatToolbarOpenOnMount,
-} from "@/app/chat/utils/format-toolbar-preference-storage";
+import { getFormatToolbarOpenPreference } from "@/app/chat/utils/format-toolbar-preference-storage";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
   ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
@@ -17,7 +14,6 @@ import {
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,13 +27,7 @@ import { cn } from "@/lib/utils";
 export function RoomOpenLoadingView(): React.ReactElement {
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
   useLayoutEffect(() => {
-    setFormatToolbarOpen(
-      resolveFormatToolbarOpenOnMount({
-        stored: getFormatToolbarOpenPreference(),
-        viewportWidth: window.innerWidth,
-        mobileBreakpoint: MOBILE_BREAKPOINT,
-      }),
-    );
+    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
   }, []);
 
   return (

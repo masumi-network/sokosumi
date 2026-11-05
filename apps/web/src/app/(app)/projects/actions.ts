@@ -6,13 +6,18 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-import { PROJECTS_PAGE_LIMIT } from "./constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  type ProjectsListState,
+  projectsListStateQuery,
+} from "./constants";
 
 interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
   /** Carries the active name filter so later pages stay inside it. */
   query?: string;
-  expectedScope?: { userId: string; organizationId: string | null };
+  /** Carries the Open/Hidden/Closed view; its cursor only makes sense inside it. */
+  state: ProjectsListState;
 }
 
 export const loadMoreProjects = withSession<
@@ -23,19 +28,12 @@ export const loadMoreProjects = withSession<
     >["projects"];
     nextCursor: string | null;
   }
->(async ({ cursor, query, expectedScope, session }) => {
-  if (
-    expectedScope &&
-    (expectedScope.userId !== session.user.id ||
-      expectedScope.organizationId !==
-        (session.session.activeOrganizationId ?? null))
-  ) {
-    throw new Error("Project workspace changed");
-  }
+>(async ({ cursor, query, state }) => {
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,
     query,
+    ...projectsListStateQuery(state),
   });
 
   return {
@@ -62,27 +60,17 @@ export const unpinProjectAction = withSession<
   Awaited<ReturnType<typeof projectService.unpinProject>>
 >(async ({ projectId }) => projectService.unpinProject(projectId));
 
-interface LoadPinnedProjectsParams extends AuthenticatedRequest {
-  expectedScope?: { userId: string; organizationId: string | null };
-}
-
 /**
- * The flyout's Pinned rows. Fetched apart from the activity page because a
- * Pinned project is usually a quiet one and would otherwise fall off it
- * (ADR 0036).
+ * A Hide is the reader's own and the opposite of a Pin: hiding unpins, and
+ * the result says whether it did so Undo can Pin again (ADR 0036). Both are
+ * idempotent at Core.
  */
-export const loadPinnedProjects = withSession<
-  LoadPinnedProjectsParams,
-  Awaited<ReturnType<typeof projectService.listPinnedProjects>>
->(async ({ expectedScope, session }) => {
-  if (
-    expectedScope &&
-    (expectedScope.userId !== session.user.id ||
-      expectedScope.organizationId !==
-        (session.session.activeOrganizationId ?? null))
-  ) {
-    throw new Error("Project workspace changed");
-  }
+export const hideProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.hideProject>>
+>(async ({ projectId }) => projectService.hideProject(projectId));
 
-  return projectService.listPinnedProjects();
-});
+export const showProjectAction = withSession<
+  ProjectPinParams,
+  Awaited<ReturnType<typeof projectService.showProject>>
+>(async ({ projectId }) => projectService.showProject(projectId));

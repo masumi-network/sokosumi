@@ -1,3 +1,4 @@
+import { SessionNotActiveError } from "eve/sessions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -125,7 +126,11 @@ function creationContext(
           if (result instanceof Error) throw result;
           return result;
         }
-        return { status: "accepted", sessionId: id, deliveryId: "d1" };
+        return { sessionId: id, deliveryId: "d1" };
+      },
+      respond: async (answers: unknown, options: Record<string, unknown>) => {
+        sent.push({ message: answers, options });
+        return { sessionId: id, deliveryId: "d1" };
       },
     }),
   };
@@ -273,7 +278,7 @@ describe("an existing conversation", () => {
           return {
             id: "wrun_mine",
             getStreamTailIndex: async () => 0,
-            getEventStream: async () =>
+            getLineStream: async () =>
               new ReadableStream({
                 start(controller) {
                   controller.close();
@@ -320,6 +325,10 @@ describe("what may be carried into a creation", () => {
     const response = await create({ message: "first message" }, ctx);
 
     expect(response.status).toBeLessThan(300);
+    expect(await response.json()).toMatchObject({
+      sessionId: "wrun_ordered",
+      deliveryId: "d1",
+    });
     expect(order).toEqual(["created", "registered", "dispatched"]);
     // The creation itself carried nothing executable.
     expect(executedInput(calls[0])).toBeUndefined();
@@ -503,7 +512,7 @@ describe("delivering the first message", () => {
   it("retries a session whose inbox is still starting, as the eve client does", async () => {
     const { ctx, sent } = creationContext("wrun_slow", (attempt) =>
       attempt === 1
-        ? { status: "session_not_active", retryable: true }
+        ? new SessionNotActiveError({ retryable: true })
         : undefined,
     );
 
@@ -522,9 +531,10 @@ describe("delivering the first message", () => {
   it("returns a refused message to the queue so a retry delivers it", async () => {
     // The runtime answered and refused. Nothing ran, so the message is owed
     // again — reporting it as delivered is what dropped it on retry.
-    const { ctx } = creationContext("wrun_refused", () => ({
-      status: "session_not_active",
-    }));
+    const { ctx } = creationContext(
+      "wrun_refused",
+      () => new SessionNotActiveError(),
+    );
 
     const response = await create({ message: "first message" }, ctx);
 
@@ -805,7 +815,7 @@ describe("an ordinary send into a conversation that still owes its first message
 
     await send(
       "wrun_hitl",
-      { inputResponses: [{ requestId: "req_A", optionId: "approve" }] },
+      { answers: [{ interactionId: "req_A", optionId: "approve" }] },
       ctx,
     );
 

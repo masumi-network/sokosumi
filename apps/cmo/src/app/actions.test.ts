@@ -28,7 +28,7 @@ vi.mock("../lib/auth", async (importOriginal) => ({
 }));
 
 const { notFound } = await import("next/navigation");
-const { createAccount, signIn, signOut } = await import("./actions");
+const { signIn, signOut } = await import("./actions");
 
 /** Runs an action to its redirect, which Next throws to end the action. */
 async function settle(action: () => Promise<void>) {
@@ -46,22 +46,14 @@ describe("CMO sign-in actions", () => {
     });
   });
 
-  it.each([
-    ["Sign in", signIn, undefined],
-    ["Create account", createAccount, "create"],
-  ] as const)(
-    "%s goes to Core's authorize URL",
-    async (_case, action, prompt) => {
-      await settle(action);
+  it("Sign in goes to Core's authorize URL", async () => {
+    await settle(signIn);
 
-      expect(
-        signInSocial.mock.lastCall?.[0].body.additionalParams?.prompt,
-      ).toBe(prompt);
-      expect(redirectMock).toHaveBeenCalledWith(
-        "https://core.example/authorize",
-      );
-    },
-  );
+    expect(
+      signInSocial.mock.lastCall?.[0].body.additionalParams?.prompt,
+    ).toBeUndefined();
+    expect(redirectMock).toHaveBeenCalledWith("https://core.example/authorize");
+  });
 
   it("signs out and goes home", async () => {
     await settle(signOut);
@@ -87,12 +79,9 @@ describe("CMO sign-in actions", () => {
     arrange();
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    for (const action of [signIn, createAccount]) {
-      redirectMock.mockClear();
-      await settle(action);
+    await settle(signIn);
 
-      expect(redirectMock.mock.calls).toEqual([["/?error=unavailable"]]);
-    }
+    expect(redirectMock.mock.calls).toEqual([["/?error=unavailable"]]);
     expect(logged).toHaveBeenCalledWith(
       "Starting Sign in with Sokosumi failed",
       expect.anything(),

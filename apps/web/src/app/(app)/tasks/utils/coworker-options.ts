@@ -42,7 +42,7 @@ export interface OwnerSokoBotCopy {
 type OwnerSokoBotOptionSource = Pick<
   SokoBot,
   "id" | "name" | "avatarSeed" | "avatarImageUrl"
->;
+> & { avatarStyleId?: string | null };
 
 function sokoBotsVendor(vendorName: string): CoworkerOption["vendor"] {
   return {
@@ -129,6 +129,7 @@ export function getOwnerSokoBotOption(
     image: bot.avatarImageUrl ?? "",
     kind: "sokoBot",
     avatarSeed: bot.avatarSeed,
+    avatarStyleId: bot.avatarStyleId,
     vendor: sokoBotsVendor(copy.vendorName),
   };
 }
@@ -186,6 +187,7 @@ export function getTaskAssigneeOption(
         ? null
         : (assignee.sokoBot.avatarSeed ??
           defaultSokoBotOrbSeed(assignee.sokoBot)),
+      avatarStyleId: assignee.sokoBot.avatarStyleId,
       vendor: sokoBotsVendor(copy.vendorName),
     };
   }

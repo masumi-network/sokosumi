@@ -3,19 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyDynamicTypeRootCap,
   clampRootFontSizePx,
-  DYNAMIC_TYPE_DEFAULT_ROOT_PX,
-  DYNAMIC_TYPE_MAX_ROOT_PX,
-  DYNAMIC_TYPE_MAX_SCALE,
   shouldApplyRootFontSizeInline,
 } from "@/lib/utils/dynamic-type";
-
-describe("dynamic-type constants", () => {
-  it("caps at 1.25× of 16px → 20px", () => {
-    expect(DYNAMIC_TYPE_MAX_SCALE).toBe(1.25);
-    expect(DYNAMIC_TYPE_DEFAULT_ROOT_PX).toBe(16);
-    expect(DYNAMIC_TYPE_MAX_ROOT_PX).toBe(20);
-  });
-});
 
 describe("clampRootFontSizePx", () => {
   it("leaves sizes at or under 20px unchanged", () => {

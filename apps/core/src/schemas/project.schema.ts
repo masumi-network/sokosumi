@@ -16,7 +16,10 @@ import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
 import {
+  agentJobStatusSchema,
+  projectEventKindSchema,
   sokosumiJobStatusSchema,
+  taskEventStatusSchema,
   taskStatusSchema,
 } from "@/schemas/domain-enums.schema";
 import { historyItemSchema } from "@/schemas/history.schema";
@@ -48,6 +51,18 @@ export const projectIdentifierSchema = z
       "Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.",
     example: "SOK",
   });
+
+/** An optional `projectId` query param that narrows a list to one project. */
+export function projectIdQuerySchema(description: string) {
+  return z
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "projectId", in: "query" },
+      description,
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    });
+}
 
 const projectLogoUrlSchema = z
   .string()
@@ -116,6 +131,22 @@ export const projectContextMdSchema = projectContextMdMetadataSchema
   })
   .openapi("ProjectContextMd");
 
+export const projectPostingInstructionsMdSchema = z
+  .string()
+  .max(20_000)
+  .openapi({
+    description:
+      "Markdown guidance for drafting this Project's social posts: tone, hashtags, CTAs, and optional `##` per-platform sections. Separate from project memory (CONTEXT.md) and DESIGN.md.",
+    example:
+      "# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.",
+  });
+
+export const projectPostingInstructionsSchema = z
+  .object({
+    postingInstructionsMd: projectPostingInstructionsMdSchema.nullable(),
+  })
+  .openapi("ProjectPostingInstructions");
+
 export const projectLatestUpdateSchema = z
   .object({
     content: z.string().openapi({
@@ -177,6 +208,7 @@ export const projectSchema = z
       description: "Project-owned brand DESIGN.md, or null when none exists.",
       example: null,
     }),
+    postingInstructionsMd: projectPostingInstructionsMdSchema.nullable(),
     memoryEnabled: z.boolean().openapi({
       description:
         "Whether Core has both AI Gateway and Blob storage credentials and can update project memory.",
@@ -200,6 +232,16 @@ export const projectSchema = z
       description: "Revision used for optimistic Project mutations",
       example: 0,
     }),
+    scheduledSocialPostCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .default(0)
+      .openapi({
+        description:
+          "Social posts canceled on close: scheduled posts and posts awaiting approval with a scheduled time.",
+        example: 0,
+      }),
     closingAt: dateTimeSchema.nullable().default(null).openapi({
       description: "Exclusive release cutoff while the Project is closing",
       example: null,
@@ -223,7 +265,7 @@ export const projectListItemSchema = projectSchema
     }),
     starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.",
+        "When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. An ordering key only when the list is asked for pinnedFirst; otherwise the list stays in activity order.",
     }),
   })
   .openapi("ProjectListItem");
@@ -244,6 +286,31 @@ export const projectStarSchema = z
   .openapi("ProjectStar");
 
 /**
+ * The reader's Hide on one project (ADR 0036): personal, never shared, and
+ * the opposite of a Pin. Null `hiddenAt` means the project is not Hidden.
+ */
+export const projectHideSchema = z
+  .object({
+    projectId: z
+      .string()
+      .uuid()
+      .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
+    hiddenAt: dateTimeSchema.nullable(),
+  })
+  .openapi("ProjectHide");
+
+/** After hiding: whether the Hide removed the reader's Pin, so Undo can restore it. */
+export const projectHideResultSchema = projectHideSchema
+  .extend({
+    hiddenAt: dateTimeSchema,
+    unpinned: z.boolean().openapi({
+      description:
+        "True when the project was Pinned and hiding it removed the Pin.",
+    }),
+  })
+  .openapi("ProjectHideResult");
+
+/**
  * A Pinned project as the starred list returns it: the project plus the
  * reader's own `starredAt`, so a client that merges the list into a map can
  * still recover the Pin order without leaning on JSON array position.
@@ -256,6 +323,58 @@ export const starredProjectSchema = projectSchema
     }),
   })
   .openapi("StarredProject");
+
+const projectActivityBaseSchema = z.object({
+  id: z.string().openapi({
+    description: "ID of the event this row is about",
+    example: "01960001-0001-7001-8001-000000000001",
+  }),
+  createdAt: dateTimeSchema.openapi({ description: "When the event happened" }),
+  project: projectSummarySchema,
+});
+
+const projectTaskActivitySchema = projectActivityBaseSchema
+  .extend({
+    kind: z.literal("task"),
+    taskId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+    title: z.string().openapi({ example: "Draft the launch post" }),
+    // Union-with-null, not `.nullable()`: on a named enum schema that drops
+    // the `| null` from the generated type (see `historyBaseItemSchema.owner`).
+    status: z.union([taskEventStatusSchema, z.null()]).openapi({
+      description:
+        "The status the event set. Null for an event that only added a comment.",
+    }),
+  })
+  .openapi("ProjectTaskActivity");
+
+const projectJobActivitySchema = projectActivityBaseSchema
+  .extend({
+    kind: z.literal("job"),
+    jobId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fq" }),
+    agentId: z.string().openapi({ example: "agent_123" }),
+    title: z.string().nullable().openapi({
+      description:
+        "The job's name, else its agent's display name. Null when neither resolves.",
+      example: "Research Agent",
+    }),
+    status: agentJobStatusSchema,
+  })
+  .openapi("ProjectJobActivity");
+
+const projectLifecycleActivitySchema = projectActivityBaseSchema
+  .extend({
+    kind: z.literal("project"),
+    event: projectEventKindSchema,
+  })
+  .openapi("ProjectLifecycleActivity");
+
+export const projectActivityItemSchema = z
+  .discriminatedUnion("kind", [
+    projectTaskActivitySchema,
+    projectJobActivitySchema,
+    projectLifecycleActivitySchema,
+  ])
+  .openapi("ProjectActivityItem");
 
 export const PROJECT_NEEDS_ATTENTION_LIMIT = 5 as const;
 
@@ -327,6 +446,13 @@ export const patchProjectRequestSchema = z
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
     identifier: projectIdentifierSchema.optional(),
+    postingInstructionsMd: projectPostingInstructionsMdSchema
+      .nullish()
+      .optional()
+      .openapi({
+        description:
+          "Markdown guidance for drafting this Project's social posts. Null or blank clears it.",
+      }),
   })
   .superRefine((data, ctx) => {
     if (
@@ -335,12 +461,13 @@ export const patchProjectRequestSchema = z
       data.briefing === undefined &&
       data.description === undefined &&
       data.websiteUrl === undefined &&
-      data.logo === undefined
+      data.logo === undefined &&
+      data.postingInstructionsMd === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, identifier, briefing, description, websiteUrl, or logo",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, logo, or postingInstructionsMd",
         path: [],
       });
     }
@@ -447,6 +574,7 @@ export function mapProjectContextMdForApi(
 export function mapProjectForApi(
   project: DatabaseProject,
   now: Date = new Date(),
+  scheduledSocialPostCount = 0,
 ): Project {
   const env = getEnv();
   const updatingSinceMs = project.contextMdUpdatingSince?.getTime();
@@ -474,6 +602,7 @@ export function mapProjectForApi(
           extractionId: project.designMdExtractionId,
         }
       : null,
+    postingInstructionsMd: project.postingInstructionsMd ?? null,
     memoryEnabled: isProjectMemoryConfigured(env),
     memoryModel: {
       id: env.PROJECT_MEMORY_MODEL,
@@ -495,6 +624,7 @@ export function mapProjectForApi(
       updatingSinceMs !== undefined &&
       now.getTime() - updatingSinceMs < PROJECT_MEMORY_UPDATING_WINDOW_MS,
     projectRevision: project.projectRevision ?? 0,
+    scheduledSocialPostCount,
     closingAt: project.closingAt ?? null,
     closedAt: project.closedAt ?? null,
     createdAt: project.createdAt,

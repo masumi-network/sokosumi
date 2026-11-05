@@ -25,13 +25,13 @@ To disable one mode, use its longhand: `font-synthesis-weight`, `font-synthesis-
 
 Variable-font controls, each with a four-letter tag. A font supports only the axes its designer included.
 
-| Axis | Tag | Controls |
-| --- | --- | --- |
-| Weight | `wght` | Stroke thickness (like `font-weight`) |
-| Optical size | `opsz` | Details and spacing tuned for the display size |
-| Width | `wdth` | Glyph width |
-| Slant | `slnt` | Slant angle |
-| Custom | e.g. `GRAD` (Roboto Flex) | Whatever the designer built |
+| Axis         | Tag                       | Controls                                       |
+| ------------ | ------------------------- | ---------------------------------------------- |
+| Weight       | `wght`                    | Stroke thickness (like `font-weight`)          |
+| Optical size | `opsz`                    | Details and spacing tuned for the display size |
+| Width        | `wdth`                    | Glyph width                                    |
+| Slant        | `slnt`                    | Slant angle                                    |
+| Custom       | e.g. `GRAD` (Roboto Flex) | Whatever the designer built                    |
 
 Inter's variable file exposes only `wght` and `opsz`.
 
@@ -62,13 +62,13 @@ Optical sizes predate variable fonts. Many families still ship them as separate 
 
 Unlike axes, features work the same on static and variable fonts. A font ships only the features its designer included.
 
-| Tag | Feature |
-| --- | --- |
-| `tnum` | Tabular numbers: every digit the same width |
-| `zero` | Slashed zero: `0` distinct from `O` |
-| `liga` | Ligatures: joins pairs like "fi" into one shape |
-| `ss01`–`ss20` | Stylistic sets (numbered slots) |
-| `cv01`–`cv99` | Character variants (numbered slots) |
+| Tag           | Feature                                         |
+| ------------- | ----------------------------------------------- |
+| `tnum`        | Tabular numbers: every digit the same width     |
+| `zero`        | Slashed zero: `0` distinct from `O`             |
+| `liga`        | Ligatures: joins pairs like "fi" into one shape |
+| `ss01`–`ss20` | Stylistic sets (numbered slots)                 |
+| `cv01`–`cv99` | Character variants (numbered slots)             |
 
 Common features have a `font-variant-*` property, and `font-feature-settings` is for the rest:
 

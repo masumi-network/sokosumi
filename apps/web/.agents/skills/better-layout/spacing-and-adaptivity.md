@@ -4,11 +4,11 @@ Recipes for control clearance, edge insets, disclosure cues, edge behavior, brea
 
 ## Borderless controls need more clearance
 
-| Between | Starting point |
-| --- | --- |
-| Adjacent bordered or filled controls, such as buttons and inputs | `12px` |
-| Visible glyphs of borderless controls, such as text and icon buttons | `24px` |
-| Unrelated control groups | `24px` or more |
+| Between                                                              | Starting point |
+| -------------------------------------------------------------------- | -------------- |
+| Adjacent bordered or filled controls, such as buttons and inputs     | `12px`         |
+| Visible glyphs of borderless controls, such as text and icon buttons | `24px`         |
+| Unrelated control groups                                             | `24px` or more |
 
 Nothing marks where one borderless target ends and the next begins, so the space is the boundary. Preserve an established, usable density rather than expanding controls to match these values.
 

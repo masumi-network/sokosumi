@@ -162,23 +162,26 @@ describe("chat list chrome single-source composition contract", () => {
     expect(cacheSource).toMatch(/function getPrivateCachedChatListChrome/);
   });
 
-  it("header workspace switcher reads Core's workspaces list, not members", async () => {
+  it("workspace switcher reads Core's workspaces list, not members", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
 
-    const headerProfile = readFileSync(
+    const frame = readFileSync(
       join(
         dirname(fileURLToPath(import.meta.url)),
-        "../header/header-profile-section.tsx",
+        "../authenticated-app-frame.tsx",
       ),
       "utf8",
     );
 
-    // ADR 0051: the switcher lists workspaces from one Core read.
-    expect(headerProfile).toMatch(/userService\s*\.\s*getMyWorkspaces\s*\(/);
-    expect(headerProfile).not.toMatch(/getPrivateCachedChatListChrome/);
-    expect(headerProfile).not.toMatch(
+    // ADR 0051: the switcher lists workspaces from one Core read, the frame's,
+    // handed to its one provider.
+    expect(frame).toMatch(/userService\s*\.\s*getMyWorkspaces\s*\(/);
+    expect(frame).toMatch(
+      /<WorkspaceSwitcherProvider[\s\S]*workspaces=\{workspaces\}/,
+    );
+    expect(frame).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
 
@@ -212,17 +215,23 @@ describe("chat list chrome single-source composition contract", () => {
       join(headerDir, "header-trailing-tools.tsx"),
       "utf8",
     );
+    const switcherDir = join(headerDir, "../workspace-switcher");
+    const switcherSkeleton = readFileSync(
+      join(switcherDir, "workspace-switcher-skeleton.tsx"),
+      "utf8",
+    );
 
     // Trailing tools (Notification Center + mobile Search) must stay outside
     // the members Suspense so chrome remains interactive while members load.
+    // The switcher has none: its workspaces arrive with the frame.
     expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
+    expect(headerProfile).not.toMatch(/<Suspense/);
     expect(headerProfile).toMatch(
-      /<Suspense[\s\S]*HeaderProfileSectionInner[\s\S]*<\/Suspense>\s*<HeaderTrailingTools/,
+      /<WorkspaceSwitcherMenu[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
     );
 
-    const fallback = headerProfile.slice(
-      headerProfile.indexOf("function HeaderProfileSectionSkeleton"),
-      headerProfile.indexOf("export default function HeaderProfileSection"),
+    const fallback = switcherSkeleton.slice(
+      switcherSkeleton.indexOf("WORKSPACE_SWITCHER_AVATAR_CLASS ="),
     );
     expect(fallback).toMatch(/size-4/);
     expect(fallback).not.toMatch(/size-8/);
