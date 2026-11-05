@@ -31,7 +31,7 @@ const route = withOrganizationSlugHeaderParameter(
       query: z.object({
         clientInstanceId: z.string().optional(),
         roomIds: roomIdsSchema.optional().openapi({
-          description: `Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to ${ROOM_SCOPE_LIMIT} comma-separated room UUIDs. Only current memberships receive grants.`,
+          description: `Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to ${ROOM_SCOPE_LIMIT} distinct comma-separated room UUIDs. Only current memberships receive grants.`,
         }),
       }),
     },

@@ -84571,7 +84571,7 @@ export type PostRealtimeAblyTokenData = {
     query?: {
         clientInstanceId?: string;
         /**
-         * Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to 50 comma-separated room UUIDs. Only current memberships receive grants.
+         * Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to 50 distinct comma-separated room UUIDs. Only current memberships receive grants.
          */
         roomIds?: string;
     };
