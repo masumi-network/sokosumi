@@ -380,6 +380,51 @@ describe("useChatRoomRealtime", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("detaches a room the props dropped before the token without it is minted", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+    const { rerender } = renderHook(
+      ({ roomIds }: { roomIds: string[] }) =>
+        useChatRoomRealtime({
+          roomIds,
+          currentUserId: "user_1",
+        }),
+      { initialProps: { roomIds: ["room-a"] } },
+    );
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-a").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    });
+
+    authorizeMock.mockClear();
+    let mint: (token: ReturnType<typeof tokenWithRooms>) => void = () => {};
+    authorizeMock.mockImplementation(
+      () =>
+        new Promise<ReturnType<typeof tokenWithRooms>>((resolve) => {
+          mint = resolve;
+        }),
+    );
+
+    rerender({ roomIds: ["room-b"] });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+    // The token being minted grants room-b alone. A channel for room-a that
+    // is still attached when the server reads it is failed, not detached.
+    expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-a").unsubscribe).toHaveBeenCalled();
+
+    await act(async () => {
+      mint(tokenWithRooms("room-b"));
+    });
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-b").subscribe,
+      ).toHaveBeenCalledTimes(ROOM_CHANNEL_SUBSCRIPTIONS);
+    });
+  });
+
   it("on control revoke, detaches the room immediately and re-authorizes", async () => {
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
     const onMembershipRevoked = vi.fn();

@@ -34,7 +34,11 @@ const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 const CHAT_ROOM_AUTH_RETRY_MS = 15_000;
 
 interface UseChatRoomRealtimeOptions {
-  /** Membership room ids to attach (all rooms for sidebar/live parity). */
+  /**
+   * The room or rooms the reader has open. Each id is registered as token
+   * scope and named in every token request, and Core caps a request at 50
+   * distinct rooms: above that, every channel in the tab loses its token.
+   */
   roomIds: readonly string[];
   currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
@@ -190,6 +194,16 @@ export function useChatRoomRealtime({
       for (const roomId of [...locallyRevokedRoomIds]) {
         if (!propIds.has(roomId)) {
           locallyRevokedRoomIds.delete(roomId);
+        }
+      }
+
+      // A room the props dropped leaves before the token is renewed: the
+      // new token names only the rooms in scope, and a channel still
+      // attached when its grant goes is failed by the server, then
+      // reattached and refused until the detach below would reach it.
+      for (const roomId of [...channelsRef.current.keys()]) {
+        if (!propIds.has(roomId)) {
+          detachRoomLocally(roomId);
         }
       }
 
