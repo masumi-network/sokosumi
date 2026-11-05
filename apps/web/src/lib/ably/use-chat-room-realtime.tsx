@@ -36,8 +36,9 @@ const CHAT_ROOM_AUTH_RETRY_MS = 15_000;
 interface UseChatRoomRealtimeOptions {
   /**
    * The room or rooms the reader has open. Each id is registered as token
-   * scope and named in every token request, and Core caps a request at 50
-   * distinct rooms: above that, every channel in the tab loses its token.
+   * scope while a reader is signed in and named in every token request
+   * from then on. Core caps a request at 50 distinct rooms: above that, no
+   * channel in the tab can renew its token.
    */
   roomIds: readonly string[];
   currentUserId: string;
