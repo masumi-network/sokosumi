@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 
 import { capabilityGrants } from "./ably-capability-map";
+import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import {
   applyTypingEvent,
   EMPTY_TYPING_SET,
@@ -70,6 +71,7 @@ export function useRoomTyping(
 
     const activeRoomId = roomId;
     const activeSelfUserId = selfUserId;
+    const releaseRoomScope = registerAblyChatRoomScope([activeRoomId]);
     const channelName = makeChatTypingChannelName(
       activeRoomId,
       getRealtimeChannelEnvironment(),
@@ -235,6 +237,7 @@ export function useRoomTyping(
 
     return () => {
       cancelled = true;
+      releaseRoomScope();
       ably.connection.off("connected", onConnected);
       // Leaving is one of the four stops. The detach below races this publish,
       // so the stop may not land — which is exactly the case the 12s expiry
