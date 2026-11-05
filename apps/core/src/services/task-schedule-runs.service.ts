@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as Sentry from "@sentry/node";
 import {
   CalendarSourceType,
@@ -12,11 +13,14 @@ import {
 } from "@sokosumi/database";
 
 import { computeNextRun } from "@/helpers/cron";
-import { taskCreationEvents } from "@/helpers/task-creation-events";
-import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
-import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import {
+  announceReleasedTasks,
+  createTaskFromBlueprint,
+} from "./task-schedule-task.service";
+
+export { announceReleasedTasks } from "./task-schedule-task.service";
 
 /**
  * The Run ledger of Task Schedules (ADR 0041): which Runs are
@@ -400,43 +404,6 @@ function releasableWhere(now: Date): Prisma.TaskScheduleWhereInput {
   };
 }
 
-function createTaskFromBlueprint(
-  tx: Prisma.TransactionClient,
-  schedule: TaskSchedule,
-) {
-  return tx.task.create({
-    data: {
-      scheduleId: schedule.id,
-      ownerId: schedule.ownerId,
-      organizationId: schedule.organizationId,
-      workspaceId: schedule.workspaceId,
-      projectId: schedule.projectId,
-      name: schedule.name,
-      description: schedule.description,
-      visibility: schedule.visibility,
-      assigneeId: schedule.assigneeId,
-      assigneeSokoBotId: schedule.assigneeSokoBotId,
-      assigneeUserId: schedule.assigneeUserId,
-      creatorUserId: schedule.creatorUserId,
-      creatorCoworkerId: schedule.creatorCoworkerId,
-      creatorSokoBotId: schedule.creatorSokoBotId,
-      status: TaskStatus.READY,
-      events: {
-        create: taskCreationEvents({
-          status: TaskStatus.READY,
-          channel: Channel.SOKOSUMI,
-          actorFields: {
-            userId: schedule.creatorUserId,
-            coworkerId: schedule.creatorCoworkerId,
-            sokoBotId: schedule.creatorSokoBotId,
-          },
-        }),
-      },
-    },
-    select: { id: true, ownerId: true, assigneeUserId: true },
-  });
-}
-
 /**
  * Run now (ADR 0047): a Run released at `now` with its Task, outside the
  * rule. It plans nothing and leaves `releasedCount` alone, so an end-after-N
@@ -448,9 +415,11 @@ export async function releaseManualTaskScheduleRun(
   now: Date,
   actor: Pick<TaskScheduleRun, "actorUserId" | "actorCoworkerId">,
 ): Promise<{ run: TaskScheduleRun; task: ReleasedTask }> {
-  const task = await createTaskFromBlueprint(tx, schedule);
+  const runId = randomUUID();
+  const task = await createTaskFromBlueprint(tx, schedule, runId);
   const run = await tx.taskScheduleRun.create({
     data: {
+      id: runId,
       scheduleId: schedule.id,
       epochId: schedule.epochId,
       originalScheduledAt: now,
@@ -499,7 +468,7 @@ async function releaseRuns(
   const tasks: ReleasedTask[] = [];
   for (const run of runs) {
     if (!shouldContinue()) break;
-    const task = await createTaskFromBlueprint(tx, schedule);
+    const task = await createTaskFromBlueprint(tx, schedule, run.id);
     const { count } = await tx.taskScheduleRun.updateMany({
       where: { id: run.id, state: TaskScheduleRunState.PLANNED },
       data: {
@@ -631,33 +600,6 @@ export async function closeTaskScheduleForProject(
   });
   if (count !== 1) throw new ReleaseClaimLostError();
   return { tasks, ended: !stillOwed };
-}
-
-export async function announceReleasedTasks(
-  tasks: ReleasedTask[],
-): Promise<void> {
-  await Promise.all(
-    tasks.map(async (task) => {
-      const ownerId = task.ownerId;
-      if (ownerId) {
-        try {
-          await publishTaskEventData({
-            userId: ownerId,
-            taskId: task.id,
-            eventType: "task_event",
-          });
-        } catch (error) {
-          Sentry.captureException(error, {
-            tags: { error_type: "publish_task_event" },
-            extra: { taskId: task.id, source: "task-schedule-release" },
-          });
-        }
-      }
-      if (task.assigneeUserId) {
-        await notifyTaskHumanAssignee(task.id, task.assigneeUserId);
-      }
-    }),
-  );
 }
 
 export interface RunAtReleaseResult {

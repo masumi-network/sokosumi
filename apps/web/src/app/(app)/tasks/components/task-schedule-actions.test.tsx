@@ -79,6 +79,8 @@ function schedule(state: TaskSchedule["state"]): TaskSchedule {
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
     canWrite: true,
+    canRunNow: true,
+    canEditPlan: true,
   };
 }
 
@@ -128,6 +130,32 @@ describe("TaskScheduleActions", () => {
       expect(pushMock).toHaveBeenCalledWith("/tasks/task_now");
     },
   );
+
+  it("hides manual extra runs and plan edits for a bounded SEO monitor, keeping state controls", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskScheduleActions
+        schedule={{
+          ...schedule("ACTIVE"),
+          canRunNow: false,
+          canEditPlan: false,
+        }}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "runNow" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "pause" })).toBeVisible();
+    expect(runTaskScheduleNowMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "more" }));
+    expect(
+      screen.queryByRole("menuitem", { name: "edit" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "end" })).toBeVisible();
+  });
 
   it("pauses an Active schedule", async () => {
     const user = userEvent.setup();

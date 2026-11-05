@@ -118,6 +118,7 @@ export function TaskScheduleActions({
   }
 
   function handleRunNow() {
+    if (!schedule.canRunNow) return;
     startTransition(async () => {
       const result = await runTaskScheduleNow({
         scheduleId: schedule.id,
@@ -163,15 +164,17 @@ export function TaskScheduleActions({
     <div className="flex shrink-0 items-center gap-1">
       {isEnded ? null : (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRunNow}
-            disabled={isPending}
-          >
-            <Zap aria-hidden />
-            {tActions("runNow")}
-          </Button>
+          {schedule.canRunNow ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunNow}
+              disabled={isPending}
+            >
+              <Zap aria-hidden />
+              {tActions("runNow")}
+            </Button>
+          ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -206,10 +209,16 @@ export function TaskScheduleActions({
         <DropdownMenuContent align="end" className="w-40">
           {isEnded ? null : (
             <>
-              <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
-                <Pencil aria-hidden />
-                {tActions("edit")}
-              </DropdownMenuItem>
+              {schedule.canEditPlan ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (schedule.canEditPlan) setIsEditOpen(true);
+                  }}
+                >
+                  <Pencil aria-hidden />
+                  {tActions("edit")}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onSelect={() => setConfirming("end")}>
                 <Square aria-hidden />
                 {tActions("end")}
@@ -274,7 +283,7 @@ export function TaskScheduleActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      {isEditOpen ? (
+      {isEditOpen && schedule.canEditPlan ? (
         <TaskScheduleDialog
           schedule={schedule}
           coworkerOptions={coworkerOptions}

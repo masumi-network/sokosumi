@@ -1,0 +1,521 @@
+import { z } from "@hono/zod-openapi";
+import type {
+  ProjectSeoActionTask,
+  ProjectSeoAnalysis,
+  ProjectSeoCompetitor,
+  ProjectSeoKeyword,
+  ProjectSeoObservation,
+  ProjectSeoPage,
+  ProjectSeoScope,
+} from "@sokosumi/database";
+import { internalServerError } from "@/helpers/error";
+import {
+  type PublicSeoPayload,
+  publicSeoPayloadSchema,
+} from "@/helpers/project-seo-report";
+import {
+  nativeSeoMetricsSchema,
+  type ProjectSeoWorkspace,
+  projectSeoWorkspaceSchema,
+  type SeoWorkspaceQuery,
+  seoPageChangePayloadSchema,
+} from "@/schemas/project-seo.schema";
+
+import {
+  canConfirmSeoCompetitor,
+  matchesSeoPeriod,
+  normalizeSeoUrl,
+  SEO_RESULT_LIMIT,
+} from "./project-seo-store";
+
+interface ProjectionInput {
+  project: {
+    id: string;
+    websiteUrl: string | null;
+    closingAt: Date | null;
+    closedAt: Date | null;
+  };
+  query: SeoWorkspaceQuery;
+  scope: {
+    id: string | null;
+    name: string;
+    version: number;
+    pageIds: string[];
+    pages: ProjectSeoPage[];
+  };
+  pages: ProjectSeoPage[];
+  scopes: ProjectSeoScope[];
+  observations: ProjectSeoObservation[];
+  keywords: ProjectSeoKeyword[];
+  competitors: ProjectSeoCompetitor[];
+  analyses: ProjectSeoAnalysis[];
+  actionTasks: ProjectSeoActionTask[];
+  tasks: Array<{ id: string; status: string; completedAt: Date | null }>;
+  privateMetricsAllowed: boolean;
+  monitors?: ProjectSeoWorkspace["monitors"];
+}
+const key = (...parts: Array<string | null>) => JSON.stringify(parts);
+const priority = z.enum(["low", "medium", "high"]);
+
+function verifiedAction(
+  input: ProjectionInput,
+  source: PublicSeoPayload,
+  action: PublicSeoPayload["actions"][number],
+  taskId: string,
+): boolean {
+  const task = input.tasks.find((item) => item.id === taskId);
+  if (
+    task?.status !== "COMPLETED" ||
+    !task.completedAt ||
+    !action.findingIds.length
+  )
+    return false;
+  const referenced = action.findingIds.map((id) =>
+    source.findings.find((finding) => finding.id === id),
+  );
+  if (referenced.some((finding) => !finding?.device)) return false;
+  return referenced.every((finding) => {
+    if (!finding?.device) return false;
+    for (const observation of input.observations) {
+      if (
+        observation.ownerId ||
+        observation.kind === "metrics" ||
+        observation.observedAt <= task.completedAt! ||
+        observation.createdAt <= task.completedAt!
+      )
+        continue;
+      const parsed = publicSeoPayloadSchema.safeParse(observation.payload);
+      if (!parsed.success) continue;
+      const data = parsed.data;
+      if (
+        data.countryCode !== source.countryCode ||
+        data.languageCode !== source.languageCode ||
+        data.rulebookVersion !== source.rulebookVersion
+      )
+        continue;
+      const check = data.checks.find(
+        (row) =>
+          normalizeSeoUrl(row.pageUrl) === normalizeSeoUrl(finding.pageUrl) &&
+          row.rowId === finding.rowId &&
+          row.device === finding.device,
+      );
+      if (check) return check.result === "pass";
+    }
+    return false;
+  });
+}
+
+/** Current views are projections. Historical observations and human choices remain separate. */
+export function projectSeoProjection(
+  input: ProjectionInput,
+): ProjectSeoWorkspace {
+  const { project, scope, query } = input;
+  const selectedIds = new Set(scope.pageIds),
+    selectedUrls = new Set(scope.pages.map((page) => page.url));
+  const overlaps = (ids: string[]) => ids.some((id) => selectedIds.has(id));
+  const findings: ProjectSeoWorkspace["findings"] = [],
+    keywords: ProjectSeoWorkspace["keywords"] = [],
+    competitors: ProjectSeoWorkspace["competitors"] = [],
+    actions: ProjectSeoWorkspace["actions"] = [],
+    metrics: ProjectSeoWorkspace["metrics"] = [],
+    timeline: ProjectSeoWorkspace["timeline"] = [],
+    observations: ProjectSeoWorkspace["observations"] = [];
+  const seenKeywords = new Set<string>(),
+    seenCompetitors = new Set<string>(),
+    seenFindings = new Set<string>(),
+    seenMetricGroups = new Set<string>();
+  const latestChecked = new Map<string, string>();
+  const keywordChoices = new Map(
+    input.keywords.map((row) => [
+      key(row.keywordKey, row.countryCode, row.languageCode),
+      row,
+    ]),
+  );
+  const observedKeywordChoices = new Set<string>();
+  const competitorChoices = new Map(
+    input.competitors.map((row) => [row.url, row]),
+  );
+  const taskStatuses = new Map(
+    input.tasks.map((task) => [task.id, task.status]),
+  );
+  for (const row of input.observations) {
+    if (!overlaps(row.pageIds)) continue;
+    if (row.kind === "page_change") {
+      if (!matchesSeoPeriod(row.observedAt, query)) continue;
+      const event = seoPageChangePayloadSchema.parse(row.payload);
+      timeline.push({
+        id: `page-change:${row.id}`,
+        kind: "page_change",
+        title: event.title,
+        at: event.occurredAt,
+        pageIds: row.pageIds,
+        observationId: null,
+        taskId: null,
+        status: "recorded",
+        detail: event.note,
+      });
+      continue;
+    }
+    if (row.kind === "metrics") {
+      const parsed = nativeSeoMetricsSchema.safeParse(row.payload);
+      if (!parsed.success || !row.ownerId)
+        throw internalServerError("Stored analytics evidence is not readable");
+      const data = parsed.data;
+      // Distinct-user totals cannot be sliced or added from an incompatible page group.
+      if (
+        data.pageUrls.length !== selectedUrls.size ||
+        data.pageUrls.some((url) => !selectedUrls.has(normalizeSeoUrl(url)))
+      )
+        continue;
+      if (
+        (query.from && data.from !== query.from) ||
+        (query.to && data.to !== query.to)
+      )
+        continue;
+      if (query.channel && data.channel !== query.channel) continue;
+      timeline.push({
+        id: `metrics:${row.id}`,
+        kind: "metrics",
+        title: `${data.provider === "ga4" ? "Analytics" : "Search Console"} statistics synced`,
+        at: row.createdAt.toISOString(),
+        pageIds: row.pageIds,
+        observationId: row.id,
+        taskId: null,
+        status: data.coverage,
+        detail: `${data.from} to ${data.to}. ${data.channel}. ${data.notes.join(" ")}`,
+      });
+      const group = key(
+        data.provider,
+        data.propertyId,
+        data.from,
+        data.to,
+        data.channel,
+      );
+      if (seenMetricGroups.has(group)) continue;
+      seenMetricGroups.add(group);
+      for (const metric of data.metrics)
+        metrics.push({
+          id: `${row.id}:${metric.key}`,
+          ...metric,
+          source: data.provider,
+          from: data.from,
+          to: data.to,
+          timeZone: data.timeZone,
+          channel: data.channel,
+          observedAt: row.observedAt.toISOString(),
+          coverage: data.coverage,
+          notes: data.notes,
+        });
+      continue;
+    }
+    if (!matchesSeoPeriod(row.observedAt, query)) continue;
+    const parsed = publicSeoPayloadSchema.safeParse(row.payload);
+    if (!parsed.success)
+      throw internalServerError("Stored SEO evidence is not readable");
+    const data = parsed.data;
+    observations.push({
+      id: row.id,
+      kind: row.kind,
+      source: row.source,
+      observedAt: row.observedAt.toISOString(),
+      pageIds: row.pageIds,
+      scopeVersion: row.scopeVersion,
+      sourceTaskId: row.sourceTaskId,
+      countryCode: data.countryCode || null,
+      languageCode: data.languageCode || null,
+      devices: [
+        ...new Set(
+          [...data.checks, ...data.findings, ...data.keywords].flatMap(
+            (item) => (item.device ? [item.device] : []),
+          ),
+        ),
+      ],
+      rulebookVersion: data.rulebookVersion,
+      artifactHash: row.artifactHash,
+      coverage: data.coverage,
+    });
+    for (const check of data.checks) {
+      const identity = key(
+        normalizeSeoUrl(check.pageUrl),
+        check.rowId,
+        check.device,
+        data.countryCode,
+        data.languageCode,
+        data.rulebookVersion,
+      );
+      if (
+        (check.result === "pass" || check.result === "fired") &&
+        !latestChecked.has(identity)
+      )
+        latestChecked.set(identity, row.id);
+    }
+    for (const item of data.findings) {
+      if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
+      const identity = key(
+        normalizeSeoUrl(item.pageUrl),
+        item.rowId,
+        item.device,
+        data.countryCode,
+        data.languageCode,
+        data.rulebookVersion,
+      );
+      if (
+        seenFindings.has(identity) ||
+        (latestChecked.has(identity) && latestChecked.get(identity) !== row.id)
+      )
+        continue;
+      seenFindings.add(identity);
+      findings.push({
+        ...item,
+        id: `${row.id}:${item.id}`,
+        observationId: row.id,
+      });
+    }
+    for (const item of data.keywords) {
+      if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
+      const identity = key(
+        item.keyword.normalize("NFKC").toLowerCase(),
+        normalizeSeoUrl(item.pageUrl),
+        item.device,
+        item.source ?? "rank_refresh",
+        data.countryCode,
+        data.languageCode,
+      );
+      if (seenKeywords.has(identity)) continue;
+      seenKeywords.add(identity);
+      const choice = keywordChoices.get(
+        key(
+          item.keyword.normalize("NFKC").toLowerCase(),
+          data.countryCode,
+          data.languageCode,
+        ),
+      );
+      if (choice) observedKeywordChoices.add(choice.id);
+      keywords.push({
+        ...item,
+        id: `${row.id}:keyword:${keywords.length}`,
+        observationId: row.id,
+        countryCode: data.countryCode,
+        languageCode: data.languageCode,
+        saved: choice?.saved ?? false,
+        priority: priority.parse(choice?.priority ?? "medium"),
+        version: choice?.version ?? 0,
+        source: item.source ?? "rank_refresh",
+        volume: item.volume ?? null,
+        intent: item.intent ?? null,
+      });
+    }
+    for (const item of data.competitors) {
+      if (
+        item.role === "page" &&
+        !selectedUrls.has(normalizeSeoUrl(item.pageUrl))
+      )
+        continue;
+      if (
+        item.scopePageUrls?.length &&
+        !item.scopePageUrls.some((url) =>
+          selectedUrls.has(normalizeSeoUrl(url)),
+        )
+      )
+        continue;
+      const url = normalizeSeoUrl(item.pageUrl),
+        identity = key(url, item.role);
+      if (seenCompetitors.has(identity)) continue;
+      seenCompetitors.add(identity);
+      const choice = competitorChoices.get(url),
+        canConfirm = item.role === "competitor" && canConfirmSeoCompetitor(url);
+      competitors.push({
+        id: choice?.id ?? `${row.id}:competitor:${competitors.length}`,
+        url,
+        role: item.role,
+        confirmed: choice?.confirmed ?? false,
+        source: item.source ?? "links",
+        rank: item.rank ?? null,
+        backlinks: item.backlinks,
+        referringDomains: item.referringDomains,
+        observedAt: item.observedAt,
+        observationId: row.id,
+        version: choice?.version ?? 0,
+        canConfirm,
+        exclusionReason:
+          canConfirm || item.role === "page"
+            ? null
+            : "Resolve this search redirect before confirming it",
+      });
+    }
+    for (const item of data.actions) {
+      if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
+      const link = input.actionTasks.find(
+        (task) => task.observationId === row.id && task.actionId === item.id,
+      );
+      actions.push({
+        ...item,
+        observationId: row.id,
+        findingIds: item.findingIds.map((id) => `${row.id}:${id}`),
+        taskId: link?.taskId ?? null,
+        status: link
+          ? taskStatuses.get(link.taskId) === "COMPLETED"
+            ? verifiedAction(input, data, item, link.taskId)
+              ? "verified"
+              : "implemented"
+            : "task_created"
+          : "recommended",
+      });
+    }
+    timeline.push({
+      id: `observation:${row.id}`,
+      kind: row.kind === "audit_full" ? "audit" : "check",
+      title:
+        row.kind === "audit_full"
+          ? "SEO audit imported"
+          : "Focused SEO check completed",
+      at: row.createdAt.toISOString(),
+      pageIds: row.pageIds,
+      observationId: row.id,
+      taskId: row.sourceTaskId,
+      status: data.coverage.failed ? "partial" : "completed",
+      detail: `${data.coverage.checked} checks recorded. ${data.coverage.skipped} skipped. ${data.coverage.failed} failed.`,
+    });
+  }
+  for (const choice of input.keywords) {
+    if (
+      (choice.pageId && !selectedIds.has(choice.pageId)) ||
+      observedKeywordChoices.has(choice.id)
+    )
+      continue;
+    keywords.push({
+      id: choice.id,
+      keyword: choice.keyword,
+      pageUrl:
+        input.pages.find((page) => page.id === choice.pageId)?.url ?? null,
+      saved: choice.saved,
+      countryCode: choice.countryCode,
+      languageCode: choice.languageCode,
+      source: "saved",
+      volume: null,
+      intent: null,
+      device: null,
+      position: null,
+      positionStatus: "unavailable",
+      checkedResults: null,
+      observedAt: null,
+      observationId: null,
+      priority: priority.parse(choice.priority),
+      version: choice.version,
+    });
+  }
+  for (const choice of input.competitors)
+    if (!competitors.some((row) => row.id === choice.id))
+      competitors.push({
+        id: choice.id,
+        url: choice.url,
+        role: "competitor",
+        confirmed: choice.confirmed,
+        source: "saved",
+        rank: null,
+        backlinks: null,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: choice.version,
+        canConfirm: canConfirmSeoCompetitor(choice.url),
+        exclusionReason: null,
+      });
+  for (const link of input.actionTasks) {
+    const observation = observations.find(
+      (row) => row.id === link.observationId,
+    );
+    if (!observation) continue;
+    timeline.push({
+      id: `action:${link.id}`,
+      kind: "action",
+      title: "Recommendation linked to a Task",
+      at: link.createdAt.toISOString(),
+      pageIds: observation.pageIds,
+      observationId: link.observationId,
+      taskId: link.taskId,
+      status: taskStatuses.get(link.taskId) ?? "unavailable",
+      detail:
+        "Task completion records implementation. A fresh check is required for verification.",
+    });
+  }
+  const analyses = input.analyses
+    .filter((row) => overlaps(row.pageIds))
+    .map((row) => {
+      const taskStatus = row.taskId ? taskStatuses.get(row.taskId) : undefined;
+      const status =
+        row.status === "completed"
+          ? "completed"
+          : row.status === "failed"
+            ? "failed"
+            : taskStatus === "FAILED" || taskStatus === "CANCELED"
+              ? "failed"
+              : taskStatus === "RUNNING" || taskStatus === "COMPLETED"
+                ? "running"
+                : row.status;
+      return {
+        id: row.id,
+        kind: row.kind,
+        status,
+        taskId: row.taskId,
+        pageIds: row.pageIds,
+        scopeVersion: row.scopeVersion,
+        createdAt: row.createdAt.toISOString(),
+      };
+    });
+  for (const analysis of analyses)
+    if (analysis.status !== "completed")
+      timeline.push({
+        id: `analysis:${analysis.id}`,
+        kind: "check",
+        title: "SEO analysis requested",
+        at: analysis.createdAt,
+        pageIds: analysis.pageIds,
+        observationId: null,
+        taskId: analysis.taskId,
+        status: analysis.status,
+        detail: "The requested scope is frozen for this analysis.",
+      });
+  timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
+  const editable = !project.closedAt && !project.closingAt;
+  return projectSeoWorkspaceSchema.parse({
+    projectId: project.id,
+    websiteUrl: project.websiteUrl,
+    scope: {
+      id: scope.id,
+      name: scope.name,
+      version: scope.version,
+      pageIds: scope.pageIds,
+      from: query.from ?? null,
+      to: query.to ?? null,
+    },
+    pages: input.pages,
+    scopes: input.scopes,
+    observations,
+    history: {
+      limit: SEO_RESULT_LIMIT,
+      limited: input.observations.length >= SEO_RESULT_LIMIT,
+    },
+    keywords,
+    competitors,
+    findings,
+    actions,
+    metrics,
+    metricsStatus: !metrics.length
+      ? "unavailable"
+      : metrics.some((metric) => metric.coverage !== "complete")
+        ? "partial"
+        : "available",
+    timeline,
+    analyses,
+    monitors: (input.monitors ?? []).filter((monitor) =>
+      overlaps(monitor.pageIds),
+    ),
+    availableActions: {
+      canEdit: editable,
+      canRequestAnalysis: editable && scope.pageIds.length > 0,
+      canSyncMetrics:
+        editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
+    },
+  });
+}

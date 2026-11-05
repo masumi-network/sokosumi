@@ -107,6 +107,9 @@ const {
   notifyTaskStatusEventMock,
   publishTaskEventDataMock,
   publishChatRoomMessageRealtimeByIdMock,
+  seoReadMock,
+  runtimeEventFindFirstMock,
+  runtimeEventCreateMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
@@ -232,9 +235,13 @@ const {
   notifyTaskStatusEventMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   publishChatRoomMessageRealtimeByIdMock: vi.fn(),
+  seoReadMock: vi.fn(),
+  runtimeEventFindFirstMock: vi.fn(),
+  runtimeEventCreateMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/soko-bot/seo-tools", () => ({ runSeoTool: seoReadMock }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
@@ -452,6 +459,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: turnUpdateMock,
       updateMany: turnUpdateManyMock,
     },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
     sokoBotToolCall: {
       count: toolCallCountMock,
       create: toolCallCreateMock,
@@ -478,6 +486,7 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: {
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
+      findUniqueOrThrow: workspaceFindUniqueMock,
     },
     member: { findFirst: memberFindFirstMock, findMany: memberFindManyMock },
   },
@@ -648,6 +657,12 @@ import {
   MAX_CHAT_CHAIN_DEPTH,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import {
+  RuntimeEventLog,
+  runTurnTool,
+  SokoBotTaintedActionError,
+  WEB_TAINT_EVENT,
+} from "@/lib/soko-bot/turn-loop";
 import {
   isSokoBotDecisionTargetAllowed,
   personAssignee,
@@ -845,6 +860,94 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
     });
+  });
+
+  it("marks SEO workspace reads and replays as untrusted before another unapproved paid request", async () => {
+    const projectId = "01960001-0001-7001-8001-000000000099";
+    const input = { projectId };
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "RHYTHM",
+      chainDepth: 0,
+      askedByUserId: null,
+      parentTurnId: null,
+      capabilityNames: ["get_seo_workspace", "request_seo_analysis"],
+      contextSnapshot: { id: DECISION_ID, packet: { memory: { version: 1 } } },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    workspaceFindUniqueMock
+      .mockResolvedValueOnce({ organizationId: null })
+      .mockResolvedValueOnce({ organizationId: null });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    seoReadMock.mockResolvedValue({
+      observations: [{ source: "seo_coworker" }],
+      findings: [{ evidence: ["External page text"] }],
+    });
+    runtimeEventFindFirstMock.mockImplementation(() => {
+      const latest = runtimeEventCreateMock.mock.calls.at(-1)?.[0]?.data;
+      return latest
+        ? { id: "runtime-event", startIndex: latest.startIndex }
+        : null;
+    });
+    const eventTransaction = async (
+      operation: (tx: unknown) => Promise<unknown>,
+    ) =>
+      operation({
+        $executeRaw: vi.fn(),
+        sokoBotRuntimeEvent: {
+          findFirst: runtimeEventFindFirstMock,
+          create: runtimeEventCreateMock,
+        },
+      });
+    transactionMock
+      .mockImplementationOnce(eventTransaction)
+      .mockImplementationOnce(eventTransaction);
+    const service = new SokoBotRuntimeService();
+    await service.executeTool({
+      ...SCOPE,
+      capability: "get_seo_workspace",
+      toolCallId: "seo-read",
+      input,
+    });
+    expect(runtimeEventCreateMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: WEB_TAINT_EVENT,
+          data: { source: "seo_workspace" },
+        }),
+      }),
+    );
+    toolCallFindUniqueMock.mockResolvedValue({
+      status: "COMPLETED",
+      capability: "get_seo_workspace",
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+    });
+    await service.executeTool({
+      ...SCOPE,
+      capability: "get_seo_workspace",
+      toolCallId: "seo-read",
+      input,
+    });
+    expect(runtimeEventCreateMock).toHaveBeenCalledTimes(2);
+    await expect(
+      runTurnTool({
+        log: new RuntimeEventLog(SCOPE.turnId, SCOPE.sessionId),
+        capability: "request_seo_analysis",
+        toolCallId: "unapproved-paid-request",
+        toolInput: { projectId },
+      }),
+    ).rejects.toThrow(SokoBotTaintedActionError);
+    expect(seoReadMock).toHaveBeenCalledTimes(2);
   });
 
   it.each(["OWNER", "TEAMMATE", "ASSISTANT"] as const)(

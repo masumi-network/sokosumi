@@ -9867,6 +9867,302 @@ export type ProjectImageStudioCaption = {
     text: string;
 };
 
+export type ProjectSeoWorkspace = {
+    projectId: string;
+    websiteUrl: string | null;
+    scope: {
+        id: string | null;
+        name: string;
+        version: number;
+        pageIds: Array<string>;
+        from: string | null;
+        to: string | null;
+    };
+    pages: Array<ProjectSeoPage>;
+    scopes: Array<ProjectSeoScope>;
+    observations: Array<ProjectSeoObservation>;
+    history: {
+        limit: number;
+        limited: boolean;
+    };
+    keywords: Array<ProjectSeoKeyword>;
+    competitors: Array<ProjectSeoCompetitor>;
+    findings: Array<ProjectSeoFinding>;
+    actions: Array<ProjectSeoAction>;
+    metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
+    metrics: Array<ProjectSeoMetric>;
+    timeline: Array<ProjectSeoTimelineItem>;
+    analyses: Array<ProjectSeoAnalysis>;
+    monitors: Array<ProjectSeoMonitor>;
+    availableActions: {
+        canEdit: boolean;
+        canRequestAnalysis: boolean;
+        canSyncMetrics: boolean;
+    };
+};
+
+export type ProjectSeoPage = {
+    id: string;
+    url: string;
+    label: string;
+    relationship: 'primary' | 'related';
+    relatedToPageId: string | null;
+    createdAt: Date;
+};
+
+export type ProjectSeoScope = {
+    id: string;
+    name: string;
+    pageIds: Array<string>;
+    version: number;
+};
+
+export type ProjectSeoObservation = {
+    id: string;
+    kind: string;
+    source: string;
+    observedAt: Date;
+    pageIds: Array<string>;
+    scopeVersion: number;
+    sourceTaskId: string | null;
+    countryCode: string | null;
+    languageCode: string | null;
+    devices: Array<'mobile' | 'desktop'>;
+    rulebookVersion: string;
+    artifactHash: string;
+    coverage: {
+        checked: number;
+        skipped: number;
+        failed: number;
+    };
+};
+
+export type ProjectSeoKeyword = {
+    id: string;
+    keyword: string;
+    pageUrl: string | null;
+    saved: boolean;
+    countryCode: string;
+    languageCode: string;
+    source: string;
+    volume: number | null;
+    intent: string | null;
+    device: 'mobile' | 'desktop' | null;
+    position: number | null;
+    positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    checkedResults: number | null;
+    observedAt: Date | null;
+    observationId: string | null;
+    priority: 'low' | 'medium' | 'high';
+    version: number;
+};
+
+export type ProjectSeoCompetitor = {
+    id: string;
+    url: string;
+    role: 'page' | 'competitor';
+    confirmed: boolean;
+    source: string;
+    rank: number | null;
+    backlinks: number | null;
+    referringDomains: number | null;
+    observedAt: Date | null;
+    observationId: string | null;
+    version: number;
+    canConfirm: boolean;
+    exclusionReason: string | null;
+};
+
+export type ProjectSeoFinding = {
+    id: string;
+    observationId: string;
+    pageUrl: string;
+    device: 'mobile' | 'desktop' | null;
+    rowId: string;
+    title: string;
+    severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
+    evidence: Array<string>;
+    sourceRef: string;
+    observedAt: Date;
+};
+
+export type ProjectSeoAction = {
+    id: string;
+    observationId: string;
+    pageUrl: string;
+    findingIds: Array<string>;
+    title: string;
+    why: string;
+    effort: 'low' | 'medium' | 'high';
+    expectedEffect: string;
+    edit: {
+        target: string;
+        before: string | null;
+        after: string;
+    } | null;
+    taskId: string | null;
+    status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+};
+
+export type ProjectSeoMetric = {
+    id: string;
+    key: string;
+    label: string;
+    unit: 'count' | 'ratio' | 'seconds' | 'position';
+    source: string;
+    value: number | null;
+    from: string;
+    to: string;
+    timeZone: string;
+    channel: 'all' | 'organic';
+    observedAt: Date;
+    coverage: 'complete' | 'partial' | 'unavailable';
+    points: Array<{
+        date: string;
+        value: number | null;
+    }>;
+    notes: Array<string>;
+};
+
+export type ProjectSeoTimelineItem = {
+    id: string;
+    kind: 'audit' | 'check' | 'metrics' | 'action' | 'scope' | 'page_change';
+    title: string;
+    at: Date;
+    pageIds: Array<string>;
+    observationId: string | null;
+    taskId: string | null;
+    status: string;
+    detail: string;
+};
+
+export type ProjectSeoAnalysis = {
+    id: string;
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    status: 'requested' | 'running' | 'completed' | 'failed';
+    taskId: string | null;
+    pageIds: Array<string>;
+    scopeVersion: number;
+    createdAt: Date;
+};
+
+export type ProjectSeoMonitor = {
+    id: string;
+    name: string;
+    state: string;
+    nextRunAt: Date | null;
+    targetRunCount: number;
+    releasedCount: number;
+    pageIds: Array<string>;
+    scopeVersion: number;
+    countryCode: string;
+    languageCode: string;
+    devices: Array<'mobile' | 'desktop'>;
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    maxProviderCalls: number;
+    timeZone: string;
+};
+
+export type AddProjectSeoPageRequest = {
+    url: string;
+    label?: string;
+    relationship?: 'primary' | 'related';
+    relatedToPageId?: string;
+};
+
+export type CreateProjectSeoScopeRequest = {
+    name: string;
+    pageIds: Array<string>;
+};
+
+export type UpdateProjectSeoScopeRequest = CreateProjectSeoScopeRequest & {
+    expectedVersion: number;
+};
+
+export type ImportProjectSeoAuditRequest = {
+    taskId: string;
+    fileId: string;
+};
+
+export type RequestProjectSeoAnalysisRequest = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    scopeId?: string;
+    expectedScopeVersion?: number;
+    pageIds?: Array<string>;
+    keywords?: Array<string>;
+    countryCode: 'US' | 'GB' | 'DE' | 'AT' | 'CH' | 'FR' | 'ES' | 'IT' | 'NL' | 'BR' | 'PT';
+    languageCode: string;
+    devices?: Array<'mobile' | 'desktop'>;
+    competitorUrls?: Array<string>;
+    analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
+    maxProviderCalls?: number;
+    fullAuditLimits?: {
+        usd: number;
+        seconds: number;
+    };
+    idempotencyKey: string;
+    coworkerId?: string;
+};
+
+export type SaveProjectSeoKeywordRequest = {
+    keyword: string;
+    countryCode: string;
+    languageCode: string;
+    pageId?: string | null;
+    priority?: 'low' | 'medium' | 'high';
+    saved?: boolean;
+    expectedVersion?: number;
+};
+
+export type SaveProjectSeoCompetitorRequest = {
+    url: string;
+    confirmed: boolean;
+    expectedVersion?: number;
+};
+
+export type CreateProjectSeoActionTaskRequest = {
+    observationId: string;
+    actionId: string;
+    idempotencyKey: string;
+};
+
+export type CreateProjectSeoMonitorRequest = {
+    operationId: string;
+    cadence: 'daily' | 'weekly';
+    timeZone: string;
+    targetRunCount: number;
+    analysis: RequestProjectSeoAnalysisRequest;
+};
+
+export type ProjectSeoStatisticsProperties = {
+    provider: 'ga4' | 'search_console';
+    properties: Array<{
+        id: string;
+        name: string;
+    }>;
+    status: 'available' | 'partial' | 'not_connected' | 'unavailable';
+    reason: string | null;
+};
+
+export type SyncProjectSeoStatisticsRequest = {
+    provider: 'ga4' | 'search_console';
+    propertyId: string;
+    pageIds?: Array<string>;
+    scopeId?: string;
+    expectedScopeVersion?: number;
+    from: string;
+    to: string;
+    channel?: 'all' | 'organic';
+};
+
+export type RecordProjectSeoPageChangeRequest = {
+    pageIds: Array<string>;
+    occurredAt: Date;
+    title: string;
+    note?: string;
+    idempotencyKey: string;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -11921,9 +12217,17 @@ export type TaskSchedule = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).
+     * Whether the caller has permission to manage this schedule and its Runs (ADR 0048). State and operation-specific flags can further limit writes.
      */
     canWrite: boolean;
+    /**
+     * Whether the caller may release an extra manual Run now. Finite SEO monitors permit only their approved planned Runs.
+     */
+    canRunNow: boolean;
+    /**
+     * Whether the caller may edit the schedule blueprint and rule. Finite SEO monitor plans stay fixed; pause and end use canWrite.
+     */
+    canEditPlan: boolean;
 };
 
 export const TaskScheduleState = {
@@ -65151,6 +65455,1594 @@ export type PatchProjectsByIdResponses = {
 };
 
 export type PatchProjectsByIdResponse = PatchProjectsByIdResponses[keyof PatchProjectsByIdResponses];
+
+export type GetProjectSeoWorkspaceData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        scopeId?: string;
+        pageId?: string;
+        pageIds?: Array<string>;
+        from?: string;
+        to?: string;
+        channel?: 'all' | 'organic';
+    };
+    url: '/projects/{id}/seo';
+};
+
+export type GetProjectSeoWorkspaceErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectSeoWorkspaceError = GetProjectSeoWorkspaceErrors[keyof GetProjectSeoWorkspaceErrors];
+
+export type GetProjectSeoWorkspaceResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectSeoWorkspaceResponse = GetProjectSeoWorkspaceResponses[keyof GetProjectSeoWorkspaceResponses];
+
+export type AddProjectSeoPageData = {
+    body: AddProjectSeoPageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/pages';
+};
+
+export type AddProjectSeoPageErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddProjectSeoPageError = AddProjectSeoPageErrors[keyof AddProjectSeoPageErrors];
+
+export type AddProjectSeoPageResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddProjectSeoPageResponse = AddProjectSeoPageResponses[keyof AddProjectSeoPageResponses];
+
+export type CreateProjectSeoScopeData = {
+    body: CreateProjectSeoScopeRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/scopes';
+};
+
+export type CreateProjectSeoScopeErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateProjectSeoScopeError = CreateProjectSeoScopeErrors[keyof CreateProjectSeoScopeErrors];
+
+export type CreateProjectSeoScopeResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateProjectSeoScopeResponse = CreateProjectSeoScopeResponses[keyof CreateProjectSeoScopeResponses];
+
+export type UpdateProjectSeoScopeData = {
+    body: UpdateProjectSeoScopeRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        scopeId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/scopes/{scopeId}';
+};
+
+export type UpdateProjectSeoScopeErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateProjectSeoScopeError = UpdateProjectSeoScopeErrors[keyof UpdateProjectSeoScopeErrors];
+
+export type UpdateProjectSeoScopeResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateProjectSeoScopeResponse = UpdateProjectSeoScopeResponses[keyof UpdateProjectSeoScopeResponses];
+
+export type ImportProjectSeoAuditData = {
+    body: ImportProjectSeoAuditRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/imports';
+};
+
+export type ImportProjectSeoAuditErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ImportProjectSeoAuditError = ImportProjectSeoAuditErrors[keyof ImportProjectSeoAuditErrors];
+
+export type ImportProjectSeoAuditResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ImportProjectSeoAuditResponse = ImportProjectSeoAuditResponses[keyof ImportProjectSeoAuditResponses];
+
+export type RequestProjectSeoAnalysisData = {
+    body: RequestProjectSeoAnalysisRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/analyses';
+};
+
+export type RequestProjectSeoAnalysisErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestProjectSeoAnalysisError = RequestProjectSeoAnalysisErrors[keyof RequestProjectSeoAnalysisErrors];
+
+export type RequestProjectSeoAnalysisResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestProjectSeoAnalysisResponse = RequestProjectSeoAnalysisResponses[keyof RequestProjectSeoAnalysisResponses];
+
+export type SaveProjectSeoKeywordData = {
+    body: SaveProjectSeoKeywordRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/keywords';
+};
+
+export type SaveProjectSeoKeywordErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveProjectSeoKeywordError = SaveProjectSeoKeywordErrors[keyof SaveProjectSeoKeywordErrors];
+
+export type SaveProjectSeoKeywordResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveProjectSeoKeywordResponse = SaveProjectSeoKeywordResponses[keyof SaveProjectSeoKeywordResponses];
+
+export type SaveProjectSeoCompetitorData = {
+    body: SaveProjectSeoCompetitorRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/competitors';
+};
+
+export type SaveProjectSeoCompetitorErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveProjectSeoCompetitorError = SaveProjectSeoCompetitorErrors[keyof SaveProjectSeoCompetitorErrors];
+
+export type SaveProjectSeoCompetitorResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveProjectSeoCompetitorResponse = SaveProjectSeoCompetitorResponses[keyof SaveProjectSeoCompetitorResponses];
+
+export type CreateProjectSeoActionTaskData = {
+    body: CreateProjectSeoActionTaskRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/actions';
+};
+
+export type CreateProjectSeoActionTaskErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateProjectSeoActionTaskError = CreateProjectSeoActionTaskErrors[keyof CreateProjectSeoActionTaskErrors];
+
+export type CreateProjectSeoActionTaskResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateProjectSeoActionTaskResponse = CreateProjectSeoActionTaskResponses[keyof CreateProjectSeoActionTaskResponses];
+
+export type CreateProjectSeoMonitorData = {
+    body: CreateProjectSeoMonitorRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/monitors';
+};
+
+export type CreateProjectSeoMonitorErrors = {
+    /**
+     * Invalid SEO request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit or conflicting request
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid report or request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateProjectSeoMonitorError = CreateProjectSeoMonitorErrors[keyof CreateProjectSeoMonitorErrors];
+
+export type CreateProjectSeoMonitorResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateProjectSeoMonitorResponse = CreateProjectSeoMonitorResponses[keyof CreateProjectSeoMonitorResponses];
+
+export type ListProjectSeoStatisticsPropertiesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        provider: 'ga4' | 'search_console';
+    };
+    url: '/projects/{id}/seo/statistics/properties';
+};
+
+export type ListProjectSeoStatisticsPropertiesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid statistics request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListProjectSeoStatisticsPropertiesError = ListProjectSeoStatisticsPropertiesErrors[keyof ListProjectSeoStatisticsPropertiesErrors];
+
+export type ListProjectSeoStatisticsPropertiesResponses = {
+    /**
+     * Native statistics properties
+     */
+    200: {
+        data: ProjectSeoStatisticsProperties;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListProjectSeoStatisticsPropertiesResponse = ListProjectSeoStatisticsPropertiesResponses[keyof ListProjectSeoStatisticsPropertiesResponses];
+
+export type SyncProjectSeoStatisticsData = {
+    body?: SyncProjectSeoStatisticsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/statistics/sync';
+};
+
+export type SyncProjectSeoStatisticsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Native statistics unavailable
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SyncProjectSeoStatisticsError = SyncProjectSeoStatisticsErrors[keyof SyncProjectSeoStatisticsErrors];
+
+export type SyncProjectSeoStatisticsResponses = {
+    /**
+     * Updated native statistics
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SyncProjectSeoStatisticsResponse = SyncProjectSeoStatisticsResponses[keyof SyncProjectSeoStatisticsResponses];
+
+export type RecordProjectSeoPageChangeData = {
+    body: RecordProjectSeoPageChangeRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/page-changes';
+};
+
+export type RecordProjectSeoPageChangeErrors = {
+    /**
+     * Invalid page change
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflicting page change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RecordProjectSeoPageChangeError = RecordProjectSeoPageChangeErrors[keyof RecordProjectSeoPageChangeErrors];
+
+export type RecordProjectSeoPageChangeResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RecordProjectSeoPageChangeResponse = RecordProjectSeoPageChangeResponses[keyof RecordProjectSeoPageChangeResponses];
 
 export type GetPublicNewsletterUnsubscribeData = {
     body?: never;

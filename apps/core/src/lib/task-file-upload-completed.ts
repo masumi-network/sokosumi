@@ -12,6 +12,7 @@ import {
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { reconcileProjectSeoTaskFile } from "@/services/project-seo-import.service";
 
 const taskFileUploadCompletedTokenPayloadSchema = z
   .object({
@@ -109,9 +110,14 @@ export async function registerTaskFileFromUploadCompleted(params: {
   }
 
   const displayName = clampTaskFileName(payload.name || "file");
+  const isSeoReport =
+    !!payload.uploadedByCoworkerId &&
+    displayName === `seo-report-${payload.taskId}.json` &&
+    resolvedContentType === "application/json";
 
+  let taskFileId: string;
   try {
-    await prisma.taskFile.create({
+    const taskFile = await prisma.taskFile.create({
       data: {
         taskId: payload.taskId,
         name: displayName,
@@ -123,18 +129,28 @@ export async function registerTaskFileFromUploadCompleted(params: {
         uploadedBySokoBotId: payload.uploadedBySokoBotId,
       },
     });
+    taskFileId = isSeoReport ? taskFile.id : "";
   } catch (error) {
     if (isPrismaUniqueViolation(error)) {
-      return;
+      if (!isSeoReport) return;
+      const taskFile = await prisma.taskFile.findUnique({
+        where: {
+          taskId_fileUrl: { taskId: payload.taskId, fileUrl: params.blob.url },
+        },
+        select: { id: true },
+      });
+      if (!taskFile) return;
+      taskFileId = taskFile.id;
+    } else {
+      if (isPrismaForeignKeyViolation(error)) {
+        await deleteOrphanBlob(params.blob.url, params.blobToken);
+        return;
+      }
+      throw error;
     }
-
-    if (isPrismaForeignKeyViolation(error)) {
-      await deleteOrphanBlob(params.blob.url, params.blobToken);
-      return;
-    }
-
-    throw error;
   }
+  if (isSeoReport)
+    await reconcileProjectSeoTaskFile(payload.taskId, taskFileId);
 }
 
 async function deleteOrphanBlob(url: string, token: string): Promise<void> {

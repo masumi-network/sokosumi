@@ -76,6 +76,7 @@ import mountImportNewsletterSubscribers from "./[id]/newsletter/subscribers/impo
 import mountAddNewsletterSubscriber from "./[id]/newsletter/subscribers/post.js";
 import mountPatchProject from "./[id]/patch.js";
 import mountGetProjectPostingInstructions from "./[id]/posting-instructions/get.js";
+import seo from "./[id]/seo/index.js";
 import mountRecycleSocialAccountPost from "./[id]/social-account-posts/[accountPostId]/recycle/post.js";
 import mountDeleteProjectSocialConnection from "./[id]/social-connections/[connectionId]/delete.js";
 import mountRefreshSocialAccountStatistics from "./[id]/social-connections/[connectionId]/statistics/refresh/post.js";
@@ -229,6 +230,7 @@ mountGetProjectImageAssetContent(app);
 mountGetProjectImageAssetSocialMedia(app);
 mountPostProjectImageAssetCaption(app);
 mountGetProject(app);
+app.route("/:id/seo", seo);
 mountPatchProject(app);
 mountDeleteProject(app);
 

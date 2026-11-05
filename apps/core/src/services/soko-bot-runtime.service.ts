@@ -28,6 +28,7 @@ import {
   isSokoBotCapability,
   isSokoBotDecisionTarget,
   isSokoBotNewsletterCapability,
+  isSokoBotSeoCapability,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotListTasksInputSchema as listTasksInputSchema,
@@ -43,6 +44,7 @@ import {
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
+  SOKO_BOT_SEO_CAPABILITIES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
   type SokoBotDecisionTarget,
@@ -271,6 +273,7 @@ import {
   skillChangeRefusal,
   sokoBotDriveFolder,
 } from "@/lib/soko-bot/self-config-guards";
+import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import { OWN_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
@@ -683,6 +686,7 @@ export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
 
 /** Tools whose work belongs to a Project; a project bot's go to its own. */
 const PROJECT_SCOPED_TOOLS: ReadonlySet<string> = new Set([
+  ...SOKO_BOT_SEO_CAPABILITIES,
   "list_tasks",
   "create_task",
   "hire_agent",
@@ -5789,6 +5793,9 @@ export class SokoBotRuntimeService {
         );
       }
       if (existing.status === "COMPLETED") {
+        if (isSokoBotSeoCapability(input.capability)) {
+          return this.executeSeoTool(input, authorized, true);
+        }
         let replayResult = existing.result;
         if (input.capability === "preview_result") {
           if (authorized.askedByKind !== "OWNER")
@@ -7223,6 +7230,73 @@ export class SokoBotRuntimeService {
       );
   }
 
+  private async executeSeoTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+    replay = false,
+  ): Promise<unknown> {
+    if (!isSokoBotSeoCapability(input.capability))
+      throw new SokoBotRuntimeValidationError("Unsupported SEO capability");
+    const { projectId } = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+      input.input,
+    );
+    const workspace = await prisma.workspace.findUniqueOrThrow({
+      where: { id: authorized.turn.workspaceId },
+      select: { organizationId: true },
+    });
+    const result = await runSeoTool(
+      input.capability,
+      input.input,
+      {
+        projectId,
+        workspaceId: authorized.turn.workspaceId,
+        userId: actingMemberOf(authorized),
+        organizationId: workspace.organizationId,
+        sokoBotId: authorized.turn.sokoBotId,
+        privateMetricsAllowed: ownerDirectReader(authorized),
+      },
+      {
+        authorize: async (tx) => {
+          await this.requireMutationAuthority(
+            tx,
+            authorized,
+            false,
+            input.capability,
+            { projectIds: [projectId] },
+          );
+        },
+        commit: async (tx, targetId, result) => {
+          const taskId =
+            result &&
+            typeof result === "object" &&
+            "taskId" in result &&
+            typeof result.taskId === "string"
+              ? result.taskId
+              : undefined;
+          await commitActionReceipt(tx, {
+            turnId: authorized.turn.id,
+            toolCallId: input.toolCallId,
+            actorBotId: authorized.turn.sokoBotId,
+            targetId,
+            result: persistedToolResult({
+              projectId,
+              id: targetId,
+              ...(taskId ? { taskId } : {}),
+              link: `/seo?projectId=${encodeURIComponent(projectId)}`,
+            }),
+          });
+        },
+      },
+      replay,
+    );
+    // Stored audit evidence includes text from external pages and providers.
+    // Replaying a receipt must retain the same untrusted-input boundary.
+    await new RuntimeEventLog(authorized.turn.id, input.sessionId).append(
+      runtimeEvent(WEB_TAINT_EVENT, { source: "seo_workspace" }),
+    );
+    return result;
+  }
+
   private async executeAuthorizedTool(
     raw: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
@@ -7231,6 +7305,8 @@ export class SokoBotRuntimeService {
       ...raw,
       input: await this.resolveTaskIds(authorized, raw.input),
     };
+    if (isSokoBotSeoCapability(input.capability))
+      return this.executeSeoTool(input, authorized);
     switch (input.capability) {
       case "newsletter_draft_issue": {
         const { projectId, ...params } =

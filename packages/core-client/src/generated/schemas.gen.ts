@@ -36778,6 +36778,1638 @@ export const ProjectImageStudioCaptionSchema = {
     ]
 } as const;
 
+export const ProjectSeoWorkspaceSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scope: {
+            type: 'object',
+            properties: {
+                id: {
+                    anyOf: [
+                        {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                name: {
+                    type: 'string'
+                },
+                version: {
+                    type: 'integer'
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                from: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                to: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'version',
+                'pageIds',
+                'from',
+                'to'
+            ]
+        },
+        pages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoPage'
+            }
+        },
+        scopes: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoScope'
+            }
+        },
+        observations: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoObservation'
+            }
+        },
+        history: {
+            type: 'object',
+            properties: {
+                limit: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                limited: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'limit',
+                'limited'
+            ]
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoKeyword'
+            }
+        },
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoCompetitor'
+            }
+        },
+        findings: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoFinding'
+            }
+        },
+        actions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoAction'
+            }
+        },
+        metricsStatus: {
+            type: 'string',
+            enum: [
+                'not_connected',
+                'available',
+                'partial',
+                'unavailable'
+            ]
+        },
+        metrics: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoMetric'
+            }
+        },
+        timeline: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoTimelineItem'
+            }
+        },
+        analyses: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoAnalysis'
+            }
+        },
+        monitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoMonitor'
+            }
+        },
+        availableActions: {
+            type: 'object',
+            properties: {
+                canEdit: {
+                    type: 'boolean'
+                },
+                canRequestAnalysis: {
+                    type: 'boolean'
+                },
+                canSyncMetrics: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'canEdit',
+                'canRequestAnalysis',
+                'canSyncMetrics'
+            ]
+        }
+    },
+    required: [
+        'projectId',
+        'websiteUrl',
+        'scope',
+        'pages',
+        'scopes',
+        'observations',
+        'history',
+        'keywords',
+        'competitors',
+        'findings',
+        'actions',
+        'metricsStatus',
+        'metrics',
+        'timeline',
+        'analyses',
+        'monitors',
+        'availableActions'
+    ]
+} as const;
+
+export const ProjectSeoPageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        url: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        label: {
+            type: 'string'
+        },
+        relationship: {
+            type: 'string',
+            enum: [
+                'primary',
+                'related'
+            ]
+        },
+        relatedToPageId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'url',
+        'label',
+        'relationship',
+        'relatedToPageId',
+        'createdAt'
+    ]
+} as const;
+
+export const ProjectSeoScopeSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        version: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'pageIds',
+        'version'
+    ]
+} as const;
+
+export const ProjectSeoObservationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string'
+        },
+        source: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        scopeVersion: {
+            type: 'integer'
+        },
+        sourceTaskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        countryCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        languageCode: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        devices: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'mobile',
+                    'desktop'
+                ]
+            }
+        },
+        rulebookVersion: {
+            type: 'string'
+        },
+        artifactHash: {
+            type: 'string'
+        },
+        coverage: {
+            type: 'object',
+            properties: {
+                checked: {
+                    type: 'integer'
+                },
+                skipped: {
+                    type: 'integer'
+                },
+                failed: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'checked',
+                'skipped',
+                'failed'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'source',
+        'observedAt',
+        'pageIds',
+        'scopeVersion',
+        'sourceTaskId',
+        'countryCode',
+        'languageCode',
+        'devices',
+        'rulebookVersion',
+        'artifactHash',
+        'coverage'
+    ]
+} as const;
+
+export const ProjectSeoKeywordSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        keyword: {
+            type: 'string'
+        },
+        pageUrl: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 4096,
+                    format: 'uri'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        saved: {
+            type: 'boolean'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        source: {
+            type: 'string'
+        },
+        volume: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        intent: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        device: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'mobile',
+                        'desktop'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        positionStatus: {
+            type: 'string',
+            enum: [
+                'ranked',
+                'not_in_range',
+                'unavailable'
+            ]
+        },
+        checkedResults: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        observedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        observationId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        priority: {
+            type: 'string',
+            enum: [
+                'low',
+                'medium',
+                'high'
+            ]
+        },
+        version: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'keyword',
+        'pageUrl',
+        'saved',
+        'countryCode',
+        'languageCode',
+        'source',
+        'volume',
+        'intent',
+        'device',
+        'position',
+        'positionStatus',
+        'checkedResults',
+        'observedAt',
+        'observationId',
+        'priority',
+        'version'
+    ]
+} as const;
+
+export const ProjectSeoCompetitorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        url: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'page',
+                'competitor'
+            ]
+        },
+        confirmed: {
+            type: 'boolean'
+        },
+        source: {
+            type: 'string'
+        },
+        rank: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        backlinks: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        referringDomains: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        observedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        observationId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        version: {
+            type: 'integer'
+        },
+        canConfirm: {
+            type: 'boolean'
+        },
+        exclusionReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'url',
+        'role',
+        'confirmed',
+        'source',
+        'rank',
+        'backlinks',
+        'referringDomains',
+        'observedAt',
+        'observationId',
+        'version',
+        'canConfirm',
+        'exclusionReason'
+    ]
+} as const;
+
+export const ProjectSeoFindingSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        device: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'mobile',
+                        'desktop'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        rowId: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        severity: {
+            type: 'string',
+            enum: [
+                'critical',
+                'major',
+                'minor',
+                'note',
+                'test',
+                'measure'
+            ]
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        sourceRef: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'observationId',
+        'pageUrl',
+        'device',
+        'rowId',
+        'title',
+        'severity',
+        'evidence',
+        'sourceRef',
+        'observedAt'
+    ]
+} as const;
+
+export const ProjectSeoActionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        findingIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        title: {
+            type: 'string'
+        },
+        why: {
+            type: 'string'
+        },
+        effort: {
+            type: 'string',
+            enum: [
+                'low',
+                'medium',
+                'high'
+            ]
+        },
+        expectedEffect: {
+            type: 'string'
+        },
+        edit: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        target: {
+                            type: 'string'
+                        },
+                        before: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        after: {
+                            type: 'string'
+                        }
+                    },
+                    required: [
+                        'target',
+                        'before',
+                        'after'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'recommended',
+                'task_created',
+                'implemented',
+                'verified'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'observationId',
+        'pageUrl',
+        'findingIds',
+        'title',
+        'why',
+        'effort',
+        'expectedEffect',
+        'edit',
+        'taskId',
+        'status'
+    ]
+} as const;
+
+export const ProjectSeoMetricSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        key: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        unit: {
+            type: 'string',
+            enum: [
+                'count',
+                'ratio',
+                'seconds',
+                'position'
+            ]
+        },
+        source: {
+            type: 'string'
+        },
+        value: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        timeZone: {
+            type: 'string'
+        },
+        channel: {
+            type: 'string',
+            enum: [
+                'all',
+                'organic'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        coverage: {
+            type: 'string',
+            enum: [
+                'complete',
+                'partial',
+                'unavailable'
+            ]
+        },
+        points: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    },
+                    value: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'date',
+                    'value'
+                ]
+            }
+        },
+        notes: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        }
+    },
+    required: [
+        'id',
+        'key',
+        'label',
+        'unit',
+        'source',
+        'value',
+        'from',
+        'to',
+        'timeZone',
+        'channel',
+        'observedAt',
+        'coverage',
+        'points',
+        'notes'
+    ]
+} as const;
+
+export const ProjectSeoTimelineItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'audit',
+                'check',
+                'metrics',
+                'action',
+                'scope',
+                'page_change'
+            ]
+        },
+        title: {
+            type: 'string'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        observationId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string'
+        },
+        detail: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'title',
+        'at',
+        'pageIds',
+        'observationId',
+        'taskId',
+        'status',
+        'detail'
+    ]
+} as const;
+
+export const ProjectSeoAnalysisSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'requested',
+                'running',
+                'completed',
+                'failed'
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        scopeVersion: {
+            type: 'integer'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'status',
+        'taskId',
+        'pageIds',
+        'scopeVersion',
+        'createdAt'
+    ]
+} as const;
+
+export const ProjectSeoMonitorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        state: {
+            type: 'string'
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        targetRunCount: {
+            type: 'integer'
+        },
+        releasedCount: {
+            type: 'integer'
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        scopeVersion: {
+            type: 'integer'
+        },
+        countryCode: {
+            type: 'string'
+        },
+        languageCode: {
+            type: 'string'
+        },
+        devices: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'mobile',
+                    'desktop'
+                ]
+            }
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        maxProviderCalls: {
+            type: 'integer'
+        },
+        timeZone: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'state',
+        'nextRunAt',
+        'targetRunCount',
+        'releasedCount',
+        'pageIds',
+        'scopeVersion',
+        'countryCode',
+        'languageCode',
+        'devices',
+        'kind',
+        'maxProviderCalls',
+        'timeZone'
+    ]
+} as const;
+
+export const AddProjectSeoPageRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        label: {
+            type: 'string',
+            maxLength: 200
+        },
+        relationship: {
+            type: 'string',
+            enum: [
+                'primary',
+                'related'
+            ],
+            default: 'primary'
+        },
+        relatedToPageId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'url'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CreateProjectSeoScopeRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 10
+        }
+    },
+    required: [
+        'name',
+        'pageIds'
+    ],
+    additionalProperties: false
+} as const;
+
+export const UpdateProjectSeoScopeRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CreateProjectSeoScopeRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedVersion: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                }
+            },
+            required: [
+                'expectedVersion'
+            ],
+            additionalProperties: false
+        }
+    ]
+} as const;
+
+export const ImportProjectSeoAuditRequestSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        fileId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        }
+    },
+    required: [
+        'taskId',
+        'fileId'
+    ],
+    additionalProperties: false
+} as const;
+
+export const RequestProjectSeoAnalysisRequestSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        scopeId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        expectedScopeVersion: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        keywords: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80
+            },
+            maxItems: 20,
+            default: []
+        },
+        countryCode: {
+            type: 'string',
+            enum: [
+                'US',
+                'GB',
+                'DE',
+                'AT',
+                'CH',
+                'FR',
+                'ES',
+                'IT',
+                'NL',
+                'BR',
+                'PT'
+            ]
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$'
+        },
+        devices: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'mobile',
+                    'desktop'
+                ]
+            },
+            minItems: 1,
+            maxItems: 2,
+            default: [
+                'mobile',
+                'desktop'
+            ]
+        },
+        competitorUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10,
+            default: []
+        },
+        analyses: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'page.inspect',
+                    'keyword.refresh',
+                    'links.refresh'
+                ]
+            },
+            minItems: 1,
+            maxItems: 3
+        },
+        maxProviderCalls: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 20
+        },
+        fullAuditLimits: {
+            type: 'object',
+            properties: {
+                usd: {
+                    type: 'number',
+                    minimum: 0.3,
+                    maximum: 50
+                },
+                seconds: {
+                    type: 'integer',
+                    minimum: 60,
+                    maximum: 3600
+                }
+            },
+            required: [
+                'usd',
+                'seconds'
+            ],
+            additionalProperties: false
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128
+        },
+        coworkerId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        }
+    },
+    required: [
+        'kind',
+        'countryCode',
+        'languageCode',
+        'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SaveProjectSeoKeywordRequestSchema = {
+    type: 'object',
+    properties: {
+        keyword: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        countryCode: {
+            type: 'string',
+            pattern: '^[A-Z]{2}$'
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2,3}(?:-[A-Z]{2})?$'
+        },
+        pageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        priority: {
+            type: 'string',
+            enum: [
+                'low',
+                'medium',
+                'high'
+            ],
+            default: 'medium'
+        },
+        saved: {
+            type: 'boolean',
+            default: true
+        },
+        expectedVersion: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'keyword',
+        'countryCode',
+        'languageCode'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SaveProjectSeoCompetitorRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        confirmed: {
+            type: 'boolean'
+        },
+        expectedVersion: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'url',
+        'confirmed'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CreateProjectSeoActionTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        actionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128
+        }
+    },
+    required: [
+        'observationId',
+        'actionId',
+        'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CreateProjectSeoMonitorRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        cadence: {
+            type: 'string',
+            enum: [
+                'daily',
+                'weekly'
+            ]
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        targetRunCount: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 31
+        },
+        analysis: {
+            $ref: '#/components/schemas/RequestProjectSeoAnalysisRequest'
+        }
+    },
+    required: [
+        'operationId',
+        'cadence',
+        'timeZone',
+        'targetRunCount',
+        'analysis'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoStatisticsPropertiesSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'ga4',
+                'search_console'
+            ]
+        },
+        properties: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'name'
+                ]
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'available',
+                'partial',
+                'not_connected',
+                'unavailable'
+            ]
+        },
+        reason: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'properties',
+        'status',
+        'reason'
+    ]
+} as const;
+
+export const SyncProjectSeoStatisticsRequestSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'ga4',
+                'search_console'
+            ]
+        },
+        propertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        scopeId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        expectedScopeVersion: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        channel: {
+            type: 'string',
+            enum: [
+                'all',
+                'organic'
+            ],
+            default: 'all'
+        }
+    },
+    required: [
+        'provider',
+        'propertyId',
+        'from',
+        'to'
+    ],
+    additionalProperties: false
+} as const;
+
+export const RecordProjectSeoPageChangeRequestSchema = {
+    type: 'object',
+    properties: {
+        pageIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 10
+        },
+        occurredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        title: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        note: {
+            type: 'string',
+            maxLength: 2000,
+            default: ''
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128
+        }
+    },
+    required: [
+        'pageIds',
+        'occurredAt',
+        'title',
+        'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -46082,7 +47714,15 @@ export const TaskScheduleSchema = {
         },
         canWrite: {
             type: 'boolean',
-            description: 'Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).'
+            description: 'Whether the caller has permission to manage this schedule and its Runs (ADR 0048). State and operation-specific flags can further limit writes.'
+        },
+        canRunNow: {
+            type: 'boolean',
+            description: 'Whether the caller may release an extra manual Run now. Finite SEO monitors permit only their approved planned Runs.'
+        },
+        canEditPlan: {
+            type: 'boolean',
+            description: 'Whether the caller may edit the schedule blueprint and rule. Finite SEO monitor plans stay fixed; pause and end use canWrite.'
         }
     },
     required: [
@@ -46109,7 +47749,9 @@ export const TaskScheduleSchema = {
         'assigneeUserId',
         'createdAt',
         'updatedAt',
-        'canWrite'
+        'canWrite',
+        'canRunNow',
+        'canEditPlan'
     ]
 } as const;
 
