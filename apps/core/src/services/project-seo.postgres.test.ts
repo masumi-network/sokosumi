@@ -471,6 +471,147 @@ describe.skipIf(!enabled)(
       ).toBe("PAUSED");
     });
 
+    it("pins inferred execution to the imported file uploader after Task reassignment and checks its current access", async () => {
+      const sourceCoworkerId = randomUUID();
+      const replacementCoworkerId = randomUUID();
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Imported executor provenance" },
+      });
+      const sourceActor: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const unexpectedNetwork = vi.fn(async () => {
+        throw new Error(
+          "Unexpected external request during executor inference",
+        );
+      });
+      vi.stubGlobal("fetch", unexpectedNetwork);
+      try {
+        await prisma.coworker.createMany({
+          data: [sourceCoworkerId, replacementCoworkerId].map((id) => ({
+            id,
+            slug: id,
+            name: "Task-capable executor fixture",
+            vendorId,
+            capabilities: ["tasks"],
+            isWhitelisted: true,
+          })),
+        });
+        const page = await addProjectSeoPage(sourceActor, {
+          url: SEO_TEST_PAGE,
+          relationship: "primary",
+        });
+        const sourceTask = await prisma.task.create({
+          data: {
+            name: "Completed source report",
+            workspaceId,
+            projectId: project.id,
+            ownerId: userId,
+            assigneeId: sourceCoworkerId,
+            status: "COMPLETED",
+          },
+        });
+        const report = JSON.stringify(legacyReport());
+        const sourceFile = await prisma.taskFile.create({
+          data: {
+            taskId: sourceTask.id,
+            name: `seo-report-${sourceTask.id}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${sourceTask.id}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(report)),
+            uploadedByCoworkerId: sourceCoworkerId,
+          },
+        });
+        const observation = await importProjectSeoAudit(
+          sourceActor,
+          { taskId: sourceTask.id, fileId: sourceFile.id },
+          { fetchImpl: async () => new Response(report) },
+        );
+        await prisma.task.update({
+          where: { id: sourceTask.id },
+          data: { assigneeId: replacementCoworkerId },
+        });
+        const request = requestSeoAnalysisSchema.parse({
+          kind: "page_check",
+          pageIds: [page.id],
+          countryCode: "US",
+          languageCode: "en",
+          devices: ["desktop"],
+          maxProviderCalls: 0,
+          idempotencyKey: randomUUID(),
+        });
+        const inferred = await requestProjectSeoAnalysis(sourceActor, request);
+        expect(
+          await prisma.task.findUniqueOrThrow({
+            where: { id: inferred.taskId! },
+          }),
+        ).toMatchObject({ assigneeId: sourceCoworkerId });
+        expect(
+          (await requestProjectSeoAnalysis(sourceActor, request)).taskId,
+        ).toBe(inferred.taskId);
+
+        const explicit = await requestProjectSeoAnalysis(sourceActor, {
+          ...request,
+          idempotencyKey: randomUUID(),
+          coworkerId: replacementCoworkerId,
+        });
+        expect(
+          await prisma.task.findUniqueOrThrow({
+            where: { id: explicit.taskId! },
+          }),
+        ).toMatchObject({ assigneeId: replacementCoworkerId });
+
+        const analysisCount = await prisma.projectSeoAnalysis.count({
+          where: { projectId: project.id },
+        });
+        const taskCount = await prisma.task.count({
+          where: { projectId: project.id },
+        });
+        await prisma.coworker.update({
+          where: { id: sourceCoworkerId },
+          data: { isWhitelisted: false },
+        });
+        await expect(
+          requestProjectSeoAnalysis(sourceActor, {
+            ...request,
+            idempotencyKey: randomUUID(),
+          }),
+        ).rejects.toMatchObject({ status: 404 });
+
+        await prisma.coworker.update({
+          where: { id: sourceCoworkerId },
+          data: { isWhitelisted: true },
+        });
+        await prisma.projectSeoObservation.update({
+          where: { id: observation.id },
+          data: { sourceTaskId: explicit.taskId },
+        });
+        await expect(
+          requestProjectSeoAnalysis(sourceActor, {
+            ...request,
+            idempotencyKey: randomUUID(),
+          }),
+        ).rejects.toMatchObject({ status: 400 });
+        expect(
+          await prisma.projectSeoAnalysis.count({
+            where: { projectId: project.id },
+          }),
+        ).toBe(analysisCount);
+        expect(
+          await prisma.task.count({ where: { projectId: project.id } }),
+        ).toBe(taskCount);
+        expect(unexpectedNetwork).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllGlobals();
+        await prisma.task.deleteMany({ where: { projectId: project.id } });
+        await prisma.project.delete({ where: { id: project.id } });
+        await prisma.coworker.deleteMany({
+          where: { id: { in: [sourceCoworkerId, replacementCoworkerId] } },
+        });
+      }
+    });
+
     it("auto-imports the exact completed Analysis artifact once without reading a URL on workspace views", async () => {
       const page = await addProjectSeoPage(actor, {
         url: SEO_TEST_PAGE,

@@ -50,6 +50,12 @@ REPORTED: independent source review found no remaining guarded-delivery issue. R
 
 VERIFIED: a generic Task-capable Coworker is not proof of SEO protocol support. The check form must keep unverified choices explicit. Page-only checks request zero provider calls and do not show a paid-data limit. A Workspace without an executor stays inside SEO and offers report import or return to the Audit.
 
+VERIFIED: correction to the earlier imported-executor fallback: the source Task's current assignee can change after report import. The fallback now reads the exact source TaskFile uploader, requires matching Task/file provenance in the current Workspace, and retains the existing assignment gate. The root rerun reported `14 passed (14)` across the Project SEO and native Audit PostgreSQL suites. REPORTED: restoring the old service reproduced one wrong-assignee failure. Evidence: `/private/tmp/seo-imported-executor-root-pg.log` and `/private/tmp/seo-imported-executor-old-source.log`.
+
+VERIFIED: CI `42061624221` for `ea8e87166e8d2576366f098396e34cf9fc09fb31` failed in Core, while Web passed. Its Core unit log reported `5 failed`, `985 passed`, `13 skipped` files and `108 failed`, `14057 passed`, `164 skipped` tests. Five existing test doubles omitted the newly required `workspaceId`, causing `Invalid input: expected string, received undefined`. The production mapper supplied the field. REPORTED: updating only those five DTO fixtures changed the focused reproduction from `108 failed / 95 passed` to `203 passed`. The required schema and existing assertions remain unchanged. Evidence: `/private/tmp/seo-guarded-ci-failed.log`.
+
+REPORTED: the complete local Core rerun with socket access reported `14164 passed`, `164 skipped` and one failure. The unchanged sandbox CA test received the desktop's injected certificate path instead of its fixture path. That file passed all eleven tests in hosted CI. The original 108 DTO failures are gone. Unrelated CA behavior was not changed. Evidence: `/private/tmp/seo-native-ci42061624221-core-ci-fixed-unsandboxed.log`.
+
 The following evidence records the earlier Project-scoped implementation before this native revision.
 
 ## Earlier delivered behavior
@@ -108,4 +114,4 @@ INFERRED: release should apply the additive SEO migration and deploy Core, Web a
 
 1. INFERRED: supported Composio tools may still vary by connected account. Runtime metadata checks refuse unsupported or non-read-only tools.
 2. INFERRED: real provider latency and billed usage need a separately approved live test. Offline call budgets are not a price guarantee.
-3. VERIFIED: interactive browser acceptance remains pending the local HTTPS proxy's sudo requirement.
+3. VERIFIED: the hosted Preview browser is signed out and test credentials are unset. Live owner journeys remain pending.

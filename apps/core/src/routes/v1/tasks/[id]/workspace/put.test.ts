@@ -167,11 +167,13 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
   };
   const organizationId =
     orgIdOverride !== undefined ? orgIdOverride : "org_current";
+  const workspaceId = "11111111-1111-4111-8111-111111111111";
 
   return {
     id: "tsk_123",
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
+    workspaceId,
     ownerId: "user_123",
     organizationId,
     projectId: null,
@@ -227,7 +229,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     events: [],
     jobs: [],
     workspace: {
-      id: "11111111-1111-4111-8111-111111111111",
+      id: workspaceId,
       organizationId: "org_current",
       organization: {
         id: "org_current",

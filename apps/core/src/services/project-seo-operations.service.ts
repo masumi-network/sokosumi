@@ -161,21 +161,23 @@ export async function requestProjectSeoAnalysisInTransaction(
         source: "seo_coworker",
         ownerId: null,
         sourceTaskId: { not: null },
+        sourceFileId: { not: null },
       },
       orderBy: { createdAt: "desc" },
-      select: { sourceTaskId: true },
+      select: { sourceTaskId: true, sourceFileId: true },
     });
-    if (latest?.sourceTaskId)
+    if (latest?.sourceTaskId && latest.sourceFileId)
       coworkerId =
         (
-          await tx.task.findFirst({
+          await tx.taskFile.findFirst({
             where: {
-              id: latest.sourceTaskId,
-              workspaceId: actor.workspaceId,
+              id: latest.sourceFileId,
+              taskId: latest.sourceTaskId,
+              task: { workspaceId: actor.workspaceId },
             },
-            select: { assigneeId: true },
+            select: { uploadedByCoworkerId: true },
           })
-        )?.assigneeId ?? undefined;
+        )?.uploadedByCoworkerId ?? undefined;
   }
   if (!coworkerId)
     throw badRequest(
