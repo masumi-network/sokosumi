@@ -92,6 +92,17 @@ describe("browser Ably room scope", () => {
     );
     const { data } = await response.json();
     const capability = JSON.parse(data.capability);
+    // The fake above filters by the query it is given, so the capability
+    // alone would pass a handler that never narrowed by room. The query is
+    // what keeps a foreign room out, and it is what this pins.
+    expect(findRoomMembers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          roomId: { in: [SELECTED_ROOM_ID, FOREIGN_ROOM_ID] },
+        },
+      }),
+    );
     expect(capability[`chat_rooms:room_${SELECTED_ROOM_ID}`]).toEqual([
       "subscribe",
     ]);
