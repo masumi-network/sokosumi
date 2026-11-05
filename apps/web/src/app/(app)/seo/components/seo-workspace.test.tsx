@@ -398,7 +398,182 @@ describe("SEO workspace integration", () => {
     });
   });
 
-  it("schedules finite monitoring with explicit Coworker, market and per-run budget", async () => {
+  it("requires an explicit executor choice when the sole candidate only proves generic Task capability", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace, "", [
+      {
+        id: "task-worker",
+        name: "Translation worker",
+        capabilities: ["tasks"],
+      } as Coworker,
+    ]);
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
+    expect(
+      within(dialog).getByText(/Reads the selected pages.*HTML/),
+    ).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    );
+    await user.click(screen.getByRole("option", { name: "DE" }));
+    await user.type(within(dialog).getByLabelText("Search language"), "de");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    expect(mutate).not.toHaveBeenCalled();
+    const selector = within(dialog).getByRole("combobox", {
+      name: "SEO coworker",
+    });
+    expect(selector).not.toHaveTextContent("Translation worker");
+    await user.click(selector);
+    await user.click(
+      screen.getByRole("option", { name: "Translation worker" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: {
+          kind: "request_analysis",
+          body: expect.objectContaining({
+            kind: "page_check",
+            maxProviderCalls: 0,
+            coworkerId: "task-worker",
+          }),
+        },
+      }),
+    );
+  });
+
+  it("shows a paid-data budget only when Audit lite includes provider-backed checks", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "", [
+      { id: "worker", name: "Worker" } as Coworker,
+    ]);
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Check type" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Audit lite" }));
+    expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
+    await user.click(within(dialog).getByLabelText("Keyword positions"));
+    expect(within(dialog).getByLabelText("Maximum data requests")).toHaveValue(
+      20,
+    );
+    await user.clear(within(dialog).getByLabelText("Maximum data requests"));
+    await user.type(
+      within(dialog).getByLabelText("Maximum data requests"),
+      "5",
+    );
+    await user.click(within(dialog).getByLabelText("Keyword positions"));
+    expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
+    await user.click(within(dialog).getByLabelText("Backlink overview"));
+    expect(within(dialog).getByLabelText("Maximum data requests")).toHaveValue(
+      5,
+    );
+  });
+
+  it("preserves the imported-report executor instead of silently replacing it with a generic Task worker", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.observations.push({
+      id: "imported-report",
+      kind: "page_check",
+      source: "seo_coworker",
+      sourceTaskId: "trusted-seo-task",
+      pageIds: workspace.scope.pageIds,
+      observedAt: new Date("2026-01-01T12:00:00Z"),
+      scopeVersion: workspace.scope.version,
+      countryCode: "DE",
+      languageCode: "de",
+      devices: ["desktop"],
+      rulebookVersion: "test-fixture",
+      artifactHash: "test-fixture",
+      coverage: { checked: 1, skipped: 0, failed: 0 },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace, "", [
+      {
+        id: "translation-worker",
+        name: "Translation worker",
+        capabilities: ["tasks"],
+      } as Coworker,
+    ]);
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    );
+    await user.click(screen.getByRole("option", { name: "DE" }));
+    await user.type(within(dialog).getByLabelText("Search language"), "de");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+      "coworkerId",
+    );
+    expect(mutate.mock.calls[0][0].command.body.maxProviderCalls).toBe(0);
+  });
+
+  it("keeps multiple Coworkers explicit and provides native recovery when no executor is available", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const view = renderWorkspace(workspace, "", [
+      { id: "first", name: "First worker" } as Coworker,
+      { id: "second", name: "Second worker" } as Coworker,
+    ]);
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    let dialog = screen.getByRole("dialog");
+    const selector = within(dialog).getByRole("combobox", {
+      name: "SEO coworker",
+    });
+    expect(selector).not.toHaveTextContent("First worker");
+    expect(selector).not.toHaveTextContent("Second worker");
+    await user.click(selector);
+    await user.click(screen.getByRole("option", { name: "Second worker" }));
+    expect(selector).toHaveTextContent("Second worker");
+    view.unmount();
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Run a check" }));
+    dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Import report" }),
+    ).toBeVisible();
+    expect(within(dialog).queryByRole("link")).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Return to audit" }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("schedules finite monitoring with an explicitly selected Coworker, market and per-run budget", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
@@ -432,12 +607,16 @@ describe("SEO workspace integration", () => {
       within(dialog).getByLabelText("Maximum data requests"),
       "2",
     );
-    await user.clear(within(dialog).getByLabelText("Number of runs"));
-    await user.type(within(dialog).getByLabelText("Number of runs"), "2");
     await user.click(
       within(dialog).getByRole("combobox", { name: "SEO coworker" }),
     );
     await user.click(screen.getByRole("option", { name: "SEO Coworker" }));
+    await user.clear(within(dialog).getByLabelText("Number of runs"));
+    const monitorForm = dialog.querySelector("form");
+    if (!monitorForm) throw new Error("Missing monitor form");
+    fireEvent.submit(monitorForm);
+    expect(mutate).not.toHaveBeenCalled();
+    await user.type(within(dialog).getByLabelText("Number of runs"), "2");
     await user.click(
       within(dialog).getByRole("button", { name: "Schedule checks" }),
     );

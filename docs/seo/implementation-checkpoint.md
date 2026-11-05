@@ -36,6 +36,20 @@ VERIFIED: this local revision adds inline Audit creation, one selected traffic t
 
 VERIFIED: the worker requests guarded Task event/file routes that this Core Preview does not declare. The source only mounts `/tasks/{id}/events` and `/tasks/{id}/files`. A Task move changes its Workspace without changing billing organization. A correct worker write precondition must therefore include Workspace, owner, organization and the authenticated assignee. Guarded delivery remains a required follow-up in this same PR. Paid dispatch stays disabled.
 
+## Guarded worker delivery
+
+VERIFIED: native UX revision `2a57c6c08f9e1af4d6f52e1e72346f7fc0073cbd` deployed through Preview workflow `42059193746`, which returned `success`. Both Vercel deployments report `READY` with that exact SHA and the feature branch aliases. The public SEO callback returns `200`, `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. These probes do not prove Google consent completion.
+
+VERIFIED: the guarded delivery source now mounts `/tasks/{id}/events/context-v1` and `/tasks/{id}/files/context-v1`. It reuses existing status and billing rules. Exact owner, billing organization, Workspace and authenticated assignee checks run under the Task row lock. Task DTOs expose the current Workspace ID. No migration is required for this slice.
+
+VERIFIED: the signed upload callback repeats the original context checks in the TaskFile write transaction. Malformed signed bindings cannot fall back to legacy cleanup. A stale callback retains the Blob because another valid callback can link it after the Task moves back. Existing linked history remains readable and retries can complete a failed report import.
+
+VERIFIED: the root rerun reported `238 passed (238)` across seven Task, event, file and Blob files. The isolated PostgreSQL suite reported `20 passed (20)`. The actual worker-to-Core local contract reported `1 passed`, with zero provider calls, zero debits, one TaskFile and one imported observation. Replay kept those counts unchanged. Evidence: `/private/tmp/seo-worker-core-root-tests.log`, `/private/tmp/seo-worker-core-root-pg.log` and `/private/tmp/seo-worker-actual-core-root.log`.
+
+REPORTED: independent source review found no remaining guarded-delivery issue. Retained regressions failed after removing Workspace checks, allowing malformed-binding downgrade, restoring immediate stale-Blob deletion or omitting the Task Workspace DTO. This is local authorization evidence, not hosted worker acceptance.
+
+VERIFIED: a generic Task-capable Coworker is not proof of SEO protocol support. The check form must keep unverified choices explicit. Page-only checks request zero provider calls and do not show a paid-data limit. A Workspace without an executor stays inside SEO and offers report import or return to the Audit.
+
 The following evidence records the earlier Project-scoped implementation before this native revision.
 
 ## Earlier delivered behavior

@@ -3,26 +3,17 @@ import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  convertCentsToCredits,
-  convertCreditsToCents,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 
 import { waitUntil } from "@vercel/functions";
 
-import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
   readWorkspaceOrganizationId,
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
-import {
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-  isCardanoV2SourceReady,
-} from "@/helpers/agent";
-import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
@@ -44,16 +35,14 @@ import {
   validateTaskAssigneeAssignment,
 } from "@/helpers/task";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
-import {
-  applyGuardedTaskStatusUpdate,
-  chargeTaskCreditsOrMarkOutOfCredits,
-} from "@/helpers/task-event-charge";
+import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import {
   notifyTaskParticipantsAdded,
   notifyTaskStatusEvent,
 } from "@/helpers/task-notifications";
 import { addTaskParticipantsFromComment } from "@/helpers/task-participants";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -62,6 +51,7 @@ import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
+import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
 import { sourceImportService } from "@/services/source-import.service";
 import {
@@ -71,6 +61,7 @@ import {
 import { taskEventApiInclude } from "@/types/task";
 
 import { createTaskEventRequestSchema } from "./schema";
+import { settleTaskEventCharge } from "./settle-charge";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -78,146 +69,6 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
-
-interface SettleTaskEventChargeParams {
-  task: {
-    ownerId: string | null;
-    organizationId: string | null;
-    status: TaskStatus;
-  };
-  credits?: number | null;
-  masumiPayment?: z.infer<
-    ReturnType<typeof createTaskEventRequestSchema>
-  >["masumiPayment"];
-  tx: Prisma.TransactionClient;
-}
-
-interface SettleTaskEventChargeResult {
-  cents: bigint | undefined;
-  transactionId: string | null;
-  /** When set, charge failed for balance and status was replaced. */
-  eventStatus: TaskStatus | null;
-  chargedMasumiPayment: boolean;
-}
-
-async function settleTaskEventCharge({
-  task,
-  credits,
-  masumiPayment,
-  tx,
-}: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
-  if (masumiPayment) {
-    console.info("[tasks] masumi task payment: using masumiPayment", {
-      masumiPayment,
-    });
-    // V2 payments are gated exactly like the job flow: a payment node that
-    // recently reported the payload's EXACT policy/contract source as
-    // purchase-ready. Rejecting before the charge avoids a pointless
-    // debit/refund cycle; unexpected node rejection is compensated below.
-    const isV2TaskPayment = isV2MasumiTaskPayment(masumiPayment);
-    if (isV2TaskPayment) {
-      const readySources = await getCardanoV2ReadySources(tx);
-      if (readySources.length === 0) {
-        throw unprocessableEntity(
-          "Cardano V2 payments are not enabled on this deployment",
-        );
-      }
-      const paymentSource = masumiPayment.PaymentSource;
-      if (!paymentSource) {
-        throw unprocessableEntity(
-          "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
-        );
-      }
-      // Same matcher as the job flow. isCardanoV2SourceReady lowercases both
-      // sides, so a mixed-case address or identifier from the node still
-      // matches a purchase-ready source.
-      const isSourceReady = isCardanoV2SourceReady(
-        masumiPayment.agentIdentifier,
-        paymentSource.smartContractAddress,
-        readySources,
-      );
-      if (!isSourceReady) {
-        throw unprocessableEntity(
-          "The selected Cardano V2 payment source is not purchase-ready on this deployment",
-        );
-      }
-    }
-    const creditCosts = await getCreditCostsOrThrow(tx);
-    const cents = calculateCentsFromMasumiAmountStrings(
-      masumiPayment.Amounts,
-      creditCosts,
-    );
-    if (cents === 0n) {
-      throw unprocessableEntity(
-        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-      );
-    }
-    const creditsValue = convertCentsToCredits(cents);
-    if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
-      throw unprocessableEntity(
-        `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
-      );
-    }
-    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
-      organizationId: task.organizationId,
-      cents,
-      currentStatus: task.status,
-      tx,
-    });
-    if (charge.eventStatus != null) {
-      return {
-        cents,
-        transactionId: null,
-        eventStatus: charge.eventStatus,
-        chargedMasumiPayment: false,
-      };
-    }
-    return {
-      cents,
-      transactionId: charge.transactionId,
-      eventStatus: null,
-      chargedMasumiPayment: true,
-    };
-  }
-
-  if (credits != null && credits > 0) {
-    const cents = convertCreditsToCents(credits);
-    if (cents === 0n) {
-      throw unprocessableEntity(
-        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-      );
-    }
-    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
-      organizationId: task.organizationId,
-      cents,
-      currentStatus: task.status,
-      tx,
-    });
-    if (charge.eventStatus != null) {
-      return {
-        cents,
-        transactionId: null,
-        eventStatus: charge.eventStatus,
-        chargedMasumiPayment: false,
-      };
-    }
-    return {
-      cents,
-      transactionId: charge.transactionId,
-      eventStatus: null,
-      chargedMasumiPayment: false,
-    };
-  }
-
-  return {
-    cents: undefined,
-    transactionId: null,
-    eventStatus: null,
-    chargedMasumiPayment: false,
-  };
-}
 
 async function mapCreatedTaskEventForResponse(
   tx: Prisma.TransactionClient,
@@ -234,14 +85,24 @@ async function mapCreatedTaskEventForResponse(
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  const taskEventRequestBodySchema = createTaskEventRequestSchema({
+  mountTaskEventRoute(app, false);
+  mountTaskEventRoute(app, true);
+}
+
+function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
+  const baseSchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
   });
+  const taskEventRequestBodySchema = contextBound
+    ? baseSchema.and(z.object({ expectedContext: taskWorkerContextSchema }))
+    : baseSchema;
 
   const route = createRoute({
     method: "post",
-    path: "/{id}/events",
-    description: "Create task event",
+    path: contextBound ? "/{id}/events/context-v1" : "/{id}/events",
+    description: contextBound
+      ? "Create an assigned Coworker event only for the asserted owner, billing organization and Workspace"
+      : "Create task event",
     tags: ["Tasks"],
     request: {
       params: paramsSchema,
@@ -281,8 +142,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
+    const expectedContext = contextBound
+      ? taskWorkerContextSchema.parse(
+          "expectedContext" in body ? body.expectedContext : undefined,
+        )
+      : null;
 
     const transactionResult = await serializableTransaction(async (tx) => {
+      if (expectedContext)
+        await requireTaskWorkerContext(
+          authContext,
+          taskId,
+          expectedContext,
+          tx,
+        );
       const { status, credits, authenticationUrl, channel, masumiPayment } =
         body;
       let comment = body.comment;

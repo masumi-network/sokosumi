@@ -9,6 +9,8 @@ import {
   SEO_ANALYSIS_MODULES,
   SEO_DEFAULT_MONITOR_RUNS,
   SEO_DEFAULT_PROVIDER_CALLS,
+  seoAnalysisRequirements,
+  seoMonitorRunCount,
 } from "./seo-form-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -46,7 +48,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         const request: Omit<CreateProjectSeoMonitorRequest, "operationId"> = {
           cadence,
           timeZone: formText(form, "timeZone"),
-          targetRunCount: Number(formText(form, "targetRunCount")),
+          targetRunCount: seoMonitorRunCount(form),
           analysis: {
             ...body,
             idempotencyKey: model.operationKey(
@@ -90,13 +92,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
       );
     }
   }
-  const wantsKeywords =
-    kind === "rankings" ||
-    kind === "audit_full" ||
-    (kind === "audit_lite" && modules.includes("keyword.refresh"));
-  const wantsCompetitors =
-    kind === "links" ||
-    (kind === "audit_lite" && modules.includes("links.refresh"));
+  const requirements = seoAnalysisRequirements(kind, modules);
   return {
     kind,
     setKind,
@@ -104,14 +100,15 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     workspace,
     modules,
     toggleModule,
-    wantsKeywords,
-    wantsCompetitors,
+    ...requirements,
     runCount,
     setRunCount,
     providerCalls,
     setProviderCalls,
     timeZone,
     setTimeZone,
-    totalProviderCalls: Number(runCount) * Number(providerCalls),
+    totalProviderCalls:
+      Number(runCount) *
+      (requirements.usesPaidData ? Number(providerCalls) : 0),
   };
 }

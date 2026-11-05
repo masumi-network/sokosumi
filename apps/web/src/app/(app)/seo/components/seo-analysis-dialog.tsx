@@ -225,7 +225,7 @@ export function SeoAnalysisDialog({
             <p className="text-muted-foreground text-sm">
               {t("analysis.standardPageLimits")}
             </p>
-          ) : (
+          ) : form.usesPaidData ? (
             <SeoField id="seo-analysis-limit" label={t("analysis.requests")}>
               <Input
                 id="seo-analysis-limit"
@@ -238,19 +238,29 @@ export function SeoAnalysisDialog({
                 required
               />
             </SeoField>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("analysis.htmlOnly")}
+            </p>
           )}
-          <SeoField id="seo-analysis-coworker" label={t("analysis.coworker")}>
-            <SeoSelect
-              id="seo-analysis-coworker"
-              name="coworkerId"
-              required={monitor || !hasImportedCoworker}
-              placeholder={t("analysis.coworkerPlaceholder")}
-              options={coworkers.map((coworker) => ({
-                value: coworker.id,
-                label: coworker.name,
-              }))}
-            />
-          </SeoField>
+          {coworkers.length > 0 ? (
+            <SeoField id="seo-analysis-coworker" label={t("analysis.coworker")}>
+              <SeoSelect
+                id="seo-analysis-coworker"
+                name="coworkerId"
+                required={monitor || !hasImportedCoworker}
+                placeholder={t(
+                  hasImportedCoworker && !monitor
+                    ? "analysis.coworkerPlaceholder"
+                    : "analysis.chooseCoworker",
+                )}
+                options={coworkers.map((coworker) => ({
+                  value: coworker.id,
+                  label: coworker.name,
+                }))}
+              />
+            </SeoField>
+          ) : null}
           {monitor ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -299,11 +309,24 @@ export function SeoAnalysisDialog({
             </div>
           ) : null}
           {noCoworker ? (
-            <p className="text-muted-foreground text-sm">
-              {t("analysis.noCoworker")}
-            </p>
+            <div className="space-y-2">
+              <p role="status" className="text-muted-foreground text-sm">
+                {t("analysis.noCoworker")}
+              </p>
+              {form.workspace.availableActions.canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => model.setDialog("import")}
+                >
+                  {t("import.submit")}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
-          <p className="text-muted-foreground text-sm">{t("analysis.cost")}</p>
+          <p className="text-muted-foreground text-sm">
+            {t(form.usesPaidData ? "analysis.cost" : "analysis.htmlCost")}
+          </p>
           <DialogFooter>
             <Button
               type="button"
@@ -311,7 +334,7 @@ export function SeoAnalysisDialog({
               disabled={model.pending}
               onClick={() => model.setDialog(null)}
             >
-              {t("cancel")}
+              {t(noCoworker ? "analysis.returnToAudit" : "cancel")}
             </Button>
             <Button
               type="submit"

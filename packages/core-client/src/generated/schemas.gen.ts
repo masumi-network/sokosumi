@@ -6789,6 +6789,11 @@ export const TaskSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Current Task placement. Moving a Task does not change its billing organization.'
+        },
         ownerId: {
             anyOf: [
                 {
@@ -7130,6 +7135,7 @@ export const TaskSchema = {
         'id',
         'createdAt',
         'updatedAt',
+        'workspaceId',
         'ownerId',
         'owner',
         'userId',
@@ -47556,6 +47562,11 @@ export const TaskListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Current Task placement. Moving a Task does not change its billing organization.'
+        },
         ownerId: {
             anyOf: [
                 {
@@ -47851,6 +47862,7 @@ export const TaskListItemSchema = {
         'id',
         'createdAt',
         'updatedAt',
+        'workspaceId',
         'ownerId',
         'owner',
         'userId',
@@ -49145,6 +49157,35 @@ export const MasumiTaskPaymentSourceSchema = {
         'smartContractAddress',
         'policyId'
     ]
+} as const;
+
+export const TaskWorkerContextSchema = {
+    type: 'object',
+    properties: {
+        ownerId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 128
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'ownerId',
+        'organizationId',
+        'workspaceId'
+    ],
+    additionalProperties: false
 } as const;
 
 export const TaskFilesSchema = {

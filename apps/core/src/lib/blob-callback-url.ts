@@ -26,3 +26,7 @@ export function resolveBlobUploadCallbackUrl(path: string): string {
 /** Path Blob calls after a task-file presigned PUT completes. */
 export const TASK_FILE_UPLOAD_COMPLETED_PATH =
   "/v1/webhooks/tasks/files/uploaded";
+
+/** Context-bound task uploads must retain their signed binding through completion. */
+export const TASK_FILE_CONTEXT_UPLOAD_COMPLETED_PATH =
+  "/v1/webhooks/tasks/files/context-v1/uploaded";

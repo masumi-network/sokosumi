@@ -1702,6 +1702,10 @@ export type Task = {
     createdAt: Date;
     updatedAt: Date;
     /**
+     * Current Task placement. Moving a Task does not change its billing organization.
+     */
+    workspaceId: string;
+    /**
      * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
@@ -12123,6 +12127,10 @@ export type TaskListItem = {
     createdAt: Date;
     updatedAt: Date;
     /**
+     * Current Task placement. Moving a Task does not change its billing organization.
+     */
+    workspaceId: string;
+    /**
      * The Owner: the person who answers for the work, and the only reader of private work. Null when it has none: a Soko Bot started it on its own, or its Owner deleted their account.
      */
     ownerId: string | null;
@@ -12634,6 +12642,12 @@ export type MasumiTaskPaymentSource = {
     network: 'Preprod' | 'Mainnet';
     smartContractAddress: string;
     policyId: string;
+};
+
+export type TaskWorkerContext = {
+    ownerId: string;
+    organizationId: string | null;
+    workspaceId: string;
 };
 
 export type TaskFiles = Array<TaskFile>;
@@ -87023,6 +87037,161 @@ export type PostTasksByIdEventsResponses = {
 
 export type PostTasksByIdEventsResponse = PostTasksByIdEventsResponses[keyof PostTasksByIdEventsResponses];
 
+export type PostTasksByIdEventsContextV1Data = {
+    body?: {
+        status?: TaskStatus;
+        comment?: string;
+        /**
+         * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
+         */
+        mentionedUserIds?: Array<string>;
+        authenticationUrl?: string;
+        /**
+         * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
+         */
+        credits?: number | null;
+        channel?: Channel;
+        origin?: Channel & unknown;
+        masumiPayment?: MasumiPayment;
+    } & {
+        expectedContext: TaskWorkerContext;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/events/context-v1';
+};
+
+export type PostTasksByIdEventsContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        data?: TaskEvent;
+        attemptedCredits?: number;
+        requestedStatus?: TaskStatus | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdEventsContextV1Error = PostTasksByIdEventsContextV1Errors[keyof PostTasksByIdEventsContextV1Errors];
+
+export type PostTasksByIdEventsContextV1Responses = {
+    /**
+     * Create task event
+     */
+    201: {
+        data: TaskEvent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdEventsContextV1Response = PostTasksByIdEventsContextV1Responses[keyof PostTasksByIdEventsContextV1Responses];
+
 export type GetTasksByIdFilesData = {
     body?: never;
     path: {
@@ -87169,6 +87338,21 @@ export type PostTasksByIdFilesErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Payload Too Large
      */
     413: {
@@ -87217,6 +87401,145 @@ export type PostTasksByIdFilesResponses = {
 };
 
 export type PostTasksByIdFilesResponse = PostTasksByIdFilesResponses[keyof PostTasksByIdFilesResponses];
+
+export type PostTasksByIdFilesContextV1Data = {
+    body: CreateTaskFileUploadSessionRequest & {
+        expectedContext: TaskWorkerContext;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/files/context-v1';
+};
+
+export type PostTasksByIdFilesContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdFilesContextV1Error = PostTasksByIdFilesContextV1Errors[keyof PostTasksByIdFilesContextV1Errors];
+
+export type PostTasksByIdFilesContextV1Responses = {
+    /**
+     * Task file upload session created
+     */
+    201: {
+        data: TaskFileUploadSession & {
+            contextVersion: 1;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdFilesContextV1Response = PostTasksByIdFilesContextV1Responses[keyof PostTasksByIdFilesContextV1Responses];
 
 export type GetTasksByIdJobsData = {
     body?: never;
@@ -91095,6 +91418,76 @@ export type PostWebhooksTasksFilesUploadedResponses = {
 };
 
 export type PostWebhooksTasksFilesUploadedResponse = PostWebhooksTasksFilesUploadedResponses[keyof PostWebhooksTasksFilesUploadedResponses];
+
+export type PostWebhooksTasksFilesContextV1UploadedData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/webhooks/tasks/files/context-v1/uploaded';
+};
+
+export type PostWebhooksTasksFilesContextV1UploadedErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWebhooksTasksFilesContextV1UploadedError = PostWebhooksTasksFilesContextV1UploadedErrors[keyof PostWebhooksTasksFilesContextV1UploadedErrors];
+
+export type PostWebhooksTasksFilesContextV1UploadedResponses = {
+    /**
+     * Upload completion handled
+     */
+    200: {
+        type: string;
+        response?: string;
+        [key: string]: unknown;
+    };
+};
+
+export type PostWebhooksTasksFilesContextV1UploadedResponse = PostWebhooksTasksFilesContextV1UploadedResponses[keyof PostWebhooksTasksFilesContextV1UploadedResponses];
 
 export type PostWebhooksResendNewsletterData = {
     body?: never;

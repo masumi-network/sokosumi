@@ -62,6 +62,31 @@ export function formLines(value: string) {
     .filter(Boolean);
 }
 
+export function seoAnalysisRequirements(
+  kind: string,
+  analyses: readonly string[],
+) {
+  const wantsKeywords =
+    kind === "rankings" ||
+    kind === "audit_full" ||
+    (kind === "audit_lite" && analyses.includes("keyword.refresh"));
+  const wantsCompetitors =
+    kind === "links" ||
+    (kind === "audit_lite" && analyses.includes("links.refresh"));
+  return {
+    wantsKeywords,
+    wantsCompetitors,
+    usesPaidData: wantsKeywords || wantsCompetitors,
+  };
+}
+
+export function seoMonitorRunCount(form: FormData) {
+  const count = Number(formText(form, "targetRunCount"));
+  if (!Number.isInteger(count) || count < 1 || count > SEO_MAX_MONITOR_RUNS)
+    throw new Error("Invalid SEO monitor run count");
+  return count;
+}
+
 export function editSeoCommand(
   kind:
     | "page"
@@ -167,13 +192,8 @@ export function analysisSeoBody(
     .filter((value): value is (typeof SEO_ANALYSIS_MODULES)[number] =>
       SEO_ANALYSIS_MODULES.some((module) => module === value),
     );
-  const wantsKeywords =
-    kind === "rankings" ||
-    kind === "audit_full" ||
-    (kind === "audit_lite" && analyses.includes("keyword.refresh"));
-  const wantsCompetitors =
-    kind === "links" ||
-    (kind === "audit_lite" && analyses.includes("links.refresh"));
+  const { wantsKeywords, wantsCompetitors, usesPaidData } =
+    seoAnalysisRequirements(kindText, analyses);
   const keywords = wantsKeywords ? formLines(formText(form, "keywords")) : [];
   const devices = form
     .getAll("devices")
@@ -197,13 +217,22 @@ export function analysisSeoBody(
   const competitorUrls = wantsCompetitors
     ? formLines(formText(form, "competitorUrls"))
     : [];
+  const maxProviderCalls = usesPaidData
+    ? Number(formText(form, "maxProviderCalls"))
+    : 0;
   if (kind !== "audit_full") {
+    if (
+      !Number.isInteger(maxProviderCalls) ||
+      maxProviderCalls < 0 ||
+      maxProviderCalls > SEO_MAX_PROVIDER_CALLS
+    )
+      throw new RangeError("Invalid SEO data request limit");
     const neededCalls =
       (wantsKeywords ? keywords.length * devices.length : 0) +
       (wantsCompetitors
         ? workspace.scope.pageIds.length + competitorUrls.length
         : 0);
-    if (neededCalls > Number(formText(form, "maxProviderCalls")))
+    if (neededCalls > maxProviderCalls)
       throw new RangeError("The selected checks exceed the data request limit");
   }
   const coworkerId = formText(form, "coworkerId");
@@ -230,7 +259,7 @@ export function analysisSeoBody(
         }
       : kind === "audit_full"
         ? {}
-        : { maxProviderCalls: Number(formText(form, "maxProviderCalls")) }),
+        : { maxProviderCalls }),
     ...(coworkerId ? { coworkerId } : {}),
   };
 }

@@ -123,6 +123,32 @@ describe("SEO form intent", () => {
     expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(0);
   });
 
+  it.each(["page_check", "audit_lite"])(
+    "never carries a stale paid-data allowance into HTML-only %s",
+    (kind) => {
+      const form = analysisForm();
+      form.set("kind", kind);
+      form.set("maxProviderCalls", "20");
+      if (kind === "audit_lite") form.append("analyses", "page.inspect");
+      expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(
+        0,
+      );
+      form.delete("maxProviderCalls");
+      expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(
+        0,
+      );
+    },
+  );
+
+  it.each(["NaN", "Infinity", "-1", "101", "4.5"])(
+    "rejects a non-finite or unbounded paid-data allowance (%s)",
+    (allowance) => {
+      const form = analysisForm();
+      form.set("maxProviderCalls", allowance);
+      expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow();
+    },
+  );
+
   it("keeps Audit Lite modules explicit and omits unused prefilled competitors", () => {
     const form = analysisForm();
     form.set("kind", "page_check");
