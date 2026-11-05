@@ -1,6 +1,6 @@
 /*
- * First run, full screen. Follows Sokosumi's app: 14px body, 10px radius,
- * hairline borders, near-white surfaces, Iris for now. Tokens come from
+ * First run, full screen. Follows design-system.md: 14px body, hairline
+ * structure, ink lines on controls, Iris for now. Tokens come from
  * globals.css.
  */
 body:has(.ob) .site-header {
@@ -8,8 +8,6 @@ body:has(.ob) .site-header {
 }
 
 .ob {
-  --ob-line: var(--border);
-  --ob-tint: var(--surface);
   --ob-ease: cubic-bezier(0.25, 1, 0.5, 1);
   flex: 1;
   display: flex;
@@ -29,7 +27,7 @@ body:has(.ob) .site-header {
   gap: 16px;
   padding: 12px 24px;
   background: var(--background);
-  border-bottom: 1px solid var(--ob-line);
+  border-bottom: 1px solid var(--border);
 }
 
 .ob-top .logo {
@@ -90,7 +88,7 @@ button.ob-step {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -263,7 +261,7 @@ button.ob-step {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--background);
   color: var(--foreground);
@@ -310,7 +308,7 @@ button.ob-step {
   height: 36px;
   padding: 0 14px;
   border: 1px solid var(--foreground);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-control);
   background: var(--foreground);
   color: var(--background);
   font: inherit;
@@ -340,7 +338,7 @@ button.ob-step {
 .ob-button-quiet {
   background: var(--background);
   color: var(--foreground);
-  border-color: var(--ob-line);
+  border-color: var(--border);
 }
 
 .ob-button-quiet:hover:not(:disabled) {
@@ -367,8 +365,8 @@ button.ob-step {
   width: 100%;
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid var(--ob-line);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -414,10 +412,9 @@ button.ob-step {
   gap: 10px;
   height: 44px;
   padding: 0 14px;
-  border: 1px solid var(--ob-line);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   color: var(--muted);
-  transition: border-color 150ms;
 }
 
 .ob-url:focus-within {
@@ -454,7 +451,7 @@ button.ob-step {
   gap: 8px;
   margin: 36px 0 0;
   padding: 16px 0 0;
-  border-top: 1px solid var(--ob-line);
+  border-top: 1px solid var(--border);
   list-style: none;
   color: var(--muted);
   font-size: 13px;
@@ -494,7 +491,8 @@ button.ob-step {
   width: 88px;
   height: 88px;
   margin-bottom: 20px;
-  border-radius: var(--radius-panel);
+  border-radius: 50%;
+  border: 1px solid var(--line);
   background: var(--stage);
 }
 
@@ -507,7 +505,7 @@ button.ob-step {
 .ob-ripple {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-panel);
+  border-radius: 50%;
   border: 1px solid var(--line);
 }
 
@@ -548,7 +546,7 @@ button.ob-step {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
 }
 
 .ob-phase.done .ob-phase-dot {
@@ -590,9 +588,9 @@ button.ob-step {
 }
 
 .ob-feed {
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-panel);
-  background: var(--ob-tint);
+  background: var(--surface);
   padding: 6px;
   min-height: 320px;
 }
@@ -644,7 +642,7 @@ button.ob-step {
   padding: 8px 10px;
   border-radius: var(--radius-control);
   background: var(--background);
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
 }
 
 .ob-feed-item.done .ob-feed-state,
@@ -712,7 +710,7 @@ button.ob-step {
   gap: 8px;
   margin-top: 24px;
   padding: 64px 24px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-panel);
   text-align: center;
 }
@@ -723,7 +721,7 @@ button.ob-step {
 }
 
 .ob-weeks {
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-panel);
   overflow: hidden;
 }
@@ -736,8 +734,8 @@ button.ob-step {
 
 .ob-weekdays {
   padding-left: 72px;
-  background: var(--ob-tint);
-  border-bottom: 1px solid var(--ob-line);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .ob-weekdays span {
@@ -753,7 +751,7 @@ button.ob-step {
 }
 
 .ob-week + .ob-week {
-  border-top: 1px solid var(--ob-line);
+  border-top: 1px solid var(--border);
 }
 
 .ob-week-label {
@@ -761,8 +759,8 @@ button.ob-step {
   color: var(--muted);
   font-size: 12px;
   font-weight: 500;
-  background: var(--ob-tint);
-  border-right: 1px solid var(--ob-line);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
 }
 
 .ob-day {
@@ -771,7 +769,7 @@ button.ob-step {
   gap: 4px;
   min-height: 92px;
   padding: 6px;
-  border-left: 1px solid var(--ob-line);
+  border-left: 1px solid var(--border);
 }
 
 .ob-day:first-child {
@@ -779,7 +777,7 @@ button.ob-step {
 }
 
 .ob-day-blank {
-  background: var(--ob-tint);
+  background: var(--surface);
 }
 
 .ob-day-n {
@@ -793,7 +791,7 @@ button.ob-step {
   gap: 2px;
   width: 100%;
   padding: 5px 6px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-mark);
   background: var(--background);
   color: var(--foreground);
@@ -843,7 +841,7 @@ button.ob-step {
 
   .ob-week-label {
     border-right: 0;
-    border-bottom: 1px solid var(--ob-line);
+    border-bottom: 1px solid var(--border);
   }
 
   .ob-days {
@@ -853,7 +851,7 @@ button.ob-step {
   .ob-day {
     min-height: 0;
     border-left: 0;
-    border-top: 1px solid var(--ob-line);
+    border-top: 1px solid var(--border);
   }
 
   .ob-day:first-child {
@@ -870,9 +868,9 @@ button.ob-step {
   gap: 10px;
   margin-top: 40px;
   padding: 18px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-panel);
-  background: var(--ob-tint);
+  background: var(--surface);
 }
 
 .ob-change-row {
@@ -909,7 +907,7 @@ button.ob-step {
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
 }
 
@@ -1046,7 +1044,7 @@ button.ob-step {
   gap: 16px 32px;
   margin: -16px 0 32px;
   padding: 16px 0;
-  border-bottom: 1px solid var(--ob-line);
+  border-bottom: 1px solid var(--border);
   background: var(--background);
 }
 
@@ -1060,7 +1058,8 @@ button.ob-step {
 /* The mascot is black and white; its tile stays light in dark mode too. */
 .ob-head-mascot {
   flex: none;
-  border-radius: var(--radius-panel);
+  border-radius: 50%;
+  border: 1px solid var(--line);
   background: var(--stage);
   transform-origin: 50% 90%;
 }
@@ -1133,7 +1132,7 @@ button.ob-step {
     z-index: 20;
     justify-items: stretch;
     padding: 10px 16px;
-    border-top: 1px solid var(--ob-line);
+    border-top: 1px solid var(--border);
     background: var(--background);
   }
 
@@ -1174,7 +1173,7 @@ button.ob-step {
 
 .ob-rhythm-card {
   padding: 20px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
 }
 
@@ -1238,7 +1237,7 @@ button.ob-step {
   display: grid;
   gap: 12px;
   padding: 20px 24px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--background);
 }
@@ -1276,7 +1275,7 @@ button.ob-step {
   min-width: 72px;
   height: 36px;
   padding: 0 16px;
-  border: 1px solid var(--ob-line);
+  border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--background);
   color: var(--foreground);

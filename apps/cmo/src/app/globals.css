@@ -513,7 +513,7 @@ a.button {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--muted);
@@ -536,7 +536,7 @@ a.button {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--surface);
   color: var(--muted);
   font-size: 0.75rem;
@@ -1214,7 +1214,7 @@ textarea {
 }
 
 .k.ad {
-  background: var(--primary);
+  background: var(--muted);
 }
 
 .k.article {
@@ -1703,7 +1703,7 @@ textarea {
   width: min(480px, calc(100vw - 16px));
   padding: 20px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
   box-shadow: var(--shadow-hard);
@@ -2033,7 +2033,8 @@ textarea {
   width: 18px;
   height: 18px;
   background: var(--brand);
-  outline: 6px solid var(--brand-soft);
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
 }
 
 .rv-yes,
@@ -2138,7 +2139,8 @@ textarea {
 }
 
 .rv-dots i.inference {
-  background: var(--primary);
+  border: 1px solid var(--line);
+  background: transparent;
 }
 
 .rv-tile-ask {

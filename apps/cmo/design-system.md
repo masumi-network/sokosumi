@@ -5,7 +5,8 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Voice, product, agent naming:** [`DESIGN.md`](DESIGN.md). This file covers how things look.
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
-- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals.
+- **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. Composite components join it as the screens that use them are built.
 
 ## Five rules
 
@@ -33,12 +34,14 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 | `--ok`                 | done                            | `#00D43B`           | `#00D43B`           |
 | `--warn`               | needs an answer                 | `#FFD300`           | `#FFD300`           |
 | `--shadow-hard`        | the one hard shadow             | `3px 3px 0 #0C0C0C` | `3px 3px 0 #FAFAFA` |
+| `--stage`              | Cuso's avatar circle            | `#F5F5F5`           | `#F5F5F5`           |
+| `--scrim`              | behind a modal sheet only       | black at 30%        | black at 30%        |
 
 - **One pink per view.** Iris on the primary button and the current step. Peach appears only behind Cuso, never next to an Iris surface.
 - **Dark Iris rests at `#D141D1`** and goes to `#FF51FF` on hover (approved for CMO 2026-11-04; the Masumi guide still says Iris is the same in both themes).
 - **Green, yellow and Iris are fills only**, under a Neutral 950 glyph. On white they measure 1.4 to 2.7:1, so they never carry text or a thin mark.
 - **Channel marks** keep their networks' colours (`--mark-*`); they are logos, not palette.
-- No gradients, no glow, no blur, no transparency washes.
+- No gradients, no glow, no blur, no transparency washes. The scrim behind a modal sheet is the one see-through colour.
 
 ## Type
 
@@ -66,7 +69,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Elevation and motion
 
-- Flat by default. The hard shadow is the only elevation; at most two per screen (the primary button and the focused card).
+- Flat by default. The hard shadow is the only elevation; at most two per screen (the primary button and the focused card). The Site hero's tilted labels are the one exception.
+- An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves 3px right and down and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`.
 

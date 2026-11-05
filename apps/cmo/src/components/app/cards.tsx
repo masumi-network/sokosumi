@@ -290,7 +290,7 @@ export function StrategyCard({
             {overview.viewerCanApprove ? (
               <button
                 type="button"
-                className="button button-small"
+                className="button button-secondary button-small"
                 disabled={pending}
                 onClick={() => startTransition(actions.approve)}
               >

@@ -106,7 +106,7 @@ describe("Brand Brain reveal", () => {
     expect(html).toContain("See the research");
     expect(html).not.toContain("From 9 dollars a month");
     expect(html).not.toContain("This is the short version");
-    // The brand colour is the most vivid brand colour.
+    // The cover takes the most vivid colour of the brand's palette.
     expect(html).toContain("--brand:#6349ea");
   });
 

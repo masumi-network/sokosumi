@@ -18,91 +18,90 @@ const RULES = [
   "Three layers.",
 ];
 
-/** Values without the hash, so the page itself holds no colour literal. */
-const SWATCHES: {
+interface Swatch {
   name: string;
   token: string;
-  light: string;
-  dark: string;
-}[] = [
-  { name: "Page", token: "--background", light: "FFFFFF", dark: "0C0C0C" },
-  { name: "Panel", token: "--surface", light: "F5F5F5", dark: "171717" },
-  { name: "Card", token: "--card", light: "FFFFFF", dark: "0C0C0C" },
-  { name: "Text", token: "--foreground", light: "171717", dark: "FAFAFA" },
-  { name: "Muted text", token: "--muted", light: "525252", dark: "A3A3A3" },
-  { name: "Ink line", token: "--line", light: "0C0C0C", dark: "A3A3A3" },
-  { name: "Hairline", token: "--border", light: "E5E5E5", dark: "262626" },
-  { name: "Iris", token: "--primary", light: "FF51FF", dark: "D141D1" },
-  {
-    name: "Iris hover",
-    token: "--primary-hover",
-    light: "FF51FF",
-    dark: "FF51FF",
-  },
-  {
-    name: "On Iris",
-    token: "--primary-foreground",
-    light: "0C0C0C",
-    dark: "0C0C0C",
-  },
-  { name: "Peach", token: "--peach", light: "FFC8F0", dark: "FFC8F0" },
-  { name: "Done", token: "--ok", light: "00D43B", dark: "00D43B" },
-  { name: "Needs an answer", token: "--warn", light: "FFD300", dark: "FFD300" },
+}
+
+interface TypeStep {
+  step: string;
+  sample: string;
+}
+
+interface Radius {
+  name: string;
+  token: string;
+}
+
+interface Pose {
+  file: string;
+  label: string;
+}
+
+const SWATCHES: Swatch[] = [
+  { name: "Page", token: "--background" },
+  { name: "Panel", token: "--surface" },
+  { name: "Card", token: "--card" },
+  { name: "Text", token: "--foreground" },
+  { name: "Muted text", token: "--muted" },
+  { name: "Ink line", token: "--line" },
+  { name: "Hairline", token: "--border" },
+  { name: "Iris", token: "--primary" },
+  { name: "Iris hover", token: "--primary-hover" },
+  { name: "On Iris", token: "--primary-foreground" },
+  { name: "Peach", token: "--peach" },
+  { name: "Done", token: "--ok" },
+  { name: "Needs an answer", token: "--warn" },
 ];
 
-const TYPE: { step: string; spec: string; sample: string }[] = [
-  { step: "display", spec: "72 / 68, 800", sample: "Marketing, handled" },
-  { step: "h1", spec: "36 / 38, 800", sample: "Your plan for May" },
-  {
-    step: "statement",
-    spec: "28 / 32, 300",
-    sample: "Reach 500 new readers this month",
-  },
-  { step: "value", spec: "24 / 28, 300", sample: "Does this sound like you?" },
-  { step: "h2", spec: "16 / 20, 600", sample: "This week" },
-  {
-    step: "body",
-    spec: "14 / 18, 400",
-    sample: "Three posts are written and scheduled.",
-  },
-  { step: "small", spec: "12 / 16, 400", sample: "Updated 2 minutes ago" },
-  { step: "micro", spec: "11 / 14, 400", sample: "Source: your homepage" },
+const TYPE: TypeStep[] = [
+  { step: "display", sample: "Marketing, handled" },
+  { step: "h1", sample: "Your plan for May" },
+  { step: "statement", sample: "Reach 500 new readers this month" },
+  { step: "value", sample: "Does this sound like you?" },
+  { step: "h2", sample: "This week" },
+  { step: "body", sample: "Three posts are written and scheduled." },
+  { step: "small", sample: "Updated 2 minutes ago" },
+  { step: "micro", sample: "Source: your homepage" },
 ];
 
-const RADII = [
-  { name: "Mark", token: "--radius-mark", px: 6 },
-  { name: "Control", token: "--radius-control", px: 8 },
-  { name: "Card", token: "--radius-card", px: 10 },
-  { name: "Panel", token: "--radius-panel", px: 14 },
+const RADII: Radius[] = [
+  { name: "Mark", token: "--radius-mark" },
+  { name: "Control", token: "--radius-control" },
+  { name: "Card", token: "--radius-card" },
+  { name: "Panel", token: "--radius-panel" },
 ];
 
-const POSES = [
-  { file: "reading", label: "Reading", alt: "Cuso reading" },
-  { file: "thinking", label: "Thinking", alt: "Cuso thinking" },
-  { file: "needs-you", label: "Needs you", alt: "Cuso asking for an answer" },
-  { file: "reporting", label: "Reporting", alt: "Cuso reporting" },
-  { file: "done", label: "Done", alt: "Cuso finished" },
+const POSES: Pose[] = [
+  { file: "reading", label: "Reading" },
+  { file: "thinking", label: "Thinking" },
+  { file: "needs-you", label: "Needs you" },
+  { file: "reporting", label: "Reporting" },
+  { file: "done", label: "Done" },
 ];
 
-function Section({
-  title,
-  children,
-}: {
+interface SectionProps {
   title: string;
   children: React.ReactNode;
-}) {
+}
+
+function Section({ title, children }: SectionProps) {
   return (
     <section className="ds-section">
-      <h2 className="ds-h2">{title}</h2>
+      <h2 className="ds-t-h2">{title}</h2>
       {children}
     </section>
   );
 }
 
-function Board({ scheme }: { scheme: Scheme }) {
+interface BoardProps {
+  scheme: Scheme;
+}
+
+function Board({ scheme }: BoardProps) {
   return (
     <div className={`ds-board theme-scope ${scheme}`}>
-      <p className="ds-small ds-muted">
+      <p className="ds-t-small ds-muted">
         {scheme === "light" ? "Light" : "Dark"}
       </p>
 
@@ -124,9 +123,7 @@ function Board({ scheme }: { scheme: Scheme }) {
               />
               <span className="ds-swatch-text">
                 <span className="ds-body-medium">{swatch.name}</span>
-                <span className="ds-small ds-muted">
-                  {swatch.token} {`#${swatch[scheme]}`}
-                </span>
+                <span className="ds-t-small ds-muted">{swatch.token}</span>
               </span>
             </li>
           ))}
@@ -137,9 +134,7 @@ function Board({ scheme }: { scheme: Scheme }) {
         <ul className="ds-type">
           {TYPE.map((row) => (
             <li key={row.step}>
-              <span className="ds-micro ds-muted">
-                {row.step} {row.spec}
-              </span>
+              <span className="ds-t-micro ds-muted">{row.step}</span>
               <p className={`ds-t-${row.step}`}>{row.sample}</p>
             </li>
           ))}
@@ -153,14 +148,12 @@ function Board({ scheme }: { scheme: Scheme }) {
               <span
                 className={`ds-radius-box ds-r-${radius.name.toLowerCase()}`}
               />
-              <span className="ds-small">
-                {radius.name} {radius.px}px
-              </span>
+              <span className="ds-t-small">{radius.name}</span>
             </li>
           ))}
           <li>
             <span className="ds-radius-box ds-shadow-box" />
-            <span className="ds-small">Hard shadow</span>
+            <span className="ds-t-small">Hard shadow</span>
           </li>
         </ul>
       </Section>
@@ -201,7 +194,7 @@ function Board({ scheme }: { scheme: Scheme }) {
             placeholder="example.com"
             aria-describedby={`ds-help-${scheme}`}
           />
-          <span id={`ds-help-${scheme}`} className="ds-small ds-muted">
+          <span id={`ds-help-${scheme}`} className="ds-t-small ds-muted">
             The address people visit today.
           </span>
         </div>
@@ -210,8 +203,8 @@ function Board({ scheme }: { scheme: Scheme }) {
       <Section title="Three layers">
         <div className="panel">
           <div className="card ds-card-body">
-            <p className="ds-h2">White page, gray panel, outlined card</p>
-            <p className="ds-small ds-muted">
+            <p className="ds-t-h2">White page, gray panel, outlined card</p>
+            <p className="ds-t-small ds-muted">
               A card sits on a panel, never straight on the page.
             </p>
           </div>
@@ -224,7 +217,7 @@ function Board({ scheme }: { scheme: Scheme }) {
             <span role="img" aria-label="Done" className="ds-disc ds-disc-ok">
               <span aria-hidden="true">✓</span>
             </span>
-            <span className="ds-small">Done</span>
+            <span className="ds-t-small">Done</span>
           </li>
           <li>
             <span
@@ -234,7 +227,7 @@ function Board({ scheme }: { scheme: Scheme }) {
             >
               <span aria-hidden="true">!</span>
             </span>
-            <span className="ds-small">Needs you</span>
+            <span className="ds-t-small">Needs you</span>
           </li>
           <li>
             <span
@@ -244,7 +237,7 @@ function Board({ scheme }: { scheme: Scheme }) {
             >
               <span aria-hidden="true">✕</span>
             </span>
-            <span className="ds-small">Failed</span>
+            <span className="ds-t-small">Failed</span>
           </li>
         </ul>
       </Section>
@@ -262,12 +255,33 @@ function Board({ scheme }: { scheme: Scheme }) {
                 />
               </span>
               <span
-                className={`ds-small${pose.file === "needs-you" ? " ds-pose-on-iris" : ""}`}
+                className={`ds-t-small${pose.file === "needs-you" ? " ds-pose-on-iris" : ""}`}
               >
                 {pose.label}
               </span>
             </li>
           ))}
+        </ul>
+      </Section>
+
+      <Section title="Scenes">
+        <ul className="ds-scenes">
+          <li>
+            <img
+              src="/cuso/reading-scene.jpg"
+              alt="Cuso reading a site with a magnifier"
+              width={160}
+              height={160}
+            />
+          </li>
+          <li>
+            <img
+              src="/cuso/celebration.jpg"
+              alt="Cuso celebrating next to a toy rocket"
+              width={160}
+              height={160}
+            />
+          </li>
         </ul>
       </Section>
 
@@ -293,7 +307,7 @@ export default function DesignSystemPage() {
   if (process.env.VERCEL_ENV === "production") notFound();
   return (
     <main className="ds">
-      <h1 className="ds-title">Design system</h1>
+      <h1 className="ds-t-h1">Design system</h1>
       <div className="ds-columns">
         <Board scheme="light" />
         <Board scheme="dark" />

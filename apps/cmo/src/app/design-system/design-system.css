@@ -1,18 +1,13 @@
 /* Preview of design-system.md. Tokens only; each board sets its own
    color-scheme so light-dark() resolves per column. */
 .ds {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
   width: 100%;
   max-width: 1376px;
   margin: 0 auto;
   padding: 32px;
-}
-
-.ds-title {
-  margin-bottom: 24px;
-  font-size: 2.25rem;
-  line-height: 2.375rem;
-  font-weight: 800;
-  letter-spacing: -0.035em;
 }
 
 .ds-columns {
@@ -64,25 +59,8 @@
   list-style: none;
 }
 
-.ds-h2 {
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.25rem;
-  font-weight: 600;
-}
-
 .ds-muted {
   color: var(--muted);
-}
-
-.ds-small {
-  font-size: 0.75rem;
-  line-height: 1rem;
-}
-
-.ds-micro {
-  font-size: 0.6875rem;
-  line-height: 0.875rem;
 }
 
 .ds-body-medium {
@@ -354,4 +332,18 @@
 
 .ds-r-panel {
   border-radius: var(--radius-panel);
+}
+
+.ds-scenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ds-scenes img {
+  width: 160px;
+  height: 160px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  object-fit: cover;
 }
