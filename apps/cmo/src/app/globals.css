@@ -333,7 +333,7 @@ p {
   gap: 4px;
   width: 100%;
   padding: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
 }
@@ -1127,20 +1127,16 @@ textarea {
   }
 }
 
+/* Every card: the 1px ink line. Hairlines are for structure inside it. */
 .card {
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
 
-/* A card that holds actions takes the ink line. */
-.card-act {
-  border-color: var(--line);
-}
-
-.flash .card {
-  border-color: var(--line);
+/* Look here: the card in focus, or one that needs the owner now. */
+.card-focus {
   box-shadow: var(--shadow-hard);
 }
 
@@ -1551,7 +1547,7 @@ textarea {
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--background);
   font-size: 0.8125rem;
@@ -1690,7 +1686,7 @@ textarea {
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
@@ -1848,7 +1844,6 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
-  box-shadow: var(--shadow-hard);
 }
 
 .sheet-head {
@@ -3701,7 +3696,7 @@ a.rv-dot {
   height: 100%;
   overflow: hidden;
   padding: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
   color: inherit;
@@ -3709,11 +3704,6 @@ a.rv-dot {
   text-align: left;
   cursor: pointer;
   transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.cal-card:hover,
-.cal-card.open {
-  border-color: var(--line);
 }
 
 .cal-thumb {
@@ -3826,7 +3816,7 @@ a.rv-dot {
   gap: 8px;
   max-width: 520px;
   padding: 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
 }

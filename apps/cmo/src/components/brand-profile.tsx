@@ -111,7 +111,7 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
       </header>
 
       {researched === 0 ? (
-        <div className="card card-act bb-callout">
+        <div className="card bb-callout">
           <p>
             <b>This is the short version.</b> Cuso can look deeper: customers,
             pricing, competitors, reviews and more, each with a source. It takes
@@ -821,7 +821,7 @@ export function SideSheet({
       />
       <motion.aside
         ref={panel}
-        className="sheet rv-sheet"
+        className="sheet rv-sheet card-focus"
         role="dialog"
         aria-modal="true"
         aria-label={label}

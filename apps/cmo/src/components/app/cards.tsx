@@ -74,7 +74,7 @@ export function LearningCard({
           ? "Done"
           : `${missing} not confirmed yet`;
   return (
-    <div className={failed ? "card highlight" : "card"}>
+    <div className={failed ? "card card-focus" : "card"}>
       <div className="ch">
         <b>Learning</b>
         <span className="sp" />
@@ -209,7 +209,7 @@ export function StrategyCard({
   if (!strategy) return null;
   const approved = strategyApproved(overview);
   return (
-    <div className={approved ? "card" : "card highlight"}>
+    <div className={approved ? "card" : "card card-focus"}>
       <div className="ch">
         <b>
           Your strategy
@@ -320,7 +320,7 @@ export function StrategyCard({
 /** Opens CMO's own Channels page, where each network connects in place. */
 export function ConnectCard({ actions }: { actions: CardActions }) {
   return (
-    <div className="card">
+    <div className="card card-focus">
       <div className="ch">
         <b>Connect a channel</b>
         <span className="muted">Not connected</span>
@@ -407,6 +407,7 @@ export function UpdateCard({
   actions,
   approved,
   superseded = false,
+  focused = false,
 }: {
   update: Update;
   actions: CardActions;
@@ -417,10 +418,16 @@ export function UpdateCard({
   approved: boolean;
   /** Reported before the approval that came later: its Up next is history. */
   superseded?: boolean;
+  /** Opened from Results: the card in focus. */
+  focused?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   return (
-    <div className={update.kind === "request" ? "card highlight" : "card"}>
+    <div
+      className={
+        focused || update.kind === "request" ? "card card-focus" : "card"
+      }
+    >
       <div className="ch">
         <b>{UPDATE_TITLES[update.kind]}</b>
         <span className="note">{update.headline}</span>

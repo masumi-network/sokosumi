@@ -10,8 +10,8 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 
 ## Five rules
 
-1. **Lines do the work.** A 1px ink line on what you act on (cards with actions, inputs, buttons). A hairline for structure (header rule, dividers, inactive markers).
-2. **One hard shadow.** 3px offset, no blur. Only the primary action and the one focused card on a screen carry it.
+1. **Lines do the work.** A 1px ink line on every card, input and full-size button. A hairline for small buttons and chips, and for structure inside a card: dividers, list rows, inner items.
+2. **The hard shadow means: look here.** 3px offset, no blur, on the primary action, the card in focus, and any card that needs the owner now. When the action is done the card goes flat.
 3. **Iris means now.** The current step and the next action. Never decoration, never text, never a thin mark. Text on Iris is always Neutral 950.
 4. **Bold speaks, Regular works.** One Inter ExtraBold H1 per screen. Light for big numbers and statements, Regular for UI, Medium for labels, SemiBold for section heads.
 5. **Three layers.** White page, gray panel, outlined white cards. A card sits on a panel, never straight on the page.
@@ -70,7 +70,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Elevation and motion
 
-- Flat by default. The hard shadow is the only elevation; at most two per screen (the primary button and the focused card). The Site hero's tilted labels are the one exception.
+- Flat by default. The hard shadow is the only elevation. It marks the primary button, the card in focus (the question card, the open side panel or sheet, the Launch accounts list) and a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); the card goes flat once the action is done, and a card with only optional buttons stays flat. The Site hero's tilted labels are the one exception.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves 3px right and down and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`.
@@ -92,7 +92,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Selection.** Tabs, radio cards (pace) and the open tile button use the ink inversion: ink fill, inverted text. Iris is never selection; it means now.
 
-**Card.** Card fill, ink line when it holds actions, hairline when it only shows, 10px radius. The focused card (the question card, the accounts list, Approvals) adds the hard shadow. A selected tile in a grid gets an Iris shadow instead.
+**Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
 
 **Tile.** Label (small 500, muted) with a small button right, value (value step), one line of detail (small), source (micro, muted, hairline above). Tap opens the side panel.
 

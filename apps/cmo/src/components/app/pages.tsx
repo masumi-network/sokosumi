@@ -59,6 +59,10 @@ export function ResultsPage({
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
+  // A source the plan reads that is not connected is waiting on the owner.
+  const measurementNeeded = overview.measurement.some(
+    (source) => source.status !== "connected",
+  );
   return (
     <div className="page-body">
       <div className="grid4">
@@ -67,7 +71,7 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
-      <section className="card card-act">
+      <section className={measurementNeeded ? "card card-focus" : "card"}>
         <h3>Your numbers</h3>
         <p className="muted">
           Cuso reads real visits, searches and orders from these. Where none of
@@ -87,7 +91,7 @@ export function ResultsPage({
             : "Reach and clicks show here once you connect an account and Cuso's posts go out. Until then there is nothing to measure."}
         </p>
       </section>
-      <section className="card card-act">
+      <section className="card">
         <h3>Weekly reports</h3>
         {weekly.length === 0 ? (
           <p className="muted">
@@ -206,6 +210,10 @@ export function ChannelsPage({
     });
   }
 
+  // No connected network means Cuso cannot publish: the owner's move.
+  const noNetwork = !overview.channels.some(
+    (channel) => channel.status.toUpperCase() === "ACTIVE",
+  );
   return (
     <div className="page-body">
       {error ? (
@@ -213,7 +221,7 @@ export function ChannelsPage({
           {error}
         </p>
       ) : null}
-      <section className="card card-act">
+      <section className={noNetwork ? "card card-focus" : "card"}>
         <h3>Social accounts</h3>
         <ul className="list">
           {SOCIAL_PROVIDERS.map((provider) => {
@@ -253,7 +261,7 @@ export function ChannelsPage({
           })}
         </ul>
       </section>
-      <section className="card card-act">
+      <section className="card">
         <h3>Ad accounts</h3>
         <p className="muted">
           Optional. Cuso writes the ads; you launch each one, and they never
@@ -316,7 +324,7 @@ export function SettingsPage({
 }) {
   return (
     <div className="page-body">
-      <section className="card card-act">
+      <section className="card">
         <h3>Credits</h3>
         <div className="li">
           <span className="grow">
@@ -374,7 +382,7 @@ export function SettingsPage({
           ))}
         </ul>
       </section>
-      <section className="card card-act">
+      <section className="card">
         <h3>Another website</h3>
         <p className="muted">Hire Cuso again for a different website.</p>
         <StartOver
@@ -382,7 +390,7 @@ export function SettingsPage({
           startOver={startOver}
         />
       </section>
-      <section className="card card-act">
+      <section className="card">
         <h3>Account</h3>
         <div className="li">
           <span className="grow">

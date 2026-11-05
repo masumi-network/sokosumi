@@ -120,7 +120,7 @@ export function StrategyReveal({
       {onAsk && questions.length > 0 ? (
         <button
           type="button"
-          className="card card-act bb-callout bb-callout-button"
+          className="card bb-callout bb-callout-button"
           onClick={() => setOpen({ kind: "questions" })}
         >
           <span>

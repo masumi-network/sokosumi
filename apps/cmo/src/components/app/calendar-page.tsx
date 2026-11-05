@@ -102,7 +102,7 @@ export function CalendarPage({
 
   return (
     <div className="cal">
-      <div className="card card-act cal-head">
+      <div className="card cal-head">
         <p className="note num">
           {live.length} pieces this month · {written} written · {scheduled}{" "}
           scheduled
@@ -244,7 +244,7 @@ function PieceCard({
   return (
     <button
       type="button"
-      className={open ? "cal-card open" : "cal-card"}
+      className={open ? "cal-card card-focus" : "cal-card"}
       onClick={onOpen}
     >
       {visual ? (

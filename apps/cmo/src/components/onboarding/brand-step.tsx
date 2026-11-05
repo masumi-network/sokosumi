@@ -327,7 +327,7 @@ export function BrandStep({
           <PromiseCard brain={brain} site={site} onSave={onSave} />
 
           {left.length > 0 ? (
-            <div className="card ob-left">
+            <div className="card card-focus ob-left">
               <p>
                 {left.length} {left.length === 1 ? "question" : "questions"}{" "}
                 left

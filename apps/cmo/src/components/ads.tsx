@@ -232,7 +232,7 @@ export function AdsPanel({
   }, [connected, loadAdCampaigns]);
 
   return (
-    <section className="card card-act">
+    <section className="card">
       <h3>Ads</h3>
       {!connected ? (
         <p className="muted">

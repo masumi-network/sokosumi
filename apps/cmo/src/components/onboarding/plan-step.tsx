@@ -92,7 +92,7 @@ function Planning({ overview, onRetry }: PlanningProps) {
   const elapsed = useElapsed(work?.startedAt, running);
   return (
     <section className="ob-panel panel ob-wait">
-      <div className="card ob-focus ob-says">
+      <div className={running ? "card ob-says" : "card card-focus ob-says"}>
         <CusoAvatar pose="reporting" size={96} />
         <h1 className="ob-h1">
           {running ? "Writing your plan" : "Planning stopped"}
@@ -133,7 +133,7 @@ function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
     <section className="ob-panel panel ob-wait">
-      <div className="card ob-focus ob-says">
+      <div className="card card-focus ob-says">
         <CusoAvatar pose="reporting" size={96} />
         <h1 className="ob-h1">Ready to write your plan</h1>
         <p className="ob-muted">
@@ -411,7 +411,13 @@ function PlanReview({
         ) : null}
 
         {hasChecks ? (
-          <div className="ob-checks">
+          <div
+            className={
+              questions.some((question) => !question.answer)
+                ? "card card-focus ob-checks"
+                : "card ob-checks"
+            }
+          >
             <h2>Check these</h2>
             {questions.map((question) => (
               <PlanQuestionChip
@@ -421,7 +427,7 @@ function PlanReview({
               />
             ))}
             {strategy.pace ? (
-              <div className="card ob-pace">
+              <div className="ob-pace">
                 <PacePicker
                   pace={strategy.pace}
                   onAsk={(text, label) =>
@@ -431,7 +437,7 @@ function PlanReview({
               </div>
             ) : null}
             {ads ? (
-              <div className="card ob-budget">
+              <div className="ob-budget">
                 <div className="ob-budget-row">
                   <p>
                     {ads.monthly > 0

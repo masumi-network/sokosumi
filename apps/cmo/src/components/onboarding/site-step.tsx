@@ -193,7 +193,7 @@ export function SiteStep({
 
       <div className="ob-site-right">
         {failed ? (
-          <div className="card ob-focus ob-says">
+          <div className="card card-focus ob-says">
             <CusoAvatar pose="needs-you" size={96} />
             {noCredits ? (
               <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
@@ -231,7 +231,7 @@ export function SiteStep({
             }}
           />
         ) : finished || (skipping && phase !== "reading") ? (
-          <div className="card ob-focus ob-says">
+          <div className="card card-focus ob-says">
             <CusoAvatar pose="done" size={96} />
             <p className="ob-value">That's all I need.</p>
             <button
@@ -258,7 +258,7 @@ export function SiteStep({
             ) : null}
           </div>
         ) : (
-          <div className="card ob-focus ob-says" aria-live="polite">
+          <div className="card ob-says" aria-live="polite">
             <CusoAvatar pose="thinking" size={96} />
             <p className="ob-value">
               {questions.length === 0
@@ -282,7 +282,7 @@ function QuestionReply({ question, onReply }: QuestionReplyProps) {
   const [text, setText] = useState("");
   return (
     <form
-      className="card ob-focus ob-says"
+      className="card card-focus ob-says"
       action={async () => {
         const reply = text.trim();
         if (!reply) return;

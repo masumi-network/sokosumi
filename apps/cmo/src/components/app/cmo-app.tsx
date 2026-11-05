@@ -626,12 +626,10 @@ function ThreadEntry({
         );
       case "update":
         return (
-          <div
-            id={`update-${item.update.id}`}
-            className={highlighted ? "flash" : undefined}
-          >
+          <div id={`update-${item.update.id}`}>
             <UpdateCard
               update={item.update}
+              focused={highlighted}
               actions={actions}
               approved={
                 overview.strategyVersion?.approvedAt != null &&

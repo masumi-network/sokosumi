@@ -243,7 +243,7 @@ export function LaunchStep({
 
       {rows.length > 0 ? (
         <div className="panel ob-networks-panel">
-          <ul className="card ob-focus ob-networks">
+          <ul className="card card-focus ob-networks">
             {rows.map((key) => {
               const done = connected.has(key);
               const account = overview.channels.find(
