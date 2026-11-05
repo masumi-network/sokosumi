@@ -313,6 +313,35 @@ describe("AuthSessionGuard", () => {
     expect(RealtimeMock).toHaveBeenCalledOnce();
   });
 
+  it("asks a kept document again when the cookie returns and switches once more", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    // Mount: alice. Focus: bob, reload asked and declined. Focus: alice is
+    // back, which closes that ask. Focus: bob again, a new switch.
+    vi.mocked(authClient.getSession)
+      .mockResolvedValueOnce(presentSession)
+      .mockResolvedValueOnce(differentUserSession)
+      .mockResolvedValueOnce(presentSession)
+      .mockResolvedValue(differentUserSession);
+    render(
+      <AuthSessionGuard>
+        <AuthSessionHydrator session={renderedSession} />
+      </AuthSessionGuard>,
+    );
+    await vi.dynamicImportSettled();
+
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(authClient.getSession).toHaveBeenCalledTimes(3));
+    await vi.dynamicImportSettled();
+    expect(reload).toHaveBeenCalledOnce();
+
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(2));
+  });
+
   it("reloads for another account without waiting for the realtime chunk", async () => {
     vi.doMock(
       "@/lib/ably/realtime-singleton.client",

@@ -55,6 +55,9 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     const accountChanged =
       renderedUserIdRef.current !== undefined &&
       renderedUserIdRef.current !== freshSession.userId;
+    // A probe that agrees with the render closes the ask the reader
+    // declined: a switch after that is a new one, asked again.
+    if (!accountChanged) reloadAskedRef.current = false;
     if (accountChanged && !reloadAskedRef.current) {
       // Asked before anything is awaited: the realtime chunk below can fail
       // to load on a tab open across a deploy, and the reload must not wait
