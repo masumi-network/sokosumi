@@ -6,6 +6,7 @@ import {
   NotificationProvider,
   useNotifications,
 } from "@/contexts/notification-provider";
+import { NOTIFICATION_PAGE_SIZE } from "@/contexts/notification-state";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -344,6 +345,58 @@ describe("NotificationProvider island", () => {
     expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
   });
 
+  it("reconciles counts when another device restores an unloaded mention", async () => {
+    const loaded = Array.from(
+      { length: NOTIFICATION_PAGE_SIZE },
+      (_, index) => ({
+        ...REALTIME_EVENT,
+        id: `loaded-${index}`,
+        isRead: true,
+        readAt: new Date(REALTIME_EVENT.createdAt),
+        createdAt: new Date(REALTIME_EVENT.createdAt),
+      }),
+    );
+    getNotificationsMock.mockResolvedValue({
+      data: loaded,
+      meta: { pagination: { nextCursor: loaded.at(-1)?.id } },
+    });
+
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(currentNotifications.notifications).toHaveLength(
+      NOTIFICATION_PAGE_SIZE,
+    );
+    const loadedIds = currentNotifications.notifications.map((row) => row.id);
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 1, needsAction: 0, mentions: 1 },
+    });
+    const onNotification =
+      useNotificationRealtimeMock.mock.lastCall?.[0].onNotification;
+
+    await act(async () => {
+      onNotification({
+        ...REALTIME_EVENT,
+        id: "older-mention",
+        kind: "CHAT",
+        messageKey: "Notifications.Chat.mentioned",
+        createdAt: "2026-05-01T09:00:00.000Z",
+        created: false,
+      });
+    });
+
+    expect(currentNotifications.unreadCount).toBe(1);
+    expect(currentNotifications.mentionsCount).toBe(1);
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual(
+      loadedIds,
+    );
+  });
+
   /**
    * The event still arrives, because the OS banner rides it. The bell is what
    * the reader silenced, so it must not move.
@@ -380,7 +433,7 @@ describe("NotificationProvider island", () => {
     consoleError.mockRestore();
   });
 
-  it("refetches after the Ably island mounts so REST-before-subscribe gaps close", async () => {
+  it("refetches after attachment and reconnection so REST-before-subscribe gaps close", async () => {
     let islandOpen = false;
     let bumpGate: (() => void) | null = null;
 
@@ -452,8 +505,27 @@ describe("NotificationProvider island", () => {
     });
 
     expect(useNotificationRealtimeMock).toHaveBeenCalled();
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      useNotificationRealtimeMock.mock.lastCall?.[0].onSubscribed();
+      await Promise.resolve();
+    });
+
     expect(getNotificationsMock).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
+
+    getNotificationsMock.mockResolvedValue({ data: [] });
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 0, needsAction: 0, mentions: 0 },
+    });
+    await act(async () => {
+      useNotificationRealtimeMock.mock.lastCall?.[0].onSubscribed();
+      await Promise.resolve();
+    });
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(3);
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
   });
 });
 
