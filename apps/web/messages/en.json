@@ -5409,6 +5409,10 @@
             "title": "CMO spend",
             "description": "What each CMO bot (Cuso) spent, what owners were charged, and where the money went."
           },
+          "writingSkills": {
+            "title": "Writing skills",
+            "description": "How Cuso writes for each network: the skills he reads before every piece, and the checklist each piece is reviewed against."
+          },
           "designSystem": {
             "title": "Design system",
             "description": "Masumi Family brand and UI rules, rendered with our real components."
@@ -6644,6 +6648,17 @@
         "drifted": "{count} off the main offer",
         "unavailable": "{count} without the evaluator",
         "lastProblems": "Last sent back {at}:"
+      },
+      "WritingSkills": {
+        "title": "Writing skills",
+        "description": "What Cuso reads before he writes each kind of piece. Once a month is made, an evaluator reviews every piece against its skill's checklist and the brand voice, and sends back the pieces that miss.",
+        "listLabel": "Writing skills",
+        "channels": "Used for",
+        "checklist": "Before you save",
+        "checklistHint": "Each made piece is checked against these rules: the evaluator judges each rule, and Core's code counts the ones marked as counted.",
+        "onlyFor": "Only for {formats}",
+        "counted": "Counted in code",
+        "empty": "No writing skills yet."
       },
       "DesignSystem": {
         "title": "Design system",
@@ -10054,6 +10069,13 @@
         "dropped": "{item} moved to the place of {target}.",
         "cancelled": "Moving {item} was cancelled."
       },
+      "filterByTag": "Filter by {tag}",
+      "quickFilter": "{count, plural, =0 {Filter by {column}} one {Filter by {column}, # option selected} other {Filter by {column}, # options selected}}",
+      "matchAllOptions": "Rows with every selected option",
+      "clearFilter": "Clear",
+      "clearFilters": "Clear filters",
+      "removeFilter": "Remove filter: {column}",
+      "matchingRows": "{count, plural, one {# row matches} other {# rows match}}",
       "contactsName": "Contacts",
       "contactsPinned": "Pinned",
       "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}"

@@ -2,6 +2,7 @@ import {
   type CmoSystemSchedule,
   cmoRoutineSkipReason,
   type MarketingStrategyPlan,
+  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
@@ -93,6 +94,12 @@ export async function loadCmoMarketingContext(
     brandPictures: brandPictures.map((picture) => ({
       ...picture,
       alt: picture.alt.slice(0, 80),
+    })),
+    /** How to write each kind of piece: read one in full with read_writing_skill. */
+    writingSkills: WRITING_SKILLS.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      use: skill.description,
     })),
     strategy: strategy
       ? {

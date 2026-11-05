@@ -4,7 +4,7 @@ import {
   normalizeCmoChannelFormat,
 } from "@sokosumi/utils";
 import { z } from "zod";
-
+import { SOKO_BOT_SYSTEM_SCHEDULES } from "./proactive.js";
 import {
   brandBrainSchema,
   type CmoBrandSectionKey,
@@ -403,6 +403,37 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
       "Strategy reminder. The strategy you proposed has waited about two days for the owner's approval, and nothing runs until they approve it. Write one or two friendly sentences in the brand's language: what the plan does first, and that one click on Approve strategy (or a change request in chat) gets you started. Do not call tools. Do not repeat the whole plan.",
   },
 ];
+
+const STAND_UP_LINE =
+  "Never remind about goals, deadlines or follow-ups: the morning stand-up does that.";
+const dreaming = SOKO_BOT_SYSTEM_SCHEDULES.find(
+  (schedule) => schedule.key === "dreaming",
+);
+if (!dreaming?.promptShared?.includes(STAND_UP_LINE))
+  throw new Error("The dreaming rhythm changed: reword Cuso's dream");
+
+/**
+ * The one assistant rhythm Cuso keeps: the nightly dream, which turns the
+ * team's corrections and his own failed tools into lasting rules. It keeps
+ * its own key and packet, outside the routines' approval gate, and stays
+ * silent like every dream. Cuso has no stand-up, so his dream points to the
+ * daily run instead.
+ */
+export const CMO_DREAMING_SCHEDULE = {
+  key: "dreaming",
+  name: dreaming.name,
+  cronExpression: dreaming.cronExpression,
+  prompt: dreaming.promptShared.replace(
+    STAND_UP_LINE,
+    "Never remind about goals, deadlines, the plan or the calendar: your daily run does that.",
+  ),
+} as const;
+
+/** Every rhythm a CMO bot runs: its routines and the nightly dream. */
+export const SOKO_BOT_CMO_RHYTHMS = [
+  ...SOKO_BOT_CMO_SCHEDULES,
+  CMO_DREAMING_SCHEDULE,
+] as const;
 
 /** Routines that do work and so wait for the owner's approval. */
 const CMO_EXECUTING_KEYS: ReadonlySet<CmoSystemSchedule["key"]> = new Set([

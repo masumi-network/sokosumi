@@ -21,6 +21,7 @@ import mountMigrateAdminSokoBotVersions from "./versions/migrate/post.js";
 import mountListAdminSokoBotGatewayModels from "./versions/models/get.js";
 import mountCreateAdminSokoBotVersion from "./versions/post.js";
 import mountGetAdminSokoBotVersionUsage from "./versions/usage/get.js";
+import mountGetAdminWritingSkills from "./writing-skills/get.js";
 
 const app = createNestedOpenAPIHono();
 
@@ -38,6 +39,7 @@ mountArchiveAdminSokoBotVersion(app);
 mountPromoteAdminSokoBotVersion(app);
 mountGetAdminSokoBotVersionUsage(app);
 mountGetAdminCmoSpend(app);
+mountGetAdminWritingSkills(app);
 mountGetAdminSokoBotFleetDays(app);
 mountMigrateAdminSokoBotVersions(app);
 mountListAdminSokoBotChats(app);

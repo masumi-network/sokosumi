@@ -13,7 +13,8 @@ describe("social post writing guides", () => {
         SOCIAL_POST_WRITING_GUIDES[
           provider as keyof typeof SOCIAL_POST_WRITING_GUIDES
         ];
-      expect(guide.join(" ")).toMatch(/Plain text only/);
+      expect(guide.join(" ")).toMatch(/Plain text/);
+      expect(guide.join(" ")).toMatch(/first line/i);
     }
   });
 });
@@ -131,5 +132,25 @@ describe("formatting a bot's post", () => {
     expect(
       socialPostFormattingError("instagram", post("Shop at https://nmkr.io")),
     ).toMatch(/link in bio/);
+  });
+
+  it("sends back fake bold letters on every network", () => {
+    expect(socialPostFormattingError("x", post("𝗡𝗲𝘄 menu today."))).toMatch(
+      /fake bold or italic letters/,
+    );
+  });
+
+  it("sends back a wall of text where people read paragraphs, and names it", () => {
+    const wall = `We changed our whole menu this spring. ${"Every dish got a second look. ".repeat(14)}`;
+    const error = socialPostFormattingError("linkedin", post(wall));
+    expect(error).toMatch(/wall of text/);
+    expect(error).toContain('"We changed our whole menu this"');
+    expect(
+      socialPostFormattingError(
+        "linkedin",
+        post(wall.split(". ").join(".\n\n")),
+      ),
+    ).toBeNull();
+    expect(socialPostFormattingError("youtube", post(wall))).toBeNull();
   });
 });

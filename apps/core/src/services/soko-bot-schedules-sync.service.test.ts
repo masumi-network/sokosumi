@@ -292,6 +292,40 @@ describe("SokoBotSchedulesSyncService", () => {
     },
   );
 
+  it("runs a Cuso rhythm with his own registry prompt, his dream included", async () => {
+    botFindUniqueMock.mockResolvedValue({
+      id: "bot_1",
+      name: "Cuso",
+      userId: null,
+      createdByUserId: "creator_1",
+      workspaceId: dueSchedule.workspaceId,
+      ingestTimezone: "UTC",
+      followWholeBoard: false,
+      versionId: "cmo-v1",
+      workspace: { organizationId: "org_1" },
+    });
+    vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+      message: "Dreaming.",
+      nudgeKeys: [],
+      skip: false,
+    });
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      sokoBotId: "bot_1",
+      sokoBot: { userId: null },
+      systemKey: "dreaming",
+      prompt: "An old stored prompt",
+    });
+
+    await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    const [beat] = vi.mocked(buildSystemBeatMessage).mock.calls[0] ?? [];
+    expect(beat?.prompt).toContain("your daily run does that");
+    expect(beat?.prompt).not.toContain("stand-up");
+  });
+
   it("completes a quiet built-in rhythm without starting a turn", async () => {
     dueScheduleFindFirstMock.mockResolvedValue({
       ...dueSchedule,
