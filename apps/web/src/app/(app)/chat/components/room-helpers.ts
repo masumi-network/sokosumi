@@ -211,16 +211,6 @@ export function buildRoomAllMentionRecord(label: string): {
  * Partition filtered room mention suggestions into People (humans + @all)
  * and Coworkers. Omits empty sections. Preserves within-section filter order.
  */
-export function omitCoworkerMentionRecords<
-  T extends { data?: { kind?: string } },
->(records: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(records).filter(
-      ([, entry]) => entry.data?.kind !== "coworker",
-    ),
-  );
-}
-
 export function partitionRoomMentionSuggestions(
   filtered: NormalizedMention<RoomMentionParticipant>[],
   labels: {
@@ -822,19 +812,6 @@ export function mentionDirectTargetFromAttributes(
     return null;
   }
   return { kind, id };
-}
-
-export function parseMentionDirectChip(
-  node: Element,
-): MentionDirectTarget | null {
-  const host = node.closest("[data-direct-kind]");
-  if (!(host instanceof HTMLElement)) {
-    return null;
-  }
-  return mentionDirectTargetFromAttributes({
-    "data-direct-kind": host.dataset.directKind,
-    "data-direct-id": host.dataset.directId,
-  });
 }
 
 function humanPresence(value: unknown): ChatRoomPresence {

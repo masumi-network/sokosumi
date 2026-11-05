@@ -12,8 +12,6 @@ import {
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
-  omitCoworkerMentionRecords,
-  parseMentionDirectChip,
   partitionRoomMentionSuggestions,
   ROOM_MENTION_ALL_ID,
   ROOM_MENTION_ALL_SLUG,
@@ -199,38 +197,6 @@ describe("formatRoomMarkdownMentions", () => {
     });
 
     expect(formatted).toContain(">@Everyone</span>");
-  });
-});
-
-describe("parseMentionDirectChip", () => {
-  it("reads kind and id from a formatted Direct chip", () => {
-    const formatted = formatRoomMarkdownMentions({
-      content: `@${coworker.id}:${coworker.slug}`,
-      coworkersById: new Map([[coworker.id, coworker]]),
-      coworkersBySlug: new Map([[coworker.slug, coworker]]),
-      usersById: new Map(),
-      usersBySlug: new Map(),
-    });
-    const root = document.createElement("div");
-    root.innerHTML = formatted;
-    const chip = root.querySelector("[data-direct-kind]");
-    expect(chip).not.toBeNull();
-    expect(parseMentionDirectChip(chip as Element)).toEqual({
-      kind: "coworker",
-      id: coworker.id,
-    });
-  });
-
-  it("rejects inert mention chips and Channel links", () => {
-    const root = document.createElement("div");
-    root.innerHTML =
-      '<span class="text-foreground font-medium">@all</span> <a href="/chat/rooms/room-1">#general</a>';
-    const allChip = root.querySelector("span");
-    const channelLink = root.querySelector("a");
-    expect(allChip).not.toBeNull();
-    expect(channelLink).not.toBeNull();
-    expect(parseMentionDirectChip(allChip as Element)).toBeNull();
-    expect(parseMentionDirectChip(channelLink as Element)).toBeNull();
   });
 });
 
@@ -582,25 +548,6 @@ describe("partitionRoomMentionSuggestions", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]?.id).toBe("people");
     expect(groups[0]?.items).toEqual([unknown]);
-  });
-});
-
-describe("omitCoworkerMentionRecords", () => {
-  it("drops coworker picker rows and keeps humans", () => {
-    const records = {
-      human: {
-        value: "Ada",
-        data: { kind: "human" as const },
-      },
-      coworker: {
-        value: "Hermes",
-        data: { kind: "coworker" as const },
-      },
-    };
-
-    expect(omitCoworkerMentionRecords(records)).toEqual({
-      human: records.human,
-    });
   });
 });
 
