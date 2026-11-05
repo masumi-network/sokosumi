@@ -3233,7 +3233,6 @@
       },
       "Newsletter": {
         "title": "Newsletter",
-        "description": "Lege Absender, Erscheinungsbild und Begrüßungs-E-Mail für den Newsletter dieses Projekts fest.",
         "navigation": "Newsletter-Bereiche",
         "settings": "Einstellungen",
         "emptyTitle": "Richte deinen Newsletter ein",
@@ -3283,7 +3282,6 @@
         },
         "Subscribers": {
           "title": "Abonnenten",
-          "description": "Verwalte die Personen, die den Newsletter dieses Projekts erhalten.",
           "add": "Abonnenten hinzufügen",
           "import": "CSV importieren",
           "cancel": "Abbrechen",
@@ -3420,7 +3418,6 @@
         },
         "Issues": {
           "title": "Ausgaben",
-          "description": "Schreibe Newsletter-Ausgaben und sieh dir an, wie sie im Posteingang aussehen.",
           "newIssue": "Neue Ausgabe",
           "Ai": {
             "action": "Für mich schreiben",
@@ -3681,7 +3678,6 @@
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
           "title": "Anmeldeformular",
-          "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
           "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
           "previewTitle": "Vorschau des Anmeldeformulars",
           "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
@@ -3706,7 +3702,6 @@
         },
         "Analytics": {
           "title": "Statistiken",
-          "description": "Verfolge Abonnentenwachstum und Interaktionen mit deinem Newsletter.",
           "keyMetrics": "Newsletter-Kennzahlen",
           "rangeLabel": "Zeitraum",
           "rangeSelected": "Zeitraum: {range}",
@@ -4813,8 +4808,7 @@
           "subject": "Neue Saison, neue Farben",
           "body": "Sand, Ton und ein tiefes Meeresblau: die Palette hinter der Sommerkollektion."
         }
-      },
-      "projectTitle": "Newsletter von {project}"
+      }
     },
     "Social": {
       "title": "Social-Media-Beiträge",
