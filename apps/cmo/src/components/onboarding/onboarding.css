@@ -1491,6 +1491,22 @@ body:has(.ob) .site-header {
     min-height: 320px;
   }
 
+  /* A screen's own buttons span the width on a phone; the primary leads. */
+  .ob-title-action {
+    width: 100%;
+  }
+
+  .ob-title-action > *,
+  .ob-main .button:not(.button-small):not(.button-ghost) {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ob-title-action > .button:not(.button-secondary) {
+    order: -1;
+  }
+
   /* The action comes first: the question card, or the finished card. */
   .ob-site-right {
     order: -1;
