@@ -1,5 +1,4 @@
 import type {
-  Coworker,
   ProjectSeoWorkspace,
   SeoAuditChatHistory,
 } from "@sokosumi/core-client";
@@ -19,8 +18,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import messages from "../../../../../messages/en.json";
+import { SeoMonitors } from "./seo-monitors";
 import { SEO_TEST_AUDIT, seoTestWorkspace } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
+import { useSeoWorkspace } from "./use-seo-workspace";
 
 const { mutate, viewer, ensureRoom, push } = vi.hoisted(() => ({
   mutate: vi.fn(),
@@ -86,11 +87,15 @@ function nativeChatNetwork(
   return requests;
 }
 
+function SeoMonitorPanel({ workspace }: { workspace: ProjectSeoWorkspace }) {
+  return <SeoMonitors model={useSeoWorkspace(workspace)} />;
+}
 function renderWorkspace(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
-  coworkers: Coworker[] = [],
+  monitorsOnly = false,
 ) {
+  const View = monitorsOnly ? SeoMonitorPanel : SeoWorkspace;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -104,7 +109,7 @@ function renderWorkspace(
         messages={messages}
       >
         <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-          <SeoWorkspace workspace={workspace} coworkers={coworkers} />
+          <View workspace={workspace} />
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
     </QueryClientProvider>
@@ -123,7 +128,7 @@ function renderWorkspace(
             messages={messages}
           >
             <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-              <SeoWorkspace workspace={workspace} coworkers={coworkers} />
+              <View workspace={workspace} />
             </NuqsTestingAdapter>
           </NextIntlClientProvider>
         </QueryClientProvider>,
@@ -265,9 +270,84 @@ describe("SEO workspace integration", () => {
           within(dialog).getByRole("combobox", { name: "Property" }),
         ).toHaveTextContent("Example website"),
       );
+      expect(within(dialog).getByLabelText("Start date")).toHaveValue(
+        "2026-01-01",
+      );
+      expect(within(dialog).getByLabelText("End date")).toHaveValue(
+        "2026-01-02",
+      );
       await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     }
   });
+
+  it.each([
+    { query: "", from: "", to: "" },
+    {
+      query: "from=2026-11-01&to=2026-11-05",
+      from: "2026-11-01",
+      to: "2026-11-05",
+    },
+  ])(
+    "keeps Audit activity dates ($from / $to) when syncing a different Google reporting period",
+    async ({ query, from, to }) => {
+      const user = userEvent.setup();
+      const workspace = seoTestWorkspace();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) => {
+          if (String(url).includes("statistics/properties"))
+            return Response.json({
+              provider: "ga4",
+              status: "available",
+              reason: null,
+              properties: [{ id: "properties/123", name: "Example website" }],
+            });
+          return Response.json(workspace);
+        }),
+      );
+      mutate.mockResolvedValue({ ok: true, value: null });
+      renderWorkspace(workspace, query);
+      await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+      const dialog = screen.getByRole("dialog");
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("combobox", { name: "Property" }),
+        ).toHaveTextContent("Example website"),
+      );
+      fireEvent.change(within(dialog).getByLabelText("Start date"), {
+        target: { value: "2026-10-01" },
+      });
+      fireEvent.change(within(dialog).getByLabelText("End date"), {
+        target: { value: "2026-10-31" },
+      });
+      await user.click(
+        within(dialog).getByRole("button", { name: "Sync statistics" }),
+      );
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          expect.stringContaining("channel=all"),
+          expect.anything(),
+        ),
+      );
+      expect(screen.getByLabelText(messages.App.Seo.dateFrom)).toHaveValue(
+        from,
+      );
+      expect(screen.getByLabelText(messages.App.Seo.dateTo)).toHaveValue(to);
+      expect(mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: {
+            kind: "sync_statistics",
+            body: expect.objectContaining({
+              provider: "ga4",
+              propertyId: "properties/123",
+              from: "2026-10-01",
+              to: "2026-10-31",
+            }),
+          },
+        }),
+      );
+    },
+  );
 
   it("hides the previous page's evidence while a newly selected page loads", async () => {
     const user = userEvent.setup();
@@ -398,7 +478,7 @@ describe("SEO workspace integration", () => {
     });
   });
 
-  it("requires an explicit executor choice when the sole candidate only proves generic Task capability", async () => {
+  it("starts a native HTML check without a prior import or caller-selected executor", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
@@ -406,19 +486,13 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace, "", [
-      {
-        id: "task-worker",
-        name: "Translation worker",
-        capabilities: ["tasks"],
-      } as Coworker,
-    ]);
+    renderWorkspace(workspace);
     await user.click(screen.getByRole("button", { name: "Run a check" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByLabelText("Maximum data requests")).toBeNull();
     expect(
-      within(dialog).getByText(/Reads the selected pages.*HTML/),
-    ).toBeVisible();
+      within(dialog).queryByRole("combobox", { name: /coworker/i }),
+    ).toBeNull();
     await user.click(
       within(dialog).getByRole("combobox", { name: "Search country" }),
     );
@@ -427,32 +501,69 @@ describe("SEO workspace integration", () => {
     await user.click(
       within(dialog).getByRole("button", { name: "Start check" }),
     );
-    expect(mutate).not.toHaveBeenCalled();
-    const selector = within(dialog).getByRole("combobox", {
-      name: "SEO coworker",
-    });
-    expect(selector).not.toHaveTextContent("Translation worker");
-    await user.click(selector);
-    await user.click(
-      screen.getByRole("option", { name: "Translation worker" }),
-    );
-    await user.click(
-      within(dialog).getByRole("button", { name: "Start check" }),
-    );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        command: {
-          kind: "request_analysis",
-          body: expect.objectContaining({
-            kind: "page_check",
-            maxProviderCalls: 0,
-            coworkerId: "task-worker",
-          }),
-        },
-      }),
+    expect(mutate.mock.calls[0][0].command).toMatchObject({
+      kind: "request_analysis",
+      body: {
+        kind: "page_check",
+        maxProviderCalls: 0,
+        scopeId: workspace.scope.id,
+        expectedScopeVersion: 2,
+      },
+    });
+    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+      "coworkerId",
     );
   });
+
+  it.each([false, undefined])(
+    "keeps unapproved paid operations out of native checks (%s)",
+    async (permission) => {
+      const user = userEvent.setup();
+      const workspace = seoTestWorkspace();
+      workspace.availableActions.canUsePaidSearchData = permission;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      mutate.mockResolvedValue({ ok: true, value: null });
+      renderWorkspace(workspace);
+      await user.click(screen.getByRole("button", { name: "Run a check" }));
+      const dialog = screen.getByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("combobox", { name: "Check type" }),
+      );
+      expect(
+        screen.queryByRole("option", { name: "Keyword positions" }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("option", { name: "Backlink overview" }),
+      ).toBeNull();
+      expect(screen.queryByRole("option", { name: "Full audit" })).toBeNull();
+      await user.click(screen.getByRole("option", { name: "Audit lite" }));
+      expect(within(dialog).queryByLabelText("Keyword positions")).toBeNull();
+      expect(
+        within(dialog).queryByLabelText("Maximum data requests"),
+      ).toBeNull();
+      await user.click(
+        within(dialog).getByRole("combobox", { name: "Search country" }),
+      );
+      await user.click(screen.getByRole("option", { name: "DE" }));
+      await user.type(within(dialog).getByLabelText("Search language"), "de");
+      await user.click(
+        within(dialog).getByRole("button", { name: "Start check" }),
+      );
+      await waitFor(() => expect(mutate).toHaveBeenCalled());
+      expect(mutate.mock.calls[0][0].command.body).toMatchObject({
+        kind: "audit_lite",
+        analyses: ["page.inspect"],
+        maxProviderCalls: 0,
+      });
+      expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
+        "coworkerId",
+      );
+    },
+  );
 
   it("shows a paid-data budget only when Audit lite includes provider-backed checks", async () => {
     const user = userEvent.setup();
@@ -461,9 +572,7 @@ describe("SEO workspace integration", () => {
       "fetch",
       vi.fn(async () => Response.json(workspace)),
     );
-    renderWorkspace(workspace, "", [
-      { id: "worker", name: "Worker" } as Coworker,
-    ]);
+    renderWorkspace(workspace);
     await user.click(screen.getByRole("button", { name: "Run a check" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
@@ -488,92 +597,41 @@ describe("SEO workspace integration", () => {
     );
   });
 
-  it("preserves the imported-report executor instead of silently replacing it with a generic Task worker", async () => {
+  it("keeps unavailable first-use recovery inside SEO without promising a hidden check", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
-    workspace.observations.push({
-      id: "imported-report",
-      kind: "page_check",
-      source: "seo_coworker",
-      sourceTaskId: "trusted-seo-task",
-      pageIds: workspace.scope.pageIds,
-      observedAt: new Date("2026-01-01T12:00:00Z"),
-      scopeVersion: workspace.scope.version,
-      countryCode: "DE",
-      languageCode: "de",
-      devices: ["desktop"],
-      rulebookVersion: "test-fixture",
-      artifactHash: "test-fixture",
-      coverage: { checked: 1, skipped: 0, failed: 0 },
-    });
+    workspace.availableActions.canRequestAnalysis = false;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("/imports?")
+            ? { tasks: [], nextCursor: null }
+            : workspace,
+        ),
+      ),
     );
-    mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace, "", [
-      {
-        id: "translation-worker",
-        name: "Translation worker",
-        capabilities: ["tasks"],
-      } as Coworker,
-    ]);
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
-    const dialog = screen.getByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("combobox", { name: "Search country" }),
-    );
-    await user.click(screen.getByRole("option", { name: "DE" }));
-    await user.type(within(dialog).getByLabelText("Search language"), "de");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Start check" }),
-    );
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
-    expect(mutate.mock.calls[0][0].command.body).not.toHaveProperty(
-      "coworkerId",
-    );
-    expect(mutate.mock.calls[0][0].command.body.maxProviderCalls).toBe(0);
-  });
-
-  it("keeps multiple Coworkers explicit and provides native recovery when no executor is available", async () => {
-    const user = userEvent.setup();
-    const workspace = seoTestWorkspace();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => Response.json(workspace)),
-    );
-    const view = renderWorkspace(workspace, "", [
-      { id: "first", name: "First worker" } as Coworker,
-      { id: "second", name: "Second worker" } as Coworker,
-    ]);
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
-    let dialog = screen.getByRole("dialog");
-    const selector = within(dialog).getByRole("combobox", {
-      name: "SEO coworker",
-    });
-    expect(selector).not.toHaveTextContent("First worker");
-    expect(selector).not.toHaveTextContent("Second worker");
-    await user.click(selector);
-    await user.click(screen.getByRole("option", { name: "Second worker" }));
-    expect(selector).toHaveTextContent("Second worker");
-    view.unmount();
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Run a check" }));
-    dialog = screen.getByRole("dialog");
+    expect(screen.queryByRole("button", { name: "Run a check" })).toBeNull();
     expect(
-      within(dialog).getByRole("button", { name: "Start check" }),
-    ).toBeDisabled();
-    expect(
-      within(dialog).getByRole("button", { name: "Import report" }),
-    ).toBeVisible();
-    expect(within(dialog).queryByRole("link")).toBeNull();
-    await user.click(
-      within(dialog).getByRole("button", { name: "Return to audit" }),
+      screen.queryByText(
+        "Run a page check or import a completed report. Add related pages to compare them in one audit.",
+      ),
+    ).toBeNull();
+    expect(screen.getByRole("link", { name: "All audits" })).toHaveAttribute(
+      "href",
+      "/seo",
     );
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: /bot|coworker|assistant/i }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Import a report" }));
+    expect(
+      screen.getByRole("dialog", { name: "Import an audit" }),
+    ).toBeVisible();
   });
 
-  it("schedules finite monitoring with an explicitly selected Coworker, market and per-run budget", async () => {
+  it("schedules finite native monitoring with its market and per-run budget", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
@@ -581,9 +639,7 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace, "", [
-      { id: "seo-coworker", name: "SEO Coworker" } as Coworker,
-    ]);
+    renderWorkspace(workspace);
     await user.click(screen.getByRole("button", { name: "Schedule checks" }));
     const dialog = screen.getByRole("dialog");
     await user.click(
@@ -607,10 +663,6 @@ describe("SEO workspace integration", () => {
       within(dialog).getByLabelText("Maximum data requests"),
       "2",
     );
-    await user.click(
-      within(dialog).getByRole("combobox", { name: "SEO coworker" }),
-    );
-    await user.click(screen.getByRole("option", { name: "SEO Coworker" }));
     await user.clear(within(dialog).getByLabelText("Number of runs"));
     const monitorForm = dialog.querySelector("form");
     if (!monitorForm) throw new Error("Missing monitor form");
@@ -637,12 +689,118 @@ describe("SEO workspace integration", () => {
             countryCode: "DE",
             languageCode: "de",
             keywords: ["stablecoins"],
-            coworkerId: "seo-coworker",
             maxProviderCalls: 2,
           }),
         },
       },
     });
+    expect(mutate.mock.calls[0][0].command.body.analysis).not.toHaveProperty(
+      "coworkerId",
+    );
+  });
+
+  it.each([false, undefined])(
+    "keeps one-off checks available without an approved scheduler (%s)",
+    async (permission) => {
+      const user = userEvent.setup();
+      const workspace = seoTestWorkspace();
+      workspace.availableActions.canCreateMonitor = permission;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      const view = renderWorkspace(workspace);
+      expect(screen.getByRole("button", { name: "Run a check" })).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Schedule checks" }),
+      ).toBeNull();
+      expect(screen.queryByText("Monitoring")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Manage SEO" }));
+      expect(
+        screen.queryByRole("menuitem", { name: "Schedule checks" }),
+      ).toBeNull();
+      view.unmount();
+      renderWorkspace(workspace, "", true);
+      expect(
+        screen.getByText("Scheduled checks are unavailable in this workspace."),
+      ).toBeVisible();
+      expect(screen.queryByText(messages.App.Seo.monitor.emptyBody)).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Schedule checks" }),
+      ).toBeNull();
+    },
+  );
+
+  it("blocks an open monitor form when scheduler readiness is withdrawn", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canUsePaidSearchData = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const view = renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "Schedule checks" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText(messages.App.Seo.analysis.htmlService),
+    ).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Search country" }),
+    );
+    await user.click(screen.getByRole("option", { name: "DE" }));
+    await user.type(within(dialog).getByLabelText("Search language"), "de");
+    await act(async () => {
+      view.client.setQueryData(
+        ["seo-workspace", "org", "owner", "project", workspace.projectId, ""],
+        {
+          ...workspace,
+          availableActions: {
+            ...workspace.availableActions,
+            canRequestAnalysis: false,
+            canCreateMonitor: false,
+          },
+        },
+      );
+    });
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Schedule checks" }),
+      ).toBeDisabled(),
+    );
+    expect(
+      within(dialog).queryByText(messages.App.Seo.analysis.htmlService),
+    ).toBeNull();
+    const form = dialog.querySelector("form");
+    if (!form) throw new Error("Missing monitor form");
+    fireEvent.submit(form);
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("clears activity dates instead of claiming filtered reports are first-use results", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.scope.from = "2026-11-01";
+    workspace.scope.to = "2026-11-02";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "from=2026-11-01&to=2026-11-02");
+    expect(screen.queryByText(messages.App.Seo.overview.getStarted)).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Clear activity dates" }),
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText(messages.App.Seo.dateFrom)).toHaveValue("");
+      expect(screen.getByLabelText(messages.App.Seo.dateTo)).toHaveValue("");
+    });
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/seo\?$/),
+        expect.any(Object),
+      ),
+    );
   });
 
   it("records an explicit page-change note without editing the source page", async () => {
@@ -688,7 +846,7 @@ describe("SEO workspace integration", () => {
     });
   });
 
-  it("binds both import dialog reads to the current viewer before importing a ready report", async () => {
+  it("retries selected report details without losing the Task or viewer binding", async () => {
     const user = userEvent.setup();
     const workspace = {
       ...seoTestWorkspace(),
@@ -710,6 +868,7 @@ describe("SEO workspace integration", () => {
       ],
     };
     const reads: Array<{ url: string; viewer: string | null }> = [];
+    let detailReads = 0;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -718,6 +877,11 @@ describe("SEO workspace integration", () => {
           url,
           viewer: new Headers(init?.headers).get(SEO_VIEWER_HEADER),
         });
+        if (url.includes("taskId=") && ++detailReads === 1)
+          return Response.json(
+            { message: "Temporary source failure" },
+            { status: 503 },
+          );
         return Response.json(
           url.includes("taskId=")
             ? { task }
@@ -735,12 +899,23 @@ describe("SEO workspace integration", () => {
       await within(dialog).findByRole("combobox", { name: "Completed task" }),
     );
     await user.click(screen.getByRole("option", { name: task.name }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Failed to load audit sources",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Try again" }));
+    expect(
+      within(dialog).getByRole("combobox", { name: "Completed task" }),
+    ).toHaveTextContent(task.name);
     await user.click(
       await within(dialog).findByRole("combobox", { name: "SEO report" }),
     );
     await user.click(screen.getByRole("option", { name: task.files[0].name }));
     expect(reads).toEqual([
       { url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?q=`, viewer: "owner" },
+      {
+        url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?taskId=${task.id}`,
+        viewer: "owner",
+      },
       {
         url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?taskId=${task.id}`,
         viewer: "owner",

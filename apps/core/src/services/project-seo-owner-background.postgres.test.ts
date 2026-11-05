@@ -45,10 +45,19 @@ const otherActor: SeoActor = {
   owner: { kind: "audit", id: otherAuditId },
 };
 const previousDispatchEnabled = getEnv().SEO_ANALYSIS_DISPATCH_ENABLED;
+const previousExecutor = getEnv().SEO_ANALYSIS_EXECUTOR;
 
 describe.skipIf(!enabled)("Independent Audit background ownership", () => {
   beforeAll(async () => {
     getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = true;
+    getEnv().SEO_ANALYSIS_EXECUTOR = {
+      coworkerId,
+      workspaceId,
+      ownerId: userId,
+      organizationId: null,
+      canUsePaidSearchData: false,
+      canSchedule: true,
+    };
     await prisma.user.create({
       data: {
         id: userId,
@@ -86,6 +95,7 @@ describe.skipIf(!enabled)("Independent Audit background ownership", () => {
 
   afterAll(async () => {
     getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatchEnabled;
+    getEnv().SEO_ANALYSIS_EXECUTOR = previousExecutor;
     await prisma.task.deleteMany({ where: { workspaceId } });
     await prisma.workspace.deleteMany({ where: { id: workspaceId } });
     await prisma.user.deleteMany({ where: { id: userId } });

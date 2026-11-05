@@ -56,6 +56,8 @@ interface ProjectionInput {
   tasks: Array<{ id: string; status: string; completedAt: Date | null }>;
   privateMetricsAllowed: boolean;
   analysisDispatchEnabled?: boolean;
+  canUsePaidSearchData?: boolean;
+  canSchedule?: boolean;
   monitors?: ProjectSeoWorkspace["monitors"];
 }
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
@@ -159,6 +161,7 @@ export function projectSeoProjection(
   const taskStatuses = new Map(
     input.tasks.map((task) => [task.id, task.status]),
   );
+  const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
     if (row.kind === "page_change") {
@@ -186,11 +189,6 @@ export function projectSeoProjection(
       if (
         data.pageUrls.length !== selectedUrls.size ||
         data.pageUrls.some((url) => !selectedUrls.has(normalizeSeoUrl(url)))
-      )
-        continue;
-      if (
-        (query.from && data.from !== query.from) ||
-        (query.to && data.to !== query.to)
       )
         continue;
       if (query.channel && data.channel !== query.channel) continue;
@@ -230,11 +228,26 @@ export function projectSeoProjection(
         });
       continue;
     }
-    if (!matchesSeoPeriod(row.observedAt, query)) continue;
     const parsed = publicSeoPayloadSchema.safeParse(row.payload);
     if (!parsed.success)
       throw internalServerError("Stored SEO evidence is not readable");
     const data = parsed.data;
+    scopedPublicSources.set(row.id, row);
+    timeline.push({
+      id: `observation:${row.id}`,
+      kind: row.kind === "audit_full" ? "audit" : "check",
+      title:
+        row.kind === "audit_full"
+          ? "SEO audit imported"
+          : "SEO check results imported",
+      at: row.createdAt.toISOString(),
+      pageIds: row.pageIds,
+      observationId: row.id,
+      taskId: row.sourceTaskId,
+      status: data.coverage.failed ? "partial" : "completed",
+      detail: `${data.coverage.checked} checks recorded. ${data.coverage.skipped} skipped. ${data.coverage.failed} failed.`,
+    });
+    if (!matchesSeoPeriod(row.observedAt, query)) continue;
     observations.push({
       id: row.id,
       kind: row.kind,
@@ -392,20 +405,6 @@ export function projectSeoProjection(
           : "recommended",
       });
     }
-    timeline.push({
-      id: `observation:${row.id}`,
-      kind: row.kind === "audit_full" ? "audit" : "check",
-      title:
-        row.kind === "audit_full"
-          ? "SEO audit imported"
-          : "Focused SEO check completed",
-      at: row.createdAt.toISOString(),
-      pageIds: row.pageIds,
-      observationId: row.id,
-      taskId: row.sourceTaskId,
-      status: data.coverage.failed ? "partial" : "completed",
-      detail: `${data.coverage.checked} checks recorded. ${data.coverage.skipped} skipped. ${data.coverage.failed} failed.`,
-    });
   }
   for (const choice of input.keywords) {
     if (
@@ -453,9 +452,7 @@ export function projectSeoProjection(
         exclusionReason: null,
       });
   for (const link of input.actionTasks) {
-    const observation = observations.find(
-      (row) => row.id === link.observationId,
-    );
+    const observation = scopedPublicSources.get(link.observationId);
     if (!observation) continue;
     timeline.push({
       id: `action:${link.id}`,
@@ -539,7 +536,9 @@ export function projectSeoProjection(
       : metrics.some((metric) => metric.coverage !== "complete")
         ? "partial"
         : "available",
-    timeline,
+    timeline: timeline.filter((item) =>
+      matchesSeoPeriod(new Date(item.at), query),
+    ),
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),
@@ -549,6 +548,15 @@ export function projectSeoProjection(
       canRequestAnalysis:
         editable &&
         input.analysisDispatchEnabled === true &&
+        scope.pageIds.length > 0,
+      canUsePaidSearchData:
+        editable &&
+        input.analysisDispatchEnabled === true &&
+        input.canUsePaidSearchData === true,
+      canCreateMonitor:
+        editable &&
+        input.analysisDispatchEnabled === true &&
+        input.canSchedule === true &&
         scope.pageIds.length > 0,
       canSyncMetrics:
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,

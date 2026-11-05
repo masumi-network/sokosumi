@@ -71,6 +71,76 @@ describe("resolveWebRelatedProjectFallbackHost", () => {
 });
 
 describe("Soko Bot deployment environment", () => {
+  it("parses an exact SEO executor assertion and keeps paid search data opt-in", () => {
+    const executor = {
+      coworkerId: "seo-coworker",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+    };
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", undefined);
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toBeUndefined();
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", "");
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toBeUndefined();
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", JSON.stringify(executor));
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR).toEqual({
+      ...executor,
+      canUsePaidSearchData: false,
+      canSchedule: false,
+    });
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ ...executor, canUsePaidSearchData: true }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canUsePaidSearchData).toBe(
+      true,
+    );
+    vi.stubEnv(
+      "SEO_ANALYSIS_EXECUTOR",
+      JSON.stringify({ ...executor, canSchedule: true }),
+    );
+    expect(validateEnv().SEO_ANALYSIS_EXECUTOR?.canSchedule).toBe(true);
+  });
+  it.each([
+    "{",
+    "null",
+    "{}",
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "not-a-uuid",
+      ownerId: "owner",
+      organizationId: null,
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      canUsePaidSearchData: "true",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      canSchedule: "true",
+    }),
+    JSON.stringify({
+      coworkerId: "seo",
+      workspaceId: "9a7b54e5-0990-4fc5-890b-1f3e479f1c60",
+      ownerId: "owner",
+      organizationId: null,
+      taskIds: [],
+    }),
+  ])("rejects malformed or widened SEO executor assertion %s", (value) => {
+    vi.stubEnv("SEO_ANALYSIS_EXECUTOR", value);
+    expectInvalidEnvironment("SEO_ANALYSIS_EXECUTOR");
+  });
   it("keeps SEO analysis dispatch off unless the worker rollout is explicitly enabled", () => {
     vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", undefined);
     expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);

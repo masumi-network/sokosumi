@@ -10,13 +10,39 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoGettingStarted({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data } = model;
+  if (model.filters.from || model.filters.to) {
+    return (
+      <section className={cn(HOLDER_ITEM_CLASS, "space-y-4 p-5 sm:p-6")}>
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">
+            {t("overview.noMeasuredReports")}
+          </h2>
+          <p className="text-muted-foreground max-w-prose text-sm">
+            {t("overview.noMeasuredReportsBody")}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            void model.setFilters({ from: null, to: null });
+          }}
+        >
+          {t("overview.clearActivityDates")}
+        </Button>
+      </section>
+    );
+  }
   if (!data.availableActions.canEdit) return null;
   return (
     <section className={cn(HOLDER_ITEM_CLASS, "space-y-4 p-5 sm:p-6")}>
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">{t("overview.getStarted")}</h2>
         <p className="text-muted-foreground max-w-prose text-sm">
-          {t("overview.getStartedBody")}
+          {t(
+            data.availableActions.canRequestAnalysis
+              ? "overview.getStartedBody"
+              : "overview.getStartedUnavailable",
+          )}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

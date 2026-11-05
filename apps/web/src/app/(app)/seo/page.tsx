@@ -3,7 +3,6 @@ import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
-import { coworkerService } from "@/lib/services/coworker.service";
 import { seoService } from "@/lib/services/seo.service";
 import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
@@ -46,19 +45,12 @@ export default async function SeoPage({
     const owner = auditId
       ? { kind: "audit" as const, id: auditId }
       : { kind: "project" as const, id: projectId! };
-    const [workspace, coworkers] = await Promise.all([
-      seoService.getWorkspace(owner, query),
-      coworkerService.listCoworkers("tasks").catch((error: unknown) => {
-        unstable_rethrow(error);
-        return [];
-      }),
-    ]);
+    const workspace = await seoService.getWorkspace(owner, query);
     return (
       <WorkspacePageShell title={t("title")}>
         <SeoWorkspace
           key={workspace.auditId ?? workspace.projectId}
           workspace={workspace}
-          coworkers={coworkers}
         />
       </WorkspacePageShell>
     );

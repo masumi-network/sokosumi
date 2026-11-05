@@ -96,7 +96,18 @@ export function SeoImportDialog({ model }: { model: SeoWorkspaceModel }) {
             form.selectedTask.isPending ? (
               <p role="status">{t("loading")}</p>
             ) : form.selectedTask.isError ? (
-              <p role="alert">{t("import.failed")}</p>
+              <div role="alert" className="space-y-2">
+                <p>{t("import.failed")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void form.selectedTask.refetch();
+                  }}
+                >
+                  {t("retry")}
+                </Button>
+              </div>
             ) : form.files.length ? (
               <SeoField id="seo-import-file" label={t("import.file")}>
                 <SeoSelect

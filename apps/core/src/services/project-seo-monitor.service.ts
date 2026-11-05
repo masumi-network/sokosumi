@@ -3,7 +3,10 @@ import type { Prisma, TaskSchedule } from "@sokosumi/database";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
-import { requireSeoAnalysisDispatch } from "@/lib/seo/analysis-dispatch";
+import {
+  requireSeoAnalysisDispatch,
+  requireSeoAnalysisExecutor,
+} from "@/lib/seo/analysis-dispatch";
 import {
   parseSeoMonitorPlan,
   SEO_MONITOR_CRON,
@@ -46,8 +49,12 @@ export async function createProjectSeoMonitor(
   const owner = await requireSeoOwner(actor, prisma, true);
   if (input.analysis.kind === "audit_full")
     throw badRequest("Monitoring supports bounded focused analyses only");
-  if (!input.analysis.coworkerId)
-    throw badRequest("Choose the Coworker approved for each monitor Run");
+  const executor = await requireSeoAnalysisExecutor(actor, input.analysis);
+  if (!executor.canSchedule)
+    throw conflict(
+      "Automatic SEO monitoring is unavailable for this check service",
+    );
+  const preparedAnalysis = executor.analysis;
   const scope = await resolveSeoScope(actor, input.analysis);
   if (
     input.analysis.scopeId &&
@@ -57,11 +64,12 @@ export async function createProjectSeoMonitor(
       "The page group changed. Reload it before scheduling monitoring.",
     );
   validateSeoAnalysis(
-    input.analysis,
+    preparedAnalysis,
     scope.pages.map((page) => page.url),
   );
   const analysis = requestSeoAnalysisSchema.parse({
-    ...input.analysis,
+    ...preparedAnalysis,
+    coworkerId: executor.coworkerId,
     scopeId: undefined,
     expectedScopeVersion: undefined,
     pageIds: scope.pageIds,
@@ -155,6 +163,7 @@ export async function releaseSeoMonitorRun(
     tx,
     {},
     packet.scopeVersion,
+    true,
   );
   if (!analysis.taskId)
     throw conflict("The monitor analysis did not create its Task");

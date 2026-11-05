@@ -9903,6 +9903,8 @@ export type ProjectSeoWorkspace = {
     availableActions: {
         canEdit: boolean;
         canRequestAnalysis: boolean;
+        canUsePaidSearchData?: boolean;
+        canCreateMonitor?: boolean;
         canSyncMetrics: boolean;
     };
 };

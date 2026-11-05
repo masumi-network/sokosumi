@@ -8,6 +8,8 @@ INFERRED: The journeys below define acceptance for the current UX revision. A lo
 
 INFERRED: Open Marketing, then SEO. Enter an Audit name and the first public page URL in the inline form.
 
+INFERRED: The SEO navigation opens Workspace Audits even when a Sokosumi Project was selected. Existing bookmarked Project report links remain readable.
+
 INFERRED: Creating the Audit saves the page collection. It does not create a bot or start a paid check.
 
 INFERRED: Use Pages to add related URLs. Save a page selection when several pages need the same checks.
@@ -26,6 +28,8 @@ INFERRED: Choose an authorized property and a period in Sync statistics. Presets
 
 INFERRED: Later syncs retain the saved source and property. A changed Google account must expose that property before reuse.
 
+INFERRED: Statistics retain their own reporting period. Syncing a report does not change Audit activity dates or hide new findings.
+
 INFERRED: Overview shows one saved source snapshot and one selected metric trend. It never adds overlapping periods or distinct-user totals.
 
 INFERRED: Zero means a measured zero. Missing values remain unavailable. Measurement details show coverage, period, time zone and source notes.
@@ -37,6 +41,16 @@ INFERRED: Expired or revoked Google consent offers Reconnect. A temporary provid
 INFERRED: Import report accepts a completed, accessible SEO report. Its pages and source evidence must match the selected scope.
 
 INFERRED: Run check creates a bounded Task for the selected pages. The worker must support its requested operations and call limit.
+
+INFERRED: Core selects the configured SEO service. The native forms never ask for a Coworker, bot profile or executor ID.
+
+INFERRED: A service without paid search-data permission offers HTML page checks and HTML-only Audit lite. An explicitly approved paid service also offers rankings, links and full audits.
+
+INFERRED: Schedule checks appears only when the configured service has approved scheduler access. One-off checks can remain available without it.
+
+INFERRED: If checks are unavailable, import an existing report or use connected statistics. First-use copy does not promise a hidden check.
+
+INFERRED: A failed report-detail read offers Retry and keeps the selected Task.
 
 INFERRED: Keywords distinguishes observed results from saved target pages. Only ranked status with a measured position proves a ranking.
 

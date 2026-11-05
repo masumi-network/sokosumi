@@ -3,7 +3,10 @@ import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { requireSeoAnalysisDispatch } from "@/lib/seo/analysis-dispatch";
+import {
+  requireSeoAnalysisDispatch,
+  requireSeoAnalysisExecutor,
+} from "@/lib/seo/analysis-dispatch";
 import type {
   RequestSeoAnalysis,
   SeoActor,
@@ -128,6 +131,7 @@ export async function requestProjectSeoAnalysisInTransaction(
   tx: Prisma.TransactionClient,
   hooks: SeoMutationHooks = {},
   frozenScopeVersion?: number,
+  requireScheduledExecutor = false,
 ) {
   requireSeoAnalysisDispatch();
   const requestHash = sha256(JSON.stringify(input));
@@ -146,6 +150,13 @@ export async function requestProjectSeoAnalysisInTransaction(
       throw conflict("This analysis key was already used for another request");
     return commitSeoMutation(tx, previous, hooks);
   }
+  const executor = await requireSeoAnalysisExecutor(actor, input, tx);
+  if (requireScheduledExecutor && !executor.canSchedule)
+    throw conflict(
+      "Automatic SEO monitoring is unavailable for this check service",
+    );
+  input = executor.analysis;
+  const coworkerId = executor.coworkerId;
   const scope = await resolveSeoScope(actor, input, tx),
     pageUrls = scope.pages.map((page) => page.url);
   if (input.scopeId && input.expectedScopeVersion !== scope.version)
@@ -153,36 +164,6 @@ export async function requestProjectSeoAnalysisInTransaction(
       "The page group changed. Reload it before requesting an analysis.",
     );
   validateSeoAnalysis(input, pageUrls);
-  let coworkerId = input.coworkerId;
-  if (!coworkerId) {
-    const latest = await tx.projectSeoObservation.findFirst({
-      where: {
-        ...seoOwnerWhere(actor),
-        source: "seo_coworker",
-        ownerId: null,
-        sourceTaskId: { not: null },
-        sourceFileId: { not: null },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { sourceTaskId: true, sourceFileId: true },
-    });
-    if (latest?.sourceTaskId && latest.sourceFileId)
-      coworkerId =
-        (
-          await tx.taskFile.findFirst({
-            where: {
-              id: latest.sourceFileId,
-              taskId: latest.sourceTaskId,
-              task: { workspaceId: actor.workspaceId },
-            },
-            select: { uploadedByCoworkerId: true },
-          })
-        )?.uploadedByCoworkerId ?? undefined;
-  }
-  if (!coworkerId)
-    throw badRequest(
-      "Choose an SEO Coworker, or import its completed audit first",
-    );
   const initialRequest: Prisma.InputJsonObject = {
     pageUrls,
     countryCode: input.countryCode,

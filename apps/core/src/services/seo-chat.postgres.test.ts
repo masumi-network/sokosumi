@@ -312,6 +312,22 @@ describe.skipIf(!enabled)(
     it("removes paused analysis actions from new replies, completed history and replay", async () => {
       const { actor } = await createConversation("Dispatch policy");
       const previous = getEnv().SEO_ANALYSIS_DISPATCH_ENABLED;
+      const previousExecutor = getEnv().SEO_ANALYSIS_EXECUTOR;
+      const vendorId = randomUUID();
+      const coworkerId = randomUUID();
+      await prisma.vendor.create({
+        data: { id: vendorId, name: "Chat check service", slug: vendorId },
+      });
+      await prisma.coworker.create({
+        data: {
+          id: coworkerId,
+          name: "Chat check service",
+          slug: coworkerId,
+          vendorId,
+          capabilities: ["tasks"],
+          isWhitelisted: true,
+        },
+      });
       const actions = [
         { kind: "open", dialog: "analysis" },
         { kind: "open", dialog: "keyword" },
@@ -324,11 +340,27 @@ describe.skipIf(!enabled)(
       const input = request();
       try {
         getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = true;
+        getEnv().SEO_ANALYSIS_EXECUTOR = {
+          coworkerId,
+          workspaceId,
+          ownerId: actor.userId,
+          organizationId,
+          canUsePaidSearchData: false,
+          canSchedule: false,
+        };
         expect(
           (await sendSeoChat(actor, input, { generate })).actions,
         ).toHaveLength(3);
-        getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = false;
+        const trustedExecutor = getEnv().SEO_ANALYSIS_EXECUTOR;
+        getEnv().SEO_ANALYSIS_EXECUTOR = undefined;
         const allowed = actions.slice(1);
+        expect((await listSeoChat(actor)).turns[0].actions).toEqual(allowed);
+        expect((await sendSeoChat(actor, input, { generate })).actions).toEqual(
+          allowed,
+        );
+        expect(generate).toHaveBeenCalledTimes(1);
+        getEnv().SEO_ANALYSIS_EXECUTOR = trustedExecutor;
+        getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = false;
         expect((await listSeoChat(actor)).turns[0].actions).toEqual(allowed);
         expect((await sendSeoChat(actor, input, { generate })).actions).toEqual(
           allowed,
@@ -343,6 +375,9 @@ describe.skipIf(!enabled)(
         ).toEqual(allowed);
       } finally {
         getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = previous;
+        getEnv().SEO_ANALYSIS_EXECUTOR = previousExecutor;
+        await prisma.coworker.delete({ where: { id: coworkerId } });
+        await prisma.vendor.delete({ where: { id: vendorId } });
       }
     });
   },

@@ -64,7 +64,8 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </SeoSection>
       ) : null}
-      {data.monitors.length || data.availableActions.canRequestAnalysis ? (
+      {data.monitors.length ||
+      data.availableActions.canCreateMonitor === true ? (
         <SeoMonitors model={model} />
       ) : null}
       {data.actions.length ? <SeoActions model={model} compact /> : null}

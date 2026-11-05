@@ -1,6 +1,6 @@
 "use client";
 
-import type { Coworker, ProjectSeoWorkspace } from "@sokosumi/core-client";
+import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
   CalendarClock,
   Download,
@@ -40,10 +40,8 @@ import { useSeoWorkspace } from "./use-seo-workspace";
 
 export function SeoWorkspace({
   workspace,
-  coworkers,
 }: {
   workspace: ProjectSeoWorkspace;
-  coworkers: Coworker[];
 }) {
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
@@ -144,7 +142,7 @@ export function SeoWorkspace({
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {model.data.availableActions.canRequestAnalysis ? (
+              {model.data.availableActions.canCreateMonitor === true ? (
                 <DropdownMenuItem
                   disabled={unavailable || !model.data.scope.pageIds.length}
                   onSelect={() => model.setDialog("monitor")}
@@ -274,7 +272,6 @@ export function SeoWorkspace({
             <SeoAnalysisDialog
               key={dialogKey}
               model={model}
-              coworkers={coworkers}
               monitor={model.dialog === "monitor"}
             />
           ) : null}

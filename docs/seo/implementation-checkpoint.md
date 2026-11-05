@@ -56,6 +56,22 @@ VERIFIED: CI `42061624221` for `ea8e87166e8d2576366f098396e34cf9fc09fb31` failed
 
 REPORTED: the complete local Core rerun with socket access reported `14164 passed`, `164 skipped` and one failure. The unchanged sandbox CA test received the desktop's injected certificate path instead of its fixture path. That file passed all eleven tests in hosted CI. The original 108 DTO failures are gone. Unrelated CA behavior was not changed. Evidence: `/private/tmp/seo-native-ci42061624221-core-ci-fixed-unsandboxed.log`.
 
+## Native service and activity correction
+
+VERIFIED: the generic Task Coworker selector did not prove SEO request compatibility. Imported file provenance did not prove it either. Core now selects the configured existing service for the exact authenticated user, Workspace and billing organization. Normal assignment checks remain authoritative. Native forms send no executor ID and no longer fetch the generic catalog. No bot profile or permission grant is created.
+
+VERIFIED: paid search and scheduler capabilities default to false. The normal paid and finite-monitor implementations remain available when explicitly configured. Missing readiness disables the relevant controls. A configuration change cannot redirect an existing finite monitor to another executor. Committed analysis replay still returns its original result. Stored chat actions recheck current actor-specific service availability.
+
+VERIFIED: the reporting period previously overwrote global Audit dates after statistics sync. That could hide a newly imported result. Reporting periods now remain separate, reopen from saved statistics metadata, and do not change activity dates. Timeline imports and Action links use their own creation timestamps even when the evidence was measured earlier. Foreign-page and private metric sources cannot supply those public Action events.
+
+VERIFIED: the SEO sidebar still appended the selected Sokosumi Project through the shared navigation map. Its entry now opens Workspace Audits consistently. Existing bookmarked Project report parsing remains unchanged. Root navigation and page checks reported `26 passed (26)`. Restoring only the original navigation source reproduced one failure. Evidence: `/private/tmp/seo-native-navigation-old-source.log`.
+
+VERIFIED: root combined checks reported `108 passed (108)` across nine Core files, including the isolated database cases, and `105 passed (105)` across eleven Web files. Normal checks reported `20 successful, 20 total`; Core/Web builds reported `10 successful, 10 total`. The full local Core unit run reported `14175 passed`, `164 skipped` and the same single desktop CA-path failure recorded above. New hosted CI remains required for this revision. Evidence: `/private/tmp/seo-native-service-core-root.log`, `seo-native-service-web-root.log`, `seo-native-service-precommit.log`, `seo-native-service-build-root.log` and `seo-native-service-core-full.log`.
+
+REPORTED: retained old-source checks reproduced five initial executor failures, a stale chat-action failure, missing scheduler-guard failures, three statistics form failures and activity timeline failures. Independent reviews found no remaining actionable issue after the corrections. Selected-report failures now expose a real Retry control; unavailable and filtered-empty states give accurate recovery actions.
+
+VERIFIED: only this PR's Core Preview branch received the noncredential `SEO_ANALYSIS_EXECUTOR` configuration. A Vercel environment-run check, with local SEO variables unset, matched the exact scope and both false capabilities. Dispatch remains unset with source default false. Metadata alone did not decrypt the configuration; its earlier unreadable value was not evidence of a mismatch. Production settings, credentials, grants and provider accounts remain unchanged. Evidence: `/private/tmp/seo-native-executor-resolved.json`.
+
 The following evidence records the earlier Project-scoped implementation before this native revision.
 
 ## Earlier delivered behavior

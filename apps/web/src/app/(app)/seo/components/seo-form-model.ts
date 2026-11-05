@@ -30,6 +30,16 @@ export const SEO_ANALYSIS_MODULES = [
   "keyword.refresh",
   "links.refresh",
 ] as const;
+export function allowedSeoAnalysisKinds(
+  paidSearchData: boolean,
+  monitor = false,
+) {
+  return SEO_ANALYSIS_KINDS.filter(
+    (kind) =>
+      (!monitor || kind !== "audit_full") &&
+      (paidSearchData || kind === "page_check" || kind === "audit_lite"),
+  );
+}
 export const SEO_MAX_MONITOR_RUNS = 31;
 export const SEO_DEFAULT_MONITOR_RUNS = 4;
 export const SEO_MAX_PAGES = 10;
@@ -183,7 +193,11 @@ export function analysisSeoBody(
   workspace: ProjectSeoWorkspace,
 ): Omit<RequestProjectSeoAnalysisRequest, "idempotencyKey"> {
   const kindText = formText(form, "kind");
-  const kind = SEO_ANALYSIS_KINDS.find((item) => item === kindText);
+  const paidSearchData =
+    workspace.availableActions.canUsePaidSearchData === true;
+  const kind = allowedSeoAnalysisKinds(paidSearchData).find(
+    (item) => item === kindText,
+  );
   const countryCode = SEO_COUNTRIES.find(
     (item) => item === formText(form, "countryCode"),
   );
@@ -202,7 +216,9 @@ export function analysisSeoBody(
         value === "mobile" || value === "desktop",
     );
   if (
+    !workspace.availableActions.canRequestAnalysis ||
     !kind ||
+    (!paidSearchData && usesPaidData) ||
     !countryCode ||
     !devices.length ||
     (kind === "audit_lite" && analyses.length === 0) ||
@@ -235,7 +251,6 @@ export function analysisSeoBody(
     if (neededCalls > maxProviderCalls)
       throw new RangeError("The selected checks exceed the data request limit");
   }
-  const coworkerId = formText(form, "coworkerId");
   return {
     kind,
     ...(workspace.scope.id
@@ -260,6 +275,5 @@ export function analysisSeoBody(
       : kind === "audit_full"
         ? {}
         : { maxProviderCalls }),
-    ...(coworkerId ? { coworkerId } : {}),
   };
 }

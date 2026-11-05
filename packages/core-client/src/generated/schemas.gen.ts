@@ -36964,6 +36964,12 @@ export const ProjectSeoWorkspaceSchema = {
                 canRequestAnalysis: {
                     type: 'boolean'
                 },
+                canUsePaidSearchData: {
+                    type: 'boolean'
+                },
+                canCreateMonitor: {
+                    type: 'boolean'
+                },
                 canSyncMetrics: {
                     type: 'boolean'
                 }

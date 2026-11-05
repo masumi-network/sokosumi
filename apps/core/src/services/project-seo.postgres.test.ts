@@ -70,6 +70,7 @@ const actor: SeoActor = {
 };
 const now = new Date();
 const previousDispatchEnabled = getEnv().SEO_ANALYSIS_DISPATCH_ENABLED;
+const previousExecutor = getEnv().SEO_ANALYSIS_EXECUTOR;
 
 describe.skipIf(!enabled)(
   "SEO workspace with the repository PostgreSQL schema",
@@ -77,6 +78,14 @@ describe.skipIf(!enabled)(
     beforeAll(async () => {
       // These isolated fixtures exercise the already-verified versioned worker contract.
       getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = true;
+      getEnv().SEO_ANALYSIS_EXECUTOR = {
+        coworkerId,
+        workspaceId,
+        ownerId: userId,
+        organizationId: null,
+        canUsePaidSearchData: true,
+        canSchedule: true,
+      };
       for (const [id, ws] of [
         [userId, workspaceId],
         [otherId, otherWorkspaceId],
@@ -111,6 +120,7 @@ describe.skipIf(!enabled)(
     });
     afterAll(async () => {
       getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatchEnabled;
+      getEnv().SEO_ANALYSIS_EXECUTOR = previousExecutor;
       await prisma.task.deleteMany({ where: { workspaceId } });
       await prisma.workspace.deleteMany({
         where: { id: { in: [workspaceId, otherWorkspaceId] } },
@@ -471,7 +481,7 @@ describe.skipIf(!enabled)(
       ).toBe("PAUSED");
     });
 
-    it("pins inferred execution to the imported file uploader after Task reassignment and checks its current access", async () => {
+    it("uses configured protocol authority instead of imported-file provenance or the source Task assignee", async () => {
       const sourceCoworkerId = randomUUID();
       const replacementCoworkerId = randomUUID();
       const project = await prisma.project.create({
@@ -483,7 +493,7 @@ describe.skipIf(!enabled)(
       };
       const unexpectedNetwork = vi.fn(async () => {
         throw new Error(
-          "Unexpected external request during executor inference",
+          "Unexpected external request during executor selection",
         );
       });
       vi.stubGlobal("fetch", unexpectedNetwork);
@@ -546,21 +556,18 @@ describe.skipIf(!enabled)(
           await prisma.task.findUniqueOrThrow({
             where: { id: inferred.taskId! },
           }),
-        ).toMatchObject({ assigneeId: sourceCoworkerId });
+        ).toMatchObject({ assigneeId: coworkerId });
         expect(
           (await requestProjectSeoAnalysis(sourceActor, request)).taskId,
         ).toBe(inferred.taskId);
 
-        const explicit = await requestProjectSeoAnalysis(sourceActor, {
-          ...request,
-          idempotencyKey: randomUUID(),
-          coworkerId: replacementCoworkerId,
-        });
-        expect(
-          await prisma.task.findUniqueOrThrow({
-            where: { id: explicit.taskId! },
+        await expect(
+          requestProjectSeoAnalysis(sourceActor, {
+            ...request,
+            idempotencyKey: randomUUID(),
+            coworkerId: replacementCoworkerId,
           }),
-        ).toMatchObject({ assigneeId: replacementCoworkerId });
+        ).rejects.toMatchObject({ status: 409 });
 
         const analysisCount = await prisma.projectSeoAnalysis.count({
           where: { projectId: project.id },
@@ -569,7 +576,7 @@ describe.skipIf(!enabled)(
           where: { projectId: project.id },
         });
         await prisma.coworker.update({
-          where: { id: sourceCoworkerId },
+          where: { id: coworkerId },
           data: { isWhitelisted: false },
         });
         await expect(
@@ -577,30 +584,33 @@ describe.skipIf(!enabled)(
             ...request,
             idempotencyKey: randomUUID(),
           }),
-        ).rejects.toMatchObject({ status: 404 });
+        ).rejects.toMatchObject({ status: 409 });
 
         await prisma.coworker.update({
-          where: { id: sourceCoworkerId },
+          where: { id: coworkerId },
           data: { isWhitelisted: true },
         });
         await prisma.projectSeoObservation.update({
           where: { id: observation.id },
-          data: { sourceTaskId: explicit.taskId },
+          data: { sourceTaskId: inferred.taskId },
         });
-        await expect(
-          requestProjectSeoAnalysis(sourceActor, {
-            ...request,
-            idempotencyKey: randomUUID(),
+        const configured = await requestProjectSeoAnalysis(sourceActor, {
+          ...request,
+          idempotencyKey: randomUUID(),
+        });
+        expect(
+          await prisma.task.findUniqueOrThrow({
+            where: { id: configured.taskId! },
           }),
-        ).rejects.toMatchObject({ status: 400 });
+        ).toMatchObject({ assigneeId: coworkerId });
         expect(
           await prisma.projectSeoAnalysis.count({
             where: { projectId: project.id },
           }),
-        ).toBe(analysisCount);
+        ).toBe(analysisCount + 1);
         expect(
           await prisma.task.count({ where: { projectId: project.id } }),
-        ).toBe(taskCount);
+        ).toBe(taskCount + 1);
         expect(unexpectedNetwork).not.toHaveBeenCalled();
       } finally {
         vi.unstubAllGlobals();

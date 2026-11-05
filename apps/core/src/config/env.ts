@@ -12,6 +12,27 @@ const minimumBuildSchema = z.preprocess(
   z.coerce.number().int().positive().optional(),
 );
 
+const seoExecutorIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
+const seoAnalysisExecutorSchema = z
+  .object({
+    coworkerId: seoExecutorIdSchema,
+    workspaceId: z.uuid(),
+    ownerId: seoExecutorIdSchema,
+    organizationId: seoExecutorIdSchema.nullable(),
+    canUsePaidSearchData: z.boolean().default(false),
+    canSchedule: z.boolean().default(false),
+  })
+  .strict();
+const seoAnalysisExecutorEnvSchema = z.preprocess((value) => {
+  if (value === "" || value === undefined) return undefined;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}, seoAnalysisExecutorSchema.optional());
+
 /**
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
@@ -42,6 +63,9 @@ const baseEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+
+  // Operator assertion of a reviewed worker and exact Task context, not remote protocol proof.
+  SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
 
   // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
   SEO_CHAT_DAILY_TURN_LIMIT: z.coerce.number().int().positive().default(100),

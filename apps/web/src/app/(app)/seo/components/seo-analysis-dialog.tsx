@@ -1,6 +1,5 @@
 "use client";
 
-import type { Coworker } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   defaultFullAuditSeconds,
-  SEO_ANALYSIS_KINDS,
   SEO_ANALYSIS_MODULES,
   SEO_COUNTRIES,
   SEO_DEFAULT_FULL_AUDIT_USD,
@@ -31,22 +29,16 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoAnalysisDialog({
   model,
-  coworkers,
   monitor = false,
 }: {
   model: SeoWorkspaceModel;
-  coworkers: Coworker[];
   monitor?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const form = useSeoAnalysisForm(model, monitor);
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
-  const hasImportedCoworker = form.workspace.observations.some(
-    (observation) => observation.sourceTaskId !== null,
-  );
-  const noCoworker =
-    (monitor || !hasImportedCoworker) && coworkers.length === 0;
+  const noService = !form.serviceAvailable;
   const savedKeywords = form.workspace.keywords.filter((row) => row.saved);
   return (
     <Dialog
@@ -77,15 +69,13 @@ export function SeoAnalysisDialog({
               name="kind"
               value={form.kind}
               onValueChange={form.setKind}
-              options={SEO_ANALYSIS_KINDS.filter(
-                (kind) => !monitor || kind !== "audit_full",
-              ).map((value) => ({
+              options={form.kinds.map((value) => ({
                 value,
                 label: t(`analysis.${value}`),
               }))}
             />
           </SeoField>
-          {form.kind === "audit_lite" ? (
+          {form.kind === "audit_lite" && form.canUsePaidSearchData ? (
             <fieldset className="space-y-3">
               <legend className="mb-2 text-sm font-medium">
                 {t("analysis.modules")}
@@ -107,6 +97,13 @@ export function SeoAnalysisDialog({
                 </div>
               ))}
             </fieldset>
+          ) : form.kind === "audit_lite" ? (
+            <input type="hidden" name="analyses" value="page.inspect" />
+          ) : null}
+          {form.serviceAvailable && !form.canUsePaidSearchData ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("analysis.htmlService")}
+            </p>
           ) : null}
           <p className="text-muted-foreground text-sm">
             {t("pages.count", { count: form.workspace.scope.pageIds.length })}:{" "}
@@ -243,24 +240,6 @@ export function SeoAnalysisDialog({
               {t("analysis.htmlOnly")}
             </p>
           )}
-          {coworkers.length > 0 ? (
-            <SeoField id="seo-analysis-coworker" label={t("analysis.coworker")}>
-              <SeoSelect
-                id="seo-analysis-coworker"
-                name="coworkerId"
-                required={monitor || !hasImportedCoworker}
-                placeholder={t(
-                  hasImportedCoworker && !monitor
-                    ? "analysis.coworkerPlaceholder"
-                    : "analysis.chooseCoworker",
-                )}
-                options={coworkers.map((coworker) => ({
-                  value: coworker.id,
-                  label: coworker.name,
-                }))}
-              />
-            </SeoField>
-          ) : null}
           {monitor ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -308,10 +287,14 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
-          {noCoworker ? (
+          {noService ? (
             <div className="space-y-2">
               <p role="status" className="text-muted-foreground text-sm">
-                {t("analysis.noCoworker")}
+                {t(
+                  monitor
+                    ? "monitor.unavailable"
+                    : "analysis.serviceUnavailable",
+                )}
               </p>
               {form.workspace.availableActions.canEdit ? (
                 <Button
@@ -334,16 +317,15 @@ export function SeoAnalysisDialog({
               disabled={model.pending}
               onClick={() => model.setDialog(null)}
             >
-              {t(noCoworker ? "analysis.returnToAudit" : "cancel")}
+              {t(noService ? "analysis.returnToAudit" : "cancel")}
             </Button>
             <Button
               type="submit"
               disabled={
-                noCoworker ||
+                noService ||
                 model.pending ||
                 !form.workspace.scope.pageIds.length ||
-                form.workspace.scope.pageIds.length > SEO_MAX_PAGES ||
-                !form.workspace.availableActions.canRequestAnalysis
+                form.workspace.scope.pageIds.length > SEO_MAX_PAGES
               }
             >
               {t(monitor ? "monitor.create" : "analysis.submit")}

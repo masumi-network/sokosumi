@@ -50,6 +50,8 @@ export function seoTestWorkspace(): ProjectSeoWorkspace {
     availableActions: {
       canEdit: true,
       canRequestAnalysis: true,
+      canCreateMonitor: true,
+      canUsePaidSearchData: true,
       canSyncMetrics: true,
     },
   };

@@ -3,7 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { isSeoAnalysisDispatchEnabled } from "@/lib/seo/analysis-dispatch";
+import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
 import {
   addSeoPageSchema,
   createSeoScopeSchema,
@@ -274,6 +274,7 @@ export async function getProjectSeoWorkspace(
   const project = await requireSeoOwner(actor);
   const scope = await resolveSeoScope(actor, query);
   const privateMetricsAllowed = await canReadPrivateSeoMetrics(actor);
+  const executor = await findSeoAnalysisExecutor(actor);
   const [
     pages,
     scopes,
@@ -364,7 +365,9 @@ export async function getProjectSeoWorkspace(
     actionTasks,
     tasks,
     privateMetricsAllowed,
-    analysisDispatchEnabled: isSeoAnalysisDispatchEnabled(),
+    analysisDispatchEnabled: executor !== null,
+    canUsePaidSearchData: executor?.canUsePaidSearchData === true,
+    canSchedule: executor?.canSchedule === true,
     monitors,
   });
 }

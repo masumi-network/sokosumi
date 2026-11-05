@@ -78,6 +78,35 @@ function observation(
     createdAt: new Date(capturedAt),
   };
 }
+function metricObservation(input: Input, at: string, value: number) {
+  return {
+    ...observation(input, parsePublicSeoArtifact(focusedReport()), at),
+    ownerId: randomUUID(),
+    kind: "metrics",
+    source: "ga4",
+    payload: {
+      provider: "ga4",
+      propertyId: "properties/123",
+      pageUrls: [SEO_TEST_PAGE],
+      channel: "all",
+      from: "2026-10-01",
+      to: "2026-10-31",
+      timeZone: "Europe/Oslo",
+      observedAt: at,
+      coverage: "complete",
+      notes: [],
+      metrics: [
+        {
+          key: "active_users",
+          label: "Active users",
+          unit: "count",
+          value,
+          points: [],
+        },
+      ],
+    },
+  };
+}
 function actionFixture() {
   const input = fixture(),
     source = parsePublicSeoArtifact(legacyReport());
@@ -300,36 +329,9 @@ describe("stored SEO workspace projections", () => {
 
   it("keeps every metric sync on the timeline while showing only the latest compatible total", () => {
     const input = fixture();
-    const metric = (at: string, value: number) => ({
-      ...observation(input, parsePublicSeoArtifact(focusedReport()), at),
-      ownerId: randomUUID(),
-      kind: "metrics",
-      source: "ga4",
-      payload: {
-        provider: "ga4",
-        propertyId: "properties/123",
-        pageUrls: [SEO_TEST_PAGE],
-        channel: "all",
-        from: "2026-10-01",
-        to: "2026-10-31",
-        timeZone: "Europe/Oslo",
-        observedAt: at,
-        coverage: "complete",
-        notes: [],
-        metrics: [
-          {
-            key: "active_users",
-            label: "Active users",
-            unit: "count",
-            value,
-            points: [],
-          },
-        ],
-      },
-    });
     input.observations = [
-      metric("2026-11-03T12:00:00Z", 24),
-      metric("2026-11-02T12:00:00Z", 20),
+      metricObservation(input, "2026-11-03T12:00:00Z", 24),
+      metricObservation(input, "2026-11-02T12:00:00Z", 20),
     ];
     const result = projectSeoProjection(input);
     expect(result.metrics.map((row) => row.value)).toEqual([24]);
@@ -338,6 +340,91 @@ describe("stored SEO workspace projections", () => {
     expect(
       result.timeline.filter((row) => row.kind === "metrics"),
     ).toHaveLength(2);
+    input.query = { from: "2026-11-02", to: "2026-11-02" };
+    const outside = observation(
+      input,
+      parsePublicSeoArtifact(focusedReport()),
+      "2026-11-03T12:00:00Z",
+    );
+    const inside = observation(
+      input,
+      parsePublicSeoArtifact(focusedReport()),
+      "2026-11-02T12:00:00Z",
+    );
+    input.observations.push(outside, inside);
+    const filtered = projectSeoProjection(input);
+    // Audit activity dates never reinterpret the reporting period of a saved total.
+    expect(filtered.metrics.map((row) => row.value)).toEqual([24]);
+    expect(filtered.metrics[0]).toMatchObject({
+      from: "2026-10-01",
+      to: "2026-10-31",
+      propertyId: "properties/123",
+    });
+    expect(filtered.observations.map((row) => row.id)).toEqual([inside.id]);
+    expect(
+      filtered.timeline.filter((row) => row.kind === "metrics"),
+    ).toHaveLength(1);
+    expect(
+      filtered.timeline.every((row) => row.at.startsWith("2026-11-02")),
+    ).toBe(true);
+  });
+
+  it("keeps new import and action activity when their scoped evidence was measured earlier", () => {
+    const { input, original } = actionFixture();
+    const activityAt = new Date("2026-11-04T12:00:00Z");
+    const activityDay = activityAt.toISOString().slice(0, 10);
+    const focused = observation(
+      input,
+      parsePublicSeoArtifact(focusedReport()),
+      "2026-11-01T12:00:00Z",
+    );
+    original.createdAt = activityAt;
+    focused.createdAt = activityAt;
+    const link = input.actionTasks[0];
+    link.createdAt = activityAt;
+    input.query = { from: activityDay, to: activityDay };
+    input.observations = [focused, original];
+
+    const result = projectSeoProjection(input);
+    expect(result.observations).toEqual([]);
+    expect(result.timeline).toHaveLength(3);
+    expect(result.timeline).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: `observation:${original.id}`,
+          title: "SEO audit imported",
+          at: activityAt.toISOString(),
+        }),
+        expect.objectContaining({
+          id: `observation:${focused.id}`,
+          title: "SEO check results imported",
+          at: activityAt.toISOString(),
+        }),
+        expect.objectContaining({
+          id: `action:${link.id}`,
+          at: activityAt.toISOString(),
+          observationId: original.id,
+          taskId: link.taskId,
+        }),
+      ]),
+    );
+
+    input.observations = [{ ...original, pageIds: [randomUUID()] }];
+    expect(projectSeoProjection(input).timeline).toEqual([]);
+
+    const privateMetric = metricObservation(
+      input,
+      activityAt.toISOString(),
+      24,
+    );
+    link.observationId = privateMetric.id;
+    input.observations = [privateMetric];
+    const privateResult = projectSeoProjection(input);
+    expect(privateResult.timeline).toHaveLength(1);
+    expect(privateResult.timeline[0]).toMatchObject({
+      id: `metrics:${privateMetric.id}`,
+      kind: "metrics",
+    });
   });
 
   it("requires a later compatible explicit pass to verify an implemented action", () => {

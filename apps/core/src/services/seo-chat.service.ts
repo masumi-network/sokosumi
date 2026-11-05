@@ -15,7 +15,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
-import { isSeoAnalysisDispatchEnabled } from "@/lib/seo/analysis-dispatch";
+import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
 import {
   availableSeoChatActions,
   parseSeoChatReply,
@@ -78,14 +78,14 @@ function auditIdFor(actor: SeoActor): string {
   return actor.owner.id;
 }
 
-function turnView(row: StoredTurn): SeoChatTurn {
+function turnView(row: StoredTurn, canRequestAnalysis: boolean): SeoChatTurn {
   const actions = seoChatActionSchema.array().safeParse(row.actions);
   return {
     id: row.id,
     question: row.question,
     response: row.response,
     actions: actions.success
-      ? availableSeoChatActions(actions.data, isSeoAnalysisDispatchEnabled())
+      ? availableSeoChatActions(actions.data, canRequestAnalysis)
       : [],
     status:
       row.status === "completed"
@@ -106,9 +106,12 @@ export async function listSeoChat(actor: SeoActor) {
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: SEO_CHAT_HISTORY_LIMIT,
   });
+  const executor = await findSeoAnalysisExecutor(actor);
   // Membership may have changed during the read. Never return a stale private projection.
   await requireSeoOwner(actor);
-  return { turns: turns.reverse().map(turnView) };
+  return {
+    turns: turns.reverse().map((row) => turnView(row, executor !== null)),
+  };
 }
 
 function historyPrompt(turns: StoredTurn[]) {
@@ -211,7 +214,11 @@ export async function sendSeoChat(
     });
     return { row, fresh: true };
   }, "The audit conversation changed. Try again.");
-  if (!reservation.fresh) return turnView(reservation.row);
+  if (!reservation.fresh)
+    return turnView(
+      reservation.row,
+      workspace.availableActions.canRequestAnalysis,
+    );
 
   let incurredCostUsd: number | undefined;
   try {
@@ -263,7 +270,11 @@ export async function sendSeoChat(
       const row = await tx.seoAuditChatTurn.findUniqueOrThrow({
         where: { id: reservation.row.id },
       });
-      return turnView(row);
+      const executor = await findSeoAnalysisExecutor(actor, tx);
+      return turnView(
+        row,
+        workspace.availableActions.canRequestAnalysis && executor !== null,
+      );
     }, "The audit conversation changed. Try again.");
   } catch (error) {
     try {

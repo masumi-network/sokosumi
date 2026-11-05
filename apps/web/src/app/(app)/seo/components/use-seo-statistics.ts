@@ -36,8 +36,8 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
   const [defaultPeriod] = useState(() =>
     seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS),
   );
-  const [from, setFrom] = useState(model.filters.from ?? defaultPeriod.from);
-  const [to, setTo] = useState(model.filters.to ?? defaultPeriod.to);
+  const [from, setFrom] = useState(saved?.from ?? defaultPeriod.from);
+  const [to, setTo] = useState(saved?.to ?? defaultPeriod.to);
   const properties = useQuery<ProjectSeoStatisticsProperties>({
     queryKey: [
       "seo-properties",
@@ -124,7 +124,7 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
       },
       t("statistics.synced"),
     );
-    if (saved) await model.setFilters({ from, to, channel: selectedChannel });
+    if (saved) await model.setFilters({ channel: selectedChannel });
   }
   return {
     provider,

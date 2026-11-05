@@ -86,6 +86,27 @@ describe("SEO form intent", () => {
       keywords: ["stablecoins", "agent payments"],
     });
   });
+  it("never sends an executor identity from form data", () => {
+    const form = analysisForm();
+    form.set("coworkerId", "untrusted-task-worker");
+    expect(analysisSeoBody(form, seoTestWorkspace())).not.toHaveProperty(
+      "coworkerId",
+    );
+  });
+  it.each(["rankings", "links", "audit_full", "audit_lite"])(
+    "rejects unsupported paid %s even if form data includes it",
+    (kind) => {
+      const form = analysisForm();
+      form.set("kind", kind);
+      form.set("keywords", "stablecoins");
+      if (kind === "audit_lite") form.append("analyses", "keyword.refresh");
+      const workspace = seoTestWorkspace();
+      workspace.availableActions.canUsePaidSearchData = false;
+      expect(() => analysisSeoBody(form, workspace)).toThrow();
+      delete workspace.availableActions.canUsePaidSearchData;
+      expect(() => analysisSeoBody(form, workspace)).toThrow();
+    },
+  );
   it("rejects ambiguous full audits and broad scopes before requesting paid work", () => {
     const form = analysisForm();
     form.set("kind", "audit_full");

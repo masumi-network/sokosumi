@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  allowedSeoAnalysisKinds,
   analysisSeoBody,
   formText,
   SEO_ANALYSIS_MODULES,
@@ -17,7 +18,11 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const t = useTranslations("App.Seo");
   const [workspace] = useState(() => model.data);
-  const [modules, setModules] = useState<string[]>(["page.inspect"]);
+  const [chosenModules, setModules] = useState<string[]>(["page.inspect"]);
+  const canUsePaidSearchData =
+    model.data.availableActions.canUsePaidSearchData === true;
+  const kinds = allowedSeoAnalysisKinds(canUsePaidSearchData, monitor);
+  const modules = canUsePaidSearchData ? chosenModules : ["page.inspect"];
   const [runCount, setRunCount] = useState(String(SEO_DEFAULT_MONITOR_RUNS));
   const [providerCalls, setProviderCalls] = useState(
     String(SEO_DEFAULT_PROVIDER_CALLS),
@@ -26,6 +31,7 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
   function toggleModule(module: string, checked: boolean) {
+    if (!canUsePaidSearchData) return;
     if (!SEO_ANALYSIS_MODULES.some((value) => value === module)) return;
     setModules((previous) =>
       checked
@@ -33,15 +39,26 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
         : previous.filter((value) => value !== module),
     );
   }
-  const [kind, setKind] = useState("page_check");
+  const [chosenKind, setKind] = useState("page_check");
+  const kind = kinds.find((value) => value === chosenKind) ?? "page_check";
+  const serviceAvailable = monitor
+    ? model.data.availableActions.canCreateMonitor === true
+    : model.data.availableActions.canRequestAnalysis;
   async function submit(form: FormData) {
+    if (!serviceAvailable) {
+      toast.error(
+        t(monitor ? "monitor.unavailable" : "analysis.serviceUnavailable"),
+      );
+      return;
+    }
     try {
-      const body = analysisSeoBody(form, workspace);
+      const body = analysisSeoBody(form, {
+        ...workspace,
+        availableActions: model.data.availableActions,
+      });
       if (monitor) {
-        if (body.kind === "audit_full" || !body.coworkerId)
-          throw new Error(
-            "Monitoring requires an explicit focused Coworker request",
-          );
+        if (body.kind === "audit_full")
+          throw new Error("Monitoring supports focused checks only");
         const cadence = formText(form, "cadence");
         if (cadence !== "daily" && cadence !== "weekly")
           throw new Error("Invalid cadence");
@@ -95,6 +112,9 @@ export function useSeoAnalysisForm(model: SeoWorkspaceModel, monitor = false) {
   const requirements = seoAnalysisRequirements(kind, modules);
   return {
     kind,
+    kinds,
+    serviceAvailable,
+    canUsePaidSearchData,
     setKind,
     submit,
     workspace,

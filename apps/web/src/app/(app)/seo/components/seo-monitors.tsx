@@ -14,7 +14,7 @@ export function SeoMonitors({ model }: { model: SeoWorkspaceModel }) {
     <SeoSection
       title={t("monitor.title")}
       actions={
-        model.data.availableActions.canRequestAnalysis ? (
+        model.data.availableActions.canCreateMonitor === true ? (
           <Button
             variant="outline"
             size="sm"
@@ -78,7 +78,14 @@ export function SeoMonitors({ model }: { model: SeoWorkspaceModel }) {
           ))}
         </ul>
       ) : (
-        <SeoEmpty title={t("monitor.empty")} body={t("monitor.emptyBody")} />
+        <SeoEmpty
+          title={t("monitor.empty")}
+          body={t(
+            model.data.availableActions.canCreateMonitor === true
+              ? "monitor.emptyBody"
+              : "monitor.unavailableBody",
+          )}
+        />
       )}
     </SeoSection>
   );

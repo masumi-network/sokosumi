@@ -453,6 +453,8 @@ export const projectSeoWorkspaceSchema = z
     availableActions: z.object({
       canEdit: z.boolean(),
       canRequestAnalysis: z.boolean(),
+      canUsePaidSearchData: z.boolean().optional(),
+      canCreateMonitor: z.boolean().optional(),
       canSyncMetrics: z.boolean(),
     }),
   })

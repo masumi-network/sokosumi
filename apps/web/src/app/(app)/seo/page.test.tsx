@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../messages/en.json";
@@ -60,7 +61,12 @@ async function show(params: Record<string, string> = {}) {
         formats={createFormats()}
         messages={messages}
       >
-        {page}
+        <NuqsTestingAdapter
+          searchParams={new URLSearchParams(params)}
+          hasMemory
+        >
+          {page}
+        </NuqsTestingAdapter>
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -128,6 +134,22 @@ describe("native SEO audit entry", () => {
       },
     });
     expect(m.push).toHaveBeenCalledWith(`/seo?auditId=${SEO_TEST_AUDIT}`);
+  });
+
+  it("opens an existing Audit without consulting a generic Coworker catalog", async () => {
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    m.getWorkspace.mockResolvedValue(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    await show({ auditId: SEO_TEST_AUDIT });
+    expect(screen.getByRole("heading", { name: "Launch pages" })).toBeVisible();
+    expect(m.coworkers).not.toHaveBeenCalled();
   });
 
   it("keeps the inline form and entered pages when audit creation fails", async () => {
