@@ -14,7 +14,7 @@ import {
 
 export const CHAT_SIGNAL_MODEL = SOKO_BOT_JEV_MODEL;
 /** Bumped whenever a question changes, so stored tags say what asked them. */
-export const CHAT_SIGNAL_VERSION = "chat-signals-jev-v3";
+export const CHAT_SIGNAL_VERSION = "chat-signals-jev-v4";
 
 const MAX_TEXT_LENGTH = 1_500;
 const MAX_CONTEXT_LENGTH = 400;
@@ -68,7 +68,7 @@ const TAG_QUESTIONS: Record<
   fyi: (key) =>
     `Is message ${key} only an update or announcement for the room to read? A message that asks, requests, promises, decides or reports a problem is no.`,
   urgent: (key) =>
-    `Does message ${key} say in its own words that something must happen right now or today ("urgent", "ASAP", "today", "now"), or report an incident: something down, broken for users, or a customer affected? A fast conversation, excitement or emojis are no.`,
+    `Does message ${key} say in its own words that something must happen right now or today ("urgent", "ASAP", "today", "now"), or report an outage: a live product down or customers blocked right now? An ordinary bug report, a request for feedback, a fast conversation, excitement or emojis are no.`,
   chitChat: (key) =>
     `Is message ${key} small talk, a greeting, a joke or a social reaction with no work content?`,
   workRequest: (key) =>
