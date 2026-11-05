@@ -2,20 +2,19 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
-import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
+import {
+  channelLabel,
+  isSocialProvider,
+  type SocialProvider,
+} from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
-import { type AdActions, adsReturnError, ConnectAdsButton } from "../ads";
+import { joinNames } from "../../lib/names";
+import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { money, PACES } from "../strategy-core";
 import { AGENT_NAME, CusoAvatar, StatusDisc } from "./parts";
-
-type Provider = (typeof SOCIAL_PROVIDERS)[number];
-
-function isProvider(channel: string): channel is Provider {
-  return (SOCIAL_PROVIDERS as readonly string[]).includes(channel);
-}
 
 /** Every channel in the strategy that Cuso runs, by its key. */
 export function strategyChannels(overview: CmoOverview): string[] {
@@ -37,8 +36,10 @@ export function needsAccounts(overview: CmoOverview): boolean {
 }
 
 /** The social networks in the strategy, which Cuso can post to once connected. */
-export function strategySocialChannels(overview: CmoOverview): Provider[] {
-  return strategyChannels(overview).filter(isProvider);
+export function strategySocialChannels(
+  overview: CmoOverview,
+): SocialProvider[] {
+  return strategyChannels(overview).filter(isSocialProvider);
 }
 
 /**
@@ -55,7 +56,7 @@ export function optionalChannels(
   const own = planned
     .filter(
       (key) =>
-        !isProvider(key) &&
+        !isSocialProvider(key) &&
         key !== "seo" &&
         key !== "newsletter" &&
         calendar.some((entry) => channelKey(entry.channel) === key),
@@ -80,33 +81,32 @@ export function optionalChannels(
 const isAds = (key: string): key is "google_ads" | "meta_ads" =>
   key === "google_ads" || key === "meta_ads";
 
-/** Names as one phrase: "X", "X or LinkedIn", "X, LinkedIn or Facebook". */
-function listNames(names: string[], joiner: "and" | "or" = "and"): string {
-  return names.length < 2
-    ? (names[0] ?? "")
-    : `${names.slice(0, -1).join(", ")} ${joiner} ${names.at(-1)}`;
-}
-
 interface LaunchStepProps {
   overview: CmoOverview;
   onConnect: (
-    provider: Provider,
+    provider: SocialProvider,
   ) => Promise<{ url: string | null; error: string | null }>;
   onConnectAds: AdActions["connectAds"];
-  /** Opens the app on Today. */
-  onContinue: () => Promise<void>;
+  /** Runs before the celebration shows. */
+  onLaunch: () => Promise<void>;
+  /** Records the finish and opens the app. */
+  onGoToday: () => void;
+  /** Why a connection came back without an account, from the return address. */
+  notice?: string | null;
 }
 
 /**
  * Where Cuso posts, and the one thing he needs to start: one of the plan's
- * networks connected. Pressing Launch shows the celebration; Go to Today
- * opens the app.
+ * networks connected. Pressing Launch records it and shows the celebration;
+ * Go to Today opens the app.
  */
 export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
-  onContinue,
+  onLaunch,
+  onGoToday,
+  notice = null,
 }: LaunchStepProps) {
   const required = strategySocialChannels(overview);
   const optional = optionalChannels(overview);
@@ -118,33 +118,29 @@ export function LaunchStep({
       .filter((channel) => channel.status.toUpperCase() === "ACTIVE")
       .map((channel) => channel.provider.toLowerCase()),
   );
-  const [pending, setPending] = useState<Provider | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+  // Undefined until the founder acts: then the return notice no longer shows.
+  const [error, setError] = useState<string | null | undefined>(undefined);
+  const shownError = error === undefined ? notice : error;
   const [celebrating, setCelebrating] = useState(false);
   const [, startTransition] = useTransition();
-  const [continuing, startContinuing] = useTransition();
+  const [launching, startLaunching] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.
   const waiting =
     required.length > 0 && !required.some((key) => connected.has(key));
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
 
-  useEffect(() => {
-    if (
-      new URLSearchParams(window.location.search).get("connect") === "failed"
-    ) {
-      setError("That connection didn't finish. Try again.");
-    }
-    const adsError = adsReturnError();
-    if (adsError) setError(adsError);
-  }, []);
-
-  function connect(provider: Provider) {
-    setPending(provider);
+  function connect(key: string) {
+    setPending(key);
     setError(null);
     startTransition(async () => {
       try {
-        const result = await onConnect(provider);
+        const result = isAds(key)
+          ? await onConnectAds(key, "onboarding")
+          : isSocialProvider(key)
+            ? await onConnect(key)
+            : { url: null, error: null };
         if (result.url) {
           window.location.assign(result.url);
           return;
@@ -178,23 +174,27 @@ export function LaunchStep({
       },
       {
         term: "Posting to",
-        value: listNames(required.map(channelLabel)),
+        value: joinNames(
+          required.filter((key) => connected.has(key)).map(channelLabel),
+        ),
       },
     ].filter((row) => row.value);
     return (
       <section className="ob-launch ob-launch-done">
-        <div className="card ob-celebration">
-          <img
-            src="/cuso/celebration.jpg"
-            alt="Cuso celebrating next to a toy rocket"
-            width={320}
-            height={320}
-          />
+        <div className="panel">
+          <div className="card ob-celebration">
+            <img
+              src="/cuso/celebration.jpg"
+              alt={`${AGENT_NAME} celebrating next to a toy rocket`}
+              width={320}
+              height={320}
+            />
+          </div>
         </div>
         <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
         <p className="ob-muted">
-          His first drafts land in Approvals. Nothing posts until you approve
-          it.
+          Your first posts land in your calendar. Nothing posts until you
+          approve it.
         </p>
         {summary.length > 0 ? (
           <dl className="ob-summary">
@@ -206,22 +206,9 @@ export function LaunchStep({
             ))}
           </dl>
         ) : null}
-        <button
-          type="button"
-          className="button ob-wide"
-          disabled={continuing}
-          onClick={() =>
-            startContinuing(async () => {
-              try {
-                await onContinue();
-              } catch {
-                setError("Could not continue. Try again.");
-              }
-            })
-          }
-        >
-          {continuing ? "Opening…" : "Go to Today"}
-          {continuing ? null : <ArrowRight size={16} aria-hidden="true" />}
+        <button type="button" className="button ob-wide" onClick={onGoToday}>
+          Go to Today
+          <ArrowRight size={16} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -230,18 +217,15 @@ export function LaunchStep({
         >
           Change settings
         </button>
-        {error ? (
-          <p className="alert" role="alert">
-            {error}
-          </p>
-        ) : null}
       </section>
     );
   }
 
   const rows = [...required, ...(searchOnly ? ["seo"] : [])];
-  const adRows = optional.filter(({ key }) => isAds(key));
-  const later = optional.filter(({ key }) => isProvider(key));
+  // Ads and channels Cuso proposed: add them now or later.
+  const later = optional.filter(({ key }) =>
+    isAds(key) ? !overview.adProviders.includes(key) : !connected.has(key),
+  );
   const accounts = needsAccounts(overview);
 
   return (
@@ -256,37 +240,41 @@ export function LaunchStep({
           : "Your plan is approved. Nothing to connect."}
       </p>
 
-      {rows.length + adRows.length > 0 ? (
-        <ul className="card ob-focus ob-networks">
-          {rows.map((key) => {
-            const done = connected.has(key);
-            const account = overview.channels.find(
-              (channel) => channel.provider.toLowerCase() === key,
-            );
-            return (
-              <li key={key} className="ob-network">
-                <ChannelIcon channel={key} size={22} />
-                <div className="ob-network-text">
-                  <p className="ob-network-name">{channelLabel(key)}</p>
-                  <p className="ob-small ob-muted">
-                    {key === "seo"
-                      ? "Page fixes and articles you paste into your site."
-                      : `${pieces(key)} of ${calendar.length} pieces go here`}
-                  </p>
-                </div>
-                {key === "seo" ? (
-                  <span className="ob-small ob-muted">Nothing to connect</span>
-                ) : done ? (
-                  <span className="ob-connected">
-                    <StatusDisc status="ok" />
-                    {account?.handle ? `@${account.handle}` : "Connected"}
-                  </span>
-                ) : (
-                  <>
-                    {waiting && required.length === 1 ? (
-                      <span className="ob-small ob-muted">Needed to start</span>
-                    ) : null}
-                    {isProvider(key) ? (
+      {rows.length > 0 ? (
+        <div className="panel ob-networks-panel">
+          <ul className="card ob-focus ob-networks">
+            {rows.map((key) => {
+              const done = connected.has(key);
+              const account = overview.channels.find(
+                (channel) => channel.provider.toLowerCase() === key,
+              );
+              return (
+                <li key={key} className="ob-network">
+                  <ChannelIcon channel={key} size={22} />
+                  <div className="ob-network-text">
+                    <p className="ob-network-name">{channelLabel(key)}</p>
+                    <p className="ob-small ob-muted">
+                      {key === "seo"
+                        ? "Page fixes and articles you paste into your site."
+                        : `${pieces(key)} of ${calendar.length} pieces go here`}
+                    </p>
+                  </div>
+                  {key === "seo" ? (
+                    <span className="ob-small ob-muted">
+                      Nothing to connect
+                    </span>
+                  ) : done ? (
+                    <span className="ob-connected">
+                      <StatusDisc status="ok" />
+                      {account?.handle ? `@${account.handle}` : "Connected"}
+                    </span>
+                  ) : (
+                    <>
+                      {waiting && required.length === 1 ? (
+                        <span className="ob-small ob-muted">
+                          Needed to start
+                        </span>
+                      ) : null}
                       <button
                         type="button"
                         className="button button-secondary"
@@ -302,90 +290,67 @@ export function LaunchStep({
                         ) : null}
                         Connect
                       </button>
-                    ) : null}
-                  </>
-                )}
-              </li>
-            );
-          })}
-          {adRows.map(({ key }) =>
-            isAds(key) ? (
-              <li key={key} className="ob-network">
-                <ChannelIcon channel={key} size={22} />
-                <div className="ob-network-text">
-                  <p className="ob-network-name">{channelLabel(key)}</p>
-                  <p className="ob-small ob-muted">
-                    {overview.adProviders.includes(key)
-                      ? "Connected. You set the budget and launch the ads there."
-                      : `${pieces(key)} of ${calendar.length} pieces go here`}
-                  </p>
-                </div>
-                {overview.adProviders.includes(key) ? (
-                  <span className="ob-connected">
-                    <StatusDisc status="ok" />
-                    Connected
-                  </span>
-                ) : (
-                  <>
-                    <span className="ob-small ob-muted">Can wait</span>
-                    <ConnectAdsButton
-                      provider={key}
-                      from="onboarding"
-                      connectAds={onConnectAds}
-                    />
-                  </>
-                )}
-              </li>
-            ) : null,
-          )}
-        </ul>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       ) : null}
 
       {later.length > 0 ? (
         <div className="ob-later">
           <p className="ob-small ob-muted">Add later</p>
           <div className="ob-later-chips">
-            {later.map(({ key, perMonth }) =>
-              isProvider(key) && !connected.has(key) ? (
-                <button
-                  key={key}
-                  type="button"
-                  className="button button-secondary button-small"
-                  disabled={pending !== null}
-                  title={
-                    perMonth === null ? undefined : `Adds ${perMonth} a month`
-                  }
-                  onClick={() => connect(key)}
-                >
-                  {channelLabel(key)}
-                </button>
-              ) : null,
-            )}
+            {later.map(({ key, perMonth }) => (
+              <button
+                key={key}
+                type="button"
+                className="button button-secondary button-small"
+                disabled={pending !== null}
+                title={
+                  perMonth === null ? undefined : `Adds ${perMonth} a month`
+                }
+                onClick={() => connect(key)}
+              >
+                {channelLabel(key)}
+              </button>
+            ))}
           </div>
         </div>
       ) : null}
 
-      {error ? (
+      {shownError ? (
         <p className="alert" role="alert">
-          {/configured|unavailable|set up/i.test(error)
+          {/configured|unavailable|set up/i.test(shownError)
             ? "Connecting accounts isn't available here yet."
-            : error}
+            : shownError}
         </p>
       ) : null}
 
       <button
         type="button"
         className="button ob-wide"
-        disabled={waiting}
-        onClick={() => setCelebrating(true)}
+        disabled={waiting || launching}
+        onClick={() =>
+          startLaunching(async () => {
+            try {
+              await onLaunch();
+              setCelebrating(true);
+            } catch {
+              setError("Could not launch. Try again.");
+            }
+          })
+        }
       >
-        Launch {AGENT_NAME}
-        <ArrowRight size={16} aria-hidden="true" />
+        {launching ? "Launching…" : `Launch ${AGENT_NAME}`}
+        {launching ? null : <ArrowRight size={16} aria-hidden="true" />}
       </button>
       <p className="ob-small ob-muted">
         {waiting
-          ? `Connect ${listNames(required.map(channelLabel), "or")} to launch.`
-          : "Nothing posts until you approve it."}
+          ? `Connect ${joinNames(required.map(channelLabel), "or")} to launch.`
+          : `${AGENT_NAME} only does what your approved plan says, and you can disconnect any time.`}
       </p>
     </section>
   );

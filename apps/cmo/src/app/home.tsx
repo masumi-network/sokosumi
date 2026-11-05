@@ -164,7 +164,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       <OnboardingFlow
         overview={overview}
         messages={await loadMessages().catch(() => [])}
-        initialStep={step}
+        initialStep={step === "results" ? "results" : undefined}
         skipped={await skippedSteps(overview.projectId)}
         actions={{
           loadState,

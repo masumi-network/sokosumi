@@ -31,6 +31,7 @@ function inertActions(overview: CmoOverview): OnboardingActions {
     saveBrandBrain: same,
     answerPlanQuestion: same,
     applyPlanAnswers: result,
+    // Go to Today would leave the preview; it stays put instead.
     finishAccounts: () => new Promise<never>(() => {}),
     connectChannel: unavailable,
     connectMeasurement: unavailable,

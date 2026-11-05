@@ -17,6 +17,7 @@ import {
   GROUP_NAMES,
   OWNER_PART,
 } from "../lib/channels";
+import { joinNames } from "../lib/names";
 import { AskForm, brandStyle, Section, SideSheet } from "./brand-profile";
 import { businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
@@ -623,13 +624,6 @@ export function ChannelPlan({ strategy }: { strategy: Strategy }) {
       ) : null}
     </>
   );
-}
-
-/** "A, B and C". */
-function joinNames(names: string[]): string {
-  return names.length > 1
-    ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
-    : (names[0] ?? "");
 }
 
 /** Who the month is for and what it offers them. */

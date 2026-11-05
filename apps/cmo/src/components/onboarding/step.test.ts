@@ -44,8 +44,26 @@ const draft = (patch: Partial<CmoOverview> = {}) =>
 describe("onboardingStep", () => {
   it("reads the site until Cuso saves a Brand Brain", () => {
     expect(
-      onboardingStep(cmoOverview({ brandBrain: null, strategy: null })),
+      onboardingStep(
+        cmoOverview({ brandBrain: null, strategy: null, learning: "running" }),
+      ),
     ).toEqual({ step: "site", phase: "reading" });
+  });
+
+  it("fails the read once it ended without a Brand Brain", () => {
+    expect(
+      onboardingStep(cmoOverview({ brandBrain: null, strategy: null })).phase,
+    ).toBe("failed");
+    expect(
+      onboardingStep(
+        cmoOverview({
+          brandBrain: null,
+          strategy: null,
+          learning: "running",
+          work: running("research", "done"),
+        }),
+      ).phase,
+    ).toBe("failed");
   });
 
   it("fails the read when learning failed", () => {
@@ -70,6 +88,19 @@ describe("onboardingStep", () => {
     expect(onboardingStep(withQuestions)).toEqual({
       step: "site",
       phase: "asking",
+    });
+  });
+
+  it("asks still-open questions of a Brand Brain confirmed before they moved to Site", () => {
+    const legacy = saved({
+      brandBrainConfirmedAt: confirmed,
+      brandBrain: { ...brain, questions: [question()] },
+    });
+    expect(onboardingStep(legacy)).toEqual({ step: "site", phase: "asking" });
+    // Answered or skipped, it goes on to ask for the plan.
+    expect(onboardingStep(legacy, ["questions"])).toEqual({
+      step: "plan",
+      phase: "writing-needed",
     });
   });
 

@@ -170,7 +170,6 @@ body:has(.ob) .site-header {
   max-width: 1280px;
   margin: 0 auto;
   padding: 32px 32px 64px;
-  animation: ob-in 360ms var(--ob-ease);
 }
 
 .ob-main:has(> .ob-brand) {
@@ -185,13 +184,6 @@ body:has(.ob) .site-header {
   display: flex;
   justify-content: center;
   padding: 0 32px 32px;
-}
-
-@keyframes ob-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
 }
 
 /* ── Type ── */
@@ -461,7 +453,7 @@ body:has(.ob) .site-header {
 
 .ob-skeleton span {
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
   background: var(--border);
 }
 
@@ -538,7 +530,6 @@ body:has(.ob) .site-header {
 .ob-goal-label {
   font-size: 0.75rem;
   font-weight: 500;
-  opacity: 0.8;
 }
 
 .ob-goal-text {
@@ -558,7 +549,6 @@ body:has(.ob) .site-header {
 .ob-goal-facts dt {
   font-size: 0.75rem;
   font-weight: 500;
-  opacity: 0.8;
 }
 
 .ob-goal-facts dd {
@@ -777,7 +767,7 @@ body:has(.ob) .site-header {
   flex: 1;
   height: 6px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-mark);
 }
 
 .ob-progress li.done {
@@ -1067,10 +1057,13 @@ body:has(.ob) .site-header {
   display: none;
 }
 
+.ob-plan > .panel {
+  margin-bottom: 12px;
+}
+
 .ob-change {
   display: grid;
   gap: 8px;
-  margin-bottom: 12px;
   padding: 16px;
   border-color: var(--line);
 }
@@ -1099,7 +1092,6 @@ body:has(.ob) .site-header {
   display: grid;
   justify-items: center;
   gap: 8px;
-  margin-bottom: 12px;
   padding: 32px 16px;
   text-align: center;
 }
@@ -1366,6 +1358,14 @@ body:has(.ob) .site-header {
   gap: 16px;
 }
 
+.ob-launch .panel {
+  width: 100%;
+}
+
+.ob-launch-done .panel {
+  width: min(100%, 344px);
+}
+
 .ob-networks {
   display: grid;
   width: 100%;
@@ -1572,7 +1572,6 @@ body:has(.ob) .site-header {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ob-main,
   .ob-spin {
     animation: none;
   }

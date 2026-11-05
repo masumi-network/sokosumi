@@ -122,7 +122,7 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
               <img
                 className="ob-stage-art"
                 src="/cuso/hero.jpg"
-                alt="Cuso walking with a megaphone"
+                alt={`${AGENT_NAME} walking with a megaphone`}
                 width={640}
                 height={800}
               />

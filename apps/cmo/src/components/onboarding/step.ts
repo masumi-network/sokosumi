@@ -15,10 +15,18 @@ export type Phase =
   | "writing-needed"
   | "review";
 
-export interface Position {
-  step: OnboardingStep;
-  phase: Phase;
-}
+/** The phases of the Site step. */
+export type SitePhase = Extract<Phase, "reading" | "asking" | "failed">;
+
+export type PlanPhase = Extract<
+  Phase,
+  "planning" | "writing-needed" | "review"
+>;
+
+export type Position =
+  | { step: "site"; phase: SitePhase }
+  | { step: "brand" | "launch"; phase: "review" }
+  | { step: "plan"; phase: PlanPhase };
 
 export const STEPS: { id: OnboardingStep; label: string }[] = [
   { id: "site", label: "Site" },
@@ -55,11 +63,16 @@ export function onboardingStep(
   const work = overview.work;
   const strategy = overview.strategy;
   if (!overview.brandBrain) {
-    const failed =
-      overview.learning === "failed" ||
-      (work?.kind === "research" && work.status === "failed");
-    return { step: "site", phase: failed ? "failed" : "reading" };
+    // Done with no Brand Brain: Cuso stopped short, so the founder needs a retry.
+    const settled = work?.kind === "research" ? work.status : overview.learning;
+    return {
+      step: "site",
+      phase: settled === "running" ? "reading" : "failed",
+    };
   }
+  const asks =
+    !skipped.includes("questions") &&
+    unansweredBrandQuestions(overview).length > 0;
   const approved = strategyApproved(overview);
   // Core reads accounts from a connection, and CMO's cookie from the person's
   // skip, so a reload after Launch resumes in the app.
@@ -74,15 +87,14 @@ export function onboardingStep(
     if (work?.kind === "research" && work.status === "running") {
       return { step: "site", phase: "reading" };
     }
-    if (
-      !skipped.includes("questions") &&
-      unansweredBrandQuestions(overview).length > 0
-    ) {
-      return { step: "site", phase: "asking" };
-    }
+    if (asks) return { step: "site", phase: "asking" };
     return { step: "brand", phase: "review" };
   }
-  if (!strategy) return { step: "plan", phase: "writing-needed" };
+  if (!strategy) {
+    // Confirmed before questions moved to Site: they are still asked there.
+    if (asks) return { step: "site", phase: "asking" };
+    return { step: "plan", phase: "writing-needed" };
+  }
 
   // Cuso saves a first plan in two parts, the calendar last: it waits on the
   // planning screen until there is a whole plan to approve. Answered checks

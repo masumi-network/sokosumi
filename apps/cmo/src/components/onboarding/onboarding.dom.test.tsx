@@ -169,7 +169,7 @@ function actionsFor(overrides: Partial<OnboardingActions> = {}) {
     saveBrandBrain: async () => asking(),
     answerPlanQuestion: async () => draft(),
     applyPlanAnswers: async () => ({ overview: null, error: null }),
-    finishAccounts: vi.fn(async () => undefined as never),
+    finishAccounts: vi.fn(() => new Promise<never>(() => {})),
     connectChannel: async () => ({ url: null, error: null }),
     connectMeasurement: async () => ({ url: null, error: null }),
     connectAds: async () => ({ url: null, error: null }),
@@ -385,9 +385,7 @@ it("shows the re-planning screen for a written change before Core answers", asyn
   await renderPlan(core.call, async () => null);
   await press("Ask for a change");
   typeInto(
-    container.querySelector<HTMLInputElement>(
-      'input[aria-label="What should Cuso change?"]',
-    ),
+    container.querySelector<HTMLInputElement>("#ob-change-input"),
     "More videos",
   );
   await press("Change it");
@@ -421,7 +419,154 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
   expect(text()).toContain("Up first");
 });
 
-// Launch: the celebration comes only after Launch.
+// Plan chips and the way to Launch, through the real flow.
+
+const planQuestions = [
+  { id: "p1", question: "Do you ship every month?", statement: "They ship." },
+  { id: "p2", question: "Are buyers on LinkedIn?", statement: "They are." },
+];
+
+function planOverview(
+  answers: Record<
+    string,
+    { answer: "yes" | "no" | "unsure"; note?: string }
+  > = {},
+): CmoOverview {
+  return draft({
+    strategy: {
+      ...strategy,
+      changes: [],
+      questions: planQuestions.map((question) => ({
+        ...question,
+        ...answers[question.id],
+      })),
+    },
+  });
+}
+
+function planActions(overrides: Partial<OnboardingActions> = {}) {
+  const answers: Record<
+    string,
+    { answer: "yes" | "no" | "unsure"; note?: string }
+  > = {};
+  return actionsFor({
+    answerPlanQuestion: vi.fn(async ({ questionId, answer, note }) => {
+      answers[questionId] = { answer, note };
+      return planOverview(answers);
+    }),
+    applyPlanAnswers: vi.fn(async () => ({ overview: null, error: null })),
+    ...overrides,
+  });
+}
+
+const buttonsNamed = (label: string) =>
+  [...container.querySelectorAll("button")].filter(
+    (element) => element.textContent === label,
+  );
+
+it("saves a Yes on a plan chip", async () => {
+  const actions = planActions();
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={planOverview()}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  await act(async () => buttonsNamed("Yes")[0]?.click());
+  expect(actions.answerPlanQuestion).toHaveBeenCalledWith({
+    questionId: "p1",
+    answer: "yes",
+    note: undefined,
+  });
+  expect(buttonsNamed("Yes")[0]?.getAttribute("aria-pressed")).toBe("true");
+});
+
+it("round-trips Not sure on a plan chip", async () => {
+  const actions = planActions();
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={planOverview({ p2: { answer: "unsure" } })}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  // A stored unsure shows as pressed.
+  expect(buttonsNamed("Not sure")[1]?.getAttribute("aria-pressed")).toBe(
+    "true",
+  );
+  await act(async () => buttonsNamed("Not sure")[0]?.click());
+  expect(actions.answerPlanQuestion).toHaveBeenCalledWith({
+    questionId: "p1",
+    answer: "unsure",
+    note: undefined,
+  });
+  expect(buttonsNamed("Not sure")[0]?.getAttribute("aria-pressed")).toBe(
+    "true",
+  );
+});
+
+it("updates the plan after a No with a note, and shows it fitting", async () => {
+  const fitting = pending();
+  const actions = planActions({
+    applyPlanAnswers: vi.fn(async () => ({
+      overview: null,
+      error: await fitting.call(),
+    })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={planOverview()}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  await act(async () => buttonsNamed("No")[0]?.click());
+  typeInto(
+    container.querySelector<HTMLInputElement>(
+      'input[aria-label="What\'s true instead"]',
+    ),
+    "Every week",
+  );
+  await press("Save");
+  expect(actions.answerPlanQuestion).toHaveBeenCalledWith({
+    questionId: "p1",
+    answer: "no",
+    note: "Every week",
+  });
+  expect(text()).toContain("Update plan");
+  expect(text()).not.toContain("Approve plan");
+  await press("Update plan");
+  expect(actions.applyPlanAnswers).toHaveBeenCalledTimes(1);
+  expect(text()).toContain("Fitting your plan to your answers");
+  await act(async () => fitting.answer(null));
+});
+
+it("approves the plan and lands on Launch", async () => {
+  const actions = planActions({
+    approveStrategy: vi.fn(async () => draft(cmoStrategyVersion(new Date()))),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={planOverview()}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Approve plan");
+  expect(actions.approveStrategy).toHaveBeenCalledTimes(1);
+  expect(text()).toContain("One thing, then I start.");
+});
+
+// Launch: the celebration shows after onLaunch; Go to Today records the finish (flow.tsx).
 
 const active = {
   id: "x",
@@ -431,14 +576,22 @@ const active = {
   status: "ACTIVE",
 };
 
-it("celebrates only after Launch, then opens the app on Go to Today", async () => {
-  const finish = vi.fn(async () => {});
+it("celebrates after Launch, then opens the app on Go to Today", async () => {
+  let finish = () => {};
+  const onLaunch = vi.fn(
+    () => new Promise<void>((resolve) => (finish = resolve)),
+  );
+  const goToday = vi.fn();
   await act(async () =>
     root.render(
       <LaunchStep
         overview={draft({
           ...cmoStrategyVersion(new Date()),
-          channels: [active],
+          channels: [
+            active,
+            { ...active, id: "li", provider: "linkedin" },
+            { ...active, id: "yt", provider: "youtube", status: "PAUSED" },
+          ],
           strategy: {
             ...strategy,
             pace: { level: "active", why: "One a day", perWeek: 7 },
@@ -452,20 +605,27 @@ it("celebrates only after Launch, then opens the app on Go to Today", async () =
         })}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
-        onContinue={finish}
+        onLaunch={onLaunch}
+        onGoToday={goToday}
       />,
     ),
   );
   expect(text()).not.toContain("is on it.");
   await press("Launch Cuso");
+  // The celebration waits for onLaunch.
+  expect(onLaunch).toHaveBeenCalledTimes(1);
+  expect(text()).not.toContain("is on it.");
+  await act(async () => finish());
   expect(text()).toContain("Cuso is on it.");
   expect(text()).toContain("Active, 7 pieces a week");
   expect(text()).toContain("€200 a month");
   expect(text()).toContain("LinkedIn and X");
-  expect(finish).not.toHaveBeenCalled();
+  expect(text()).not.toContain("Approvals");
+  expect(goToday).not.toHaveBeenCalled();
   await press("Change settings");
   expect(text()).toContain("One thing, then I start.");
   await press("Launch Cuso");
+  await act(async () => finish());
   await press("Go to Today");
-  expect(finish).toHaveBeenCalledTimes(1);
+  expect(goToday).toHaveBeenCalledTimes(1);
 });

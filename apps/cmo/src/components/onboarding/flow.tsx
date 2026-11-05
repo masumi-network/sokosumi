@@ -8,14 +8,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { SkippedStep } from "../../lib/skipped-steps";
-import type { AdActions } from "../ads";
+import { type AdActions, adsReturnError } from "../ads";
 import { hostOf } from "../brand-profile";
 import { Logo } from "../logo";
 import { StartOver } from "../start-over";
 import { ThemeToggle } from "../theme-toggle";
 import { BrandStep } from "./brand-step";
 import { LaunchStep } from "./launch-step";
-import { StepMarkers } from "./parts";
+import { type Answer, StepMarkers } from "./parts";
 import { PlanStep } from "./plan-step";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
@@ -44,7 +44,7 @@ export interface OnboardingActions {
   approveBrandBrain: () => Promise<CmoOverview>;
   answerBrandQuestion: (answer: {
     questionId: string;
-    answer: "yes" | "no" | "unsure";
+    answer: Answer;
     note?: string;
   }) => Promise<CmoOverview>;
   /** The founder left Cuso's questions about the brand for later. */
@@ -54,14 +54,14 @@ export interface OnboardingActions {
   ) => Promise<CmoOverview>;
   answerPlanQuestion: (answer: {
     questionId: string;
-    answer: "yes" | "no" | "unsure";
+    answer: Answer;
     note?: string;
   }) => Promise<CmoOverview>;
   applyPlanAnswers: () => Promise<{
     overview: CmoOverview | null;
     error: string | null;
   }>;
-  /** Records that the founder connected or skipped the Accounts step. */
+  /** Records that the founder launched, so the app opens on the chat next. */
   finishAccounts: () => Promise<never>;
   connectChannel: (
     provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
@@ -89,16 +89,14 @@ const HIDDEN_POLL_MS = 20_000;
 const BRAND_CORRECTED =
   "I said no to some of your Brand Brain questions. Fit the plan to the corrected Brand Brain.";
 
-/** Who is signed in, with the way out; closes on a click outside or Escape. */
-function AccountMenu({
-  overview,
-  startOver,
-  signOut,
-}: {
+interface AccountMenuProps {
   overview: CmoOverview;
   startOver: () => Promise<string | null>;
   signOut: () => Promise<void>;
-}) {
+}
+
+/** Who is signed in, with the way out; closes on a click outside or Escape. */
+function AccountMenu({ overview, startOver, signOut }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -154,8 +152,8 @@ function AccountMenu({
 interface OnboardingFlowProps {
   overview: CmoOverview;
   messages: CusoMessage[];
-  /** "connect" or "results" when a connection sends the founder back. */
-  initialStep?: string;
+  /** "results" when a measurement connection sends the founder back to it. */
+  initialStep?: "results" | undefined;
   /** What this person skipped in hiring, from CMO's cookie. */
   skipped?: SkippedStep[];
   actions: OnboardingActions;
@@ -179,9 +177,16 @@ export function OnboardingFlow({
   const [viewing, setViewing] = useState<OnboardingStep | null>(
     initialStep === "results" ? "plan" : null,
   );
+  // Why a connection came back without an account, read before the query goes.
+  const [returnNotice, setReturnNotice] = useState<string | null>(null);
 
   // The connection redirect's query has been read; a reload routes from Core.
   useEffect(() => {
+    const failed =
+      new URLSearchParams(window.location.search).get("connect") === "failed";
+    setReturnNotice(
+      failed ? "That connection didn't finish. Try again." : adsReturnError(),
+    );
     if (window.location.search) window.history.replaceState(null, "", "/");
   }, []);
 
@@ -217,7 +222,9 @@ export function OnboardingFlow({
   const [heldSite, setHeldSite] = useState(false);
   if (previous !== derived) {
     setPrevious(derived);
-    setHeldSite(previous === "site" && derived === "brand");
+    setHeldSite(
+      previous === "site" && (derived === "brand" || derived === "plan"),
+    );
   }
   const reached = stepIndex(derived);
   const revisiting =
@@ -240,15 +247,24 @@ export function OnboardingFlow({
     : undefined;
 
   const planPhase =
-    step === derived &&
-    (position.phase === "planning" || position.phase === "writing-needed")
-      ? position.phase
-      : "review";
+    position.step === "plan" && step === derived ? position.phase : "review";
 
-  const request = async (note?: string) => {
-    const result = await actions.requestStrategy(note);
+  /** Keeps the overview a call brought back; its error, if any, is the answer. */
+  const settle = (result: {
+    overview: CmoOverview | null;
+    error: string | null;
+  }) => {
     if (result.overview) setOverview(result.overview);
     return result.error;
+  };
+  const request = async (note?: string) =>
+    settle(await actions.requestStrategy(note));
+  const answerBrand = async (input: {
+    questionId: string;
+    answer: Answer;
+    note?: string;
+  }) => {
+    setOverview(await actions.answerBrandQuestion(input));
   };
 
   return (
@@ -284,13 +300,13 @@ export function OnboardingFlow({
           <SiteStep
             overview={overview}
             messages={messages}
-            finished={derived === "brand"}
+            phase={position.step === "site" ? position.phase : "asking"}
+            next={derived === "plan" ? "plan" : "brand"}
+            finished={derived !== "site"}
             skipped={skipped.includes("questions")}
-            onAnswer={async (questionId, answer, note) => {
-              setOverview(
-                await actions.answerBrandQuestion({ questionId, answer, note }),
-              );
-            }}
+            onAnswer={(questionId, answer, note) =>
+              answerBrand({ questionId, answer, note })
+            }
             onSkip={async () => {
               setOverview(await actions.skipBrandQuestions());
               setSkipped((current) => [
@@ -320,11 +336,9 @@ export function OnboardingFlow({
             onSave={async (brandBrain) => {
               setOverview(await actions.saveBrandBrain(brandBrain));
             }}
-            onAnswer={async (questionId, answer, note) => {
-              setOverview(
-                await actions.answerBrandQuestion({ questionId, answer, note }),
-              );
-            }}
+            onAnswer={(questionId, answer, note) =>
+              answerBrand({ questionId, answer, note })
+            }
             onApprove={async () => {
               setOverview(await actions.approveBrandBrain());
               // Once a plan exists, the corrected Brand Brain changes it.
@@ -342,21 +356,15 @@ export function OnboardingFlow({
             initialTab={initialStep === "results" ? "results" : undefined}
             ahead={ahead}
             onRequest={request}
-            onSetAds={async (monthly, currency) => {
-              const result = await actions.setAdBudget(monthly, currency);
-              if (result.overview) setOverview(result.overview);
-              return result.error;
-            }}
+            onSetAds={async (monthly, currency) =>
+              settle(await actions.setAdBudget(monthly, currency))
+            }
             onAnswer={async (questionId, answer, note) => {
               setOverview(
                 await actions.answerPlanQuestion({ questionId, answer, note }),
               );
             }}
-            onUpdate={async () => {
-              const result = await actions.applyPlanAnswers();
-              if (result.overview) setOverview(result.overview);
-              return result.error;
-            }}
+            onUpdate={async () => settle(await actions.applyPlanAnswers())}
             onApprove={async () => {
               setOverview(await actions.approveStrategy());
               // Approving opens Launch.
@@ -371,10 +379,13 @@ export function OnboardingFlow({
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
-            onContinue={async () => {
-              await actions.finishAccounts();
-              setViewing(null);
-            }}
+            notice={returnNotice}
+            // Launch needs a connected network, and Core ends hiring on the
+            // first connection, so the celebration is client-only. Recording
+            // the finish sets a cookie, and a cookie written in a server
+            // action re-renders the page into the app: it runs on Go to Today.
+            onLaunch={async () => {}}
+            onGoToday={() => void actions.finishAccounts()}
           />
         )}
       </main>

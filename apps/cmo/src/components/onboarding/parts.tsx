@@ -4,6 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
+import { SubmitButton } from "../submit-button";
 import { Refusal } from "./refusal";
 import { STEPS } from "./step";
 
@@ -12,14 +13,13 @@ export const AGENT_NAME = "Cuso";
 
 export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
 
-/** Cuso's pose on his light circle: the status of the screen. */
-export function CusoAvatar({
-  pose,
-  size = 48,
-}: {
+interface CusoAvatarProps {
   pose: Pose;
   size?: 36 | 48 | 96;
-}) {
+}
+
+/** Cuso's pose on his light circle: the status of the screen. */
+export function CusoAvatar({ pose, size = 48 }: CusoAvatarProps) {
   return (
     <span className="ob-avatar" style={{ width: size, height: size }}>
       <img src={`/cuso/${pose}.png`} alt="" width={size} height={size} />
@@ -32,15 +32,13 @@ export function CusoAvatar({
  * is the one on screen, which differs while the founder looks back. `open`
  * says which markers lead somewhere.
  */
-export function StepMarkers({
-  current,
-  reached,
-  open,
-}: {
+interface StepMarkersProps {
   current: number;
   reached: number;
   open?: (index: number) => (() => void) | null;
-}) {
+}
+
+export function StepMarkers({ current, reached, open }: StepMarkersProps) {
   return (
     <ol className="ob-steps" aria-label="Onboarding">
       {STEPS.map((step, index) => {
@@ -83,7 +81,11 @@ export interface ChecklistItem {
   state: "done" | "working" | "next";
 }
 
-export function Checklist({ items }: { items: ChecklistItem[] }) {
+interface ChecklistProps {
+  items: ChecklistItem[];
+}
+
+export function Checklist({ items }: ChecklistProps) {
   return (
     <ol className="ob-checklist">
       {items.map((item) => (
@@ -162,8 +164,12 @@ export function SkeletonTile() {
   );
 }
 
+interface StatusDiscProps {
+  status: "ok" | "warn" | "fail";
+}
+
 /** Done: green disc and check. Needs you: yellow disc and "!". Failed: ink disc and X. */
-export function StatusDisc({ status }: { status: "ok" | "warn" | "fail" }) {
+export function StatusDisc({ status }: StatusDiscProps) {
   const label =
     status === "ok"
       ? "Done"
@@ -185,12 +191,12 @@ export function StatusDisc({ status }: { status: "ok" | "warn" | "fail" }) {
   );
 }
 
-/** Big numbers over a small line, set off by a top line. */
-export function StatRow({
-  stats,
-}: {
+interface StatRowProps {
   stats: { value: string; line: string }[];
-}) {
+}
+
+/** Big numbers over a small line, set off by a top line. */
+export function StatRow({ stats }: StatRowProps) {
   return (
     <dl className="ob-stats">
       {stats.map((stat) => (
@@ -203,16 +209,14 @@ export function StatRow({
   );
 }
 
-/** The plan's goal: an ink block that inverts again in dark. */
-export function GoalBlock({
-  label,
-  goal,
-  facts,
-}: {
+interface GoalBlockProps {
   label: string;
   goal: string;
   facts: { term: string; value: string }[];
-}) {
+}
+
+/** The plan's goal: an ink block that inverts again in dark. */
+export function GoalBlock({ label, goal, facts }: GoalBlockProps) {
   return (
     <section className="ob-goal" aria-label={label}>
       <p className="ob-goal-label">{label}</p>
@@ -231,6 +235,15 @@ export function GoalBlock({
   );
 }
 
+interface TileProps {
+  label: string;
+  value: string;
+  detail?: string;
+  source?: string;
+  open?: boolean;
+  onToggle?: () => void;
+}
+
 /** One idea from the Brand Brain; the open one inverts and takes an Iris shadow. */
 export function Tile({
   label,
@@ -239,14 +252,7 @@ export function Tile({
   source,
   open,
   onToggle,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  source?: string;
-  open?: boolean;
-  onToggle?: () => void;
-}) {
+}: TileProps) {
   return (
     <article className={open ? "ob-tile open" : "ob-tile"}>
       <div className="ob-tile-head">
@@ -268,18 +274,20 @@ export function Tile({
   );
 }
 
+interface SidePanelProps {
+  title: string;
+  onClose: () => void;
+  source?: string;
+  children: ReactNode;
+}
+
 /** A card beside the grid; under 768px a bottom sheet. Escape closes it. */
 export function SidePanel({
   title,
   onClose,
   source,
   children,
-}: {
-  title: string;
-  onClose: () => void;
-  source?: string;
-  children: ReactNode;
-}) {
+}: SidePanelProps) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -310,18 +318,23 @@ export function SidePanel({
  * An assumption Cuso made, sitting on the line it changes: the question, a
  * small Yes and a text alternative.
  */
+interface AssumptionChipProps {
+  question: string;
+  yes: { label?: string; pressed?: boolean; onClick: () => void };
+  other: { label?: string; pressed?: boolean; onClick: () => void };
+  /** A third answer, as a text button. */
+  unsure?: { pressed?: boolean; onClick: () => void };
+  /** Below the chip: a note field after a No. */
+  children?: ReactNode;
+}
+
 export function AssumptionChip({
   question,
   yes,
   other,
+  unsure,
   children,
-}: {
-  question: string;
-  yes: { label?: string; pressed?: boolean; onClick: () => void };
-  other: { label?: string; pressed?: boolean; onClick: () => void };
-  /** Below the chip: a note field after a No. */
-  children?: ReactNode;
-}) {
+}: AssumptionChipProps) {
   return (
     <div className="ob-chip">
       <div className="ob-chip-row">
@@ -344,6 +357,16 @@ export function AssumptionChip({
           >
             {other.label ?? "No"}
           </button>
+          {unsure ? (
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              aria-pressed={unsure.pressed ?? false}
+              onClick={unsure.onClick}
+            >
+              Not sure
+            </button>
+          ) : null}
         </div>
       </div>
       {children}
@@ -392,23 +415,16 @@ export function useAnswers<
   return [shown, save];
 }
 
-/** A no opens a line for what is true instead; it saves with the no. */
-export function NoteField({
-  initial,
-  onSave,
-}: {
+interface NoteFieldProps {
   initial: string;
   onSave: (note: string) => void;
-}) {
+}
+
+/** A no opens a line for what is true instead; it saves with the no. */
+export function NoteField({ initial, onSave }: NoteFieldProps) {
   const [note, setNote] = useState(initial);
   return (
-    <form
-      className="ob-note-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSave(note);
-      }}
-    >
+    <form className="ob-note-form" action={() => onSave(note)}>
       <input
         value={note}
         onChange={(event) => setNote(event.target.value)}
@@ -417,9 +433,9 @@ export function NoteField({
         aria-label="What's true instead"
         autoFocus
       />
-      <button type="submit" className="button button-secondary button-small">
+      <SubmitButton className="button button-secondary button-small">
         Save
-      </button>
+      </SubmitButton>
     </form>
   );
 }
@@ -434,14 +450,7 @@ const ANSWERS: { value: Answer; label: string }[] = [
  * Cuso's questions, one at a time: where the founder is in them, the topic,
  * the question, and Yes, No or Not sure. A no can say what is true instead.
  */
-export function QuestionCard({
-  topic,
-  question,
-  index,
-  answered,
-  onAnswer,
-  onSkip,
-}: {
+interface QuestionCardProps {
   topic: string;
   question: { question: string; answer?: Answer; note?: string };
   index: number;
@@ -449,7 +458,16 @@ export function QuestionCard({
   answered: boolean[];
   onAnswer: (answer: Answer, note?: string) => Promise<void>;
   onSkip?: () => void;
-}) {
+}
+
+export function QuestionCard({
+  topic,
+  question,
+  index,
+  answered,
+  onAnswer,
+  onSkip,
+}: QuestionCardProps) {
   const [correcting, setCorrecting] = useState(false);
   const [failed, setFailed] = useState(false);
   const save = (answer: Answer, note?: string) => {
@@ -517,14 +535,13 @@ export function QuestionCard({
   );
 }
 
-/** Starts the work again; a refusal (such as no credits) comes back as text. */
-export function RetryButton({
-  onRetry,
-  topUpUrl,
-}: {
+interface RetryButtonProps {
   onRetry: () => Promise<string | null>;
   topUpUrl: string;
-}) {
+}
+
+/** Starts the work again; a refusal (such as no credits) comes back as text. */
+export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (

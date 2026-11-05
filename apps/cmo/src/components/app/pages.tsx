@@ -15,7 +15,7 @@ import {
 } from "../ads";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
-import type { ConnectMeasurement } from "../onboarding/plan-step";
+import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
 import { MeasureFunnel } from "../strategy-core";
 

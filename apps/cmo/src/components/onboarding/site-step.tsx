@@ -2,11 +2,12 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 import { BRAND_SECTIONS } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
+import { SubmitButton } from "../submit-button";
 import {
   AGENT_NAME,
   type Answer,
@@ -20,6 +21,7 @@ import {
   workChecklist,
 } from "./parts";
 import { Refusal } from "./refusal";
+import type { SitePhase } from "./step";
 
 /** Skeleton tiles shown for sections Cuso has not saved yet, at most. */
 const MAX_SKELETONS = 6;
@@ -27,6 +29,10 @@ const MAX_SKELETONS = 6;
 interface SiteStepProps {
   overview: CmoOverview;
   messages: CusoMessage[];
+  /** Where the read stands, from `onboardingStep`. */
+  phase: SitePhase;
+  /** Where "next" leads once Site is done. */
+  next: "brand" | "plan";
   /** Everything is asked and answered, or skipped, and the read is done. */
   finished: boolean;
   /** The founder left the questions for later. */
@@ -37,7 +43,7 @@ interface SiteStepProps {
     note?: string,
   ) => Promise<void>;
   onSkip: () => Promise<void>;
-  /** "See your brand": on to the Brand step. */
+  /** "See your brand" or "Write my plan": on to the next step. */
   onContinue: () => void;
   onRetry: () => Promise<string | null>;
   onReply: (text: string) => Promise<void>;
@@ -50,6 +56,8 @@ interface SiteStepProps {
 export function SiteStep({
   overview,
   messages,
+  phase,
+  next,
   finished,
   skipped,
   onAnswer,
@@ -62,15 +70,15 @@ export function SiteStep({
   const work = overview.work?.kind === "research" ? overview.work : null;
   const site = hostOf(overview.websiteUrl);
   // Cuso may stop to ask the founder something before he saves a Brand Brain.
-  const settled = finished ? "done" : (work?.status ?? overview.learning);
-  const asked =
-    !brain && settled === "done"
-      ? [...messages].reverse().find((message) => message.fromCuso)
-      : undefined;
-  // Done with no Brand Brain and nothing asked: Cuso stopped short, so the
-  // founder needs the way to try again.
-  const failed = !brain && settled !== "running" && !asked;
-  const running = !failed && !asked && !finished && settled === "running";
+  const stopped =
+    phase === "failed" &&
+    overview.learning !== "failed" &&
+    work?.status !== "failed";
+  const asked = stopped
+    ? [...messages].reverse().find((message) => message.fromCuso)
+    : undefined;
+  const failed = phase === "failed" && !asked;
+  const running = phase === "reading" && !finished;
   const noCredits = failed && overview.billing.availableCredits <= 0;
 
   const [questions, answer] = useAnswers(brain?.questions ?? [], onAnswer);
@@ -111,7 +119,7 @@ export function SiteStep({
         <div className="card ob-reading">
           <img
             src="/cuso/reading-scene.jpg"
-            alt="Cuso reading a site with a magnifier"
+            alt={`${AGENT_NAME} reading a site with a magnifier`}
             width={168}
             height={168}
           />
@@ -185,7 +193,7 @@ export function SiteStep({
             <CusoAvatar pose="done" size={96} />
             <p className="ob-value">That's all I need.</p>
             <button type="button" className="button" onClick={onContinue}>
-              See your brand
+              {next === "plan" ? "Write my plan" : "See your brand"}
               <ArrowRight size={16} aria-hidden="true" />
             </button>
             {questions.length > 0 ? (
@@ -213,27 +221,22 @@ export function SiteStep({
   );
 }
 
-/** Cuso stopped to ask the founder something in words. */
-function QuestionReply({
-  question,
-  onReply,
-}: {
+interface QuestionReplyProps {
   question: CusoMessage;
   onReply: (text: string) => Promise<void>;
-}) {
+}
+
+/** Cuso stopped to ask the founder something in words. */
+function QuestionReply({ question, onReply }: QuestionReplyProps) {
   const [text, setText] = useState("");
-  const [pending, startTransition] = useTransition();
   return (
     <form
       className="card ob-focus ob-says"
-      onSubmit={(event) => {
-        event.preventDefault();
+      action={async () => {
         const reply = text.trim();
         if (!reply) return;
-        startTransition(async () => {
-          await onReply(reply);
-          setText("");
-        });
+        await onReply(reply);
+        setText("");
       }}
     >
       <CusoAvatar pose="needs-you" size={96} />
@@ -246,9 +249,7 @@ function QuestionReply({
         placeholder="Your answer"
         aria-label="Your answer"
       />
-      <button type="submit" className="button" disabled={pending}>
-        {pending ? "Sending…" : "Send"}
-      </button>
+      <SubmitButton className="button">Send</SubmitButton>
     </form>
   );
 }

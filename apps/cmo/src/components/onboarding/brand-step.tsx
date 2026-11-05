@@ -15,6 +15,7 @@ import type { CusoMessage } from "../../lib/chat-messages";
 import {
   Accounts,
   AskForm,
+  clip,
   firstSentence,
   hostOf,
   Offers,
@@ -22,6 +23,7 @@ import {
   Voice,
 } from "../brand-profile";
 import { MarketingToday } from "../marketing-today";
+import { SubmitButton } from "../submit-button";
 import {
   AGENT_NAME,
   type Answer,
@@ -33,12 +35,13 @@ import {
 } from "./parts";
 import { Refusal } from "./refusal";
 
+/** Insights "What I noticed" lists, at most. */
+const MAX_INSIGHTS = 3;
+
 /** Longest one-line value or detail a tile shows. */
 const CLIP = 72;
 
-function clip(text: string, max = CLIP): string {
-  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-}
+const short = (text: string) => clip(text, CLIP);
 
 interface TileData {
   id: string;
@@ -67,10 +70,10 @@ function brandTiles(
     tiles.push({
       id: "sell",
       label: "What you sell",
-      value: clip(sells),
+      value: short(sells),
       detail: offer
-        ? clip(`${offer.price}. ${offer.what}`)
-        : clip(brain.products.slice(1).join(", ")),
+        ? short(`${offer.price}. ${offer.what}`)
+        : short(brain.products.slice(1).join(", ")),
       section: "offer",
       body: <Offers brain={brain} onSave={onSave} />,
     });
@@ -81,10 +84,10 @@ function brandTiles(
     tiles.push({
       id: "buy",
       label: "Who buys",
-      value: clip(buys),
+      value: short(buys),
       detail: buyer
-        ? clip(`Wants: ${buyer.wants}`)
-        : clip(brain.audience.slice(1).join(", ")),
+        ? short(`Wants: ${buyer.wants}`)
+        : short(brain.audience.slice(1).join(", ")),
       section: "customers",
     });
   }
@@ -92,8 +95,8 @@ function brandTiles(
     tiles.push({
       id: "voice",
       label: "Your voice",
-      value: clip(firstSentence(brain.voice.tone)),
-      detail: brain.voice.do[0] ? clip(brain.voice.do[0]) : undefined,
+      value: short(firstSentence(brain.voice.tone)),
+      detail: brain.voice.do[0] ? short(brain.voice.do[0]) : undefined,
       section: "positioning",
       body: <Voice brain={brain} />,
     });
@@ -103,9 +106,9 @@ function brandTiles(
     tiles.push({
       id: "marketing",
       label: "Marketing today",
-      value: clip(firstSentence(today.summary)),
+      value: short(firstSentence(today.summary)),
       detail: today.channels?.length
-        ? clip(today.channels.map((channel) => channel.name).join(", "))
+        ? short(today.channels.map((channel) => channel.name).join(", "))
         : undefined,
       section: "marketing",
       body: <MarketingToday today={today} />,
@@ -117,9 +120,9 @@ function brandTiles(
     tiles.push({
       id: "competitors",
       label: "Competitors",
-      value: clip(first?.name ?? ""),
+      value: short(first?.name ?? ""),
       detail: rest.length
-        ? clip(rest.map((rival) => rival.name).join(", "))
+        ? short(rest.map((rival) => rival.name).join(", "))
         : undefined,
       section: "competition",
       body: (
@@ -145,7 +148,7 @@ function brandTiles(
       id: "profiles",
       label: "Profiles",
       value: `${brain.channels.length} ${brain.channels.length === 1 ? "profile" : "profiles"}`,
-      detail: clip(brain.channels.map((channel) => channel.name).join(", ")),
+      detail: short(brain.channels.map((channel) => channel.name).join(", ")),
       body: <Accounts brain={brain} onSave={onSave} />,
     });
   }
@@ -197,13 +200,14 @@ export function BrandStep({
     sent !== null && lastWord !== undefined && lastWord.id !== sent.after;
   // A turn that ended without a reply, or never answered, must not lock the
   // founder in: after a grace period the change counts as not done.
-  const [stale, setStale] = useState(false);
+  // Each send is a new object, so a new send starts fresh.
+  const [staleSent, setStaleSent] = useState<typeof sent>(null);
+  const stale = sent !== null && staleSent === sent;
   const idle = overview.botStatus !== "RUNNING";
   useEffect(() => {
-    setStale(false);
     if (sent === null || answered) return;
     const timer = window.setTimeout(
-      () => setStale(true),
+      () => setStaleSent(sent),
       idle ? 30_000 : 240_000,
     );
     return () => window.clearTimeout(timer);
@@ -351,7 +355,7 @@ export function BrandStep({
             <div className="card ob-noticed">
               <h2>What I noticed</h2>
               <ol>
-                {insights.map((insight) => (
+                {insights.slice(0, MAX_INSIGHTS).map((insight) => (
                   <li key={insight.title}>
                     <b>{insight.title}</b>
                     <span>{insight.detail}</span>
@@ -418,21 +422,18 @@ function tileSource(
   );
 }
 
-/** The promise in one line, as Cuso read it, with the owner's edit. */
-function PromiseCard({
-  brain,
-  site,
-  onSave,
-}: {
+interface PromiseCardProps {
   brain: BrandBrain;
   site: string;
   onSave: (brain: BrandBrain) => Promise<void>;
-}) {
+}
+
+/** The promise in one line, as Cuso read it, with the owner's edit. */
+function PromiseCard({ brain, site, onSave }: PromiseCardProps) {
   const reveal = brain.reveal;
   const statement = reveal?.positioning ?? firstSentence(brain.summary);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(statement);
-  const [saving, startSaving] = useTransition();
   const [failed, setFailed] = useState(false);
   return (
     <div className="card ob-promise">
@@ -454,23 +455,20 @@ function PromiseCard({
       {editing ? (
         <form
           className="ob-promise-form"
-          onSubmit={(event) => {
-            event.preventDefault();
+          action={async () => {
             const next = text.trim();
             if (!next) return;
-            startSaving(async () => {
-              setFailed(false);
-              try {
-                await onSave(
-                  reveal?.positioning
-                    ? { ...brain, reveal: { ...reveal, positioning: next } }
-                    : { ...brain, summary: next },
-                );
-                setEditing(false);
-              } catch {
-                setFailed(true);
-              }
-            });
+            setFailed(false);
+            try {
+              await onSave(
+                reveal?.positioning
+                  ? { ...brain, reveal: { ...reveal, positioning: next } }
+                  : { ...brain, summary: next },
+              );
+              setEditing(false);
+            } catch {
+              setFailed(true);
+            }
           }}
         >
           <textarea
@@ -481,13 +479,7 @@ function PromiseCard({
             aria-label="Your promise, in one line"
           />
           <div className="ob-promise-actions">
-            <button
-              type="submit"
-              className="button button-small"
-              disabled={saving}
-            >
-              Save
-            </button>
+            <SubmitButton className="button button-small">Save</SubmitButton>
             <button
               type="button"
               className="button button-secondary button-small"

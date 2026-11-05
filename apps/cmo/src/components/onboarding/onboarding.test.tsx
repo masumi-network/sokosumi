@@ -1,4 +1,5 @@
 import type { CmoOverview } from "@sokosumi/core-client";
+import type { ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -24,16 +25,26 @@ import {
 import { StepMarkers } from "./parts";
 import { PlanStep } from "./plan-step";
 import { SiteStep } from "./site-step";
+import { onboardingStep, type SitePhase } from "./step";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Brain = NonNullable<CmoOverview["brandBrain"]>;
 
 const noop = async () => {};
-const site = (overview: CmoOverview, patch = {}) =>
+const site = (
+  overview: CmoOverview,
+  patch: Partial<ComponentProps<typeof SiteStep>> = {},
+) =>
   renderToStaticMarkup(
     <SiteStep
       overview={overview}
       messages={[]}
+      phase={
+        onboardingStep(overview).step === "site"
+          ? (onboardingStep(overview).phase as SitePhase)
+          : "asking"
+      }
+      next="brand"
       finished={false}
       skipped={false}
       onAnswer={noop}
@@ -292,6 +303,7 @@ describe("Plan", () => {
     expect(html).toContain("Do you sell 1 things?");
     expect(html.match(/>Yes</g)).toHaveLength(2);
     expect(html.match(/>No</g)).toHaveLength(2);
+    expect(html.match(/>Not sure</g)).toHaveLength(2);
     expect(html).toContain("Approve plan");
   });
 
@@ -357,7 +369,8 @@ describe("Launch", () => {
         overview={value}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
-        onContinue={noop}
+        onLaunch={noop}
+        onGoToday={() => {}}
       />,
     );
   const launchOff = (html: string) =>
@@ -406,8 +419,10 @@ describe("Launch", () => {
     expect(html).toContain("1 of 4 pieces go here");
     // Either network unlocks Launch, so neither row claims to be needed.
     expect(html).not.toContain("Needed to start");
-    expect(html).toContain("Can wait");
+    // Ads are an add-later chip, not a row.
+    expect(html).not.toContain("Can wait");
     expect(html).toContain("Add later");
+    expect(html).toContain("Facebook &amp; Instagram ads");
     expect(html).not.toContain("Newsletter");
     expect(html).not.toContain("mailing list");
   });
@@ -419,7 +434,7 @@ describe("Launch", () => {
 
     const after = render(approved({ channels: [active("x")] }));
     expect(after).not.toContain("to launch.");
-    expect(after).toContain("Nothing posts until you approve it.");
+    expect(after).toContain("only does what your approved plan says");
     expect(after).toContain("@acme");
     expect(launchOff(after)).toBe(false);
   });
