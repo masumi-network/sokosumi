@@ -22,6 +22,8 @@ VERIFIED: native chat reserves a daily allowance before inference, per user and 
 
 VERIFIED: source reversion checks reproduced the old entry, asynchronous viewer cache, retry-key, missing import-header, hidden connection-control, OAuth cleanup and allowance failures. The corrected sources were restored and their regression suites passed. Evidence: `seo-workspace.test.tsx`, `page.test.tsx`, `seo-connections.postgres.test.ts` and `seo-chat-quota.postgres.test.ts`.
 
+VERIFIED: full CI at `c6ab663928` passed Web, package tests, typechecks and builds, but the PostgreSQL step reported `5 failed | 410 passed | 11 skipped (426)`. All five failures came from `contact-capture.postgres.test.ts`. Its `runIntegrationTool` fixture still mocked the old module after the executor moved. The earlier focused command selected the nonexistent `contact-capture.service.test.ts`, so it did not check this database boundary. Correction: the existing fixture now mocks `composio-integration-tools.service`. The isolated reproduction reported `5 failed | 8 passed (13)` before that change and `13 passed (13)` afterward. Product capture behavior and assertions are unchanged.
+
 The following evidence records the earlier Project-scoped implementation before this native revision.
 
 ## Earlier delivered behavior
