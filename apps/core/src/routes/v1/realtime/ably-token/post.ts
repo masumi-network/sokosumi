@@ -13,7 +13,12 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/ably-token.schema";
 
-const roomIdSchema = z.uuid();
+/** Rooms one token may name. The web client names the room it is in. */
+const ROOM_SCOPE_LIMIT = 50;
+const roomIdsSchema = z
+  .string()
+  .transform((value) => (value === "" ? [] : [...new Set(value.split(","))]))
+  .pipe(z.array(z.uuid()).max(ROOM_SCOPE_LIMIT));
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -25,22 +30,9 @@ const route = withOrganizationSlugHeaderParameter(
     request: {
       query: z.object({
         clientInstanceId: z.string().optional(),
-        roomIds: z
-          .string()
-          .optional()
-          .refine(
-            (value) =>
-              value === undefined ||
-              value === "" ||
-              value
-                .split(",")
-                .every((id) => roomIdSchema.safeParse(id).success),
-            "roomIds must contain comma-separated UUIDs",
-          )
-          .openapi({
-            description:
-              "Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or comma-separated room UUIDs. Only current memberships receive grants.",
-          }),
+        roomIds: roomIdsSchema.optional().openapi({
+          description: `Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to ${ROOM_SCOPE_LIMIT} comma-separated room UUIDs. Only current memberships receive grants.`,
+        }),
       }),
     },
     responses: {
@@ -74,14 +66,11 @@ export default function mount(
       throw badRequest("Invalid clientInstanceId");
     }
 
-    const requestedRoomIds =
-      roomIds === undefined ? undefined : roomIds.split(",").filter(Boolean);
-
     const [roomMemberships, orgMemberships, workspaces] = await Promise.all([
       prisma.chatRoomUserMember.findMany({
         where: {
           userId: userContext.userId,
-          ...(requestedRoomIds ? { roomId: { in: requestedRoomIds } } : {}),
+          ...(roomIds ? { roomId: { in: roomIds } } : {}),
         },
         select: { roomId: true },
       }),

@@ -98,7 +98,9 @@ describe("fetchAblyBrowserAuthTokenRequest", () => {
     );
   });
 
-  it("keeps the newest room scope when earlier SDK authorizations settle late", async () => {
+  // Pins ably-js behaviour, not ours: `Auth._ensureValidAuthCredentials`
+  // discards an overtaken token response. The scope hook relies on it.
+  it("keeps the newest room scope when earlier SDK authorizations settle late (ably-js contract)", async () => {
     const newCapability = '{"chat_rooms:room_room-b":["subscribe"]}';
     function tokenResponse(capability: string) {
       return Response.json({

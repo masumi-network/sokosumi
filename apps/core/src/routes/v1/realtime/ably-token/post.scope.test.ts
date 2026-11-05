@@ -131,6 +131,16 @@ describe("browser Ably room scope", () => {
     expect(Object.keys(JSON.parse(data.capability))).toHaveLength(2_005);
   });
 
+  it("rejects a room list above the cap before reading memberships", async () => {
+    const roomIds = Array.from({ length: 51 }, () => crypto.randomUUID());
+    const response = await createApp().request(
+      `http://localhost/ably-token?roomIds=${roomIds.join(",")}`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(422);
+    expect(findRoomMembers).not.toHaveBeenCalled();
+  });
+
   it("rejects malformed room ids before reading memberships", async () => {
     const response = await createApp().request(
       "http://localhost/ably-token?roomIds=bad",
