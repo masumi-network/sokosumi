@@ -384,6 +384,18 @@ describe("avatar provider", () => {
       expect(fetchMock.mock.calls[0]?.[0]).toBe("https://video.test/a.mp4");
     });
 
+    it("fails a video the provider kept in caller-managed storage", async () => {
+      getVideoStatusMock.mockResolvedValue({
+        status: "completed",
+        videos: [{ type: "uploaded", mediaType: "video/mp4" }],
+      });
+
+      await expect(avatarProvider().pollVideo({ job: "j1" })).resolves.toEqual({
+        status: "failed",
+        reason: "video has no downloadable bytes",
+      });
+    });
+
     it("throws when the hosted video cannot be fetched, so the tick tries again", async () => {
       getVideoStatusMock.mockResolvedValue({
         status: "completed",

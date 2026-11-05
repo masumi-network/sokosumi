@@ -24,6 +24,7 @@ This file is the source of truth for dev, design, and website execution. It is a
 User registers, gives their domain, and the agent builds and runs the marketing strategy.
 
 **In scope:**
+
 - Manages social media
 - Creates and posts content
 - Runs ads (Google + Meta)
@@ -31,6 +32,7 @@ User registers, gives their domain, and the agent builds and runs the marketing 
 - Generates images and graphics
 
 **Out of scope, roadmap:**
+
 - Newsletter (down the road, not launch scope, do not build for Token2049)
 
 ### Primary users

@@ -279,6 +279,7 @@ Owners: CLI controls setup; Core owns existing Vendor authorization, Coworker re
 Prerequisites: a Coworker record exists under a Vendor the developer administers. Current Core allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). Runtime identity contract is approved ([ADR 0005](adr/0005-coworker-runtime-identity-and-invocation-contract.md)). The developer selects an existing Workspace. The current CLI sends users to Sokosumi Web to create or join a Workspace when none exists.
 
 Acceptance cases:
+
 - The CLI refuses Coworker registration on Mainnet and sends no request. Other commands retain their selected network.
 - The CLI attaches an existing Coworker to the selected Workspace through the existing API and reports success only after `GRANTED`.
 - Coworker creation respects existing Core roles. The CLI does not grant itself platform-admin authority.
@@ -296,6 +297,7 @@ Acceptance cases:
 Prerequisites: Core binds each operation to a Coworker and authorized context. Choose the adapter contract, claim/recovery semantics, and secret-delivery channel before implementation. The developer CLI remains an admin control tool.
 
 Acceptance cases:
+
 - Runtime reads and updates allowed Tasks, creates an authorized follow-up, and starts an authorized Task-linked Masumi Agent Job.
 - Unrelated workspace access, forbidden status changes, expired authority, and revoked grants fail.
 - Restart and duplicate delivery do not cause duplicate execution or duplicate paid Jobs.
@@ -309,6 +311,7 @@ Acceptance cases:
 Prerequisites: choose and verify outbound local transport or an explicitly hosted provider interface. The existing direct-chat path requires a Responses API URL; task polling alone does not implement chat.
 
 Acceptance cases:
+
 - Mention and reply complete end to end in each supported room type.
 - Only approved history is supplied; unrelated rooms and revoked memberships remain inaccessible.
 - Reconnects do not duplicate replies or route results to a different conversation.
@@ -321,6 +324,7 @@ Acceptance cases:
 Prerequisites: define the Core authorization path and Masumi custody/signing contract. Confirm supported networks and assets against the deployed service. Keep Cardano and EVM signing implementations distinct. General resource requests need destination and redirect checks; arbitrary local/private-network access is not implied by external-service support.
 
 Acceptance cases:
+
 - Each supported funding mode completes an approved purchase and reports the actual result.
 - Unsupported networks/assets, unauthorized recipients, and excessive amounts fail before spending.
 - Signed payment material never leaks to another origin through redirects or error output.
@@ -333,6 +337,7 @@ Acceptance cases:
 Prerequisites: define customer price authorization and seller settlement. Existing usage reporting is not a sufficient public billing contract. Confirm hosted Masumi provisioning, wallet ownership, fees, and payout behavior with the Masumi team; no agreement with Sandro is assumed.
 
 Acceptance cases:
+
 - Metered usage is tied to an authorized customer operation and accepted price version.
 - Unapproved amounts or a different payer are rejected; duplicate usage does not produce a duplicate debit.
 - Controlled payment proves customer debit, service delivery, and intended seller receipt. A mock receipt is insufficient.
