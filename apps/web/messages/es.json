@@ -4013,6 +4013,13 @@
             "rounded": "Redondeado",
             "pill": "Píldora"
           }
+        },
+        "DesignPicker": {
+          "label": "Usar el diseño del espacio de trabajo",
+          "placeholder": "Selecciona un diseño",
+          "workspace": "Espacio de trabajo",
+          "error": "No se ha podido cargar este diseño. Inténtalo de nuevo.",
+          "empty": "Este diseño no incluye colores, fuente ni logotipo."
         }
       }
     },

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
   getSettings: vi.fn(),
   getSendingDomain: vi.fn(),
+  resolveDesignMd: vi.fn(),
   form: vi.fn(),
   pathname: { current: "/newsletter/settings" },
   requireScope: vi.fn(),
@@ -39,6 +40,9 @@ vi.mock("@/lib/services/newsletter.service", () => ({
     getSettings: mocks.getSettings,
     getSendingDomain: mocks.getSendingDomain,
   },
+}));
+vi.mock("@/lib/services/design-md.service", () => ({
+  designMdService: { resolveEffectiveDesignMd: mocks.resolveDesignMd },
 }));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
@@ -88,6 +92,7 @@ beforeEach(() => {
   });
   mocks.getSettings.mockResolvedValue(null);
   mocks.getSendingDomain.mockResolvedValue(SENDING_DOMAIN_STATE);
+  mocks.resolveDesignMd.mockResolvedValue(null);
   mocks.listProjects.mockResolvedValue({ projects: [], pagination: null });
 });
 
@@ -188,6 +193,48 @@ describe("NewsletterSettingsPage", () => {
       expect(
         screen.getByRole("link", { name: SETTINGS.settings }),
       ).toHaveAttribute("aria-current", "page");
+    });
+
+    it("offers the workspace and project designs, without their URLs", async () => {
+      mocks.getProject.mockResolvedValue({
+        id: PROJECT_ID,
+        name: "Launch",
+        logo: null,
+        designMd: { url: "https://blob.example.com/design-md/project.md" },
+      });
+      mocks.resolveDesignMd.mockResolvedValue({
+        label: "Acme",
+        url: "https://blob.example.com/design-md/org.md",
+        owner: { type: "organization", name: "Acme", logo: null },
+      });
+      render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
+      expect(mocks.form.mock.calls[0]![0].designMdOptions).toEqual([
+        { source: "workspace", label: "Acme" },
+        { source: "project", label: "Launch" },
+      ]);
+    });
+
+    it("names a personal design Workspace, and offers none when there are none", async () => {
+      mocks.resolveDesignMd.mockResolvedValue({
+        label: "Personal",
+        url: "https://blob.example.com/design-md/user.md",
+        owner: { type: "user" },
+      });
+      render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
+      expect(mocks.form.mock.calls[0]![0].designMdOptions).toEqual([
+        { source: "workspace", label: SETTINGS.DesignPicker.workspace },
+      ]);
+
+      mocks.form.mockClear();
+      mocks.resolveDesignMd.mockResolvedValue(null);
+      render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
+      expect(mocks.form.mock.calls[0]![0].designMdOptions).toEqual([]);
+    });
+
+    it("keeps the settings usable when the workspace design cannot be read", async () => {
+      mocks.resolveDesignMd.mockRejectedValue(new Error("Core unavailable"));
+      render(await NewsletterSettingsPage(props({ projectId: PROJECT_ID })));
+      expect(mocks.form.mock.calls[0]![0].designMdOptions).toEqual([]);
     });
 
     it("does not disguise a failed settings read as an empty newsletter", async () => {

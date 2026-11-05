@@ -4,9 +4,11 @@ import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import type { SearchParams } from "nuqs/server";
 
+import { designMdService } from "@/lib/services/design-md.service";
 import { newsletterService } from "@/lib/services/newsletter.service";
 
 import { NewsletterPageShell } from "../components/newsletter-page-shell";
+import type { NewsletterDesignMdOption } from "../newsletter-design-md-picker";
 import {
   loadNewsletterProject,
   newsletterWorkspacePage,
@@ -44,12 +46,31 @@ export default async function NewsletterSettingsPage({
   }
   const { project } = scope;
 
-  const [newsletter, sendingDomain, page, t] = await Promise.all([
-    newsletterService.getSettings(project.id),
-    newsletterService.getSendingDomain(project.id),
-    getTranslations("App.Newsletter"),
-    getTranslations("App.Projects.Newsletter"),
-  ]);
+  const [newsletter, sendingDomain, workspaceDesignMd, page, t] =
+    await Promise.all([
+      newsletterService.getSettings(project.id),
+      newsletterService.getSendingDomain(project.id),
+      // The picker is a shortcut: without it the settings still work.
+      designMdService.resolveEffectiveDesignMd().catch(() => null),
+      getTranslations("App.Newsletter"),
+      getTranslations("App.Projects.Newsletter"),
+    ]);
+  const designMdOptions: NewsletterDesignMdOption[] = [
+    ...(workspaceDesignMd
+      ? [
+          {
+            source: "workspace" as const,
+            label:
+              workspaceDesignMd.owner.type === "organization"
+                ? workspaceDesignMd.owner.name
+                : t("DesignPicker.workspace"),
+          },
+        ]
+      : []),
+    ...(project.designMd
+      ? [{ source: "project" as const, label: project.name }]
+      : []),
+  ];
 
   return (
     <NewsletterPageShell
@@ -65,6 +86,7 @@ export default async function NewsletterSettingsPage({
         projectId={project.id}
         projectName={project.name}
         projectLogo={project.logo}
+        designMdOptions={designMdOptions}
         sendingDomain={
           <SendingDomainCard state={sendingDomain} projectId={project.id} />
         }
