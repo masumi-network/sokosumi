@@ -3713,7 +3713,7 @@
           "lastDays": "Últimos {days} días",
           "presetDays": "{days} días",
           "clearRange": "Borrar intervalo de fechas",
-          "periodNoteAria": "Acerca de las fechas de las estadísticas",
+          "notesAria": "Acerca de estas cifras",
           "invalidRange": "Elige un intervalo de fechas válido de entre 1 y 366 días o borra el intervalo de fechas.",
           "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
           "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
