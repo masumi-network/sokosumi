@@ -25,14 +25,14 @@ vi.mock("@/lib/ably/publish", () => ({
 const { waitUntilMock } = vi.hoisted(() => ({ waitUntilMock: vi.fn() }));
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
   vi.hoisted(() => ({
     persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
   }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
@@ -81,13 +81,25 @@ describe("persistAssistantToChatRoom", () => {
       roomId: "room_1",
       content: "@user_1 please check",
     });
-    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
       messageId: "msg_assistant",
       mentionedUserIds: ["user_1"],
     });
     expect(waitUntilMock).toHaveBeenCalledWith(
-      emitChatHumanMentionNotificationsMock.mock.results[0]?.value,
+      emitChatMessageNotificationsMock.mock.results[0]?.value,
     );
+  });
+
+  it("notifies the room when an assistant reply names nobody", async () => {
+    await persistAssistantToChatRoom({
+      roomId: "room_1",
+      senderCoworkerId: "coworker_1",
+      contentText: "Your analysis is ready",
+    });
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
+      messageId: "msg_assistant",
+      mentionedUserIds: [],
+    });
   });
 
   it("notifies nobody of a mention when the reply names no member", async () => {
@@ -98,7 +110,9 @@ describe("persistAssistantToChatRoom", () => {
     });
 
     expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionedUserIds: [] }),
+    );
   });
 
   it("creates chat_room_message with senderCoworkerId and content", async () => {

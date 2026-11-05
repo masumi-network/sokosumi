@@ -31,6 +31,8 @@ export interface EmitChatDirectMessageNotificationsParams {
   authorUserId: string | null;
   authorName: string;
   recipientUserIds: readonly string[];
+  /** Keep Direct channels the reader did not enable for their mention. */
+  mentionedUserIds?: readonly string[];
   /** The Thread this message replies in, so muted readers are left out. */
   parentMessageId?: string | null;
 }

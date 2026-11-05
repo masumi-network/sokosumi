@@ -23,7 +23,7 @@ const {
   memberFindManyMock,
   messageGroupByMock,
   pinGroupByMock,
-  notificationGroupByMock,
+  notificationFindManyMock,
   membershipFindManyMock,
   readStateFindManyMock,
   queryRawUnsafeMock,
@@ -37,7 +37,7 @@ const {
   memberFindManyMock: vi.fn(),
   messageGroupByMock: vi.fn(),
   pinGroupByMock: vi.fn(),
-  notificationGroupByMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
@@ -65,7 +65,7 @@ vi.mock("@/lib/db/prisma", () => ({
       groupBy: pinGroupByMock,
     },
     notification: {
-      groupBy: notificationGroupByMock,
+      findMany: notificationFindManyMock,
     },
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
@@ -217,7 +217,7 @@ beforeEach(() => {
   roomCountMock.mockResolvedValue(0);
   messageGroupByMock.mockResolvedValue([]);
   pinGroupByMock.mockResolvedValue([]);
-  notificationGroupByMock.mockResolvedValue([]);
+  notificationFindManyMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
   queryRawUnsafeMock.mockResolvedValue([]);
