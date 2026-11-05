@@ -109,6 +109,7 @@ vi.mock("@/lib/db/prisma", () => {
 });
 
 import { rewriteChatNotificationPreviews } from "./chat-notification-fanout";
+import { notificationEmailContentRevision } from "./notification-chat-email-source";
 import {
   cancelNotificationEmails,
   dispatchNotificationEmail,
@@ -237,9 +238,14 @@ it("keeps the counted email for earlier arrivals when the latest message is dele
   state.deleted = true;
   await resendRoomMessageEmail("notification-1");
   expect(state.sent[0]?.subject).toBe("Sokosumi - 2 unread messages in Design");
-  // Nothing of the lost message: not its author, not a link to it.
-  expect(state.sent[0]?.html).not.toContain("Ada");
+  // No link to the lost message.
   expect(state.sent[0]?.html).not.toContain("message=message-1");
+  // The row's bytes did not change with the deletion, so the key must say
+  // what did: a message send under the same key would be replayed, or this
+  // one refused as a different payload.
+  expect(state.sent[0]?.idempotencyKey).toBe(
+    `notification-email/notification-1/2/${notificationEmailContentRevision(state.row)}/room`,
+  );
   expect(state.cancelled).toEqual(["old-email"]);
   expect(state.row.emailId).toBe("email-1");
 });

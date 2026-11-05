@@ -563,7 +563,12 @@ async function dispatchNotificationEmailRevision(
         // another message joins the row it stands for: that send is a
         // different email about a different number of messages, and the
         // first send's key would have Resend replay the old one (SOK-1142).
-        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}${notification.kind === NotificationKind.CHAT ? `/${notificationEmailContentRevision(notification)}` : ""}`,
+        //
+        // The source is in the key because a row that carries no preview
+        // keeps its bytes when its message is deleted: the revision would
+        // match the first send's, and the room's email is a different
+        // payload under it, which Resend refuses rather than replaces.
+        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}${notification.kind === NotificationKind.CHAT ? `/${notificationEmailContentRevision(notification)}` : ""}${source === "room" ? "/room" : ""}`,
       });
 
       if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;

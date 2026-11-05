@@ -38,7 +38,9 @@ export type NotificationEmailSource = "message" | "none" | "room";
  * message to deletion must not take their email away: the email then speaks
  * for the room, without that message or its author. A message that is not in
  * the room at all is different: the room is gone, or the row never pointed
- * at it. Same rule as the publish path.
+ * at it. Deletion follows the publish rule. An absent message does not: the
+ * publish path keeps showing a counted row in the app, while no email is
+ * sent for a room its row cannot find.
  */
 export async function notificationEmailSource(
   notification: EmailSource,
