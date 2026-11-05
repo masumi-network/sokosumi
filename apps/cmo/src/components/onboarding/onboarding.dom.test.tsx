@@ -229,6 +229,26 @@ it("skips the questions for later and still reaches Brand", async () => {
   expect(text()).toContain("2 questions left");
 });
 
+it("shows Skip at once as a finished card, pending until it lands", async () => {
+  let land = () => {};
+  const actions = actionsFor({
+    skipBrandQuestions: vi.fn(
+      () =>
+        new Promise<CmoOverview>((resolve) => (land = () => resolve(asking()))),
+    ),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow overview={asking()} messages={[]} actions={actions} />,
+    ),
+  );
+  await press("Skip for now");
+  expect(text()).toContain("That's all I need.");
+  expect(button("Skipping").disabled).toBe(true);
+  await act(async () => land());
+  expect(button("See your brand").disabled).toBe(false);
+});
+
 it("opens Brand directly on a reload with nothing left to ask", async () => {
   await act(async () =>
     root.render(
@@ -619,6 +639,8 @@ it("celebrates after Launch, then opens the app on Go to Today", async () => {
   expect(text()).toContain("Cuso is on it.");
   expect(text()).toContain("Active, 7 pieces a week");
   expect(text()).toContain("€200 a month");
+  expect(text()).toContain("posts on your plan's schedule");
+  expect(text()).not.toContain("Nothing posts until");
   expect(text()).toContain("LinkedIn and X");
   expect(text()).not.toContain("Approvals");
   expect(goToday).not.toHaveBeenCalled();

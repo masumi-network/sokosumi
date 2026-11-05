@@ -15,7 +15,7 @@ import { StatRow, StepMarkers } from "./onboarding/parts";
 const STATS = [
   { value: "3 min", line: "I read your site and what is public about you." },
   { value: "5 taps", line: "You answer quick questions while I read." },
-  { value: "1 plan", line: "You approve it. Nothing posts without you." },
+  { value: "1 plan", line: "You approve it. Nothing posts before that." },
 ];
 
 interface OnboardingProps {

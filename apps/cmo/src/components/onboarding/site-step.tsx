@@ -4,11 +4,16 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 
-import { BRAND_SECTIONS } from "../../lib/brand-sections";
+import {
+  BRAND_SECTIONS,
+  brandProfile,
+  sourceHost,
+} from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
 import { AGENT_NAME, CusoAvatar } from "../cuso";
 import { SubmitButton } from "../submit-button";
+import { brandTiles, tileSource } from "./brand-step";
 import {
   type Answer,
   Checklist,
@@ -24,6 +29,9 @@ import type { SitePhase } from "./step";
 
 /** Skeleton tiles shown for sections Cuso has not saved yet, at most. */
 const MAX_SKELETONS = 6;
+
+/** Found items shown once the Brand Brain exists, at most. */
+const MAX_FOUND = 3;
 
 interface SiteStepProps {
   overview: CmoOverview;
@@ -85,7 +93,9 @@ export function SiteStep({
   const firstOpen = answered.indexOf(false);
   // Where the founder is in the questions; "Change answers" starts again.
   const [at, setAt] = useState<number | null>(null);
-  const asking = at !== null || (firstOpen !== -1 && !skipped);
+  // Skipping shows its result at once; the cookie write takes a moment.
+  const [skipping, setSkipping] = useState(false);
+  const asking = !skipping && (at !== null || (firstOpen !== -1 && !skipped));
   const index = at ?? Math.max(firstOpen, 0);
   const question = questions[index];
 
@@ -130,28 +140,53 @@ export function SiteStep({
           <h1 className="ob-h1">{title}</h1>
           <Checklist items={checklist} />
         </div>
-        {found ? (
+        {found || brain ? (
           <div className="card ob-found">
             <div className="ob-found-head">
               <h2>What I found so far</h2>
-              <span className="ob-small num">
-                {found.saved} of {found.total} sections
-              </span>
+              {found ? (
+                <span className="ob-small num">
+                  {found.saved} of {found.total} sections
+                </span>
+              ) : null}
             </div>
-            <div className="ob-skeletons">
-              {Array.from(
-                {
-                  length: Math.min(
-                    Math.max(found.total - found.saved, 0),
-                    MAX_SKELETONS,
+            {brain ? (
+              <ul className="ob-found-list">
+                {brandTiles(brain, async () => {})
+                  .slice(0, MAX_FOUND)
+                  .map((tile) => (
+                    <li key={tile.id}>
+                      <span className="ob-small ob-muted">{tile.label}</span>
+                      <b>{tile.value}</b>
+                      <span className="ob-tile-source">
+                        Source:{" "}
+                        {sourceHost(
+                          tileSource(
+                            tile,
+                            brandProfile(brain),
+                            overview.websiteUrl,
+                          ),
+                        )}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            ) : found ? (
+              <div className="ob-skeletons">
+                {Array.from(
+                  {
+                    length: Math.min(
+                      Math.max(found.total - found.saved, 0),
+                      MAX_SKELETONS,
+                    ),
+                  },
+                  (_, skeleton) => (
+                    // Placeholders have no identity beyond their place.
+                    <SkeletonTile key={skeleton} />
                   ),
-                },
-                (_, skeleton) => (
-                  // Placeholders have no identity beyond their place.
-                  <SkeletonTile key={skeleton} />
-                ),
-              )}
-            </div>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -185,15 +220,32 @@ export function SiteStep({
               await answer(question.id, value, note);
               setAt(index + 1 < questions.length ? index + 1 : null);
             }}
-            onSkip={() => void onSkip().then(() => setAt(null))}
+            onSkip={() => {
+              setSkipping(true);
+              onSkip()
+                .catch(() => {})
+                .finally(() => {
+                  setSkipping(false);
+                  setAt(null);
+                });
+            }}
           />
-        ) : finished ? (
+        ) : finished || (skipping && phase !== "reading") ? (
           <div className="card ob-focus ob-says">
             <CusoAvatar pose="done" size={96} />
             <p className="ob-value">That's all I need.</p>
-            <button type="button" className="button" onClick={onContinue}>
-              {next === "plan" ? "Write my plan" : "See your brand"}
-              <ArrowRight size={16} aria-hidden="true" />
+            <button
+              type="button"
+              className="button"
+              disabled={skipping}
+              onClick={onContinue}
+            >
+              {skipping
+                ? "Skipping…"
+                : next === "plan"
+                  ? "Write my plan"
+                  : "See your brand"}
+              {skipping ? null : <ArrowRight size={16} aria-hidden="true" />}
             </button>
             {questions.length > 0 ? (
               <button

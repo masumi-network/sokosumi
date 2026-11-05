@@ -22,6 +22,7 @@ import {
   PLANNING_PHASES,
   RetryButton,
   useAnswers,
+  useElapsed,
   workChecklist,
 } from "./parts";
 import {
@@ -88,6 +89,7 @@ function Planning({ overview, onRetry }: PlanningProps) {
   const work = overview.work;
   const running = work?.kind === "strategy" && work.status === "running";
   const noCredits = !running && overview.billing.availableCredits <= 0;
+  const elapsed = useElapsed(work?.startedAt, running);
   return (
     <section className="ob-panel panel ob-wait">
       <div className="card ob-focus ob-says">
@@ -100,10 +102,11 @@ function Planning({ overview, onRetry }: PlanningProps) {
         ) : (
           <p className="ob-muted">
             {running
-              ? `Every post, ad and email ${AGENT_NAME} will make, and when. Ready in about a minute.`
+              ? `Every post, ad and email ${AGENT_NAME} will make, and when. This takes a few minutes.`
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}
+        {elapsed ? <p className="ob-small ob-muted num">{elapsed}</p> : null}
         <Checklist
           items={workChecklist(
             work?.kind === "strategy" ? work.steps : [],
@@ -183,7 +186,6 @@ function PlanReview({
   const changing = sending !== null;
   const [going, startGoing] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
-  const [budgetOk, setBudgetOk] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const work = overview.work;
@@ -239,7 +241,7 @@ function PlanReview({
   const statement =
     moves > 0 && pages > 0
       ? `One goal, ${NUMBER_WORDS[moves] ?? moves} ${moves === 1 ? "move" : "moves"}. Built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.`
-      : `${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks. Nothing goes out until you approve.`;
+      : `${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks. Nothing goes out until you approve the plan.`;
 
   const primary = ahead ? (
     <button type="button" className="button" onClick={ahead.onClick}>
@@ -428,25 +430,23 @@ function PlanReview({
                 />
               </div>
             ) : null}
-            {ads && ads.monthly > 0 ? (
-              <AssumptionChip
-                question={`Is ${money(ads.monthly, ads.currency)} a month OK for ads?`}
-                yes={{
-                  pressed: budgetOk,
-                  onClick: () => {
-                    setBudgetOk(true);
-                    setBudgetOpen(false);
-                  },
-                }}
-                other={{
-                  label: "Change",
-                  pressed: budgetOpen,
-                  onClick: () => {
-                    setBudgetOk(false);
-                    setBudgetOpen(!budgetOpen);
-                  },
-                }}
-              >
+            {ads ? (
+              <div className="card ob-budget">
+                <div className="ob-budget-row">
+                  <p>
+                    {ads.monthly > 0
+                      ? `${money(ads.monthly, ads.currency)} a month for ads`
+                      : "No ads"}
+                  </p>
+                  <button
+                    type="button"
+                    className="button button-ghost button-small"
+                    aria-expanded={budgetOpen}
+                    onClick={() => setBudgetOpen(!budgetOpen)}
+                  >
+                    {ads.monthly > 0 ? "Change" : "Add a budget"}
+                  </button>
+                </div>
                 {budgetOpen ? (
                   <AdBudget
                     ads={ads}
@@ -457,17 +457,6 @@ function PlanReview({
                     }
                   />
                 ) : null}
-              </AssumptionChip>
-            ) : ads ? (
-              <div className="card ob-pace">
-                <AdBudget
-                  ads={ads}
-                  onSetAds={(monthly, currency) =>
-                    send(`Ad budget: ${currency} ${monthly} a month`, () =>
-                      onSetAds(monthly, currency),
-                    )
-                  }
-                />
               </div>
             ) : null}
           </div>

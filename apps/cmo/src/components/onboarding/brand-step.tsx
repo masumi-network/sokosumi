@@ -11,7 +11,10 @@ import {
   brandProfile,
   sourceHost,
 } from "../../lib/brand-sections";
+import { channelLabel } from "../../lib/calendar";
+import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { joinNames } from "../../lib/names";
 import {
   Accounts,
   AskForm,
@@ -58,20 +61,29 @@ interface TileData {
  * who buys, how they sound, where marketing stands, who they compete with
  * and where they have profiles. Only those Cuso found data for.
  */
-function brandTiles(
+export function brandTiles(
   brain: BrandBrain,
   onSave: (brain: BrandBrain) => Promise<void>,
 ): TileData[] {
   const tiles: TileData[] = [];
-  const offer = brain.offers?.[0];
-  const sells = offer?.name ?? brain.products[0];
+  const offers = brain.offers ?? [];
+  const offer = offers[0];
+  // The product's name, else how many offers there are; the detail says more.
+  const sells =
+    brain.products[0] ??
+    (offers.length > 0
+      ? `${offers.length} ${offers.length === 1 ? "offer" : "offers"}`
+      : undefined);
   if (sells) {
     tiles.push({
       id: "sell",
       label: "What you sell",
       value: short(sells),
       detail: offer
-        ? short(`${offer.price}. ${offer.what}`)
+        ? short(
+            // "Free" priced "Free, 250 credits per seat" reads once, not twice.
+            `${offer.price.startsWith(offer.name) ? offer.price : `${offer.name}, ${offer.price}`}. ${offer.what}`,
+          )
         : short(brain.products.slice(1).join(", ")),
       section: "offer",
       body: <Offers brain={brain} onSave={onSave} />,
@@ -102,27 +114,31 @@ function brandTiles(
   }
   const today = brain.marketingToday;
   if (today) {
+    const names = (today.channels ?? []).map((channel) => {
+      const key = channelKey(channel.name.toLowerCase().replace(/\s+/g, ""));
+      return key ? channelLabel(key) : channel.name;
+    });
     tiles.push({
       id: "marketing",
       label: "Marketing today",
-      value: short(firstSentence(today.summary)),
-      detail: today.channels?.length
-        ? short(today.channels.map((channel) => channel.name).join(", "))
-        : undefined,
+      value:
+        names.length === 0
+          ? "Not much yet"
+          : names.length > 3
+            ? `${names.length} channels`
+            : joinNames(names),
+      detail: short(firstSentence(today.summary)),
       section: "marketing",
       body: <MarketingToday today={today} />,
     });
   }
   const rivals = [...brain.competitors, ...(brain.alternatives ?? [])];
   if (rivals.length > 0) {
-    const [first, ...rest] = rivals;
     tiles.push({
       id: "competitors",
       label: "Competitors",
-      value: short(first?.name ?? ""),
-      detail: rest.length
-        ? short(rest.map((rival) => rival.name).join(", "))
-        : undefined,
+      value: `${rivals.length} compared`,
+      detail: short(rivals.map((rival) => rival.name).join(", ")),
       section: "competition",
       body: (
         <ul className="ob-list">
@@ -409,7 +425,7 @@ export function BrandStep({
 }
 
 /** Where a tile's facts come from: its section's first sourced finding, else the site. */
-function tileSource(
+export function tileSource(
   tile: TileData,
   profile: ReturnType<typeof brandProfile>,
   fallback: string,
