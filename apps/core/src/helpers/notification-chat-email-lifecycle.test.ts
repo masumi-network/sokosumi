@@ -197,6 +197,29 @@ it.each([
     expect(state.row?.emailId).toBe("email-1");
   },
 );
+it("sends again for the room alone when its message goes during a first send", async () => {
+  // No preview, so the deletion leaves the row's bytes as they are: only
+  // the source moved, from the message to the room.
+  state.row = {
+    ...row(),
+    messageParams: JSON.stringify({
+      authorName: "Ada",
+      roomName: "Design",
+      count: 2,
+    }),
+  };
+  state.duringSend = () => {
+    state.duringSend = null;
+    state.deleted = true;
+  };
+  await dispatchNotificationEmail(state.row);
+  expect(state.sent).toHaveLength(2);
+  expect(state.sent[0]?.html).toContain("message=message-1");
+  expect(state.sent[1]?.idempotencyKey).toMatch(/\/room$/);
+  expect(state.sent[1]?.html).not.toContain("message=message-1");
+  expect(state.cancelled).toEqual(["email-1"]);
+  expect(state.row.emailId).toBe("email-2");
+});
 it.each([
   // The first send is still in flight: name the time it promised.
   [120_000, NOW + 600_000],

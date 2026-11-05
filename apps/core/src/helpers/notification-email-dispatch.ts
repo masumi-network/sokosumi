@@ -252,10 +252,12 @@ async function sendTimeFor(
     if (held !== undefined && held > Date.now()) return new Date(held);
     // Counted from the row rather than from now. The first send and a
     // recovery send that a counted arrival starts while the first is still
-    // in flight share one idempotency key, and Resend refuses the second
-    // of two sends under one key that name different times (409). Both
-    // name the time the row promised. A row whose promised time has
-    // passed, because its first send never left, waits the delay out again.
+    // in flight share one idempotency key when both read the same row, and
+    // Resend refuses the second of two sends under one key that name
+    // different times (409). Both name the time the row promised. When the
+    // arrival moved the row first the keys differ, and the refresh takes
+    // the older email back. A row whose promised time has passed, because
+    // its first send never left, waits the delay out again.
     const promised = notification.createdAt.getTime() + delayMs;
     return new Date(promised > Date.now() ? promised : Date.now() + delayMs);
   }
@@ -468,11 +470,17 @@ async function dispatchNotificationEmailRevision(
         )
           replaced = live.emailId;
       }
-      if (
-        replaceable &&
-        (await notificationEmailSource(notification, client)) === "none"
-      )
-        return { emailId, count: 0, replaced: null };
+      if (replaceable) {
+        const liveSource = await notificationEmailSource(notification, client);
+        if (liveSource === "none") return { emailId, count: 0, replaced: null };
+        // The row's bytes can stay while its message goes: a counted row
+        // without a preview is left as it is by a deletion. The email was
+        // built for the message, and the row now speaks for the room alone.
+        if (liveSource !== source) {
+          refresh = notification;
+          return { emailId, count: 0, replaced: null };
+        }
+      }
       if (
         notification.workspaceId &&
         !(await hasCalendarWorkspaceAccess(
@@ -537,10 +545,13 @@ async function dispatchNotificationEmailRevision(
         ? await withWorkspaceMembershipFence(workspaceId, liveUnreadRecipient)
         : await liveUnreadRecipient(prisma);
 
-      if (
-        !allowed ||
-        (await notificationEmailSource(notification)) === "none"
-      ) {
+      if (!allowed) return null;
+      const liveSource = await notificationEmailSource(notification);
+      if (liveSource === "none") return null;
+      // Same as in `persistSentEmail`: a message that went while this send
+      // waited for its turn is sent again, for what the row speaks for now.
+      if (liveSource !== source) {
+        refresh = notification;
         return null;
       }
 
