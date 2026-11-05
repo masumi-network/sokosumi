@@ -3713,7 +3713,7 @@
           "lastDays": "Letzte {days} Tage",
           "presetDays": "{days} Tage",
           "clearRange": "Zeitraum löschen",
-          "periodNoteAria": "Informationen zu Statistikzeiträumen",
+          "notesAria": "Informationen zu diesen Zahlen",
           "invalidRange": "Wähle einen gültigen Zeitraum von 1 bis 366 Tagen oder lösche den Zeitraum.",
           "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
           "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
@@ -3755,10 +3755,10 @@
           }
         },
         "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
-        "brandDescription": "Logo, Farben, Schrift und Layout für Newsletter-Ausgaben und Anmeldeformulare.",
+        "brandDescription": "Gilt für Newsletter-Ausgaben und Anmeldeformulare.",
         "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
         "unsavedChanges": "Du hast ungespeicherte Änderungen.",
-        "colorPlaceholder": "Keine Farbe",
+        "colorPlaceholder": "Standard",
         "presetColors": "Vorgegebene Farben",
         "clearColor": {
           "primaryColor": "Primärfarbe entfernen",
@@ -3767,7 +3767,7 @@
           "buttonTextColor": "Button-Textfarbe entfernen"
         },
         "Logo": {
-          "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
+          "description": "Bis zu {maxSize}",
           "upload": "Hochladen",
           "replace": "Ersetzen",
           "remove": "Logo entfernen",
@@ -3971,10 +3971,10 @@
           }
         },
         "colorHints": {
-          "primaryColor": "Überschriften und Text. Leer lassen für den Standard.",
-          "accentColor": "Button-Füllung. Leer lassen für den Standard.",
-          "backgroundColor": "Hinter der E-Mail-Karte. Leer lassen für Hellgrau.",
-          "buttonTextColor": "Button-Beschriftung. Sie muss auf der Akzentfarbe gut lesbar sein."
+          "primaryColor": "Überschriften und Text",
+          "accentColor": "Button-Füllung",
+          "backgroundColor": "Hinter der E-Mail-Karte",
+          "buttonTextColor": "Button-Beschriftung"
         },
         "Image": {
           "upload": "Bild hochladen",
@@ -3985,7 +3985,7 @@
           "fileTooLarge": "Die Datei ist zu groß",
           "fileTypeNotAccepted": "Verwende ein PNG-, JPEG-, WebP- oder GIF-Bild",
           "maxFilesExceeded": "Lade jeweils nur ein Bild hoch",
-          "headerDescription": "Ein Banner über deinem Logo, bis zu {maxSize}. Breite Bilder wirken am besten."
+          "headerDescription": "Breites Banner, bis zu {maxSize}"
         },
         "Design": {
           "title": "Newsletter-Design",
@@ -5227,6 +5227,10 @@
           "cmoSpend": {
             "title": "CMO-Kosten",
             "description": "Was jeder CMO-Bot (Cuso) ausgegeben hat, was den Inhabern belastet wurde und wofür."
+          },
+          "writingSkills": {
+            "title": "Schreib-Skills",
+            "description": "Wie Cuso für jedes Netzwerk schreibt: die Skills, die er vor jedem Beitrag liest, und die Checkliste, nach der jeder Beitrag geprüft wird."
           },
           "designSystem": {
             "title": "Designsystem",
@@ -6606,6 +6610,17 @@
         "drifted": "{count} weg vom Hauptangebot",
         "unavailable": "{count} ohne Prüfmodell",
         "lastProblems": "Zuletzt zurück {at}:"
+      },
+      "WritingSkills": {
+        "title": "Schreib-Skills",
+        "description": "Was Cuso liest, bevor er eine Art von Beitrag schreibt. Sobald ein Monat erstellt ist, prüft ein Evaluator jeden Beitrag gegen die Checkliste seines Skills und die Markenstimme und schickt die Beiträge zurück, die nicht passen.",
+        "listLabel": "Schreib-Skills",
+        "channels": "Verwendet für",
+        "checklist": "Vor dem Speichern",
+        "checklistHint": "Jeder fertige Beitrag wird gegen diese Regeln geprüft: Der Evaluator beurteilt jede Regel, und Core zählt die als gezählt markierten im Code.",
+        "onlyFor": "Nur für {formats}",
+        "counted": "Im Code gezählt",
+        "empty": "Noch keine Schreib-Skills."
       },
       "DesignSystem": {
         "title": "Designsystem",
@@ -8833,6 +8848,8 @@
           "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
           "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
           "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
+          "bug": "{count, plural, one {# Fehler} other {# Fehler}}",
+          "review": "{count, plural, one {# Feedback-Anfrage} other {# Feedback-Anfragen}}",
           "question": "{count, plural, one {# Frage} other {# Fragen}}",
           "fyi": "{count, plural, one {# Info} other {# Infos}}",
           "chitChat": "{count, plural, one {# Plauderei} other {# Plaudereien}}"
@@ -8855,7 +8872,9 @@
           "needsDecision": "Braucht eine Entscheidung",
           "commitment": "Zusage",
           "commitmentDue": "Zusage · fällig {date}",
-          "workRequest": "Arbeitsauftrag"
+          "workRequest": "Arbeitsauftrag",
+          "bug": "Fehler",
+          "review": "Feedback"
         },
         "Tags": {
           "question": "Stellt jemandem eine Frage",
@@ -8867,6 +8886,8 @@
           "urgent": "Dringend",
           "escalation": "Eskalation",
           "workRequest": "Arbeitsauftrag",
+          "bug": "Meldet einen Fehler",
+          "review": "Bittet um Feedback",
           "fyi": "Info",
           "chitChat": "Plauderei"
         },
@@ -10046,6 +10067,13 @@
         "dropped": "{item} an die Stelle von {target} verschoben.",
         "cancelled": "Verschieben von {item} abgebrochen."
       },
+      "filterByTag": "Nach {tag} filtern",
+      "quickFilter": "{count, plural, =0 {Nach {column} filtern} one {Nach {column} filtern, # Option ausgewählt} other {Nach {column} filtern, # Optionen ausgewählt}}",
+      "matchAllOptions": "Zeilen mit allen ausgewählten Optionen",
+      "clearFilter": "Zurücksetzen",
+      "clearFilters": "Filter zurücksetzen",
+      "removeFilter": "Filter entfernen: {column}",
+      "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}",
       "contactsName": "Kontakte",
       "contactsPinned": "Angeheftet",
       "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"

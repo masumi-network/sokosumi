@@ -3713,7 +3713,7 @@
           "lastDays": "Últimos {days} días",
           "presetDays": "{days} días",
           "clearRange": "Borrar intervalo de fechas",
-          "periodNoteAria": "Acerca de las fechas de las estadísticas",
+          "notesAria": "Acerca de estas cifras",
           "invalidRange": "Elige un intervalo de fechas válido de entre 1 y 366 días o borra el intervalo de fechas.",
           "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
           "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
@@ -3755,10 +3755,10 @@
           }
         },
         "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
-        "brandDescription": "Logotipo, colores, tipografía y distribución compartidos por los correos y los formularios de suscripción.",
+        "brandDescription": "Compartido por los correos y los formularios de suscripción.",
         "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
         "unsavedChanges": "Tienes cambios sin guardar.",
-        "colorPlaceholder": "Sin color",
+        "colorPlaceholder": "Predeterminado",
         "presetColors": "Colores predefinidos",
         "clearColor": {
           "primaryColor": "Quitar color principal",
@@ -3767,7 +3767,7 @@
           "buttonTextColor": "Quitar color del texto del botón"
         },
         "Logo": {
-          "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
+          "description": "Hasta {maxSize}",
           "upload": "Subir",
           "replace": "Reemplazar",
           "remove": "Quitar logotipo",
@@ -3971,10 +3971,10 @@
           }
         },
         "colorHints": {
-          "primaryColor": "Títulos y texto. Déjalo en blanco para usar el predeterminado.",
-          "accentColor": "Relleno de los botones. Déjalo en blanco para usar el predeterminado.",
-          "backgroundColor": "Detrás de la tarjeta del correo. Déjalo en blanco para gris claro.",
-          "buttonTextColor": "Texto de los botones. Que se lea bien sobre el color de acento."
+          "primaryColor": "Títulos y texto",
+          "accentColor": "Relleno de los botones",
+          "backgroundColor": "Detrás de la tarjeta del correo",
+          "buttonTextColor": "Texto de los botones"
         },
         "Image": {
           "upload": "Subir imagen",
@@ -3985,7 +3985,7 @@
           "fileTooLarge": "El archivo es demasiado grande",
           "fileTypeNotAccepted": "Usa una imagen PNG, JPEG, WebP o GIF",
           "maxFilesExceeded": "Sube una imagen cada vez",
-          "headerDescription": "Un banner sobre tu logotipo, de hasta {maxSize}. Las imágenes anchas funcionan mejor."
+          "headerDescription": "Banner ancho, de hasta {maxSize}"
         },
         "Design": {
           "title": "Diseño del boletín",
@@ -5227,6 +5227,10 @@
           "cmoSpend": {
             "title": "Gasto de CMO",
             "description": "Lo que gastó cada bot CMO (Cuso), lo que se cobró a sus dueños y en qué."
+          },
+          "writingSkills": {
+            "title": "Habilidades de redacción",
+            "description": "Cómo escribe Cuso para cada red: las habilidades que lee antes de cada pieza y la lista con la que se revisa cada pieza."
           },
           "designSystem": {
             "title": "Sistema de diseño",
@@ -6606,6 +6610,17 @@
         "drifted": "{count} fuera de la oferta principal",
         "unavailable": "{count} sin el evaluador",
         "lastProblems": "Última devolución {at}:"
+      },
+      "WritingSkills": {
+        "title": "Habilidades de redacción",
+        "description": "Lo que Cuso lee antes de escribir cada tipo de pieza. Cuando el mes está hecho, un evaluador revisa cada pieza con la lista de su habilidad y la voz de la marca, y devuelve las que no cumplen.",
+        "listLabel": "Habilidades de redacción",
+        "channels": "Se usa para",
+        "checklist": "Antes de guardar",
+        "checklistHint": "Cada pieza hecha se revisa con estas reglas: el evaluador juzga cada regla y el código de Core cuenta las marcadas como contadas.",
+        "onlyFor": "Solo para {formats}",
+        "counted": "Contado en el código",
+        "empty": "Aún no hay habilidades de redacción."
       },
       "DesignSystem": {
         "title": "Sistema de diseño",
@@ -8833,6 +8848,8 @@
           "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
           "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
           "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
+          "bug": "{count, plural, one {# error} other {# errores}}",
+          "review": "{count, plural, one {# solicitud de revisión} other {# solicitudes de revisión}}",
           "question": "{count, plural, one {# pregunta} other {# preguntas}}",
           "fyi": "{count, plural, one {# aviso} other {# avisos}}",
           "chitChat": "{count, plural, one {# charla} other {# charlas}}"
@@ -8855,7 +8872,9 @@
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
-          "workRequest": "Encargo"
+          "workRequest": "Encargo",
+          "bug": "Error",
+          "review": "Revisión"
         },
         "Tags": {
           "question": "Hace una pregunta a alguien",
@@ -8867,6 +8886,8 @@
           "urgent": "Urgente",
           "escalation": "Escalada",
           "workRequest": "Encargo",
+          "bug": "Informa de un error",
+          "review": "Pide una revisión",
           "fyi": "Aviso",
           "chitChat": "Charla"
         },
@@ -10046,6 +10067,13 @@
         "dropped": "{item} se movió al lugar de {target}.",
         "cancelled": "Se canceló mover {item}."
       },
+      "filterByTag": "Filtrar por {tag}",
+      "quickFilter": "{count, plural, =0 {Filtrar por {column}} one {Filtrar por {column}, # opción seleccionada} other {Filtrar por {column}, # opciones seleccionadas}}",
+      "matchAllOptions": "Filas con todas las opciones seleccionadas",
+      "clearFilter": "Borrar",
+      "clearFilters": "Borrar filtros",
+      "removeFilter": "Quitar filtro: {column}",
+      "matchingRows": "{count, plural, one {# fila coincide} other {# filas coinciden}}",
       "contactsName": "Contactos",
       "contactsPinned": "Fijado",
       "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}"

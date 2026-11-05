@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-import { FileResultWindowKind, type Prisma } from "@sokosumi/database";
+import { FileResultWindowKind } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -30,7 +30,11 @@ export const BULK_SYNCHRONOUS_MAX = 100;
 
 const CURSOR_VERSION = 1;
 
-export interface WindowEntry {
+/**
+ * Written verbatim into `FileResultWindow.entries` (Json). A type alias,
+ * not an interface, so it stays assignable to `Prisma.InputJsonValue`.
+ */
+export type WindowEntry = {
   /** resourceId */
   r: string;
   /** contentRevision */
@@ -50,7 +54,7 @@ export interface WindowEntry {
    * `FileResultWindow.entries` is Json, so this needs no migration.
    */
   k?: string | null;
-}
+};
 
 export interface CursorPayload {
   v: typeof CURSOR_VERSION;
@@ -164,10 +168,7 @@ export async function createResultWindow(input: {
       actorFingerprint: fileActorFingerprint(input.actor, input.workspaceId),
       bindingDigest: input.bindingDigest,
       epochVector: input.epochVector,
-      entries: input.entries.slice(
-        0,
-        RESULT_WINDOW_LIMIT,
-      ) as unknown as Prisma.InputJsonValue,
+      entries: input.entries.slice(0, RESULT_WINDOW_LIMIT),
       truncated: input.truncated,
       rankingMode: input.rankingMode ?? "deterministic",
       expiresAt: new Date(now.getTime() + ttl),

@@ -102,7 +102,7 @@ describe("newsletter analytics", () => {
     },
   );
 
-  it("renders metrics, daily charts, limitations and links to scoped issue details", () => {
+  it("renders metrics, daily charts and links to scoped issue details", () => {
     setup();
     const metrics = screen.getByRole("region", { name: "Newsletter metrics" });
     expect(within(metrics).getByText("50%", { exact: true })).toBeVisible();
@@ -112,8 +112,8 @@ describe("newsletter analytics", () => {
     ).toBeVisible();
     expect(screen.getByRole("figure", { name: "Unique opens" })).toBeVisible();
     expect(
-      screen.getByText(en.App.Projects.Newsletter.Analytics.opensNote),
-    ).toBeVisible();
+      screen.queryByText(en.App.Projects.Newsletter.Analytics.opensNote),
+    ).not.toBeInTheDocument();
     const table = within(screen.getByRole("table"));
     expect(table.getByRole("link", { name: "Weekly news" })).toHaveAttribute(
       "href",
@@ -139,11 +139,27 @@ describe("newsletter analytics", () => {
 
     await userEvent.hover(
       screen.getByRole("button", {
-        name: en.App.Projects.Newsletter.Analytics.periodNoteAria,
+        name: en.App.Projects.Newsletter.Analytics.notesAria,
       }),
     );
+    const tooltip = await screen.findByRole("tooltip");
+    const copy = en.App.Projects.Newsletter.Analytics;
+    expect(tooltip).toHaveTextContent(copy.periodNote);
+    expect(tooltip).toHaveTextContent(copy.ratesNote);
+    expect(tooltip).toHaveTextContent(copy.opensNote);
+  });
+  it("opens the analytics notes on a phone tap", async () => {
+    setup();
+    await userEvent.pointer([
+      {
+        keys: "[TouchA]",
+        target: screen.getByRole("button", {
+          name: en.App.Projects.Newsletter.Analytics.notesAria,
+        }),
+      },
+    ]);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      en.App.Projects.Newsletter.Analytics.periodNote,
+      en.App.Projects.Newsletter.Analytics.opensNote,
     );
   });
   it.each([
@@ -227,22 +243,70 @@ describe("newsletter analytics", () => {
       ),
     );
   });
-  it("shows a useful empty state and preserves subscriber growth before a first send", () => {
-    setup({
-      ...NEWSLETTER_ANALYTICS,
-      issues: [],
-      totals: { ...NEWSLETTER_ANALYTICS.totals, sent: 0 },
-      issuesPagination: { cursor: null, nextCursor: null, total: 0, limit: 20 },
-    });
-    expect(screen.getByText("No sends in this period")).toBeVisible();
+  const NO_SENDS = {
+    ...NEWSLETTER_ANALYTICS,
+    issues: [],
+    totals: {
+      ...NEWSLETTER_ANALYTICS.totals,
+      sent: 0,
+      delivered: 0,
+      uniqueOpens: 0,
+      uniqueClicks: 0,
+      complaints: 0,
+      openRate: 0,
+      clickRate: 0,
+    },
+    engagement: NEWSLETTER_ANALYTICS.engagement.map((day) => ({
+      ...day,
+      uniqueOpens: 0,
+      uniqueClicks: 0,
+    })),
+    issuesPagination: { cursor: null, nextCursor: null, total: 0, limit: 20 },
+  };
+  it("leads a period with no sends with the empty state and audience metrics only", () => {
+    setup(NO_SENDS);
+    const title = screen.getByText("No sends in this period");
+    expect(title).toBeVisible();
     expect(screen.getByRole("link", { name: "View issues" })).toHaveAttribute(
       "href",
       `/newsletter/issues?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
+    const metrics = screen.getByRole("region", { name: "Newsletter metrics" });
+    expect(
+      title.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      within(metrics)
+        .getAllByRole("article")
+        .map((metric) => metric.firstChild?.textContent),
+    ).toEqual(["Active subscribers", "Unsubscribes", "Bounces"]);
     expect(
       screen.getByRole("figure", { name: "Active subscriber total" }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("figure", { name: "Unique opens" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+  it("keeps late events on older issues visible in a period with no sends", () => {
+    setup({
+      ...NO_SENDS,
+      totals: { ...NO_SENDS.totals, uniqueOpens: 3, complaints: 1 },
+      engagement: NEWSLETTER_ANALYTICS.engagement,
+    });
+    const metrics = screen.getByRole("region", { name: "Newsletter metrics" });
+    expect(
+      within(metrics)
+        .getAllByRole("article")
+        .map((metric) => metric.firstChild?.textContent),
+    ).toEqual([
+      "Active subscribers",
+      "Unsubscribes",
+      "Bounces",
+      "Unique opens",
+      "Complaints",
+    ]);
+    expect(screen.getByRole("figure", { name: "Unique opens" })).toBeVisible();
   });
   it.each([
     "?from=bad&to=2026-10-01&cursor=old-page",

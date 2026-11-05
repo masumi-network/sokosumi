@@ -549,6 +549,7 @@ primary on a neutral background. Brand names are always lowercase.
 ## Do's and Don'ts
 
 **Do**
+
 - Keep neutrals as the base and Iris Flower as the one accent fill; let other palette
   colours (charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
@@ -559,6 +560,7 @@ primary on a neutral background. Brand names are always lowercase.
 - Reference semantic tokens; edit values in `globals.css` (no JS config).
 
 **Don't**
+
 - ALL CAPS headlines, right-aligned prose, or justified text.
 - Flat color washes or gradient fills; multiple accent hues competing in one view (a flat
   violet header wash was tried and rejected).

@@ -129,9 +129,7 @@ describe("NewsletterSettingsForm", () => {
     // The logo is an upload, not a URL field; the project logo is already set.
     expect(screen.queryByRole("textbox", { name: "Logo" })).toBeNull();
     expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Primary color")).toHaveTextContent(
-      "No color",
-    );
+    expect(screen.getByLabelText("Primary color")).toHaveTextContent("Default");
     expect(screen.getByText("From Launch")).toBeInTheDocument();
     expect(
       screen.queryByLabelText("Welcome email subject"),
@@ -222,9 +220,7 @@ describe("NewsletterSettingsForm", () => {
     await user.click(
       screen.getByRole("button", { name: "Clear primary color" }),
     );
-    expect(screen.getByLabelText("Primary color")).toHaveTextContent(
-      "No color",
-    );
+    expect(screen.getByLabelText("Primary color")).toHaveTextContent("Default");
 
     await user.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() =>

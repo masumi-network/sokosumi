@@ -55,6 +55,7 @@ const numbers = strings.flatMap(s => {
 ```
 
 **When to use:**
+
 - Transforming items while filtering some out
 - Conditional mapping where some inputs produce no output
 - Parsing/validating where invalid inputs should be skipped

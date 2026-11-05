@@ -1,6 +1,7 @@
 # Contacts — team CRM for Sokosumi (design spec, 2026-10-22)
 
 Owner decisions (Patrick, final):
+
 - Sidebar tab **Contacts**, visible to every member of a workspace (org or personal).
 - Exactly ONE contacts set per workspace. Auto-created, no setup. It also appears in Files as one special, pinned "Contacts" entry (badge, cannot be deleted/archived/duplicated) that opens the Contacts tab.
 - No privacy layer: everything in a workspace's contacts is visible to all its members. Every interaction shows WHO on the team had it.

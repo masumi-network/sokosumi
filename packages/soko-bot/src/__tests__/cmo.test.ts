@@ -6,6 +6,7 @@ import {
   cmoSaveStrategyInputSchema,
   isCmoScheduleKey,
   parseCmoStrategySave,
+  SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
@@ -70,6 +71,54 @@ describe("CMO version", () => {
         "provide_job_input",
       ]),
     );
+  });
+
+  it("carries what a default Soko Bot learned: v29's contract, statistics, wait_for, Jev and read-only ads", () => {
+    const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
+    const prompt = composeSystemPrompt(cmo);
+    expect(prompt).toContain("# Truth");
+    expect(prompt).toContain("When the owner forbids or defers an action");
+    expect(prompt).toContain("# You are Cuso");
+    expect(cmo.skills).toEqual(
+      expect.arrayContaining([
+        "social-posting-instructions",
+        "long-and-chained-work-follow-ups",
+        "newsletter",
+      ]),
+    );
+    expect(cmo.skills).not.toContain("long-work");
+    expect(cmo.capabilities).toEqual(
+      expect.arrayContaining([
+        "list_social_account_statistics",
+        "refresh_social_account_statistics",
+        "list_social_post_statistics",
+        "get_posting_instructions",
+        "wait_for",
+        "evaluate_with_jev",
+        "read_integration_tool",
+        "list_ad_campaigns",
+        "get_market_keywords",
+        "newsletter_draft_issue",
+        "submit_newsletter_issue",
+      ]),
+    );
+    // A person starts and changes ads; contacts stay out.
+    for (const outside of [
+      "create_ad_campaign",
+      "update_ad_campaign",
+      "add_newsletter_subscribers_from_contacts",
+      "search_contacts",
+    ])
+      expect(cmo.capabilities).not.toContain(outside);
+  });
+
+  it("dreams at night like every Soko Bot, pointing to his daily run", () => {
+    const dream = SOKO_BOT_CMO_RHYTHMS.find(
+      (rhythm) => rhythm.key === "dreaming",
+    );
+    expect(dream?.prompt).toContain("update_memory");
+    expect(dream?.prompt).not.toContain("stand-up");
+    expect(isCmoScheduleKey("dreaming")).toBe(false);
   });
 
   it("describes both CMO tools", () => {

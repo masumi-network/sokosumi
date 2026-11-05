@@ -55,6 +55,7 @@ const {
   transactionTaskCountMock,
   transactionJobCountMock,
   coworkerFindManyMock,
+  userFindManyMock,
   integrationListMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotFindUniqueMock,
@@ -179,6 +180,7 @@ const {
   transactionTaskCountMock: vi.fn(),
   transactionJobCountMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  userFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotFindUniqueMock: vi.fn(),
@@ -407,7 +409,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: images.assetFindFirst },
     project: { findFirst: social.postingInstructions },
     $transaction: transactionMock,
-    user: { findUnique: social.owner },
+    user: { findUnique: social.owner, findMany: userFindManyMock },
     marketingStrategy: { findFirst: marketingStrategyFindFirstMock },
     sokoBot: {
       findFirst: botFindFirstMock,
@@ -648,6 +650,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  personAssignee,
   pinToBotProject,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
@@ -3004,6 +3007,29 @@ describe("SokoBotRuntimeService authorization", () => {
       });
     });
 
+    it("reads a writing skill in full, with its checklist", async () => {
+      sharedTurn("read_writing_skill", PROJECT_BOT);
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "read_writing_skill",
+        toolCallId: "call_skill",
+        input: { skill: "linkedin" },
+      });
+      expect(result).toMatchObject({
+        skill: "linkedin",
+        name: "LinkedIn",
+        content: expect.stringContaining("## Before you save"),
+      });
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "read_writing_skill",
+          toolCallId: "call_skill_unknown",
+          input: { skill: "myspace" },
+        }),
+      ).rejects.toThrow();
+    });
+
     it("tells the bot to judge itself when Jev is down", async () => {
       sharedTurn("evaluate_with_jev", PROJECT_BOT);
       jevToolMock.mockRejectedValue(new Error("timeout"));
@@ -3030,6 +3056,37 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(
         JSON.stringify(coworkerFindManyMock.mock.calls[0]?.[0]),
       ).not.toContain("assignments");
+    });
+
+    it("finds teammates a Task can go to beside the Coworkers", async () => {
+      sharedTurn("find_coworkers", PROJECT_BOT);
+      coworkerFindManyMock.mockResolvedValue([]);
+      workspaceFindUniqueMock.mockResolvedValue({
+        userId: null,
+        organizationId: "org_1",
+      });
+      userFindManyMock.mockResolvedValue([
+        { id: "user_shiv", name: "Shivangi Gupta", email: "shiv@example.test" },
+      ]);
+      const result = await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "find_coworkers",
+        toolCallId: "call_find_people",
+        input: { query: "Shivangi" },
+      });
+      expect(result).toEqual({
+        coworkers: [],
+        people: [
+          {
+            userId: "user_shiv",
+            name: "Shivangi Gupta",
+            email: "shiv@example.test",
+          },
+        ],
+      });
+      expect(JSON.stringify(userFindManyMock.mock.calls[0]?.[0])).toContain(
+        "org_1",
+      );
     });
   });
 
@@ -6674,7 +6731,7 @@ describe("Soko Bot project social tools", () => {
         enabledProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
         writingGuides: {
           youtube: expect.arrayContaining([
-            expect.stringMatching(/Plain text only/),
+            expect.stringMatching(/^Plain text/),
           ]),
         },
         accounts: [
@@ -10385,6 +10442,38 @@ describe("Social comment scope", () => {
   });
 });
 
+describe("ads access", () => {
+  const turn = (source: string, versionId: string) =>
+    ({
+      turn: { source, versionId },
+      reader: { sharedScope: { projectId: "project-1" } },
+    }) as never;
+  function service() {
+    const runtime = new SokoBotRuntimeService();
+    runtime["requireSocialAccess"] = vi.fn().mockResolvedValue({ id: "ws-1" });
+    return runtime;
+  }
+
+  it("lets Cuso read ads results on his own runs, never change them there", async () => {
+    await expect(
+      service()["requireAdsAccess"](turn("SCHEDULE", "cmo-v1"), "project-1", {
+        read: true,
+      }),
+    ).resolves.toEqual({ id: "ws-1" });
+    await expect(
+      service()["requireAdsAccess"](turn("SCHEDULE", "cmo-v1"), "project-1"),
+    ).rejects.toThrow("only available when a person asks in chat");
+  });
+
+  it("keeps every other bot's ads reads to chat", async () => {
+    await expect(
+      service()["requireAdsAccess"](turn("SCHEDULE", "v33"), "project-1", {
+        read: true,
+      }),
+    ).rejects.toThrow("only available when a person asks in chat");
+  });
+});
+
 describe("CMO record saves", () => {
   const report = {
     ...SCOPE,
@@ -10650,5 +10739,18 @@ describe("CMO record saves", () => {
     expect(authority.mock.invocationCallOrder[0]).toBeLessThan(
       tx.chatRoomMessage.upsert.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+});
+
+describe("personAssignee", () => {
+  it("hands a Task to a teammate, the owner, or nobody", () => {
+    expect(personAssignee({ memberId: "user_shiv" }, "owner")).toBe(
+      "user_shiv",
+    );
+    expect(personAssignee({ assignToOwner: true }, "owner")).toBe("owner");
+    expect(personAssignee({}, "owner")).toBeNull();
+    expect(() =>
+      personAssignee({ assignToOwner: true, memberId: "user_shiv" }, "owner"),
+    ).toThrow("not both");
   });
 });

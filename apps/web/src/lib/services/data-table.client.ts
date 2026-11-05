@@ -63,7 +63,11 @@ export const dataTableService = {
       path: { id },
       body,
     });
-    return { rows: data.data, nextCursor: data.meta.pagination.nextCursor };
+    return {
+      rows: data.data,
+      nextCursor: data.meta.pagination.nextCursor,
+      total: data.meta.pagination.total,
+    };
   },
   async batch(id: string, body: PostDriveTablesByIdRowsData["body"]) {
     return (await postDriveTablesByIdRows({ ...options(), path: { id }, body }))

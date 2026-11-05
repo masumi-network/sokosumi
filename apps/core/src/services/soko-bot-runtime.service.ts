@@ -38,6 +38,7 @@ import {
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  renderWritingSkill,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
@@ -82,6 +83,7 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
+  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
@@ -474,7 +476,7 @@ function toolAssigneeFields(
   if (ownerUserId) {
     if (coworkerId)
       throw new SokoBotRuntimeValidationError(
-        "Give coworkerId or assignToOwner, not both",
+        "Give coworkerId or a person to assign, not both",
       );
     return {
       assigneeId: null,
@@ -489,15 +491,23 @@ function toolAssigneeFields(
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
 }
 
-/** A shared bot works for nobody, so it has no owner to assign. */
-function ownerAssignee(
-  assignToOwner: true | undefined,
+/**
+ * The person a Task goes to: the owner, or a teammate Core checks belongs to
+ * the workspace. A shared bot works for nobody, so it has no owner to assign.
+ */
+export function personAssignee(
+  input: { assignToOwner?: true; memberId?: string },
   actingUserId: string | null,
 ): string | null {
-  if (!assignToOwner) return null;
+  if (input.assignToOwner && input.memberId)
+    throw new SokoBotRuntimeValidationError(
+      "Give assignToOwner or memberId, not both",
+    );
+  if (input.memberId) return input.memberId;
+  if (!input.assignToOwner) return null;
   if (!actingUserId)
     throw new SokoBotRuntimeValidationError(
-      "A shared assistant has no owner to assign; pick a Coworker",
+      "A shared assistant has no owner to assign; pick a Coworker or a teammate",
     );
   return actingUserId;
 }
@@ -4746,7 +4756,7 @@ export class SokoBotRuntimeService {
           ...toolAssigneeFields(
             input.coworkerId,
             authorized.turn.sokoBotId,
-            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+            personAssignee(input, authorized.turn.actingUserId),
           ),
           status: input.status,
           channel: Channel.SOKOSUMI,
@@ -5129,7 +5139,7 @@ export class SokoBotRuntimeService {
           ...toolAssigneeFields(
             input.coworkerId,
             authorized.turn.sokoBotId,
-            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+            personAssignee(input, authorized.turn.actingUserId),
           ),
           status,
           channel: Channel.SOKOSUMI,
@@ -6231,6 +6241,108 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /** AI Coworkers this bot may hand Task work to. */
+  private findCoworkers(
+    authorized: AuthorizedSokoBotRuntime,
+    query: string | undefined,
+  ) {
+    return prisma.coworker.findMany({
+      where: {
+        archivedAt: null,
+        AND: [
+          {
+            OR: [
+              { isWhitelisted: true },
+              // A shared bot sees no member's private assignments.
+              ...(authorized.reader.sharedScope
+                ? []
+                : [
+                    {
+                      assignments: {
+                        some: { userId: actingMemberOf(authorized) },
+                      },
+                    },
+                  ]),
+              {
+                workspaceAccess: {
+                  some: {
+                    workspaceId: authorized.turn.workspaceId,
+                    status: "GRANTED",
+                  },
+                },
+              },
+            ],
+          },
+          ...(query
+            ? [
+                {
+                  OR: [
+                    {
+                      name: {
+                        contains: query,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                    {
+                      description: {
+                        contains: query,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+      take: 20,
+      select: {
+        id: true,
+        name: true,
+        caption: true,
+        description: true,
+        capabilities: true,
+      },
+    });
+  }
+
+  /** People on the workspace's team, by name or email: who a Task may go to. */
+  private async findTeammates(workspaceId: string, query: string | undefined) {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { userId: true, organizationId: true },
+    });
+    const team = [
+      ...(workspace?.userId ? [{ id: workspace.userId }] : []),
+      ...(workspace?.organizationId
+        ? [{ members: { some: { organizationId: workspace.organizationId } } }]
+        : []),
+    ];
+    if (team.length === 0) return [];
+    const people = await prisma.user.findMany({
+      where: {
+        OR: team,
+        ...(query
+          ? {
+              AND: {
+                OR: [
+                  { name: { contains: query, mode: "insensitive" as const } },
+                  { email: { contains: query, mode: "insensitive" as const } },
+                ],
+              },
+            }
+          : {}),
+      },
+      take: 20,
+      select: { id: true, name: true, email: true },
+    });
+    return people.map((person) => ({
+      userId: person.id,
+      name: person.name,
+      email: person.email,
+    }));
+  }
+
   /**
    * The CRM's paid web lookups, Find people and Enrich, billed to the member
    * the bot acts for like the buttons.
@@ -6418,8 +6530,12 @@ export class SokoBotRuntimeService {
   private async requireAdsAccess(
     authorized: AuthorizedSokoBotRuntime,
     projectId: string,
+    /** Reads spend nothing: Cuso reads results in his weekly review too. */
+    { read = false }: { read?: boolean } = {},
   ) {
-    if (authorized.turn.source !== "CHAT") {
+    const cmoRead =
+      read && getSokoBotVersion(authorized.turn.versionId).profile === "cmo";
+    if (authorized.turn.source !== "CHAT" && !cmoRead) {
       throw new SokoBotRuntimeAuthorizationError(
         "Ads tools are only available when a person asks in chat.",
       );
@@ -6452,7 +6568,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_accounts.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const accounts = await callAds(() =>
           listProjectAdAccounts({ ...params, workspaceId }),
         );
@@ -6477,7 +6595,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const { projectId, accountId } = params;
         const [accounts, result] = await callAds(() =>
           Promise.all([
@@ -6518,7 +6638,9 @@ export class SokoBotRuntimeService {
       case "get_market_keywords": {
         const { projectId } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.get_market_keywords.parse(input.input);
-        await this.requireAdsAccess(authorized, projectId);
+        await this.requireAdsAccess(authorized, projectId, {
+          read: true,
+        });
         const scope = { projectId, workspaceId };
         const profile = await callAds(() => getProjectAdMarketProfile(scope));
         if (!profile)
@@ -6599,7 +6721,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const { projectId, accountId, campaignId } = params;
         const details = await callAds(() =>
           getProjectAdCampaignDetails({ ...params, workspaceId }),
@@ -7665,64 +7789,11 @@ export class SokoBotRuntimeService {
         return this.getContext(input);
       case "find_coworkers": {
         const { query } = searchInputSchema.parse(input.input);
-        return prisma.coworker.findMany({
-          where: {
-            archivedAt: null,
-            AND: [
-              {
-                OR: [
-                  { isWhitelisted: true },
-                  // A shared bot sees no member's private assignments.
-                  ...(authorized.reader.sharedScope
-                    ? []
-                    : [
-                        {
-                          assignments: {
-                            some: { userId: actingMemberOf(authorized) },
-                          },
-                        },
-                      ]),
-                  {
-                    workspaceAccess: {
-                      some: {
-                        workspaceId: authorized.turn.workspaceId,
-                        status: "GRANTED",
-                      },
-                    },
-                  },
-                ],
-              },
-              ...(query
-                ? [
-                    {
-                      OR: [
-                        {
-                          name: {
-                            contains: query,
-                            mode: "insensitive" as const,
-                          },
-                        },
-                        {
-                          description: {
-                            contains: query,
-                            mode: "insensitive" as const,
-                          },
-                        },
-                      ],
-                    },
-                  ]
-                : []),
-            ],
-          },
-          take: 20,
-          select: {
-            id: true,
-            name: true,
-            caption: true,
-            description: true,
-            capabilities: true,
-          },
-        });
+        const [coworkers, people] = await Promise.all([
+          this.findCoworkers(authorized, query),
+          this.findTeammates(authorized.turn.workspaceId, query),
+        ]);
+        return { coworkers, people };
       }
       case "create_task": {
         const { fileIds, ...task } = taskCreateInputSchema.parse(input.input);
@@ -8208,6 +8279,18 @@ export class SokoBotRuntimeService {
         }
         // Said on every result, so Cuso stops before the cap refuses him.
         return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };
+      }
+      case "read_writing_skill": {
+        const { skill: id } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_writing_skill.parse(input.input);
+        const skill = WRITING_SKILLS.find((candidate) => candidate.id === id);
+        if (!skill)
+          throw new SokoBotRuntimeValidationError("No such writing skill.");
+        return {
+          skill: skill.id,
+          name: skill.name,
+          content: renderWritingSkill(skill),
+        };
       }
       case "read_social_profile": {
         const { url } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_profile.parse(

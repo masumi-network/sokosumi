@@ -285,7 +285,6 @@ pnpm --filter @masumi_network/sokosumi build
 node apps/cli/dist/bin/sokosumi.js --help
 ```
 
-
 Local Core (with a registered local OAuth client, if using OAuth):
 
 ```bash
