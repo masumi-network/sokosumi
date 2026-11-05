@@ -123,7 +123,7 @@ vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => promise,
 }));
 
-vi.mock("@/helpers/notification-email-dispatch", () => ({
+vi.mock("@/helpers/notification-email-resend", () => ({
   resendRoomMessageEmail: (...args: unknown[]) =>
     resendRoomMessageEmailMock(...args),
 }));

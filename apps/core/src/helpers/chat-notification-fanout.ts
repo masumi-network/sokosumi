@@ -15,7 +15,7 @@ import {
 } from "@/helpers/chat-notification-count";
 import { previewOf } from "@/helpers/chat-notification-preview";
 import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
-import { resendRoomMessageEmail } from "@/helpers/notification-email-dispatch";
+import { resendRoomMessageEmail } from "@/helpers/notification-email-resend";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import { createNotification, resolveDelivery } from "@/helpers/notifications";

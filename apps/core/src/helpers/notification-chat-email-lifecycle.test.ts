@@ -110,8 +110,8 @@ import { rewriteChatNotificationPreviews } from "./chat-notification-fanout";
 import {
   cancelNotificationEmails,
   dispatchNotificationEmail,
-  resendRoomMessageEmail,
 } from "./notification-email-dispatch";
+import { resendRoomMessageEmail } from "./notification-email-resend";
 
 const NOW = Date.parse("2026-11-01T10:00:00.000Z");
 function row(): Notification {
