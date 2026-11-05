@@ -745,6 +745,7 @@ describe("fanOutChatNotifications", () => {
         kind: NotificationKind.CHAT,
         referenceId: ROOM_ID,
         metadata: { contains: `"messageId":"${MESSAGE_ID}"` },
+        NOT: { messageParams: "{}" },
       },
       select: { id: true, messageParams: true, metadata: true },
       orderBy: { id: "asc" },
@@ -1481,7 +1482,7 @@ describe("rewriteChatNotificationPreviews", () => {
     );
   });
 
-  it("looks only at the chat rows of the room the message is in", async () => {
+  it("looks only at the chat rows of the room the message is in, and never at a receipt", async () => {
     messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
@@ -1494,6 +1495,7 @@ describe("rewriteChatNotificationPreviews", () => {
           kind: NotificationKind.CHAT,
           referenceId: ROOM_ID,
           metadata: { contains: `"messageId":"${MESSAGE_ID}"` },
+          NOT: { messageParams: "{}" },
         },
       }),
     );

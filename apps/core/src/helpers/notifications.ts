@@ -19,6 +19,7 @@ import { findThreadReplyRowsPassedByRoomRead } from "@/helpers/chat-thread-reply
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
   CHAT_ROOM_BADGE_MESSAGE_KEYS,
+  deliveryOutsideMention,
   resolveNotificationDelivery,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
@@ -99,16 +100,14 @@ export async function resolveDelivery(
       pushOptIn: user.pushOptIn,
     });
     if (!input.suppressMentionDelivery) return delivery;
-    const mention = resolveNotificationDelivery({
-      category: "CHAT_MENTION",
-      preferences: user.notificationPreferences,
-      pushOptIn: user.pushOptIn,
-    });
-    return {
-      inApp: delivery.inApp && !mention.inApp,
-      osBanner: delivery.osBanner && !mention.osBanner,
-      email: delivery.email && !mention.email,
-    };
+    return deliveryOutsideMention(
+      delivery,
+      resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: user.notificationPreferences,
+        pushOptIn: user.pushOptIn,
+      }),
+    );
   } catch (error) {
     console.error(
       "Failed to read the notification preferences; skipping push:",

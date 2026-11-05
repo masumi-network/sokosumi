@@ -19,6 +19,7 @@ const {
   notificationFindManyMock,
   notificationUpdateManyMock,
   notificationCountMock,
+  publishClearedNotificationsMock,
   resolveDeliveryMock,
   sendEmailsMock,
   userFindUniqueMock,
@@ -32,6 +33,7 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationCountMock: vi.fn(),
+  publishClearedNotificationsMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
   sendEmailsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -67,6 +69,7 @@ vi.mock("@/clients/email.client", () => ({
 }));
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
+  publishClearedNotifications: publishClearedNotificationsMock,
   resolveDelivery: resolveDeliveryMock,
 }));
 
@@ -1482,6 +1485,16 @@ describe("NotificationFollowUpSyncService", () => {
     expect(result.sent).toBe(1);
     expect(result.emailed).toBe(0);
     expect(sendEmailsMock).not.toHaveBeenCalled();
+    // The reminder reached the reader's tabs when it was written, so they are
+    // told it is gone, and told while the row can still say who it was for.
+    const reminderId = firstFollowUpInput()?.eventId;
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith([reminderId]);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [reminderId] }, emailId: null },
+    });
+    expect(
+      publishClearedNotificationsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(notificationDeleteManyMock.mock.invocationCallOrder[0]);
   });
 
   it("does not email an unverifiable chat reminder", async () => {

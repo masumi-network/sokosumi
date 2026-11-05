@@ -651,9 +651,9 @@ describe("dispatchNotificationEmail", () => {
     await dispatch(mention());
 
     // Two reads that found nothing, the one that found the row, then the
-    // one at this row's turn in the queue.
-    // The final read protects the post-provider persistence from an edit.
-    expect(notificationFindUniqueMock).toHaveBeenCalledTimes(5);
+    // one at this row's turn in the queue. An email that leaves at once is
+    // recorded without a read behind the provider: nothing can replace it.
+    expect(notificationFindUniqueMock).toHaveBeenCalledTimes(4);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
 

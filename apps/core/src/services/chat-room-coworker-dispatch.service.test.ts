@@ -134,19 +134,14 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
-const {
-  persistChatHumanMentionsMock,
-  emitChatHumanMentionNotificationsMock,
-  emitChatMessageNotificationsMock,
-} = vi.hoisted(() => ({
-  persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-  emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
-  emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
-}));
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
   emitChatMessageNotifications: emitChatMessageNotificationsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
@@ -1006,7 +1001,9 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionedUserIds: [] }),
+    );
   });
 
   it("keeps a failed Thought shell when mention dispatch fails after stream", async () => {

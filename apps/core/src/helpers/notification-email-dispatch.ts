@@ -243,7 +243,14 @@ async function sendTimeFor(
   delayMs: number,
 ): Promise<Date | null> {
   if (notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
-    return new Date(Date.now() + delayMs);
+    // Counted from the row rather than from now. The first send and a
+    // recovery send that a counted arrival starts while the first is still
+    // in flight share one idempotency key, and Resend refuses the second
+    // of two sends under one key that name different times (409). Both
+    // name the time the row promised. A row whose promised time has
+    // passed, because its first send never left, waits the delay out again.
+    const promised = notification.createdAt.getTime() + delayMs;
+    return new Date(promised > Date.now() ? promised : Date.now() + delayMs);
   }
 
   return (await appInFront(notification))
@@ -499,12 +506,19 @@ async function dispatchNotificationEmailRevision(
       return true;
     };
 
+    // An email that already left cannot be replaced or taken back, so its id
+    // is written whatever the row says by now. Left off the row, the next
+    // message in the room would find no earlier email and send a second one
+    // about the same unread room (SOK-1142). Only a scheduled email answers
+    // to a source that changed or vanished while it was being handed over.
+    const replaceable = scheduledAt !== null;
+
     const persistSentEmail = async (
       client: Prisma.TransactionClient | typeof prisma,
       emailId: string,
     ) => {
       await lockNotificationEmailSource(notification, client);
-      if (notification.kind === NotificationKind.CHAT) {
+      if (replaceable && notification.kind === NotificationKind.CHAT) {
         const live = await client.notification.findUnique({
           where: { id: notification.id },
         });
@@ -517,7 +531,10 @@ async function dispatchNotificationEmailRevision(
           return { emailId, count: 0 };
         }
       }
-      if (!(await hasLiveNotificationEmailSource(notification, client)))
+      if (
+        replaceable &&
+        !(await hasLiveNotificationEmailSource(notification, client))
+      )
         return { emailId, count: 0 };
       if (
         notification.workspaceId &&
@@ -537,7 +554,7 @@ async function dispatchNotificationEmailRevision(
         where: {
           id: notification.id,
           isRead: false,
-          ...(notification.kind === NotificationKind.CHAT
+          ...(replaceable && notification.kind === NotificationKind.CHAT
             ? {
                 messageParams: notification.messageParams,
                 metadata: notification.metadata,
@@ -547,7 +564,11 @@ async function dispatchNotificationEmailRevision(
         data: { emailId, emailScheduledAt: scheduledAt },
       });
 
-      if (count === 0 && notification.kind === NotificationKind.CHAT) {
+      if (
+        count === 0 &&
+        replaceable &&
+        notification.kind === NotificationKind.CHAT
+      ) {
         const latest = await client.notification.findUnique({
           where: { id: notification.id },
         });

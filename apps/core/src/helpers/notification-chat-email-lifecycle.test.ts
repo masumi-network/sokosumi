@@ -144,6 +144,14 @@ function row(): Notification {
     publishNextAttemptAt: null,
   };
 }
+function corrected(): string {
+  return JSON.stringify({
+    authorName: "Ada",
+    roomName: "Design",
+    messagePreview: "Corrected text",
+    count: 1,
+  });
+}
 beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(NOW);
   state.row = row();
@@ -173,6 +181,34 @@ it("cancels scheduled mail when deletion lands during provider handoff", async (
   expect(state.cancelled).toEqual(["email-1"]);
   expect(state.row?.emailId).toBeNull();
 });
+it.each([
+  ["edited", () => void (state.row!.messageParams = corrected())],
+  ["deleted", () => void (state.deleted = true)],
+])(
+  "records an immediate email although its message was %s during the handoff",
+  async (_change, change) => {
+    state.duringSend = change;
+    await dispatchNotificationEmail(row(), { scheduledAt: null });
+    expect(state.sent).toHaveLength(1);
+    expect(state.cancelled).toEqual([]);
+    expect(state.row?.emailId).toBe("email-1");
+  },
+);
+it.each([
+  // The first send is still in flight: name the time it promised.
+  [120_000, NOW + 600_000],
+  // The first send never left and its promised time has passed: wait again.
+  [7_200_000, NOW + 7_200_000 + 600_000],
+])(
+  "sends counted mail %i ms after the row at the time the row promised",
+  async (elapsed, scheduledAt) => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW + elapsed);
+    await resendRoomMessageEmail("notification-1", { allowInitialSend: true });
+    expect(state.sent[0]?.scheduledAt).toBe(
+      new Date(scheduledAt).toISOString(),
+    );
+  },
+);
 it("cancels existing pending mail when its source is deleted", async () => {
   state.row = {
     ...row(),

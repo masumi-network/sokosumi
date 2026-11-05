@@ -79,18 +79,13 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
-const {
-  persistChatHumanMentionsMock,
-  emitChatHumanMentionNotificationsMock,
-  emitChatMessageNotificationsMock,
-} = vi.hoisted(() => ({
-  persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-  emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
-  emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
-}));
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
   emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 
@@ -273,7 +268,7 @@ describe("persistSokoBotChatTurn", () => {
   it("leaves human mention activation and notification to audience-checked delivery", async () => {
     await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("does not invalidate a completed turn with an empty answer", async () => {
@@ -499,7 +494,6 @@ describe("postSokoBotOwnerNotice", () => {
       }),
     );
     expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
     expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
       messageId: "notice-1",
       mentionedUserIds: [],
@@ -509,7 +503,7 @@ describe("postSokoBotOwnerNotice", () => {
   describe("for a shared bot", () => {
     beforeEach(() => {
       persistChatHumanMentionsMock.mockClear();
-      emitChatHumanMentionNotificationsMock.mockClear();
+      emitChatMessageNotificationsMock.mockClear();
       sokoBotFindFirst.mockResolvedValue({
         id: "bot-a",
         userId: null,

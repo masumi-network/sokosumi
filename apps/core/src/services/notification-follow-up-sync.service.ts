@@ -13,7 +13,11 @@ import {
 import { buildFollowUpEmail } from "@/helpers/notification-follow-up-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
-import { createNotification, resolveDelivery } from "@/helpers/notifications";
+import {
+  createNotification,
+  publishClearedNotifications,
+  resolveDelivery,
+} from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
 /** How long a notification waits on the reader before it is said again. */
@@ -413,7 +417,10 @@ async function flushFollowUpEmails(
     } finally {
       if (droppedIds.length > 0) {
         // Email-only reminders have no publish revision to release this daily key.
+        // A reminder that also reached the reader's tabs was published when it
+        // was written, so those tabs are told it is gone before the row is.
         try {
+          await publishClearedNotifications(droppedIds);
           await prisma.notification.deleteMany({
             where: { id: { in: droppedIds }, emailId: null },
           });

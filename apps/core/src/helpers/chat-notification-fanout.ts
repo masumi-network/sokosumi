@@ -543,6 +543,9 @@ export async function rewriteChatNotificationPreviews(
         kind: NotificationKind.CHAT,
         referenceId: params.roomId,
         metadata: { contains: `"messageId":"${params.messageId}"` },
+        // Read receipts name the message too and carry no text at all, so
+        // each would cost a locking transaction that rewrites nothing.
+        NOT: { messageParams: "{}" },
       },
       select: { id: true, messageParams: true, metadata: true },
       orderBy: { id: "asc" },

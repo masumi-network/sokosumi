@@ -25,19 +25,14 @@ vi.mock("@/lib/ably/publish", () => ({
 const { waitUntilMock } = vi.hoisted(() => ({ waitUntilMock: vi.fn() }));
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
-const {
-  persistChatHumanMentionsMock,
-  emitChatHumanMentionNotificationsMock,
-  emitChatMessageNotificationsMock,
-} = vi.hoisted(() => ({
-  persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-  emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
-  emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
-}));
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
   emitChatMessageNotifications: emitChatMessageNotificationsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
 
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
@@ -115,7 +110,9 @@ describe("persistAssistantToChatRoom", () => {
     });
 
     expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionedUserIds: [] }),
+    );
   });
 
   it("creates chat_room_message with senderCoworkerId and content", async () => {

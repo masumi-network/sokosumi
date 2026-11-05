@@ -3,7 +3,10 @@ import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   type NotificationCategory,
 } from "@sokosumi/utils";
-import { resolveNotificationDelivery } from "@/helpers/notification-delivery";
+import {
+  deliveryOutsideMention,
+  resolveNotificationDelivery,
+} from "@/helpers/notification-delivery";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -40,19 +43,18 @@ function arrives(
     pushOptIn: reader.pushOptIn,
   });
 
-  const mention = suppressMentionDelivery
-    ? resolveNotificationDelivery({
-        category: "CHAT_MENTION",
-        preferences: reader.notificationPreferences,
-        pushOptIn: reader.pushOptIn,
-      })
-    : null;
+  const reached = suppressMentionDelivery
+    ? deliveryOutsideMention(
+        delivery,
+        resolveNotificationDelivery({
+          category: "CHAT_MENTION",
+          preferences: reader.notificationPreferences,
+          pushOptIn: reader.pushOptIn,
+        }),
+      )
+    : delivery;
 
-  return (
-    (delivery.inApp && !mention?.inApp) ||
-    (delivery.osBanner && !mention?.osBanner) ||
-    (delivery.email && !mention?.email)
-  );
+  return reached.inApp || reached.osBanner || reached.email;
 }
 
 export interface ChatRoomMessageCreatedEffectsParams {

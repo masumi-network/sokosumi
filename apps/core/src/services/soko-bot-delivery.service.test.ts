@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   persistHumanMentions: vi.fn(),
-  emitHumanMentions: vi.fn(),
   emitMessageNotifications: vi.fn(),
   humanMentions: vi.fn(),
   claim: vi.fn(),
@@ -38,7 +37,6 @@ vi.mock("@/services/chat-result-preview.service", () => ({
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: mocks.persistHumanMentions,
   emitChatMessageNotifications: mocks.emitMessageNotifications,
-  emitChatHumanMentionNotifications: mocks.emitHumanMentions,
 }));
 vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: vi.fn(),
@@ -704,7 +702,7 @@ describe("durable delivery", () => {
     mocks.workspace.mockResolvedValue(null);
     await deliverSokoBotDelivery("delivery");
     expect(mocks.persistHumanMentions).not.toHaveBeenCalled();
-    expect(mocks.emitHumanMentions).not.toHaveBeenCalled();
+    expect(mocks.emitMessageNotifications).not.toHaveBeenCalled();
     expect(mocks.message).not.toHaveBeenCalled();
     expect(mocks.publish).not.toHaveBeenCalled();
     expect(mocks.update).toHaveBeenCalledWith(
