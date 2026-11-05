@@ -38,6 +38,7 @@ describe("chatSignalRequest", () => {
         "m0_addressee",
         "m0_announcement",
         "m0_blocker",
+        "m0_bug",
         "m0_chitChat",
         "m0_commitment",
         "m0_decisionMade",
@@ -45,6 +46,7 @@ describe("chatSignalRequest", () => {
         "m0_fyi",
         "m0_needsDecision",
         "m0_question",
+        "m0_review",
         "m0_urgent",
         "m0_workRequest",
       ].sort(),
@@ -173,19 +175,38 @@ describe("chatSignalAddressees", () => {
 });
 
 describe("tagChatSignalBatch", () => {
-  it("makes one call for the whole batch and reports its cost", async () => {
+  it("reads each message on its own, with the ones before it as context", async () => {
     const evaluate = vi.fn().mockResolvedValue({
       answers: answers(),
-      costUsd: 0.0000335,
+      costUsd: 0.00003,
     });
-    const result = await tagChatSignalBatch(batch(), {
-      timeoutMs: 1_000,
-      evaluate,
-    });
-    expect(evaluate).toHaveBeenCalledOnce();
+    const reply = {
+      messageId: "m-2",
+      authorUserId: "alice",
+      authorName: "Alice",
+      text: "Looks good, let's go",
+      mentionedUserIds: [],
+    };
+    const burst = batch();
+    const result = await tagChatSignalBatch(
+      { ...burst, messages: [...burst.messages, reply] },
+      { timeoutMs: 1_000, evaluate },
+    );
+    expect(evaluate).toHaveBeenCalledTimes(2);
     expect(evaluate.mock.calls[0][0].timeoutMs).toBe(1_000);
-    expect(result.questionCount).toBe(12);
-    expect(result.costUsd).toBe(0.0000335);
-    expect(result.readings).toHaveLength(1);
+    const second = evaluate.mock.calls[1][0].state;
+    expect(second.messages).toEqual([
+      expect.objectContaining({ key: "m0", text: "Looks good, let's go" }),
+    ]);
+    expect(second.earlierMessages).toEqual([
+      { author: "Carla", text: "Morning all" },
+      { author: "Bob", text: "Alice, can you send the pricing sheet?" },
+    ]);
+    expect(result.questionCount).toBe(28);
+    expect(result.costUsd).toBeCloseTo(0.00006);
+    expect(result.readings.map((reading) => reading.messageId)).toEqual([
+      "m-1",
+      "m-2",
+    ]);
   });
 });

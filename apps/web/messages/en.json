@@ -8850,6 +8850,8 @@
           "needsDecision": "{count, plural, one {# decision to make} other {# decisions to make}}",
           "commitment": "{count, plural, one {# commitment} other {# commitments}}",
           "workRequest": "{count, plural, one {# work request} other {# work requests}}",
+          "bug": "{count, plural, one {# bug} other {# bugs}}",
+          "review": "{count, plural, one {# review request} other {# review requests}}",
           "question": "{count, plural, one {# question} other {# questions}}",
           "fyi": "{count, plural, one {# FYI} other {# FYI}}",
           "chitChat": "{count, plural, one {# chat} other {# chats}}"
@@ -8872,7 +8874,9 @@
           "needsDecision": "Needs a decision",
           "commitment": "Commitment",
           "commitmentDue": "Commitment · due {date}",
-          "workRequest": "Work request"
+          "workRequest": "Work request",
+          "bug": "Bug",
+          "review": "Review"
         },
         "Tags": {
           "question": "Asks someone a question",
@@ -8884,6 +8888,8 @@
           "urgent": "Urgent",
           "escalation": "Escalation",
           "workRequest": "Work request",
+          "bug": "Reports a bug",
+          "review": "Asks for a review",
           "fyi": "FYI",
           "chitChat": "Chit-chat"
         },

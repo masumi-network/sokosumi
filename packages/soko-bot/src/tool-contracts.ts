@@ -121,6 +121,8 @@ export const sokoBotCreateTaskInputSchema = z
     coworkerId: z.string().min(1).nullable().optional(),
     /** The owner does it themselves (pay, sign, decide); not with coworkerId. */
     assignToOwner: z.literal(true).optional(),
+    /** A teammate does it: their userId from find_coworkers `people`. */
+    memberId: z.string().min(1).optional(),
     status: z.enum(["DRAFT", "READY"]).default("DRAFT"),
     /** Drive files (ids from upload_file or list_files) to attach as the Task's inputs. */
     fileIds: z.array(z.string().uuid()).max(10).optional(),
@@ -162,15 +164,16 @@ export const sokoBotAssignTaskInputSchema = z
     taskId: z.string().min(1),
     coworkerId: z.string().min(1).optional(),
     assignToOwner: z.literal(true).optional(),
+    memberId: z.string().min(1).optional(),
     ready: z.boolean().default(true),
     followUp: sokoBotFollowUpSchema.optional(),
   })
   .strict()
   .refine(
-    (input) => Boolean(input.coworkerId) !== Boolean(input.assignToOwner),
-    {
-      message: "Give coworkerId or assignToOwner: true",
-    },
+    (input) =>
+      [input.coworkerId, input.assignToOwner, input.memberId].filter(Boolean)
+        .length === 1,
+    { message: "Give one of coworkerId, assignToOwner: true or memberId" },
   );
 
 export const sokoBotReplyToTaskInputSchema = z
@@ -1625,7 +1628,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   manage_contact_lists:
     "Create, update or delete a contact list, or add and remove contacts on a manual list. A list has a name, a color (gray, red, orange, amber, green, teal, blue, indigo, violet, pink) and an optional description; give smartFilter to make a smart list that fills itself from the same filters search_contacts takes.",
   find_people:
-    "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. People already on the list are skipped, so the same search twice finds almost nobody new: focus narrows one search (a region, sector, stage, firm type) without changing the description. Found people wait on the list as suggestions for your owner to add; say who you found and why. For more than about 50 people: first give the total (0.5 credits per person) and your best guess at who fits, and wait for an OK. Then start a background run whose bash script calls find_people through $SOKO_TOOLS_URL, size 25, a different focus each call, printing progress, until the target is reached or several focuses in a row find fewer than 5. A restarted run simply carries on, since the list skips who it has. Report the total, the best people and which focuses ran dry.",
+    "Search the web for people for a manual contact list, the Find people button: size 10 or 25 finds people who fit the list (brief replaces its description; without one the description is used), size 1 finds one particular person (brief names them, and where they work if known). Costs 0.5 credits per person found, nothing when nobody is. People already on the list are skipped, so the same search twice finds almost nobody new: focus narrows one search (a region, sector, stage, firm type) without changing the description. Found people wait on the list as suggestions for your owner to add; say who you found and why. For many people, confirm the total cost first and vary focus from search to search.",
   enrich_contact:
     "Look a person up on the web and fill their empty fields (role, organization, location, LinkedIn, summary), the Enrich button. Never overwrites what is there and records the source. Costs 1 credit, only when something was filled. Use it when your owner asks to complete a contact, not on every contact you touch.",
   create_project:
@@ -1678,15 +1681,15 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "The owner's calendar events in a time window across connected calendars. Default window: now to +7 days.",
   refresh_context: "Read immutable Context snapshot for current turn.",
   find_coworkers:
-    "Find available AI Coworkers suitable for delegated Task work.",
+    "Find who can take Task work: available AI Coworkers (coworkers) and the people on your team in this workspace (people, each with a userId to pass as memberId). A query narrows both by name.",
   create_task:
-    'Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description. followUp: what you will do once this work is COMPLETED ("give the findings to Alex as a Task for a one-page brief"); Core hands it back to you with the result, so do not create a schedule or poll to wait for it.',
+    'Create a Sokosumi Task. Give it who does it and where it belongs in this same call: coworkerId for a fitting Coworker (find_coworkers), memberId for a teammate (a person from find_coworkers), or assignToOwner: true for what the owner must do themselves (pay an invoice, sign, decide, attend); and projectId of the existing project it fits, from your context. Leave either out only when nothing fits. DRAFT means not started yet, never unowned; READY starts a Coworker on it. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task. A Coworker cannot open your Files: pass fileIds for the files the work needs (a page to review, a draft to edit); they are attached and their text is added to the description. followUp: what you will do once this work is COMPLETED ("give the findings to Alex as a Task for a one-page brief"); Core hands it back to you with the result, so do not create a schedule or poll to wait for it.',
   update_task:
     "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
     "Archive a Task the owner could archive in the app: their own, or a public Task of their organization. Pass the exact updatedAt from list_tasks or get_task_status as expectedUpdatedAt; no separate read is needed. One Task per call: to archive several, list them once and call archive_task for all of them in the same step. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template; cancel another one first with reply_to_task status CANCELED when the owner wants it gone. Report success only from the archive result.",
   assign_task:
-    "Assign a Task to an available Coworker (coworkerId), or to the owner with assignToOwner: true, and optionally make it READY. followUp: what you will do once the work is COMPLETED, as on create_task.",
+    "Assign a Task to an available Coworker (coworkerId), a teammate (memberId, a person from find_coworkers), or the owner with assignToOwner: true, and optionally make it READY. followUp: what you will do once the work is COMPLETED, as on create_task.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
   list_tasks:

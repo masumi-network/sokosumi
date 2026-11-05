@@ -837,6 +837,8 @@ export type ChatMessageSignal = {
         chitChat?: number;
         workRequest?: number;
         escalation?: number;
+        bug?: number;
+        review?: number;
     };
     /**
      * Humans the message asks something of: its @mentions, the other person in a pair, or the one person Jev read it as addressed to.
@@ -858,7 +860,7 @@ export type ChatMessageSignal = {
 };
 
 /**
- * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only), `bug` (reports something broken), `review` (asks for feedback on something specific).
  */
 export const ChatSignalTag = {
     QUESTION: 'question',
@@ -871,11 +873,13 @@ export const ChatSignalTag = {
     URGENT: 'urgent',
     CHIT_CHAT: 'chitChat',
     WORK_REQUEST: 'workRequest',
-    ESCALATION: 'escalation'
+    ESCALATION: 'escalation',
+    BUG: 'bug',
+    REVIEW: 'review'
 } as const;
 
 /**
- * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).
+ * What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only), `bug` (reports something broken), `review` (asks for feedback on something specific).
  */
 export type ChatSignalTag = typeof ChatSignalTag[keyof typeof ChatSignalTag];
 
@@ -3777,11 +3781,13 @@ export const ChatCatchUpBucket = {
     ESCALATION: 'escalation',
     URGENT: 'urgent',
     BLOCKER: 'blocker',
+    BUG: 'bug',
     DECISION_MADE: 'decisionMade',
     ANNOUNCEMENT: 'announcement',
     NEEDS_DECISION: 'needsDecision',
     COMMITMENT: 'commitment',
     WORK_REQUEST: 'workRequest',
+    REVIEW: 'review',
     QUESTION: 'question',
     FYI: 'fyi',
     CHIT_CHAT: 'chitChat'
