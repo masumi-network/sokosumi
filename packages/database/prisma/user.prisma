@@ -1,4 +1,5 @@
 model User {
+  seoPrivateObservations ProjectSeoObservation[] @relation("ProjectSeoMetricOwner")
   id            String    @id @default(uuid(7))
   name          String
   firstName     String?

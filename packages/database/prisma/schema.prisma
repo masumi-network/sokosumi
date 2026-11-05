@@ -464,6 +464,13 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  seoPages                ProjectSeoPage[]
+  seoScopes               ProjectSeoScope[]
+  seoObservations         ProjectSeoObservation[]
+  seoKeywords             ProjectSeoKeyword[]
+  seoCompetitors          ProjectSeoCompetitor[]
+  seoAnalyses             ProjectSeoAnalysis[]
+  seoActionTasks          ProjectSeoActionTask[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
