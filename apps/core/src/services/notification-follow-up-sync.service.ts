@@ -95,7 +95,9 @@ export interface SendFollowUpsResult {
    */
   examined: number;
   /**
-   * Follow-ups this run actually wrote.
+   * Follow-ups this run wrote and left standing. A reminder written for a
+   * message that was deleted before its email left is taken back, and is
+   * not counted here.
    *
    * Lower than `examined` without anything being wrong, and by more than one
    * cause. Several rows about the same room or task on one day share one
@@ -421,7 +423,6 @@ async function flushFollowUpEmails(
         // Email-only reminders have no publish revision to release this daily key.
         // A reminder that also reached the reader's tabs was published when it
         // was written, so those tabs are told it is gone before the row is.
-        dropped += droppedIds.length;
         try {
           // Read first: the publish sends the row as it stands, and an
           // unread row would reach the tabs as one more reminder.
@@ -433,6 +434,9 @@ async function flushFollowUpEmails(
           await prisma.notification.deleteMany({
             where: { id: { in: droppedIds }, emailId: null },
           });
+          // Counted once the row is gone: a release that fails leaves the
+          // reminder standing, and a standing reminder was sent.
+          dropped += droppedIds.length;
         } catch (error) {
           Sentry.captureException(error, {
             extra: {

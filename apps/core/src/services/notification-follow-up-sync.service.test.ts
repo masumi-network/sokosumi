@@ -1510,6 +1510,19 @@ describe("NotificationFollowUpSyncService", () => {
     ).toBeLessThan(notificationDeleteManyMock.mock.invocationCallOrder[0]);
   });
 
+  it("still counts a taken-back reminder whose release failed", async () => {
+    wantsEmail();
+    seed([row()]);
+    chatRoomMessageFindManyMock.mockResolvedValue([]);
+    notificationDeleteManyMock.mockRejectedValueOnce(
+      new Error("release failed"),
+    );
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+    // The row is still there, so it is still a reminder this run sent.
+    expect(result.sent).toBe(1);
+    expect(result.emailed).toBe(0);
+  });
+
   it("does not email an unverifiable chat reminder", async () => {
     wantsEmail();
     seed([row({ metadata: null })]);
