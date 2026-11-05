@@ -1,5 +1,3 @@
-"use client";
-
 /** Message and typing subscribers share one client and its renewed grants. */
 const roomSubscriberCounts = new Map<string, number>();
 
