@@ -1,17 +1,13 @@
 import type { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getContractWithPeriodsMock = vi.fn();
+const findEnterpriseContractMock = vi.fn();
 const sumOrganizationEnterprisePoolBalancesMock = vi.fn();
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     sumOrganizationEnterprisePoolBalances: (...args: unknown[]) =>
       sumOrganizationEnterprisePoolBalancesMock(...args),
-  },
-  enterpriseContractRepository: {
-    getContractWithPeriods: (...args: unknown[]) =>
-      getContractWithPeriodsMock(...args),
   },
 }));
 
@@ -88,7 +84,11 @@ describe("enterprise contract summary helpers", () => {
 });
 
 describe("getEnterpriseContractBillingSummary", () => {
-  const mockTx = {} as Prisma.TransactionClient;
+  const mockTx = {
+    enterpriseContract: {
+      findUnique: findEnterpriseContractMock,
+    },
+  } as unknown as Prisma.TransactionClient;
   const billingPlan = {
     mode: "enterprise_contract" as const,
     plan: "enterprise" as const,
@@ -107,7 +107,7 @@ describe("getEnterpriseContractBillingSummary", () => {
   });
 
   it("returns a billing-plan fallback when the contract cannot be loaded", async () => {
-    getContractWithPeriodsMock.mockResolvedValue(null);
+    findEnterpriseContractMock.mockResolvedValue(null);
     sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
       remainingCents: BigInt(12_500_000_000_000),
       totalCents: BigInt(12_500_000_000_000),
@@ -132,7 +132,7 @@ describe("getEnterpriseContractBillingSummary", () => {
   });
 
   it("returns a billing-plan fallback when the contract belongs to another organization", async () => {
-    getContractWithPeriodsMock.mockResolvedValue({
+    findEnterpriseContractMock.mockResolvedValue({
       centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-other",
       periods: [],
@@ -161,7 +161,7 @@ describe("getEnterpriseContractBillingSummary", () => {
   });
 
   it("maps contract, period, and pool data into a billing summary", async () => {
-    getContractWithPeriodsMock.mockResolvedValue({
+    findEnterpriseContractMock.mockResolvedValue({
       centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-1",
       periods: [
@@ -191,6 +191,14 @@ describe("getEnterpriseContractBillingSummary", () => {
       new Date("2026-02-15T12:00:00.000Z"),
     );
 
+    expect(findEnterpriseContractMock).toHaveBeenCalledWith({
+      where: { id: "contract-1" },
+      include: {
+        periods: {
+          orderBy: { periodStart: "asc" },
+        },
+      },
+    });
     expect(summary).toEqual({
       activatedAt: billingPlan.activatedAt,
       endsAt: billingPlan.endsAt,
@@ -204,7 +212,7 @@ describe("getEnterpriseContractBillingSummary", () => {
   });
 
   it("uses the last period end when the contract is post-term", async () => {
-    getContractWithPeriodsMock.mockResolvedValue({
+    findEnterpriseContractMock.mockResolvedValue({
       centsPerMonth: BigInt(60_000_000_000_000),
       organizationId: "org-1",
       periods: [
