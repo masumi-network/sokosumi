@@ -122,6 +122,7 @@ describe("AuthSessionGuard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    Reflect.deleteProperty(document, "visibilityState");
   });
 
   it("revalidates the session without cookie cache on mount", async () => {
@@ -208,7 +209,69 @@ describe("AuthSessionGuard", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(oldClient.close).toHaveBeenCalledOnce();
-    expect(authClient.getSession).toHaveBeenCalledOnce();
+    // The render disagreed with the probe, so it is asked again first.
+    expect(authClient.getSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks again instead of reloading when the document renders a new account", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    vi.mocked(authClient.getSession)
+      .mockResolvedValueOnce(presentSession)
+      .mockResolvedValue(differentUserSession);
+    const view = render(
+      <AuthSessionGuard>
+        <AuthSessionHydrator session={renderedSession} />
+      </AuthSessionGuard>,
+    );
+    await vi.dynamicImportSettled();
+    expect(reload).not.toHaveBeenCalled();
+
+    // A sign-in inside the document: the shell now renders the account the
+    // cookie holds, and the last probe is older than that.
+    view.rerender(
+      <AuthSessionGuard>
+        <AuthSessionHydrator
+          session={{
+            ...renderedSession,
+            user: { ...renderedSession.user, id: "bob" },
+            session: { ...renderedSession.session, userId: "bob" },
+          }}
+        />
+      </AuthSessionGuard>,
+    );
+
+    await waitFor(() => expect(authClient.getSession).toHaveBeenCalledTimes(2));
+    await vi.dynamicImportSettled();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("sends a kept document to sign-in when its session ends on focus", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    vi.mocked(authClient.getSession)
+      .mockResolvedValueOnce(presentSession)
+      .mockResolvedValueOnce(differentUserSession)
+      .mockResolvedValue(missingSession);
+    render(
+      <AuthSessionGuard>
+        <AuthSessionHydrator session={renderedSession} />
+      </AuthSessionGuard>,
+    );
+    await vi.dynamicImportSettled();
+
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    // The reader chose to stay; the other account then signed out too.
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() =>
+      expect(replaceMock).toHaveBeenCalledWith(
+        "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
+      ),
+    );
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it("reloads again when a kept document still shows another account", async () => {
@@ -232,11 +295,10 @@ describe("AuthSessionGuard", () => {
 
     window.dispatchEvent(new Event("focus"));
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
-    await act(async () => {
-      window.dispatchEvent(new Event("focus"));
-      await Promise.resolve();
-    });
-    expect(authClient.getSession).toHaveBeenCalledTimes(2);
+    // Dismissing the prompt refocuses the window: probed, not asked again.
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(authClient.getSession).toHaveBeenCalledTimes(3));
+    await vi.dynamicImportSettled();
     expect(reload).toHaveBeenCalledOnce();
 
     Object.defineProperty(document, "visibilityState", {
@@ -247,7 +309,7 @@ describe("AuthSessionGuard", () => {
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(2));
 
     expect(oldClient.close).toHaveBeenCalled();
-    expect(authClient.getSession).toHaveBeenCalledTimes(3);
+    expect(authClient.getSession).toHaveBeenCalledTimes(4);
     expect(RealtimeMock).toHaveBeenCalledOnce();
   });
 

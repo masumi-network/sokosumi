@@ -61,7 +61,10 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
       // on it. A `beforeunload` prompt for unsaved edits can keep the
       // document, and dismissing that prompt refocuses the window. A kept
       // document asks again on the next return to the tab, not on that
-      // focus, or the reader could never reach the editor to save.
+      // focus, or the reader could never reach the editor to save. Focus
+      // still probes, so a session that ends meanwhile still signs out. A
+      // window that is never hidden, side by side with another, is not
+      // asked again until it is: the reader chose to stay with their edits.
       reloadAskedRef.current = true;
       window.location.reload();
     }
@@ -79,14 +82,6 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     }
     realtime.discardRetiredAblyRealtimeClient();
   }, []);
-
-  const registerRenderedUser = useCallback(
-    (userId: string) => {
-      renderedUserIdRef.current = userId;
-      void reconcileSession().catch(() => {});
-    },
-    [reconcileSession],
-  );
 
   const validateSession = useEffectEvent(async () => {
     if (isRedirectingRef.current) {
@@ -119,6 +114,26 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     router.replace(`/signin?returnUrl=${returnUrl}`);
   });
 
+  const registerRenderedUser = useCallback(
+    (userId: string) => {
+      renderedUserIdRef.current = userId;
+      // A render that disagrees with the last probe is asked again rather
+      // than judged on it: a sign-in inside the document re-renders the
+      // shell for the new account before any focus asks Core whose session
+      // this is, and the shell is a new one, so a kept reload is forgotten.
+      if (
+        freshSessionRef.current &&
+        freshSessionRef.current.userId !== userId
+      ) {
+        reloadAskedRef.current = false;
+        void validateSession();
+        return;
+      }
+      void reconcileSession().catch(() => {});
+    },
+    [reconcileSession],
+  );
+
   useMountEffect(() => {
     mountedRef.current = true;
     void validateSession();
@@ -131,7 +146,6 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
 
   useEffect(() => {
     function handleWindowFocus() {
-      if (reloadAskedRef.current) return;
       void validateSession();
     }
 
