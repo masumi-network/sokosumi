@@ -597,6 +597,11 @@ async function dispatchNotificationEmailRevision(
           : persistSentEmail(prisma, emailId);
     });
 
+    // Taken back before the refresh below sends again, so a row that moved
+    // under this send is never left with two emails. The refresh can send
+    // nothing, when its budget is spent or the row cannot send any more:
+    // then the row is left quiet rather than with an email about a message
+    // that is gone or a count that is wrong, until its next arrival.
     if (sent !== null && sent.count === 0 && scheduledAt !== null) {
       await withResendGap(() => cancelEmail(sent.emailId));
     }

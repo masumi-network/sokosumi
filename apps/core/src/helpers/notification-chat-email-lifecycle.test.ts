@@ -474,6 +474,29 @@ it("cancels deleted-message mail even when its notification was already read", a
   expect(state.sent).toHaveLength(0);
 });
 
+it("sends for the room alone when its message goes before a first send leaves", async () => {
+  // The same row as above, with the deletion landing between the queue
+  // turn's source check and the provider handoff: nothing to take back.
+  state.row = {
+    ...row(),
+    messageParams: JSON.stringify({
+      authorName: "Ada",
+      roomName: "Design",
+      count: 2,
+    }),
+  };
+  state.duringDeduplication = () => {
+    state.duringDeduplication = null;
+    state.deleted = true;
+  };
+  await dispatchNotificationEmail(state.row);
+  expect(state.sent).toHaveLength(1);
+  expect(state.sent[0]?.idempotencyKey).toMatch(/\/room$/);
+  expect(state.sent[0]?.html).not.toContain("message=message-1");
+  expect(state.cancelled).toEqual([]);
+  expect(state.row.emailId).toBe("email-1");
+});
+
 it("rechecks deletion after the earlier-email lookup before an immediate send", async () => {
   state.row = { ...row(), messageKey: "Notifications.Chat.mentioned" };
   state.duringDeduplication = () => {
