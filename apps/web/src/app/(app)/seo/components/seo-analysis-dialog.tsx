@@ -55,7 +55,7 @@ export function SeoAnalysisDialog({
         if (!open && !model.pending) model.setDialog(null);
       }}
     >
-      <DialogContent className="max-h-screen overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-dvh overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {t(monitor ? "monitor.create" : "analysis.title")}

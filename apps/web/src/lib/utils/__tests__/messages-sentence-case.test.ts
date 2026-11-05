@@ -24,6 +24,8 @@ const PROPER_PHRASES = [
   // Ad platforms.
   "Google Ads",
   "Google Search",
+  "Google Analytics",
+  "Search Console",
   "Display Network",
   "Meta Ads",
   // The Files area, named as a destination ("Copy to Files").

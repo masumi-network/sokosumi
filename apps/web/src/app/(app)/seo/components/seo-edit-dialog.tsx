@@ -53,7 +53,7 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
         if (!open && !model.pending) model.setDialog(null);
       }}
     >
-      <DialogContent className="max-h-screen overflow-y-auto">
+      <DialogContent className="max-h-dvh overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
