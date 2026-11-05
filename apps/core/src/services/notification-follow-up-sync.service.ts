@@ -97,7 +97,8 @@ export interface SendFollowUpsResult {
   /**
    * Follow-ups this run wrote and left standing. A reminder written for a
    * message that was deleted before its email left is taken back, and is
-   * not counted here.
+   * not counted here once its row is gone; one whose release failed, read
+   * or not, still stands and is counted.
    *
    * Lower than `examined` without anything being wrong, and by more than one
    * cause. Several rows about the same room or task on one day share one
@@ -394,13 +395,13 @@ async function flushFollowUpEmails(
         const liveRooms = new Map(
           liveMessages.map((message) => [message.id, message.roomId]),
         );
-        const dropped = chunk.filter(
+        const droppedItems = chunk.filter(
           (item) =>
             item.chatMessage &&
             liveRooms.get(item.chatMessage.id) !== item.chatMessage.roomId,
         );
-        if (dropped.length > 0) {
-          droppedIds = dropped.map((item) => item.notificationId);
+        if (droppedItems.length > 0) {
+          droppedIds = droppedItems.map((item) => item.notificationId);
           const droppedSet = new Set(droppedIds);
           chunk = chunk.filter((item) => !droppedSet.has(item.notificationId));
         }

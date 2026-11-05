@@ -90,10 +90,10 @@ export interface ChatRoomMessageCreatedEffectsParams {
  * (`shouldEmitChatDirectMessageNotifications`), so a direct room with more
  * than two is a room like any other here rather than a room nobody hears from.
  *
- * A member who was named in the message is skipped only when the mention
- * actually reaches them. A reader who silenced mentions and asked for every
- * message would otherwise hear about every message in the room except the one
- * addressed to them.
+ * A member who was named in the message is sent the room row only on the
+ * channels their mention does not already reach. A reader who silenced
+ * mentions and asked for every message would otherwise hear about every
+ * message in the room except the one addressed to them.
  *
  * The rest are kept only when this category would reach them on some channel,
  * asked through the same `resolveNotificationDelivery` that decides delivery
