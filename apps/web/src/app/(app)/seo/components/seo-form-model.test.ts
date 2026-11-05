@@ -1,0 +1,160 @@
+import { describe, expect, it } from "vitest";
+import {
+  analysisSeoBody,
+  defaultFullAuditSeconds,
+  editSeoCommand,
+} from "./seo-form-model";
+import {
+  SEO_TEST_PAGE,
+  SEO_TEST_SCOPE,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
+
+function analysisForm() {
+  const form = new FormData();
+  for (const [name, value] of Object.entries({
+    kind: "rankings",
+    countryCode: "DE",
+    languageCode: "de",
+    keywords: "stablecoins\nagent payments",
+    maxProviderCalls: "4",
+  }))
+    form.set(name, value);
+  form.append("devices", "mobile");
+  form.append("devices", "desktop");
+  return form;
+}
+describe("SEO form intent", () => {
+  it("uses the worker's bounded time envelope for related-page audits", () => {
+    expect(defaultFullAuditSeconds(2)).toBe(1170);
+    expect(defaultFullAuditSeconds(10)).toBe(2850);
+    expect(defaultFullAuditSeconds(100)).toBe(3600);
+  });
+  it("keeps selected group authority, market and the explicit request budget", () => {
+    expect(analysisSeoBody(analysisForm(), seoTestWorkspace())).toMatchObject({
+      scopeId: SEO_TEST_SCOPE,
+      expectedScopeVersion: 2,
+      countryCode: "DE",
+      languageCode: "de",
+      maxProviderCalls: 4,
+      keywords: ["stablecoins", "agent payments"],
+    });
+  });
+  it("rejects ambiguous full audits and broad scopes before requesting paid work", () => {
+    const form = analysisForm();
+    form.set("kind", "audit_full");
+    expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow();
+    form.set("kind", "rankings");
+    expect(() =>
+      analysisSeoBody(form, {
+        ...seoTestWorkspace(),
+        scope: {
+          ...seoTestWorkspace().scope,
+          pageIds: Array(11).fill(SEO_TEST_PAGE),
+        },
+      }),
+    ).toThrow();
+    form.set("keywords", "x".repeat(81));
+    expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow();
+  });
+  it("uses the full-audit USD and time envelope instead of provider-call limits", () => {
+    const form = analysisForm();
+    form.set("kind", "audit_full");
+    form.set("keywords", "stablecoins");
+    form.set("usd", "1.25");
+    form.set("seconds", "180");
+    const workspace = seoTestWorkspace();
+    workspace.scope.pageIds.push("a658c5bb-3084-4b26-81ee-b3208ee5ab61");
+    const body = analysisSeoBody(form, workspace);
+    expect(body.fullAuditLimits).toEqual({ usd: 1.25, seconds: 180 });
+    expect(body.maxProviderCalls).toBeUndefined();
+  });
+  it("rejects an undersized paid request budget while allowing a zero-call page check", () => {
+    const form = analysisForm();
+    form.set("maxProviderCalls", "0");
+    expect(() => analysisSeoBody(form, seoTestWorkspace())).toThrow(RangeError);
+    form.set("kind", "page_check");
+    expect(analysisSeoBody(form, seoTestWorkspace()).maxProviderCalls).toBe(0);
+  });
+
+  it("keeps Audit Lite modules explicit and omits unused prefilled competitors", () => {
+    const form = analysisForm();
+    form.set("kind", "page_check");
+    form.set("competitorUrls", "https://competitor.example/");
+    expect(analysisSeoBody(form, seoTestWorkspace()).competitorUrls).toEqual(
+      [],
+    );
+    form.set("kind", "audit_lite");
+    form.append("analyses", "page.inspect");
+    form.append("analyses", "links.refresh");
+    const body = analysisSeoBody(form, seoTestWorkspace());
+    expect(body.analyses).toEqual(["page.inspect", "links.refresh"]);
+    expect(body.keywords).toEqual([]);
+    expect(body.competitorUrls).toEqual(["https://competitor.example/"]);
+  });
+  it("omits a single-page full-audit limit the worker cannot honor", () => {
+    const form = analysisForm();
+    form.set("kind", "audit_full");
+    form.set("keywords", "stablecoins");
+    form.set("usd", "10");
+    form.set("seconds", "120");
+    const body = analysisSeoBody(form, seoTestWorkspace());
+    expect(body.fullAuditLimits).toBeUndefined();
+    expect(body.maxProviderCalls).toBeUndefined();
+  });
+
+  it("edits a group with its known version and selected membership", () => {
+    const form = new FormData();
+    form.set("name", "Search pages");
+    form.append("pageIds", SEO_TEST_PAGE);
+    expect(editSeoCommand("edit_scope", form, seoTestWorkspace())).toEqual({
+      kind: "update_scope",
+      scopeId: SEO_TEST_SCOPE,
+      body: {
+        name: "Search pages",
+        pageIds: [SEO_TEST_PAGE],
+        expectedVersion: 2,
+      },
+    });
+  });
+  it("includes the existing version when saving a previously unsaved keyword", () => {
+    const workspace = seoTestWorkspace();
+    workspace.keywords.push({
+      id: "saved",
+      keyword: "Stablecoins",
+      countryCode: "DE",
+      languageCode: "de",
+      pageUrl: "https://example.com/",
+      saved: false,
+      source: "saved",
+      volume: null,
+      intent: null,
+      device: null,
+      position: null,
+      positionStatus: "unavailable",
+      checkedResults: null,
+      observedAt: null,
+      observationId: null,
+      priority: "medium",
+      version: 3,
+    });
+    const form = new FormData();
+    for (const [name, value] of Object.entries({
+      keyword: "stablecoins",
+      countryCode: "de",
+      languageCode: "de",
+      pageId: SEO_TEST_PAGE,
+      priority: "high",
+    }))
+      form.set(name, value);
+    expect(editSeoCommand("keyword", form, workspace)).toMatchObject({
+      kind: "save_keyword",
+      body: {
+        expectedVersion: 3,
+        countryCode: "DE",
+        saved: true,
+        priority: "high",
+      },
+    });
+  });
+});

@@ -22,6 +22,7 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     "/calendar": {},
     "/studio": {},
     "/social": {},
+    "/seo": {},
     "/ads": {},
     "/newsletter": {},
     "/newsletter/issues": {},

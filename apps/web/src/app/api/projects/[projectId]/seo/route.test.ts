@@ -1,0 +1,69 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ session: vi.fn(), getWorkspace: vi.fn() }));
+vi.mock("@/lib/auth/route-session", async () => ({
+  ...(await vi.importActual<typeof import("@/lib/auth/route-session")>(
+    "@/lib/auth/route-session",
+  )),
+  readRouteSession: mocks.session,
+}));
+vi.mock("@/lib/services/seo.service", () => ({
+  seoServiceNoRedirect: { getWorkspace: mocks.getWorkspace },
+}));
+
+import { CoreApiRequestError } from "@/lib/clients/core.client";
+import { GET } from "./route";
+
+const PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
+const PAGE = "2c32dca9-c44f-4372-9114-8c146d5eb30b";
+function read(query = "") {
+  return GET(
+    new Request(`https://web.test/api/projects/${PROJECT}/seo?${query}`),
+    { params: Promise.resolve({ projectId: PROJECT }) },
+  );
+}
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.session.mockResolvedValue({
+    status: "authenticated",
+    session: { user: { id: "owner" } },
+  });
+  mocks.getWorkspace.mockResolvedValue({ projectId: PROJECT });
+});
+describe("private SEO read boundary", () => {
+  it("forwards exact page/date filters and disables response caching", async () => {
+    const response = await read(`pageId=${PAGE}&from=2026-01-01&to=2026-01-02`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(mocks.getWorkspace).toHaveBeenCalledWith(PROJECT, {
+      pageId: PAGE,
+      from: "2026-01-01",
+      to: "2026-01-02",
+    });
+  });
+  it("refuses ambiguous scope instead of fetching broader data", async () => {
+    expect((await read(`pageId=${PAGE}&scopeId=${PROJECT}`)).status).toBe(400);
+    expect(mocks.getWorkspace).not.toHaveBeenCalled();
+  });
+  it("rejects Core explicit multi-page URL filters rather than dropping them", async () => {
+    expect((await read(`pageIds=${PAGE}&pageIds=${PROJECT}`)).status).toBe(400);
+    expect(mocks.getWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes a session outage from signed out and never reads project data", async () => {
+    mocks.session.mockResolvedValue({
+      status: "unavailable",
+      reason: "timeout",
+    });
+    expect((await read()).status).toBe(503);
+    mocks.session.mockResolvedValue({ status: "signedOut" });
+    expect((await read()).status).toBe(401);
+    expect(mocks.getWorkspace).not.toHaveBeenCalled();
+  });
+  it("preserves Core's project access rejection", async () => {
+    mocks.getWorkspace.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+    expect((await read()).status).toBe(403);
+  });
+});
