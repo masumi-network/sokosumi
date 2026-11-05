@@ -15,9 +15,9 @@ import {
 } from "../ads";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
-import { StatusText } from "../onboarding/parts";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
+import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 
 interface PageProps {
@@ -67,7 +67,7 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Your numbers</h3>
         <p className="muted">
           Cuso reads real visits, searches and orders from these. Where none of
@@ -79,7 +79,7 @@ export function ResultsPage({
         />
       </section>
       <AdsPanel overview={overview} actions={ads} onChange={onChange} />
-      <section className="panel">
+      <section className="card">
         <h3>Reach and clicks</h3>
         <p className="muted">
           {connected
@@ -87,7 +87,7 @@ export function ResultsPage({
             : "Reach and clicks show here once you connect an account and Cuso's posts go out. Until then there is nothing to measure."}
         </p>
       </section>
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Weekly reports</h3>
         {weekly.length === 0 ? (
           <p className="muted">
@@ -213,7 +213,7 @@ export function ChannelsPage({
           {error}
         </p>
       ) : null}
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Social accounts</h3>
         <ul className="list">
           {SOCIAL_PROVIDERS.map((provider) => {
@@ -253,7 +253,7 @@ export function ChannelsPage({
           })}
         </ul>
       </section>
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Ad accounts</h3>
         <p className="muted">
           Optional. Cuso writes the ads; you launch each one, and they never
@@ -279,7 +279,7 @@ export function ChannelsPage({
           ))}
         </ul>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Coming soon</h3>
         <ul className="list">
           {COMING_SOON.map(([label, kind]) => (
@@ -316,7 +316,7 @@ export function SettingsPage({
 }) {
   return (
     <div className="page-body">
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Credits</h3>
         <div className="li">
           <span className="grow">
@@ -335,14 +335,14 @@ export function SettingsPage({
           </a>
         </div>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>Autonomy</h3>
         <p className="muted">
           Full autopilot. You approve the strategy; Cuso runs everything inside
           it and tells you what he did.
         </p>
       </section>
-      <section className="panel">
+      <section className="card">
         <h3>What Cuso does when</h3>
         <p className="muted">
           Every routine works from your strategy. Nothing runs until you approve
@@ -374,7 +374,7 @@ export function SettingsPage({
           ))}
         </ul>
       </section>
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Another website</h3>
         <p className="muted">Hire Cuso again for a different website.</p>
         <StartOver
@@ -382,7 +382,7 @@ export function SettingsPage({
           startOver={startOver}
         />
       </section>
-      <section className="panel panel-act">
+      <section className="card card-act">
         <h3>Account</h3>
         <div className="li">
           <span className="grow">

@@ -104,7 +104,7 @@ export function StrategyReveal({
 
   return (
     <div className="bb" style={brandStyle(overview)}>
-      <header className="bb-hero">
+      <header className="card bb-hero">
         <p className="bb-eyebrow">
           {strategy.idea
             ? `The strategy · ${outcomeLine(strategy)}`
@@ -120,7 +120,7 @@ export function StrategyReveal({
       {onAsk && questions.length > 0 ? (
         <button
           type="button"
-          className="bb-callout bb-callout-button"
+          className="card card-act bb-callout bb-callout-button"
           onClick={() => setOpen({ kind: "questions" })}
         >
           <span>

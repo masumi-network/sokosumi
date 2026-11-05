@@ -5,7 +5,7 @@ import { ArrowRight, CalendarDays } from "lucide-react";
 import { useTransition } from "react";
 
 import { formatDay } from "../../lib/calendar";
-import { StatusText } from "../onboarding/parts";
+import { StatusText } from "../status";
 import { StrategyReveal } from "../strategy-reveal";
 
 interface StrategyVersionsProps {
@@ -26,7 +26,7 @@ export function StrategyVersions({
   const versions = overview.strategyVersions;
   if (versions.length < 2) return null;
   return (
-    <section className="plan-week" aria-label="Versions">
+    <section className="card plan-week" aria-label="Versions">
       <p className="plan-week-head">
         <b>Versions</b>
       </p>

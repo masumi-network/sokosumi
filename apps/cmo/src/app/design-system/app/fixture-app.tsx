@@ -54,7 +54,11 @@ const actions: CmoAppActions = {
 };
 
 /** The signed-in app on one page, over fixture data, for looking at without Core. */
-export function FixtureApp({ view }: { view: View }) {
+interface FixtureAppProps {
+  view: View;
+}
+
+export function FixtureApp({ view }: FixtureAppProps) {
   return (
     <CmoApp
       overview={overview}

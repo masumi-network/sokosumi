@@ -272,48 +272,6 @@ body:has(.ob) .site-header {
   font-size: 0.8125rem;
 }
 
-.ob-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--card);
-  color: var(--foreground);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.ob-button:hover:not(:disabled) {
-  background: var(--surface);
-}
-
-.ob-button:disabled {
-  border-color: var(--border);
-  color: var(--muted);
-  cursor: not-allowed;
-}
-
-/* The text button: underlined muted, no box. */
-.ob-button-quiet {
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.ob-button-quiet:hover:not(:disabled) {
-  background: transparent;
-  color: var(--foreground);
-}
-
 .ob-spin {
   animation: ob-spin 900ms linear infinite;
 }
@@ -328,22 +286,6 @@ body:has(.ob) .site-header {
 .ob-panel {
   gap: 12px;
   padding: 12px;
-}
-
-.ob-avatar {
-  display: inline-grid;
-  flex: none;
-  place-items: center;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-}
-
-.ob-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
 }
 
 /* The focused card: ink line and the one hard shadow. */
@@ -459,39 +401,6 @@ body:has(.ob) .site-header {
 
 .ob-skeleton span:last-child {
   width: 60%;
-}
-
-.ob-disc {
-  display: inline-grid;
-  flex: none;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  color: var(--primary-foreground);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.ob-disc-ok {
-  background: var(--ok);
-}
-
-.ob-disc-warn {
-  background: var(--warn);
-}
-
-.ob-disc-fail {
-  background: var(--foreground);
-  color: var(--background);
-}
-
-.ob-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .ob-stats {

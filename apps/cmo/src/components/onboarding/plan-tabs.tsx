@@ -8,11 +8,11 @@ import { formatDay, planWeeks } from "../../lib/calendar";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
+import { AGENT_NAME } from "../cuso";
 import { withoutLabel } from "../showcases";
 import { FunnelPlan, MeasureFunnel } from "../strategy-core";
 import { Funnel } from "../strategy-funnel";
 import { ChannelPlan, Mix, outcomeLine, Pillars } from "../strategy-reveal";
-import { AGENT_NAME } from "./parts";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];

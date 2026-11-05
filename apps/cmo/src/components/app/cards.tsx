@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
-import { StatusText } from "../onboarding/parts";
+import { StatusText } from "../status";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 

@@ -2,13 +2,12 @@
 
 import "../../components/onboarding/onboarding.css";
 
-import { Brain, CalendarDays, MessageSquare, Target } from "lucide-react";
-
 import { CusoStatus } from "../../components/app/cuso-status";
+import { Sidebar } from "../../components/app/sidebar";
+import { CusoAvatar } from "../../components/cuso";
 import {
   AssumptionChip,
   Checklist,
-  CusoAvatar,
   GoalBlock,
   QuestionCard,
   SidePanel,
@@ -20,13 +19,6 @@ import {
 import { overview } from "./app/fixtures";
 
 const noop = async () => {};
-
-const NAV = [
-  { Icon: MessageSquare, label: "Cuso" },
-  { Icon: Target, label: "Strategy", active: true },
-  { Icon: CalendarDays, label: "Calendar", count: 11 },
-  { Icon: Brain, label: "Brand Brain" },
-];
 
 const AT = new Date("2026-11-05T08:00:00Z");
 
@@ -153,31 +145,18 @@ export function PartsPreview() {
 
       <div className="ds-part">
         <p className="ds-t-small ds-muted">
-          Sidebar: workspace card, current row, ink count badge, Cuso status
+          The sidebar, as the app renders it
         </p>
-        <nav className="side ds-side" aria-label="Sidebar preview">
-          <div className="business">
-            <span className="business-text">
-              <span className="business-name">Acme</span>
-              <span className="note">acme.io</span>
-            </span>
-          </div>
-          <div className="nav">
-            {NAV.map(({ Icon, label, active, count }) => (
-              <a
-                key={label}
-                href="#sidebar"
-                className={active ? "active" : ""}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon size={16} aria-hidden="true" />
-                <span>{label}</span>
-                {count ? <span className="count num">{count}</span> : null}
-              </a>
-            ))}
-          </div>
-          <CusoStatus overview={overview} now={AT} />
-        </nav>
+        <div className="ds-side">
+          <Sidebar
+            overview={overview}
+            view="strategy"
+            onSelect={noop}
+            name="Francis Luz"
+            email="francis@acme.io"
+            now={AT}
+          />
+        </div>
         <p className="ds-t-small ds-muted">Cuso status, by pose</p>
         <div className="ds-statuses">
           {STATUS_CARDS.map((card) => (

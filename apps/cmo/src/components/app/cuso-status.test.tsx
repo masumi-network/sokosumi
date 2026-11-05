@@ -86,4 +86,6 @@ it.each(cases)("Cuso's status card: $name", ({ patch, pose, line }) => {
   expect(html).toContain(`src="/cuso/${pose}.png"`);
   expect(html).toContain("Cuso");
   expect(html).toContain(line);
+  // Needs you is the one pose whose state line sits on Iris.
+  expect(html.includes("cuso-status-iris")).toBe(pose === "needs-you");
 });

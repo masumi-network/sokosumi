@@ -7,14 +7,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
+import { AGENT_NAME, CusoAvatar } from "./cuso";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
-import {
-  AGENT_NAME,
-  CusoAvatar,
-  StatRow,
-  StepMarkers,
-} from "./onboarding/parts";
+import { StatRow, StepMarkers } from "./onboarding/parts";
 
 const STATS = [
   { value: "3 min", line: "I read your site and what is public about you." },

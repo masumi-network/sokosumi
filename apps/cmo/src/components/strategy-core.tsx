@@ -15,7 +15,7 @@ import { useEffect, useState, useTransition } from "react";
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
 import { ChannelIcon } from "./channel-icon";
-import { StatusText } from "./onboarding/parts";
+import { StatusText } from "./status";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Stage = NonNullable<Strategy["funnel"]>[number];
@@ -389,12 +389,16 @@ export function AdBudget({
                 aria-label={`Monthly ad budget in ${ads.currency}`}
               />
             </label>
-            <button type="submit" className="ob-button" disabled={saving}>
+            <button
+              type="submit"
+              className="button button-secondary button-small"
+              disabled={saving}
+            >
               {saving ? "Saving…" : "Set budget"}
             </button>
             <button
               type="button"
-              className="ob-button ob-button-quiet"
+              className="button button-ghost button-small"
               onClick={() => setEditing(false)}
             >
               Cancel

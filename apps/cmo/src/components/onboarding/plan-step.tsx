@@ -8,16 +8,15 @@ import { useRef, useState, useTransition } from "react";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { strategyApproved } from "../../lib/strategy";
+import { AGENT_NAME, CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import {
-  AGENT_NAME,
   type Answer,
   AssumptionChip,
   Checklist,
-  CusoAvatar,
   GoalBlock,
   NoteField,
   PLANNING_PHASES,

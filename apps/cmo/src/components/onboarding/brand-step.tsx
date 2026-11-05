@@ -22,12 +22,11 @@ import {
   SectionDetail,
   Voice,
 } from "../brand-profile";
+import { AGENT_NAME, CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import {
-  AGENT_NAME,
   type Answer,
-  CusoAvatar,
   QuestionCard,
   SidePanel,
   Tile,

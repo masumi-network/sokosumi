@@ -102,7 +102,7 @@ export function CalendarPage({
 
   return (
     <div className="cal">
-      <div className="cal-head">
+      <div className="card card-act cal-head">
         <p className="note num">
           {live.length} pieces this month · {written} written · {scheduled}{" "}
           scheduled

@@ -144,7 +144,7 @@ export function SearchAdControl({
           <span className="note">Launched in Google Ads.</span>
           <button
             type="button"
-            className="ob-button ob-button-quiet"
+            className="button button-ghost button-small"
             disabled={pending}
             onClick={() => {
               const launched = entry.adCampaign;
@@ -158,7 +158,7 @@ export function SearchAdControl({
           </button>
           <button
             type="button"
-            className="ob-button ob-button-quiet"
+            className="button button-ghost button-small"
             disabled={pending}
             onClick={() => void run(() => actions.launchAd(entry.id))}
           >
@@ -169,7 +169,7 @@ export function SearchAdControl({
         <div className="ads-actions">
           <button
             type="button"
-            className="ob-button"
+            className="button button-secondary button-small"
             disabled={pending}
             onClick={() => void run(() => actions.launchAd(entry.id))}
           >
@@ -232,7 +232,7 @@ export function AdsPanel({
   }, [connected, loadAdCampaigns]);
 
   return (
-    <section className="panel panel-act">
+    <section className="card card-act">
       <h3>Ads</h3>
       {!connected ? (
         <p className="muted">

@@ -4,29 +4,10 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
+import { StatusDisc } from "../status";
 import { SubmitButton } from "../submit-button";
-import "./onboarding.css";
 import { Refusal } from "./refusal";
 import { STEPS } from "./step";
-
-/** How today's code names the agent; every screen builds its copy from it. */
-export const AGENT_NAME = "Cuso";
-
-export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
-
-interface CusoAvatarProps {
-  pose: Pose;
-  size?: 36 | 48 | 96;
-}
-
-/** Cuso's pose on his light circle: the status of the screen. */
-export function CusoAvatar({ pose, size = 48 }: CusoAvatarProps) {
-  return (
-    <span className="ob-avatar" style={{ width: size, height: size }}>
-      <img src={`/cuso/${pose}.png`} alt="" width={size} height={size} />
-    </span>
-  );
-}
 
 /**
  * The four steps in the header. `reached` is where Cuso has got to; `current`
@@ -162,56 +143,6 @@ export function SkeletonTile() {
       <span />
       <span />
     </div>
-  );
-}
-
-interface StatusDiscProps {
-  status: "ok" | "warn" | "fail";
-  /** The words beside the disc already say it, so the disc stays silent. */
-  decorative?: boolean;
-}
-
-/** Done: green disc and check. Needs you: yellow disc and "!". Failed: ink disc and X. */
-export function StatusDisc({ status, decorative = false }: StatusDiscProps) {
-  const label =
-    status === "ok"
-      ? "Done"
-      : status === "warn"
-        ? "Needs your answer"
-        : "Failed";
-  return (
-    <span
-      role={decorative ? undefined : "img"}
-      aria-label={decorative ? undefined : label}
-      aria-hidden={decorative ? "true" : undefined}
-      className={`ob-disc ob-disc-${status}`}
-    >
-      <span aria-hidden="true">
-        {status === "ok" ? (
-          <Check size={12} strokeWidth={3} />
-        ) : status === "warn" ? (
-          "!"
-        ) : (
-          <X size={12} strokeWidth={3} />
-        )}
-      </span>
-    </span>
-  );
-}
-
-/** A state in words with its disc: "Connected", "Approved". */
-export function StatusText({
-  status = "ok",
-  children,
-}: {
-  status?: StatusDiscProps["status"];
-  children: ReactNode;
-}) {
-  return (
-    <span className="ob-status">
-      <StatusDisc status={status} decorative />
-      {children}
-    </span>
   );
 }
 

@@ -7,12 +7,11 @@ import { useState } from "react";
 import { BRAND_SECTIONS } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
+import { AGENT_NAME, CusoAvatar } from "../cuso";
 import { SubmitButton } from "../submit-button";
 import {
-  AGENT_NAME,
   type Answer,
   Checklist,
-  CusoAvatar,
   QuestionCard,
   RESEARCH_PHASES,
   RetryButton,

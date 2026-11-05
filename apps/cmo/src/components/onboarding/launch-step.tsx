@@ -13,8 +13,9 @@ import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
+import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
-import { AGENT_NAME, CusoAvatar, StatusDisc } from "./parts";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
 export function strategyChannels(overview: CmoOverview): string[] {

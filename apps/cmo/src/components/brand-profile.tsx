@@ -80,7 +80,9 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
   return (
     <div className="bb" style={brandStyle(overview)}>
       <header
-        className={media || capturing ? "bb-hero bb-hero-show" : "bb-hero"}
+        className={
+          media || capturing ? "card bb-hero bb-hero-show" : "card bb-hero"
+        }
       >
         <div className="bb-hero-copy">
           <div className="bb-id">
@@ -109,7 +111,7 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
       </header>
 
       {researched === 0 ? (
-        <div className="bb-callout">
+        <div className="card card-act bb-callout">
           <p>
             <b>This is the short version.</b> Cuso can look deeper: customers,
             pricing, competitors, reviews and more, each with a source. It takes
@@ -426,7 +428,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className={wide ? "bb-section wide" : "bb-section"}>
+    <section className={wide ? "card bb-section wide" : "card bb-section"}>
       <h2 className="bb-title">{title}</h2>
       <div className="bb-body">{children}</div>
     </section>

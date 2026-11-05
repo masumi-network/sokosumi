@@ -271,7 +271,7 @@
 .ds-stage {
   position: relative;
   aspect-ratio: 4 / 5;
-  max-height: 560px;
+  max-height: 640px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -371,9 +371,16 @@
 }
 
 .ds-side {
+  display: flex;
   width: 240px;
+  height: 640px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+}
+
+.ds-side .side {
+  flex: 1;
+  border-right: 0;
 }
 
 .ds-statuses {

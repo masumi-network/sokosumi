@@ -1,18 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import {
-  ArrowUp,
-  Brain,
-  CalendarDays,
-  ChartLine,
-  type LucideIcon,
-  MessageSquare,
-  PanelRight,
-  Settings,
-  Share2,
-  Target,
-} from "lucide-react";
+import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -27,10 +16,7 @@ import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
-import { BusinessMark, businessDisplayName } from "../business-mark";
-import { Logo } from "../logo";
-import { StatusText } from "../onboarding/parts";
-import { ThemeToggle } from "../theme-toggle";
+import { StatusText } from "../status";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
@@ -40,7 +26,6 @@ import {
   StrategyCard,
   UpdateCard,
 } from "./cards";
-import { CusoStatus } from "./cuso-status";
 import {
   BrandBrainPage,
   ChannelsPage,
@@ -48,6 +33,7 @@ import {
   ResultsPage,
   SettingsPage,
 } from "./pages";
+import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { UpNext } from "./up-next";
 
@@ -69,16 +55,6 @@ function useDrawerLayout(): boolean {
     () => false,
   );
 }
-
-const VIEWS = [
-  ["chat", "Cuso", MessageSquare],
-  ["strategy", "Strategy", Target],
-  ["calendar", "Calendar", CalendarDays],
-  ["results", "Results", ChartLine],
-  ["brain", "Brand Brain", Brain],
-  ["channels", "Channels", Share2],
-  ["settings", "Settings", Settings],
-] as const satisfies readonly (readonly [string, string, LucideIcon])[];
 
 export interface CmoAppActions extends AdActions {
   loadState: () => Promise<{
@@ -305,8 +281,6 @@ export function CmoApp({
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
   const upNextCount = overview.upNext.length;
-  const host = siteHost(overview.websiteUrl);
-  const displayName = businessDisplayName(overview);
 
   return (
     <div
@@ -316,49 +290,13 @@ export function CmoApp({
         drawerOpen ? "upnext-open" : "",
       ].join(" ")}
     >
-      <nav className="side" aria-label="Main">
-        <div className="side-head">
-          <Logo />
-        </div>
-        <div className="business" title={overview.websiteUrl}>
-          <BusinessMark overview={overview} size={28} />
-          <span className="business-text">
-            <span className="business-name">{displayName}</span>
-            {host !== displayName ? <span className="note">{host}</span> : null}
-          </span>
-        </div>
-        <div className="nav">
-          {VIEWS.map(([id, label, Icon]) => (
-            <a
-              key={id}
-              href={VIEW_PATHS[id]}
-              className={view === id ? "active" : ""}
-              aria-current={view === id ? "page" : undefined}
-              onClick={(event) => {
-                // A modified click opens the page in a new tab as usual.
-                if (event.metaKey || event.ctrlKey || event.shiftKey) return;
-                event.preventDefault();
-                go(id);
-              }}
-            >
-              <Icon size={16} aria-hidden="true" />
-              <span>{label}</span>
-            </a>
-          ))}
-        </div>
-        <div className="grow" />
-        <CusoStatus overview={overview} />
-        <div className="who">
-          <span className="avatar" aria-hidden="true">
-            {initial(name || email)}
-          </span>
-          <span className="who-text">
-            <span className="who-name">{name || email}</span>
-            {name ? <span className="note">{email}</span> : null}
-          </span>
-          <ThemeToggle className="who-theme" />
-        </div>
-      </nav>
+      <Sidebar
+        overview={overview}
+        view={view}
+        onSelect={go}
+        name={name}
+        email={email}
+      />
 
       <main className="main">
         <div className="vhead">
@@ -506,7 +444,7 @@ export function CmoApp({
           </>
         ) : (
           <div className="scroll">
-            <div className="page-wide">
+            <div className="panel page-wide">
               {view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
@@ -851,16 +789,4 @@ function stamp(at: string): string {
     month: "short",
   });
   return `${day}, ${time}`;
-}
-
-function initial(text: string): string {
-  return text.trim().charAt(0).toUpperCase() || "?";
-}
-
-function siteHost(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
