@@ -11,19 +11,22 @@
       "source": {
         "source": "git",
         "url": "https://github.com/DietrichGebert/ponytail.git"
-      }
+      },
+      "autoUpdate": true
     },
     "i-have-adhd": {
       "source": {
         "source": "github",
         "repo": "ayghri/i-have-adhd"
-      }
+      },
+      "autoUpdate": true
     },
     "mattpocock": {
       "source": {
         "source": "github",
         "repo": "mattpocock/skills"
-      }
+      },
+      "autoUpdate": true
     }
   },
   "hooks": {
