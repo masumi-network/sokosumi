@@ -474,7 +474,7 @@ function toolAssigneeFields(
   if (ownerUserId) {
     if (coworkerId)
       throw new SokoBotRuntimeValidationError(
-        "Give coworkerId or assignToOwner, not both",
+        "Give coworkerId or a person to assign, not both",
       );
     return {
       assigneeId: null,
@@ -489,15 +489,23 @@ function toolAssigneeFields(
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
 }
 
-/** A shared bot works for nobody, so it has no owner to assign. */
-function ownerAssignee(
-  assignToOwner: true | undefined,
+/**
+ * The person a Task goes to: the owner, or a teammate Core checks belongs to
+ * the workspace. A shared bot works for nobody, so it has no owner to assign.
+ */
+export function personAssignee(
+  input: { assignToOwner?: true; memberId?: string },
   actingUserId: string | null,
 ): string | null {
-  if (!assignToOwner) return null;
+  if (input.assignToOwner && input.memberId)
+    throw new SokoBotRuntimeValidationError(
+      "Give assignToOwner or memberId, not both",
+    );
+  if (input.memberId) return input.memberId;
+  if (!input.assignToOwner) return null;
   if (!actingUserId)
     throw new SokoBotRuntimeValidationError(
-      "A shared assistant has no owner to assign; pick a Coworker",
+      "A shared assistant has no owner to assign; pick a Coworker or a teammate",
     );
   return actingUserId;
 }
@@ -4746,7 +4754,7 @@ export class SokoBotRuntimeService {
           ...toolAssigneeFields(
             input.coworkerId,
             authorized.turn.sokoBotId,
-            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+            personAssignee(input, authorized.turn.actingUserId),
           ),
           status: input.status,
           channel: Channel.SOKOSUMI,
@@ -5129,7 +5137,7 @@ export class SokoBotRuntimeService {
           ...toolAssigneeFields(
             input.coworkerId,
             authorized.turn.sokoBotId,
-            ownerAssignee(input.assignToOwner, authorized.turn.actingUserId),
+            personAssignee(input, authorized.turn.actingUserId),
           ),
           status,
           channel: Channel.SOKOSUMI,
@@ -6229,6 +6237,108 @@ export class SokoBotRuntimeService {
           result: persistedToolResult(result),
         }),
     });
+  }
+
+  /** AI Coworkers this bot may hand Task work to. */
+  private findCoworkers(
+    authorized: AuthorizedSokoBotRuntime,
+    query: string | undefined,
+  ) {
+    return prisma.coworker.findMany({
+      where: {
+        archivedAt: null,
+        AND: [
+          {
+            OR: [
+              { isWhitelisted: true },
+              // A shared bot sees no member's private assignments.
+              ...(authorized.reader.sharedScope
+                ? []
+                : [
+                    {
+                      assignments: {
+                        some: { userId: actingMemberOf(authorized) },
+                      },
+                    },
+                  ]),
+              {
+                workspaceAccess: {
+                  some: {
+                    workspaceId: authorized.turn.workspaceId,
+                    status: "GRANTED",
+                  },
+                },
+              },
+            ],
+          },
+          ...(query
+            ? [
+                {
+                  OR: [
+                    {
+                      name: {
+                        contains: query,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                    {
+                      description: {
+                        contains: query,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+      take: 20,
+      select: {
+        id: true,
+        name: true,
+        caption: true,
+        description: true,
+        capabilities: true,
+      },
+    });
+  }
+
+  /** People on the workspace's team, by name or email: who a Task may go to. */
+  private async findTeammates(workspaceId: string, query: string | undefined) {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { userId: true, organizationId: true },
+    });
+    const team = [
+      ...(workspace?.userId ? [{ id: workspace.userId }] : []),
+      ...(workspace?.organizationId
+        ? [{ members: { some: { organizationId: workspace.organizationId } } }]
+        : []),
+    ];
+    if (team.length === 0) return [];
+    const people = await prisma.user.findMany({
+      where: {
+        OR: team,
+        ...(query
+          ? {
+              AND: {
+                OR: [
+                  { name: { contains: query, mode: "insensitive" as const } },
+                  { email: { contains: query, mode: "insensitive" as const } },
+                ],
+              },
+            }
+          : {}),
+      },
+      take: 20,
+      select: { id: true, name: true, email: true },
+    });
+    return people.map((person) => ({
+      userId: person.id,
+      name: person.name,
+      email: person.email,
+    }));
   }
 
   /**
@@ -7665,64 +7775,11 @@ export class SokoBotRuntimeService {
         return this.getContext(input);
       case "find_coworkers": {
         const { query } = searchInputSchema.parse(input.input);
-        return prisma.coworker.findMany({
-          where: {
-            archivedAt: null,
-            AND: [
-              {
-                OR: [
-                  { isWhitelisted: true },
-                  // A shared bot sees no member's private assignments.
-                  ...(authorized.reader.sharedScope
-                    ? []
-                    : [
-                        {
-                          assignments: {
-                            some: { userId: actingMemberOf(authorized) },
-                          },
-                        },
-                      ]),
-                  {
-                    workspaceAccess: {
-                      some: {
-                        workspaceId: authorized.turn.workspaceId,
-                        status: "GRANTED",
-                      },
-                    },
-                  },
-                ],
-              },
-              ...(query
-                ? [
-                    {
-                      OR: [
-                        {
-                          name: {
-                            contains: query,
-                            mode: "insensitive" as const,
-                          },
-                        },
-                        {
-                          description: {
-                            contains: query,
-                            mode: "insensitive" as const,
-                          },
-                        },
-                      ],
-                    },
-                  ]
-                : []),
-            ],
-          },
-          take: 20,
-          select: {
-            id: true,
-            name: true,
-            caption: true,
-            description: true,
-            capabilities: true,
-          },
-        });
+        const [coworkers, people] = await Promise.all([
+          this.findCoworkers(authorized, query),
+          this.findTeammates(authorized.turn.workspaceId, query),
+        ]);
+        return { coworkers, people };
       }
       case "create_task": {
         const { fileIds, ...task } = taskCreateInputSchema.parse(input.input);
