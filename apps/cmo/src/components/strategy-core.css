@@ -280,10 +280,16 @@
   border-color: var(--foreground);
 }
 
+/* Selection is the ink inversion. */
 .sc-pace-option.current {
-  border-color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--foreground);
+  border-color: var(--line);
+  background: var(--foreground);
+  color: var(--background);
   cursor: default;
+}
+
+.sc-pace-option.current span {
+  color: var(--background);
 }
 
 .sc-pace-option:disabled:not(.current) {

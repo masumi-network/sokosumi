@@ -259,7 +259,7 @@ export function BeforeAfter({
   );
 }
 
-const PACES: { level: Pace; name: string; does: string }[] = [
+export const PACES: { level: Pace; name: string; does: string }[] = [
   { level: "steady", name: "Steady", does: "A few strong pieces a week" },
   { level: "active", name: "Active", does: "About one a day" },
   { level: "all_in", name: "All-in", does: "Several a day, video first" },
@@ -319,7 +319,7 @@ export function PacePicker({
   );
 }
 
-function money(amount: number, currency: string): string {
+export function money(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en", {
       style: "currency",

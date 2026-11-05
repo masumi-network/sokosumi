@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { ArrowRight, ChevronDown, CircleCheck } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
 
 import { channelLabel, formatDay } from "../lib/calendar";
@@ -72,12 +72,8 @@ export function planDays(calendar: Pick<Entry, "date">[]): string[] {
 
 interface StrategyRevealProps {
   overview: CmoOverview;
-  /** The first look: the month plays itself once. */
-  intro?: boolean;
   /** The day-by-day calendar, as the host lays it out. */
   calendar: ReactNode;
-  /** Kept mounted while hidden, so a half-filled form survives a refusal. */
-  hidden?: boolean;
   /** Sends the owner's answer or request to Cuso; `label` says it in a few words. */
   onAsk?: (text: string, label?: string) => Promise<void>;
   /** Sets the owner's own monthly ad budget; Cuso re-plans around it. */
@@ -91,15 +87,11 @@ interface StrategyRevealProps {
  */
 export function StrategyReveal({
   overview,
-  intro = false,
   calendar,
-  hidden = false,
   onAsk,
   onSetAds,
 }: StrategyRevealProps) {
   const strategy = overview.strategy as Strategy;
-  const reduce = useReducedMotion();
-  const play = intro && !reduce;
   const [open, setOpen] = useState<Open>(null);
   const [details, setDetails] = useState(false);
   const questions = strategy.openQuestions ?? [];
@@ -108,18 +100,10 @@ export function StrategyReveal({
   const mix = strategy.mix ?? [];
   const days = useMemo(() => planDays(strategy.calendar), [strategy.calendar]);
   const { barrier } = strategy;
-  const beat = (at: number) =>
-    play
-      ? {
-          initial: { opacity: 0, y: 12 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.5, delay: 0.2 + at * 0.12, ease: EASE },
-        }
-      : {};
 
   return (
-    <div className="bb" style={brandStyle(overview)} hidden={hidden}>
-      <motion.header className="bb-hero" {...beat(0)}>
+    <div className="bb" style={brandStyle(overview)}>
+      <header className="bb-hero">
         <p className="bb-eyebrow">
           {strategy.idea
             ? `The strategy · ${outcomeLine(strategy)}`
@@ -130,14 +114,13 @@ export function StrategyReveal({
         </h1>
         <p className="bb-lede">{strategy.summary}</p>
         {strategy.idea ? <IdeaParts idea={strategy.idea} /> : null}
-      </motion.header>
+      </header>
 
       {onAsk && questions.length > 0 ? (
-        <motion.button
+        <button
           type="button"
           className="bb-callout bb-callout-button"
           onClick={() => setOpen({ kind: "questions" })}
-          {...beat(1)}
         >
           <span>
             <b>
@@ -150,17 +133,17 @@ export function StrategyReveal({
           <span className="bb-link">
             Answer <ArrowRight size={14} aria-hidden="true" />
           </span>
-        </motion.button>
+        </button>
       ) : null}
 
       {strategy.ladder ? (
-        <Section title="The offer" beat={beat(1)}>
+        <Section title="The offer">
           <OfferLadder ladder={strategy.ladder} />
         </Section>
       ) : null}
 
       {(strategy.funnel ?? []).length > 0 ? (
-        <Section title="How people become customers" wide beat={beat(2)}>
+        <Section title="How people become customers" wide>
           {(strategy.funnel ?? []).some(
             (stage) => (stage.plays ?? []).length > 0,
           ) ? (
@@ -175,33 +158,33 @@ export function StrategyReveal({
       ) : null}
 
       {(strategy.beforeAfter ?? []).length > 0 ? (
-        <Section title="Before and after" wide beat={beat(2)}>
+        <Section title="Before and after" wide>
           <BeforeAfter rows={strategy.beforeAfter ?? []} />
         </Section>
       ) : null}
 
-      <Section title="Your month" wide beat={beat(2)}>
+      <Section title="Your month" wide>
         <p className="note">
           {pieceCount(strategy.calendar, strategy.contentLanguage)} Nothing goes
           out until you approve.
         </p>
-        <PhoneFeeds overview={overview} strategy={strategy} play={play} />
+        <PhoneFeeds overview={overview} strategy={strategy} />
       </Section>
 
       {strategy.pace ? (
-        <Section title="How much Cuso publishes" beat={beat(3)}>
+        <Section title="How much Cuso publishes">
           <PacePicker pace={strategy.pace} onAsk={onAsk} />
         </Section>
       ) : null}
 
       {strategy.ads ? (
-        <Section title="Ad budget" beat={beat(3)}>
+        <Section title="Ad budget">
           <AdBudget ads={strategy.ads} onSetAds={onSetAds} />
         </Section>
       ) : null}
 
       {(strategy.improvements ?? []).length > 0 ? (
-        <Section title="What you can improve" beat={beat(3)}>
+        <Section title="What you can improve">
           <p className="note">
             Cuso doesn't control your pages, prices or checkout. These changes
             would help the funnel most.
@@ -211,7 +194,7 @@ export function StrategyReveal({
       ) : null}
 
       {(strategy.alternatives ?? []).length > 0 ? (
-        <Section title="Other ways Cuso considered" beat={beat(3)}>
+        <Section title="Other ways Cuso considered">
           <Alternatives
             alternatives={strategy.alternatives ?? []}
             onAsk={onAsk}
@@ -220,7 +203,7 @@ export function StrategyReveal({
       ) : null}
 
       {barrier ? (
-        <Section title="What stops people buying" beat={beat(3)}>
+        <Section title="What stops people buying">
           <p className="bb-big">{barrier.text}</p>
           {mix[0] ? (
             <p className="note">
@@ -231,7 +214,7 @@ export function StrategyReveal({
       ) : null}
 
       {mix.length > 0 ? (
-        <Section title="What the posts do" beat={beat(4)}>
+        <Section title="What the posts do">
           <Mix
             mix={mix}
             calendar={strategy.calendar}
@@ -241,7 +224,7 @@ export function StrategyReveal({
       ) : null}
 
       {strategy.pillars.length > 0 ? (
-        <Section title="What the posts are about" beat={beat(4)}>
+        <Section title="What the posts are about">
           <Pillars
             pillars={strategy.pillars}
             calendar={strategy.calendar}
@@ -250,12 +233,12 @@ export function StrategyReveal({
         </Section>
       ) : null}
 
-      <Section title="Where Cuso works" beat={beat(5)} wide>
+      <Section title="Where Cuso works" wide>
         <ChannelPlan strategy={strategy} />
       </Section>
 
       {(strategy.proposals ?? []).length > 0 ? (
-        <Section title="Channels you could add" beat={beat(5)} wide>
+        <Section title="Channels you could add" wide>
           <p className="note">
             Cuso runs these too. They're not in the plan because you don't have
             them set up yet. Add one and he starts on it.
@@ -264,11 +247,11 @@ export function StrategyReveal({
         </Section>
       ) : null}
 
-      <Section title="Your calendar" wide beat={beat(6)}>
+      <Section title="Your calendar" wide>
         {calendar}
       </Section>
 
-      <motion.div className="bb-more" {...beat(7)}>
+      <div className="bb-more">
         <button
           type="button"
           className="bb-toggle"
@@ -337,7 +320,7 @@ export function StrategyReveal({
             <Behind strategy={strategy} onOpen={(kind) => setOpen({ kind })} />
           </div>
         ) : null}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {open ? (
@@ -420,7 +403,7 @@ export const APPROACHES: Record<
 };
 
 /** The kinds of posts this month: how many of each, what they do, one real example. */
-function Mix({
+export function Mix({
   mix,
   calendar,
   business,
@@ -478,7 +461,7 @@ function Mix({
  * The content pillars: each topic's share of the month, what it does, and
  * once the month is made, the share Cuso's pieces really have.
  */
-function Pillars({
+export function Pillars({
   pillars,
   calendar,
   made,
@@ -557,7 +540,7 @@ function plural(name: string, count: number): string {
  * Each channel of the plan: what Cuso makes there, counted from the
  * calendar, how often, and the one thing the founder does for it.
  */
-function ChannelPlan({ strategy }: { strategy: Strategy }) {
+export function ChannelPlan({ strategy }: { strategy: Strategy }) {
   const channels = strategy.channels
     .map((channel) => ({ ...channel, key: channelKey(channel.channel) }))
     .filter(

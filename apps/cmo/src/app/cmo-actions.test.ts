@@ -4,9 +4,6 @@ const startCmoOnboarding = vi.fn();
 const getCmoOverview = vi.fn();
 const postProjectsByIdSocialConnectionsInitiate = vi.fn();
 const postProjectsByIdSocialConnectionsFinalize = vi.fn();
-const getContactLists = vi.fn();
-const postContactLists = vi.fn();
-const postContactListsByIdImport = vi.fn();
 const startCmoOver = vi.fn();
 const revalidatePath = vi.fn();
 const redirect = vi.fn((to: string) => {
@@ -42,20 +39,18 @@ vi.mock("@sokosumi/core-client", () => ({
   getCmoOverview,
   postProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialConnectionsFinalize,
-  getContactLists,
-  postContactLists,
-  postContactListsByIdImport,
   startCmoOver,
 }));
 
 const {
-  addMailingList,
   connectChannel,
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
   loadOverview,
   onboard,
+  skipBrandQuestions,
+  skippedSteps,
   startOver,
 } = await import("./cmo-actions");
 
@@ -179,74 +174,6 @@ describe("social accounts", () => {
   });
 });
 
-describe("addMailingList", () => {
-  const inWorkspace = {
-    headers: { authorization: "Bearer t", "x-organization-slug": "acme" },
-  };
-
-  beforeEach(() => {
-    getCmoOverview.mockResolvedValue({
-      data: { data: { projectId: "project-1", organizationSlug: "acme" } },
-      response: { status: 200 },
-    });
-    postContactListsByIdImport.mockResolvedValue({ data: { data: {} } });
-  });
-
-  it("imports into the workspace's Newsletter list", async () => {
-    getContactLists.mockResolvedValue({
-      data: {
-        data: [
-          { id: "list-0", name: "VIP", kind: "manual" },
-          { id: "list-1", name: "newsletter", kind: "manual" },
-        ],
-      },
-    });
-
-    const result = await addMailingList("ada@example.com");
-
-    expect(result.error).toBeNull();
-    expect(postContactLists).not.toHaveBeenCalled();
-    expect(postContactListsByIdImport).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ...inWorkspace,
-        path: { id: "list-1" },
-        body: { text: "ada@example.com" },
-      }),
-    );
-  });
-
-  it("creates the Newsletter list the first time", async () => {
-    getContactLists.mockResolvedValue({ data: { data: [] } });
-    postContactLists.mockResolvedValue({ data: { data: { id: "list-9" } } });
-
-    await addMailingList("ada@example.com");
-
-    expect(postContactLists).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ...inWorkspace,
-        body: { name: "Newsletter", color: "blue" },
-      }),
-    );
-    expect(postContactListsByIdImport).toHaveBeenCalledWith(
-      expect.objectContaining({ path: { id: "list-9" } }),
-    );
-  });
-
-  it("passes Core's refusal on", async () => {
-    getContactLists.mockResolvedValue({
-      data: { data: [{ id: "list-1", name: "Newsletter", kind: "manual" }] },
-    });
-    postContactListsByIdImport.mockResolvedValue({
-      error: { message: "No email addresses found in that text" },
-    });
-
-    expect(await addMailingList("nothing")).toEqual({
-      overview: null,
-      error: "No email addresses found in that text",
-    });
-  });
-});
-
 describe("skipped hiring steps", () => {
   beforeEach(() => {
     getCmoOverview.mockResolvedValue({
@@ -277,6 +204,28 @@ describe("skipped hiring steps", () => {
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 24 * 365 }),
     );
     expect(revalidatePath).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("skipped brand questions", () => {
+  beforeEach(() => {
+    getCmoOverview.mockResolvedValue({
+      data: { data: { projectId: "project-1", onboardingStep: "brandBrain" } },
+      response: { status: 200 },
+    });
+  });
+
+  it("keeps the skip in the cookie beside the accounts, without moving Core's step", async () => {
+    cookieJar.set("cmo-skipped-project-1", "accounts");
+    const overview = await skipBrandQuestions();
+    expect(overview.onboardingStep).toBe("brandBrain");
+    expect(setCookie).toHaveBeenCalledWith(
+      "cmo-skipped-project-1",
+      "accounts,questions",
+      expect.objectContaining({ httpOnly: true }),
+    );
+    cookieJar.set("cmo-skipped-project-1", "accounts,questions");
+    expect(await skippedSteps("project-1")).toEqual(["accounts", "questions"]);
   });
 });
 

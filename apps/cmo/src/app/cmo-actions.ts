@@ -20,15 +20,12 @@ import {
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryText,
   getCmoOverview,
-  getContactLists,
   launchCmoSearchAd,
   listCmoAdCampaigns,
   listCmoAdChoices,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
-  postContactLists,
-  postContactListsByIdImport,
   postProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategy,
@@ -62,7 +59,8 @@ async function requireCore() {
   return core;
 }
 
-async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
+/** What this person skipped in hiring, to route its steps. */
+export async function skippedSteps(projectId: string): Promise<SkippedStep[]> {
   const cookie = (await cookies()).get(skippedStepsCookie(projectId));
   return readSkippedSteps(cookie?.value);
 }
@@ -408,6 +406,14 @@ export async function finishAccounts(): Promise<never> {
 }
 
 /**
+ * The founder chose to leave Cuso's questions about the brand for later; they
+ * stay reachable from the Brand step. Kept in CMO's cookie like the accounts.
+ */
+export async function skipBrandQuestions(): Promise<CmoOverview> {
+  return skipStep("questions");
+}
+
+/**
  * Archives the Cuso this person works with and opens the hiring form, to hire
  * him for another website. A refusal (not an owner or admin) comes back as text.
  */
@@ -421,50 +427,6 @@ export async function startOver(): Promise<string | null> {
   }
   revalidatePath("/");
   redirect("/");
-}
-
-/** The contact list Cuso writes the newsletter for; Core counts it by this name. */
-const NEWSLETTER_LIST = "Newsletter";
-
-/** The workspace's Newsletter list, created the first time. */
-async function newsletterListId(
-  options: Awaited<ReturnType<typeof inCusoWorkspace>>,
-): Promise<string | null> {
-  const { data } = await getContactLists(options);
-  const existing = data?.data.find(
-    (list) =>
-      list.kind === "manual" &&
-      list.name.toLowerCase() === NEWSLETTER_LIST.toLowerCase(),
-  );
-  if (existing) return existing.id;
-  const { data: created } = await postContactLists({
-    ...options,
-    body: { name: NEWSLETTER_LIST, color: "blue" },
-  });
-  return created?.data.id ?? null;
-}
-
-/** Adds the founder's mailing list for the newsletter Cuso writes. */
-export async function addMailingList(
-  text: string,
-): Promise<{ overview: CmoOverview | null; error: string | null }> {
-  const overview = await loadOverview();
-  if (!overview) return { overview: null, error: "Cuso is not hired yet" };
-  const options = await inCusoWorkspace(overview);
-  const listId = await newsletterListId(options);
-  if (!listId) return { overview: null, error: "Could not add the list" };
-  const { error } = await postContactListsByIdImport({
-    ...options,
-    path: { id: listId },
-    body: { text },
-  });
-  if (error) {
-    return {
-      overview: null,
-      error: errorText(error, "Could not add the list"),
-    };
-  }
-  return { overview: await loadOverview(), error: null };
 }
 
 /** Where the provider sends the founder back after connecting. */

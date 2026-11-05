@@ -192,7 +192,7 @@ describe("accessibility", () => {
 /** One rule per line pattern, each proven by a bad and a good sample. */
 const SHADOW_DECLARATION = /\bbox-?[sS]hadow\s*:\s*["'`]?([^;"'`,}]*)/;
 const SHADOW_OK =
-  /^(?:none|var\(--shadow-hard\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
+  /^(?:none|var\(--shadow-(?:hard|iris)\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
 const BLUR = /\bblur\(|backdrop-filter|\bbackdropFilter/;
 const RADIUS_DECLARATION =
   /\b(?:border(?:-[a-z]+)*-radius|border(?:[A-Z][a-z]+)*Radius)\s*:\s*["'`]?([^;"'`}]*)/;
@@ -247,6 +247,7 @@ describe("visual system", () => {
       expect(badShadow("  box-shadow: 0 1px 2px var(--border);")).toBe(true);
       expect(badShadow('boxShadow: "0 0 0 3px var(--surface)"')).toBe(true);
       expect(badShadow("  box-shadow: var(--shadow-hard);")).toBe(false);
+      expect(badShadow("  box-shadow: var(--shadow-iris);")).toBe(false);
       expect(badShadow("  box-shadow: inset 0 0 0 1px var(--line);")).toBe(
         false,
       );

@@ -6,7 +6,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. Composite components join it as the screens that use them are built.
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) sit under Components, and `/design-system/onboarding/{hire,reading,asking,brand,plan,planning,launch}` renders each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
@@ -34,6 +34,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 | `--ok`                 | done                            | `#00D43B`           | `#00D43B`           |
 | `--warn`               | needs an answer                 | `#FFD300`           | `#FFD300`           |
 | `--shadow-hard`        | the one hard shadow             | `3px 3px 0 #0C0C0C` | `3px 3px 0 #FAFAFA` |
+| `--shadow-iris`        | selected tile's hard shadow     | `3px 3px 0 Iris`    | `3px 3px 0 Iris`    |
 | `--stage`              | Cuso's avatar circle            | `#F5F5F5`           | `#F5F5F5`           |
 | `--scrim`              | behind a modal sheet only       | black at 30%        | black at 30%        |
 

@@ -37,4 +37,13 @@ describe("withSkippedSteps", () => {
   it("ignores what it does not know in the cookie", () => {
     expect(readSkippedSteps("brandBrain,,plan,accounts")).toEqual(["accounts"]);
   });
+
+  it("round-trips skipped questions and leaves Core's step alone", () => {
+    const skipped = readSkippedSteps("questions,accounts");
+    expect(skipped).toEqual(["questions", "accounts"]);
+    const overview = cmoOverview({ onboardingStep: "brandBrain" });
+    expect(withSkippedSteps(overview, readSkippedSteps("questions"))).toBe(
+      overview,
+    );
+  });
 });

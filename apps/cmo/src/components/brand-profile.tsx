@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   type CSSProperties,
   type ReactNode,
@@ -50,10 +50,6 @@ type Open = BrandSectionKey | null;
 
 interface BrandRevealProps {
   overview: CmoOverview;
-  /** The first look after research: the sections arrive one by one. */
-  intro?: boolean;
-  /** Says what the Brand Brain is; setup lets Cuso say it instead. */
-  explain?: boolean;
   /** Saves the owner's own edit straight away. */
   onSave: (brain: BrandBrain) => Promise<void>;
   /** Hands a change or an answer to Cuso, who updates the Brand Brain. */
@@ -65,18 +61,10 @@ interface BrandRevealProps {
  * who buys, how it sounds, where it posts and who it competes with. The full
  * research sits one click deeper.
  */
-export function BrandReveal({
-  overview,
-  intro = false,
-  explain = true,
-  onSave,
-  onAsk,
-}: BrandRevealProps) {
+export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
   const reveal = brain.reveal;
-  const reduce = useReducedMotion();
-  const play = intro && !reduce;
   const [open, setOpen] = useState<Open>(null);
   const [all, setAll] = useState(false);
   const [redo, setRedo] = useState(false);
@@ -88,21 +76,11 @@ export function BrandReveal({
     Date.now() - new Date(overview.brandBrainUpdatedAt).getTime() <
       CAPTURE_WINDOW_MS;
   const researched = ALL_KEYS.filter((key) => profile[key]).length;
-  /** Each section arrives a beat after the one above on the first look. */
-  const beat = (at: number) =>
-    play
-      ? {
-          initial: { opacity: 0, y: 12 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.5, delay: 0.2 + at * 0.12, ease: EASE },
-        }
-      : {};
 
   return (
     <div className="bb" style={brandStyle(overview)}>
-      <motion.header
+      <header
         className={media || capturing ? "bb-hero bb-hero-show" : "bb-hero"}
-        {...beat(0)}
       >
         <div className="bb-hero-copy">
           <div className="bb-id">
@@ -114,12 +92,10 @@ export function BrandReveal({
               </a>
             </div>
           </div>
-          {explain ? (
-            <p className="bb-eyebrow">
-              Your Brand Brain: what Cuso learned about your business.
-              Everything he writes follows it.
-            </p>
-          ) : null}
+          <p className="bb-eyebrow">
+            Your Brand Brain: what Cuso learned about your business. Everything
+            he writes follows it.
+          </p>
           <h1 className="bb-line">
             {reveal?.positioning ?? firstSentence(brain.summary)}
           </h1>
@@ -130,10 +106,10 @@ export function BrandReveal({
         {media || capturing ? (
           <SiteShowcase media={media} host={hostOf(overview.websiteUrl)} />
         ) : null}
-      </motion.header>
+      </header>
 
       {researched === 0 ? (
-        <motion.div className="bb-callout" {...beat(1)}>
+        <div className="bb-callout">
           <p>
             <b>This is the short version.</b> Cuso can look deeper: customers,
             pricing, competitors, reviews and more, each with a source. It takes
@@ -146,20 +122,20 @@ export function BrandReveal({
             sentNote={RESEARCH_SENT}
             onAsk={(text) => onAsk(researchRequest(text))}
           />
-        </motion.div>
+        </div>
       ) : null}
 
-      <Section title="What you sell" beat={beat(2)}>
+      <Section title="What you sell">
         <Offers brain={brain} onSave={onSave} />
       </Section>
 
       {media ? (
-        <Section title="From your site" beat={beat(2)}>
+        <Section title="From your site">
           <SiteGallery media={media} />
         </Section>
       ) : null}
 
-      <Section title="Who buys" beat={beat(3)}>
+      <Section title="Who buys">
         {reveal && reveal.buyers.length > 0 ? (
           <ul className="bb-list">
             {reveal.buyers.map((buyer) => (
@@ -175,24 +151,24 @@ export function BrandReveal({
         )}
       </Section>
 
-      <Section title="Tone of voice" beat={beat(4)}>
+      <Section title="Tone of voice">
         <Voice brain={brain} />
       </Section>
 
       {brain.marketingToday ? (
-        <Section title="Your marketing today" beat={beat(5)}>
+        <Section title="Your marketing today">
           <MarketingToday today={brain.marketingToday} />
         </Section>
       ) : null}
 
-      <Section title="Profiles we found" beat={beat(5)}>
+      <Section title="Profiles we found">
         <Accounts brain={brain} onSave={onSave} />
       </Section>
 
       {reveal?.map ||
       brain.competitors.length > 0 ||
       (brain.alternatives ?? []).length > 0 ? (
-        <Section title="Competitors" beat={beat(6)}>
+        <Section title="Competitors">
           {reveal?.map ? (
             <MarketMap
               map={reveal.map}
@@ -244,7 +220,7 @@ export function BrandReveal({
       ) : null}
 
       {reveal && reveal.insights.length > 0 ? (
-        <Section title="What Cuso noticed" beat={beat(7)}>
+        <Section title="What Cuso noticed">
           <ol className="bb-list bb-numbered">
             {reveal.insights.map((insight) => (
               <li key={insight.title}>
@@ -267,7 +243,7 @@ export function BrandReveal({
       ) : null}
 
       {researched > 0 ? (
-        <motion.div className="bb-more" {...beat(7)}>
+        <div className="bb-more">
           <button
             type="button"
             className="bb-toggle"
@@ -315,7 +291,7 @@ export function BrandReveal({
               )}
             </div>
           ) : null}
-        </motion.div>
+        </div>
       ) : null}
 
       <AnimatePresence>
@@ -348,7 +324,7 @@ export function BrandReveal({
  * What the business sells and what it costs, the main offer first: every
  * plan is built on it. Older Brand Brains only name their products.
  */
-function Offers({
+export function Offers({
   brain,
   onSave,
 }: {
@@ -441,24 +417,19 @@ function Offers({
 
 export function Section({
   title,
-  beat,
   wide = false,
   children,
 }: {
   title: string;
-  beat?: object;
   /** Takes the full width under its name, for calendars and previews. */
   wide?: boolean;
   children: ReactNode;
 }) {
   return (
-    <motion.section
-      className={wide ? "bb-section wide" : "bb-section"}
-      {...beat}
-    >
+    <section className={wide ? "bb-section wide" : "bb-section"}>
       <h2 className="bb-title">{title}</h2>
       <div className="bb-body">{children}</div>
-    </motion.section>
+    </section>
   );
 }
 
@@ -502,7 +473,7 @@ export function brandStyle(overview: CmoOverview): CSSProperties | undefined {
     : undefined;
 }
 
-function hostOf(url: string): string {
+export function hostOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
@@ -511,7 +482,7 @@ function hostOf(url: string): string {
 }
 
 /** The first sentence, for a Brand Brain written before positioning existed. */
-function firstSentence(text: string): string {
+export function firstSentence(text: string): string {
   const match = text.match(/^.+?[.!?](?=\s|$)/);
   return match ? match[0] : text;
 }
@@ -565,7 +536,7 @@ function MarketMap({
 }
 
 /** "Clear, direct, practical. Explains the technical plainly." → its first sentence large. */
-function Voice({ brain }: { brain: BrandBrain }) {
+export function Voice({ brain }: { brain: BrandBrain }) {
   // The tone's first clause is the headline: "Clear, direct, practical."
   const tone =
     brain.voice.tone.match(/^.+?[.;!?](?=\s|$)/)?.[0] ?? brain.voice.tone;
@@ -637,7 +608,7 @@ export function accountFromLink(
 }
 
 /** The accounts Cuso found, and the owner's own additions. */
-function Accounts({
+export function Accounts({
   brain,
   onSave,
 }: {
@@ -888,10 +859,34 @@ function SectionSheet({
   onSave: (section: BrandSection) => Promise<void>;
   onAsk: (text: string) => Promise<void>;
 }) {
+  return (
+    <SideSheet label={BRAND_SECTIONS[sectionKey].title} onClose={onClose}>
+      <SectionDetail
+        sectionKey={sectionKey}
+        section={section}
+        onSave={onSave}
+        onAsk={onAsk}
+      />
+    </SideSheet>
+  );
+}
+
+/** One profile section: its answer and findings, with the owner's edit. */
+export function SectionDetail({
+  sectionKey,
+  section,
+  onSave,
+  onAsk,
+}: {
+  sectionKey: BrandSectionKey;
+  section: BrandSection | undefined;
+  onSave: (section: BrandSection) => Promise<void>;
+  onAsk: (text: string) => Promise<void>;
+}) {
   const [mode, setMode] = useState<"view" | "edit" | "research">("view");
   const { title, question } = BRAND_SECTIONS[sectionKey];
   return (
-    <SideSheet label={title} onClose={onClose}>
+    <>
       <h3 className="sheet-title">{question}</h3>
       {mode === "edit" && section ? (
         <SectionEditor
@@ -975,7 +970,7 @@ function SectionSheet({
           </button>
         </div>
       )}
-    </SideSheet>
+    </>
   );
 }
 

@@ -2,6 +2,8 @@ import "./design-system.css";
 
 import { notFound } from "next/navigation";
 
+import { PartsPreview } from "./parts-preview";
+
 /**
  * Preview of the design system (`apps/cmo/design-system.md`): tokens and the
  * real base classes, once in light and once in dark, side by side. Local and
@@ -262,6 +264,10 @@ function Board({ scheme }: BoardProps) {
             </li>
           ))}
         </ul>
+      </Section>
+
+      <Section title="Components">
+        <PartsPreview />
       </Section>
 
       <Section title="Scenes">

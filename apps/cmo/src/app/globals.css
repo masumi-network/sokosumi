@@ -26,6 +26,8 @@
   --warn: #ffd300;
   /* The one hard shadow: 3px offset, no blur. */
   --shadow-hard: 3px 3px 0 light-dark(#0c0c0c, #fafafa);
+  /* The selected tile in a grid takes Iris in place of the ink shadow. */
+  --shadow-iris: 3px 3px 0 var(--primary);
   /* Cuso's avatar circle stays light in both themes so his outline reads. */
   --stage: #f5f5f5;
   --radius-mark: 6px;
@@ -495,8 +497,16 @@ body:has(.app) .site-header {
   color: var(--foreground);
 }
 
+/* Disabled: flat, no Iris, no shadow, no press. */
+.button:disabled:not(.button-ghost) {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--muted);
+  transform: none;
+}
+
 .button:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
 }
 
