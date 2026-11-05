@@ -178,7 +178,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     expect(screen.getByText("Previous page finding")).toBeVisible();
-    await user.click(screen.getByRole("combobox", { name: "Page scope" }));
+    await user.click(
+      screen.getByRole("combobox", { name: "Pages or page group" }),
+    );
     await user.click(screen.getByRole("option", { name: "Other page" }));
     await waitFor(() =>
       expect(
@@ -232,10 +234,13 @@ describe("SEO workspace integration", () => {
     });
     const view = renderWorkspace(workspace, `?scopeId=${workspace.scope.id}`);
     await waitFor(() => expect(fetch).toHaveBeenCalled());
-    await user.click(screen.getByRole("button", { name: "Edit this group" }));
+    await user.click(screen.getByRole("button", { name: "Edit page group" }));
     const dialog = screen.getByRole("dialog");
-    await user.clear(within(dialog).getByLabelText("Name"));
-    await user.type(within(dialog).getByLabelText("Name"), "My group edit");
+    await user.clear(within(dialog).getByLabelText("Page group name"));
+    await user.type(
+      within(dialog).getByLabelText("Page group name"),
+      "My group edit",
+    );
     const updated = {
       ...workspace,
       scope: { ...workspace.scope, version: 3 },

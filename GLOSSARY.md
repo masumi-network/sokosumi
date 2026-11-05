@@ -726,3 +726,13 @@ _Avoid_: Production build, GA, latest (the newest build of any kind)
 **Beta build**:
 The newest build of the Mac app from main, signed and notarized for direct download but never offered as an update. Testers install it by hand and leave it when a newer Stable release reaches them.
 _Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha build (the TestFlight track was removed on 2026-10-09)
+
+### SEO
+
+**Page group**:
+INFERRED: A named collection of related pages used across SEO audits, keyword tracking, statistics and monitoring. It belongs to an existing Sokosumi Project.
+_Avoid_: SEO project, Audit (when referring to the reusable collection)
+
+**Audit**:
+INFERRED: One SEO analysis run and its report for selected pages. A Page group can have multiple Audits.
+_Avoid_: Project, Page group (when referring to one run or report)

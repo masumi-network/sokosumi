@@ -262,13 +262,13 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
 
 export const SOKO_BOT_SEO_DESCRIPTIONS = {
   get_seo_workspace:
-    "Read the Project's SEO pages, saved scopes, keywords, competitors, evidence, recommendations and timeline. Source dates and coverage remain explicit. Private Google statistics appear only in the owner's private personal Soko Bot context. This does not refresh any data or spend provider usage.",
+    "Read SEO pages, page groups, keywords, competitors, evidence, recommendations and timeline for the selected Sokosumi project. Call related-page collections page groups, and analysis runs or reports audits. Source dates and coverage remain explicit. Private Google statistics appear only in the owner's private personal Soko Bot context. This does not refresh any data or spend provider usage.",
   list_seo_statistics_properties:
     "List Analytics or Search Console properties available through this owner's personal Soko Bot native connection. This does not create a connection. Use the returned property ID; never guess it.",
   add_seo_page:
-    "Save a public page in a Project's SEO workspace, optionally as a related page. Saving does not audit it or spend provider usage. Use a real related page ID from get_seo_workspace.",
+    "Save a public SEO page under the selected Sokosumi project, optionally as a related page. Related pages can be organized into a page group. Saving does not audit the page or spend provider usage. Use a real related page ID from get_seo_workspace.",
   save_seo_scope:
-    "Create or update a named set of SEO pages. When updating, pass the scope's last-read expectedVersion. Membership changes affect future requests only; historical observations retain their frozen scope.",
+    "Create or update an SEO page group: a named collection of related pages within the selected Sokosumi project. When updating, pass the page group's last-read expectedVersion. Membership changes affect future requests only; historical observations retain their frozen scope.",
   save_seo_keyword:
     "Save, un-save or prioritize one keyword in its Market, optionally with a target page. This is the owner's choice, separate from observed ranking data. Reuse the last-read expectedVersion when editing.",
   save_seo_competitor:
