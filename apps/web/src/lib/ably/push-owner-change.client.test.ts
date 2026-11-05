@@ -8,7 +8,10 @@ import {
   getPushTeardownVersion,
   queuePushWork,
 } from "./push-work-queue.client";
-import { readPushDeviceOwner } from "./release-push-device.client";
+import {
+  hasUnresolvedPushRepair,
+  readPushDeviceOwner,
+} from "./release-push-device.client";
 
 const fetchMock = vi.fn();
 const unsubscribe = vi.fn();
@@ -151,6 +154,9 @@ it("does not let a stale tab stop the current account's push", async () => {
   expect(unsubscribe).not.toHaveBeenCalled();
   expect(subscription).not.toBeNull();
   expect(await renewalSnapshot()).toMatchObject({ userId: "alice" });
+  // The stale tab looked at nothing of this browser's delivery, so it has
+  // no fault to write down for the tab that is current.
+  expect(hasUnresolvedPushRepair()).toBe(false);
 });
 
 it("unregisters the old worker if its renewal credentials cannot be revoked", async () => {

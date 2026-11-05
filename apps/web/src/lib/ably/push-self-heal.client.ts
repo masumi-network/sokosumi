@@ -78,11 +78,14 @@ async function runHeal(
     // nothing about it: the token is still there until the teardown clears it.
     const teardownVersion = getPushTeardownVersion();
 
+    // No answer rather than "quiet": a stale tab that stopped here, because
+    // the cookie names another account, would otherwise write down a fault
+    // for a browser whose delivery it never looked at.
     if (
       isPushSupported() &&
       (await stopForeignPushSubscription(userId, hadRegistration))
     ) {
-      return false;
+      return undefined;
     }
 
     if (
