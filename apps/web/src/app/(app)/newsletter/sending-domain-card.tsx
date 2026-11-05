@@ -93,6 +93,7 @@ const domainConnectResultSchema = z.discriminatedUnion("ok", [
 ]);
 
 // Status chips are neutral; the glyph and the word carry the state.
+// Verified alone fills green: success is the one state worth celebrating.
 const STATUS_ICON = {
   PENDING: Clock,
   PARTIAL: CircleDotDashed,
@@ -339,13 +340,40 @@ function ConnectedDomain({
   const StatusIcon = STATUS_ICON[displayStatus];
   const discovery = useDomainConnect(projectId, domain, canManage && needsDns);
   const { provider } = discovery;
-  // One-click stands alone until there is per-record status worth reading.
-  const recordsOpen =
-    recordsOverride ??
-    (needsDns &&
-      (!canManage ||
-        displayStatus !== "PENDING" ||
-        (!discovery.isPending && !discovery.discovered)));
+  // Failed points at the records; otherwise they wait until asked for.
+  const recordsOpen = recordsOverride ?? domain.status === "FAILED";
+  const warming =
+    verified &&
+    !paused &&
+    Boolean(domain.warmup.startedAt) &&
+    domain.warmup.dailyCap !== null;
+  const statusHint = [
+    !verified && !paused
+      ? t(fallbackAvailable ? "fallback" : "noFallback")
+      : null,
+    domain.lastCheckedAt
+      ? t("lastChecked", {
+          time: format.dateTime(
+            new Date(domain.lastCheckedAt),
+            "dateTimeMedium",
+          ),
+        })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const statusBadge = (
+    <Badge
+      className={
+        verified
+          ? "bg-semantic-success text-semantic-success-foreground border-transparent"
+          : "border-border bg-muted text-foreground"
+      }
+    >
+      <StatusIcon aria-hidden />
+      {t(`status.${displayStatus}`)}
+    </Badge>
+  );
 
   async function handleCheck() {
     setChecking(true);
@@ -375,13 +403,15 @@ function ConnectedDomain({
     <div className="min-w-0 space-y-4">
       <div className="min-w-0 space-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="min-w-0 font-mono text-sm font-medium break-words">
+          <span className="min-w-0 font-mono text-base font-medium break-words">
             {softBreaks(domain.fromAddress)}
           </span>
-          <Badge className="border-border bg-muted text-foreground">
-            <StatusIcon aria-hidden />
-            {t(`status.${displayStatus}`)}
-          </Badge>
+          {statusHint ? (
+            <Hint hint={statusHint}>{statusBadge}</Hint>
+          ) : (
+            statusBadge
+          )}
+          {warming ? <WarmupChip warmup={domain.warmup} /> : null}
         </div>
         {domain.status === "FAILED" && domain.failureReason ? (
           <p
@@ -391,57 +421,33 @@ function ConnectedDomain({
             {domain.failureReason}
           </p>
         ) : null}
-        {displayStatus === "VERIFIED" ? (
-          paused ? null : (
+        {domain.status === "FAILED" ? (
+          canManage ? (
             <p className="text-muted-foreground text-sm text-pretty">
-              {t("verifiedDescription")}
+              {t("statusDetail.FAILED")}
             </p>
-          )
-        ) : canManage || displayStatus !== "FAILED" ? (
-          <p className="text-muted-foreground text-sm text-pretty">
-            {t(`statusDetail.${displayStatus}`, recordCounts)}
+          ) : null
+        ) : !verified && recordCounts.total ? (
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {t("recordsFound", recordCounts)}
           </p>
         ) : null}
-        {needsDns ? <PurposeHealthRow records={domain.dnsRecords} /> : null}
-        {!verified && !paused ? (
-          <FallbackNote fallbackAvailable={fallbackAvailable} />
-        ) : null}
-        {domain.lastCheckedAt ? (
-          <p className="text-muted-foreground text-sm">
-            {t("lastChecked", {
-              time: format.dateTime(
-                new Date(domain.lastCheckedAt),
-                "dateTimeMedium",
-              ),
-            })}
-          </p>
+        {verified ? null : <PurposeHealthRow records={domain.dnsRecords} />}
+        {verified && dmarcMissing ? (
+          <RecordHint
+            label={t("dmarc.title")}
+            hint={t("dmarc.description")}
+            className="text-muted-foreground text-sm"
+          />
         ) : null}
       </div>
 
-      {paused || (verified && domain.warmup.startedAt) ? (
-        <WarmupStatus
+      {paused ? (
+        <WarmupPausedNotice
           warmup={domain.warmup}
           canManage={canManage}
           projectId={projectId}
         />
-      ) : null}
-
-      {dmarcMissing ? (
-        <div
-          role="status"
-          className="bg-muted border-border flex min-w-0 gap-2 rounded-md border p-3"
-        >
-          <CircleAlert
-            aria-hidden
-            className="text-foreground mt-0.5 size-4 shrink-0"
-          />
-          <div className="min-w-0 space-y-1 text-sm">
-            <p className="font-medium">{t("dmarc.title")}</p>
-            <p className="text-muted-foreground text-pretty">
-              {t("dmarc.description")}
-            </p>
-          </div>
-        </div>
       ) : null}
 
       <Collapsible
@@ -449,14 +455,14 @@ function ConnectedDomain({
         onOpenChange={setRecordsOverride}
         className="min-w-0 space-y-4"
       >
-        {canManage && needsDns ? (
+        {canManage && !verified ? (
           <DiscoveryStatus discovery={discovery} />
         ) : null}
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {canManage && needsDns ? (
             <>
               {provider ? (
-                <Button asChild variant="primary">
+                <Button asChild variant={verified ? "outline" : "primary"}>
                   {/* Domain Connect's synchronous flow returns here when done. */}
                   <a href={provider.applyUrl} rel="noopener noreferrer">
                     {t("oneClick.connect", { provider: provider.providerName })}
@@ -466,7 +472,7 @@ function ConnectedDomain({
               ) : null}
               <Button
                 type="button"
-                variant={provider ? "outline" : "primary"}
+                variant={provider || verified ? "outline" : "primary"}
                 loading={checking}
                 onClick={() => void handleCheck()}
               >
@@ -490,57 +496,51 @@ function ConnectedDomain({
               </Button>
             </CollapsibleTrigger>
           ) : null}
+          {canManage ? (
+            <div className="ms-auto">
+              <RemoveDomainButton
+                domain={domain.domain}
+                projectId={projectId}
+              />
+            </div>
+          ) : null}
         </div>
 
         <CollapsibleContent className="min-w-0 space-y-4">
           <DnsRecords records={domain.dnsRecords} domain={domain.domain} />
           {needsDns ? (
-            <>
-              {canManage ? (
-                <p className="text-muted-foreground text-sm text-pretty">
-                  {t("manual.saved")}
-                </p>
+            <Accordion type="single" collapsible>
+              {domain.dnsRecords.some(
+                (record) => record.status !== "verified",
+              ) ? (
+                <AccordionItem value="troubleshooting">
+                  <AccordionTrigger>
+                    {t("troubleshooting.title")}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ul className="text-muted-foreground list-disc space-y-1 ps-5 text-sm">
+                      <li>{t("troubleshooting.host")}</li>
+                      <li>{t("troubleshooting.quotes")}</li>
+                      <li>{t("troubleshooting.propagation")}</li>
+                    </ul>
+                  </AccordionContent>
+                </AccordionItem>
               ) : null}
-              <Accordion type="single" collapsible>
-                {domain.dnsRecords.some(
-                  (record) => record.status !== "verified",
-                ) ? (
-                  <AccordionItem value="troubleshooting">
-                    <AccordionTrigger>
-                      {t("troubleshooting.title")}
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <ul className="text-muted-foreground list-disc space-y-1 ps-5 text-sm">
-                        <li>{t("troubleshooting.host")}</li>
-                        <li>{t("troubleshooting.quotes")}</li>
-                        <li>{t("troubleshooting.propagation")}</li>
-                      </ul>
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-                <ProviderTips />
-              </Accordion>
-            </>
+              <ProviderTips />
+              {canManage ? (
+                <AccordionItem value="cloudflare">
+                  <AccordionTrigger>
+                    {t("cloudflare.advanced")}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CloudflareOption projectId={projectId} />
+                  </AccordionContent>
+                </AccordionItem>
+              ) : null}
+            </Accordion>
           ) : null}
         </CollapsibleContent>
       </Collapsible>
-
-      {canManage && needsDns ? (
-        <Accordion type="single" collapsible>
-          <AccordionItem value="cloudflare">
-            <AccordionTrigger>{t("cloudflare.advanced")}</AccordionTrigger>
-            <AccordionContent>
-              <CloudflareOption projectId={projectId} />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      ) : null}
-
-      {canManage ? (
-        <div className="flex justify-end">
-          <RemoveDomainButton domain={domain.domain} projectId={projectId} />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -565,10 +565,20 @@ function PurposeHealthRow({ records }: { records: NewsletterDnsRecord[] }) {
           ) ?? "found";
         const { icon: Icon, className } = HEALTH_CHIP[health];
         return (
-          <li key={purpose} className={`flex items-center gap-1 ${className}`}>
-            <Icon aria-hidden className="size-4 shrink-0" />
-            {t(`records.purpose.${purpose}.label`)}
-            <span className="sr-only">{t(`records.${health}`)}</span>
+          <li key={purpose} className={`flex items-center ${className}`}>
+            <Hint
+              // A missing DMARC record is optional, so its chip says what to do.
+              hint={
+                purpose === "dmarc" && health !== "found"
+                  ? t("dmarc.description")
+                  : t(`records.purpose.${purpose}.explanation`)
+              }
+              className="gap-1"
+            >
+              <Icon aria-hidden className="size-4 shrink-0" />
+              {t(`records.purpose.${purpose}.label`)}
+              <span className="sr-only">{t(`records.${health}`)}</span>
+            </Hint>
           </li>
         );
       })}
@@ -576,7 +586,23 @@ function PurposeHealthRow({ records }: { records: NewsletterDnsRecord[] }) {
   );
 }
 
-function WarmupStatus({
+// Only while a daily cap applies; the chip's tooltip explains the limit.
+function WarmupChip({ warmup }: { warmup: NewsletterSendingDomain["warmup"] }) {
+  const t = useTranslations("App.Projects.Newsletter.SendingDomain");
+  const format = useFormatter();
+  return (
+    <Hint hint={t("warmup.description")}>
+      <Badge variant="outline" className="text-muted-foreground font-normal">
+        {t("warmup.chip", {
+          used: format.number(warmup.sentToday),
+          cap: format.number(warmup.dailyCap ?? 0),
+        })}
+      </Badge>
+    </Hint>
+  );
+}
+
+function WarmupPausedNotice({
   warmup,
   canManage,
   projectId,
@@ -590,7 +616,6 @@ function WarmupStatus({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const paused = Boolean(warmup.pausedAt);
 
   async function handleResume() {
     setPending(true);
@@ -613,14 +638,10 @@ function WarmupStatus({
   return (
     <section
       aria-labelledby="newsletter-domain-warmup"
-      className={
-        paused
-          ? "bg-semantic-warning-quinary border-semantic-warning-tertiary min-w-0 space-y-2 rounded-md border p-3"
-          : "bg-muted min-w-0 space-y-2 rounded-md p-3"
-      }
+      className="bg-semantic-warning-quinary border-semantic-warning-tertiary min-w-0 space-y-2 rounded-md border p-3"
     >
       <h4 id="newsletter-domain-warmup" className="text-sm font-medium">
-        {paused ? t("warmup.paused") : t("warmup.title")}
+        {t("warmup.paused")}
       </h4>
       <p className="text-sm tabular-nums">
         {warmup.dailyCap === null
@@ -634,31 +655,23 @@ function WarmupStatus({
               cap: format.number(warmup.dailyCap),
             })}
       </p>
-      {paused ? (
-        <>
-          <p className="text-sm">
-            {warmup.pauseReason === "COMPLAINT_RATE"
-              ? t("warmup.complaintReason")
-              : t("warmup.bounceReason")}
-          </p>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {t("warmup.pausedDescription")}
-          </p>
-          {canManage ? (
-            <Button
-              type="button"
-              variant="outline"
-              loading={pending}
-              onClick={() => void handleResume()}
-            >
-              {t("warmup.resume")}
-            </Button>
-          ) : null}
-        </>
-      ) : warmup.dailyCap !== null ? (
-        <p className="text-muted-foreground text-sm text-pretty">
-          {t("warmup.description")}
-        </p>
+      <p className="text-sm">
+        {warmup.pauseReason === "COMPLAINT_RATE"
+          ? t("warmup.complaintReason")
+          : t("warmup.bounceReason")}
+      </p>
+      <p className="text-muted-foreground text-sm text-pretty">
+        {t("warmup.pausedDescription")}
+      </p>
+      {canManage ? (
+        <Button
+          type="button"
+          variant="outline"
+          loading={pending}
+          onClick={() => void handleResume()}
+        >
+          {t("warmup.resume")}
+        </Button>
       ) : null}
       {error ? (
         <p role="alert" className="text-semantic-destructive-label text-sm">
@@ -715,9 +728,7 @@ function useDomainConnect(
     data: query.data,
     error: query.error,
     isFetching: query.isFetching,
-    isPending: query.isPending,
     refetch: query.refetch,
-    discovered,
     provider: query.isFetching ? null : discovered,
   };
 }
@@ -730,23 +741,24 @@ function DiscoveryStatus({
   const t = useTranslations("App.Projects.Newsletter.SendingDomain");
   const { provider, isFetching, error, data, refetch } = discovery;
 
+  // The Connect button already says it all.
+  if (provider) return null;
+
   return (
-    <div className="min-w-0 space-y-1">
-      <p role="status" className="text-muted-foreground text-sm text-pretty">
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
+      <p role="status" className="text-muted-foreground empty:hidden">
         {isFetching
           ? t("oneClick.checking")
-          : provider
-            ? `${t("oneClick.found", { provider: provider.providerName })} ${t("oneClick.description")}`
-            : !error && data === null
-              ? t("oneClick.unavailable")
-              : null}
+          : !error && data === null
+            ? t("oneClick.unavailable")
+            : null}
       </p>
-      {error ? (
-        <p role="alert" className="text-semantic-destructive text-sm">
+      {error && !isFetching ? (
+        <p role="alert" className="text-semantic-destructive">
           {error.message}
         </p>
       ) : null}
-      {provider || isFetching ? null : (
+      {isFetching ? null : (
         <Button
           type="button"
           variant="link"
@@ -851,17 +863,9 @@ function DnsRecords({
   if (!records.length) return null;
   return (
     <section
-      aria-labelledby="newsletter-dns-records"
+      aria-label={t("records.title")}
       className="@container min-w-0 space-y-3"
     >
-      <div className="space-y-1">
-        <h4 id="newsletter-dns-records" className="text-sm font-medium">
-          {t("records.title")}
-        </h4>
-        <p className="text-muted-foreground text-sm text-pretty">
-          {t("records.description")}
-        </p>
-      </div>
       <ul className="min-w-0 space-y-2">
         {records.map((record) => {
           const relativeName = relativeHost(record.name, domain);
@@ -907,7 +911,11 @@ function DnsRecords({
                   }
                   value={relativeName ?? record.name}
                 />
-                <RecordField label={t("records.value")} value={record.value} />
+                <RecordField
+                  label={t("records.value")}
+                  value={record.value}
+                  truncate
+                />
                 {record.priority !== null ? (
                   <div className="text-muted-foreground flex gap-1 text-xs tabular-nums">
                     <dt>{t("records.priority")}</dt>
@@ -929,18 +937,29 @@ function DnsRecords({
 }
 
 // A short value keeps its label's line, even on a phone; a long one wraps below it.
-function RecordField({ label, value }: { label: ReactNode; value: string }) {
+function RecordField({
+  label,
+  value,
+  truncate = false,
+}: {
+  label: ReactNode;
+  value: string;
+  truncate?: boolean;
+}) {
   return (
     <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 @md:grid @md:grid-cols-[8rem_minmax(0,1fr)]">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 flex-1 basis-40">
+      <dd
+        className="min-w-0 flex-1 basis-40"
+        title={truncate ? value : undefined}
+      >
         <CopyableValue
           value={value}
           displayValue={softBreaks(value)}
           presentation="inline-code"
-          truncateInline={false}
+          truncateInline={truncate}
           copiedFeedback
-          codeClassName="min-w-0 break-words"
+          codeClassName={truncate ? undefined : "min-w-0 break-words"}
           containerClassName="bg-background justify-between rounded-md px-2"
         />
       </dd>
@@ -948,7 +967,6 @@ function RecordField({ label, value }: { label: ReactNode; value: string }) {
   );
 }
 
-// Hover, keyboard focus and a tap all show the hint; screen readers always get it.
 function RecordHint({
   label,
   hint,
@@ -958,6 +976,29 @@ function RecordHint({
   hint: string;
   className?: string;
 }) {
+  return (
+    <Hint
+      hint={hint}
+      className={cn(
+        "decoration-muted-foreground min-h-6 underline decoration-dotted underline-offset-4",
+        className,
+      )}
+    >
+      {label}
+    </Hint>
+  );
+}
+
+// Hover, keyboard focus and a tap all show the hint; screen readers always get it.
+function Hint({
+  hint,
+  className,
+  children,
+}: {
+  hint: string;
+  className?: string;
+  children: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const descriptionId = useId();
   return (
@@ -966,7 +1007,7 @@ function RecordHint({
         type="button"
         aria-describedby={descriptionId}
         className={cn(
-          "focus-visible:ring-ring decoration-muted-foreground inline-flex min-h-6 cursor-help items-center rounded-sm underline decoration-dotted underline-offset-4 outline-none focus-visible:ring-2",
+          "focus-visible:ring-ring inline-flex w-fit cursor-help items-center rounded-sm outline-none focus-visible:ring-2",
           className,
         )}
         onClick={(event) => {
@@ -975,7 +1016,7 @@ function RecordHint({
           setOpen((current) => !current);
         }}
       >
-        {label}
+        {children}
       </TooltipTrigger>
       <span className="sr-only" id={descriptionId}>
         {hint}
@@ -1079,7 +1120,7 @@ function RemoveDomainButton({
       }}
     >
       <AlertDialogTrigger asChild>
-        <Button type="button" variant="ghost">
+        <Button type="button" variant="ghost" className="text-muted-foreground">
           {t("remove.action")}
         </Button>
       </AlertDialogTrigger>

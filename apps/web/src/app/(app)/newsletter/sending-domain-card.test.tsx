@@ -138,6 +138,12 @@ function renderCard(state: Partial<NewsletterSendingDomainState> = {}) {
   };
 }
 
+// DNS records start collapsed behind whichever toggle the actor gets.
+async function openRecords(toggle = T.manual.action) {
+  await userEvent.setup().click(screen.getByRole("button", { name: toggle }));
+  return screen.getByRole("region", { name: T.records.title });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.connect.mockResolvedValue({ ok: true, value: null });
@@ -167,28 +173,31 @@ afterEach(() => {
 });
 
 describe("SendingDomainCard", () => {
-  it("shows UTC warm-up usage to members without management controls", () => {
+  it("shows warm-up as a quiet chip to members without management controls", async () => {
     renderCard({ sendingDomain: WARMING_DOMAIN, canManage: false });
-    const warmup = screen.getByRole("region", { name: T.warmup.title });
-    expect(
-      within(warmup).getByText("Day 0 · 25 of 50 sent today (UTC)"),
-    ).toBeInTheDocument();
-    expect(within(warmup).getByText(T.warmup.description)).toBeInTheDocument();
+    const chip = screen.getByRole("button", {
+      name: "Warm-up · 25 / 50 today",
+    });
+    expect(chip).toHaveAccessibleDescription(T.warmup.description);
+    expect(screen.queryByRole("region", { name: T.warmup.paused })).toBeNull();
     expect(screen.queryByRole("button", { name: T.remove.action })).toBeNull();
     expect(screen.queryByRole("button", { name: T.warmup.resume })).toBeNull();
   });
 
-  it("shows Unlimited once the daily cap ends", () => {
+  it("hides warm-up once the daily cap ends", () => {
     renderCard({
       sendingDomain: {
         ...WARMING_DOMAIN,
         warmup: { ...WARMING_DOMAIN.warmup, day: 28, dailyCap: null },
       },
     });
-    expect(
-      screen.getByText("Day 28 · 25 sent today (UTC) · Unlimited"),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Warm-up/ })).toBeNull();
     expect(screen.queryByText(T.warmup.description)).not.toBeInTheDocument();
+  });
+
+  it("hides warm-up before it starts", () => {
+    renderCard({ sendingDomain: { ...DOMAIN, status: "VERIFIED" } });
+    expect(screen.queryByRole("button", { name: /^Warm-up/ })).toBeNull();
   });
 
   it.each([
@@ -208,7 +217,6 @@ describe("SendingDomainCard", () => {
       within(warmup).getByText(T.warmup.pausedDescription),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: T.warmup.resume })).toBeNull();
-    expect(screen.queryByText(T.verifiedDescription)).not.toBeInTheDocument();
     expect(screen.queryByText(T.fallback)).not.toBeInTheDocument();
   });
 
@@ -318,11 +326,9 @@ describe("SendingDomainCard", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("keeps DNS records readable without exposing management to agent actors", () => {
+  it("keeps DNS records readable without exposing management to agent actors", async () => {
     renderCard({ sendingDomain: DOMAIN, canManage: false });
-    expect(
-      screen.getByRole("region", { name: T.records.title }),
-    ).toBeInTheDocument();
+    expect(await openRecords(T.records.title)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: T.oneClick.lookup }),
     ).not.toBeInTheDocument();
@@ -343,11 +349,13 @@ describe("SendingDomainCard", () => {
     renderCard({ sendingDomain: DOMAIN });
 
     expect(screen.getByText(T.status.PARTIAL)).toBeInTheDocument();
-    expect(screen.getByText(T.manual.saved)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: T.manual.action }),
+    ).toHaveAttribute("aria-expanded", "false");
+    const records = await openRecords();
     expect(
       screen.getByRole("button", { name: T.manual.action }),
     ).toHaveAttribute("aria-expanded", "true");
-    const records = screen.getByRole("region", { name: T.records.title });
     expect(within(records).getByText("resend._domainkey")).toBeInTheDocument();
     expect(within(records).getByText("send")).toBeInTheDocument();
     expect(within(records).getByText("10")).toBeInTheDocument();
@@ -376,7 +384,7 @@ describe("SendingDomainCard", () => {
   it("hides each explanation behind its purpose without losing it for screen readers", async () => {
     const user = userEvent.setup();
     renderCard({ sendingDomain: DOMAIN });
-    const records = screen.getByRole("region", { name: T.records.title });
+    const records = await openRecords();
     const purpose = within(records).getByRole("button", {
       name: T.records.purpose.dkim.label,
     });
@@ -397,6 +405,7 @@ describe("SendingDomainCard", () => {
   it("keeps the provider tips and Cloudflare accordions collapsed by default", async () => {
     renderCard({ sendingDomain: DOMAIN });
     expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
+    await openRecords();
     for (const name of [T.providerTips.title, T.cloudflare.advanced]) {
       expect(screen.getByRole("button", { name })).toHaveAttribute(
         "aria-expanded",
@@ -409,7 +418,7 @@ describe("SendingDomainCard", () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText");
     renderCard({ sendingDomain: DOMAIN });
-    const records = screen.getByRole("region", { name: T.records.title });
+    const records = await openRecords();
     for (const value of [
       "resend._domainkey",
       DOMAIN.dnsRecords[0].value,
@@ -431,9 +440,7 @@ describe("SendingDomainCard", () => {
         dnsRecords: [{ ...DOMAIN.dnsRecords[0], name: DOMAIN.domain }],
       },
     });
-    const records = await screen.findByRole("region", {
-      name: T.records.title,
-    });
+    const records = await openRecords();
     expect(within(records).getByText("@")).toBeInTheDocument();
     expect(
       within(records).getByRole("button", { name: T.records.relativeName }),
@@ -449,9 +456,7 @@ describe("SendingDomainCard", () => {
         dnsRecords: [{ ...DOMAIN.dnsRecords[0], name: "mail.other.example" }],
       },
     });
-    const records = await screen.findByRole("region", {
-      name: T.records.title,
-    });
+    const records = await openRecords();
     expect(within(records).getByText(T.records.fullName)).toBeInTheDocument();
     expect(
       within(records).queryByText(T.records.relativeName),
@@ -471,9 +476,7 @@ describe("SendingDomainCard", () => {
         ],
       },
     });
-    const records = await screen.findByRole("region", {
-      name: T.records.title,
-    });
+    const records = await openRecords();
     expect(within(records).getByText("resend._domainkey")).toBeInTheDocument();
     expect(
       within(records).getByRole("button", { name: T.records.relativeName }),
@@ -491,9 +494,7 @@ describe("SendingDomainCard", () => {
           dnsRecords: [{ ...DOMAIN.dnsRecords[0], status }],
         },
       });
-      const records = await screen.findByRole("region", {
-        name: T.records.title,
-      });
+      const records = await openRecords();
       expect(within(records).getByText(T.records.missing)).toBeInTheDocument();
       expect(
         within(records).queryByText(T.records.failedDescription),
@@ -508,9 +509,7 @@ describe("SendingDomainCard", () => {
         dnsRecords: [{ ...DOMAIN.dnsRecords[0], status: "failed" }],
       },
     });
-    const records = await screen.findByRole("region", {
-      name: T.records.title,
-    });
+    const records = await openRecords();
     expect(within(records).getByText("Wrong value")).toBeInTheDocument();
     expect(
       within(records).getByText(T.records.failedDescription),
@@ -523,6 +522,7 @@ describe("SendingDomainCard", () => {
   it("shows troubleshooting when records are missing", async () => {
     const user = userEvent.setup();
     renderCard({ sendingDomain: DOMAIN });
+    await openRecords();
     await user.click(
       screen.getByRole("button", { name: T.troubleshooting.title }),
     );
@@ -534,6 +534,7 @@ describe("SendingDomainCard", () => {
   it("shows compact DNS tips for all supported manual providers", async () => {
     const user = userEvent.setup();
     renderCard({ sendingDomain: DOMAIN });
+    await openRecords();
     await user.click(
       screen.getByRole("button", { name: T.providerTips.title }),
     );
@@ -686,7 +687,7 @@ describe("SendingDomainCard", () => {
     const healthRow = () => screen.getByRole("list", { name: T.records.title });
     const chips = () =>
       within(healthRow())
-        .getAllByRole("listitem")
+        .getAllByRole("button")
         .map((chip) => chip.textContent);
 
     it("shows each purpose in a fixed order with found and missing apart", () => {
@@ -729,7 +730,7 @@ describe("SendingDomainCard", () => {
       );
     });
 
-    it("stays while only DMARC is missing on a verified domain", () => {
+    it("gives way to a one-line DMARC hint on a verified domain", () => {
       renderCard({
         sendingDomain: {
           ...DOMAIN,
@@ -740,15 +741,34 @@ describe("SendingDomainCard", () => {
           ],
         },
       });
-      expect(chips()).toEqual(["DKIMFound", "DMARCMissing"]);
+      expect(screen.queryByRole("list", { name: T.records.title })).toBeNull();
+      expect(
+        screen.getByRole("button", { name: T.dmarc.title }),
+      ).toHaveAccessibleDescription(T.dmarc.description);
     });
 
-    it("sits beside the records instead of replacing them, also for members", () => {
+    it("folds the missing DMARC notice into its chip while pending", () => {
+      renderCard({
+        sendingDomain: {
+          ...DOMAIN,
+          dnsRecords: [
+            { ...record, status: "pending" },
+            { ...record, record: "DMARC", status: "not_found" },
+          ],
+        },
+      });
+      const chips = within(healthRow()).getAllByRole("button");
+      expect(chips[0]).toHaveAccessibleDescription(
+        T.records.purpose.dkim.explanation,
+      );
+      expect(chips[1]).toHaveAccessibleDescription(T.dmarc.description);
+      expect(screen.queryByRole("button", { name: T.dmarc.title })).toBeNull();
+    });
+
+    it("sits beside the records instead of replacing them, also for members", async () => {
       renderCard({ sendingDomain: DOMAIN, canManage: false });
       expect(chips()).toEqual(["DKIMMissing", "Return pathFound"]);
-      expect(
-        screen.getByRole("region", { name: T.records.title }),
-      ).toBeInTheDocument();
+      expect(await openRecords(T.records.title)).toBeInTheDocument();
     });
 
     it("is gone once no DNS is needed", () => {
@@ -776,7 +796,7 @@ describe("SendingDomainCard", () => {
       "bg-primary",
     );
     expect(screen.getByText(T.status.PENDING)).toBeInTheDocument();
-    expect(screen.getByText(T.statusDetail.PENDING)).toBeInTheDocument();
+    expect(screen.getByText("0 of 2 DNS records found")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: T.records.title })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: T.manual.action }));
@@ -799,20 +819,37 @@ describe("SendingDomainCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows records and manual steps straight away without one-click", async () => {
+  it("keeps records collapsed and Check primary without one-click", async () => {
     renderCard({ sendingDomain: UNSTARTED_DOMAIN });
-    expect(
-      await screen.findByRole("region", { name: T.records.title }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(T.oneClick.unavailable)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: T.records.title })).toBeNull();
     expect(screen.getByRole("button", { name: T.checkAgain })).toHaveClass(
       "bg-primary",
     );
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("does not offer a jump to records that are already on the page", () => {
-    renderCard({ sendingDomain: DOMAIN });
-    expect(screen.queryByRole("link", { name: /DNS records/ })).toBeNull();
+  it("explains fallback and last check in the status tooltip, not the body", () => {
+    renderCard({ sendingDomain: UNSTARTED_DOMAIN });
+    const status = screen.getByRole("button", { name: T.status.PENDING });
+    expect(status).toHaveAccessibleDescription(
+      expect.stringContaining(T.fallback),
+    );
+    expect(status).toHaveAccessibleDescription(
+      expect.stringContaining("Last checked"),
+    );
+  });
+
+  it("names the blocker in the tooltip when there is no fallback", () => {
+    renderCard({ sendingDomain: UNSTARTED_DOMAIN, fallbackAvailable: false });
+    expect(
+      screen.getByRole("button", { name: T.status.PENDING }),
+    ).toHaveAccessibleDescription(expect.stringContaining(T.noFallback));
+  });
+
+  it("skips the count when there are no records yet", () => {
+    renderCard({ sendingDomain: { ...DOMAIN, dnsRecords: [] } });
+    expect(screen.queryByText(/DNS records found/)).toBeNull();
   });
 
   it("counts partial progress and leaves the optional DMARC record out", async () => {
@@ -832,14 +869,7 @@ describe("SendingDomainCard", () => {
       },
     });
     expect(screen.getByText(T.status.PARTIAL)).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "1 of 2 DNS records found. Sending starts from this address once all of them are verified.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("region", { name: T.records.title }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 DNS records found")).toBeInTheDocument();
     await screen.findByText(T.oneClick.unavailable);
   });
 
@@ -864,9 +894,7 @@ describe("SendingDomainCard", () => {
         ],
       },
     });
-    const records = await screen.findByRole("region", {
-      name: T.records.title,
-    });
+    const records = await openRecords();
     expect(
       within(records).getByText(T.records.purpose[purpose].label),
     ).toBeInTheDocument();
@@ -888,13 +916,22 @@ describe("SendingDomainCard", () => {
         ],
       },
     });
-    const records = await screen.findByRole("region", {
-      name: T.records.title,
-    });
+    const records = await openRecords();
     const host = within(records).getByText("resend._domainkey.other.example");
     expect(host.querySelectorAll("wbr")).toHaveLength(3);
     expect(host).toHaveClass("break-words");
     expect(host).not.toHaveClass("wrap-anywhere");
+  });
+
+  it("truncates a long value but keeps all of it for hover and copy", async () => {
+    renderCard({ sendingDomain: DOMAIN });
+    const records = await openRecords();
+    const value = within(records).getByText(DOMAIN.dnsRecords[0].value);
+    expect(value).toHaveClass("whitespace-nowrap");
+    expect(value.closest("dd")).toHaveAttribute(
+      "title",
+      DOMAIN.dnsRecords[0].value,
+    );
   });
 
   it("offers a lookup retry only while no provider is found", async () => {
@@ -1000,6 +1037,10 @@ describe("SendingDomainCard", () => {
   it("keeps the one-time Cloudflare token form behind an advanced option", async () => {
     const user = userEvent.setup();
     renderCard({ sendingDomain: DOMAIN });
+    expect(
+      screen.queryByRole("button", { name: T.cloudflare.advanced }),
+    ).toBeNull();
+    await openRecords();
     expect(screen.queryByLabelText(T.cloudflare.title)).not.toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: T.cloudflare.advanced }),
@@ -1015,6 +1056,7 @@ describe("SendingDomainCard", () => {
     const user = userEvent.setup();
     mocks.cloudflare.mockResolvedValue({ ok: true, value: DOMAIN });
     renderCard({ sendingDomain: DOMAIN });
+    await openRecords();
     await user.click(
       screen.getByRole("button", { name: T.cloudflare.advanced }),
     );
@@ -1035,8 +1077,16 @@ describe("SendingDomainCard", () => {
     const { unmount } = renderCard({
       sendingDomain: { ...DOMAIN, status: "VERIFIED" },
     });
-    expect(screen.getByText(T.status.VERIFIED)).toBeInTheDocument();
-    expect(screen.getByText(T.verifiedDescription)).toBeInTheDocument();
+    const verified = screen.getByText(T.status.VERIFIED);
+    expect(verified).toHaveClass("bg-semantic-success");
+    expect(
+      screen.getByRole("button", { name: T.status.VERIFIED }),
+    ).toHaveAccessibleDescription(expect.stringContaining("Last checked"));
+    expect(screen.queryByText(/^Last checked/)).toHaveClass("sr-only");
+    expect(screen.queryByText(/DNS records found/)).toBeNull();
+    expect(screen.getByRole("button", { name: T.remove.action })).toHaveClass(
+      "text-muted-foreground",
+    );
     expect(
       screen.queryByRole("button", { name: T.checkAgain }),
     ).not.toBeInTheDocument();
@@ -1067,7 +1117,7 @@ describe("SendingDomainCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("warns about a missing DMARC policy and lists the p=none record", () => {
+  it("warns about a missing DMARC policy and lists the p=none record", async () => {
     renderCard({
       sendingDomain: {
         ...DOMAIN,
@@ -1086,8 +1136,15 @@ describe("SendingDomainCard", () => {
         ],
       },
     });
+    expect(screen.getByText(T.status.VERIFIED)).toHaveClass(
+      "bg-semantic-success",
+    );
     expect(screen.getByText(T.dmarc.title)).toBeInTheDocument();
-    const records = screen.getByRole("region", { name: T.records.title });
+    // Quiet beside the success state: nothing here is a primary action.
+    expect(screen.getByRole("button", { name: T.checkAgain })).not.toHaveClass(
+      "bg-primary",
+    );
+    const records = await openRecords();
     expect(within(records).getByText("v=DMARC1; p=none;")).toBeInTheDocument();
     expect(
       within(records).getByText(T.records.purpose.dmarc.explanation),

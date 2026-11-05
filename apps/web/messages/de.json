@@ -3808,12 +3808,10 @@
             "FAILED": "Fehlgeschlagen"
           },
           "statusDetail": {
-            "PENDING": "Der Versand von dieser Adresse startet, sobald ihre DNS-Einträge verifiziert sind.",
-            "PARTIAL": "{found} von {total} DNS-Einträgen gefunden. Der Versand von dieser Adresse startet, sobald alle verifiziert sind.",
             "FAILED": "Die Verifizierung ist fehlgeschlagen. Vergleiche deine DNS-Einträge mit den Einträgen unten und prüfe dann erneut."
           },
+          "recordsFound": "{found} von {total} DNS-Einträgen gefunden",
           "lastChecked": "Zuletzt geprüft {time}",
-          "verifiedDescription": "Der Newsletter dieses Projekts wird jetzt von dieser Adresse versendet.",
           "verifiedToast": "Domain verifiziert. Newsletter werden jetzt von deiner Adresse versendet.",
           "checked": "{found} von {total} DNS-Einträgen gefunden. Prüfe ihren Status unten; DNS-Änderungen können einige Stunden dauern.",
           "verifyRecords": "Einträge verifizieren",
@@ -3823,16 +3821,13 @@
             "description": "DMARC sagt Postfächern, was mit E-Mails passiert, die diese Prüfungen nicht bestehen. Lege den vorgeschlagenen DMARC-Eintrag unten an. Er beginnt mit p=none: Das überwacht nur und blockiert nie E-Mails."
           },
           "oneClick": {
-            "description": "Melde dich bei deinem DNS-Anbieter an und bestätige. Sokosumi legt die Einträge für dich an.",
             "checking": "Einrichtung mit einem Klick wird geprüft…",
-            "lookup": "Anbietersuche wiederholen",
-            "found": "Deine Domain nutzt {provider}.",
+            "lookup": "Erneut versuchen",
             "connect": "Mit {provider} verbinden",
-            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter noch nicht verfügbar. Lege die Einträge unten bei einem beliebigen DNS-Anbieter an."
+            "unavailable": "Die Einrichtung mit einem Klick ist für deinen DNS-Anbieter nicht verfügbar."
           },
           "manual": {
-            "action": "Manuell einrichten",
-            "saved": "Du kannst die Seite verlassen und später zurückkommen — wir behalten diese Einträge hier, bis sie verifiziert sind."
+            "action": "Manuell einrichten"
           },
           "cloudflare": {
             "title": "Cloudflare-API-Token",
@@ -3843,7 +3838,6 @@
           },
           "records": {
             "title": "DNS-Einträge",
-            "description": "Lege alle hier gezeigten Einträge in den Einstellungen deines DNS-Anbieters an. Verwende das Hostformat, das dein Anbieter erwartet.",
             "relativeName": "Relativer Host",
             "fullName": "Vollständiger Name (FQDN)",
             "value": "Wert",
@@ -3958,7 +3952,7 @@
             "resumeUnavailable": "Verifiziere diese Absenderdomain vor dem Fortsetzen. Prüfe ihre DNS-Einträge und versuche es erneut."
           },
           "warmup": {
-            "title": "Aufwärmphase der Domain",
+            "chip": "Aufwärmphase · {used} / {cap} heute",
             "progress": "Tag {day} · Heute {used} von {cap} versendet (UTC)",
             "unlimited": "Tag {day} · Heute {used} versendet (UTC) · Unbegrenzt",
             "description": "Empfänger über dem heutigen Limit bleiben in der Warteschlange und werden automatisch angeschrieben, sobald wieder Kapazität verfügbar ist. Das Tageslimit wird um 00:00 UTC zurückgesetzt.",

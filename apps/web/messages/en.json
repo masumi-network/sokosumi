@@ -3808,12 +3808,10 @@
             "FAILED": "Failed"
           },
           "statusDetail": {
-            "PENDING": "Sending starts from this address once its DNS records are verified.",
-            "PARTIAL": "{found} of {total} DNS records found. Sending starts from this address once all of them are verified.",
             "FAILED": "Verification failed. Compare your DNS records with the ones below, then check again."
           },
+          "recordsFound": "{found} of {total} DNS records found",
           "lastChecked": "Last checked {time}",
-          "verifiedDescription": "This project’s newsletter now sends from this address.",
           "verifiedToast": "Domain verified. Newsletters now send from your address.",
           "checked": "{found} of {total} DNS records found. Review their status below; DNS changes can take a few hours.",
           "verifyRecords": "Verify records",
@@ -3823,16 +3821,13 @@
             "description": "DMARC tells inboxes what to do with mail that fails these checks. Add the suggested DMARC record below. It starts with p=none, which only monitors and never blocks mail."
           },
           "oneClick": {
-            "description": "Sign in to your DNS provider and confirm. Sokosumi adds the records for you.",
             "checking": "Checking for one-click setup…",
-            "lookup": "Retry provider lookup",
-            "found": "Your domain uses {provider}.",
+            "lookup": "Retry",
             "connect": "Connect with {provider}",
-            "unavailable": "One-click setup isn’t available for your DNS host yet. Add the records below with any DNS provider."
+            "unavailable": "One-click setup isn’t available for your DNS host."
           },
           "manual": {
-            "action": "Set up manually",
-            "saved": "You can leave and come back — we’ll keep these records here until they’re verified."
+            "action": "Set up manually"
           },
           "cloudflare": {
             "title": "Cloudflare API token",
@@ -3843,7 +3838,6 @@
           },
           "records": {
             "title": "DNS records",
-            "description": "Add every record shown here in your DNS provider’s settings. Use the host format your provider expects.",
             "relativeName": "Relative host",
             "fullName": "Full name (FQDN)",
             "value": "Value",
@@ -3958,7 +3952,7 @@
             "resumeUnavailable": "Verify this sending domain before resuming. Check its DNS records and try again."
           },
           "warmup": {
-            "title": "Domain warm-up",
+            "chip": "Warm-up · {used} / {cap} today",
             "progress": "Day {day} · {used} of {cap} sent today (UTC)",
             "unlimited": "Day {day} · {used} sent today (UTC) · Unlimited",
             "description": "Recipients beyond today’s limit stay queued and send automatically when capacity returns. The daily limit resets at 00:00 UTC.",
