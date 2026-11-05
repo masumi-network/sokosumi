@@ -635,14 +635,14 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
   vi.hoisted(() => ({
     persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
   }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 vi.mock("@/helpers/task-link", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/helpers/task-link")>()),
@@ -5447,7 +5447,7 @@ describe("post_chat chain depth", () => {
       content: "@user_owner the date is confirmed",
     });
     expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {

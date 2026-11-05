@@ -16,7 +16,7 @@ VERIFIED: native Google consent uses the existing Composio popup lifecycle and o
 
 VERIFIED: the native revision applied successfully only to the isolated localhost database. Prisma reported `502 migrations found` and `All migrations have been successfully applied.` Hosted deployment of this revision remains pending.
 
-VERIFIED: final native Core verification reported `626 passed (626)` across 22 files, including the isolated PostgreSQL regressions. The Soko Bot tool package reported `448 passed (448)`. The latest native Web flow run reported `78 passed (78)`. `pnpm precommit` reported `20 successful, 20 total`.
+VERIFIED: after merging `main` at `26328bac4a`, Core verification reported `626 passed (626)` across 22 files, including the isolated PostgreSQL regressions. The scoped Web run reported `159 passed (159)` across 13 files. Core and Web production builds reported `10 successful, 10 total`. The unchanged Soko Bot tool package reported `448 passed (448)`. `pnpm precommit` reported `20 successful, 20 total` before the merge.
 
 VERIFIED: native chat reserves a daily allowance before inference, per user and Workspace across Audits. `SEO_CHAT_DAILY_TURN_LIMIT` defaults to `100`. Failed and expired attempts count. Replays do not count again. Exhaustion returns `429`. Evidence: `seo-chat-quota.postgres.test.ts` and `apps/core/src/config/env.ts`.
 

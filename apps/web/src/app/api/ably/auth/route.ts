@@ -7,7 +7,11 @@ export async function POST(request: NextRequest) {
   try {
     const clientInstanceId =
       request.nextUrl.searchParams.get("clientInstanceId");
-    const tokenRequest = await createAuthTokenRequest({ clientInstanceId });
+    const roomIds = request.nextUrl.searchParams.get("roomIds");
+    const tokenRequest = await createAuthTokenRequest({
+      clientInstanceId,
+      roomIds,
+    });
     // Ably authUrl expects the raw TokenRequest body (not Core { data, meta }).
     return NextResponse.json(tokenRequest);
   } catch (error) {

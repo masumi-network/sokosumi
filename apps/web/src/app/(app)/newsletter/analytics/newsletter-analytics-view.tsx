@@ -32,10 +32,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { NewsletterAnalyticsDateFilter } from "./newsletter-analytics-date-filter";
-import {
-  NewsletterAnalyticsNotes,
-  NewsletterMetrics,
-} from "./newsletter-metrics";
+import { NewsletterMetrics } from "./newsletter-metrics";
 
 interface NewsletterAnalyticsViewProps {
   projectId: string;
@@ -76,6 +73,10 @@ export function NewsletterAnalyticsView({
   >("uniqueOpens");
   const from = range.from ?? analytics?.from ?? "";
   const to = range.to ?? analytics?.to ?? "";
+  const noSends = analytics?.issuesPagination.total === 0;
+  const showEngagement =
+    !noSends ||
+    analytics.engagement.some((day) => day.uniqueOpens || day.uniqueClicks);
   const issueItems = (analytics?.issues ?? []).map((issue) => ({
     issue,
     href: newsletterHref(
@@ -117,11 +118,10 @@ export function NewsletterAnalyticsView({
         </p>
       ) : (
         <>
-          <NewsletterMetrics totals={analytics.totals} />
-          <NewsletterAnalyticsNotes />
-          {analytics.issuesPagination.total === 0 ? (
+          {noSends ? (
             <div className={HOLDER_CLASS}>
               <EmptyState
+                className="py-8"
                 icon={BarChart2}
                 title={t("emptyTitle")}
                 description={t("emptyDescription")}
@@ -137,10 +137,12 @@ export function NewsletterAnalyticsView({
               />
             </div>
           ) : null}
+          <NewsletterMetrics totals={analytics.totals} quiet={noSends} />
           <div
             className={cn(
               HOLDER_CLASS,
-              "grid min-w-0 gap-3 p-3 xl:grid-cols-2",
+              "grid min-w-0 gap-3 p-3",
+              showEngagement && "xl:grid-cols-2",
             )}
           >
             <section
@@ -201,55 +203,57 @@ export function NewsletterAnalyticsView({
                 }))}
               />
             </section>
-            <section
-              aria-labelledby="newsletter-engagement-heading"
-              className="bg-card min-w-0 space-y-4 rounded-xl border p-4 sm:p-6"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <h3
-                  id="newsletter-engagement-heading"
-                  className="text-base font-semibold"
-                >
-                  {t("engagement")}
-                </h3>
-                <div>
-                  <Label
-                    htmlFor="newsletter-engagement-metric"
-                    className="sr-only"
+            {showEngagement ? (
+              <section
+                aria-labelledby="newsletter-engagement-heading"
+                className="bg-card min-w-0 space-y-4 rounded-xl border p-4 sm:p-6"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h3
+                    id="newsletter-engagement-heading"
+                    className="text-base font-semibold"
                   >
-                    {t("engagementMetric")}
-                  </Label>
-                  <Select
-                    value={engagementMetric}
-                    onValueChange={(value) => {
-                      if (value === "uniqueOpens" || value === "uniqueClicks")
-                        setEngagementMetric(value);
-                    }}
-                  >
-                    <SelectTrigger id="newsletter-engagement-metric">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(["uniqueOpens", "uniqueClicks"] as const).map(
-                        (metric) => (
-                          <SelectItem key={metric} value={metric}>
-                            {t(`metrics.${metric}`)}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
+                    {t("engagement")}
+                  </h3>
+                  <div>
+                    <Label
+                      htmlFor="newsletter-engagement-metric"
+                      className="sr-only"
+                    >
+                      {t("engagementMetric")}
+                    </Label>
+                    <Select
+                      value={engagementMetric}
+                      onValueChange={(value) => {
+                        if (value === "uniqueOpens" || value === "uniqueClicks")
+                          setEngagementMetric(value);
+                      }}
+                    >
+                      <SelectTrigger id="newsletter-engagement-metric">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["uniqueOpens", "uniqueClicks"] as const).map(
+                          (metric) => (
+                            <SelectItem key={metric} value={metric}>
+                              {t(`metrics.${metric}`)}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
-              <DailyBarChart
-                label={t(`metrics.${engagementMetric}`)}
-                unavailable={t("unavailable")}
-                points={analytics.engagement.map((day) => ({
-                  date: day.date,
-                  value: day[engagementMetric],
-                }))}
-              />
-            </section>
+                <DailyBarChart
+                  label={t(`metrics.${engagementMetric}`)}
+                  unavailable={t("unavailable")}
+                  points={analytics.engagement.map((day) => ({
+                    date: day.date,
+                    value: day[engagementMetric],
+                  }))}
+                />
+              </section>
+            ) : null}
           </div>
           {analytics.issues.length || analytics.issuesPagination.cursor ? (
             <section

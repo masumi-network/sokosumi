@@ -246,6 +246,25 @@ export function resolveNotificationDelivery({
   };
 }
 
+/**
+ * The channels of `delivery` that `mention` does not already reach.
+ *
+ * A mentioned reader's Direct or room row is delivered only where their
+ * mention row is not, so one message never reaches them twice on one channel.
+ * Asked here by the write that decides the row's delivery and by the filter
+ * that picks the room's recipients, so the two cannot drift apart.
+ */
+export function deliveryOutsideMention(
+  delivery: NotificationDelivery,
+  mention: NotificationDelivery,
+): NotificationDelivery {
+  return {
+    inApp: delivery.inApp && !mention.inApp,
+    osBanner: delivery.osBanner && !mention.osBanner,
+    email: delivery.email && !mention.email,
+  };
+}
+
 /** One cell of the matrix the reader sees, with its answer already resolved. */
 export interface NotificationMatrixCell {
   category: NotificationCategory;

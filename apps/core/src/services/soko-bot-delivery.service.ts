@@ -250,7 +250,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
   });
   if (claimed.count !== 1) return false;
   try {
-    const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
+    const { emitChatMessageNotifications, persistChatHumanMentions } =
       await import("@/helpers/chat-human-mentions");
     // A ref: assigned inside the transaction callback, which control flow
     // analysis cannot see.
@@ -475,7 +475,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         where: { messageId: persisted.messageId },
         select: { userId: true },
       });
-      await emitChatHumanMentionNotifications({
+      await emitChatMessageNotifications({
         messageId: persisted.messageId,
         mentionedUserIds: mentions.map((mention) => mention.userId),
         throwOnError: true,
