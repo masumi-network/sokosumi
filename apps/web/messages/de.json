@@ -3713,7 +3713,7 @@
           "lastDays": "Letzte {days} Tage",
           "presetDays": "{days} Tage",
           "clearRange": "Zeitraum löschen",
-          "periodNoteAria": "Informationen zu Statistikzeiträumen",
+          "notesAria": "Informationen zu diesen Zahlen",
           "invalidRange": "Wähle einen gültigen Zeitraum von 1 bis 366 Tagen oder lösche den Zeitraum.",
           "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
           "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
