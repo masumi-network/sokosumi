@@ -59,14 +59,29 @@ describe("branded newsletter signup", () => {
       expect(button).toHaveClass("rounded-full");
       expect(button.closest("form")).toHaveClass("space-y-6");
       expect(
-        container.querySelector(`img[src="${BRAND.logoUrl}"]`),
-      ).toBeInTheDocument();
-      expect(
-        container.querySelector(`img[src="${BRAND.headerImageUrl}"]`),
-      ).toBeInTheDocument();
-      expect(
         screen.getByRole("heading", { level: 1 }).parentElement,
       ).toHaveClass("text-center");
+    },
+  );
+
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    "starts at the heading with no brand bar (embed: %s, preview: %s)",
+    (embed, preview) => {
+      const { container } = render(view(BRAND, embed, preview));
+      expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+      expect(container.querySelector("img")).toBeNull();
+      // The name appears once, in the heading: nothing repeats it above.
+      expect(screen.getAllByText(new RegExp(PUBLIC_NEWSLETTER.name))).toEqual([
+        screen.getByRole("heading", {
+          level: preview ? 4 : 1,
+          name: `Subscribe to ${PUBLIC_NEWSLETTER.name}`,
+        }),
+      ]);
     },
   );
 

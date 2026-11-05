@@ -9,25 +9,17 @@ interface PublicNewsletterHeaderProps {
   newsletter: PublicNewsletter;
   slug: string;
   subscribeLabel?: string;
-  compact?: boolean;
 }
 
 export function PublicNewsletterHeader({
   newsletter,
   slug,
   subscribeLabel,
-  compact = false,
 }: PublicNewsletterHeaderProps) {
-  const Header = compact ? "div" : "header";
   const centered = newsletter.brand.headerAlign === "center";
-  if (compact && !newsletter.brand.logoUrl && !newsletter.brand.headerImageUrl)
-    return null;
   return (
-    <Header
-      className={cn(
-        "min-w-0 space-y-4",
-        !compact && "rounded-xl border-y-4 p-6",
-      )}
+    <header
+      className="min-w-0 space-y-4 rounded-xl border-y-4 p-6"
       style={{
         borderTopColor: newsletter.brand.primaryColor,
         borderBottomColor: newsletter.brand.accentColor,
@@ -67,11 +59,9 @@ export function PublicNewsletterHeader({
               className="size-16 shrink-0 object-contain"
             />
           ) : null}
-          {!compact ? (
-            <p className="text-lg font-semibold wrap-anywhere">
-              {newsletter.name}
-            </p>
-          ) : null}
+          <p className="text-lg font-semibold wrap-anywhere">
+            {newsletter.name}
+          </p>
         </div>
         {subscribeLabel ? (
           <Button
@@ -91,6 +81,6 @@ export function PublicNewsletterHeader({
           </Button>
         ) : null}
       </div>
-    </Header>
+    </header>
   );
 }
