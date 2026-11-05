@@ -167,8 +167,9 @@ async function stopForeignPushSubscription(
     if (teardownVersion !== getPushTeardownVersion()) return;
     if (owner !== readOwner()) {
       // Another tab named the device for someone else while this waited
-      // for the queue. The version is unchanged, so the note of a teardown
-      // under way is this one's, and nothing else is left to clear it.
+      // for the queue. The version is unchanged, so no sign-out or
+      // deactivation overtook this run: a note still here is this run's
+      // or an obsolete one, and clearing it is safe.
       forgetUnfinishedPushTeardown();
       return;
     }

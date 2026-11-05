@@ -67,7 +67,8 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
       // focus, or the reader could never reach the editor to save. Focus
       // still probes, so a session that ends meanwhile still signs out. A
       // window that is never hidden, side by side with another, is not
-      // asked again until it is: the reader chose to stay with their edits.
+      // asked again until it is hidden or the cookie changes hands again:
+      // the reader chose to stay with their edits.
       reloadAskedRef.current = true;
       window.location.reload();
     }
