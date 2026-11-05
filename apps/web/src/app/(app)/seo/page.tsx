@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
-import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { seoService } from "@/lib/services/seo.service";
-import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
 import { readSeoPageQuery } from "./seo-query";
@@ -31,32 +30,35 @@ export default async function SeoPage({
         <SeoPageError invalidFilters resetHref="/seo" />
       </WorkspacePageShell>
     );
-  const { projectId, tab: _tab, ...query } = parsed.data;
-  if (!projectId)
-    return (
-      <WorkspacePageShell title={t("title")}>
-        <ProjectScopeRequired title={t("pickTitle")} body={t("pickBody")} />
-      </WorkspacePageShell>
-    );
+  const { auditId, projectId, cursor, tab: _tab, ...query } = parsed.data;
   try {
-    const [workspace, coworkers, sokoBot] = await Promise.all([
-      seoService.getWorkspace(projectId, query),
+    if (!auditId && !projectId) {
+      const index = await seoService.listAudits({ cursor });
+      return (
+        <WorkspacePageShell title={t("title")}>
+          <SeoAuditIndex
+            audits={index.audits}
+            nextCursor={index.pagination?.nextCursor ?? null}
+          />
+        </WorkspacePageShell>
+      );
+    }
+    const owner = auditId
+      ? { kind: "audit" as const, id: auditId }
+      : { kind: "project" as const, id: projectId! };
+    const [workspace, coworkers] = await Promise.all([
+      seoService.getWorkspace(owner, query),
       coworkerService.listCoworkers("tasks").catch((error: unknown) => {
         unstable_rethrow(error);
         return [];
-      }),
-      sokoBotService.getMine().catch((error: unknown) => {
-        unstable_rethrow(error);
-        return null;
       }),
     ]);
     return (
       <WorkspacePageShell title={t("title")}>
         <SeoWorkspace
-          key={projectId}
+          key={workspace.auditId ?? workspace.projectId}
           workspace={workspace}
           coworkers={coworkers}
-          sokoBotId={sokoBot?.id ?? null}
         />
       </WorkspacePageShell>
     );
@@ -64,9 +66,7 @@ export default async function SeoPage({
     unstable_rethrow(error);
     return (
       <WorkspacePageShell title={t("title")}>
-        <SeoPageError
-          resetHref={`/seo?projectId=${encodeURIComponent(projectId)}`}
-        />
+        <SeoPageError resetHref="/seo" />
       </WorkspacePageShell>
     );
   }

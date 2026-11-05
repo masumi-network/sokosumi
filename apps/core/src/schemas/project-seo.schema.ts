@@ -415,7 +415,9 @@ export const seoJobSchema = z
   .openapi("ProjectSeoAnalysis");
 export const projectSeoWorkspaceSchema = z
   .object({
-    projectId: seoIdSchema,
+    projectId: seoIdSchema.nullable(),
+    auditId: seoIdSchema.nullable(),
+    auditName: z.string().nullable(),
     websiteUrl: z.string().nullable(),
     scope: z.object({
       id: z.union([seoIdSchema, z.null()]),
@@ -491,8 +493,11 @@ export const nativeSeoMetricsSchema = z
   .openapi("NativeSeoMetrics");
 
 export type ProjectSeoWorkspace = z.infer<typeof projectSeoWorkspaceSchema>;
+export type SeoOwner =
+  | { kind: "project"; id: string }
+  | { kind: "audit"; id: string };
 export type SeoActor = {
-  projectId: string;
+  owner: SeoOwner;
   workspaceId: string;
   userId: string;
   organizationId: string | null;

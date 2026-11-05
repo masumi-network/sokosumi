@@ -9,10 +9,8 @@ export const SEO_TABS = [
 ] as const;
 export type SeoTab = (typeof SEO_TABS)[number];
 
-export const seoPageQuerySchema = z
+export const seoFilterQuerySchema = z
   .object({
-    projectId: z.uuid().optional(),
-    tab: z.enum(SEO_TABS).optional(),
     scopeId: z.uuid().optional(),
     pageId: z.uuid().optional(),
     // Web uses saved groups for multiple pages. Never drop Core explicit-page filters.
@@ -28,6 +26,18 @@ export const seoPageQuerySchema = z
   .refine(
     (query) => !query.from || !query.to || query.from <= query.to,
     "Invalid period",
+  );
+
+export const seoPageQuerySchema = seoFilterQuerySchema
+  .safeExtend({
+    auditId: z.uuid().optional(),
+    projectId: z.uuid().optional(),
+    cursor: z.string().max(200).optional(),
+    tab: z.enum(SEO_TABS).optional(),
+  })
+  .refine(
+    (query) => !(query.auditId && query.projectId),
+    "Choose one SEO audit",
   );
 
 /** Invalid URL filters must not fall back to a broader page selection. */

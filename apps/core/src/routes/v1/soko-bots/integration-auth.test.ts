@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 
 import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth";
 

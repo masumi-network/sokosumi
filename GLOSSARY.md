@@ -729,10 +729,18 @@ _Avoid_: Prerelease (the GitHub mechanism, not the product term), nightly, Alpha
 
 ### SEO
 
-**Page group**:
-INFERRED: A named collection of related pages used across SEO audits, keyword tracking, statistics and monitoring. It belongs to an existing Sokosumi Project.
-_Avoid_: SEO project, Audit (when referring to the reusable collection)
-
 **Audit**:
-INFERRED: One SEO analysis run and its report for selected pages. A Page group can have multiple Audits.
-_Avoid_: Project, Page group (when referring to one run or report)
+VERIFIED: A named, Workspace-owned collection of related pages, checks, evidence, statistics and action Tasks. It can be created without a Sokosumi Project. An optional native Project link supplies work context. Evidence: `packages/database/prisma/seo.prisma` (`SeoAudit`) and `apps/core/src/services/seo-audit.service.ts` (`createSeoAudit`).
+_Avoid_: SEO project, personal assistant, bot profile
+
+**Page selection**:
+VERIFIED: A saved subset of an Audit's pages for repeated checks and monitoring. Each execution freezes the selected page IDs and version. Evidence: `ProjectSeoScope` and `ProjectSeoAnalysis` in `packages/database/prisma/seo.prisma`.
+_Avoid_: Project, Audit (when referring only to a saved subset)
+
+**Check**:
+VERIFIED: One SEO analysis execution over selected pages. Full and light audits are check kinds; their output is a Report. Evidence: `seoAnalysisKindSchema` in `apps/core/src/schemas/project-seo.schema.ts`.
+_Avoid_: Audit (when referring to the persistent collection)
+
+**Report**:
+VERIFIED: Captured evidence from a completed check, imported with its source and observation time. Evidence: `apps/core/src/services/project-seo-import.service.ts`.
+_Avoid_: Project, Audit (when referring to the evidence file alone)

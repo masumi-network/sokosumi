@@ -21,6 +21,7 @@ function fixture(): Input {
   const page = {
     id: pageId,
     projectId,
+    auditId: null,
     url: SEO_TEST_PAGE,
     label: "",
     relationship: "primary",
@@ -62,6 +63,7 @@ function observation(
   return {
     id: randomUUID(),
     projectId: input.project.id,
+    auditId: null,
     kind: payload.kind,
     source: "seo_coworker",
     sourceKey: randomUUID(),
@@ -91,6 +93,7 @@ function actionFixture() {
     {
       id: randomUUID(),
       projectId: input.project.id,
+      auditId: null,
       observationId: original.id,
       actionId: "1",
       taskId,
@@ -129,6 +132,7 @@ describe("stored SEO workspace projections", () => {
       {
         id: randomUUID(),
         projectId: input.project.id,
+        auditId: null,
         kind: "page_check",
         status: "failed",
         taskId,
@@ -284,6 +288,7 @@ describe("stored SEO workspace projections", () => {
       {
         id: randomUUID(),
         projectId: input.project.id,
+        auditId: null,
         keyword: "example",
         keywordKey: "example",
         countryCode: "US",

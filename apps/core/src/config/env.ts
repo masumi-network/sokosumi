@@ -43,6 +43,9 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
 
+  // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
+  SEO_CHAT_DAILY_TURN_LIMIT: z.coerce.number().int().positive().default(100),
+
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
   REDIS_URL: z.string().optional(),
   KV_URL: z.string().optional(),

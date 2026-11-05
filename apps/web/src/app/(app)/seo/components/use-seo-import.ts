@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { seoImportFiles } from "@/app/seo/seo-import-model";
 import { useSession } from "@/lib/auth/auth.client";
+import { seoOwnerApiPath, seoViewerHeaders } from "@/lib/seo/owner";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function useSeoImport(model: SeoWorkspaceModel) {
@@ -19,9 +20,11 @@ export function useSeoImport(model: SeoWorkspaceModel) {
       "seo-import-candidates",
       session?.session.activeOrganizationId,
       session?.user.id,
-      model.data.projectId,
+      model.owner.kind,
+      model.owner.id,
       search,
     ],
+    enabled: !!session?.user.id,
     initialPageParam: null as string | null,
     queryFn: async ({
       signal,
@@ -30,8 +33,13 @@ export function useSeoImport(model: SeoWorkspaceModel) {
       const query = new URLSearchParams({ q: search });
       if (pageParam) query.set("cursor", pageParam);
       const response = await fetch(
-        `/api/projects/${model.data.projectId}/seo/imports?${query}`,
-        { signal, credentials: "same-origin", cache: "no-store" },
+        `${seoOwnerApiPath(model.owner)}/imports?${query}`,
+        {
+          signal,
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: seoViewerHeaders(session?.user.id),
+        },
       );
       if (!response.ok) throw new Error("SEO import candidates unavailable");
       return response.json();
@@ -45,19 +53,25 @@ export function useSeoImport(model: SeoWorkspaceModel) {
       "seo-import-task",
       session?.session.activeOrganizationId,
       session?.user.id,
-      model.data.projectId,
+      model.owner.kind,
+      model.owner.id,
       taskId,
     ],
     queryFn: async ({ signal }) => {
       const response = await fetch(
-        `/api/projects/${model.data.projectId}/seo/imports?taskId=${encodeURIComponent(taskId)}`,
-        { signal, credentials: "same-origin", cache: "no-store" },
+        `${seoOwnerApiPath(model.owner)}/imports?taskId=${encodeURIComponent(taskId)}`,
+        {
+          signal,
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: seoViewerHeaders(session?.user.id),
+        },
       );
       if (!response.ok) throw new Error("SEO import source unavailable");
       const body: { task: Task } = await response.json();
       return body.task;
     },
-    enabled: Boolean(taskId),
+    enabled: Boolean(taskId) && !!session?.user.id,
     refetchOnWindowFocus: false,
   });
   const task = selectedTask.data;

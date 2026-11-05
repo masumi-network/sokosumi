@@ -9,9 +9,11 @@ import {
 } from "@/schemas/project-seo.schema";
 import {
   commitSeoMutation,
-  requireLockedSeoProject,
+  requireLockedSeoOwner,
   requireSeoPages,
   type SeoMutationHooks,
+  seoOwnerData,
+  seoOwnerUnique,
   sha256,
 } from "./project-seo-store";
 
@@ -42,11 +44,11 @@ export async function recordProjectSeoPageChange(
   );
   const sourceKey = `page-change:${sha256(JSON.stringify([actor.userId, input.idempotencyKey]))}`;
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
     const pages = await requireSeoPages(actor, input.pageIds, tx);
     const previous = await tx.projectSeoObservation.findUnique({
-      where: { projectId_sourceKey: { projectId: actor.projectId, sourceKey } },
+      where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
     });
     if (previous) {
       if (previous.artifactHash !== artifactHash)
@@ -58,7 +60,7 @@ export async function recordProjectSeoPageChange(
     const data: Prisma.InputJsonObject = payload;
     const result = await tx.projectSeoObservation.create({
       data: {
-        projectId: actor.projectId,
+        ...seoOwnerData(actor),
         kind: "page_change",
         source: "user",
         sourceKey,

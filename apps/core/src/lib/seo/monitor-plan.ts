@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import {
   requestSeoAnalysisSchema,
   SEO_MAX_MONITOR_RUNS,
+  seoIdSchema,
 } from "@/schemas/project-seo.schema";
 
 export const SEO_MONITOR_MARKER = "seo_monitor: ";
@@ -10,16 +11,23 @@ export const SEO_MONITOR_CRON = {
   daily: "0 9 * * *",
   weekly: "0 9 * * 1",
 } as const;
-export const seoMonitorPlanSchema = z
-  .object({
-    version: z.literal(1),
-    cadence: z.enum(["daily", "weekly"]),
-    timeZone: z.string(),
-    targetRunCount: z.number().int().min(1).max(SEO_MAX_MONITOR_RUNS),
-    scopeVersion: z.number().int().nonnegative(),
-    analysis: requestSeoAnalysisSchema,
-  })
-  .strict();
+const monitorPlanFields = {
+  cadence: z.enum(["daily", "weekly"]),
+  timeZone: z.string(),
+  targetRunCount: z.number().int().min(1).max(SEO_MAX_MONITOR_RUNS),
+  scopeVersion: z.number().int().nonnegative(),
+  analysis: requestSeoAnalysisSchema,
+};
+export const seoMonitorPlanSchema = z.discriminatedUnion("version", [
+  z.object({ version: z.literal(1), ...monitorPlanFields }).strict(),
+  z
+    .object({
+      version: z.literal(2),
+      auditId: seoIdSchema,
+      ...monitorPlanFields,
+    })
+    .strict(),
+]);
 
 export function parseSeoMonitorPlan(description: string | null) {
   if (!description?.startsWith(SEO_MONITOR_MARKER)) return null;

@@ -22,11 +22,14 @@ import {
   canReadPrivateSeoMetrics,
   commitSeoMutation,
   normalizeSeoUrl,
-  requireLockedSeoProject,
+  requireLockedSeoOwner,
+  requireSeoOwner,
   requireSeoPages,
-  requireSeoProject,
   resolveSeoScope,
   type SeoMutationHooks,
+  seoOwnerData,
+  seoOwnerUnique,
+  seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
 
@@ -36,19 +39,14 @@ export async function addProjectSeoPage(
   hooks: SeoMutationHooks = {},
 ) {
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
     if (input.relatedToPageId)
       await requireSeoPages(actor, [input.relatedToPageId], tx);
     const result = await tx.projectSeoPage.upsert({
-      where: {
-        projectId_url: {
-          projectId: actor.projectId,
-          url: normalizeSeoUrl(input.url),
-        },
-      },
+      where: seoOwnerUnique(actor, "url", { url: normalizeSeoUrl(input.url) }),
       create: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         url: normalizeSeoUrl(input.url),
         label: input.label ?? "",
         relationship: input.relationship,
@@ -65,12 +63,12 @@ export async function createProjectSeoScope(
   hooks: SeoMutationHooks = {},
 ) {
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
     const pages = await requireSeoPages(actor, input.pageIds, tx);
     const result = await tx.projectSeoScope.create({
       data: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         name: input.name,
         pageIds: pages.map((page) => page.id),
       },
@@ -85,13 +83,13 @@ export async function updateProjectSeoScope(
   hooks: SeoMutationHooks = {},
 ) {
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
     const pages = await requireSeoPages(actor, input.pageIds, tx);
     const changed = await tx.projectSeoScope.updateMany({
       where: {
         id: scopeId,
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         version: input.expectedVersion,
       },
       data: {
@@ -115,24 +113,32 @@ export async function saveProjectSeoKeyword(
   hooks: SeoMutationHooks = {},
 ) {
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
     if (input.pageId) await requireSeoPages(actor, [input.pageId], tx);
     const identity = {
-      projectId: actor.projectId,
       keywordKey: input.keyword.normalize("NFKC").toLowerCase(),
       countryCode: input.countryCode,
       languageCode: input.languageCode,
     };
     const previous = await tx.projectSeoKeyword.findUnique({
-      where: { projectId_keywordKey_countryCode_languageCode: identity },
+      where: seoOwnerUnique(
+        actor,
+        "keywordKey_countryCode_languageCode",
+        identity,
+      ),
     });
     if (previous && input.expectedVersion !== previous.version)
       throw conflict("The saved keyword changed. Reload it before editing.");
     const result = await tx.projectSeoKeyword.upsert({
-      where: { projectId_keywordKey_countryCode_languageCode: identity },
+      where: seoOwnerUnique(
+        actor,
+        "keywordKey_countryCode_languageCode",
+        identity,
+      ),
       create: {
         ...identity,
+        ...seoOwnerData(actor),
         keyword: input.keyword,
         pageId: input.pageId ?? null,
         priority: input.priority,
@@ -160,19 +166,23 @@ export async function saveProjectSeoCompetitor(
       "Resolve the search redirect before confirming this competitor",
     );
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
-    const identity = { projectId: actor.projectId, url };
+    const identity = { url };
     const previous = await tx.projectSeoCompetitor.findUnique({
-      where: { projectId_url: identity },
+      where: seoOwnerUnique(actor, "url", identity),
     });
     if (previous && input.expectedVersion !== previous.version)
       throw conflict(
         "The competitor choice changed. Reload it before editing.",
       );
     const result = await tx.projectSeoCompetitor.upsert({
-      where: { projectId_url: identity },
-      create: { ...identity, confirmed: input.confirmed },
+      where: seoOwnerUnique(actor, "url", identity),
+      create: {
+        ...identity,
+        ...seoOwnerData(actor),
+        confirmed: input.confirmed,
+      },
       update: { confirmed: input.confirmed, version: { increment: 1 } },
     });
     return commitSeoMutation(tx, result, hooks);
@@ -189,7 +199,7 @@ export async function recordNativeSeoMetrics(
 ) {
   const payload = nativeSeoMetricsSchema.parse(input);
   const write = async (client: Prisma.TransactionClient) => {
-    await requireSeoProject(actor, client, true);
+    await requireSeoOwner(actor, client, true);
     await options.authorize?.(client);
     if (!(await canReadPrivateSeoMetrics(actor, client)))
       throw forbidden(
@@ -197,12 +207,14 @@ export async function recordNativeSeoMetrics(
       );
     const pages = await client.projectSeoPage.findMany({
       where: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         url: { in: payload.pageUrls.map(normalizeSeoUrl) },
       },
     });
     if (pages.length !== new Set(payload.pageUrls.map(normalizeSeoUrl)).size)
-      throw notFound("An analytics page is outside the selected Project");
+      throw notFound(
+        "An analytics page is outside the selected SEO collection",
+      );
     if (options.scope) {
       if (
         pages.length !== options.scope.pageIds.length ||
@@ -213,7 +225,7 @@ export async function recordNativeSeoMetrics(
         const scope = await client.projectSeoScope.findFirst({
           where: {
             id: options.scope.id,
-            projectId: actor.projectId,
+            ...seoOwnerWhere(actor),
             version: options.scope.version,
           },
         });
@@ -230,9 +242,9 @@ export async function recordNativeSeoMetrics(
       sourceKey = `native:${sha256(`${actor.userId}:${payload.provider}:${payload.propertyId}:${artifactHash}`)}`;
     const data: Prisma.InputJsonObject = payload;
     const result = await client.projectSeoObservation.upsert({
-      where: { projectId_sourceKey: { projectId: actor.projectId, sourceKey } },
+      where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
       create: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         ownerId: actor.userId,
         kind: "metrics",
         source: payload.provider,
@@ -259,7 +271,7 @@ export async function getProjectSeoWorkspace(
   actor: SeoActor,
   query: SeoWorkspaceQuery = {},
 ) {
-  const project = await requireSeoProject(actor);
+  const project = await requireSeoOwner(actor);
   const scope = await resolveSeoScope(actor, query);
   const privateMetricsAllowed = await canReadPrivateSeoMetrics(actor);
   const [
@@ -273,16 +285,16 @@ export async function getProjectSeoWorkspace(
     monitors,
   ] = await Promise.all([
     prisma.projectSeoPage.findMany({
-      where: { projectId: actor.projectId },
+      where: seoOwnerWhere(actor),
       orderBy: { createdAt: "asc" },
     }),
     prisma.projectSeoScope.findMany({
-      where: { projectId: actor.projectId },
+      where: seoOwnerWhere(actor),
       orderBy: { createdAt: "asc" },
     }),
     prisma.projectSeoObservation.findMany({
       where: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         pageIds: { hasSome: scope.pageIds },
         OR: [
           { ownerId: null },
@@ -293,23 +305,23 @@ export async function getProjectSeoWorkspace(
       take: 100,
     }),
     prisma.projectSeoKeyword.findMany({
-      where: { projectId: actor.projectId },
+      where: seoOwnerWhere(actor),
       orderBy: { keyword: "asc" },
     }),
     prisma.projectSeoCompetitor.findMany({
-      where: { projectId: actor.projectId },
+      where: seoOwnerWhere(actor),
       orderBy: { url: "asc" },
     }),
     prisma.projectSeoAnalysis.findMany({
       where: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         pageIds: { hasSome: scope.pageIds },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
     prisma.projectSeoActionTask.findMany({
-      where: { projectId: actor.projectId },
+      where: seoOwnerWhere(actor),
     }),
     listProjectSeoMonitors(actor),
   ]);

@@ -5,6 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useSession } from "@/lib/auth/auth.client";
+import {
+  seoOwnerApiPath,
+  seoViewerHeaders,
+  seoWorkspaceOwner,
+} from "@/lib/seo/owner";
 import { formText } from "./seo-form-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -14,6 +19,7 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
   const [workspace] = useState(() => model.data);
+  const owner = seoWorkspaceOwner(workspace);
   const [provider, setProvider] = useState<"ga4" | "search_console">("ga4");
   const [propertyId, setPropertyId] = useState("");
   const [from, setFrom] = useState(
@@ -31,17 +37,24 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
       "seo-properties",
       session?.session.activeOrganizationId,
       session?.user.id,
-      workspace.projectId,
+      owner.kind,
+      owner.id,
       provider,
     ],
     queryFn: async ({ signal }) => {
       const response = await fetch(
-        `/api/projects/${workspace.projectId}/seo/statistics/properties?provider=${provider}`,
-        { signal, cache: "no-store", credentials: "same-origin" },
+        `${seoOwnerApiPath(owner)}/statistics/properties?provider=${provider}`,
+        {
+          signal,
+          cache: "no-store",
+          headers: seoViewerHeaders(session?.user.id),
+          credentials: "same-origin",
+        },
       );
       if (!response.ok) throw new Error("Statistics properties unavailable");
       return response.json();
     },
+    enabled: !!session?.user.id,
     refetchOnWindowFocus: false,
   });
   const invalidDates =

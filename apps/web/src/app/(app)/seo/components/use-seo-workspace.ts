@@ -7,16 +7,19 @@ import type {
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { SEO_TABS } from "@/app/seo/seo-query";
-import { mutateProjectSeo } from "@/lib/actions/seo/action";
+import { mutateSeo } from "@/lib/actions/seo/action";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import { useSession } from "@/lib/auth/auth.client";
+import {
+  seoOwnerApiPath,
+  seoViewerHeaders,
+  seoWorkspaceOwner,
+} from "@/lib/seo/owner";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
 
@@ -33,15 +36,11 @@ export type SeoDialog =
   | "competitor"
   | null;
 
-export function useSeoWorkspace(
-  initialData: ProjectSeoWorkspace,
-  sokoBotId: string | null = null,
-) {
+export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
-  const router = useRouter();
-  const [openingChat, setOpeningChat] = useState(false);
-  const openingChatRef = useRef(false);
+  const owner = seoWorkspaceOwner(initialData);
+  const [chatOpen, setChatOpen] = useState(false);
   const [filters, setFilters] = useQueryStates({
     tab: parseAsStringLiteral(SEO_TABS).withDefault("overview"),
     pageId: parseAsString,
@@ -67,25 +66,29 @@ export function useSeoWorkspace(
     "seo-workspace",
     session?.session.activeOrganizationId,
     session?.user.id,
-    initialData.projectId,
+    owner.kind,
+    owner.id,
     query.toString(),
   ];
   const result = useQuery<ProjectSeoWorkspace>({
     queryKey: key,
     queryFn: async ({ signal }) => {
-      const response = await fetch(
-        `/api/projects/${initialData.projectId}/seo?${query}`,
-        { signal, credentials: "same-origin", cache: "no-store" },
-      );
+      const response = await fetch(`${seoOwnerApiPath(owner)}?${query}`, {
+        signal,
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: seoViewerHeaders(session?.user.id),
+      });
       if (!response.ok) throw new Error("SEO workspace unavailable");
       return response.json();
     },
     initialData:
+      !!session?.user.id &&
       query.toString() === initialQuery.current &&
       identity === initialIdentity.current
         ? initialData
         : undefined,
-    enabled: !invalidDates,
+    enabled: !invalidDates && !!session?.user.id,
     refetchOnWindowFocus: false,
     refetchInterval: (state) =>
       state.state.data?.analyses.some(
@@ -115,8 +118,8 @@ export function useSeoWorkspace(
     pendingRef.current = true;
     setPending(true);
     try {
-      const response = await mutateProjectSeo({
-        projectId: initialData.projectId,
+      const response = await mutateSeo({
+        owner,
         command,
       });
       if (!response.ok) {
@@ -150,23 +153,8 @@ export function useSeoWorkspace(
       setPending(false);
     }
   }
-  async function openChat() {
-    if (!sokoBotId || openingChatRef.current) return;
-    openingChatRef.current = true;
-    setOpeningChat(true);
-    try {
-      const result = await ensureSokoBotDirectRoomAction(sokoBotId);
-      if (!result.ok || !result.value) {
-        toast.error(t("openChatFailed"));
-        return;
-      }
-      router.push(`/chat/rooms/${encodeURIComponent(result.value.id)}`);
-    } catch {
-      toast.error(t("openChatFailed"));
-    } finally {
-      openingChatRef.current = false;
-      setOpeningChat(false);
-    }
+  function openChat() {
+    setChatOpen(true);
   }
   const data = result.data ?? initialData;
   const filteredKeywords = data.keywords.filter((row) =>
@@ -213,8 +201,11 @@ export function useSeoWorkspace(
   }
   return {
     data,
+    viewerKey: identity,
     openChat,
-    openingChat,
+    chatOpen,
+    setChatOpen,
+    owner,
     filteredKeywords,
     filteredCompetitors,
     toggleKeyword,

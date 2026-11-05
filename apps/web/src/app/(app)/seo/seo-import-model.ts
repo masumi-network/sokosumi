@@ -18,7 +18,7 @@ export function seoImportFiles(
 
 export function canImportSeoTask(
   task: Pick<Task, "projectId" | "visibility" | "status" | "ownerId">,
-  projectId: string,
+  projectId: string | null,
   userId: string,
 ) {
   return (

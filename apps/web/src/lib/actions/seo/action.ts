@@ -11,57 +11,64 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { SeoCommand } from "@/lib/actions/seo/types";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
+import type { SeoOwner } from "@/lib/seo/owner";
 import { seoServiceNoRedirect } from "@/lib/services/seo.service";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
-export const mutateProjectSeo = withSession<
-  AuthenticatedRequest & { projectId: string; command: SeoCommand },
+export const mutateSeo = withSession<
+  AuthenticatedRequest & { owner: SeoOwner; command: SeoCommand },
   ActionResultDto<null, ActionError>
->(async ({ projectId, command }) => {
-  if (!z.uuid().safeParse(projectId).success || !command) {
+>(async ({ owner, command }) => {
+  if (
+    !z
+      .object({ kind: z.enum(["audit", "project"]), id: z.uuid() })
+      .strict()
+      .safeParse(owner).success ||
+    !command
+  ) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
   try {
     switch (command.kind) {
       case "add_page":
-        await seoServiceNoRedirect.addPage(projectId, command.body);
+        await seoServiceNoRedirect.addPage(owner, command.body);
         break;
       case "create_scope":
-        await seoServiceNoRedirect.createScope(projectId, command.body);
+        await seoServiceNoRedirect.createScope(owner, command.body);
         break;
       case "update_scope":
         await seoServiceNoRedirect.updateScope(
-          projectId,
+          owner,
           command.scopeId,
           command.body,
         );
         break;
       case "import_audit":
-        await seoServiceNoRedirect.importAudit(projectId, command.body);
+        await seoServiceNoRedirect.importAudit(owner, command.body);
         break;
       case "record_page_change":
-        await seoServiceNoRedirect.recordPageChange(projectId, command.body);
+        await seoServiceNoRedirect.recordPageChange(owner, command.body);
         break;
       case "create_monitor":
-        await seoServiceNoRedirect.createMonitor(projectId, command.body);
+        await seoServiceNoRedirect.createMonitor(owner, command.body);
         break;
       case "request_analysis":
-        await seoServiceNoRedirect.requestAnalysis(projectId, command.body);
+        await seoServiceNoRedirect.requestAnalysis(owner, command.body);
         break;
       case "save_keyword":
-        await seoServiceNoRedirect.saveKeyword(projectId, command.body);
+        await seoServiceNoRedirect.saveKeyword(owner, command.body);
         break;
       case "save_competitor":
-        await seoServiceNoRedirect.saveCompetitor(projectId, command.body);
+        await seoServiceNoRedirect.saveCompetitor(owner, command.body);
         break;
       case "create_action_task":
-        await seoServiceNoRedirect.createActionTask(projectId, command.body);
+        await seoServiceNoRedirect.createActionTask(owner, command.body);
         break;
       case "sync_statistics":
-        await seoServiceNoRedirect.syncStatistics(projectId, command.body);
+        await seoServiceNoRedirect.syncStatistics(owner, command.body);
         break;
       default:
         return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));

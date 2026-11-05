@@ -13,12 +13,29 @@ import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
 import {
   commitSeoMutation,
   normalizeSeoUrl,
-  requireLockedSeoProject,
+  requireLockedSeoOwner,
+  requireSeoOwner,
   resolveSeoScope,
   type SeoMutationHooks,
+  seoOwnerUnique,
+  seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
+import { requireLockedOpenProject } from "./project-social-connections.service";
 import { createTaskForActor } from "./task-domain.service";
+
+async function requireSeoTaskProject(
+  actor: SeoActor,
+  tx: Prisma.TransactionClient,
+) {
+  const owner = await requireSeoOwner(actor, tx);
+  if (owner.projectId)
+    await requireLockedOpenProject(tx, {
+      projectId: owner.projectId,
+      workspaceId: actor.workspaceId,
+    });
+  return owner.projectId;
+}
 
 // Same disallowed priced operators as the public worker request protocol.
 const PRICED_SEARCH_OPERATOR =
@@ -114,15 +131,12 @@ export async function requestProjectSeoAnalysisInTransaction(
 ) {
   requireSeoAnalysisDispatch();
   const requestHash = sha256(JSON.stringify(input));
-  await requireLockedSeoProject(tx, actor);
+  await requireLockedSeoOwner(tx, actor);
   await hooks.authorize?.(tx);
   const previous = await tx.projectSeoAnalysis.findUnique({
-    where: {
-      projectId_idempotencyKey: {
-        projectId: actor.projectId,
-        idempotencyKey: input.idempotencyKey,
-      },
-    },
+    where: seoOwnerUnique(actor, "idempotencyKey", {
+      idempotencyKey: input.idempotencyKey,
+    }),
   });
   if (previous) {
     if (
@@ -143,7 +157,7 @@ export async function requestProjectSeoAnalysisInTransaction(
   if (!coworkerId) {
     const latest = await tx.projectSeoObservation.findFirst({
       where: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         source: "seo_coworker",
         ownerId: null,
         sourceTaskId: { not: null },
@@ -176,7 +190,7 @@ export async function requestProjectSeoAnalysisInTransaction(
   };
   const analysis = await tx.projectSeoAnalysis.create({
     data: {
-      projectId: actor.projectId,
+      ...seoOwnerWhere(actor),
       idempotencyKey: input.idempotencyKey,
       requestHash,
       kind: input.kind,
@@ -223,7 +237,7 @@ export async function requestProjectSeoAnalysisInTransaction(
       ownerId: actor.userId,
       organizationId: actor.organizationId,
       workspaceId: actor.workspaceId,
-      projectId: actor.projectId,
+      projectId: await requireSeoTaskProject(actor, tx),
       name: `SEO ${input.kind.replaceAll("_", " ")}`,
       description: `${input.kind === "audit_full" ? "seo_audit" : "seo_job"}: ${JSON.stringify(packet)}`,
       assigneeId: coworkerId,
@@ -253,15 +267,12 @@ export async function createProjectSeoActionTask(
   hooks: SeoMutationHooks = {},
 ) {
   return serializableTransaction(async (tx) => {
-    await requireLockedSeoProject(tx, actor);
+    await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
     const previousKey = await tx.projectSeoActionTask.findUnique({
-      where: {
-        projectId_idempotencyKey: {
-          projectId: actor.projectId,
-          idempotencyKey: input.idempotencyKey,
-        },
-      },
+      where: seoOwnerUnique(actor, "idempotencyKey", {
+        idempotencyKey: input.idempotencyKey,
+      }),
     });
     if (
       previousKey &&
@@ -274,19 +285,16 @@ export async function createProjectSeoActionTask(
     const previous =
       previousKey ??
       (await tx.projectSeoActionTask.findUnique({
-        where: {
-          projectId_observationId_actionId: {
-            projectId: actor.projectId,
-            observationId: input.observationId,
-            actionId: input.actionId,
-          },
-        },
+        where: seoOwnerUnique(actor, "observationId_actionId", {
+          observationId: input.observationId,
+          actionId: input.actionId,
+        }),
       }));
     if (previous) return commitSeoMutation(tx, previous, hooks);
     const observation = await tx.projectSeoObservation.findFirst({
       where: {
         id: input.observationId,
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         ownerId: null,
       },
     });
@@ -306,7 +314,7 @@ export async function createProjectSeoActionTask(
         ownerId: actor.userId,
         organizationId: actor.organizationId,
         workspaceId: actor.workspaceId,
-        projectId: actor.projectId,
+        projectId: await requireSeoTaskProject(actor, tx),
         name: action.title,
         description: `Page: ${action.pageUrl}\n\n${action.why}\n\nExpected effect (hypothesis): ${action.expectedEffect}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\nImplementation needs a fresh check before it is verified.`,
         status: "DRAFT",
@@ -316,7 +324,7 @@ export async function createProjectSeoActionTask(
     );
     const link = await tx.projectSeoActionTask.create({
       data: {
-        projectId: actor.projectId,
+        ...seoOwnerWhere(actor),
         observationId: observation.id,
         actionId: action.id,
         taskId: task.id,

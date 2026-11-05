@@ -13,44 +13,51 @@ import {
 } from "@/schemas/project-seo-statistics.schema";
 import { listProjectSeoStatisticsProperties } from "@/services/project-seo-statistics.service";
 
-const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
-const route = withOrganizationSlugHeaderParameter(
-  createRoute({
-    method: "get",
-    path: "/properties",
-    operationId: "listProjectSeoStatisticsProperties",
-    tags: ["Projects"],
-    request: {
-      params: seoProjectParamsSchema,
-      query: seoStatisticsProviderQuerySchema,
-    },
-    responses: {
-      200: jsonSuccessResponse(
-        projectSeoStatisticsPropertiesSchema,
-        "Native statistics properties",
+export function createSeoStatisticsPropertiesRouter(
+  ownerKind: "project" | "audit",
+) {
+  const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+  const route = withOrganizationSlugHeaderParameter(
+    createRoute({
+      method: "get",
+      path: "/properties",
+      operationId:
+        ownerKind === "audit"
+          ? "listSeoAuditStatisticsProperties"
+          : "listProjectSeoStatisticsProperties",
+      tags: ownerKind === "audit" ? ["SEO"] : ["Projects"],
+      request: {
+        params: seoProjectParamsSchema,
+        query: seoStatisticsProviderQuerySchema,
+      },
+      responses: {
+        200: jsonSuccessResponse(
+          projectSeoStatisticsPropertiesSchema,
+          "Native statistics properties",
+        ),
+        401: jsonErrorResponse("Unauthorized"),
+        403: jsonErrorResponse("Forbidden"),
+        404: jsonErrorResponse("Not found"),
+        422: jsonErrorResponse("Invalid statistics request"),
+      },
+    }),
+  );
+  app.openapi(route, async (c) => {
+    const { id } = c.req.valid("param");
+    const actor = requireSeoRouteActor(
+      {
+        authContext: c.get("authContext"),
+        workspaceContext: c.get("workspaceContext"),
+      },
+      { kind: ownerKind, id },
+    );
+    return ok(
+      c,
+      await listProjectSeoStatisticsProperties(
+        actor,
+        c.req.valid("query").provider,
       ),
-      401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("Not found"),
-      422: jsonErrorResponse("Invalid statistics request"),
-    },
-  }),
-);
-app.openapi(route, async (c) => {
-  const { id } = c.req.valid("param");
-  const actor = requireSeoRouteActor(
-    {
-      authContext: c.get("authContext"),
-      workspaceContext: c.get("workspaceContext"),
-    },
-    id,
-  );
-  return ok(
-    c,
-    await listProjectSeoStatisticsProperties(
-      actor,
-      c.req.valid("query").provider,
-    ),
-  );
-});
-export default app;
+    );
+  });
+  return app;
+}

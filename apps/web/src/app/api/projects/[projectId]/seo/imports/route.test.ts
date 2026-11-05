@@ -26,6 +26,7 @@ vi.mock("@/lib/clients/core.client", async () => ({
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
+import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import { GET } from "./route";
 
 const PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
@@ -41,6 +42,7 @@ function read(query = "") {
   return GET(
     new Request(
       `https://web.test/api/projects/${PROJECT}/seo/imports?${query}`,
+      { headers: { [SEO_VIEWER_HEADER]: "owner" } },
     ),
     { params: Promise.resolve({ projectId: PROJECT }) },
   );

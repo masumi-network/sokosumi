@@ -2,7 +2,29 @@
 
 REPORTED: the owner approved implementation of a page-scoped SEO workspace and changes to the public worker. The accepted views are Overview, Keywords, Competitors, Pages and Actions. The owner separately approved only the isolated localhost test database. Deployment, hosted migrations and another paid audit remain outside this implementation approval.
 
-## Delivered behavior
+## Native Audit revision
+
+REPORTED: the owner clarified that SEO must open as Audits, without a required Sokosumi Project or a separate personal assistant profile.
+
+VERIFIED: correction to the earlier naming change: changing the heading left `ProjectScopeRequired` in the empty entry and forwarded SEO chat to the personal assistant. The retained UI regression failed all three entry cases with that earlier page source. The native entry now lists real Workspace Audits and creates the first Page atomically. Evidence: `apps/web/src/app/(app)/seo/page.test.tsx` and `apps/core/src/services/seo-audit.postgres.test.ts`.
+
+VERIFIED: `SeoAudit` owns related pages in a Workspace. The seven existing SEO tables use an explicit Audit or legacy Project owner, enforced by database checks and independent unique keys. Existing Project-owned evidence stays intact. Evidence: `20261105160000_workspace_seo_audits/migration.sql`.
+
+VERIFIED: SEO chat stays inside the Audit UI. Its per-user history, draft identity, selected pages and current dispatch restrictions stay separate from personal assistant chats. It can explain stored results and propose native UI actions. It has no execution tools. Evidence: `seo-chat.postgres.test.ts`, `chat-context.test.ts` and `seo-workspace.test.tsx`.
+
+VERIFIED: native Google consent uses the existing Composio popup lifecycle and owner-bound connection records. It reuses a verified existing Google connection when available. No assistant is created. Consent starts only on an explicit Connect action and returns to the Audit. Evidence: `seo-connections.postgres.test.ts`, `seo-connections.service.test.ts` and `seo-connection-button.test.tsx`.
+
+VERIFIED: the native revision applied successfully only to the isolated localhost database. Prisma reported `502 migrations found` and `All migrations have been successfully applied.` Hosted deployment of this revision remains pending.
+
+VERIFIED: final native Core verification reported `626 passed (626)` across 22 files, including the isolated PostgreSQL regressions. The Soko Bot tool package reported `448 passed (448)`. The latest native Web flow run reported `78 passed (78)`. `pnpm precommit` reported `20 successful, 20 total`.
+
+VERIFIED: native chat reserves a daily allowance before inference, per user and Workspace across Audits. `SEO_CHAT_DAILY_TURN_LIMIT` defaults to `100`. Failed and expired attempts count. Replays do not count again. Exhaustion returns `429`. Evidence: `seo-chat-quota.postgres.test.ts` and `apps/core/src/config/env.ts`.
+
+VERIFIED: source reversion checks reproduced the old entry, asynchronous viewer cache, retry-key, missing import-header, hidden connection-control, OAuth cleanup and allowance failures. The corrected sources were restored and their regression suites passed. Evidence: `seo-workspace.test.tsx`, `page.test.tsx`, `seo-connections.postgres.test.ts` and `seo-chat-quota.postgres.test.ts`.
+
+The following evidence records the earlier Project-scoped implementation before this native revision.
+
+## Earlier delivered behavior
 
 VERIFIED: `apps/core/src/routes/v1/projects/[id]/seo/index.ts` mounts versioned Project operations. Stored evidence, page groups, saved keyword priorities and competitor choices remain separate. Each analysis freezes its pages, scope version, Market, devices and provider allowance before creating its Task. `project-seo.postgres.test.ts` checks dispatch retries, stale scope rejection and exact source authority.
 
@@ -42,7 +64,7 @@ REPORTED: native metadata-only review used the official Composio toolkit Markdow
 
 VERIFIED: local browser launch stopped at `Port 443 requires elevated privileges, but sudo elevation failed`. The required HTTPS proxy could not start without the machine owner's sudo step. No browser verification claim follows from component or API tests.
 
-## Release boundary
+## Earlier release boundary
 
 VERIFIED: implementation uses separate local worktrees. This change preserves existing deployment configuration and credentials. No hosted deployment or additional paid audit was run.
 

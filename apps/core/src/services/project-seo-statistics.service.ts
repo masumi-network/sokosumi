@@ -22,22 +22,18 @@ import {
   type SyncProjectSeoStatistics,
   syncProjectSeoStatisticsSchema,
 } from "@/schemas/project-seo-statistics.schema";
+import type { ComposioIntegrationAccount } from "@/services/composio-integration-tools.service";
+import {
+  listIntegrationTools,
+  readIntegrationTool,
+} from "@/services/composio-integration-tools.service";
+import { resolveSeoStatisticsIntegration } from "@/services/seo-connections.service";
 import {
   getProjectSeoWorkspace,
   recordNativeSeoMetrics,
 } from "./project-seo.service";
-import { requireSeoProject, type SeoMutationHooks } from "./project-seo-store";
-import {
-  type ActiveIntegration,
-  activeIntegrationsForBot,
-  listIntegrationTools,
-  readIntegrationTool,
-} from "./soko-bot-integrations.service";
+import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
 
-const PROVIDERS = {
-  ga4: "google_analytics",
-  search_console: "google_search_console",
-} as const;
 const MAX_PROPERTY_PAGES = 5;
 const PROPERTY_PAGE_SIZE = 100;
 
@@ -45,40 +41,14 @@ const PROPERTY_PAGE_SIZE = 100;
 async function integrationFor(
   actor: SeoActor,
   provider: SyncProjectSeoStatistics["provider"],
-): Promise<ActiveIntegration | null> {
-  await requireSeoProject(actor);
+): Promise<ComposioIntegrationAccount | null> {
+  await requireSeoOwner(actor);
   if (actor.sokoBotId && actor.privateMetricsAllowed !== true) return null;
-  const bot = await prisma.sokoBot.findFirst({
-    where: {
-      ...(actor.sokoBotId ? { id: actor.sokoBotId } : {}),
-      userId: actor.userId,
-      workspaceId: actor.workspaceId,
-      projectId: null,
-      archivedAt: null,
-      deletedAt: null,
-    },
-    select: { id: true },
-  });
-  if (!bot) return null;
-  const integrations = await activeIntegrationsForBot(
-    bot.id,
-    "generic",
-    PROVIDERS[provider],
-  );
-  const owned = integrations.filter(
-    (integration) =>
-      integration.connectorUserId === null ||
-      integration.connectorUserId === actor.userId,
-  );
-  if (owned.length > 1)
-    throw unprocessableEntity(
-      "Choose one active native connection for statistics",
-    );
-  return owned[0] ?? null;
+  return resolveSeoStatisticsIntegration(actor, provider);
 }
 
 async function toolFor(
-  integration: ActiveIntegration,
+  integration: ComposioIntegrationAccount,
   slug: string,
 ): Promise<SeoNativeTool> {
   const tools = await listIntegrationTools(integration, { limit: 100 });
@@ -91,7 +61,7 @@ async function toolFor(
 }
 
 async function read(
-  integration: ActiveIntegration,
+  integration: ComposioIntegrationAccount,
   tool: SeoNativeTool,
   logical: Record<string, unknown>,
 ) {
@@ -100,7 +70,7 @@ async function read(
 }
 
 async function propertyChoices(
-  integration: ActiveIntegration,
+  integration: ComposioIntegrationAccount,
   provider: SyncProjectSeoStatistics["provider"],
 ): Promise<ProjectSeoStatisticsProperties> {
   const properties: Array<{ id: string; name: string }> = [];
@@ -202,8 +172,7 @@ export async function listProjectSeoStatisticsProperties(
       provider,
       properties: [],
       status: "not_connected",
-      reason:
-        "Connect this account in your personal Soko Bot's native Connections.",
+      reason: "Connect this account in SEO statistics.",
     };
   try {
     return await propertyChoices(integration, provider);
@@ -248,7 +217,7 @@ export async function syncProjectSeoStatistics(
   hooks: SeoMutationHooks = {},
 ) {
   const input = syncProjectSeoStatisticsSchema.parse(raw);
-  await requireSeoProject(actor, prisma, true);
+  await requireSeoOwner(actor, prisma, true);
   const workspace = await getProjectSeoWorkspace(
     actor,
     input.scopeId ? { scopeId: input.scopeId } : {},
@@ -272,9 +241,7 @@ export async function syncProjectSeoStatistics(
   const pageUrls = selected.flatMap((page) => (page ? [page.url] : []));
   const integration = await integrationFor(actor, input.provider);
   if (!integration)
-    throw unprocessableEntity(
-      "Connect this account in your personal Soko Bot's native Connections",
-    );
+    throw unprocessableEntity("Connect this account in SEO statistics");
   const choices = await propertyChoices(integration, input.provider);
   if (!choices.properties.some((property) => property.id === input.propertyId))
     throw unprocessableEntity(
@@ -329,7 +296,7 @@ export async function syncProjectSeoStatistics(
   const current = await integrationFor(actor, input.provider);
   if (
     !current ||
-    current.id !== integration.id ||
+    current.entityId !== integration.entityId ||
     current.composioAccountId !== integration.composioAccountId
   )
     throw unprocessableEntity(

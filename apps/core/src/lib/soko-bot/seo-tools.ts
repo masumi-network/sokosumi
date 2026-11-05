@@ -44,7 +44,8 @@ export async function runSeoTool(
 ): Promise<unknown> {
   const parsed = SOKO_BOT_SEO_INPUT_SCHEMAS[capability].parse(rawInput);
   const { projectId, ...fields } = parsed;
-  if (projectId !== actor.projectId) throw new Error("SEO Project mismatch");
+  if (actor.owner.kind !== "project" || projectId !== actor.owner.id)
+    throw new Error("SEO Project mismatch");
   const link = `/seo?projectId=${encodeURIComponent(projectId)}`;
   if (capability === "get_seo_workspace") {
     return {

@@ -36782,8 +36782,24 @@ export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
         projectId: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             format: 'uuid'
+        },
+        auditId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        auditName: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         websiteUrl: {
             type: [
@@ -36955,6 +36971,8 @@ export const ProjectSeoWorkspaceSchema = {
     },
     required: [
         'projectId',
+        'auditId',
+        'auditName',
         'websiteUrl',
         'scope',
         'pages',
@@ -38465,6 +38483,409 @@ export const PatchProjectRequestSchema = {
             example: '# Posting instructions\n\nTone: friendly, concise.\n\n## X\n\nOne hashtag max.'
         }
     }
+} as const;
+
+export const SeoAuditSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        pageCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'projectId',
+        'pageCount',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const CreateSeoAuditRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        firstPage: {
+            type: 'object',
+            properties: {
+                url: {
+                    type: 'string',
+                    maxLength: 4096,
+                    format: 'uri'
+                },
+                label: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                relationship: {
+                    type: 'string',
+                    enum: [
+                        'primary',
+                        'related'
+                    ],
+                    default: 'primary'
+                }
+            },
+            required: [
+                'url'
+            ],
+            additionalProperties: false
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'name',
+        'firstPage'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoAuditChatHistorySchema = {
+    type: 'object',
+    properties: {
+        turns: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SeoAuditChatTurn'
+            }
+        }
+    },
+    required: [
+        'turns'
+    ]
+} as const;
+
+export const SeoAuditChatTurnSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        question: {
+            type: 'string'
+        },
+        response: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        actions: {
+            type: 'array',
+            items: {
+                oneOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'connect'
+                                ]
+                            },
+                            provider: {
+                                type: 'string',
+                                enum: [
+                                    'ga4',
+                                    'search_console'
+                                ]
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'provider'
+                        ],
+                        additionalProperties: false
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'open'
+                                ]
+                            },
+                            dialog: {
+                                type: 'string',
+                                enum: [
+                                    'page',
+                                    'keyword',
+                                    'competitor',
+                                    'import',
+                                    'analysis',
+                                    'statistics',
+                                    'page_change'
+                                ]
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'dialog'
+                        ],
+                        additionalProperties: false
+                    }
+                ]
+            }
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'completed',
+                'failed'
+            ]
+        },
+        scope: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string'
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                scopeId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                version: {
+                    type: 'integer'
+                },
+                from: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                to: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'pageIds',
+                'scopeId',
+                'version',
+                'from',
+                'to'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'question',
+        'response',
+        'actions',
+        'status',
+        'scope',
+        'createdAt'
+    ]
+} as const;
+
+export const SendSeoAuditChatRequestSchema = {
+    type: 'object',
+    properties: {
+        question: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128
+        },
+        scope: {
+            type: 'object',
+            properties: {
+                scopeId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                pageId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    minItems: 1,
+                    maxItems: 10
+                },
+                from: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                to: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                channel: {
+                    type: 'string',
+                    enum: [
+                        'all',
+                        'organic'
+                    ]
+                }
+            }
+        }
+    },
+    required: [
+        'question',
+        'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoConnectionStatusSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'ga4',
+                'search_console'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'not_connected',
+                'pending',
+                'connected',
+                'needs_reconnect',
+                'unavailable'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'native',
+                'personal',
+                'none'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'name',
+        'status',
+        'source'
+    ]
+} as const;
+
+export const ConnectSeoConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string'
+        },
+        redirectUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'connectionId',
+        'redirectUrl'
+    ]
+} as const;
+
+export const ConnectSeoConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        callbackUrl: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    additionalProperties: false
+} as const;
+
+export const FinalizeSeoConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        }
+    },
+    required: [
+        'connectionId'
+    ],
+    additionalProperties: false
+} as const;
+
+export const DisconnectSeoConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        disconnected: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'disconnected'
+    ]
 } as const;
 
 export const PublicNewsletterSchema = {

@@ -9,7 +9,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { DailyBarChart } from "@/components/performance/daily-bar-chart";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { SeoActions } from "./seo-actions";
 import { SeoMonitors } from "./seo-monitors";
@@ -133,8 +132,8 @@ export function SeoMeasurements({
           </p>
           {workspace.metricsStatus === "not_connected" ||
           workspace.metricsStatus === "unavailable" ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={SOKO_BOT_ROUTE}>{t("overview.openBot")}</Link>
+            <Button variant="outline" size="sm" onClick={onSync}>
+              {t("overview.manageConnections")}
             </Button>
           ) : null}
         </div>

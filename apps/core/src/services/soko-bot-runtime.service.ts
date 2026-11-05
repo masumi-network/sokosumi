@@ -336,6 +336,12 @@ import {
   saveCmoStrategy,
 } from "@/services/cmo-strategy.service";
 import {
+  adToolkitRefusal,
+  listIntegrationTools,
+  readIntegrationTool,
+  runIntegrationTool,
+} from "@/services/composio-integration-tools.service";
+import {
   enrichContactFromWeb,
   findPeopleForList,
 } from "@/services/contact-suggestions.service";
@@ -428,17 +434,13 @@ import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
 import {
   activeIntegrationsForBot,
-  adToolkitRefusal,
   createInboxDraft,
   fetchCalendarEvents,
   fetchInboxAttachment,
   fetchInboxMessage,
   fetchInboxPage,
   INBOX_ATTACHMENT_MAX_BYTES,
-  listIntegrationTools,
   modifyInboxMessages,
-  readIntegrationTool,
-  runIntegrationTool,
   searchSokoBotIntegrationCatalog,
   sendInboxDraft,
 } from "@/services/soko-bot-integrations.service";
@@ -7248,7 +7250,7 @@ export class SokoBotRuntimeService {
       input.capability,
       input.input,
       {
-        projectId,
+        owner: { kind: "project", id: projectId },
         workspaceId: authorized.turn.workspaceId,
         userId: actingMemberOf(authorized),
         organizationId: workspace.organizationId,

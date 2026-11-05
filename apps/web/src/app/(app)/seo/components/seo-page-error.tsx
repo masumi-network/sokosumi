@@ -25,7 +25,9 @@ export function SeoPageError({
           {t("retry")}
         </Button>
         <Button asChild>
-          <Link href={resetHref}>{t("resetFilters")}</Link>
+          <Link href={resetHref}>
+            {t(invalidFilters ? "resetFilters" : "audits.all")}
+          </Link>
         </Button>
       </div>
     </SeoEmpty>

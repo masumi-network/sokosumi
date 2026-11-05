@@ -12,13 +12,17 @@ vi.mock("@/lib/services/seo.service", () => ({
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
+import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import { GET } from "./route";
 
 const PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
 const PAGE = "2c32dca9-c44f-4372-9114-8c146d5eb30b";
-function read(query = "") {
+function read(query = "", expectedViewer: string | null = "owner") {
   return GET(
-    new Request(`https://web.test/api/projects/${PROJECT}/seo?${query}`),
+    new Request(`https://web.test/api/projects/${PROJECT}/seo?${query}`, {
+      headers:
+        expectedViewer === null ? {} : { [SEO_VIEWER_HEADER]: expectedViewer },
+    }),
     { params: Promise.resolve({ projectId: PROJECT }) },
   );
 }
@@ -35,16 +39,28 @@ describe("private SEO read boundary", () => {
     const response = await read(`pageId=${PAGE}&from=2026-01-01&to=2026-01-02`);
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(mocks.getWorkspace).toHaveBeenCalledWith(PROJECT, {
-      pageId: PAGE,
-      from: "2026-01-01",
-      to: "2026-01-02",
-    });
+    expect(mocks.getWorkspace).toHaveBeenCalledWith(
+      { kind: "project", id: PROJECT },
+      {
+        pageId: PAGE,
+        from: "2026-01-01",
+        to: "2026-01-02",
+      },
+    );
   });
   it("refuses ambiguous scope instead of fetching broader data", async () => {
     expect((await read(`pageId=${PAGE}&scopeId=${PROJECT}`)).status).toBe(400);
     expect(mocks.getWorkspace).not.toHaveBeenCalled();
   });
+  it.each(["another-owner", null])(
+    "refuses private data when the expected viewer is %s",
+    async (expectedViewer) => {
+      const response = await read("", expectedViewer);
+      expect(response.status).toBe(409);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(mocks.getWorkspace).not.toHaveBeenCalled();
+    },
+  );
   it("rejects Core explicit multi-page URL filters rather than dropping them", async () => {
     expect((await read(`pageIds=${PAGE}&pageIds=${PROJECT}`)).status).toBe(400);
     expect(mocks.getWorkspace).not.toHaveBeenCalled();

@@ -15,7 +15,7 @@ const userId = randomUUID(),
   workspaceId = randomUUID(),
   projectId = randomUUID();
 const actor: SeoActor = {
-  projectId,
+  owner: { kind: "project", id: projectId },
   workspaceId,
   userId,
   organizationId: null,

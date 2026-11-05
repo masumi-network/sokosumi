@@ -23,9 +23,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { SeoActions } from "./seo-actions";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
+import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoCompetitors } from "./seo-competitors";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoImportDialog } from "./seo-import-dialog";
@@ -41,15 +41,13 @@ import { useSeoWorkspace } from "./use-seo-workspace";
 export function SeoWorkspace({
   workspace,
   coworkers,
-  sokoBotId = null,
 }: {
   workspace: ProjectSeoWorkspace;
   coworkers: Coworker[];
-  sokoBotId?: string | null;
 }) {
   const t = useTranslations("App.Seo");
-  const model = useSeoWorkspace(workspace, sokoBotId);
-  const dialogKey = `${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}`;
+  const model = useSeoWorkspace(workspace);
+  const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}`;
   const editDialog =
     model.dialog === "page" ||
     model.dialog === "scope" ||
@@ -59,20 +57,30 @@ export function SeoWorkspace({
   const unavailable = model.loadingScope || model.invalidDates;
   return (
     <div className="space-y-6">
+      <div className="space-y-2">
+        <Link
+          href="/seo"
+          className="text-muted-foreground text-sm underline underline-offset-4"
+        >
+          {t("audits.all")}
+        </Link>
+        {model.data.auditName ? (
+          <h2 className="text-xl font-semibold">{model.data.auditName}</h2>
+        ) : null}
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">{t("intro")}</p>
         <div className="flex flex-wrap gap-2">
-          {sokoBotId ? (
+          {model.data.auditId ? (
             <Button
               variant="outline"
               size="sm"
-              loading={model.openingChat}
               onClick={() => {
                 void model.openChat();
               }}
             >
               <MessageSquare className="size-4" />
-              {t("askBot")}
+              {t("chat.title")}
             </Button>
           ) : null}
           {model.data.availableActions.canEdit ? (
@@ -140,12 +148,12 @@ export function SeoWorkspace({
                   {t("monitor.create")}
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem asChild>
-                <Link href={SOKO_BOT_ROUTE}>
+              {model.data.auditId ? (
+                <DropdownMenuItem onSelect={model.openChat}>
                   <MessageSquare className="size-4" />
-                  {t("overview.openBot")}
-                </Link>
-              </DropdownMenuItem>
+                  {t("chat.title")}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
           {model.data.availableActions.canRequestAnalysis ? (
@@ -251,6 +259,7 @@ export function SeoWorkspace({
           </>
         )}
       </Tabs>
+      {model.data.auditId ? <SeoChatPanel model={model} /> : null}
       {!unavailable ? (
         <>
           {editDialog ? <SeoEditDialog key={dialogKey} model={model} /> : null}

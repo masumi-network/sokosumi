@@ -2,14 +2,12 @@ import { createHash } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 
+import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { badRequest, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
 import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
-import {
-  requireLockedOpenProject,
-  requireScopedProject,
-} from "@/services/project-social-connections.service";
+import { requireScopedProject } from "@/services/project-social-connections.service";
 
 export const SEO_RESULT_LIMIT = 100;
 export const SEO_ARTIFACT_MAX_BYTES = 2 * 1024 * 1024;
@@ -27,10 +25,36 @@ export function normalizeSeoUrl(value: string): string {
   url.hash = "";
   return url.href;
 }
-export async function requireSeoProject(
-  actor: SeoActor,
+export type SeoWorkspaceActor = Pick<
+  SeoActor,
+  "workspaceId" | "userId" | "organizationId"
+>;
+
+/** Each predicate names both columns. Undefined must never widen an SEO owner. */
+export function seoOwnerWhere(actor: Pick<SeoActor, "owner">) {
+  return actor.owner.kind === "audit"
+    ? { auditId: actor.owner.id, projectId: null }
+    : { projectId: actor.owner.id, auditId: null };
+}
+export const seoOwnerData = seoOwnerWhere;
+type SeoOwnerUnique<S extends string, T> =
+  | { [K in `projectId_${S}`]: T & { projectId: string } }
+  | { [K in `auditId_${S}`]: T & { auditId: string } };
+
+export function seoOwnerUnique<S extends string, T extends object>(
+  actor: Pick<SeoActor, "owner">,
+  suffix: S,
+  fields: T,
+): SeoOwnerUnique<S, T> {
+  const column = actor.owner.kind === "audit" ? "auditId" : "projectId";
+  return {
+    [`${column}_${suffix}`]: { [column]: actor.owner.id, ...fields },
+  } as SeoOwnerUnique<S, T>;
+}
+
+export async function requireSeoWorkspace(
+  actor: SeoWorkspaceActor,
   client: Prisma.TransactionClient = prisma,
-  requireOpen = false,
 ) {
   const workspace = await client.workspace.findFirst({
     where: {
@@ -49,24 +73,69 @@ export async function requireSeoProject(
     actor.organizationId,
     client,
   );
-  await requireScopedProject(actor, {
+  return workspace;
+}
+export async function requireSeoOwner(
+  actor: SeoActor,
+  client: Prisma.TransactionClient = prisma,
+  requireOpen = false,
+) {
+  await requireSeoWorkspace(actor, client);
+  if (actor.owner.kind === "audit") {
+    const audit = await client.seoAudit.findFirst({
+      where: { id: actor.owner.id, workspaceId: actor.workspaceId },
+      select: { id: true, projectId: true, name: true },
+    });
+    if (!audit) throw notFound("SEO audit not found");
+    return {
+      id: audit.id,
+      auditId: audit.id,
+      projectId: audit.projectId,
+      name: audit.name,
+      websiteUrl: null,
+      closingAt: null,
+      closedAt: null,
+    };
+  }
+  const projectActor = {
+    projectId: actor.owner.id,
+    workspaceId: actor.workspaceId,
+  };
+  await requireScopedProject(projectActor, {
     client,
     requireOpen,
     closedMessage: "Cannot change a closing or closed Project",
   });
   const project = await client.project.findFirst({
-    where: { id: actor.projectId, workspaceId: actor.workspaceId },
+    where: { id: actor.owner.id, workspaceId: actor.workspaceId },
     select: { id: true, websiteUrl: true, closingAt: true, closedAt: true },
   });
   if (!project) throw notFound("Project not found");
-  return project;
+  return { ...project, projectId: project.id, auditId: null, name: null };
 }
-export async function requireLockedSeoProject(
+export async function requireLockedSeoOwner(
   client: Prisma.TransactionClient,
   actor: SeoActor,
 ): Promise<void> {
-  await requireLockedOpenProject(client, actor);
-  await requireSeoProject(actor, client, true);
+  const projectIds = actor.owner.kind === "project" ? [actor.owner.id] : [];
+  if (
+    !(await lockCalendarScope(
+      client,
+      actor.workspaceId,
+      projectIds,
+      actor.userId,
+    ))
+  )
+    throw notFound("SEO workspace not found");
+  if (actor.owner.kind === "audit") {
+    const rows = await client.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "seo_audit"
+      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid
+      FOR UPDATE
+    `;
+    if (!rows.length) throw notFound("SEO audit not found");
+  }
+  await requireSeoOwner(actor, client, true);
 }
 export async function canReadPrivateSeoMetrics(
   actor: SeoActor,
@@ -110,11 +179,11 @@ export async function requireSeoPages(
   const ids = [...new Set(pageIds)];
   if (!ids.length) throw badRequest("Select at least one page");
   const pages = await client.projectSeoPage.findMany({
-    where: { projectId: actor.projectId, id: { in: ids } },
+    where: { ...seoOwnerWhere(actor), id: { in: ids } },
     orderBy: { createdAt: "asc" },
   });
   if (pages.length !== ids.length)
-    throw notFound("A selected page is not in this Project");
+    throw notFound("A selected page is outside this SEO collection");
   return pages;
 }
 export async function resolveSeoScope(
@@ -124,7 +193,7 @@ export async function resolveSeoScope(
 ) {
   if (input.scopeId) {
     const scope = await client.projectSeoScope.findFirst({
-      where: { id: input.scopeId, projectId: actor.projectId },
+      where: { id: input.scopeId, ...seoOwnerWhere(actor) },
     });
     if (!scope) throw notFound("SEO page group not found");
     const pages = await requireSeoPages(actor, scope.pageIds, client);
@@ -140,7 +209,7 @@ export async function resolveSeoScope(
   const pages = ids
     ? await requireSeoPages(actor, ids, client)
     : await client.projectSeoPage.findMany({
-        where: { projectId: actor.projectId },
+        where: seoOwnerWhere(actor),
         orderBy: { createdAt: "asc" },
       });
   return {

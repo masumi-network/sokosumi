@@ -267,7 +267,7 @@ function ScopedMenuItems({
         <SidebarMenuButton asChild isActive={isActive}>
           <SheetClose asChild>
             <Link
-              href={hrefFor(href)}
+              href={key === "seo" ? href : hrefFor(href)}
               onClick={() => feature && markFeatureSeen(feature)}
               aria-current={isActive ? "page" : undefined}
               className={cn(

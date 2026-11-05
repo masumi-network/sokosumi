@@ -1,8 +1,10 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import properties from "./properties";
-import sync from "./sync";
+import { createSeoStatisticsPropertiesRouter } from "./properties";
+import { createSeoStatisticsSyncRouter } from "./sync";
 
-const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
-app.route("/", properties);
-app.route("/", sync);
-export default app;
+export function createSeoStatisticsRouter(ownerKind: "project" | "audit") {
+  const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+  app.route("/", createSeoStatisticsPropertiesRouter(ownerKind));
+  app.route("/", createSeoStatisticsSyncRouter(ownerKind));
+  return app;
+}

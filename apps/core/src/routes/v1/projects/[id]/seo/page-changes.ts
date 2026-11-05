@@ -14,40 +14,48 @@ import {
 import { getProjectSeoWorkspace } from "@/services/project-seo.service";
 import { recordProjectSeoPageChange } from "@/services/project-seo-page-changes.service";
 
-const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
-app.openapi(
-  withOrganizationSlugHeaderParameter(
-    createRoute({
-      method: "post",
-      path: "/page-changes",
-      operationId: "recordProjectSeoPageChange",
-      tags: ["Projects"],
-      request: {
-        params: seoProjectParamsSchema,
-        body: {
-          content: {
-            "application/json": { schema: recordSeoPageChangeSchema },
+export function createSeoPageChangesRouter(ownerKind: "project" | "audit") {
+  const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+  app.openapi(
+    withOrganizationSlugHeaderParameter(
+      createRoute({
+        method: "post",
+        path: "/page-changes",
+        operationId:
+          ownerKind === "audit"
+            ? "recordSeoAuditPageChange"
+            : "recordProjectSeoPageChange",
+        tags: ownerKind === "audit" ? ["SEO"] : ["Projects"],
+        request: {
+          params: seoProjectParamsSchema,
+          body: {
+            content: {
+              "application/json": { schema: recordSeoPageChangeSchema },
+            },
+            required: true,
           },
-          required: true,
         },
-      },
-      responses: {
-        200: jsonSuccessResponse(
-          projectSeoWorkspaceSchema,
-          "Project SEO workspace",
-        ),
-        400: jsonErrorResponse("Invalid page change"),
-        401: jsonErrorResponse("Unauthorized"),
-        403: jsonErrorResponse("Forbidden"),
-        404: jsonErrorResponse("Not found"),
-        409: jsonErrorResponse("Conflicting page change"),
-      },
-    }),
-  ),
-  async (c) => {
-    const actor = requireSeoRouteActor(c.var, c.req.valid("param").id);
-    await recordProjectSeoPageChange(actor, c.req.valid("json"));
-    return ok(c, await getProjectSeoWorkspace(actor));
-  },
-);
-export default app;
+        responses: {
+          200: jsonSuccessResponse(
+            projectSeoWorkspaceSchema,
+            "Project SEO workspace",
+          ),
+          400: jsonErrorResponse("Invalid page change"),
+          401: jsonErrorResponse("Unauthorized"),
+          403: jsonErrorResponse("Forbidden"),
+          404: jsonErrorResponse("Not found"),
+          409: jsonErrorResponse("Conflicting page change"),
+        },
+      }),
+    ),
+    async (c) => {
+      const actor = requireSeoRouteActor(c.var, {
+        kind: ownerKind,
+        id: c.req.valid("param").id,
+      });
+      await recordProjectSeoPageChange(actor, c.req.valid("json"));
+      return ok(c, await getProjectSeoWorkspace(actor));
+    },
+  );
+  return app;
+}

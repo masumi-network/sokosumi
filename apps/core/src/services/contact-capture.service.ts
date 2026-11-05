@@ -48,6 +48,10 @@ import { normalizePersonName } from "@/lib/contacts/merge-rules";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
+  runIntegrationTool,
+  SokoBotIntegrationError,
+} from "@/services/composio-integration-tools.service";
+import {
   type EnrichmentStats,
   emptyEnrichmentStats,
   enrichWorkspaceContacts,
@@ -70,8 +74,6 @@ import {
   fetchCalendarPage,
   fetchInboxPage,
   resolveProvider,
-  runIntegrationTool,
-  SokoBotIntegrationError,
 } from "@/services/soko-bot-integrations.service";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;

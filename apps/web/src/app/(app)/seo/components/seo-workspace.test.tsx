@@ -1,4 +1,8 @@
-import type { Coworker, ProjectSeoWorkspace } from "@sokosumi/core-client";
+import type {
+  Coworker,
+  ProjectSeoWorkspace,
+  SeoAuditChatHistory,
+} from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -13,8 +17,9 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import messages from "../../../../../messages/en.json";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { SEO_TEST_AUDIT, seoTestWorkspace } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate, viewer, ensureRoom, push } = vi.hoisted(() => ({
@@ -32,7 +37,7 @@ vi.mock("next/navigation", async () => ({
   )),
   useRouter: () => ({ push }),
 }));
-vi.mock("@/lib/actions/seo/action", () => ({ mutateProjectSeo: mutate }));
+vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
@@ -43,10 +48,47 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const clients: QueryClient[] = [];
+function nativeChatNetwork(
+  workspace: ProjectSeoWorkspace,
+  options: { uncertainFirst?: boolean; failedFirst?: boolean } = {},
+) {
+  const requests: Array<{
+    question: string;
+    idempotencyKey: string;
+    scope: Record<string, unknown>;
+  }> = [];
+  const turns: Array<Record<string, unknown>> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith("/chat")) return Response.json(workspace);
+      if (init?.method !== "POST") return Response.json({ turns });
+      if (typeof init.body !== "string")
+        throw new Error("Missing JSON question");
+      const body = JSON.parse(init.body);
+      requests.push(body);
+      if (options.uncertainFirst && requests.length === 1)
+        throw new Error("Uncertain response");
+      const turn = {
+        id: crypto.randomUUID(),
+        question: body.question,
+        status:
+          options.failedFirst && requests.length === 1 ? "failed" : "completed",
+        response: "The selected page needs a clearer title.",
+        actions: [],
+        scope: { pageIds: workspace.scope.pageIds },
+        createdAt: new Date().toISOString(),
+      };
+      turns.push(turn);
+      return Response.json(turn);
+    }),
+  );
+  return requests;
+}
+
 function renderWorkspace(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
-  sokoBotId: string | null = null,
   coworkers: Coworker[] = [],
 ) {
   const client = new QueryClient({
@@ -62,11 +104,7 @@ function renderWorkspace(
         messages={messages}
       >
         <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-          <SeoWorkspace
-            workspace={workspace}
-            coworkers={coworkers}
-            sokoBotId={sokoBotId}
-          />
+          <SeoWorkspace workspace={workspace} coworkers={coworkers} />
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
     </QueryClientProvider>
@@ -85,11 +123,7 @@ function renderWorkspace(
             messages={messages}
           >
             <NuqsTestingAdapter searchParams={searchParams} hasMemory>
-              <SeoWorkspace
-                workspace={workspace}
-                coworkers={coworkers}
-                sokoBotId={sokoBotId}
-              />
+              <SeoWorkspace workspace={workspace} coworkers={coworkers} />
             </NuqsTestingAdapter>
           </NextIntlClientProvider>
         </QueryClientProvider>,
@@ -178,9 +212,7 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     expect(screen.getByText("Previous page finding")).toBeVisible();
-    await user.click(
-      screen.getByRole("combobox", { name: "Pages or page group" }),
-    );
+    await user.click(screen.getByRole("combobox", { name: "Pages" }));
     await user.click(screen.getByRole("option", { name: "Other page" }));
     await waitFor(() =>
       expect(
@@ -234,11 +266,13 @@ describe("SEO workspace integration", () => {
     });
     const view = renderWorkspace(workspace, `?scopeId=${workspace.scope.id}`);
     await waitFor(() => expect(fetch).toHaveBeenCalled());
-    await user.click(screen.getByRole("button", { name: "Edit page group" }));
+    await user.click(
+      screen.getByRole("button", { name: "Edit page selection" }),
+    );
     const dialog = screen.getByRole("dialog");
-    await user.clear(within(dialog).getByLabelText("Page group name"));
+    await user.clear(within(dialog).getByLabelText("Selection name"));
     await user.type(
-      within(dialog).getByLabelText("Page group name"),
+      within(dialog).getByLabelText("Selection name"),
       "My group edit",
     );
     const updated = {
@@ -252,6 +286,7 @@ describe("SEO workspace integration", () => {
           "seo-workspace",
           "org",
           "owner",
+          "project",
           workspace.projectId,
           `scopeId=${workspace.scope.id}`,
         ],
@@ -260,7 +295,7 @@ describe("SEO workspace integration", () => {
     });
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     expect(mutate).toHaveBeenCalledWith({
-      projectId: workspace.projectId,
+      owner: { kind: "project", id: workspace.projectId },
       command: {
         kind: "update_scope",
         scopeId: workspace.scope.id,
@@ -281,7 +316,7 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     mutate.mockResolvedValue({ ok: true, value: null });
-    renderWorkspace(workspace, "", null, [
+    renderWorkspace(workspace, "", [
       { id: "seo-coworker", name: "SEO Coworker" } as Coworker,
     ]);
     await user.click(screen.getByRole("button", { name: "Schedule checks" }));
@@ -318,7 +353,7 @@ describe("SEO workspace integration", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     expect(mutate).toHaveBeenCalledWith({
-      projectId: workspace.projectId,
+      owner: { kind: "project", id: workspace.projectId },
       command: {
         kind: "create_monitor",
         body: {
@@ -370,7 +405,7 @@ describe("SEO workspace integration", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     expect(mutate).toHaveBeenCalledWith({
-      projectId: workspace.projectId,
+      owner: { kind: "project", id: workspace.projectId },
       command: {
         kind: "record_page_change",
         body: {
@@ -380,6 +415,77 @@ describe("SEO workspace integration", () => {
           note: "Published in CMS",
           idempotencyKey: expect.any(String),
         },
+      },
+    });
+  });
+
+  it("binds both import dialog reads to the current viewer before importing a ready report", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    const task = {
+      id: "report-task",
+      name: "Completed SEO check",
+      assignee: { type: "coworker", id: "seo-coworker" },
+      files: [
+        {
+          id: "ready-report",
+          name: "seo-report-report-task.json",
+          status: "READY",
+          mimeType: "application/json",
+          uploader: { type: "coworker", id: "seo-coworker" },
+        },
+      ],
+    };
+    const reads: Array<{ url: string; viewer: string | null }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.includes("/imports?")) return Response.json(workspace);
+        reads.push({
+          url,
+          viewer: new Headers(init?.headers).get(SEO_VIEWER_HEADER),
+        });
+        return Response.json(
+          url.includes("taskId=")
+            ? { task }
+            : { tasks: [task], nextCursor: null },
+        );
+      }),
+    );
+    mutate.mockResolvedValue({ ok: true, value: null });
+    renderWorkspace(workspace);
+    await user.click(
+      screen.getAllByRole("button", { name: "Import a report" })[0],
+    );
+    const dialog = screen.getByRole("dialog", { name: "Import an audit" });
+    await user.click(
+      await within(dialog).findByRole("combobox", { name: "Completed task" }),
+    );
+    await user.click(screen.getByRole("option", { name: task.name }));
+    await user.click(
+      await within(dialog).findByRole("combobox", { name: "SEO report" }),
+    );
+    await user.click(screen.getByRole("option", { name: task.files[0].name }));
+    expect(reads).toEqual([
+      { url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?q=`, viewer: "owner" },
+      {
+        url: `/api/seo/audits/${SEO_TEST_AUDIT}/imports?taskId=${task.id}`,
+        viewer: "owner",
+      },
+    ]);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Import report" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mutate).toHaveBeenCalledWith({
+      owner: { kind: "audit", id: SEO_TEST_AUDIT },
+      command: {
+        kind: "import_audit",
+        body: { taskId: task.id, fileId: task.files[0].id },
       },
     });
   });
@@ -450,7 +556,7 @@ describe("SEO workspace integration", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     expect(mutate).toHaveBeenCalledWith({
-      projectId: workspace.projectId,
+      owner: { kind: "project", id: workspace.projectId },
       command: {
         kind: "sync_statistics",
         body: expect.objectContaining({
@@ -465,18 +571,250 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByText("41")).toBeVisible();
   });
 
-  it("opens the existing native Soko Bot chat without sending a message", async () => {
-    const user = userEvent.setup();
+  it("keeps connection management available when Google properties already exist", async () => {
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("/api/seo/connections/")
+            ? {
+                provider: "ga4",
+                name: "Google Analytics",
+                status: "connected",
+                source: "native",
+              }
+            : url.includes("/statistics/properties")
+              ? {
+                  provider: "ga4",
+                  status: "available",
+                  reason: null,
+                  properties: [
+                    { id: "properties/123", name: "Current Google account" },
+                  ],
+                }
+              : workspace,
+        ),
+      ),
     );
-    ensureRoom.mockResolvedValue({ ok: true, value: { id: "native-room" } });
-    renderWorkspace(workspace, "", "own-bot");
-    await user.click(screen.getByRole("button", { name: "Ask Soko Bot" }));
-    expect(ensureRoom).toHaveBeenCalledWith("own-bot");
-    expect(push).toHaveBeenCalledWith("/chat/rooms/native-room");
+    renderWorkspace(workspace);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Sync statistics" }),
+    );
+    expect(
+      await screen.findByRole("combobox", { name: "Property" }),
+    ).toBeVisible();
+    expect(
+      await screen.findByRole("button", {
+        name: "Disconnect Google Analytics",
+      }),
+    ).toBeVisible();
+  });
+
+  it("opens embedded SEO chat without assistant setup, navigation, or a paid send", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) =>
+      Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}`);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    const panel = await screen.findByRole("dialog", { name: "SEO chat" });
+    expect(within(panel).getByLabelText("Your question")).toBeVisible();
+    expect(
+      await within(panel).findByText("What would you like to improve?"),
+    ).toBeVisible();
+    expect(ensureRoom).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => url === `/api/seo/audits/${SEO_TEST_AUDIT}/chat`,
+      ),
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([, init]) => init?.method === "POST"),
+    ).toBe(false);
+    expect(
+      within(panel).queryByText(
+        /inbox|calendar|personal project manager|Soko Bot/i,
+      ),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: /Soko Bot|personal assistant/i }),
+    ).toBeNull();
+  });
+
+  it("does not retain another viewer's private unsent SEO question", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
+      ),
+    );
+    const view = renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    await user.type(
+      screen.getByLabelText("Your question"),
+      "Private launch budget",
+    );
+    viewer.userId = "another-owner";
+    view.refreshViewer();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Your question")).not.toHaveValue(
+        "Private launch budget",
+      ),
+    );
+  });
+
+  it.each(["resolves", "rejects"] as const)(
+    "does not fetch the next viewer's private history into an old viewer's cache when a pending send %s",
+    async (settlement) => {
+      const user = userEvent.setup();
+      const workspace = {
+        ...seoTestWorkspace(),
+        auditId: SEO_TEST_AUDIT,
+        auditName: "Launch pages",
+      };
+      const turn = (question: string) => ({
+        id: crypto.randomUUID(),
+        question,
+        status: "completed" as const,
+        response: `${question} reply`,
+        actions: [],
+        scope: { pageIds: workspace.scope.pageIds },
+        createdAt: new Date().toISOString(),
+      });
+      const oldHistory = { turns: [turn("Owner private history")] };
+      const nextHistory = { turns: [turn("Next viewer private history")] };
+      const chatReads: string[] = [];
+      let resolvePost: (response: Response) => void = () => {};
+      let rejectPost: (error: Error) => void = () => {};
+      const pendingPost = new Promise<Response>((resolve, reject) => {
+        resolvePost = resolve;
+        rejectPost = reject;
+      });
+      const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.endsWith("/chat")) return Response.json(workspace);
+        if (init?.method === "POST") return pendingPost;
+        chatReads.push(viewer.userId);
+        return Response.json(
+          viewer.userId === "owner" ? oldHistory : nextHistory,
+        );
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const view = renderWorkspace(workspace);
+      await user.click(screen.getByRole("button", { name: "SEO chat" }));
+      await screen.findByText("Owner private history reply");
+      await user.type(
+        screen.getByLabelText("Your question"),
+        "Pending question",
+      );
+      await user.click(screen.getByRole("button", { name: "Send message" }));
+      expect(
+        fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+      ).toHaveLength(1);
+
+      viewer.userId = "another-owner";
+      view.refreshViewer();
+      await screen.findByText("Next viewer private history reply");
+      const oldKey = ["seo-chat", "org", "owner", SEO_TEST_AUDIT];
+      expect(view.client.getQueryData(oldKey)).toEqual(oldHistory);
+      const oldCacheQuestions: string[] = [];
+      const unsubscribe = view.client.getQueryCache().subscribe(() => {
+        oldCacheQuestions.push(
+          ...(
+            view.client.getQueryData<SeoAuditChatHistory>(oldKey)?.turns ?? []
+          ).map((item) => item.question),
+        );
+      });
+      const readsBeforeSettlement = [...chatReads];
+      await act(async () => {
+        if (settlement === "resolves")
+          resolvePost(Response.json(turn("Pending question")));
+        else rejectPost(new Error("Request failed after viewer switch"));
+        await pendingPost.catch(() => null);
+      });
+      unsubscribe();
+
+      expect(oldCacheQuestions).not.toContain("Next viewer private history");
+      expect(view.client.getQueryData(oldKey)).toEqual(oldHistory);
+      expect(chatReads).toEqual(readsBeforeSettlement);
+      expect(
+        screen.getByText("Next viewer private history reply"),
+      ).toBeVisible();
+    },
+  );
+
+  it("starts a fresh turn when the same scoped question is asked after a completed reply", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    const requests = nativeChatNetwork(workspace);
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}`);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    const question = screen.getByLabelText("Your question");
+    await user.type(question, "What should I fix first?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await waitFor(() => expect(question).toHaveValue(""));
+    await user.type(question, "What should I fix first?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
+    expect(requests[1].scope).toEqual({ pageId: workspace.pages[0].id });
+  });
+
+  it("keeps the attempt key when retrying an uncertain network response", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    const requests = nativeChatNetwork(workspace, { uncertainFirst: true });
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    const question = screen.getByLabelText("Your question");
+    await user.type(question, "What should I fix first?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await screen.findAllByRole("alert");
+    expect(question).toHaveValue("What should I fix first?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1].idempotencyKey).toBe(requests[0].idempotencyKey);
+  });
+
+  it("keeps a failed acknowledged question and gives its explicit retry a fresh attempt key", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    const requests = nativeChatNetwork(workspace, { failedFirst: true });
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    const question = screen.getByLabelText("Your question");
+    await user.type(question, "What should I fix first?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await screen.findAllByRole("alert");
+    expect(question).toHaveValue("What should I fix first?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1].idempotencyKey).not.toBe(requests[0].idempotencyKey);
   });
 
   it("creates one draft action Task with its source references and guards repeated clicks", async () => {
@@ -511,7 +849,7 @@ describe("SEO workspace integration", () => {
     );
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate).toHaveBeenCalledWith({
-      projectId: workspace.projectId,
+      owner: { kind: "project", id: workspace.projectId },
       command: {
         kind: "create_action_task",
         body: {

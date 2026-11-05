@@ -20,10 +20,13 @@ import type { SeoActor } from "@/schemas/project-seo.schema";
 import {
   commitSeoMutation,
   normalizeSeoUrl,
-  requireSeoProject,
+  requireLockedSeoOwner,
+  requireSeoOwner,
   SEO_ARTIFACT_MAX_BYTES,
   SEO_ARTIFACT_TIMEOUT_MS,
   type SeoMutationHooks,
+  seoOwnerData,
+  seoOwnerUnique,
   sha256,
 } from "./project-seo-store";
 
@@ -32,6 +35,7 @@ async function requireSourceFile(
   input: { taskId: string; fileId: string },
   client: Prisma.TransactionClient = prisma,
 ) {
+  const owner = await requireSeoOwner(actor, client, true);
   const task = await client.task.findFirst({
     where: {
       id: input.taskId,
@@ -40,7 +44,9 @@ async function requireSourceFile(
       visibility: "PUBLIC",
       archivedAt: null,
       status: "COMPLETED",
-      OR: [{ projectId: actor.projectId }, { projectId: null }],
+      OR: owner.projectId
+        ? [{ projectId: owner.projectId }, { projectId: null }]
+        : [{ projectId: null }],
     },
     select: {
       id: true,
@@ -127,15 +133,14 @@ export async function importProjectSeoAudit(
   input: { taskId: string; fileId: string },
   options: SeoMutationHooks & { fetchImpl?: typeof fetch } = {},
 ) {
-  await requireSeoProject(actor, prisma, true);
   const { task, file, fileUrl } = await requireSourceFile(actor, input);
   const sourceKey = `task-file:${file.id}`;
   const existing = await prisma.projectSeoObservation.findUnique({
-    where: { projectId_sourceKey: { projectId: actor.projectId, sourceKey } },
+    where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
   });
   if (existing)
     return serializableTransaction(async (tx) => {
-      await requireSeoProject(actor, tx, true);
+      await requireLockedSeoOwner(tx, actor);
       await requireSourceFile(actor, input, tx);
       await options.authorize?.(tx);
       return commitSeoMutation(tx, existing, options);
@@ -152,13 +157,18 @@ export async function importProjectSeoAudit(
   const analysis = await prisma.projectSeoAnalysis.findUnique({
     where: { taskId: task.id },
   });
-  if (analysis && analysis.projectId !== actor.projectId)
-    throw notFound("The analysis belongs to another Project");
+  if (
+    analysis &&
+    (actor.owner.kind === "audit"
+      ? analysis.auditId !== actor.owner.id || analysis.projectId !== null
+      : analysis.projectId !== actor.owner.id || analysis.auditId !== null)
+  )
+    throw notFound("The analysis belongs to another SEO workspace");
   if (payload.requestId && (!analysis || payload.requestId !== analysis.id))
     throw badRequest("The SEO result does not match its requested analysis");
   if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
   return serializableTransaction(async (tx) => {
-    await requireSeoProject(actor, tx, true);
+    await requireLockedSeoOwner(tx, actor);
     await options.authorize?.(tx);
     const current = await requireSourceFile(actor, input, tx);
     if (
@@ -168,7 +178,7 @@ export async function importProjectSeoAudit(
     )
       throw conflict("The source report changed during import");
     const prior = await tx.projectSeoObservation.findUnique({
-      where: { projectId_sourceKey: { projectId: actor.projectId, sourceKey } },
+      where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
     });
     if (prior) {
       if (prior.artifactHash !== artifactHash)
@@ -179,9 +189,9 @@ export async function importProjectSeoAudit(
     for (const value of payload.pageUrls) {
       const url = normalizeSeoUrl(value);
       const page = await tx.projectSeoPage.upsert({
-        where: { projectId_url: { projectId: actor.projectId, url } },
+        where: seoOwnerUnique(actor, "url", { url }),
         create: {
-          projectId: actor.projectId,
+          ...seoOwnerData(actor),
           url,
           relationship: pageIds.length ? "related" : "primary",
           relatedToPageId: pageIds[0] ?? null,
@@ -193,7 +203,7 @@ export async function importProjectSeoAudit(
     const data: Prisma.InputJsonObject = payload;
     const observation = await tx.projectSeoObservation.create({
       data: {
-        projectId: actor.projectId,
+        ...seoOwnerData(actor),
         kind: payload.kind,
         source: "seo_coworker",
         sourceKey,
@@ -224,14 +234,29 @@ export async function reconcileProjectSeoTaskFile(
     where: { taskId },
   });
   if (!analysis || analysis.status === "completed") return;
-  const project = await prisma.project.findUnique({
-    where: { id: analysis.projectId },
-    select: { workspaceId: true },
-  });
-  if (!project) return;
+  const owner = analysis.auditId
+    ? {
+        kind: "audit" as const,
+        id: analysis.auditId,
+        root: await prisma.seoAudit.findUnique({
+          where: { id: analysis.auditId },
+          select: { workspaceId: true },
+        }),
+      }
+    : analysis.projectId
+      ? {
+          kind: "project" as const,
+          id: analysis.projectId,
+          root: await prisma.project.findUnique({
+            where: { id: analysis.projectId },
+            select: { workspaceId: true },
+          }),
+        }
+      : null;
+  if (!owner?.root) return;
   const workspace = await prisma.workspace.findFirst({
     where: {
-      id: project.workspaceId,
+      id: owner.root.workspaceId,
       OR: [
         { userId: analysis.requestedBy },
         {
@@ -250,7 +275,7 @@ export async function reconcileProjectSeoTaskFile(
     );
     await importProjectSeoAudit(
       {
-        projectId: analysis.projectId,
+        owner: { kind: owner.kind, id: owner.id },
         workspaceId: workspace.id,
         userId: analysis.requestedBy,
         organizationId: workspace.organizationId,

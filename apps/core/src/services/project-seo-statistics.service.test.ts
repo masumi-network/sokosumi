@@ -54,6 +54,13 @@ vi.mock("@/lib/db/prisma", () => {
       }),
     },
     sokoBot: { findFirst: async () => ({ id: "personal-bot" }) },
+    seoConnection: { findUnique: async () => null },
+    sokoBotIntegration: {
+      findMany: async () =>
+        state.integrationActive
+          ? [{ composioAccountId: "account", sokoBotId: "personal-bot" }]
+          : [],
+    },
     projectSeoPage: { findMany: async () => [{ ...page, url: state.pageUrl }] },
     projectSeoScope: {
       findFirst: async () => scope,
@@ -82,80 +89,74 @@ vi.mock("@/lib/db/prisma", () => {
   };
   return { default: db };
 });
-vi.mock("./soko-bot-integrations.service", () => ({
-  activeIntegrationsForBot: async () =>
-    state.integrationActive
-      ? [
-          {
-            id: "integration",
-            sokoBotId: "personal-bot",
-            composioAccountId: "account",
-            connectorUserId: "owner",
-            provider: { id: "google_analytics" },
+vi.mock(
+  "@/services/composio-integration-tools.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/composio-integration-tools.service")
+    >()),
+    listIntegrationTools: async () => [
+      {
+        slug: "GOOGLE_ANALYTICS_LIST_ACCOUNT_SUMMARIES",
+        readOnly: true,
+        inputSchema: { properties: { pageSize: {}, pageToken: {} } },
+      },
+      {
+        slug: "GOOGLE_ANALYTICS_RUN_REPORT",
+        readOnly: true,
+        inputSchema: {
+          properties: {
+            property: {},
+            dateRanges: {},
+            dimensions: {},
+            metrics: {},
+            dimensionFilter: {},
+            limit: { type: "integer" },
+            returnPropertyQuota: {},
           },
-        ]
-      : [],
-  listIntegrationTools: async () => [
-    {
-      slug: "GOOGLE_ANALYTICS_LIST_ACCOUNT_SUMMARIES",
-      readOnly: true,
-      inputSchema: { properties: { pageSize: {}, pageToken: {} } },
-    },
-    {
-      slug: "GOOGLE_ANALYTICS_RUN_REPORT",
-      readOnly: true,
-      inputSchema: {
-        properties: {
-          property: {},
-          dateRanges: {},
-          dimensions: {},
-          metrics: {},
-          dimensionFilter: {},
-          limit: { type: "integer" },
-          returnPropertyQuota: {},
+          required: ["property"],
         },
-        required: ["property"],
       },
-    },
-    {
-      slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITES",
-      readOnly: true,
-      inputSchema: { properties: {} },
-    },
-    {
-      slug: "GOOGLE_SEARCH_CONSOLE_SEARCH_ANALYTICS_QUERY",
-      readOnly: true,
-      inputSchema: {
-        properties: {
-          site_url: {},
-          start_date: {},
-          end_date: {},
-          dimensions: {},
-          search_type: {},
-          data_state: {},
-          dimension_filter_groups: {},
-          row_limit: {},
-          start_row: {},
+      {
+        slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITES",
+        readOnly: true,
+        inputSchema: { properties: {} },
+      },
+      {
+        slug: "GOOGLE_SEARCH_CONSOLE_SEARCH_ANALYTICS_QUERY",
+        readOnly: true,
+        inputSchema: {
+          properties: {
+            site_url: {},
+            start_date: {},
+            end_date: {},
+            dimensions: {},
+            search_type: {},
+            data_state: {},
+            dimension_filter_groups: {},
+            row_limit: {},
+            start_row: {},
+          },
+          required: ["site_url", "start_date", "end_date"],
         },
-        required: ["site_url", "start_date", "end_date"],
       },
+    ],
+    readIntegrationTool: async (
+      _integration: unknown,
+      slug: string,
+      args: Record<string, unknown>,
+    ) => {
+      state.reads.push({ slug, args });
+      return state.answer!(slug, args);
     },
-  ],
-  readIntegrationTool: async (
-    _integration: unknown,
-    slug: string,
-    args: Record<string, unknown>,
-  ) => {
-    state.reads.push({ slug, args });
-    return state.answer!(slug, args);
-  },
-}));
+  }),
+);
 
 import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
 
 const actor = {
-  projectId: state.projectId,
+  owner: { kind: "project" as const, id: state.projectId },
   workspaceId: "workspace",
   organizationId: null,
   userId: "owner",

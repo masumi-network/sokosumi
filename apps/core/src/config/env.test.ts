@@ -428,3 +428,19 @@ describe("avatar ffmpeg source", () => {
     expectInvalidEnvironment("Expected a lowercase hex sha256");
   });
 });
+
+describe("native SEO chat allowance", () => {
+  it("defaults to 100 daily turns and accepts an operator limit", () => {
+    vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", undefined);
+    expect(validateEnv().SEO_CHAT_DAILY_TURN_LIMIT).toBe(100);
+    vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", "12");
+    expect(validateEnv().SEO_CHAT_DAILY_TURN_LIMIT).toBe(12);
+  });
+  it.each(["0", "-1", "1.5", "invalid"])(
+    "rejects an invalid allowance %s",
+    (value) => {
+      vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", value);
+      expectInvalidEnvironment("SEO_CHAT_DAILY_TURN_LIMIT");
+    },
+  );
+});

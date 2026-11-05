@@ -5,6 +5,7 @@ import type {
   CreateProjectSeoActionTaskRequest,
   CreateProjectSeoMonitorRequest,
   CreateProjectSeoScopeRequest,
+  CreateSeoAuditRequest,
   GetProjectSeoWorkspaceData,
   ImportProjectSeoAuditRequest,
   RecordProjectSeoPageChangeRequest,
@@ -16,170 +17,239 @@ import type {
 } from "@sokosumi/core-client";
 import {
   addProjectSeoPage,
+  addSeoAuditPage,
   createProjectSeoActionTask,
   createProjectSeoMonitor,
   createProjectSeoScope,
+  createSeoAudit,
+  createSeoAuditActionTask,
+  createSeoAuditMonitor,
+  createSeoAuditScope,
   getProjectSeoWorkspace,
+  getSeoAuditWorkspace,
   importProjectSeoAudit,
+  importSeoAuditReport,
   listProjectSeoStatisticsProperties,
+  listSeoAuditStatisticsProperties,
+  listSeoAudits,
   recordProjectSeoPageChange,
+  recordSeoAuditPageChange,
   requestProjectSeoAnalysis,
+  requestSeoAuditAnalysis,
   saveProjectSeoCompetitor,
   saveProjectSeoKeyword,
+  saveSeoAuditCompetitor,
+  saveSeoAuditKeyword,
   syncProjectSeoStatistics,
+  syncSeoAuditStatistics,
   updateProjectSeoScope,
+  updateSeoAuditScope,
 } from "@sokosumi/core-client";
 import { withUnauthorizedCoreRedirect } from "@/lib/auth/handle-unauthorized-core-error";
 import { createCoreGeneratedClient } from "@/lib/clients/core.client";
 import { executeCoreOperation } from "@/lib/clients/core.request";
+import type { SeoOwner } from "@/lib/seo/owner";
 
 export type SeoWorkspaceQuery = NonNullable<
   GetProjectSeoWorkspaceData["query"]
 >;
 
 export const seoServiceNoRedirect = {
-  async getWorkspace(projectId: string, query: SeoWorkspaceQuery = {}) {
+  async listAudits(query: { cursor?: string; limit?: number } = {}) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) => listSeoAudits({ client, query }),
+      "Failed to load SEO audits",
+    );
+    return { audits: response.data, pagination: response.meta.pagination };
+  },
+  async createAudit(body: CreateSeoAuditRequest) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) => createSeoAudit({ client, body }),
+      "Failed to create SEO audit",
+    );
+    return response.data;
+  },
+  async getWorkspace(owner: SeoOwner, query: SeoWorkspaceQuery = {}) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        getProjectSeoWorkspace({ client, path: { id: projectId }, query }),
+        (owner.kind === "audit"
+          ? getSeoAuditWorkspace
+          : getProjectSeoWorkspace)({ client, path: { id: owner.id }, query }),
       "Failed to load SEO workspace",
     );
     return response.data;
   },
-  async addPage(projectId: string, body: AddProjectSeoPageRequest) {
+  async addPage(owner: SeoOwner, body: AddProjectSeoPageRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
-      (client) => addProjectSeoPage({ client, path: { id: projectId }, body }),
+      (client) =>
+        (owner.kind === "audit" ? addSeoAuditPage : addProjectSeoPage)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
       "Failed to add SEO page",
     );
     return response.data;
   },
-  async createScope(projectId: string, body: CreateProjectSeoScopeRequest) {
+  async createScope(owner: SeoOwner, body: CreateProjectSeoScopeRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        createProjectSeoScope({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit" ? createSeoAuditScope : createProjectSeoScope)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
       "Failed to create SEO scope",
     );
     return response.data;
   },
   async updateScope(
-    projectId: string,
+    owner: SeoOwner,
     scopeId: string,
     body: UpdateProjectSeoScopeRequest,
   ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        updateProjectSeoScope({
+        (owner.kind === "audit" ? updateSeoAuditScope : updateProjectSeoScope)({
           client,
-          path: { id: projectId, scopeId },
+          path: { id: owner.id, scopeId },
           body,
         }),
       "Failed to update SEO scope",
     );
     return response.data;
   },
-  async importAudit(projectId: string, body: ImportProjectSeoAuditRequest) {
+  async importAudit(owner: SeoOwner, body: ImportProjectSeoAuditRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        importProjectSeoAudit({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit" ? importSeoAuditReport : importProjectSeoAudit)(
+          { client, path: { id: owner.id }, body },
+        ),
       "Failed to import SEO audit",
     );
     return response.data;
   },
   async requestAnalysis(
-    projectId: string,
+    owner: SeoOwner,
     body: RequestProjectSeoAnalysisRequest,
   ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        requestProjectSeoAnalysis({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit"
+          ? requestSeoAuditAnalysis
+          : requestProjectSeoAnalysis)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
       "Failed to request SEO analysis",
     );
     return response.data;
   },
-  async saveKeyword(projectId: string, body: SaveProjectSeoKeywordRequest) {
+  async saveKeyword(owner: SeoOwner, body: SaveProjectSeoKeywordRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        saveProjectSeoKeyword({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit" ? saveSeoAuditKeyword : saveProjectSeoKeyword)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
       "Failed to save SEO keyword",
     );
     return response.data;
   },
-  async saveCompetitor(
-    projectId: string,
-    body: SaveProjectSeoCompetitorRequest,
-  ) {
+  async saveCompetitor(owner: SeoOwner, body: SaveProjectSeoCompetitorRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        saveProjectSeoCompetitor({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit"
+          ? saveSeoAuditCompetitor
+          : saveProjectSeoCompetitor)({ client, path: { id: owner.id }, body }),
       "Failed to save SEO competitor",
     );
     return response.data;
   },
   async createActionTask(
-    projectId: string,
+    owner: SeoOwner,
     body: CreateProjectSeoActionTaskRequest,
   ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        createProjectSeoActionTask({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit"
+          ? createSeoAuditActionTask
+          : createProjectSeoActionTask)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
       "Failed to create SEO action task",
     );
     return response.data;
   },
   async recordPageChange(
-    projectId: string,
+    owner: SeoOwner,
     body: RecordProjectSeoPageChangeRequest,
   ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        recordProjectSeoPageChange({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit"
+          ? recordSeoAuditPageChange
+          : recordProjectSeoPageChange)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
       "Failed to record page change",
     );
     return response.data;
   },
-  async createMonitor(projectId: string, body: CreateProjectSeoMonitorRequest) {
+  async createMonitor(owner: SeoOwner, body: CreateProjectSeoMonitorRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        createProjectSeoMonitor({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit"
+          ? createSeoAuditMonitor
+          : createProjectSeoMonitor)({ client, path: { id: owner.id }, body }),
       "Failed to create SEO monitor",
     );
     return response.data;
   },
   async statisticsProperties(
-    projectId: string,
+    owner: SeoOwner,
     provider: "ga4" | "search_console",
   ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        listProjectSeoStatisticsProperties({
+        (owner.kind === "audit"
+          ? listSeoAuditStatisticsProperties
+          : listProjectSeoStatisticsProperties)({
           client,
-          path: { id: projectId },
+          path: { id: owner.id },
           query: { provider },
         }),
       "Failed to load SEO statistics properties",
     );
     return response.data;
   },
-  async syncStatistics(
-    projectId: string,
-    body: SyncProjectSeoStatisticsRequest,
-  ) {
+  async syncStatistics(owner: SeoOwner, body: SyncProjectSeoStatisticsRequest) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
-        syncProjectSeoStatistics({ client, path: { id: projectId }, body }),
+        (owner.kind === "audit"
+          ? syncSeoAuditStatistics
+          : syncProjectSeoStatistics)({ client, path: { id: owner.id }, body }),
       "Failed to sync SEO statistics",
     );
     return response.data;

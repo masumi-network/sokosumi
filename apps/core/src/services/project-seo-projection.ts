@@ -31,6 +31,9 @@ import {
 interface ProjectionInput {
   project: {
     id: string;
+    auditId?: string | null;
+    projectId?: string | null;
+    name?: string | null;
     websiteUrl: string | null;
     closingAt: Date | null;
     closedAt: Date | null;
@@ -480,7 +483,9 @@ export function projectSeoProjection(
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
   return projectSeoWorkspaceSchema.parse({
-    projectId: project.id,
+    projectId: project.auditId ? (project.projectId ?? null) : project.id,
+    auditId: project.auditId ?? null,
+    auditName: project.name ?? null,
     websiteUrl: project.websiteUrl,
     scope: {
       id: scope.id,
