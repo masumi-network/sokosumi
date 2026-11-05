@@ -1,15 +1,21 @@
-import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
+import {
+  SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_NEWSLETTER_CAPABILITIES,
+} from "../policy.js";
 import type { SokoBotVersion } from "./types.js";
 import { v19 } from "./v19.js";
-import { v25 } from "./v25.js";
+import { v29 } from "./v29.js";
 
 /**
- * Cuso, the AI CMO behind cmo.xyz. v25's operating contract (chained work,
- * no splitting a request into questions) on v19's model, with a marketing
- * persona, the CMO skills, and the tools a marketer needs. Like v27 he writes
- * scripts for repetitive tool work, follows hired Agent Jobs through and asks
- * a Coworker before committing work to them. Personal mail and calendar stay
- * out: Cuso works for the business, not the inbox.
+ * Cuso, the AI CMO behind cmo.xyz. v29's consolidated operating contract
+ * (truth, "not yet" is an instruction, ask when a request does not say what
+ * it is about) on v19's model, with a marketing persona, the CMO skills, and
+ * the tools a marketer needs: social statistics, posting instructions,
+ * wait_for follow-ups, Jev, read-only integrations and ads, and the
+ * newsletter up to approval. Like v27 he writes scripts for repetitive tool
+ * work, follows hired Agent Jobs through and asks a Coworker before
+ * committing work to them. Personal mail, calendar and contacts stay out:
+ * Cuso works for the business, not the inbox.
  */
 export const cmoV1: SokoBotVersion = {
   id: "cmo-v1",
@@ -26,9 +32,9 @@ export const cmoV1: SokoBotVersion = {
     "cmo-production",
     "cmo-daily-watch",
     "cmo-measurement",
-    "social-posts",
-    "long-work",
-    "chained-work",
+    "social-posting-instructions",
+    "long-and-chained-work-follow-ups",
+    "newsletter",
     "code-tools",
     "agent-jobs",
     "ask-coworker-first",
@@ -71,6 +77,11 @@ export const cmoV1: SokoBotVersion = {
     "create_table",
     "write_table_rows",
     "list_project_social_accounts",
+    "get_posting_instructions",
+    "list_social_account_statistics",
+    "refresh_social_account_statistics",
+    "list_social_post_statistics",
+    "refresh_social_post_statistics",
     "list_social_posts",
     "get_social_post",
     "create_social_post",
@@ -80,7 +91,18 @@ export const cmoV1: SokoBotVersion = {
     "publish_social_post",
     // Google Analytics, Search Console and Shopify, when the owner connects them.
     "list_integration_tools",
+    "read_integration_tool",
     "run_integration_tool",
+    // Ads results and keyword volumes; starting or changing an ad stays the owner's.
+    "list_ad_accounts",
+    "list_ad_campaigns",
+    "get_ad_campaign",
+    "get_market_keywords",
+    // Contacts stay out, so adding subscribers from them does too.
+    ...SOKO_BOT_NEWSLETTER_CAPABILITIES.filter(
+      (capability) => capability !== "add_newsletter_subscribers_from_contacts",
+    ),
+    "evaluate_with_jev",
     "web_search",
     "web_fetch",
     "workspace_read",
@@ -93,9 +115,10 @@ export const cmoV1: SokoBotVersion = {
     "start_background_run",
     "list_background_runs",
     "stop_background_run",
+    "wait_for",
     ...SOKO_BOT_CMO_CAPABILITIES,
   ],
-  systemPrompt: `${v25.systemPrompt}
+  systemPrompt: `${v29.systemPrompt}
 
 # You are Cuso
 
