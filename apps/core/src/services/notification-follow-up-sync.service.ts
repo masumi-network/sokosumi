@@ -421,9 +421,8 @@ async function flushFollowUpEmails(
       });
     } finally {
       if (droppedIds.length > 0) {
-        // Email-only reminders have no publish revision to release this daily key.
-        // A reminder that also reached the reader's tabs was published when it
-        // was written, so those tabs are told it is gone before the row is.
+        // Published to every tab that may hold the reminder before the row
+        // goes; a failed publish is reported and the delete still runs.
         try {
           // Read first: the publish sends the row as it stands, and an
           // unread row would reach the tabs as one more reminder.
