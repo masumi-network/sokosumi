@@ -99,6 +99,7 @@ export function DirectionalTransition({ children }: { children: React.ReactNode 
 This also becomes the single place to adjust if you add new transition types later.
 
 **Rules:**
+
 - Always pair `enter` with `exit` — without an exit animation, the old page disappears instantly while the new one animates in.
 - Always include `default: "none"` in type map objects and `default="none"` on the component — otherwise it fires on every transition.
 - Place the directional `<ViewTransition>` in each page component, not in a layout. Layouts persist across navigations and never trigger enter/exit.
@@ -125,6 +126,7 @@ For every `<Suspense>` boundary identified in Step 1, wrap the fallback and cont
 This example uses `slide-down` / `slide-up` for directional vertical motion. For a simpler reveal, a bare `<ViewTransition>` around the `<Suspense>` gives a cross-fade with zero configuration. Choose based on the spatial meaning described in the main skill.
 
 **Rules:**
+
 - Always use `default="none"` on the content `<ViewTransition>` to prevent re-animation on revalidation or unrelated transitions.
 - Use simple string props (not type maps) on Suspense `<ViewTransition>`s — Suspense resolves fire as separate transitions with no type, so type-keyed props won't match.
 - A fallback/content `share` pair morphs between snapshots. Use it only when that interpolation is desired and does not distort layout or geometry.
@@ -151,6 +153,7 @@ The `share="morph"` class uses the [Shared Element Morph](css-recipes.md#shared-
 When list items contain shared elements, compose both patterns with two nested `<ViewTransition>` layers — an outer keyed VT for list identity and an inner named VT for the cross-route pair. See [Composing Shared Elements with List Identity](../SKILL.md#composing-shared-elements-with-list-identity).
 
 **Rules:**
+
 - Names must be globally unique — use prefixes like `photo-${id}`.
 - Add `default="none"` on list-side shared elements to prevent per-item cross-fades on filter/search updates.
 - The target must be **in the DOM at navigation time** for the pair to form. If it's behind a Suspense fallback (not rendered yet), no pair forms and it won't morph. It works when the target is present at the snapshot — render it above the data boundary, or have its data **cached/prefetched** so it resolves in time.

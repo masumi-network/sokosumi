@@ -56,7 +56,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.5",
     "husky": "9.1.7",
     "portless": "0.16.0",
     "tsx": "4.23.15",

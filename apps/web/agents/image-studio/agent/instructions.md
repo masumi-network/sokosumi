@@ -46,7 +46,6 @@ one job per image, with variant indices 1, 2, 3 for repeated variants. If more w
 the bound. Do not automatically continue a batch in later turns. If the
 project is busy or a limit is reached, report it and stop submitting.
 
-
 Start by looking at what exists when the conversation is about changing
 something. A request like "make it warmer" means a specific version; if it is
 not obvious which, ask rather than guessing.

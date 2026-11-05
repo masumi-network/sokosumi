@@ -7,6 +7,7 @@ Chat roster dots mean **reachable** (live client connection), not auth-session f
 **Why not Core HTTP heartbeat as source of truth:** Extra store, fan-out, and auth surface. We already use Ably for chat realtime; client enter/update/leave matches industry connection-presence. Active clients refresh `lastActiveAt` on a ~4 min throttle (inside the 5 min Online window); unchanged idle presence does not publish. Teammates reclassify Online → AFK locally every 30s from the last `lastActiveAt`; they do not wait for another Ably message.
 
 **Shape (product + wire):**
+
 - **Online** = connected + recent activity; **AFK** = connected but idle (~5m) or tab hidden; **Offline** = no live connection (disconnect grace later, ~30–60s).
 - Visibility: **same organization only**. Enter presence only on the **active organization**; other orgs see Offline. Leave the previous org on workspace switch. No human presence dots in personal workspace. Coworkers stay always-online for v1.
 - Channel: `presence:org_{orgId}`. Token still grants **`presence` + `subscribe`** on every membership org so workspace switch does not wait on re-auth; the client enters only the active org. Enter/update/leave needs `presence`; `presence.get` + presence events need `subscribe`. Multi-device: `clientId = userId:instanceId`, aggregate any member with that userId.
