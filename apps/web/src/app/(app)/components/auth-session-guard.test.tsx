@@ -336,14 +336,17 @@ describe("AuthSessionGuard", () => {
     }
   });
 
-  it("does not reload from an older account result while a newer probe is pending", async () => {
+  it("drops an older probe's account that lands after a newer probe answered", async () => {
     const reload = vi
       .spyOn(window.location, "reload")
       .mockImplementation(() => {});
-    const newestProbe = deferred<typeof presentSession>();
+    const olderProbe = deferred<typeof presentSession>();
+    // Mount: bob. Focus: the older probe, left pending. The render below
+    // disagrees with bob and asks a third time, which answers alice.
     vi.mocked(authClient.getSession)
       .mockResolvedValueOnce(differentUserSession)
-      .mockImplementationOnce(() => newestProbe.promise);
+      .mockImplementationOnce(() => olderProbe.promise)
+      .mockResolvedValue(presentSession);
     const oldClient = getAblyRealtimeClient();
     const view = render(<AuthSessionGuard />);
     await vi.dynamicImportSettled();
@@ -356,14 +359,18 @@ describe("AuthSessionGuard", () => {
     );
     await vi.dynamicImportSettled();
     expect(reload).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
 
+    // The older probe answers last, with an account the document does not
+    // render. Taken as the newest word, it would reload the document.
     await act(async () => {
-      newestProbe.resolve(presentSession);
+      olderProbe.resolve(differentUserSession);
       await vi.dynamicImportSettled();
     });
 
     expect(reload).not.toHaveBeenCalled();
     expect(oldClient.close).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("revalidates again on focus without redirecting when the session is present", async () => {
