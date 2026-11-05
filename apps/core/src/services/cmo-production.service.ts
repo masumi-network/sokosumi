@@ -3,11 +3,13 @@ import {
   type CmoCalendarEntry,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_SCHEDULES,
+  writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import prisma from "@/lib/db/prisma";
+import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
   type Cuso,
@@ -17,11 +19,11 @@ import {
   listCusosWithApprovedStrategy,
 } from "@/services/cmo-cuso.service";
 import {
-  advanceCmoPillars,
+  advanceCmoMonthReview,
   type CmoPillarShare,
   cmoPillarShares,
-  parseCmoPillarCheck,
-} from "@/services/cmo-pillars.service";
+  parseCmoMonthReview,
+} from "@/services/cmo-month-review.service";
 import {
   approvedMarketingStrategy,
   entryMedia,
@@ -269,6 +271,8 @@ export function cmoProductionMessage(input: {
     ...batch.map(pieceLine),
     "",
     "Work in two passes, as your production skill says: first write every post's words, then make the pictures and schedule. A failed picture never stops the words.",
+    "",
+    writingSkillsBrief(batch.map((piece) => piece.channel)),
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
   ]
     .filter((line) => line !== "")
@@ -426,7 +430,7 @@ function readyAtStart(run: ProductionRun): number | null {
 interface ProductionRead {
   status: CmoProductionStatus;
   /** The approved version being made. */
-  version: { id: string; pillarCheck: unknown } | null;
+  version: { id: string; monthReview: unknown } | null;
   strategy: MarketingStrategyPlan | null;
   /** When the version being made was approved: one run id per approval. */
   approvedAt: Date | null;
@@ -474,7 +478,7 @@ export async function readCmoProduction(
   const pieces = cmoProductionPieces(posts, now, strategy.calendar);
   const ready = cmoReadyPieceIds(pieces, connected);
   const pending = pieces.filter((piece) => !ready.has(piece.id));
-  const check = parseCmoPillarCheck(approved.pillarCheck);
+  const check = parseCmoMonthReview(approved.monthReview);
   const pillarsOf = (runs: ProductionRun[]) =>
     check
       ? {
@@ -561,13 +565,16 @@ export async function advanceCmoProduction(
     now,
   });
   if (!strategy || !approvedAt || working) return current;
-  // A made month is read for its pillars, and rewritten once when off.
+  // A made month is reviewed for its pillars, skills and voice, and the
+  // pieces that miss are rewritten once.
   if (current.state === "ready" && version) {
-    await advanceCmoPillars({
+    const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
+    await advanceCmoMonthReview({
       sokoBotId: cuso.sokoBotId,
       businessName: cuso.businessName,
       version,
       strategy,
+      voice: brain?.voice ?? null,
       runs,
       runIdPrefix: approvalRunPrefix(cuso.sokoBotId, approvedAt),
       ready: current.ready,
@@ -577,7 +584,7 @@ export async function advanceCmoProduction(
           cuso,
           message,
           clientTurnId,
-          `Rewrite pieces off their pillar for ${cuso.businessName}`,
+          `Rewrite pieces that miss the plan for ${cuso.businessName}`,
         ),
     });
     return current;

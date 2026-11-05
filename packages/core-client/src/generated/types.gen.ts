@@ -490,6 +490,25 @@ export type AdminCmoSpend = {
     }>;
 };
 
+export type AdminWritingSkills = {
+    groups: Array<{
+        key: string;
+        name: string;
+        skills: Array<{
+            id: string;
+            name: string;
+            description: string;
+            channels: Array<string>;
+            content: string;
+            checklist: Array<{
+                rule: string;
+                formats?: Array<string>;
+                counted?: boolean;
+            }>;
+        }>;
+    }>;
+};
+
 export type AdminSokoBotFleetDays = {
     days: Array<{
         day: string;
@@ -15255,6 +15274,64 @@ export type GetAdminCmoSpendResponses = {
 };
 
 export type GetAdminCmoSpendResponse = GetAdminCmoSpendResponses[keyof GetAdminCmoSpendResponses];
+
+export type GetAdminWritingSkillsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/writing-skills';
+};
+
+export type GetAdminWritingSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminWritingSkillsError = GetAdminWritingSkillsErrors[keyof GetAdminWritingSkillsErrors];
+
+export type GetAdminWritingSkillsResponses = {
+    /**
+     * Writing skills by group
+     */
+    200: {
+        data: AdminWritingSkills;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminWritingSkillsResponse = GetAdminWritingSkillsResponses[keyof GetAdminWritingSkillsResponses];
 
 export type GetAdminSokoBotFleetDaysData = {
     body?: never;

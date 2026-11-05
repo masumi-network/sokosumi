@@ -14,6 +14,7 @@ import {
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
+  getAdminWritingSkills as coreGetAdminWritingSkills,
   listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
   listAdminSokoBotChats as coreListAdminSokoBotChats,
   listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
@@ -101,6 +102,14 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreGetAdminCmoSpend({ client, query, cache: "no-store" }),
       "Failed to fetch CMO spend",
+    );
+  }
+
+  async function getAdminWritingSkills() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetAdminWritingSkills({ client, cache: "no-store" }),
+      "Failed to fetch writing skills",
     );
   }
 
@@ -255,6 +264,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminSokoBotQuality,
     getAdminSokoBotModelEvaluations,
     getAdminCmoSpend,
+    getAdminWritingSkills,
     getAdminSokoBotFleetDays,
     getAdminSokoBot,
     listAdminSokoBotChats,
