@@ -1,10 +1,10 @@
 import {
   CHAT_SIGNAL_TAGS,
-  CHAT_SIGNAL_THRESHOLD,
   type ChatSignalCorrection,
   type ChatSignalProbabilities,
   type ChatSignalTag,
   chatSignalNeedsReader,
+  chatSignalThreshold,
   effectiveChatSignalTags,
 } from "./tags";
 
@@ -80,11 +80,13 @@ export const CHAT_CATCH_UP_BUCKETS = [
   "escalation",
   "urgent",
   "blocker",
+  "bug",
   "decisionMade",
   "announcement",
   "needsDecision",
   "commitment",
   "workRequest",
+  "review",
   "question",
   "fyi",
   "chitChat",
@@ -163,6 +165,6 @@ export function sqlChatSignalHasTag(alias: string, tag: ChatSignalTag): string {
      WHERE correction."signalId" = ${alias}.id AND correction.tag = '${tag}'
      ORDER BY correction."updatedAt" DESC
      LIMIT 1),
-    COALESCE((${alias}.probabilities->>'${tag}')::float, 0) >= ${CHAT_SIGNAL_THRESHOLD}
+    COALESCE((${alias}.probabilities->>'${tag}')::float, 0) >= ${chatSignalThreshold(tag)}
   )`;
 }

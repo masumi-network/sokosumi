@@ -8835,6 +8835,8 @@
           "needsDecision": "{count, plural, one {# offene Entscheidung} other {# offene Entscheidungen}}",
           "commitment": "{count, plural, one {# Zusage} other {# Zusagen}}",
           "workRequest": "{count, plural, one {# Arbeitsauftrag} other {# Arbeitsaufträge}}",
+          "bug": "{count, plural, one {# Fehler} other {# Fehler}}",
+          "review": "{count, plural, one {# Feedback-Anfrage} other {# Feedback-Anfragen}}",
           "question": "{count, plural, one {# Frage} other {# Fragen}}",
           "fyi": "{count, plural, one {# Info} other {# Infos}}",
           "chitChat": "{count, plural, one {# Plauderei} other {# Plaudereien}}"
@@ -8857,7 +8859,9 @@
           "needsDecision": "Braucht eine Entscheidung",
           "commitment": "Zusage",
           "commitmentDue": "Zusage · fällig {date}",
-          "workRequest": "Arbeitsauftrag"
+          "workRequest": "Arbeitsauftrag",
+          "bug": "Fehler",
+          "review": "Feedback"
         },
         "Tags": {
           "question": "Stellt jemandem eine Frage",
@@ -8869,6 +8873,8 @@
           "urgent": "Dringend",
           "escalation": "Eskalation",
           "workRequest": "Arbeitsauftrag",
+          "bug": "Meldet einen Fehler",
+          "review": "Bittet um Feedback",
           "fyi": "Info",
           "chitChat": "Plauderei"
         },

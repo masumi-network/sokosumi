@@ -195,14 +195,14 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     });
   });
 
-  it("tags a room's pending messages in one batch and stores who they ask", async () => {
+  it("tags a room's pending messages, one Jev call each, and stores who they ask", async () => {
     const calls = vi.fn(evaluate);
     const outcome = await tagRoomChatSignals(channelId, {
       source: "live",
       evaluate: calls,
     });
     expect(outcome).toMatchObject({ claimed: 3, tagged: 3 });
-    expect(calls).toHaveBeenCalledOnce();
+    expect(calls).toHaveBeenCalledTimes(3);
 
     const stored = await prisma.chatMessageSignal.findUniqueOrThrow({
       where: { messageId: question },
