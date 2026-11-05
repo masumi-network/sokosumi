@@ -26,6 +26,7 @@ import {
 } from "./push-work-queue.client";
 import {
   forgetAblyPushRegistration,
+  forgetUnfinishedPushTeardown,
   hasAblyPushRegistration,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
@@ -163,8 +164,14 @@ async function stopForeignPushSubscription(
   const renewalRevoked = revokePushRenewalForUser(owner);
   await queuePushWork(async () => {
     const storageRevoked = await renewalRevoked;
-    if (teardownVersion !== getPushTeardownVersion() || owner !== readOwner())
+    if (teardownVersion !== getPushTeardownVersion()) return;
+    if (owner !== readOwner()) {
+      // Another tab named the device for someone else while this waited
+      // for the queue. The version is unchanged, so the note of a teardown
+      // under way is this one's, and nothing else is left to clear it.
+      forgetUnfinishedPushTeardown();
       return;
+    }
     if (storageRevoked) {
       const { dropBrowserPushSubscription } = await import(
         "./push-activation.client"

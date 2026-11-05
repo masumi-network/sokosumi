@@ -252,4 +252,7 @@ it("preserves a replacement renewal while the old account's storage revoke is pe
 
   expect(unsubscribe).not.toHaveBeenCalled();
   expect(await renewalSnapshot()).toMatchObject({ userId: "bob" });
+  // The teardown that stood down leaves no note of one under way, or every
+  // later repair in this browser would stop at it.
+  expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
 });
