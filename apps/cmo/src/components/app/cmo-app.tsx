@@ -422,7 +422,7 @@ export function CmoApp({
             </span>
             <span className="sp" />
             <a
-              className="button button-accent button-small"
+              className="button button-small"
               href={overview.subscribeUrl}
               target="_blank"
               rel="noreferrer"

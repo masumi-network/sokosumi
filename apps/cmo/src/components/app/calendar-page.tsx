@@ -16,9 +16,9 @@ type Media = CmoOverview["media"][number];
 
 const STATUS: Record<Entry["status"], { label: string; tone: string }> = {
   idea: { label: "Planned", tone: "" },
-  draft: { label: "Written", tone: "accent" },
-  scheduled: { label: "Scheduled", tone: "accent" },
-  published: { label: "Published", tone: "ok" },
+  draft: { label: "Written", tone: "strong" },
+  scheduled: { label: "Scheduled", tone: "strong" },
+  published: { label: "Published", tone: "strong" },
   skipped: { label: "Skipped", tone: "" },
 };
 

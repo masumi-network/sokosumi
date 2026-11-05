@@ -1,0 +1,357 @@
+/* Preview of design-system.md. Tokens only; each board sets its own
+   color-scheme so light-dark() resolves per column. */
+.ds {
+  width: 100%;
+  max-width: 1376px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.ds-title {
+  margin-bottom: 24px;
+  font-size: 2.25rem;
+  line-height: 2.375rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.ds-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+.ds-board {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.ds-board.light {
+  color-scheme: light;
+}
+
+.ds-board.dark {
+  color-scheme: dark;
+}
+
+@media (max-width: 900px) {
+  .ds {
+    padding: 16px;
+  }
+
+  .ds-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ds-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ds-section ul,
+.ds-section ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ds-muted {
+  color: var(--muted);
+}
+
+.ds-small {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ds-micro {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+}
+
+.ds-body-medium {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+}
+
+.ds-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ds-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.ds-swatch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-swatch-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ds-chip-fill {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.ds-type {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ds-type p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ds-t-display {
+  font-size: 4.5rem;
+  line-height: 4.25rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.ds-t-h1 {
+  font-size: 2.25rem;
+  line-height: 2.375rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.ds-t-statement {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+.ds-t-value {
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: 300;
+  letter-spacing: -0.005em;
+}
+
+.ds-t-h2 {
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ds-t-body {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ds-t-small {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ds-t-micro {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+}
+
+.ds-radii {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ds-radii li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-radius-box {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.ds-shadow-box {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-hard);
+}
+
+.ds-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+}
+
+.ds-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.ds-status li,
+.ds-poses li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-disc {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ds-disc-ok {
+  background: var(--ok);
+}
+
+.ds-disc-warn {
+  background: var(--warn);
+}
+
+.ds-disc-fail {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.ds-poses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+
+.ds-poses li {
+  flex-direction: column;
+}
+
+.ds-avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+}
+
+/* Only "Needs you" is labelled on Iris; Cuso's circle stays --stage. */
+.ds-pose-on-iris {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-mark);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ds-avatar img {
+  width: 48px;
+  height: 48px;
+}
+
+/* The art is painted on light Iris, so it fills the stage in both themes. */
+.ds-stage {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  max-height: 560px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--primary-hover);
+}
+
+.ds-stage-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 100%;
+}
+
+.ds-tilt {
+  position: absolute;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  box-shadow: var(--shadow-hard);
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ds-tilt-a {
+  top: 24px;
+  left: 16px;
+  transform: rotate(-4deg);
+}
+
+.ds-tilt-b {
+  right: 16px;
+  top: 45%;
+  transform: rotate(3deg);
+}
+
+.ds-tilt-c {
+  bottom: 24px;
+  left: 24px;
+  transform: rotate(-2deg);
+}
+
+.ds-r-mark {
+  border-radius: var(--radius-mark);
+}
+
+.ds-r-control {
+  border-radius: var(--radius-control);
+}
+
+.ds-r-card {
+  border-radius: var(--radius-card);
+}
+
+.ds-r-panel {
+  border-radius: var(--radius-panel);
+}

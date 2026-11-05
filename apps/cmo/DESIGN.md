@@ -1,14 +1,14 @@
 ---
-# Copied from github.com/masumi-network/CMO.XYZ-Style-Guide@c197cf10 (DESIGN.md).
-# That repo is the source; change it there and re-copy this file.
+# Started as a copy of github.com/masumi-network/CMO.XYZ-Style-Guide@c197cf10 (DESIGN.md).
+# Since 2026-11-05 this file and design-system.md are the source; sync the style guide repo from here.
 version: alpha
 name: CMO.XYZ
 description: "An AI agent that automates a business's marketing, end to end, in one system."
 typography:
   h1:
-    fontFamily: PP Mori
+    fontFamily: Inter
   body-md:
-    fontFamily: PP Mori
+    fontFamily: Inter
 ---
 
 ## Overview
@@ -63,23 +63,22 @@ Example prompt responses, from the current live build:
 
 ### Status
 
-| Area                                                    | Status                              |
-| ------------------------------------------------------- | ----------------------------------- |
-| Product and positioning                                 | Locked                              |
-| Voice and tone                                          | Locked                              |
-| Typeface                                                | Locked                              |
-| Colors, logo, graphic language, colorway, agent avatars | Open                                |
-| Layout, elevation, shapes, components                   | Blocked, waiting on visual identity |
+| Area                                    | Status                       |
+| --------------------------------------- | ---------------------------- |
+| Product and positioning                 | Locked                       |
+| Voice and tone                          | Locked                       |
+| Typeface                                | Locked                       |
+| Colors, graphic language, agent avatars | Locked, see design-system.md |
+| Logo                                    | Open                         |
+| Layout, elevation, shapes, components   | Locked, see design-system.md |
 
-The Colors, Layout, Elevation & Depth, Shapes, and Components sections are intentionally omitted until those decisions exist. Do not invent brand colors or shapes. Do not treat any current build or demo colors or shapes as final. If a placeholder is needed to keep building, use a neutral system default and flag it clearly as temporary in code and comments.
+Colors, layout, elevation, shapes, components and how Cuso is used live in [`design-system.md`](design-system.md). This file keeps the product, voice and naming rules.
 
 Layout and application specs will cover the website, the app, and the print flier for Token2049 (Oct 6 to 8, 2026, hard deadline).
 
 ## Typography
 
-The confirmed brand typeface is **PP Mori**. The tokens above set the typeface only.
-
-Font sizes, weights, line heights, letter spacing, the web fallback stack, and the source and license terms are TBD. Flag to design before implementation.
+The brand typeface is **Inter** (since 2026-11-05; PP Mori was chosen first, but its files were never delivered). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
 
 ## Do's and Don'ts
 
@@ -87,5 +86,5 @@ Font sizes, weights, line heights, letter spacing, the web fallback stack, and t
 - Do ask for missing information, framed as getting "better aligned." Don't hedge with "I'm not sure" or "I think."
 - Do support whatever agent name the user picks on every screen. Don't hardcode one agent name for everyone.
 - Do keep copy plain and short. Don't write long, rambling sentences or lean on em dashes and hyphens.
-- Do use a neutral system default for placeholder colors, logo, and avatars, and flag it as temporary. Don't treat current demo colors or shapes as final.
+- Do take every color, size, shape and shadow from [`design-system.md`](design-system.md) through the tokens in `src/app/globals.css`.
 - Don't build the newsletter for Token2049. It is roadmap.

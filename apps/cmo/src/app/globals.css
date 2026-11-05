@@ -1,44 +1,39 @@
 /*
- * TEMPORARY theme. The CMO.xyz style guide (DESIGN.md) still lists colours,
- * logo, shapes, and PP Mori font files as open, and says not to invent brand
- * values. Until design locks them, these tokens are neutral greys that match
- * the black and white mascot and follow the visitor's light or dark setting.
- * Replace the tokens here, not at call sites.
+ * Tokens from design-system.md (the source of truth for every value).
+ * Components read these, never literals; change a value here, not at a call site.
+ * .theme-scope re-declares the tokens on an element, so a `color-scheme` set
+ * there resolves their light-dark() values (Chrome resolves them where they
+ * are declared). /design-system uses it to show both themes side by side.
  */
-:root {
+:root,
+.theme-scope {
   color-scheme: light dark;
-  --background: light-dark(#ffffff, #0a0a0a);
-  --foreground: light-dark(#0a0a0a, #f5f5f5);
-  --muted: light-dark(#5c5c5c, #a3a3a3);
-  --border: light-dark(#e5e5e5, #2a2a2a);
+  --background: light-dark(#ffffff, #0c0c0c);
   --surface: light-dark(#f5f5f5, #171717);
-  --primary: var(--foreground);
-  --primary-foreground: var(--background);
-  --primary-hover: light-dark(#333333, #d4d4d4);
-  /* The mascot is black and white, so its stage stays light in dark mode too. */
-  --stage: light-dark(#f2f2f2, #e6e6e6);
-  /* TEMPORARY shape: radius is open until design locks shapes. */
-  --radius: 10px;
-  /* TEMPORARY font: PP Mori is the locked typeface; its files are not delivered yet. */
-  --font-sans: "PP Mori", var(--font-inter), system-ui, sans-serif;
-  /* TEMPORARY accent for the signed-in app: one accent only. */
-  --accent: light-dark(#3d4ed6, #7381f0);
-  --accent-foreground: light-dark(#ffffff, #10121f);
-  --accent-soft: light-dark(rgb(61 78 214 / 0.08), rgb(115 129 240 / 0.16));
-  --ok: light-dark(#2f7d55, #5cc28d);
-  --ok-soft: color-mix(in srgb, var(--ok) 12%, transparent);
-  --warn: light-dark(#a3610f, #dd9a4a);
-  --warn-soft: color-mix(in srgb, var(--warn) 12%, transparent);
-  --warn-softer: color-mix(in srgb, var(--warn) 10%, transparent);
-  --warn-wash: color-mix(in srgb, var(--warn) 6%, var(--background));
-  --border-strong: color-mix(in srgb, var(--foreground) 30%, var(--border));
-  --sidebar: light-dark(#fafafa, #141414);
-  --hover: light-dark(#f2f2f2, #1f1f1f);
+  --card: light-dark(#ffffff, #0c0c0c);
+  --foreground: light-dark(#171717, #fafafa);
+  --muted: light-dark(#525252, #a3a3a3);
+  /* Ink line on what you act on; hairline for structure. */
+  --line: light-dark(#0c0c0c, #a3a3a3);
+  --border: light-dark(#e5e5e5, #262626);
+  /* Iris is a fill, never text or a thin mark. */
+  --primary: light-dark(#ff51ff, #d141d1);
+  --primary-hover: #ff51ff;
+  --primary-foreground: #0c0c0c;
+  --peach: #ffc8f0;
+  /* Green and yellow are fills under a primary-foreground glyph. */
+  --ok: #00d43b;
+  --warn: #ffd300;
+  /* The one hard shadow: 3px offset, no blur. */
+  --shadow-hard: 3px 3px 0 light-dark(#0c0c0c, #fafafa);
+  /* Cuso's avatar circle stays light in both themes so his outline reads. */
+  --stage: #f5f5f5;
+  --radius-mark: 6px;
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-panel: 14px;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --scrim: rgb(0 0 0 / 0.3);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
-  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.08);
-  --radius-sm: 8px;
-  --radius-lg: 12px;
   /* Channels' own marks keep their networks' colours. */
   /* Fully see-through, for fades and masks. */
   --clear: transparent;
@@ -181,26 +176,32 @@ p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 0 24px;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius);
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
   background: var(--primary);
+  box-shadow: var(--shadow-hard);
   color: var(--primary-foreground);
   font: inherit;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   /* Links styled as buttons (Back) look like the buttons beside them. */
   text-decoration: none;
   cursor: pointer;
   transition:
     background-color 150ms,
-    border-color 150ms;
+    transform 150ms;
 }
 
 .button:hover {
-  border-color: var(--primary-hover);
   background: var(--primary-hover);
+}
+
+/* Pressed: pushed flat, the shadow gone. */
+.button:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: none;
 }
 
 .button:focus-visible {
@@ -209,13 +210,12 @@ p {
 }
 
 .button-secondary {
-  border-color: var(--border);
-  background: transparent;
+  background: var(--card);
+  box-shadow: none;
   color: var(--foreground);
 }
 
 .button-secondary:hover {
-  border-color: var(--foreground);
   background: var(--surface);
 }
 
@@ -273,12 +273,12 @@ p {
 }
 
 .field input {
-  min-height: 48px;
+  min-height: 44px;
   padding: 0 16px;
-  /* --border is too faint for a control's edge (WCAG 1.4.11 asks 3:1). */
-  border: 1px solid var(--muted);
-  border-radius: var(--radius);
-  background: var(--background);
+  /* The ink line keeps a control's edge above 3:1 (WCAG 1.4.11). */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
   color: var(--foreground);
   font: inherit;
   font-size: 1rem;
@@ -289,10 +289,9 @@ p {
   outline-offset: 2px;
 }
 
-/* No error colour token yet: weight and a strong border carry the error. */
+/* No error colour: weight and a doubled ink line carry the error. */
 .field input[aria-invalid="true"] {
-  border-color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .field-error {
@@ -304,7 +303,7 @@ p {
   width: 100%;
   padding: 12px 16px;
   border: 1px solid var(--foreground);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--surface);
   font-weight: 500;
 }
@@ -333,7 +332,7 @@ p {
   width: 100%;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -348,11 +347,7 @@ p {
   position: relative;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 55%,
-    var(--stage) 0 62%,
-    transparent 70%
-  );
+  background: var(--stage);
 }
 
 .mascot-still,
@@ -399,7 +394,7 @@ p {
 /*
  * Signed-in app: sidebar, chat with cards, "Up next". A sibling of
  * Sokosumi's web app: near-white sidebar, 64px header, 32px rows, hairline
- * borders, 14px body. One accent, kept for the action that matters.
+ * borders, 14px body. Iris is kept for the action that matters.
  */
 
 /* The app has its own header in the sidebar. */
@@ -432,22 +427,24 @@ body:has(.app) .site-header {
   gap: 6px;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
 .button-secondary.button-small {
-  background: var(--background);
+  border-color: var(--border);
+  background: var(--card);
 }
 
 .button-secondary.button-small:hover {
-  border-color: var(--border);
-  background: var(--hover);
+  background: var(--surface);
 }
 
+/* Selection is the ink inversion; Iris means now. */
 .button-secondary[aria-pressed="true"] {
-  background: var(--hover);
+  border-color: var(--line);
+  background: var(--foreground);
+  color: var(--background);
 }
 
 .start-over {
@@ -483,28 +480,19 @@ body:has(.app) .site-header {
   gap: 8px;
 }
 
+/* The text button: underlined muted, no box. */
 .button-ghost {
   border-color: transparent;
   background: transparent;
+  box-shadow: none;
   color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .button-ghost:hover {
-  border-color: transparent;
-  background: var(--hover);
+  background: transparent;
   color: var(--foreground);
-}
-
-.button-accent {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.button-accent:hover {
-  border-color: var(--accent);
-  background: var(--accent);
-  filter: brightness(1.08);
 }
 
 .button:disabled {
@@ -526,26 +514,20 @@ a.button {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--hover);
+  border: 1px solid var(--border);
+  background: var(--surface);
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
 }
 
-.tag.ok {
-  background: var(--ok-soft);
-  color: var(--ok);
-}
-
+/* Status is a glyph disc, not a wash: the tags stay neutral and the
+   foreground tone marks the finished or live ones. */
+.tag.strong,
+.tag.ok,
 .tag.warn {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-.tag.accent {
-  background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--foreground);
 }
 
 .count {
@@ -555,7 +537,7 @@ a.button {
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--hover);
+  background: var(--surface);
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
@@ -570,15 +552,15 @@ a.button {
 }
 
 .dot.live {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--ok);
+  border: 1px solid var(--line);
 }
 
 .alert {
   padding: 10px 14px;
   border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--warn-softer);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   font-size: 0.875rem;
   font-weight: 400;
 }
@@ -592,8 +574,8 @@ a.button {
 .chip {
   padding: 4px 12px;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--background);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   color: var(--foreground);
   font: inherit;
   font-size: 0.8125rem;
@@ -602,19 +584,19 @@ a.button {
 }
 
 .chip:hover {
-  background: var(--hover);
+  background: var(--card);
 }
 
 .chip.selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--line);
+  background: var(--foreground);
+  color: var(--background);
 }
 
 /* The business's own mark, shared by onboarding and the app. */
 .ob-mark {
   flex: none;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   object-fit: contain;
   background: var(--background);
   border: 1px solid var(--border);
@@ -666,9 +648,9 @@ input,
 textarea {
   font: inherit;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--background);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
   color: var(--foreground);
 }
 
@@ -728,7 +710,7 @@ textarea {
   flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--border);
-  background: var(--sidebar);
+  background: var(--surface);
 }
 
 .side-head {
@@ -787,7 +769,7 @@ textarea {
   height: 32px;
   padding: 0 8px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--foreground);
   font: inherit;
@@ -802,12 +784,13 @@ textarea {
   color: var(--muted);
 }
 
-.nav a:hover,
-.nav a.active {
-  background: var(--hover);
+.nav a:hover {
+  background: var(--card);
 }
 
 .nav a.active {
+  border: 1px solid var(--line);
+  background: var(--card);
   font-weight: 500;
 }
 
@@ -867,7 +850,7 @@ textarea {
   height: 28px;
   margin-left: auto;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -923,7 +906,7 @@ textarea {
   gap: 12px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
-  background: var(--warn-wash);
+  background: var(--surface);
   font-size: 0.875rem;
 }
 
@@ -959,7 +942,7 @@ textarea {
 
 .mav.user {
   border: 0;
-  background: var(--hover);
+  background: var(--surface);
   color: var(--foreground);
 }
 
@@ -1035,13 +1018,13 @@ textarea {
 .card {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--background);
+  border-radius: var(--radius-card);
+  background: var(--card);
 }
 
 .flash .card {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--line);
+  box-shadow: var(--shadow-hard);
 }
 
 .card .ch,
@@ -1064,7 +1047,7 @@ textarea {
 
 .card .cf {
   border-top: 1px solid var(--border);
-  background: var(--sidebar);
+  background: var(--surface);
 }
 
 .card .cb {
@@ -1107,7 +1090,7 @@ textarea {
 }
 
 .step.run .dot {
-  border-color: var(--accent);
+  border-color: var(--line);
   border-top-color: transparent;
   animation: spin 800ms linear infinite;
 }
@@ -1117,9 +1100,9 @@ textarea {
 }
 
 .step.ok .dot {
-  border-color: var(--ok);
+  border-color: var(--line);
   background: var(--ok);
-  color: var(--background);
+  color: var(--primary-foreground);
 }
 
 .step.ok .dot::after {
@@ -1181,8 +1164,8 @@ textarea {
   gap: 2px;
   min-height: 28px;
   padding: 4px;
-  border-radius: 6px;
-  background: var(--sidebar);
+  border-radius: var(--radius-mark);
+  background: var(--surface);
 }
 
 .cal .d.blank {
@@ -1231,7 +1214,7 @@ textarea {
 }
 
 .k.ad {
-  background: var(--accent);
+  background: var(--primary);
 }
 
 .k.article {
@@ -1239,7 +1222,7 @@ textarea {
 }
 
 .k.news {
-  border: 1px solid var(--accent);
+  border: 1px solid var(--line);
   border-radius: 50%;
 }
 
@@ -1269,8 +1252,8 @@ textarea {
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--sidebar);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   font-size: 0.8125rem;
 }
 
@@ -1341,15 +1324,15 @@ textarea {
   flex-direction: column;
   max-width: 720px;
   margin: 0 auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--background);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
   transition: border-color 150ms;
 }
 
 .composer:focus-within {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 /* The composer's frame draws the ring; forced-colors mode still shows this one. */
@@ -1404,7 +1387,7 @@ textarea {
   min-height: 0;
   overflow: hidden;
   border-left: 1px solid var(--border);
-  background: var(--sidebar);
+  background: var(--surface);
 }
 
 .app.upnext-closed .upnext {
@@ -1451,7 +1434,7 @@ textarea {
   gap: 6px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--background);
   font-size: 0.8125rem;
 }
@@ -1533,9 +1516,8 @@ textarea {
   flex-direction: column;
   gap: 10px;
   padding: 16px 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--background);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
 }
 
 .panel h3 {
@@ -1564,8 +1546,8 @@ textarea {
   gap: 4px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--sidebar);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
 
 .kpi .label {
@@ -1722,9 +1704,9 @@ textarea {
   padding: 20px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--background);
-  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  box-shadow: var(--shadow-hard);
 }
 
 .sheet-head {
@@ -1741,14 +1723,14 @@ textarea {
   height: 28px;
   margin-left: auto;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: none;
   color: var(--muted);
   cursor: pointer;
 }
 
 .sheet-close:hover {
-  background: var(--hover);
+  background: var(--surface);
   color: var(--foreground);
 }
 
@@ -1771,7 +1753,7 @@ textarea {
   width: 100%;
   max-height: 60vh;
   margin-bottom: 16px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
   object-fit: contain;
 }
@@ -1795,14 +1777,14 @@ textarea {
 .sheet-slides img {
   display: block;
   width: 100%;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
 .sheet-draft {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
   line-height: 1.6;
 }
@@ -1879,9 +1861,8 @@ textarea {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--sidebar);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
 }
 
 .plan-week-head {
@@ -1912,7 +1893,7 @@ textarea {
   width: 100%;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -1923,7 +1904,7 @@ textarea {
 }
 
 .plan-item:hover {
-  border-color: var(--border-strong);
+  border-color: var(--line);
 }
 
 .plan-item svg {
@@ -1955,7 +1936,7 @@ textarea {
 }
 
 .plan-done {
-  color: var(--ok);
+  color: var(--foreground);
 }
 
 .rv-map {
@@ -1966,11 +1947,30 @@ textarea {
 .rv-plot {
   position: relative;
   aspect-ratio: 16 / 10;
-  border-radius: var(--radius);
-  background:
-    linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat,
-    linear-gradient(var(--border), var(--border)) center / 100% 1px no-repeat,
-    var(--surface);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+/* The two axes, drawn as hairlines through the middle. */
+.rv-plot::before,
+.rv-plot::after {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.rv-plot::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.rv-plot::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
 }
 
 .rv-axis {
@@ -2033,15 +2033,12 @@ textarea {
   width: 18px;
   height: 18px;
   background: var(--brand);
-  box-shadow: 0 0 0 6px var(--brand-soft);
+  outline: 6px solid var(--brand-soft);
 }
 
-.rv-yes {
-  color: var(--ok);
-}
-
+.rv-yes,
 .rv-no {
-  color: var(--warn);
+  color: var(--foreground);
 }
 
 .rv-group {
@@ -2077,7 +2074,7 @@ textarea {
   min-height: 132px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -2133,7 +2130,7 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--border-strong);
+  background: var(--line);
 }
 
 .rv-dots i.fact {
@@ -2141,7 +2138,7 @@ textarea {
 }
 
 .rv-dots i.inference {
-  background: var(--accent);
+  background: var(--primary);
 }
 
 .rv-tile-ask {
@@ -2216,22 +2213,18 @@ textarea {
   align-self: start;
   justify-self: start;
   padding: 1px 8px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--hover);
+  background: var(--surface);
   color: var(--muted);
   font-size: 0.6875rem;
   font-weight: 500;
   white-space: nowrap;
 }
 
-.bp-evidence.fact {
-  background: var(--ok-soft);
-  color: var(--ok);
-}
-
+.bp-evidence.fact,
 .bp-evidence.inference {
-  background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--foreground);
 }
 
 .bp-finding-body {
@@ -2287,7 +2280,7 @@ textarea {
   align-items: center;
   gap: 6px;
   margin: 0;
-  color: var(--ok);
+  color: var(--foreground);
   font-size: 0.8125rem;
 }
 
@@ -2359,7 +2352,7 @@ textarea {
   gap: 8px;
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -2448,7 +2441,7 @@ textarea {
   gap: 8px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
 }
 
 .ff-week-head {
@@ -2496,7 +2489,7 @@ textarea {
 
 .ff-needs {
   display: block;
-  color: var(--warn);
+  color: var(--foreground);
   font-size: 0.75rem;
 }
 
@@ -2555,7 +2548,7 @@ textarea {
 }
 
 .ff-fix {
-  color: var(--warn);
+  color: var(--foreground);
   font-size: 0.875rem;
 }
 
@@ -2639,7 +2632,7 @@ textarea {
   gap: 12px;
   margin-bottom: 32px;
   padding: 20px 24px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--surface);
   color: var(--foreground);
   font: inherit;
@@ -2853,9 +2846,8 @@ textarea {
   margin: 0;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--background);
-  box-shadow: var(--shadow-lg);
 }
 
 .bm-bar {
@@ -2877,7 +2869,7 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--border-strong);
+  background: var(--line);
 }
 
 .bm-address {
@@ -2912,9 +2904,8 @@ textarea {
   width: 25%;
   overflow: hidden;
   border: 5px solid var(--mark-black);
-  border-radius: 22px;
+  border-radius: var(--radius-panel);
   background: var(--background);
-  box-shadow: var(--shadow-lg);
 }
 
 .bm-phone img {
@@ -2962,14 +2953,14 @@ textarea {
   object-fit: cover;
   object-position: top;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--surface);
   transition: border-color 150ms;
 }
 
 .bm-pages a:hover img,
 .bm-rivals a:hover img {
-  border-color: var(--border-strong);
+  border-color: var(--line);
 }
 
 .bm-pages a:focus-visible,
@@ -2977,7 +2968,7 @@ textarea {
 .bm-rivals a:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 4px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
 }
 
 .bm-caption,
@@ -3014,7 +3005,7 @@ textarea {
   height: 200px;
   object-fit: cover;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
@@ -3275,7 +3266,7 @@ a.rv-dot {
   top: -3px;
   bottom: -3px;
   width: 2px;
-  border-radius: 1px;
+  border-radius: 0;
   background: var(--foreground);
 }
 
@@ -3299,7 +3290,7 @@ a.rv-dot {
   align-content: start;
   gap: 10px;
   padding: 20px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -3318,7 +3309,7 @@ a.rv-dot {
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--background);
 }
 
@@ -3414,7 +3405,7 @@ a.rv-dot {
 }
 
 .bb-offer-remove:hover:not(:disabled) {
-  background: var(--hover);
+  background: var(--surface);
   color: var(--foreground);
 }
 
@@ -3448,7 +3439,7 @@ a.rv-dot {
   gap: 4px;
   padding: 12px 40px 12px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
@@ -3505,7 +3496,7 @@ a.rv-dot {
   height: 36px;
   padding: 0 12px;
   border: 1px solid var(--muted);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -3560,13 +3551,15 @@ a.rv-dot {
 }
 
 .cal-filter:hover {
-  background: var(--hover);
+  background: var(--surface);
   color: var(--foreground);
 }
 
+/* Selection is the ink inversion; Iris means now. */
 .cal-filter[aria-pressed="true"] {
-  border-color: var(--foreground);
-  color: var(--foreground);
+  border-color: var(--line);
+  background: var(--foreground);
+  color: var(--background);
 }
 
 .cal-week {
@@ -3602,20 +3595,17 @@ a.rv-dot {
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--background);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    border-color 150ms cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .cal-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--line);
 }
 
 .cal-thumb {
@@ -3637,7 +3627,6 @@ a.rv-dot {
 .cal-play {
   position: absolute;
   color: var(--mark-white);
-  filter: drop-shadow(var(--shadow-sm));
 }
 
 .cal-slides {
@@ -3676,7 +3665,7 @@ a.rv-dot {
 }
 
 .cal-pillar {
-  color: var(--accent);
+  color: var(--foreground);
   font-size: 0.75rem;
   font-weight: 500;
 }
@@ -3729,7 +3718,7 @@ a.rv-dot {
   max-width: 520px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--background);
 }
 

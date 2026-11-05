@@ -476,7 +476,7 @@ function channels(hex: string): [number, number, number] {
 }
 
 /**
- * The brand's accent: the site's own first colour when it is a real colour,
+ * The brand colour: the site's own first colour when it is a real colour,
  * not a near grey, near black or near white.
  */
 export function coverColor(colors: string[]): string | undefined {
@@ -490,7 +490,7 @@ export function coverColor(colors: string[]): string | undefined {
   return usable[0] ?? colors[0];
 }
 
-/** The brand's accent and a soft fill of it. */
+/** The brand colour and a soft fill of it. */
 export function brandStyle(overview: CmoOverview): CSSProperties | undefined {
   const brand = coverColor(overview.brandVisual?.colors ?? []);
   return brand

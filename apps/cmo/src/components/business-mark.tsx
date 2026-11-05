@@ -35,7 +35,7 @@ export function BusinessMark({
   wide?: boolean;
 }) {
   const logo = overview.projectLogo ?? overview.brandVisual?.logoUrl;
-  const accent = vividColors(overview.brandVisual?.colors ?? [])[0];
+  const brandColor = vividColors(overview.brandVisual?.colors ?? [])[0];
   if (logo) {
     return (
       <img
@@ -63,7 +63,9 @@ export function BusinessMark({
       style={{
         width: size,
         height: size,
-        ...(accent ? { background: accent, color: "var(--mark-white)" } : {}),
+        ...(brandColor
+          ? { background: brandColor, color: "var(--mark-white)" }
+          : {}),
       }}
       aria-hidden="true"
     >

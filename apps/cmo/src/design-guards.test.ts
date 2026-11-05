@@ -5,10 +5,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Guards for what the CMO.XYZ style guide (`apps/cmo/DESIGN.md`) has locked:
- * voice and typeface. Colours, logo and shapes are still open, so the colour
- * rule only keeps every value in one place, the `:root` block of
- * `globals.css`, where the brand will replace them in a single edit.
+ * Guards for what the CMO.XYZ docs have locked: voice (`DESIGN.md`) and the
+ * visual system (`design-system.md`): colour values in one place, one hard
+ * shadow, radii from tokens, Iris/green/yellow as fills only, flat surfaces.
  */
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
@@ -42,6 +41,17 @@ const SOURCE = FILES.filter(
 );
 
 const STYLESHEET = "app/globals.css";
+
+/** Drawings of the networks' own UIs; exempt from the visual-system guards. */
+const ALLOWLIST = ["components/phone-feeds.css", "components/showcases.css"];
+
+/** Every stylesheet and non-test source file except the allowlist. */
+const STYLED = FILES.filter(
+  (file) =>
+    /\.(tsx?|css)$/.test(file.rel) &&
+    !file.rel.includes(".test.") &&
+    !ALLOWLIST.includes(file.rel),
+);
 
 /**
  * A full-line comment carries no copy and no styles.
@@ -85,7 +95,7 @@ describe("colours", () => {
     // The `:root {` block itself, wherever it sits; a block above it is
     // checked like any other rule.
     const lines = stylesheet?.lines ?? [];
-    const rootStart = lines.findIndex((line) => /^:root\s*\{/.test(line));
+    const rootStart = lines.findIndex((line) => /^:root\b/.test(line));
     const rootEnd =
       rootStart === -1
         ? -1
@@ -105,7 +115,7 @@ describe("colours", () => {
 });
 
 describe("typeface", () => {
-  it("sets the face only through --font-sans (PP Mori)", () => {
+  it("sets the face only through --font-sans (Inter)", () => {
     const stylesheet = FILES.find((file) => file.rel === STYLESHEET);
     const literalFamilies = (stylesheet?.lines ?? [])
       .map((line, index) => ({ line, index }))
@@ -115,7 +125,7 @@ describe("typeface", () => {
 
     const inSource = findLines(SOURCE, /\bfontFamily\s*:/);
 
-    expect(stylesheet?.text).toMatch(/--font-sans:\s*"PP Mori"/);
+    expect(stylesheet?.text).toMatch(/--font-sans:\s*var\(--font-inter\)/);
     expect([...literalFamilies, ...inSource]).toEqual([]);
   });
 });
@@ -176,5 +186,114 @@ describe("accessibility", () => {
     expect(
       findLines(checked, /outline\s*:\s*["']?(?:none\b|0(?![\d.]))/),
     ).toEqual([]);
+  });
+});
+
+/** One rule per line pattern, each proven by a bad and a good sample. */
+const SHADOW_DECLARATION = /\bbox-?[sS]hadow\s*:\s*["'`]?([^;"'`,}]*)/;
+const SHADOW_OK =
+  /^(?:none|var\(--shadow-hard\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
+const BLUR = /\bblur\(|backdrop-filter|\bbackdropFilter/;
+const RADIUS_DECLARATION =
+  /\b(?:border(?:-[a-z]+)*-radius|border(?:[A-Z][a-z]+)*Radius)\s*:\s*["'`]?([^;"'`}]*)/;
+const RADIUS_OK =
+  /^(?:var\(--radius-(?:mark|control|card|panel)\)|999px|50%|0|inherit)$/;
+const IRIS_TEXT =
+  /(?<![\w-])(?:color|stroke|text-decoration-color|border[\w-]*|outline[\w-]*|borderColor|outlineColor)\s*:[^;]*var\(--primary(?:-hover)?\)/;
+const SIGNAL_TEXT = /(?<![\w-])(?:color|stroke)\s*:[^;]*var\(--(?:ok|warn)\)/;
+const GRADIENT = /gradient\(/;
+
+function badShadow(line: string): boolean {
+  const value = SHADOW_DECLARATION.exec(line)?.[1]?.trim();
+  return value !== undefined && !SHADOW_OK.test(value);
+}
+
+function badRadius(line: string): boolean {
+  const value = RADIUS_DECLARATION.exec(line)?.[1]?.trim();
+  return (
+    value !== undefined &&
+    !value.split(/\s+/).every((part) => RADIUS_OK.test(part))
+  );
+}
+
+describe("visual system", () => {
+  it("allows one hard shadow and no blur", () => {
+    expect(
+      findLines(STYLED, /box-?[sS]hadow/).filter((hit) => badShadow(hit)),
+    ).toEqual([]);
+    expect(findLines(STYLED, BLUR)).toEqual([]);
+  });
+
+  it("takes every radius from the tokens", () => {
+    expect(
+      findLines(STYLED, RADIUS_DECLARATION).filter((hit) => badRadius(hit)),
+    ).toEqual([]);
+  });
+
+  it("uses Iris as a fill, never as text or a line", () => {
+    expect(findLines(STYLED, IRIS_TEXT)).toEqual([]);
+  });
+
+  it("uses green and yellow as fills, never as text", () => {
+    expect(findLines(STYLED, SIGNAL_TEXT)).toEqual([]);
+  });
+
+  it("stays flat: no gradients", () => {
+    expect(findLines(STYLED, GRADIENT)).toEqual([]);
+  });
+
+  describe("matchers", () => {
+    it("flags a blurred shadow and passes the hard one", () => {
+      expect(badShadow("  box-shadow: 0 1px 2px var(--border);")).toBe(true);
+      expect(badShadow('boxShadow: "0 0 0 3px var(--surface)"')).toBe(true);
+      expect(badShadow("  box-shadow: var(--shadow-hard);")).toBe(false);
+      expect(badShadow("  box-shadow: inset 0 0 0 1px var(--line);")).toBe(
+        false,
+      );
+      expect(badShadow("  box-shadow: none;")).toBe(false);
+    });
+
+    it("flags blur and passes a plain filter", () => {
+      expect(BLUR.test("  backdrop-filter: blur(12px);")).toBe(true);
+      expect(BLUR.test("  filter: blur(2px);")).toBe(true);
+      expect(BLUR.test("  filter: grayscale(1);")).toBe(false);
+    });
+
+    it("flags a literal radius and passes a token", () => {
+      expect(badRadius("  border-radius: 8px;")).toBe(true);
+      expect(badRadius("  border-top-left-radius: 4px;")).toBe(true);
+      expect(badRadius('borderRadius: "12px"')).toBe(true);
+      expect(badRadius("  border-radius: var(--radius-card);")).toBe(false);
+      expect(badRadius("  border-radius: 999px;")).toBe(false);
+      expect(
+        badRadius(
+          "  border-radius: 0 0 var(--radius-card) var(--radius-card);",
+        ),
+      ).toBe(false);
+    });
+
+    it("flags Iris as text or a line and passes it as a fill", () => {
+      expect(IRIS_TEXT.test("  color: var(--primary);")).toBe(true);
+      expect(IRIS_TEXT.test("  border: 1px solid var(--primary);")).toBe(true);
+      expect(IRIS_TEXT.test("  outline-color: var(--primary-hover);")).toBe(
+        true,
+      );
+      expect(IRIS_TEXT.test("  background: var(--primary);")).toBe(false);
+      expect(IRIS_TEXT.test("  color: var(--primary-foreground);")).toBe(false);
+    });
+
+    it("flags green and yellow as text and passes them as fills", () => {
+      expect(SIGNAL_TEXT.test("  color: var(--ok);")).toBe(true);
+      expect(SIGNAL_TEXT.test("  stroke: var(--warn);")).toBe(true);
+      expect(SIGNAL_TEXT.test("  background: var(--ok);")).toBe(false);
+      expect(SIGNAL_TEXT.test("  background-color: var(--warn);")).toBe(false);
+    });
+
+    it("flags a gradient and passes a flat fill", () => {
+      expect(GRADIENT.test("  background: linear-gradient(red, blue);")).toBe(
+        true,
+      );
+      expect(GRADIENT.test("  background: var(--surface);")).toBe(false);
+    });
   });
 });
