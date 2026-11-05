@@ -99,7 +99,7 @@ const FONT_ALIASES: [string, NewsletterFont][] = [
   ["baskerville", "Georgia"],
 ];
 
-/** "#abc" as "#aabbcc", in lower case. */
+/** Expand a 3-digit hex to 6 digits, lowercased. */
 function normalizeHex(digits: string): string {
   const hex = digits.toLowerCase();
   return `#${hex.length === 3 ? [...hex].map((digit) => digit + digit).join("") : hex}`;
