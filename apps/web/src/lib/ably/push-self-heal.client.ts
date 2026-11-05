@@ -133,6 +133,12 @@ async function stopForeignPushSubscription(
   }
   const owner = readOwner();
   if (!owner || owner === userId) return false;
+  // A reader who opted in here is taking the device over themselves:
+  // `activatePush` resets a registration held for someone else and names
+  // the device for them, and it writes their preference before it
+  // subscribes. Tearing down beside that run would undo what they just
+  // asked for, since the device stays in the old name until the run binds it.
+  if (wantsPushHere(userId)) return false;
   if (!hadRegistration && !(await hasWebPushSubscription())) return false;
   const version = getPushTeardownVersion();
 
@@ -165,7 +171,6 @@ async function stopForeignPushSubscription(
       await stopBrowserDelivery();
     }
     forgetAblyPushRegistration();
-    notePushTeardownStarted();
   });
   return true;
 }

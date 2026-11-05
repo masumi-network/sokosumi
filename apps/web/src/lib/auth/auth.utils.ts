@@ -60,10 +60,22 @@ export function createAuthSessionGetter<TSession>(
   return async () => {
     const sessionResponse = await getSessionResponse();
     if (sessionResponse?.error) {
+      // A refused session is a signed-out reader, not an outage: the caller
+      // sends them to sign in. Anything else is an answer nobody gave.
+      if (isSignedOutStatus(sessionResponse.error)) return null;
       throw sessionResponse.error;
     }
     return sessionResponse?.data?.session ?? null;
   };
+}
+
+function isSignedOutStatus(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error.status === 401 || error.status === 403)
+  );
 }
 
 /**

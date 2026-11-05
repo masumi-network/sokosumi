@@ -211,7 +211,9 @@ describe("AuthSessionGuard", () => {
     expect(authClient.getSession).toHaveBeenCalledOnce();
   });
 
-  it("reloads once when focus finds a different account than the rendered shell", async () => {
+  it("reloads again when a kept document still shows another account", async () => {
+    // A `beforeunload` prompt for unsaved edits can keep the document. The
+    // reload mock stands in for the reader choosing to stay.
     const reload = vi
       .spyOn(window.location, "reload")
       .mockImplementation(() => {});
@@ -229,12 +231,34 @@ describe("AuthSessionGuard", () => {
     window.dispatchEvent(new Event("focus"));
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     window.dispatchEvent(new Event("focus"));
-    await vi.dynamicImportSettled();
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(2));
 
-    expect(reload).toHaveBeenCalledOnce();
-    expect(oldClient.close).toHaveBeenCalledOnce();
-    expect(authClient.getSession).toHaveBeenCalledTimes(2);
+    expect(oldClient.close).toHaveBeenCalled();
+    expect(authClient.getSession).toHaveBeenCalledTimes(3);
     expect(RealtimeMock).toHaveBeenCalledOnce();
+  });
+
+  it("reloads for another account without waiting for the realtime chunk", async () => {
+    vi.doMock(
+      "@/lib/ably/realtime-singleton.client",
+      () => new Promise(() => {}),
+    );
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    vi.mocked(authClient.getSession).mockResolvedValue(differentUserSession);
+
+    try {
+      render(
+        <AuthSessionGuard>
+          <AuthSessionHydrator session={renderedSession} />
+        </AuthSessionGuard>,
+      );
+
+      await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    } finally {
+      vi.doUnmock("@/lib/ably/realtime-singleton.client");
+    }
   });
 
   it("does not reload from an older account result while a newer probe is pending", async () => {

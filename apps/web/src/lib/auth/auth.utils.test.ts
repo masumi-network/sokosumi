@@ -721,6 +721,18 @@ describe("createAuthSessionGetter", () => {
     await expect(getSession()).rejects.toBe(error);
   });
 
+  it.each([401, 403])(
+    "reads a refused session (%i) as signed out rather than as an outage",
+    async (status) => {
+      const getSession = createAuthSessionGetter(async () => ({
+        data: null,
+        error: { status, message: "Refused" },
+      }));
+
+      await expect(getSession()).resolves.toBeNull();
+    },
+  );
+
   it("unwraps session data from the Better Auth response shape", async () => {
     const getSession = createAuthSessionGetter(async () => ({
       data: {

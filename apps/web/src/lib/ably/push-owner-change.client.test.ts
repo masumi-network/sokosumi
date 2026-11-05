@@ -105,6 +105,34 @@ it("stops the former account's push and renewal without opting in the new accoun
   expect(subscription).toBeNull();
   expect(await renewalSnapshot()).toBeUndefined();
   expect(wantsPushHere("bob")).toBe(false);
+  // A finished teardown leaves no note of an unfinished one behind.
+  expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+});
+
+it("leaves a device the current account is taking over for themselves alone", async () => {
+  // The reader pressed the push cell: `activatePush` wrote their preference
+  // and made the subscription, and has not yet named the device for them.
+  localStorage.setItem(
+    "sokosumi.push.preference",
+    JSON.stringify({ userId: "bob", suspended: false }),
+  );
+  subscription = { endpoint: "bob-endpoint", unsubscribe };
+  // Below "granted", so the repair stops before it would activate again.
+  vi.stubGlobal(
+    "Notification",
+    Object.assign(function Notification() {}, {
+      permission: "default",
+      requestPermission: async () => "default",
+    }),
+  );
+  const version = getPushTeardownVersion();
+
+  await expect(healPushSubscription("bob")).resolves.toBe(false);
+
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(unsubscribe).not.toHaveBeenCalled();
+  expect(getPushTeardownVersion()).toBe(version);
+  expect(readPushDeviceOwner()).toBe("alice");
 });
 
 it("stops a prior account's push when only its saved preference identifies the owner", async () => {

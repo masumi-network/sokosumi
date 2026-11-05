@@ -51,6 +51,17 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
       return;
     }
     const generation = freshSession.generation;
+    const accountChanged =
+      renderedUserIdRef.current !== undefined &&
+      renderedUserIdRef.current !== freshSession.userId;
+    if (accountChanged) {
+      // Asked before anything is awaited: the realtime chunk below can fail
+      // to load on a tab open across a deploy, and the reload must not wait
+      // on it. Not latched either. A `beforeunload` prompt for unsaved edits
+      // can keep the document, and a kept document must ask again on the
+      // next focus rather than stop checking whose shell it is.
+      window.location.reload();
+    }
     const realtime = await import("@/lib/ably/realtime-singleton.client");
     if (
       !mountedRef.current ||
@@ -59,13 +70,8 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     ) {
       return;
     }
-    if (
-      renderedUserIdRef.current &&
-      renderedUserIdRef.current !== freshSession.userId
-    ) {
-      isRedirectingRef.current = true;
+    if (accountChanged) {
       realtime.retireAblyRealtimeClientForSessionChange();
-      window.location.reload();
       return;
     }
     realtime.discardRetiredAblyRealtimeClient();
