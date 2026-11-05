@@ -52,6 +52,7 @@ interface ProjectionInput {
   actionTasks: ProjectSeoActionTask[];
   tasks: Array<{ id: string; status: string; completedAt: Date | null }>;
   privateMetricsAllowed: boolean;
+  analysisDispatchEnabled?: boolean;
   monitors?: ProjectSeoWorkspace["monitors"];
 }
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
@@ -513,7 +514,10 @@ export function projectSeoProjection(
     ),
     availableActions: {
       canEdit: editable,
-      canRequestAnalysis: editable && scope.pageIds.length > 0,
+      canRequestAnalysis:
+        editable &&
+        input.analysisDispatchEnabled === true &&
+        scope.pageIds.length > 0,
       canSyncMetrics:
         editable && input.privateMetricsAllowed && scope.pageIds.length > 0,
     },

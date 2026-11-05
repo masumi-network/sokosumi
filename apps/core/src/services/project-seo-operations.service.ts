@@ -3,6 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { requireSeoAnalysisDispatch } from "@/lib/seo/analysis-dispatch";
 import type {
   RequestSeoAnalysis,
   SeoActor,
@@ -111,6 +112,7 @@ export async function requestProjectSeoAnalysisInTransaction(
   hooks: SeoMutationHooks = {},
   frozenScopeVersion?: number,
 ) {
+  requireSeoAnalysisDispatch();
   const requestHash = sha256(JSON.stringify(input));
   await requireLockedSeoProject(tx, actor);
   await hooks.authorize?.(tx);

@@ -3,6 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { isSeoAnalysisDispatchEnabled } from "@/lib/seo/analysis-dispatch";
 import {
   addSeoPageSchema,
   createSeoScopeSchema,
@@ -351,6 +352,7 @@ export async function getProjectSeoWorkspace(
     actionTasks,
     tasks,
     privateMetricsAllowed,
+    analysisDispatchEnabled: isSeoAnalysisDispatchEnabled(),
     monitors,
   });
 }

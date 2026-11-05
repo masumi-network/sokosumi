@@ -109,6 +109,19 @@ function actionFixture() {
 }
 
 describe("stored SEO workspace projections", () => {
+  it("does not advertise paid dispatch before the compatible worker rollout is enabled", () => {
+    const input = fixture();
+    const disabled = projectSeoProjection(input);
+    expect(disabled.availableActions).toMatchObject({
+      canEdit: true,
+      canRequestAnalysis: false,
+      canSyncMetrics: true,
+    });
+    expect(
+      projectSeoProjection({ ...input, analysisDispatchEnabled: true })
+        .availableActions.canRequestAnalysis,
+    ).toBe(true);
+  });
   it("shows a failed ingestion as failed even when its source Task completed", () => {
     const input = fixture();
     const taskId = randomUUID();

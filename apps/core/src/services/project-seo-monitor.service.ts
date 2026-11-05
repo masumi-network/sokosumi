@@ -3,6 +3,7 @@ import type { Prisma, TaskSchedule } from "@sokosumi/database";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
+import { requireSeoAnalysisDispatch } from "@/lib/seo/analysis-dispatch";
 import {
   parseSeoMonitorPlan,
   SEO_MONITOR_CRON,
@@ -39,6 +40,7 @@ export async function createProjectSeoMonitor(
 ) {
   if (actor.sokoBotId)
     throw forbidden("A person must approve recurring public SEO work");
+  requireSeoAnalysisDispatch();
   await requireSeoProject(actor, prisma, true);
   if (input.analysis.kind === "audit_full")
     throw badRequest("Monitoring supports bounded focused analyses only");

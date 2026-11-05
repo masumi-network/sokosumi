@@ -10559,6 +10559,7 @@
       "conflict": "Los datos han cambiado. Actualiza los resultados antes de volver a intentarlo.",
       "saved": "Cambios guardados",
       "readOnly": "Puedes consultar estos resultados. Para editarlos necesitas acceso al proyecto.",
+      "dispatchPaused": "Las nuevas comprobaciones SEO y la supervisión están en pausa. Puedes seguir importando informes y usar estadísticas conectadas.",
       "empty": "Todavía no hay observaciones",
       "emptyBody": "Importa una auditoría completada o inicia una comprobación de página.",
       "none": "No disponible",

@@ -20,7 +20,11 @@ VERIFIED: `packages/soko-bot/src/seo.ts` defines native SEO tool contracts. `lib
 
 VERIFIED: final `pnpm precommit` passed formatting and all 20 workspace typecheck tasks. Separate local production builds for Core and Web passed. The worker's local bundle build with `--skip-sandbox-prewarm` passed. That worker build does not prove deployment, sandbox startup or automatic cron delivery.
 
-VERIFIED: final focused Core run reported `494 passed | 9 skipped`. The separately enabled localhost database run executed those nine tests and reported `9 passed (9)`. The complete Soko Bot package suite reported `448 passed (448)`.
+VERIFIED: the initial focused Core run reported `494 passed | 9 skipped`. The separately enabled localhost database run executed those nine tests and reported `9 passed (9)`. The complete Soko Bot package suite reported `448 passed (448)`.
+
+VERIFIED: the standalone PR branch passed a new combined Core run with `Tests 470 passed (470)`, including the dispatch gate, native runtime and ten localhost database tests. The scoped Web rerun reported `Tests 43 passed (43)`. `pnpm precommit` passed all 20 workspace tasks, and the combined Core/Web production build passed all ten tasks.
+
+VERIFIED: `parsePublicSeoArtifact` accepted the existing completed public audit fixture. Its normalized result reported one page, two actions and 39 keyword observations. This check read only the local JSON artifact.
 
 VERIFIED: final Web run reported `Test Files 12 passed (12)` and `Tests 136 passed (136)`. German and Spanish message-key parity passed. The checks include viewer cache isolation, frozen scope editing, source filters, page-change input, monitor controls and full-audit default limits.
 
@@ -40,9 +44,13 @@ VERIFIED: local browser launch stopped at `Port 443 requires elevated privileges
 
 ## Release boundary
 
-VERIFIED: implementation uses separate local worktrees. The earlier deployed worker, Vercel configuration, retained automation token, TUM grant and historical Google-consent proposal were not changed by this work. No release deployment or additional paid audit was run.
+VERIFIED: implementation uses separate local worktrees. This change preserves existing deployment configuration and credentials. No hosted deployment or additional paid audit was run.
 
-VERIFIED: reviewed local commits are storage `c2869f627e`, operations `bd25c91501` and worker `90ded488`. The UI layer follows the operations layer in the local `feat/seo-workspace-data`, `feat/seo-workspace-operations`, `feat/seo-workspace-ui` stack. No branch was pushed.
+VERIFIED: the implementation commits are storage `c2869f627e`, operations `bd25c91501`, UI `3a941ed7a8` and separate worker `90ded488`.
+
+REPORTED: the owner requested one Sokosumi PR, without a stack, for preview testing. VERIFIED: standalone branch `feat/seo-workspace` includes all three Sokosumi commits and targets `main`. The earlier local layer branches are not separate PRs.
+
+VERIFIED: the deployed worker's earlier Task parser does not understand the new structured request packets. A focused request can lose its page, Market, device and budget constraints there. New analysis and monitoring dispatch therefore default to disabled. Report import, native statistics and local page editing remain available. Maintainers must verify the updated worker protocol before enabling dispatch.
 
 INFERRED: release should apply the additive SEO migration and deploy Core, Web and the updated public worker together after review. This tab is a Sokosumi feature; its Core and Web changes require a separate release decision. Existing native Google connections remain the connection path.
 

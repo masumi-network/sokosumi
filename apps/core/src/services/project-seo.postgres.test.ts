@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { HTTPException } from "hono/http-exception";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { getEnv } from "@/config/env";
+
 import { forbidden } from "@/helpers/error";
 import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
@@ -67,11 +69,14 @@ const actor: SeoActor = {
   organizationId: null,
 };
 const now = new Date();
+const previousDispatchEnabled = getEnv().SEO_ANALYSIS_DISPATCH_ENABLED;
 
 describe.skipIf(!enabled)(
   "SEO workspace with the repository PostgreSQL schema",
   () => {
     beforeAll(async () => {
+      // These isolated fixtures exercise the already-verified versioned worker contract.
+      getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = true;
       for (const [id, ws] of [
         [userId, workspaceId],
         [otherId, otherWorkspaceId],
@@ -105,6 +110,7 @@ describe.skipIf(!enabled)(
       });
     });
     afterAll(async () => {
+      getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatchEnabled;
       await prisma.task.deleteMany({ where: { workspaceId } });
       await prisma.workspace.deleteMany({
         where: { id: { in: [workspaceId, otherWorkspaceId] } },
@@ -115,6 +121,83 @@ describe.skipIf(!enabled)(
       await prisma.coworker.deleteMany({ where: { id: coworkerId } });
       await prisma.vendor.deleteMany({ where: { id: vendorId } });
       await prisma.$disconnect();
+    });
+
+    it("creates no analysis Task or monitor while the worker rollout is disabled", async () => {
+      const previous = getEnv().SEO_ANALYSIS_DISPATCH_ENABLED;
+      getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = false;
+      try {
+        const page = await addProjectSeoPage(actor, {
+          url: "https://example.test/dispatch-preview",
+          relationship: "primary",
+        });
+        const analysis = requestSeoAnalysisSchema.parse({
+          kind: "page_check",
+          pageIds: [page.id],
+          countryCode: "DE",
+          languageCode: "de",
+          devices: ["mobile"],
+          maxProviderCalls: 0,
+          coworkerId,
+          idempotencyKey: "disabled-dispatch-test",
+        });
+        const vars = {
+          isAuthenticated: true,
+          authContext: {
+            actor: "user" as const,
+            userId,
+            organizationId: null,
+            role: "user",
+          },
+          workspaceContext: { workspaceId, userId, organizationId: null },
+        };
+        const beforeTasks = await prisma.task.count({ where: { workspaceId } });
+        const beforeAnalyses = await prisma.projectSeoAnalysis.count({
+          where: { projectId },
+        });
+        const beforeSchedules = await prisma.taskSchedule.count({
+          where: { workspaceId },
+        });
+        await expect(
+          requestProjectSeoAnalysis(actor, analysis),
+        ).rejects.toMatchObject({
+          status: 409,
+          message: expect.stringContaining("dispatch is disabled"),
+        });
+        await expect(
+          createProjectSeoMonitor(vars, actor, {
+            operationId: randomUUID(),
+            cadence: "daily",
+            timeZone: "UTC",
+            targetRunCount: 2,
+            analysis,
+          }),
+        ).rejects.toMatchObject({
+          status: 409,
+          message: expect.stringContaining("dispatch is disabled"),
+        });
+        expect(await prisma.task.count({ where: { workspaceId } })).toBe(
+          beforeTasks,
+        );
+        expect(
+          await prisma.projectSeoAnalysis.count({ where: { projectId } }),
+        ).toBe(beforeAnalyses);
+        expect(
+          await prisma.taskSchedule.count({ where: { workspaceId } }),
+        ).toBe(beforeSchedules);
+        await recordNativeSeoMetrics(actor, metrics([page.url]));
+        const workspace = await getProjectSeoWorkspace(actor, {
+          pageId: page.id,
+        });
+        expect(workspace.availableActions).toMatchObject({
+          canEdit: true,
+          canRequestAnalysis: false,
+          canSyncMetrics: true,
+        });
+        expect(workspace.metrics).toHaveLength(1);
+      } finally {
+        getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = previous;
+      }
     });
 
     it("retains workspace context through nested statistics routes without a bot", async () => {

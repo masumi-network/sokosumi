@@ -71,6 +71,14 @@ describe("resolveWebRelatedProjectFallbackHost", () => {
 });
 
 describe("Soko Bot deployment environment", () => {
+  it("keeps SEO analysis dispatch off unless the worker rollout is explicitly enabled", () => {
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", undefined);
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", "true");
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(true);
+    vi.stubEnv("SEO_ANALYSIS_DISPATCH_ENABLED", "false");
+    expect(validateEnv().SEO_ANALYSIS_DISPATCH_ENABLED).toBe(false);
+  });
   it.each([
     ["Node production", { NODE_ENV: "production" }],
     ["Vercel preview", { NODE_ENV: "development", VERCEL_ENV: "preview" }],

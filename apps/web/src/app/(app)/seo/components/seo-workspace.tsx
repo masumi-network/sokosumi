@@ -179,6 +179,14 @@ export function SeoWorkspace({
           {t("historyLimited", { limit: model.data.history.limit })}
         </p>
       ) : null}
+      {!unavailable &&
+      model.data.availableActions.canEdit &&
+      model.data.scope.pageIds.length > 0 &&
+      !model.data.availableActions.canRequestAnalysis ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t("dispatchPaused")}
+        </p>
+      ) : null}
       {!model.data.availableActions.canEdit ? (
         <p className="text-muted-foreground text-sm">{t("readOnly")}</p>
       ) : null}

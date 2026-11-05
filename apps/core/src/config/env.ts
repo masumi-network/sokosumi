@@ -37,6 +37,12 @@ const baseEnvSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
 
+  // Enable only after the assigned public worker supports the versioned SEO Task packets.
+  SEO_ANALYSIS_DISPATCH_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
   REDIS_URL: z.string().optional(),
   KV_URL: z.string().optional(),
