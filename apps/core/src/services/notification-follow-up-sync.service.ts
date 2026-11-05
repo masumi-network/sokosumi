@@ -318,7 +318,8 @@ function toFollowUpInput(
  * Hand a batch of reminder emails to Resend.
  *
  * Empties what it is given, so a caller can flush repeatedly through a run
- * without tracking what already went. Returns how many Resend accepted.
+ * without tracking what already went. Returns how many Resend accepted, and
+ * how many written reminders it took back because their source was gone.
  *
  * Chunked here rather than handed over whole, even though `sendEmails` chunks
  * again inside. It throws on the first chunk Resend refuses and says nothing
@@ -365,13 +366,14 @@ async function recordFollowUpEmails(
 
 async function flushFollowUpEmails(
   pending: PendingFollowUpEmail[],
-): Promise<number> {
+): Promise<{ accepted: number; dropped: number }> {
   if (pending.length === 0) {
-    return 0;
+    return { accepted: 0, dropped: 0 };
   }
 
   const batch = pending.splice(0, pending.length);
   let accepted = 0;
+  let dropped = 0;
 
   for (let offset = 0; offset < batch.length; offset += RESEND_BATCH_MAX_SIZE) {
     let chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
@@ -419,6 +421,7 @@ async function flushFollowUpEmails(
         // Email-only reminders have no publish revision to release this daily key.
         // A reminder that also reached the reader's tabs was published when it
         // was written, so those tabs are told it is gone before the row is.
+        dropped += droppedIds.length;
         try {
           // Read first: the publish sends the row as it stands, and an
           // unread row would reach the tabs as one more reminder.
@@ -442,7 +445,7 @@ async function flushFollowUpEmails(
     }
   }
 
-  return accepted;
+  return { accepted, dropped };
 }
 
 /**
@@ -711,7 +714,10 @@ export async function sendFollowUps(
     // Per page rather than once at the end, so a run the deadline cuts short
     // still sends what it has already written reminders for. The rows in the
     // page are done with either way: the notifications are committed.
-    emailed += await flushFollowUpEmails(pendingEmails);
+    const flushed = await flushFollowUpEmails(pendingEmails);
+    emailed += flushed.accepted;
+    // Written and then taken back: not reminders this run sent.
+    sent -= flushed.dropped;
 
     const last = page.at(-1);
 

@@ -68,8 +68,10 @@ vi.mock("@/lib/db/prisma", () => {
       },
     },
     chatRoomMessage: {
-      findFirst: async ({ where }: { where: { id: string } }) =>
-        state.deleted && where.id === "message-1" ? null : { id: where.id },
+      findFirst: async ({ where }: { where: { id: string } }) => ({
+        deletedAt:
+          state.deleted && where.id === "message-1" ? new Date(NOW) : null,
+      }),
       findUnique: async () => ({
         content: state.deleted ? "" : "First private text",
         deletedAt: state.deleted ? new Date(NOW) : null,
@@ -235,8 +237,31 @@ it("keeps the counted email for earlier arrivals when the latest message is dele
   state.deleted = true;
   await resendRoomMessageEmail("notification-1");
   expect(state.sent[0]?.subject).toBe("Sokosumi - 2 unread messages in Design");
+  // Nothing of the lost message: not its author, not a link to it.
+  expect(state.sent[0]?.html).not.toContain("Ada");
+  expect(state.sent[0]?.html).not.toContain("message=message-1");
   expect(state.cancelled).toEqual(["old-email"]);
   expect(state.row.emailId).toBe("email-1");
+});
+it("keeps the time the row already promised when a first send is refreshed", async () => {
+  state.duringSend = () => {
+    state.duringSend = null;
+    state.row = {
+      ...state.row!,
+      createdAt: new Date(NOW + 120_000),
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        count: 2,
+      }),
+      emailId: "other-email",
+      emailScheduledAt: new Date(NOW + 300_000),
+    };
+  };
+  await dispatchNotificationEmail(row());
+  expect(state.sent[1]?.scheduledAt).toBe(
+    new Date(NOW + 300_000).toISOString(),
+  );
 });
 it("names the moved row's time when a first send is refreshed", async () => {
   // A counted arrival moved the row while the first send was in flight. Its

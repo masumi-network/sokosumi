@@ -1305,6 +1305,8 @@ describe("chat room arrival count", () => {
     expect(publishedGroupCount()).toBe(2);
   });
 
+  // Two: the shared message once across its three rows, and the room row's
+  // other counted message.
   it("counts one arrival when retries leave Direct, room, and mention rows for one message", async () => {
     notificationFindManyMock.mockResolvedValue([
       chatRecord({ messageKey: "Notifications.Chat.directMessage" }),

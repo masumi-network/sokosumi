@@ -1482,7 +1482,8 @@ describe("NotificationFollowUpSyncService", () => {
     seed([row()]);
     chatRoomMessageFindManyMock.mockResolvedValue([]);
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
-    expect(result.sent).toBe(1);
+    // Written, then taken back below: not a reminder this run sent.
+    expect(result.sent).toBe(0);
     expect(result.emailed).toBe(0);
     expect(sendEmailsMock).not.toHaveBeenCalled();
     // The reminder reached the reader's tabs when it was written, so they are

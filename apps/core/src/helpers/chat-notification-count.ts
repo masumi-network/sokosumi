@@ -115,7 +115,7 @@ export async function countOntoUnreadRow(
   // Do not add a banner-only message to a row that remains visible in the
   // notification center. A separate hidden row preserves the current choice.
   if (!delivery.inApp) {
-    await createNotification(input, client);
+    await createNotification(input, client, delivery);
     return;
   }
 

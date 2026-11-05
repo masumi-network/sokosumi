@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { hasLiveNotificationEmailSource } from "@/helpers/notification-chat-email-source";
+import { notificationEmailSource } from "@/helpers/notification-chat-email-source";
 import {
   cancelNotificationEmails,
   dispatchNotificationEmail,
@@ -39,7 +39,7 @@ export async function resendRoomMessageEmail(
       row.emailId !== null &&
       row.emailScheduledAt !== null &&
       row.emailScheduledAt.getTime() > Date.now() &&
-      !(await hasLiveNotificationEmailSource(row))
+      (await notificationEmailSource(row)) === "none"
     ) {
       await cancelNotificationEmails([row]);
       return;

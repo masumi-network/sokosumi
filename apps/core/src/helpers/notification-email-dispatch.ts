@@ -16,9 +16,11 @@ import {
   lockCalendarWorkspaceMembership,
 } from "@/helpers/calendar-membership-fence";
 import {
-  hasLiveNotificationEmailSource,
   lockNotificationEmailSource,
+  type NotificationEmailSource,
   notificationEmailContentRevision,
+  notificationEmailSource,
+  withoutLostMessage,
 } from "@/helpers/notification-chat-email-source";
 import { toNotificationCategory } from "@/helpers/notification-delivery";
 import {
@@ -242,6 +244,12 @@ async function sendTimeFor(
   delayMs: number,
 ): Promise<Date | null> {
   if (notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
+    // A row that still holds a scheduled email has promised its time, and a
+    // send that replaces that email keeps it, as a resend does: the two can
+    // meet under one idempotency key, and Resend refuses the second of two
+    // sends under one key that name different times (409).
+    const held = notification.emailScheduledAt?.getTime();
+    if (held !== undefined && held > Date.now()) return new Date(held);
     // Counted from the row rather than from now. The first send and a
     // recovery send that a counted arrival starts while the first is still
     // in flight share one idempotency key, and Resend refuses the second
@@ -315,9 +323,11 @@ async function dispatchNotificationEmailRevision(
     if (!row || row.isRead) {
       return;
     }
+    let source: NotificationEmailSource = "message";
     if (notification.kind === NotificationKind.CHAT) {
       notification = row;
-      if (!(await hasLiveNotificationEmailSource(notification))) return;
+      source = await notificationEmailSource(notification);
+      if (source === "none") return;
     }
 
     const reader = await prisma.user.findUnique({
@@ -352,12 +362,18 @@ async function dispatchNotificationEmailRevision(
       return;
     }
 
+    // A row kept for its earlier arrivals says nothing of the message it
+    // lost: the email names the room and its tally, and links to the room.
+    const spoken =
+      source === "room"
+        ? withoutLostMessage(messageParams, metadata)
+        : { messageParams, metadata };
     const email = await buildNotificationEmail({
       kind: notification.kind,
       referenceId: notification.referenceId,
       messageKey: notification.messageKey,
-      messageParams,
-      metadata,
+      messageParams: spoken.messageParams,
+      metadata: spoken.metadata,
       recipientEmail: reader.email,
       recipientName: reader.name,
     });
@@ -454,7 +470,7 @@ async function dispatchNotificationEmailRevision(
       }
       if (
         replaceable &&
-        !(await hasLiveNotificationEmailSource(notification, client))
+        (await notificationEmailSource(notification, client)) === "none"
       )
         return { emailId, count: 0, replaced: null };
       if (
@@ -521,7 +537,10 @@ async function dispatchNotificationEmailRevision(
         ? await withWorkspaceMembershipFence(workspaceId, liveUnreadRecipient)
         : await liveUnreadRecipient(prisma);
 
-      if (!allowed || !(await hasLiveNotificationEmailSource(notification))) {
+      if (
+        !allowed ||
+        (await notificationEmailSource(notification)) === "none"
+      ) {
         return null;
       }
 

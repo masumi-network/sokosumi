@@ -28,31 +28,32 @@ function messageIdOf(notification: EmailSource): string | null {
     : null;
 }
 
+/** What a row's email may speak for: its message, the room alone, or nothing. */
+export type NotificationEmailSource = "message" | "none" | "room";
+
 /**
  * A deleted, missing or unverifiable message cannot authorize an email.
  *
  * A counted room row also represents earlier arrivals. Losing its latest
- * message must not take their email away: the preview rewrite has already
- * blanked what that message said. Same rule as the publish path.
+ * message to deletion must not take their email away: the email then speaks
+ * for the room, without that message or its author. A message that is not in
+ * the room at all is different: the room is gone, or the row never pointed
+ * at it. Same rule as the publish path.
  */
-export async function hasLiveNotificationEmailSource(
+export async function notificationEmailSource(
   notification: EmailSource,
   client: Pick<Prisma.TransactionClient, "chatRoomMessage"> = prisma,
-): Promise<boolean> {
-  if (notification.kind !== NotificationKind.CHAT) return true;
+): Promise<NotificationEmailSource> {
+  if (notification.kind !== NotificationKind.CHAT) return "message";
   const messageId = messageIdOf(notification);
-  if (!messageId) return false;
+  if (!messageId) return "none";
   const live = await client.chatRoomMessage.findFirst({
-    where: {
-      id: messageId,
-      roomId: notification.referenceId,
-      deletedAt: null,
-    },
-    select: { id: true },
+    where: { id: messageId, roomId: notification.referenceId },
+    select: { deletedAt: true },
   });
-  if (live !== null) return true;
-  return (
-    notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY &&
+  if (!live) return "none";
+  if (!live.deletedAt) return "message";
+  return notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY &&
     roomUnreadCountOf(
       readNotificationRowJson(
         notification.messageParams,
@@ -60,7 +61,25 @@ export async function hasLiveNotificationEmailSource(
         "messageParams",
       ) ?? {},
     ) !== null
-  );
+    ? "room"
+    : "none";
+}
+
+/** The row's fields with the lost message and its author left out. */
+export function withoutLostMessage(
+  messageParams: Record<string, unknown>,
+  metadata: Record<string, unknown> | null,
+): {
+  messageParams: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+} {
+  const {
+    authorName: _author,
+    messagePreview: _preview,
+    ...roomParams
+  } = messageParams;
+  const { messageId: _message, ...roomMetadata } = metadata ?? {};
+  return { messageParams: roomParams, metadata: roomMetadata };
 }
 
 /** The post-send write and deletion share a source lock, never held over HTTP. */
