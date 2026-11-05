@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
-import { getComposio } from "@/clients/composio.client";
+import {
+  getComposio,
+  getComposioConnectedAccount,
+} from "@/clients/composio.client";
 import { conflict, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
@@ -122,6 +125,25 @@ export async function getSeoConnection(
   const row = await prisma.seoConnection.findUnique({
     where: { workspaceId_userId_provider: seoConnectionKey(owner, provider) },
   });
+  const pending =
+    row &&
+    (await prisma.seoConnectionIntent.findFirst({
+      where: {
+        ...seoConnectionKey(owner, provider),
+        expectedRevision: row.revision,
+        finalizedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: { connectionId: true, callbackRedeemedAt: true },
+    }));
+  if (pending)
+    return seoConnectionStatusSchema.parse({
+      ...base,
+      status: "pending",
+      source: "native",
+      pendingConnectionId: pending.connectionId,
+      canResume: pending.callbackRedeemedAt !== null,
+    });
   if (row?.status === "ACTIVE" && row.composioAccountId && row.entityId)
     return seoConnectionStatusSchema.parse({
       ...base,
@@ -137,20 +159,62 @@ export async function getSeoConnection(
       status: "connected",
       source: "personal",
     });
-  const pending =
-    row &&
-    (await prisma.seoConnectionIntent.findFirst({
-      where: {
-        ...seoConnectionKey(owner, provider),
-        expectedRevision: row.revision,
-        finalizedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      select: { connectionId: true },
-    }));
   return seoConnectionStatusSchema.parse({
     ...base,
-    status: pending ? "pending" : "not_connected",
-    source: pending ? "native" : "none",
+    status:
+      row?.status === "NEEDS_RECONNECT" ? "needs_reconnect" : "not_connected",
+    source: "none",
   });
+}
+
+/** Only a failed statistics read checks remote health. Status reads stay local. */
+export async function recordSeoConnectionFailure(
+  owner: SeoConnectionOwner,
+  provider: SeoConnectionProvider,
+  integration: ComposioIntegrationAccount,
+) {
+  try {
+    const account = await getComposioConnectedAccount(
+      integration.composioAccountId,
+    );
+    if (
+      account.id !== integration.composioAccountId ||
+      account.connectorUserId !== integration.entityId ||
+      account.toolkitSlug !== SEO_CONNECTION_PROVIDERS[provider].toolkit ||
+      !["EXPIRED", "REVOKED", "INACTIVE", "FAILED"].includes(account.status)
+    )
+      return;
+    await requireSeoConnectionOwner(owner);
+    const key = seoConnectionKey(owner, provider);
+    const data = { status: "NEEDS_RECONNECT" };
+    const selected = await prisma.seoConnection.findUnique({
+      where: { workspaceId_userId_provider: key },
+    });
+    if (!selected) {
+      // Reused assistant consent stays owned by that assistant. Keep only an
+      // SEO tombstone, so later native replacement never revokes that account.
+      // A unique owner/provider constraint lets a concurrent replacement win.
+      await prisma.seoConnection
+        .create({ data: { ...key, ...data } })
+        .catch(() => undefined);
+      return;
+    }
+    await prisma.seoConnection.updateMany({
+      where: {
+        ...key,
+        revision: selected.revision,
+        ...(selected.status === "INHERIT"
+          ? { status: "INHERIT", composioAccountId: null }
+          : {
+              status: "ACTIVE",
+              composioAccountId: integration.composioAccountId,
+              entityId: integration.entityId,
+              authConfigId: account.authConfigId,
+            }),
+      },
+      data,
+    });
+  } catch {
+    // An outage is not proof that the owner's Google consent expired.
+  }
 }

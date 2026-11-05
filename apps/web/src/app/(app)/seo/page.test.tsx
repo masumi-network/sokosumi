@@ -112,8 +112,7 @@ describe("native SEO audit entry", () => {
   it("creates an audit with its first page and navigates by auditId without a Project ID", async () => {
     const user = userEvent.setup();
     await show();
-    await user.click(screen.getByRole("button", { name: "Create audit" }));
-    const form = screen.getByRole("dialog", { name: "Create audit" });
+    const form = screen.getByRole("form", { name: "Create audit" });
     await user.type(within(form).getByLabelText("Audit name"), "Launch pages");
     await user.type(
       within(form).getByLabelText("First page URL"),
@@ -131,15 +130,14 @@ describe("native SEO audit entry", () => {
     expect(m.push).toHaveBeenCalledWith(`/seo?auditId=${SEO_TEST_AUDIT}`);
   });
 
-  it("keeps the dialog and entered pages when audit creation fails", async () => {
+  it("keeps the inline form and entered pages when audit creation fails", async () => {
     m.createAudit.mockResolvedValue({
       ok: false,
       error: { code: "BAD_INPUT" },
     });
     const user = userEvent.setup();
     await show();
-    await user.click(screen.getByRole("button", { name: "Create audit" }));
-    const form = screen.getByRole("dialog", { name: "Create audit" });
+    const form = screen.getByRole("form", { name: "Create audit" });
     await user.type(within(form).getByLabelText("Audit name"), "Launch pages");
     await user.type(
       within(form).getByLabelText("First page URL"),

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SEO_STATISTICS_PERIODS } from "./seo-statistics-model";
 import { useSeoStatistics } from "./use-seo-statistics";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -36,7 +37,7 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
-            void form.submit(new FormData(event.currentTarget));
+            void form.submit();
           }}
         >
           <SeoField
@@ -106,16 +107,35 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
               void form.properties.refetch();
             }}
           />
-          <PerformanceDateRange
-            idPrefix="seo-statistics-period"
-            from={form.from}
-            until={form.to}
-            fromLabel={t("statistics.from")}
-            untilLabel={t("statistics.to")}
-            invalid={form.invalidDates}
-            onFromChange={form.setFrom}
-            onUntilChange={form.setTo}
-          />
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label={t("period")}
+          >
+            {SEO_STATISTICS_PERIODS.map((days) => (
+              <Button
+                key={days}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => form.setPeriod(days)}
+              >
+                {t("statistics.lastDays", { days })}
+              </Button>
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PerformanceDateRange
+              idPrefix="seo-statistics-period"
+              from={form.from}
+              until={form.to}
+              fromLabel={t("statistics.from")}
+              untilLabel={t("statistics.to")}
+              invalid={form.invalidDates}
+              onFromChange={form.setFrom}
+              onUntilChange={form.setTo}
+            />
+          </div>
           {form.invalidDates ? (
             <p role="alert" className="text-destructive text-sm">
               {t("statistics.invalidDates")}
@@ -128,8 +148,11 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
             >
               <SeoSelect
                 id="seo-statistics-channel"
-                name="channel"
-                defaultValue={model.filters.channel ?? "all"}
+                value={form.channel}
+                onValueChange={(value) => {
+                  if (value === "all" || value === "organic")
+                    form.setChannel(value);
+                }}
                 options={[
                   { value: "all", label: t("statistics.channelAll") },
                   { value: "organic", label: t("statistics.channelOrganic") },
@@ -151,6 +174,7 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
             </Button>
             <Button
               type="submit"
+              loading={model.pending}
               disabled={
                 model.pending ||
                 !form.propertyId ||

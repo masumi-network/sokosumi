@@ -15,7 +15,11 @@ import {
   disconnectSeoConnection,
   finalizeSeoConnection,
 } from "./seo-connection-oauth.service";
-import { resolveSeoStatisticsIntegration } from "./seo-connections.service";
+import {
+  getSeoConnection,
+  recordSeoConnectionFailure,
+  resolveSeoStatisticsIntegration,
+} from "./seo-connections.service";
 
 const network = vi.hoisted(() => ({
   link: vi.fn(),
@@ -57,7 +61,7 @@ const accounts = new Map<
   string,
   {
     id: string;
-    status: "ACTIVE";
+    status: "ACTIVE" | "REVOKED";
     toolkitSlug: string;
     authConfigId: string;
     connectorUserId: string;
@@ -85,10 +89,10 @@ describe.skipIf(!enabled)(
       vi.clearAllMocks();
       accounts.clear();
       await prisma.seoConnectionIntent.deleteMany({
-        where: { userId: owner.userId, workspaceId: owner.workspaceId },
+        where: { OR: [owner, other] },
       });
       await prisma.seoConnection.deleteMany({
-        where: { userId: owner.userId, workspaceId: owner.workspaceId },
+        where: { OR: [owner, other] },
       });
       network.link.mockImplementation(
         async (input: {
@@ -261,6 +265,164 @@ describe.skipIf(!enabled)(
       await expect(
         finalizeSeoConnection(owner, "ga4", next.connectionId),
       ).resolves.toMatchObject({ status: "connected" });
+    });
+
+    it("completes an owner-bound native callback without a popup account id", async () => {
+      const linked = await connectSeoConnection(owner, "ga4", callback);
+      await expect(
+        finalizeSeoConnection(owner, "ga4", undefined, linked.connectionId),
+      ).resolves.toMatchObject({ status: "connected", source: "native" });
+      expect(network.complete).toHaveBeenCalledExactlyOnceWith({
+        sessionUri: linked.connectionId,
+        userId: `sokosumi:seo:${owner.workspaceId}:${owner.userId}`,
+      });
+      await expect(
+        finalizeSeoConnection(other, "ga4", undefined, linked.connectionId),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(network.complete).toHaveBeenCalledTimes(1);
+    });
+
+    it("resumes account verification after redeeming a one-use callback", async () => {
+      const linked = await connectSeoConnection(owner, "ga4", callback);
+      network.account.mockRejectedValueOnce(
+        new Error("Account metadata HTTP 503"),
+      );
+      await expect(
+        completeSeoConnectionCallback({
+          userId: owner.userId,
+          connectionId: linked.connectionId,
+          sessionUri: linked.connectionId,
+        }),
+      ).rejects.toThrow("Account metadata HTTP 503");
+      expect(
+        (
+          await prisma.seoConnectionIntent.findUnique({
+            where: { connectionId: linked.connectionId },
+          })
+        )?.callbackRedeemedAt,
+      ).not.toBeNull();
+      await expect(
+        finalizeSeoConnection(owner, "ga4", linked.connectionId),
+      ).resolves.toMatchObject({ status: "connected" });
+      expect(network.complete).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports a committed connection even when old active account cleanup fails", async () => {
+      const first = await connectSeoConnection(owner, "ga4", callback);
+      await completeSeoConnectionCallback({
+        userId: owner.userId,
+        connectionId: first.connectionId,
+        sessionUri: first.connectionId,
+      });
+      await finalizeSeoConnection(owner, "ga4", first.connectionId);
+      const next = await connectSeoConnection(owner, "ga4", callback);
+      await completeSeoConnectionCallback({
+        userId: owner.userId,
+        connectionId: next.connectionId,
+        sessionUri: next.connectionId,
+      });
+      network.revoke.mockRejectedValueOnce(
+        new Error("Old account cleanup HTTP 503"),
+      );
+      await expect(
+        finalizeSeoConnection(owner, "ga4", next.connectionId),
+      ).resolves.toMatchObject({ status: "connected" });
+      expect(await resolveSeoStatisticsIntegration(owner, "ga4")).toMatchObject(
+        {
+          composioAccountId: next.connectionId,
+        },
+      );
+    });
+
+    it("marks explicitly revoked consent for reconnect without polling on status reads", async () => {
+      const linked = await connectSeoConnection(owner, "ga4", callback);
+      await finalizeSeoConnection(owner, "ga4", undefined, linked.connectionId);
+      const integration = await resolveSeoStatisticsIntegration(owner, "ga4");
+      const account = accounts.get(linked.connectionId);
+      if (!integration || !account) throw new Error("Missing fixture account");
+      account.status = "REVOKED";
+      await recordSeoConnectionFailure(owner, "ga4", integration);
+      network.account.mockClear();
+      expect(await getSeoConnection(owner, "ga4")).toMatchObject({
+        status: "needs_reconnect",
+      });
+      expect(await resolveSeoStatisticsIntegration(owner, "ga4")).toBeNull();
+      expect(network.account).not.toHaveBeenCalled();
+    });
+
+    it("does not demote a replacement account when an older failed read settles late", async () => {
+      const first = await connectSeoConnection(owner, "ga4", callback);
+      await finalizeSeoConnection(owner, "ga4", undefined, first.connectionId);
+      const previous = await resolveSeoStatisticsIntegration(owner, "ga4");
+      if (!previous) throw new Error("Missing fixture integration");
+      const next = await connectSeoConnection(owner, "ga4", callback);
+      await finalizeSeoConnection(owner, "ga4", undefined, next.connectionId);
+      const previousAccount = accounts.get(first.connectionId);
+      if (!previousAccount) throw new Error("Missing fixture account");
+      previousAccount.status = "REVOKED";
+      await recordSeoConnectionFailure(owner, "ga4", previous);
+      expect(await resolveSeoStatisticsIntegration(owner, "ga4")).toMatchObject(
+        { composioAccountId: next.connectionId },
+      );
+      network.account.mockRejectedValueOnce(
+        new Error("Provider outage HTTP 503"),
+      );
+      const current = await resolveSeoStatisticsIntegration(owner, "ga4");
+      if (!current) throw new Error("Missing replacement integration");
+      await recordSeoConnectionFailure(owner, "ga4", current);
+      expect(await getSeoConnection(owner, "ga4")).toMatchObject({
+        status: "connected",
+      });
+    });
+
+    it("keeps reused assistant consent separate when SEO requests a native reconnect", async () => {
+      const bot = await prisma.sokoBot.create({ data: owner });
+      const personalId = randomUUID();
+      try {
+        const personal = await prisma.sokoBotIntegration.create({
+          data: {
+            sokoBotId: bot.id,
+            provider: "google_analytics",
+            composioAccountId: personalId,
+            connectorUserId: owner.userId,
+            status: "ACTIVE",
+          },
+        });
+        accounts.set(personalId, {
+          id: personalId,
+          status: "REVOKED",
+          toolkitSlug: "google_analytics",
+          authConfigId: "auth-google_analytics",
+          connectorUserId: `sokobot:${bot.id}`,
+        });
+        const integration = await resolveSeoStatisticsIntegration(owner, "ga4");
+        if (!integration) throw new Error("Missing reused fixture integration");
+        await recordSeoConnectionFailure(owner, "ga4", integration);
+        expect(
+          await prisma.seoConnection.findUnique({
+            where: {
+              workspaceId_userId_provider: { ...owner, provider: "ga4" },
+            },
+          }),
+        ).toMatchObject({ status: "NEEDS_RECONNECT", composioAccountId: null });
+        const linked = await connectSeoConnection(owner, "ga4", callback);
+        await finalizeSeoConnection(
+          owner,
+          "ga4",
+          undefined,
+          linked.connectionId,
+        );
+        expect(network.revoke).not.toHaveBeenCalledWith({
+          connectedAccountId: personalId,
+        });
+        expect(
+          await prisma.sokoBotIntegration.findUnique({
+            where: { id: personal.id },
+          }),
+        ).toMatchObject({ status: "ACTIVE", composioAccountId: personalId });
+      } finally {
+        await prisma.sokoBot.delete({ where: { id: bot.id } });
+      }
     });
   },
 );

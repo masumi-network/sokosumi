@@ -21,6 +21,8 @@ export const seoConnectionStatusSchema = z
       "unavailable",
     ]),
     source: z.enum(["native", "personal", "none"]),
+    pendingConnectionId: z.string().nullable().optional(),
+    canResume: z.boolean().optional(),
   })
   .openapi("SeoConnectionStatus");
 export const connectSeoConnectionSchema = z
@@ -31,8 +33,14 @@ export const connectSeoConnectionResponseSchema = z
   .object({ connectionId: z.string(), redirectUrl: z.url() })
   .openapi("ConnectSeoConnectionResponse");
 export const finalizeSeoConnectionSchema = z
-  .object({ connectionId: z.string().min(1).max(200) })
+  .object({
+    connectionId: z.string().min(1).max(200).optional(),
+    sessionUri: z.string().min(1).max(8_192).optional(),
+  })
   .strict()
+  .refine((value) => Boolean(value.connectionId || value.sessionUri), {
+    message: "A connection or provider callback is required",
+  })
   .openapi("FinalizeSeoConnectionRequest");
 export const disconnectSeoConnectionSchema = z
   .object({ disconnected: z.literal(true) })

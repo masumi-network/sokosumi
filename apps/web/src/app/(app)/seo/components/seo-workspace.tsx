@@ -47,12 +47,13 @@ export function SeoWorkspace({
 }) {
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
-  const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}`;
+  const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}`;
   const editDialog =
     model.dialog === "page" ||
     model.dialog === "scope" ||
     model.dialog === "edit_scope" ||
     model.dialog === "keyword" ||
+    model.dialog === "edit_keyword" ||
     model.dialog === "competitor";
   const unavailable = model.loadingScope || model.invalidDates;
   return (
@@ -69,7 +70,9 @@ export function SeoWorkspace({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">{t("intro")}</p>
+        <p className="text-muted-foreground text-sm">
+          {t("pages.count", { count: model.data.scope.pageIds.length })}
+        </p>
         <div className="flex flex-wrap gap-2">
           {model.data.auditId ? (
             <Button
@@ -83,7 +86,9 @@ export function SeoWorkspace({
               {t("chat.title")}
             </Button>
           ) : null}
-          {model.data.availableActions.canEdit ? (
+          {model.data.availableActions.canEdit &&
+          (model.data.observations.length > 0 ||
+            model.filters.tab !== "overview") ? (
             <Button
               variant="outline"
               size="sm"
@@ -156,7 +161,9 @@ export function SeoWorkspace({
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
-          {model.data.availableActions.canRequestAnalysis ? (
+          {model.data.availableActions.canRequestAnalysis &&
+          (model.data.observations.length > 0 ||
+            model.filters.tab !== "overview") ? (
             <Button
               size="sm"
               disabled={unavailable || !model.data.scope.pageIds.length}

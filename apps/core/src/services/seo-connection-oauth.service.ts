@@ -61,7 +61,9 @@ export async function connectSeoConnection(
   const callbackAddress = new URL(callback);
   if (
     !isFirstPartyAppUrl(callback) ||
-    callbackAddress.pathname !== "/composio/callback" ||
+    !["/composio/callback", "/seo/connections/callback"].includes(
+      callbackAddress.pathname,
+    ) ||
     callbackAddress.username ||
     callbackAddress.password ||
     callbackAddress.hash
@@ -203,7 +205,8 @@ export async function completeSeoConnectionCallback(input: {
     completed.toolkitSlug !== intent.toolkit
   )
     throw notFound("Unknown SEO connection account");
-  await verifyAccount(intent);
+  // The completed one-use session proves this exact account and toolkit. Persist
+  // that proof before a fallible metadata read, so activation can be retried.
   const won = await prisma.seoConnectionIntent.updateMany({
     where: {
       connectionId: intent.connectionId,
@@ -215,6 +218,7 @@ export async function completeSeoConnectionCallback(input: {
     data: { callbackRedeemedAt: new Date() },
   });
   if (won.count !== 1) throw conflict("SEO connection changed. Please retry.");
+  await verifyAccount(intent);
   return true;
 }
 
@@ -239,10 +243,35 @@ async function verifyAccount(intent: {
 export async function finalizeSeoConnection(
   owner: SeoConnectionOwner,
   provider: SeoConnectionProvider,
-  connectionId: string,
+  connectionId?: string,
+  sessionUri?: string,
 ) {
-  const intent = await requireIntent({ ...owner, provider, connectionId });
+  if (!connectionId) {
+    await requireSeoConnectionOwner(owner);
+    const key = seoConnectionKey(owner, provider);
+    const selected = await prisma.seoConnection.findUnique({
+      where: { workspaceId_userId_provider: key },
+      select: { revision: true },
+    });
+    const pending =
+      selected &&
+      (await prisma.seoConnectionIntent.findFirst({
+        where: { ...key, expectedRevision: selected.revision },
+        select: { connectionId: true },
+      }));
+    if (!pending) throw notFound("Unknown or expired SEO connection");
+    connectionId = pending.connectionId;
+  }
+  let intent = await requireIntent({ ...owner, provider, connectionId });
   if (intent.finalizedAt) return getSeoConnection(owner, provider);
+  if (!intent.callbackRedeemedAt && sessionUri) {
+    await completeSeoConnectionCallback({
+      ...owner,
+      connectionId,
+      sessionUri,
+    });
+    intent = await requireIntent({ ...owner, provider, connectionId });
+  }
   if (!intent.callbackRedeemedAt)
     throw conflict("Complete the provider consent first");
   await verifyAccount(intent);
@@ -281,6 +310,10 @@ export async function finalizeSeoConnection(
   if (superseded && superseded !== connectionId)
     await deleteProjectSocialConnectionIntent({
       connectedAccountId: superseded,
+    }).catch((error) => {
+      captureExternalServiceError(error, {
+        label: "seo_connection_replaced_cleanup",
+      });
     });
   return getSeoConnection(owner, provider);
 }

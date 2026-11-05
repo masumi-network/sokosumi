@@ -26,7 +26,11 @@ export async function GET(
       { status: 400 },
     );
   try {
-    requireMatchingSeoViewer(request, session.session.user.id);
+    requireMatchingSeoViewer(
+      request,
+      session.session.user.id,
+      session.session.session.activeOrganizationId,
+    );
     return NextResponse.json(await seoConnectionService.get(provider.data), {
       headers: { "Cache-Control": "no-store" },
     });

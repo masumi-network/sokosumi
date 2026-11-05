@@ -112,6 +112,121 @@ function actionFixture() {
 }
 
 describe("stored SEO workspace projections", () => {
+  it("keeps the saved keyword target distinct from the page observed in search", () => {
+    const { input } = actionFixture();
+    const target = {
+      ...input.pages[0],
+      id: randomUUID(),
+      url: "https://example.test/target",
+    };
+    input.pages.push(target);
+    input.scope.pages.push(target);
+    input.scope.pageIds.push(target.id);
+    input.keywords = [
+      {
+        id: randomUUID(),
+        projectId: input.project.id,
+        auditId: null,
+        keyword: "example",
+        keywordKey: "example",
+        countryCode: "US",
+        languageCode: "en",
+        pageId: target.id,
+        priority: "high",
+        saved: true,
+        version: 2,
+        updatedAt: now,
+      },
+    ];
+    const observed = projectSeoProjection(input).keywords.filter(
+      (row) => row.keyword === "example",
+    );
+    expect(observed.length).toBeGreaterThan(0);
+    expect(
+      observed.every(
+        (row) =>
+          row.pageUrl === SEO_TEST_PAGE && row.targetPageId === target.id,
+      ),
+    ).toBe(true);
+    input.observations = [];
+    expect(projectSeoProjection(input).keywords[0]).toMatchObject({
+      pageUrl: target.url,
+      targetPageId: target.id,
+      version: 2,
+    });
+  });
+
+  it("removes an unlinked recommendation only after a later compatible explicit pass", () => {
+    const { input, pass, original } = actionFixture();
+    input.actionTasks = [];
+    input.tasks = [];
+    expect(projectSeoProjection(input).actions).toHaveLength(0);
+    expect(
+      projectSeoProjection(input).timeline.some(
+        (row) => row.observationId === original.id,
+      ),
+    ).toBe(true);
+    for (const change of [
+      { countryCode: "DE" },
+      { languageCode: "de" },
+      { rulebookVersion: "another-rulebook" },
+      {
+        checks: [
+          {
+            rowId: "title",
+            pageUrl: SEO_TEST_PAGE,
+            device: "mobile",
+            result: "pass",
+          },
+        ],
+      },
+      {
+        checks: [
+          {
+            rowId: "title",
+            pageUrl: SEO_TEST_PAGE,
+            device: "desktop",
+            result: "fired",
+          },
+        ],
+      },
+    ]) {
+      pass.payload = { ...parsePublicSeoArtifact(focusedReport()), ...change };
+      expect(
+        projectSeoProjection(input).actions,
+        JSON.stringify(change),
+      ).toHaveLength(1);
+    }
+    pass.payload = parsePublicSeoArtifact(focusedReport());
+    pass.observedAt = original.observedAt;
+    expect(projectSeoProjection(input).actions).toHaveLength(1);
+  });
+
+  it("keeps the recommendation when the newest matching check fires again after a pass", () => {
+    const { input, pass, original } = actionFixture();
+    input.actionTasks = [];
+    input.tasks = [];
+    const latest = observation(
+      input,
+      {
+        ...parsePublicSeoArtifact(focusedReport()),
+        checks: [
+          {
+            rowId: "title",
+            pageUrl: SEO_TEST_PAGE,
+            device: "desktop",
+            result: "fired",
+          },
+        ],
+      },
+      "2026-11-04T12:00:00Z",
+    );
+    input.observations = [latest, pass, original];
+    expect(projectSeoProjection(input).actions).toMatchObject([
+      { observationId: original.id, status: "recommended" },
+    ]);
+  });
+
   it("does not advertise paid dispatch before the compatible worker rollout is enabled", () => {
     const input = fixture();
     const disabled = projectSeoProjection(input);
@@ -218,6 +333,8 @@ describe("stored SEO workspace projections", () => {
     ];
     const result = projectSeoProjection(input);
     expect(result.metrics.map((row) => row.value)).toEqual([24]);
+    // Reopening statistics must retain the property the owner already chose.
+    expect(result.metrics[0]).toHaveProperty("propertyId", "properties/123");
     expect(
       result.timeline.filter((row) => row.kind === "metrics"),
     ).toHaveLength(2);

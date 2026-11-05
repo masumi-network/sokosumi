@@ -10546,6 +10546,7 @@
     "Seo": {
       "title": "SEO",
       "intro": "Consulta los cambios, el trabajo pendiente y las próximas comprobaciones.",
+      "edit": "Editar",
       "pickTitle": "Auditorías SEO",
       "pickBody": "Reúne páginas relacionadas, comprobaciones, estadísticas, acciones y chat en una auditoría.",
       "pickUnavailable": "Esta auditoría no está disponible. Abre otra auditoría.",
@@ -10624,10 +10625,21 @@
         "coverageCounts": "{checked} comprobados, {skipped} omitidos, {failed} no disponibles",
         "noFindings": "No hay hallazgos en esta selección",
         "noFindingsBody": "Inicia o importa una comprobación para consultar la evidencia. Una comprobación ausente no equivale a una comprobación superada.",
-        "manageConnections": "Configurar estadísticas"
+        "manageConnections": "Configurar estadísticas",
+        "dailyTrend": "Evolución diaria",
+        "noDailyTrend": "Esta fuente no incluye mediciones diarias del período seleccionado.",
+        "measurementDetails": "Detalles de la medición",
+        "timeZone": "Zona horaria del informe: {timeZone}",
+        "trafficSetup": "Consulta el rendimiento de estas páginas",
+        "trafficSetupBody": "Conecta Google Analytics para ver visitas y páginas vistas, o Search Console para ver clics de búsqueda, impresiones y posiciones.",
+        "googleConnections": "Tus conexiones de Google",
+        "recentChecks": "Comprobaciones recientes",
+        "getStarted": "Obtén los primeros resultados de estas páginas",
+        "getStartedBody": "Ejecuta una comprobación de página o importa un informe terminado. Añade páginas relacionadas para compararlas en una auditoría."
       },
       "keywords": {
         "title": "Palabras clave",
+        "edit": "Editar palabra clave",
         "empty": "No hay palabras clave en esta selección",
         "emptyBody": "Importa una auditoría para descubrir palabras clave o guarda una en tu lista.",
         "add": "Guardar una palabra clave",
@@ -10695,6 +10707,16 @@
       },
       "timeline": {
         "title": "Cronología",
+        "runNewCheck": "Ejecutar una nueva comprobación",
+        "statuses": {
+          "requested": "Solicitada",
+          "running": "En curso",
+          "completed": "Completada",
+          "failed": "Fallida",
+          "partial": "Parcial",
+          "recorded": "Registrada",
+          "unavailable": "No disponible"
+        },
         "empty": "No hay actividad en esta selección",
         "emptyBody": "Aquí aparecerán las comprobaciones, actualizaciones de estadísticas, selecciones de páginas y tareas.",
         "audit": "Auditoría",
@@ -10783,7 +10805,8 @@
         "ownerOnly": "Las estadísticas usan la cuenta y los permisos de la persona que las sincroniza.",
         "synced": "Estadísticas sincronizadas",
         "invalidDates": "Elige un intervalo de fechas válido de hasta 366 días.",
-        "channelAny": "Todos los segmentos medidos"
+        "channelAny": "Todos los segmentos medidos",
+        "lastDays": "Últimos {days} días"
       },
       "metrics": {
         "page_views": "Vistas de página",
@@ -10849,6 +10872,7 @@
         "create": "Crear auditoría",
         "saved": "Auditorías guardadas",
         "updated": "Actualizada",
+        "created": "Creada",
         "empty": "Todavía no hay auditorías",
         "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
         "createHelp": "Nombra la auditoría y añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
@@ -10884,7 +10908,24 @@
         "popupBlocked": "Permite las ventanas emergentes para conectar {provider} e inténtalo de nuevo.",
         "inFlight": "Termina primero la conexión en la ventana abierta.",
         "timeout": "La conexión ha tardado demasiado. Inténtalo de nuevo.",
-        "pending": "Completa el inicio de sesión en la ventana abierta o conecta de nuevo."
+        "pending": "Completa la autorización en la ventana de conexión. Después, reintenta la verificación si hace falta.",
+        "changeAccount": "Cambiar cuenta",
+        "resume": "Reintentar verificación",
+        "restart": "Iniciar una nueva conexión",
+        "reconnect": "Volver a conectar {provider}",
+        "needsReconnect": "El acceso de Google para {provider} caducó o fue retirado. Vuelve a conectar la cuenta.",
+        "viewerChanged": "Tu cuenta o espacio de trabajo cambió. Vuelve a la auditoría e inicia la conexión de nuevo.",
+        "signInRequired": "Inicia sesión de nuevo y vuelve a conectar tu cuenta de Google.",
+        "accessDenied": "Esta cuenta no puede conectar estadísticas aquí. Comprueba tu acceso al espacio de trabajo.",
+        "expired": "Este intento de conexión caducó o fue sustituido. Inicia una nueva conexión desde la auditoría.",
+        "activationPending": "La autorización de Google aún no está lista. Reintenta la verificación o inicia una nueva conexión.",
+        "consentFailed": "La autorización de Google no terminó. Vuelve a la auditoría e inténtalo de nuevo.",
+        "temporarilyUnavailable": "El servicio de conexión no está disponible temporalmente. Reintenta la verificación en un momento.",
+        "callbackTitle": "Conectar estadísticas SEO",
+        "callbackWorking": "Verificando tu autorización de Google",
+        "callbackDone": "Tu cuenta está conectada. Vuelve a la auditoría, elige una propiedad y sincroniza las estadísticas.",
+        "returnToAudit": "Volver a la auditoría",
+        "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría."
       }
     }
   },

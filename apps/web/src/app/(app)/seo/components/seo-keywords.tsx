@@ -74,85 +74,112 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="min-w-48 whitespace-normal">
-                    <p className="font-medium break-words">
-                      <bdi>{row.keyword}</bdi>
-                    </p>
-                    {row.pageUrl ? (
-                      <SeoPageLink url={row.pageUrl} />
-                    ) : (
+              {rows.map((row) => {
+                const target = model.data.pages.find(
+                  (page) => page.id === row.targetPageId,
+                );
+                return (
+                  <TableRow key={row.id}>
+                    <TableCell className="min-w-48 whitespace-normal">
+                      <p className="font-medium break-words">
+                        <bdi>{row.keyword}</bdi>
+                      </p>
+                      {row.pageUrl ? (
+                        <SeoPageLink url={row.pageUrl} />
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          {t("keywords.anyPage")}
+                        </span>
+                      )}
+                      {row.version > 0 ? (
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {t("keywords.target")}:{" "}
+                          {target?.label ||
+                            target?.url ||
+                            t("keywords.anyPage")}
+                        </p>
+                      ) : null}
+                      <div className="mt-1">
+                        <SeoState>
+                          {t(
+                            row.saved
+                              ? "keywords.saved"
+                              : "keywords.discovered",
+                          )}
+                        </SeoState>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {row.countryCode} / {row.languageCode}
+                      {row.device ? (
+                        <div className="text-muted-foreground text-sm">
+                          {t(`analysis.${row.device}`)}
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.volume === null
+                        ? t("none")
+                        : format.number(row.volume)}
+                    </TableCell>
+                    <TableCell className="whitespace-normal tabular-nums">
+                      {row.positionStatus === "ranked" && row.position !== null
+                        ? format.number(row.position)
+                        : row.positionStatus === "not_in_range"
+                          ? row.checkedResults === null
+                            ? t("keywords.notInRangeUnknown")
+                            : t("keywords.notInRange", {
+                                count: row.checkedResults,
+                              })
+                          : t("keywords.unavailable")}
+                    </TableCell>
+                    <TableCell>{row.intent ?? t("none")}</TableCell>
+                    <TableCell>{t(`priority.${row.priority}`)}</TableCell>
+                    <TableCell>
+                      <SeoDate value={row.observedAt} />
+                    </TableCell>
+                    <TableCell>
                       <span className="text-muted-foreground text-sm">
-                        {t("keywords.anyPage")}
+                        {row.source}
                       </span>
-                    )}
-                    <div className="mt-1">
-                      <SeoState>
-                        {t(
-                          row.saved ? "keywords.saved" : "keywords.discovered",
-                        )}
-                      </SeoState>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {row.countryCode} / {row.languageCode}
-                    {row.device ? (
-                      <div className="text-muted-foreground text-sm">
-                        {t(`analysis.${row.device}`)}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {row.volume === null
-                      ? t("none")
-                      : format.number(row.volume)}
-                  </TableCell>
-                  <TableCell className="whitespace-normal tabular-nums">
-                    {row.positionStatus === "ranked" && row.position !== null
-                      ? format.number(row.position)
-                      : row.positionStatus === "not_in_range"
-                        ? row.checkedResults === null
-                          ? t("keywords.notInRangeUnknown")
-                          : t("keywords.notInRange", {
-                              count: row.checkedResults,
-                            })
-                        : t("keywords.unavailable")}
-                  </TableCell>
-                  <TableCell>{row.intent ?? t("none")}</TableCell>
-                  <TableCell>{t(`priority.${row.priority}`)}</TableCell>
-                  <TableCell>
-                    <SeoDate value={row.observedAt} />
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground text-sm">
-                      {row.source}
-                    </span>
-                    {row.observationId ? (
-                      <div>
-                        <SeoSource
-                          workspace={model.data}
-                          observationId={row.observationId}
-                        />
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    {model.data.availableActions.canEdit ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={model.pending}
-                        onClick={() => {
-                          void model.toggleKeyword(row);
-                        }}
-                      >
-                        {t(row.saved ? "keywords.unsave" : "keywords.save")}
-                      </Button>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      {row.observationId ? (
+                        <div>
+                          <SeoSource
+                            workspace={model.data}
+                            observationId={row.observationId}
+                          />
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      {model.data.availableActions.canEdit ? (
+                        <div className="flex flex-wrap gap-2">
+                          {row.version > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={model.pending}
+                              onClick={() => model.openKeywordEdit(row)}
+                            >
+                              {t("edit")}
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={model.pending}
+                            onClick={() => {
+                              void model.toggleKeyword(row);
+                            }}
+                          >
+                            {t(row.saved ? "keywords.unsave" : "keywords.save")}
+                          </Button>
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

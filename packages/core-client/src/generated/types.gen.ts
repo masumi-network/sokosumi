@@ -9943,6 +9943,7 @@ export type ProjectSeoKeyword = {
     id: string;
     keyword: string;
     pageUrl: string | null;
+    targetPageId: string | null;
     saved: boolean;
     countryCode: string;
     languageCode: string;
@@ -10012,6 +10013,7 @@ export type ProjectSeoMetric = {
     label: string;
     unit: 'count' | 'ratio' | 'seconds' | 'position';
     source: string;
+    propertyId: string;
     value: number | null;
     from: string;
     to: string;
@@ -10250,6 +10252,8 @@ export type SeoConnectionStatus = {
     name: string;
     status: 'not_connected' | 'pending' | 'connected' | 'needs_reconnect' | 'unavailable';
     source: 'native' | 'personal' | 'none';
+    pendingConnectionId?: string | null;
+    canResume?: boolean;
 };
 
 export type ConnectSeoConnectionResponse = {
@@ -10262,7 +10266,8 @@ export type ConnectSeoConnectionRequest = {
 };
 
 export type FinalizeSeoConnectionRequest = {
-    connectionId: string;
+    connectionId?: string;
+    sessionUri?: string;
 };
 
 export type DisconnectSeoConnectionResponse = {

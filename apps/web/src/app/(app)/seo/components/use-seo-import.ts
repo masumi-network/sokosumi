@@ -38,7 +38,10 @@ export function useSeoImport(model: SeoWorkspaceModel) {
           signal,
           credentials: "same-origin",
           cache: "no-store",
-          headers: seoViewerHeaders(session?.user.id),
+          headers: seoViewerHeaders(
+            session?.user.id,
+            session?.session.activeOrganizationId,
+          ),
         },
       );
       if (!response.ok) throw new Error("SEO import candidates unavailable");
@@ -64,7 +67,10 @@ export function useSeoImport(model: SeoWorkspaceModel) {
           signal,
           credentials: "same-origin",
           cache: "no-store",
-          headers: seoViewerHeaders(session?.user.id),
+          headers: seoViewerHeaders(
+            session?.user.id,
+            session?.session.activeOrganizationId,
+          ),
         },
       );
       if (!response.ok) throw new Error("SEO import source unavailable");

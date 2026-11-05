@@ -35,14 +35,18 @@ export const seoConnectionService = {
     );
     return response.data;
   },
-  async finalize(provider: SeoConnectionProvider, connectionId: string) {
+  async finalize(
+    provider: SeoConnectionProvider,
+    connectionId?: string,
+    sessionUri?: string,
+  ) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) =>
         finalizeSeoConnection({
           client,
           path: { provider },
-          body: { connectionId },
+          body: { connectionId, sessionUri },
         }),
       "Failed to finalize SEO connection",
     );

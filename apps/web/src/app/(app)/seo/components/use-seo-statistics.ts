@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectSeoStatisticsProperties } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useSession } from "@/lib/auth/auth.client";
@@ -10,28 +10,34 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
-import { formText } from "./seo-form-model";
+import {
+  invalidSeoStatisticsPeriod,
+  SEO_DEFAULT_STATISTICS_DAYS,
+  type SeoStatisticsProvider,
+  savedSeoStatistics,
+  seoStatisticsPeriod,
+} from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-const SEO_DEFAULT_STATISTICS_DAYS = 28;
-const MILLISECONDS_PER_DAY = 86_400_000;
 export function useSeoStatistics(model: SeoWorkspaceModel) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [workspace] = useState(() => model.data);
   const owner = seoWorkspaceOwner(workspace);
-  const [provider, setProvider] = useState<"ga4" | "search_console">("ga4");
-  const [propertyId, setPropertyId] = useState("");
-  const [from, setFrom] = useState(
-    model.filters.from ??
-      new Date(Date.now() - SEO_DEFAULT_STATISTICS_DAYS * MILLISECONDS_PER_DAY)
-        .toISOString()
-        .slice(0, 10),
+  const [saved] = useState(() => savedSeoStatistics(workspace.metrics));
+  const [provider, setProvider] = useState<SeoStatisticsProvider>(
+    saved?.source === "search_console" ? "search_console" : "ga4",
   );
-  const [to, setTo] = useState(
-    model.filters.to ??
-      new Date(Date.now() - MILLISECONDS_PER_DAY).toISOString().slice(0, 10),
+  const [chosenPropertyId, setPropertyId] = useState(saved?.propertyId ?? "");
+  const [channel, setChannel] = useState<"all" | "organic">(
+    model.filters.channel ?? saved?.channel ?? "all",
   );
+  const [defaultPeriod] = useState(() =>
+    seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS),
+  );
+  const [from, setFrom] = useState(model.filters.from ?? defaultPeriod.from);
+  const [to, setTo] = useState(model.filters.to ?? defaultPeriod.to);
   const properties = useQuery<ProjectSeoStatisticsProperties>({
     queryKey: [
       "seo-properties",
@@ -47,27 +53,50 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
         {
           signal,
           cache: "no-store",
-          headers: seoViewerHeaders(session?.user.id),
+          headers: seoViewerHeaders(
+            session?.user.id,
+            session?.session.activeOrganizationId,
+          ),
           credentials: "same-origin",
         },
       );
       if (!response.ok) throw new Error("Statistics properties unavailable");
-      return response.json();
+      const data: ProjectSeoStatisticsProperties = await response.json();
+      if (data.status === "unavailable" || data.status === "not_connected")
+        void queryClient.invalidateQueries({
+          queryKey: [
+            "seo-connection",
+            session?.session.activeOrganizationId,
+            session?.user.id,
+            provider,
+          ],
+          exact: true,
+        });
+      return data;
     },
     enabled: !!session?.user.id,
     refetchOnWindowFocus: false,
   });
-  const invalidDates =
-    !from ||
-    !to ||
-    from > to ||
-    (Date.parse(to) - Date.parse(from)) / MILLISECONDS_PER_DAY >= 366;
+  const availableProperties = properties.data?.properties ?? [];
+  const propertyId = availableProperties.some(
+    (item) => item.id === chosenPropertyId,
+  )
+    ? chosenPropertyId
+    : availableProperties.length === 1
+      ? availableProperties[0].id
+      : "";
+  const invalidDates = invalidSeoStatisticsPeriod(from, to);
   function changeProvider(value: string) {
     if (value !== "ga4" && value !== "search_console") return;
     setProvider(value);
     setPropertyId("");
   }
-  async function submit(form: FormData) {
+  function setPeriod(days: number) {
+    const period = seoStatisticsPeriod(days);
+    setFrom(period.from);
+    setTo(period.to);
+  }
+  async function submit() {
     if (
       invalidDates ||
       !properties.data?.properties.some(
@@ -75,10 +104,7 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
       )
     )
       return;
-    const channel =
-      provider === "search_console" || formText(form, "channel") === "organic"
-        ? "organic"
-        : "all";
+    const selectedChannel = provider === "search_console" ? "organic" : channel;
     const saved = await model.execute(
       {
         kind: "sync_statistics",
@@ -87,7 +113,7 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
           propertyId,
           from,
           to,
-          channel,
+          channel: selectedChannel,
           ...(workspace.scope.id
             ? {
                 scopeId: workspace.scope.id,
@@ -98,18 +124,21 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
       },
       t("statistics.synced"),
     );
-    if (saved) await model.setFilters({ from, to, channel });
+    if (saved) await model.setFilters({ from, to, channel: selectedChannel });
   }
   return {
     provider,
     changeProvider,
     propertyId,
     setPropertyId,
+    channel,
+    setChannel,
     properties,
     from,
     setFrom,
     to,
     setTo,
+    setPeriod,
     invalidDates,
     submit,
   };

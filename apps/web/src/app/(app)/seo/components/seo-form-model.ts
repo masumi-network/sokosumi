@@ -1,4 +1,5 @@
 import type {
+  ProjectSeoKeyword,
   ProjectSeoWorkspace,
   RequestProjectSeoAnalysisRequest,
 } from "@sokosumi/core-client";
@@ -32,6 +33,7 @@ export const SEO_ANALYSIS_MODULES = [
 export const SEO_MAX_MONITOR_RUNS = 31;
 export const SEO_DEFAULT_MONITOR_RUNS = 4;
 export const SEO_MAX_PAGES = 10;
+export const SEO_NO_TARGET_PAGE = "no-target-page";
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
@@ -61,9 +63,16 @@ export function formLines(value: string) {
 }
 
 export function editSeoCommand(
-  kind: "page" | "scope" | "edit_scope" | "keyword" | "competitor",
+  kind:
+    | "page"
+    | "scope"
+    | "edit_scope"
+    | "keyword"
+    | "edit_keyword"
+    | "competitor",
   form: FormData,
   workspace: ProjectSeoWorkspace,
+  originalKeyword?: ProjectSeoKeyword | null,
 ): SeoCommand {
   if (kind === "page") {
     const relatedToPageId = formText(form, "relatedToPageId");
@@ -107,20 +116,26 @@ export function editSeoCommand(
       },
     };
   }
-  const pageId = formText(form, "pageId") || null;
-  const keyword = formText(form, "keyword");
-  const countryCode = formText(form, "countryCode").toUpperCase();
-  const languageCode = formText(form, "languageCode");
-  const pageUrl =
-    workspace.pages.find((page) => page.id === pageId)?.url ?? null;
-  const current = workspace.keywords.find(
-    (row) =>
-      row.keyword.toLocaleLowerCase() === keyword.toLocaleLowerCase() &&
-      row.countryCode === countryCode &&
-      row.languageCode === languageCode &&
-      row.pageUrl === pageUrl &&
-      row.version > 0,
-  );
+  if (kind === "edit_keyword" && !originalKeyword)
+    throw new Error("The keyword to edit is unavailable");
+  const selectedPage = formText(form, "pageId");
+  const pageId =
+    selectedPage === SEO_NO_TARGET_PAGE ? null : selectedPage || null;
+  const original = kind === "edit_keyword" ? originalKeyword : null;
+  const keyword = original?.keyword ?? formText(form, "keyword");
+  const countryCode =
+    original?.countryCode ?? formText(form, "countryCode").toUpperCase();
+  const languageCode = original?.languageCode ?? formText(form, "languageCode");
+  const current =
+    original ??
+    workspace.keywords.find(
+      (row) =>
+        row.keyword.normalize("NFKC").toLowerCase() ===
+          keyword.normalize("NFKC").toLowerCase() &&
+        row.countryCode === countryCode &&
+        row.languageCode === languageCode &&
+        row.version > 0,
+    );
   const priority = formText(form, "priority");
   return {
     kind: "save_keyword",
@@ -129,9 +144,11 @@ export function editSeoCommand(
       countryCode,
       languageCode,
       pageId,
-      saved: true,
+      saved: original?.saved ?? true,
       priority: priority === "high" || priority === "low" ? priority : "medium",
-      ...(current ? { expectedVersion: current.version } : {}),
+      ...(current && current.version > 0
+        ? { expectedVersion: current.version }
+        : {}),
     },
   };
 }

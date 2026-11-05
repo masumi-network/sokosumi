@@ -12,7 +12,12 @@ import {
   CoreApiRequestError,
   coreClientNoRedirect,
 } from "@/lib/clients/core.client";
-import { SEO_VIEWER_HEADER, type SeoOwner } from "@/lib/seo/owner";
+import {
+  SEO_ORGANIZATION_HEADER,
+  SEO_VIEWER_HEADER,
+  type SeoOwner,
+  seoViewerHeaders,
+} from "@/lib/seo/owner";
 import { seoServiceNoRedirect } from "@/lib/services/seo.service";
 
 const CANDIDATE_PAGE_SIZE = 30;
@@ -22,8 +27,18 @@ const importsQuerySchema = z.object({
   cursor: z.string().max(200).optional(),
 });
 
-export function requireMatchingSeoViewer(request: Request, userId: string) {
-  if (request.headers.get(SEO_VIEWER_HEADER) !== userId)
+/** Client context only rejects stale requests; the authenticated session still grants all access. */
+export function requireMatchingSeoViewer(
+  request: Request,
+  userId: string,
+  organizationId: string | null | undefined,
+) {
+  const expected = seoViewerHeaders(userId, organizationId);
+  if (
+    request.headers.get(SEO_VIEWER_HEADER) !== expected[SEO_VIEWER_HEADER] ||
+    request.headers.get(SEO_ORGANIZATION_HEADER) !==
+      expected[SEO_ORGANIZATION_HEADER]
+  )
     throw new CoreApiRequestError("SEO viewer changed", { status: 409 });
 }
 
@@ -43,7 +58,11 @@ export async function readSeoResponse(
       { status: 400 },
     );
   try {
-    requireMatchingSeoViewer(request, session.session.user.id);
+    requireMatchingSeoViewer(
+      request,
+      session.session.user.id,
+      session.session.session.activeOrganizationId,
+    );
     return NextResponse.json(await read(session.session.user.id), {
       headers: { "Cache-Control": "no-store" },
     });

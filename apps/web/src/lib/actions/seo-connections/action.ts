@@ -12,7 +12,10 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import { seoConnectionService } from "@/lib/services/seo-connection.service";
 import {
   type AuthenticatedRequest,
@@ -22,11 +25,37 @@ import {
 const providerSchema = z.enum(["ga4", "search_console"]);
 interface ProviderRequest extends AuthenticatedRequest {
   provider: unknown;
+  viewerId: unknown;
+  organizationId: unknown;
+}
+function viewerChanged(
+  params: ProviderRequest & {
+    session: NonNullable<AuthenticatedRequest["session"]>;
+  },
+) {
+  return (
+    params.viewerId !== params.session.user.id ||
+    params.organizationId !==
+      (params.session.session.activeOrganizationId ?? null)
+  );
+}
+const changedViewer = {
+  code: CommonErrorCode.UNAUTHORIZED,
+  status: 409,
+  kind: "seo_viewer_changed",
+};
+function connectionActionError(error: unknown): ActionError {
+  return {
+    ...toCoreApiActionError(error),
+    ...(error instanceof CoreApiRequestError ? { status: error.status } : {}),
+  };
 }
 export const connectSeoStatisticsAction = withSession<
   ProviderRequest & { callbackUrl: unknown },
   ActionResultDto<ConnectSeoConnectionResponse, ActionError>
->(async ({ provider, callbackUrl }) => {
+>(async (params) => {
+  if (viewerChanged(params)) return toActionResult(err(changedViewer));
+  const { provider, callbackUrl } = params;
   const parsed = providerSchema.safeParse(provider);
   const callback = z.url().safeParse(callbackUrl);
   if (!parsed.success || !callback.success)
@@ -36,29 +65,45 @@ export const connectSeoStatisticsAction = withSession<
       ok(await seoConnectionService.connect(parsed.data, callback.data)),
     );
   } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
+    return toActionResult(err(connectionActionError(error)));
   }
 });
 export const finalizeSeoStatisticsAction = withSession<
-  ProviderRequest & { connectionId: unknown },
+  ProviderRequest & { connectionId?: unknown; sessionUri?: unknown },
   ActionResultDto<SeoConnectionStatus, ActionError>
->(async ({ provider, connectionId }) => {
+>(async (params) => {
+  if (viewerChanged(params)) return toActionResult(err(changedViewer));
+  const { provider, connectionId, sessionUri } = params;
   const parsed = providerSchema.safeParse(provider);
-  const id = z.string().min(1).max(200).safeParse(connectionId);
-  if (!parsed.success || !id.success)
+  const input = z
+    .object({
+      connectionId: z.string().min(1).max(200).optional(),
+      sessionUri: z.string().min(1).max(8_192).optional(),
+    })
+    .refine((value) => Boolean(value.connectionId || value.sessionUri))
+    .safeParse({ connectionId, sessionUri });
+  if (!parsed.success || !input.success)
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   try {
     return toActionResult(
-      ok(await seoConnectionService.finalize(parsed.data, id.data)),
+      ok(
+        await seoConnectionService.finalize(
+          parsed.data,
+          input.data.connectionId,
+          input.data.sessionUri,
+        ),
+      ),
     );
   } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
+    return toActionResult(err(connectionActionError(error)));
   }
 });
 export const disconnectSeoStatisticsAction = withSession<
   ProviderRequest,
   ActionResultDto<{ disconnected: true }, ActionError>
->(async ({ provider }) => {
+>(async (params) => {
+  if (viewerChanged(params)) return toActionResult(err(changedViewer));
+  const { provider } = params;
   const parsed = providerSchema.safeParse(provider);
   if (!parsed.success)
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
@@ -67,6 +112,6 @@ export const disconnectSeoStatisticsAction = withSession<
       ok(await seoConnectionService.disconnect(parsed.data)),
     );
   } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
+    return toActionResult(err(connectionActionError(error)));
   }
 });

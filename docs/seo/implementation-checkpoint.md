@@ -24,6 +24,18 @@ VERIFIED: source reversion checks reproduced the old entry, asynchronous viewer 
 
 VERIFIED: full CI at `c6ab663928` passed Web, package tests, typechecks and builds, but the PostgreSQL step reported `5 failed | 410 passed | 11 skipped (426)`. All five failures came from `contact-capture.postgres.test.ts`. Its `runIntegrationTool` fixture still mocked the old module after the executor moved. The earlier focused command selected the nonexistent `contact-capture.service.test.ts`, so it did not check this database boundary. Correction: the existing fixture now mocks `composio-integration-tools.service`. The isolated reproduction reported `5 failed | 8 passed (13)` before that change and `13 passed (13)` afterward. Product capture behavior and assertions are unchanged.
 
+## Native flow correction
+
+VERIFIED: the earlier native revision deployed to Preprod Preview at `6518c7c0ff4a163e2149a2ba550ec3c4e8511cb0`. Workflow `42042590371` returned `success`, and Core logged `All migrations have been successfully applied.` The earlier pending-deployment statement above records the state before that rollout.
+
+VERIFIED: that rollout's public route checks did not cover native OAuth recovery or the worker write contract. The shared callback could still forward a lost-popup return to the personal assistant. The corrected source uses dedicated SEO callback and return documents, explicit recovery, owner/account proof and exact viewer/Workspace fences. Retained tests reproduced three connection recovery failures, two proxy callback failures and stale-organization failures before their fixes.
+
+VERIFIED: the current native UX slice reported `636 passed (636)` across 22 Core files and `187 passed (187)` across 20 Web files. Typechecks reported `20 successful, 20 total`; Core/Web builds reported `10 successful, 10 total`. Independent source review found no remaining actionable issue. Reverting the inline entry and saved statistics selection reproduced three failures. The percentage trend regression failed before shared unit formatting was added.
+
+VERIFIED: this local revision adds inline Audit creation, one selected traffic trend, saved source/property setup, explicit keyword targets, visible failed checks and native connection retries. Live signed-in UI, Google consent and model responses remain unverified. The user-flow acceptance guide records those remaining checks.
+
+VERIFIED: the worker requests guarded Task event/file routes that this Core Preview does not declare. The source only mounts `/tasks/{id}/events` and `/tasks/{id}/files`. A Task move changes its Workspace without changing billing organization. A correct worker write precondition must therefore include Workspace, owner, organization and the authenticated assignee. Guarded delivery remains a required follow-up in this same PR. Paid dispatch stays disabled.
+
 The following evidence records the earlier Project-scoped implementation before this native revision.
 
 ## Earlier delivered behavior

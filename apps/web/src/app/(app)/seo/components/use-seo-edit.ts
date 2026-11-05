@@ -9,6 +9,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function useSeoEdit(model: SeoWorkspaceModel) {
   const t = useTranslations("App.Seo");
   const [workspace] = useState(() => model.data);
+  const [keyword] = useState(() => model.editingKeyword);
   async function submit(
     kind: Parameters<typeof editSeoCommand>[0],
     form: FormData,
@@ -21,7 +22,7 @@ export function useSeoEdit(model: SeoWorkspaceModel) {
       toast.error(t("selectPagesLimit", { count: SEO_MAX_PAGES }));
       return;
     }
-    await model.execute(editSeoCommand(kind, form, workspace));
+    await model.execute(editSeoCommand(kind, form, workspace, keyword));
   }
-  return { submit, workspace };
+  return { submit, workspace, keyword };
 }

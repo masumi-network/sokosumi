@@ -179,6 +179,7 @@ export function mountSeoConnectionRoutes(app: OpenAPIHonoWithAuth) {
           { userId: user.userId, workspaceId: workspace.workspaceId },
           c.req.valid("param").provider,
           c.req.valid("json").connectionId,
+          c.req.valid("json").sessionUri,
         ),
       );
     } catch (error) {

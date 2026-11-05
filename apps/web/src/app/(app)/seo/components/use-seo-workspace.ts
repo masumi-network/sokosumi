@@ -33,6 +33,7 @@ export type SeoDialog =
   | "page_change"
   | "statistics"
   | "keyword"
+  | "edit_keyword"
   | "competitor"
   | null;
 
@@ -77,7 +78,10 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         signal,
         credentials: "same-origin",
         cache: "no-store",
-        headers: seoViewerHeaders(session?.user.id),
+        headers: seoViewerHeaders(
+          session?.user.id,
+          session?.session.activeOrganizationId,
+        ),
       });
       if (!response.ok) throw new Error("SEO workspace unavailable");
       return response.json();
@@ -101,6 +105,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [keywordSearch, setKeywordSearch] = useState("");
   const [competitorSearch, setCompetitorSearch] = useState("");
   const [dialog, setDialog] = useState<SeoDialog>(null);
+  const [editingKeyword, setEditingKeyword] =
+    useState<ProjectSeoKeyword | null>(null);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   // One browser request keeps its key after an uncertain acknowledgement.
@@ -170,12 +176,19 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         keyword: row.keyword,
         countryCode: row.countryCode,
         languageCode: row.languageCode,
-        pageId: data.pages.find((page) => page.url === row.pageUrl)?.id ?? null,
+        pageId:
+          row.version > 0
+            ? row.targetPageId
+            : (data.pages.find((page) => page.url === row.pageUrl)?.id ?? null),
         priority: row.priority,
         saved: !row.saved,
         ...(row.version > 0 ? { expectedVersion: row.version } : {}),
       },
     });
+  }
+  function openKeywordEdit(row: ProjectSeoKeyword) {
+    setEditingKeyword(row);
+    setDialog("edit_keyword");
   }
   function toggleCompetitor(row: ProjectSeoCompetitor) {
     return execute({
@@ -209,6 +222,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     filteredKeywords,
     filteredCompetitors,
     toggleKeyword,
+    openKeywordEdit,
+    editingKeyword,
     toggleCompetitor,
     createActionTask,
     loadingScope: !result.data,

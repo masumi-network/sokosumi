@@ -141,6 +141,7 @@ afterEach(() => {
 
 describe("SEO workspace integration", () => {
   it("renders source measurements without replacing missing values with zero", async () => {
+    const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.metricsStatus = "partial";
     const metric = {
@@ -149,6 +150,7 @@ describe("SEO workspace integration", () => {
       label: "Page views",
       unit: "count" as const,
       source: "ga4",
+      propertyId: "properties/123",
       channel: "all" as const,
       value: 0,
       from: "2026-01-01",
@@ -176,8 +178,95 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("0")).toBeVisible();
     expect(screen.getByText("Active users")).toBeVisible();
     expect(screen.getAllByText("Not available").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Europe\/Berlin/).length).toBe(2);
+    await user.click(screen.getByText("Measurement details"));
+    expect(screen.getByText(/Europe\/Berlin/)).toBeVisible();
     await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it("keeps percentage totals and daily trend values in the same units", () => {
+    const workspace = seoTestWorkspace();
+    workspace.metricsStatus = "available";
+    workspace.metrics.push({
+      id: "engagement",
+      key: "engagement_rate",
+      label: "Engagement rate",
+      unit: "ratio",
+      source: "ga4",
+      propertyId: "properties/123",
+      channel: "all",
+      value: 0.25,
+      from: "2026-01-01",
+      to: "2026-01-02",
+      timeZone: "UTC",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      coverage: "complete",
+      points: [{ date: "2026-01-01", value: 0.25 }],
+      notes: [],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(screen.getByTestId("seo-metric-engagement_rate")).toHaveTextContent(
+      "25%",
+    );
+    const trend = screen.getByRole("figure", { name: "Engagement rate" });
+    expect(within(trend).getByTitle("Jan 1: 25%")).toBeInTheDocument();
+    expect(within(trend).getByText("Jan 1: 25%")).toBeInTheDocument();
+  });
+
+  it("reopens statistics with the saved source and property instead of restarting setup", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metricsStatus = "available";
+    workspace.metrics.push({
+      id: "saved-clicks",
+      key: "clicks",
+      label: "Search clicks",
+      unit: "count",
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic",
+      value: 41,
+      from: "2026-01-01",
+      to: "2026-01-02",
+      timeZone: "UTC",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      coverage: "complete",
+      points: [],
+      notes: [],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        if (String(input).includes("statistics/properties"))
+          return Response.json({
+            provider: "search_console",
+            status: "available",
+            reason: null,
+            properties: [
+              { id: "sc-domain:other.example", name: "Other website" },
+              { id: "sc-domain:example.com", name: "Example website" },
+            ],
+          });
+        return Response.json(workspace);
+      }),
+    );
+    renderWorkspace(workspace);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("combobox", { name: "Source" }),
+      ).toHaveTextContent("Search Console");
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("combobox", { name: "Property" }),
+        ).toHaveTextContent("Example website"),
+      );
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    }
   });
 
   it("hides the previous page's evidence while a newly selected page loads", async () => {
@@ -231,6 +320,7 @@ describe("SEO workspace integration", () => {
       label: "Page views",
       unit: "count",
       source: "ga4",
+      propertyId: "properties/123",
       channel: "all",
       value: 47,
       from: "2026-01-01",
@@ -503,6 +593,7 @@ describe("SEO workspace integration", () => {
           label: "Search clicks",
           unit: "count" as const,
           source: "search_console",
+          propertyId: "sc-domain:example.com",
           channel: "organic" as const,
           value: 41,
           from: "2026-01-01",

@@ -25,6 +25,52 @@ function analysisForm() {
   return form;
 }
 describe("SEO form intent", () => {
+  it("keeps the original keyword identity and version when its target page changes", () => {
+    const workspace = seoTestWorkspace();
+    const original = {
+      id: "saved-keyword",
+      keyword: "Original keyword",
+      countryCode: "DE",
+      languageCode: "de",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: workspace.pages[0].id,
+      saved: true,
+      source: "saved",
+      volume: null,
+      intent: null,
+      device: null,
+      position: null,
+      positionStatus: "unavailable" as const,
+      checkedResults: null,
+      observedAt: null,
+      observationId: null,
+      priority: "medium" as const,
+      version: 3,
+    };
+    const form = new FormData();
+    form.set("keyword", "A changed identity must be ignored");
+    form.set("countryCode", "US");
+    form.set("languageCode", "en");
+    form.set("pageId", "another-page");
+    form.set("priority", "high");
+    expect(editSeoCommand("edit_keyword", form, workspace, original)).toEqual({
+      kind: "save_keyword",
+      body: {
+        keyword: original.keyword,
+        countryCode: "DE",
+        languageCode: "de",
+        pageId: "another-page",
+        saved: true,
+        priority: "high",
+        expectedVersion: 3,
+      },
+    });
+    form.set("pageId", "no-target-page");
+    expect(
+      editSeoCommand("edit_keyword", form, workspace, original).body,
+    ).toMatchObject({ pageId: null, expectedVersion: 3 });
+  });
+
   it("uses the worker's bounded time envelope for related-page audits", () => {
     expect(defaultFullAuditSeconds(2)).toBe(1170);
     expect(defaultFullAuditSeconds(10)).toBe(2850);
@@ -125,6 +171,7 @@ describe("SEO form intent", () => {
       countryCode: "DE",
       languageCode: "de",
       pageUrl: "https://example.com/",
+      targetPageId: SEO_TEST_PAGE,
       saved: false,
       source: "saved",
       volume: null,

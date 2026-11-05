@@ -80,6 +80,39 @@ describe("proxy", () => {
     expect(getSessionCookieMock).toHaveBeenCalledOnce();
   });
 
+  it.each(["/seo/connections/callback", "/seo/connections/return"])(
+    "keeps native SEO return documents out of sign-in URLs after session expiry: %s",
+    async (path) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+      const response = await proxy(
+        new NextRequest(
+          `https://preprod.sokosumi.com${path}?session_uri=one-use-secret`,
+        ),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(getSessionCookieMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "/seo",
+    "/seo/connections",
+    "/seo/connections/callback/extra",
+    "/seo/connections/return-extra",
+  ])("keeps neighboring SEO pages protected: %s", async (path) => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getSessionCookieMock.mockReturnValue(null);
+    const response = await proxy(
+      new NextRequest(`https://preprod.sokosumi.com${path}`),
+    );
+    expect(response.status).toBe(307);
+    expect(getSessionCookieMock).toHaveBeenCalledOnce();
+  });
+
   it("checks the session cookie using the preview commit ref", async () => {
     const { NextRequest, NextResponse } = await import("next/server");
     const { proxy } = await import("./proxy");

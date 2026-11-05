@@ -37191,6 +37191,13 @@ export const ProjectSeoKeywordSchema = {
                 }
             ]
         },
+        targetPageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
         saved: {
             type: 'boolean'
         },
@@ -37288,6 +37295,7 @@ export const ProjectSeoKeywordSchema = {
         'id',
         'keyword',
         'pageUrl',
+        'targetPageId',
         'saved',
         'countryCode',
         'languageCode',
@@ -37597,6 +37605,9 @@ export const ProjectSeoMetricSchema = {
         source: {
             type: 'string'
         },
+        propertyId: {
+            type: 'string'
+        },
         value: {
             type: [
                 'number',
@@ -37669,6 +37680,7 @@ export const ProjectSeoMetricSchema = {
         'label',
         'unit',
         'source',
+        'propertyId',
         'value',
         'from',
         'to',
@@ -38820,6 +38832,15 @@ export const SeoConnectionStatusSchema = {
                 'personal',
                 'none'
             ]
+        },
+        pendingConnectionId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        canResume: {
+            type: 'boolean'
         }
     },
     required: [
@@ -38865,11 +38886,13 @@ export const FinalizeSeoConnectionRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 200
+        },
+        sessionUri: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 8192
         }
     },
-    required: [
-        'connectionId'
-    ],
     additionalProperties: false
 } as const;
 

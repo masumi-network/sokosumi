@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   callback: vi.fn(),
   error: vi.fn(),
   status: "not_connected",
+  resumable: false,
 }));
 vi.mock("@/lib/actions/seo-connections/action", () => ({
   connectSeoStatisticsAction: m.initiate,
@@ -57,6 +58,7 @@ function show(onConnected = vi.fn()) {
 beforeEach(() => {
   vi.clearAllMocks();
   m.status = "not_connected";
+  m.resumable = false;
   m.popup.mockImplementation(
     async (run: (flow: ComposioOAuthPopupFlow) => unknown) => ({
       kind: "completed",
@@ -106,6 +108,8 @@ beforeEach(() => {
             name: "Search Console",
             status: m.status,
             source: m.status === "connected" ? "native" : "none",
+            canResume: m.resumable,
+            pendingConnectionId: m.resumable ? "ca-search" : null,
           }),
           { status: 200 },
         ),
@@ -141,16 +145,21 @@ describe("native SEO connection consent", () => {
       expect(m.finalize).toHaveBeenCalledWith({
         provider: "search_console",
         connectionId: "ca-search",
+        viewerId: "owner",
+        organizationId: "org",
       }),
     );
     expect(m.initiate).toHaveBeenCalledWith({
       provider: "search_console",
-      callbackUrl: `${window.location.origin}/composio/callback`,
+      viewerId: "owner",
+      organizationId: "org",
+      callbackUrl: expect.any(String),
     });
-    expect(m.complete).toHaveBeenCalledWith({
-      connectionId: "ca-search",
-      sessionUri: "https://backend.composio.dev/session/one",
-    });
+    const callbackUrl = new URL(m.initiate.mock.calls[0][0].callbackUrl);
+    expect(callbackUrl.origin).toBe(window.location.origin);
+    expect(callbackUrl.pathname).toBe("/seo/connections/callback");
+    expect(callbackUrl.searchParams.get("seo_state")).toBe("nonce");
+    expect(m.complete).not.toHaveBeenCalled();
     expect(m.navigate).toHaveBeenCalledWith("https://connect.composio.dev/one");
     expect(await screen.findByText("Search Console connected")).toBeVisible();
     expect(refreshed).toHaveBeenCalledTimes(1);
@@ -174,7 +183,7 @@ describe("native SEO connection consent", () => {
     show();
     await userEvent.click(await connectButton());
     await waitFor(() =>
-      expect(m.error).toHaveBeenCalledWith(
+      expect(screen.getByRole("alert")).toHaveTextContent(
         "Allow popups to connect Search Console, then try again.",
       ),
     );
@@ -187,7 +196,54 @@ describe("native SEO connection consent", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Disconnect Search Console" }),
     );
-    expect(m.disconnect).toHaveBeenCalledWith({ provider: "search_console" });
+    expect(m.disconnect).toHaveBeenCalledWith({
+      provider: "search_console",
+      viewerId: "owner",
+      organizationId: "org",
+    });
     expect(await connectButton()).toBeEnabled();
+  });
+
+  it("resumes already redeemed approval without opening another Google consent window", async () => {
+    m.status = "pending";
+    m.resumable = true;
+    show();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Retry verification" }),
+    );
+    expect(await screen.findByText("Search Console connected")).toBeVisible();
+    expect(m.finalize).toHaveBeenCalledWith({
+      provider: "search_console",
+      connectionId: "ca-search",
+      viewerId: "owner",
+      organizationId: "org",
+    });
+    expect(m.initiate).not.toHaveBeenCalled();
+    expect(m.popup).not.toHaveBeenCalled();
+  });
+
+  it("retains the selected account when replacement consent is cancelled", async () => {
+    m.status = "connected";
+    m.callback.mockResolvedValue({ kind: "cancelled" });
+    show();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Change account" }),
+    );
+    expect(screen.getByText("Search Console connected")).toBeVisible();
+    expect(m.disconnect).not.toHaveBeenCalled();
+    expect(m.finalize).not.toHaveBeenCalled();
+  });
+
+  it("shows a retryable verification error instead of claiming the source connected", async () => {
+    m.finalize.mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", status: 503 },
+    });
+    show();
+    await userEvent.click(await connectButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "temporarily unavailable",
+    );
+    expect(screen.queryByText("Search Console connected")).toBeNull();
   });
 });

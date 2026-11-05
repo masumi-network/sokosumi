@@ -24,11 +24,16 @@ const question = {
   idempotencyKey: "8dbec725-fda1-49bc-aee8-a3b853ca0a0c",
 };
 
-function request(method: "GET" | "POST", expectedViewer = "owner") {
+function request(
+  method: "GET" | "POST",
+  expectedViewer = "owner",
+  expectedOrganization = "personal",
+) {
   const input = new Request(`https://web.test/api/seo/audits/${AUDIT}/chat`, {
     method,
     headers: {
       [SEO_VIEWER_HEADER]: expectedViewer,
+      "x-seo-organization": expectedOrganization,
       ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
     },
     ...(method === "POST" ? { body: JSON.stringify(question) } : {}),
@@ -42,7 +47,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.session.mockResolvedValue({
     status: "authenticated",
-    session: { user: { id: "owner" } },
+    session: { user: { id: "owner" }, session: { activeOrganizationId: null } },
   });
   mocks.list.mockResolvedValue({ turns: [] });
   mocks.send.mockResolvedValue({ id: "accepted-turn" });
@@ -50,11 +55,32 @@ beforeEach(() => {
 
 describe("native SEO chat viewer boundary", () => {
   it.each(["GET", "POST"] as const)(
+    "rejects same-user %s requests left over from another organization",
+    async (method) => {
+      mocks.session.mockResolvedValue({
+        status: "authenticated",
+        session: {
+          user: { id: "owner" },
+          session: { activeOrganizationId: "org-b" },
+        },
+      });
+      const response = await request(method, "owner", "organization:org-a");
+      expect(response.status).toBe(409);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(mocks.list).not.toHaveBeenCalled();
+      expect(mocks.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["GET", "POST"] as const)(
     "rejects a stale %s viewer before reading history or sending a paid question",
     async (method) => {
       mocks.session.mockResolvedValue({
         status: "authenticated",
-        session: { user: { id: "another-owner" } },
+        session: {
+          user: { id: "another-owner" },
+          session: { activeOrganizationId: null },
+        },
       });
       const response = await request(method);
       expect(response.status).toBe(409);

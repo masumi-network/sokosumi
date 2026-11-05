@@ -10546,6 +10546,7 @@
     "Seo": {
       "title": "SEO",
       "intro": "Sieh Änderungen, offene Arbeiten und die nächsten Prüfungen.",
+      "edit": "Bearbeiten",
       "pickTitle": "SEO-Audits",
       "pickBody": "Fasse zusammengehörige Seiten, Prüfungen, Statistiken, Aktionen und Chat in einem Audit zusammen.",
       "pickUnavailable": "Dieses Audit ist nicht verfügbar. Öffne ein anderes Audit.",
@@ -10624,10 +10625,21 @@
         "coverageCounts": "{checked} geprüft, {skipped} ausgelassen, {failed} nicht verfügbar",
         "noFindings": "Keine Befunde in dieser Auswahl",
         "noFindingsBody": "Starte oder importiere eine Prüfung, um Nachweise zu sehen. Fehlende Prüfungen gelten nicht als bestanden.",
-        "manageConnections": "Statistiken einrichten"
+        "manageConnections": "Statistiken einrichten",
+        "dailyTrend": "Täglicher Verlauf",
+        "noDailyTrend": "Diese Quelle enthält keine täglichen Messwerte für den gewählten Zeitraum.",
+        "measurementDetails": "Details zur Messung",
+        "timeZone": "Zeitzone des Berichts: {timeZone}",
+        "trafficSetup": "So entwickeln sich diese Seiten",
+        "trafficSetupBody": "Verbinde Google Analytics für Besuche und Seitenaufrufe oder Search Console für Suchklicks, Impressionen und Rankings.",
+        "googleConnections": "Deine Google-Verbindungen",
+        "recentChecks": "Letzte Prüfungen",
+        "getStarted": "Erste Ergebnisse für diese Seiten",
+        "getStartedBody": "Starte eine Seitenprüfung oder importiere einen fertigen Bericht. Füge verwandte Seiten hinzu, um sie in einem Audit zu vergleichen."
       },
       "keywords": {
         "title": "Keywords",
+        "edit": "Keyword bearbeiten",
         "empty": "Keine Keywords in dieser Auswahl",
         "emptyBody": "Importiere ein Audit, um Keywords zu finden, oder speichere ein Keyword.",
         "add": "Keyword speichern",
@@ -10695,6 +10707,16 @@
       },
       "timeline": {
         "title": "Verlauf",
+        "runNewCheck": "Neue Prüfung starten",
+        "statuses": {
+          "requested": "Angefordert",
+          "running": "Läuft",
+          "completed": "Abgeschlossen",
+          "failed": "Fehlgeschlagen",
+          "partial": "Teilweise",
+          "recorded": "Erfasst",
+          "unavailable": "Nicht verfügbar"
+        },
         "empty": "Keine Aktivität in dieser Auswahl",
         "emptyBody": "Prüfungen, Statistikaktualisierungen, Seitenauswahl und Aufgaben erscheinen hier.",
         "audit": "Audit",
@@ -10783,7 +10805,8 @@
         "ownerOnly": "Statistiken nutzen das Konto und die Zugriffsrechte der synchronisierenden Person.",
         "synced": "Statistiken synchronisiert",
         "invalidDates": "Wähle einen gültigen Zeitraum von bis zu 366 Tagen.",
-        "channelAny": "Alle gemessenen Segmente"
+        "channelAny": "Alle gemessenen Segmente",
+        "lastDays": "Letzte {days} Tage"
       },
       "metrics": {
         "page_views": "Seitenaufrufe",
@@ -10849,6 +10872,7 @@
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",
         "updated": "Aktualisiert",
+        "created": "Erstellt",
         "empty": "Noch keine Audits",
         "emptyBody": "Erstelle ein Audit und füge die erste Seite hinzu. Weitere Seiten kannst du später hinzufügen.",
         "createHelp": "Benenne das Audit und füge eine öffentliche Seiten-URL hinzu. Die Seite wird ohne kostenpflichtige Prüfung gespeichert.",
@@ -10884,7 +10908,24 @@
         "popupBlocked": "Erlaube Pop-ups für {provider} und versuche es erneut.",
         "inFlight": "Schließe zuerst die Anmeldung im offenen Fenster ab.",
         "timeout": "Die Anmeldung hat zu lange gedauert. Versuche es erneut.",
-        "pending": "Schließe die Anmeldung im offenen Fenster ab oder verbinde das Konto erneut."
+        "pending": "Schließe die Freigabe im Verbindungsfenster ab. Wiederhole danach bei Bedarf die Prüfung.",
+        "changeAccount": "Konto wechseln",
+        "resume": "Prüfung wiederholen",
+        "restart": "Neue Verbindung starten",
+        "reconnect": "{provider} erneut verbinden",
+        "needsReconnect": "Der Google-Zugriff für {provider} ist abgelaufen oder wurde entfernt. Verbinde das Konto erneut.",
+        "viewerChanged": "Dein Konto oder Workspace hat sich geändert. Kehre zum Audit zurück und starte die Verbindung erneut.",
+        "signInRequired": "Melde dich erneut an und verbinde dann dein Google-Konto.",
+        "accessDenied": "Dieses Konto kann hier keine Statistiken verbinden. Prüfe deinen Workspace-Zugriff.",
+        "expired": "Dieser Verbindungsversuch ist abgelaufen oder wurde ersetzt. Starte eine neue Verbindung im Audit.",
+        "activationPending": "Die Google-Freigabe ist noch nicht bereit. Wiederhole die Prüfung oder starte eine neue Verbindung.",
+        "consentFailed": "Die Google-Freigabe wurde nicht abgeschlossen. Kehre zum Audit zurück und versuche es erneut.",
+        "temporarilyUnavailable": "Der Verbindungsdienst ist vorübergehend nicht verfügbar. Wiederhole die Prüfung gleich noch einmal.",
+        "callbackTitle": "SEO-Statistiken verbinden",
+        "callbackWorking": "Deine Google-Freigabe wird geprüft",
+        "callbackDone": "Dein Konto ist verbunden. Kehre zum Audit zurück, wähle eine Property und synchronisiere die Statistiken.",
+        "returnToAudit": "Zurück zum Audit",
+        "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit."
       }
     }
   },

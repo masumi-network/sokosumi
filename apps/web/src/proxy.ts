@@ -58,6 +58,14 @@ const EXCLUDED_PATHS = [
   "/maintenance",
 ];
 
+// Consent documents contain no workspace data. Their server actions still
+// require the authenticated initiating viewer and workspace. Match exactly so
+// callback credentials cannot enter a sign-in URL after a session expires.
+const SEO_CONNECTION_DOCUMENT_PATHS = new Set([
+  "/seo/connections/callback",
+  "/seo/connections/return",
+]);
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
@@ -118,7 +126,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // Skip session check for excluded paths (but still set headers above)
-  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
+  if (
+    SEO_CONNECTION_DOCUMENT_PATHS.has(pathname) ||
+    EXCLUDED_PATHS.some((path) => pathname.startsWith(path))
+  ) {
     return response;
   }
 

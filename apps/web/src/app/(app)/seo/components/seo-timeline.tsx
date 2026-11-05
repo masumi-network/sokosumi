@@ -5,12 +5,14 @@ import {
   Activity,
   BarChart3,
   CheckCheck,
+  CircleAlert,
   FolderOpen,
   PencilLine,
   SearchCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoDate, SeoEmpty, SeoSection, SeoState } from "./seo-shared";
@@ -24,7 +26,13 @@ const icons = {
   page_change: PencilLine,
 };
 
-export function SeoTimeline({ workspace }: { workspace: ProjectSeoWorkspace }) {
+export function SeoTimeline({
+  workspace,
+  onRetry,
+}: {
+  workspace: ProjectSeoWorkspace;
+  onRetry?: () => void;
+}) {
   const t = useTranslations("App.Seo");
   const items = workspace.timeline;
   return (
@@ -34,7 +42,9 @@ export function SeoTimeline({ workspace }: { workspace: ProjectSeoWorkspace }) {
       ) : (
         <ol className="space-y-2">
           {items.map((item) => {
-            const Icon = icons[item.kind];
+            const status = item.status.toLowerCase();
+            const failed = status === "failed";
+            const Icon = failed ? CircleAlert : icons[item.kind];
             const observation = workspace.observations.find(
               (row) => row.id === item.observationId,
             );
@@ -53,6 +63,9 @@ export function SeoTimeline({ workspace }: { workspace: ProjectSeoWorkspace }) {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-sm">{item.title}</span>
                     <SeoState>{t(`timeline.${item.kind}`)}</SeoState>
+                    {t.has(`timeline.statuses.${status}`) ? (
+                      <SeoState>{t(`timeline.statuses.${status}`)}</SeoState>
+                    ) : null}
                   </div>
                   <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
                     {item.detail}
@@ -97,6 +110,11 @@ export function SeoTimeline({ workspace }: { workspace: ProjectSeoWorkspace }) {
                       >
                         {t("openTask")}
                       </Link>
+                    ) : null}
+                    {failed && item.kind === "check" && onRetry ? (
+                      <Button variant="outline" size="sm" onClick={onRetry}>
+                        {t("timeline.runNewCheck")}
+                      </Button>
                     ) : null}
                   </div>
                 </div>

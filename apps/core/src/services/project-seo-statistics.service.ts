@@ -27,7 +27,10 @@ import {
   listIntegrationTools,
   readIntegrationTool,
 } from "@/services/composio-integration-tools.service";
-import { resolveSeoStatisticsIntegration } from "@/services/seo-connections.service";
+import {
+  recordSeoConnectionFailure,
+  resolveSeoStatisticsIntegration,
+} from "@/services/seo-connections.service";
 import {
   getProjectSeoWorkspace,
   recordNativeSeoMetrics,
@@ -177,6 +180,7 @@ export async function listProjectSeoStatisticsProperties(
   try {
     return await propertyChoices(integration, provider);
   } catch {
+    await recordSeoConnectionFailure(actor, provider, integration);
     return {
       provider,
       properties: [],
@@ -242,7 +246,12 @@ export async function syncProjectSeoStatistics(
   const integration = await integrationFor(actor, input.provider);
   if (!integration)
     throw unprocessableEntity("Connect this account in SEO statistics");
-  const choices = await propertyChoices(integration, input.provider);
+  const choices = await propertyChoices(integration, input.provider).catch(
+    async (error) => {
+      await recordSeoConnectionFailure(actor, input.provider, integration);
+      throw error;
+    },
+  );
   if (!choices.properties.some((property) => property.id === input.propertyId))
     throw unprocessableEntity(
       "The selected property was not returned by this native connection",
@@ -283,10 +292,12 @@ export async function syncProjectSeoStatistics(
     collect(false),
     collect(true),
   ]);
-  if (period.status === "rejected" && daily.status === "rejected")
+  if (period.status === "rejected" && daily.status === "rejected") {
+    await recordSeoConnectionFailure(actor, input.provider, integration);
     throw unprocessableEntity(
       "The native connection could not provide statistics",
     );
+  }
   const metrics = normalize(
     query,
     period.status === "fulfilled" ? period.value : null,

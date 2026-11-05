@@ -45,6 +45,7 @@ function workspaceFixture(): ProjectSeoWorkspace {
         label: "Page views",
         unit: "count",
         source: "ga4",
+        propertyId: "properties/123",
         value: 321,
         from: "2026-11-01",
         to: "2026-11-02",
@@ -68,6 +69,87 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("distinguishes an observed ranking page from the saved target without inventing saved-only observations", () => {
+    const workspace = workspaceFixture();
+    const target = workspace.pages[0];
+    const observed = {
+      ...target,
+      id: randomUUID(),
+      url: "https://example.test/ranking-page",
+    };
+    workspace.pages.push(observed);
+    workspace.scope.pageIds.push(observed.id);
+    const keyword = {
+      id: "observed-keyword",
+      keyword: "observed keyword",
+      pageUrl: observed.url,
+      targetPageId: target.id,
+      saved: true,
+      countryCode: "US",
+      languageCode: "en",
+      source: "rank_refresh",
+      volume: 100,
+      intent: null,
+      device: "desktop" as const,
+      position: 4,
+      positionStatus: "ranked" as const,
+      checkedResults: 100,
+      observedAt: new Date().toISOString(),
+      observationId: randomUUID(),
+      priority: "high" as const,
+      version: 2,
+    };
+    workspace.keywords = [
+      keyword,
+      {
+        ...keyword,
+        id: "saved-keyword",
+        keyword: "saved keyword",
+        pageUrl: target.url,
+        source: "saved",
+        observationId: null,
+        observedAt: null,
+        device: null,
+        position: null,
+        positionStatus: "unavailable",
+        checkedResults: null,
+        volume: null,
+      },
+      {
+        ...keyword,
+        id: "unavailable-target",
+        keyword: "unavailable target",
+        targetPageId: randomUUID(),
+      },
+    ];
+    const evidence = JSON.parse(seoChatContext(workspace));
+    expect(evidence.keywords).toMatchObject([
+      {
+        keyword: "observed keyword",
+        observedPageUrl: observed.url,
+        targetPageId: target.id,
+        targetPageUrl: target.url,
+      },
+      {
+        keyword: "saved keyword",
+        observedPageUrl: null,
+        targetPageId: target.id,
+        targetPageUrl: target.url,
+      },
+      {
+        keyword: "unavailable target",
+        observedPageUrl: observed.url,
+        targetPageId: null,
+        targetPageUrl: null,
+      },
+    ]);
+    expect(
+      evidence.keywords.every(
+        (row: Record<string, unknown>) => !("pageUrl" in row),
+      ),
+    ).toBe(true);
+  });
+
   it("keeps statistics and dispatch state in valid bounded JSON despite a large history", () => {
     const workspace = workspaceFixture();
     workspace.observations = Array.from({ length: 100 }, () => ({

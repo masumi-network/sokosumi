@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SeoField, SeoSelect } from "./seo-form-fields";
+import { SEO_NO_TARGET_PAGE } from "./seo-form-model";
 import { useSeoEdit } from "./use-seo-edit";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -26,6 +27,7 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
     kind !== "scope" &&
     kind !== "edit_scope" &&
     kind !== "keyword" &&
+    kind !== "edit_keyword" &&
     kind !== "competitor"
   )
     return null;
@@ -36,6 +38,8 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
         )
       : null;
   const group = kind === "scope" || kind === "edit_scope";
+  const keywordForm = kind === "keyword" || kind === "edit_keyword";
+  const editingKeyword = kind === "edit_keyword" ? form.keyword : null;
   const title =
     kind === "page"
       ? t("addPage")
@@ -43,9 +47,11 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
         ? t("createScope")
         : kind === "edit_scope"
           ? t("editScope")
-          : kind === "keyword"
-            ? t("keywords.add")
-            : t("competitors.add");
+          : kind === "edit_keyword"
+            ? t("keywords.edit")
+            : kind === "keyword"
+              ? t("keywords.add")
+              : t("competitors.add");
   return (
     <Dialog
       open
@@ -61,7 +67,7 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
               ? t("scopeHelp")
               : kind === "page"
                 ? t("pageHelp")
-                : kind === "keyword"
+                : keywordForm
                   ? t("keywords.help")
                   : t("competitors.help")}
           </DialogDescription>
@@ -148,13 +154,15 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
               ) : null}
             </>
           ) : null}
-          {kind === "keyword" ? (
+          {keywordForm ? (
             <>
               <SeoField id="seo-edit-keyword" label={t("keywords.keyword")}>
                 <Input
                   id="seo-edit-keyword"
                   name="keyword"
                   maxLength={200}
+                  defaultValue={editingKeyword?.keyword}
+                  readOnly={!!editingKeyword}
                   required
                 />
               </SeoField>
@@ -166,6 +174,8 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                     required
                     pattern="[A-Za-z]{2}"
                     maxLength={2}
+                    defaultValue={editingKeyword?.countryCode}
+                    readOnly={!!editingKeyword}
                   />
                 </SeoField>
                 <SeoField id="seo-edit-language" label={t("keywords.language")}>
@@ -175,6 +185,8 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                     required
                     pattern="[a-z]{2,3}(-[A-Z]{2})?"
                     maxLength={6}
+                    defaultValue={editingKeyword?.languageCode}
+                    readOnly={!!editingKeyword}
                   />
                 </SeoField>
               </div>
@@ -182,10 +194,16 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                 <SeoSelect
                   id="seo-edit-target"
                   name="pageId"
-                  options={form.workspace.pages.map((page) => ({
-                    value: page.id,
-                    label: page.label || page.url,
-                  }))}
+                  defaultValue={
+                    editingKeyword?.targetPageId ?? SEO_NO_TARGET_PAGE
+                  }
+                  options={[
+                    { value: SEO_NO_TARGET_PAGE, label: t("keywords.anyPage") },
+                    ...form.workspace.pages.map((page) => ({
+                      value: page.id,
+                      label: page.label || page.url,
+                    })),
+                  ]}
                   placeholder={t("keywords.anyPage")}
                 />
               </SeoField>
@@ -193,7 +211,7 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                 <SeoSelect
                   id="seo-edit-priority"
                   name="priority"
-                  defaultValue="medium"
+                  defaultValue={editingKeyword?.priority ?? "medium"}
                   options={["low", "medium", "high"].map((value) => ({
                     value,
                     label: t(`priority.${value}`),

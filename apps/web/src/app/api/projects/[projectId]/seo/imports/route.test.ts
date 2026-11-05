@@ -26,7 +26,7 @@ vi.mock("@/lib/clients/core.client", async () => ({
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
+import { seoViewerHeaders } from "@/lib/seo/owner";
 import { GET } from "./route";
 
 const PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
@@ -42,7 +42,7 @@ function read(query = "") {
   return GET(
     new Request(
       `https://web.test/api/projects/${PROJECT}/seo/imports?${query}`,
-      { headers: { [SEO_VIEWER_HEADER]: "owner" } },
+      { headers: seoViewerHeaders("owner", null) },
     ),
     { params: Promise.resolve({ projectId: PROJECT }) },
   );
@@ -51,11 +51,25 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.session.mockResolvedValue({
     status: "authenticated",
-    session: { user: { id: "owner" } },
+    session: { user: { id: "owner" }, session: { activeOrganizationId: null } },
   });
   mocks.getWorkspace.mockResolvedValue({ projectId: PROJECT });
 });
 describe("SEO import sources", () => {
+  it("rejects an old personal-workspace read after the same user selects an organization", async () => {
+    mocks.session.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: { id: "owner" },
+        session: { activeOrganizationId: "org-b" },
+      },
+    });
+    expect((await read()).status).toBe(409);
+    expect(mocks.getWorkspace).not.toHaveBeenCalled();
+    expect(mocks.getTasks).not.toHaveBeenCalled();
+    expect(mocks.getTaskById).not.toHaveBeenCalled();
+  });
+
   it("lists authorized Task summaries without loading every Task's files", async () => {
     mocks.getTasks.mockResolvedValue({
       data: [task, { ...task, id: "other", projectId: "another-project" }],

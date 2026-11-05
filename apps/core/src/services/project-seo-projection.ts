@@ -61,6 +61,20 @@ interface ProjectionInput {
 const key = (...parts: Array<string | null>) => JSON.stringify(parts);
 const priority = z.enum(["low", "medium", "high"]);
 
+function checkIdentity(
+  source: PublicSeoPayload,
+  check: { pageUrl: string; rowId: string; device: string | null },
+) {
+  return key(
+    normalizeSeoUrl(check.pageUrl),
+    check.rowId,
+    check.device,
+    source.countryCode,
+    source.languageCode,
+    source.rulebookVersion,
+  );
+}
+
 function verifiedAction(
   input: ProjectionInput,
   source: PublicSeoPayload,
@@ -128,7 +142,10 @@ export function projectSeoProjection(
     seenCompetitors = new Set<string>(),
     seenFindings = new Set<string>(),
     seenMetricGroups = new Set<string>();
-  const latestChecked = new Map<string, string>();
+  const latestChecked = new Map<
+    string,
+    { id: string; result: "pass" | "fired"; observedAt: Date }
+  >();
   const keywordChoices = new Map(
     input.keywords.map((row) => [
       key(row.keywordKey, row.countryCode, row.languageCode),
@@ -202,6 +219,7 @@ export function projectSeoProjection(
           id: `${row.id}:${metric.key}`,
           ...metric,
           source: data.provider,
+          propertyId: data.propertyId,
           from: data.from,
           to: data.to,
           timeZone: data.timeZone,
@@ -239,33 +257,24 @@ export function projectSeoProjection(
       coverage: data.coverage,
     });
     for (const check of data.checks) {
-      const identity = key(
-        normalizeSeoUrl(check.pageUrl),
-        check.rowId,
-        check.device,
-        data.countryCode,
-        data.languageCode,
-        data.rulebookVersion,
-      );
+      const identity = checkIdentity(data, check);
       if (
         (check.result === "pass" || check.result === "fired") &&
         !latestChecked.has(identity)
       )
-        latestChecked.set(identity, row.id);
+        latestChecked.set(identity, {
+          id: row.id,
+          result: check.result,
+          observedAt: row.observedAt,
+        });
     }
     for (const item of data.findings) {
       if (!selectedUrls.has(normalizeSeoUrl(item.pageUrl))) continue;
-      const identity = key(
-        normalizeSeoUrl(item.pageUrl),
-        item.rowId,
-        item.device,
-        data.countryCode,
-        data.languageCode,
-        data.rulebookVersion,
-      );
+      const identity = checkIdentity(data, item);
       if (
         seenFindings.has(identity) ||
-        (latestChecked.has(identity) && latestChecked.get(identity) !== row.id)
+        (latestChecked.has(identity) &&
+          latestChecked.get(identity)?.id !== row.id)
       )
         continue;
       seenFindings.add(identity);
@@ -302,6 +311,7 @@ export function projectSeoProjection(
         countryCode: data.countryCode,
         languageCode: data.languageCode,
         saved: choice?.saved ?? false,
+        targetPageId: choice?.pageId ?? null,
         priority: priority.parse(choice?.priority ?? "medium"),
         version: choice?.version ?? 0,
         source: item.source ?? "rank_refresh",
@@ -352,6 +362,22 @@ export function projectSeoProjection(
       const link = input.actionTasks.find(
         (task) => task.observationId === row.id && task.actionId === item.id,
       );
+      // Keep linked work on its history. Unlinked proposals stop being current after an exact later pass.
+      if (
+        !link &&
+        item.findingIds.length > 0 &&
+        item.findingIds.every((id) => {
+          const finding = data.findings.find(
+            (candidate) => candidate.id === id,
+          );
+          if (!finding?.device) return false;
+          const latest = latestChecked.get(checkIdentity(data, finding));
+          return (
+            latest?.result === "pass" && latest.observedAt > row.observedAt
+          );
+        })
+      )
+        continue;
       actions.push({
         ...item,
         observationId: row.id,
@@ -392,6 +418,7 @@ export function projectSeoProjection(
       keyword: choice.keyword,
       pageUrl:
         input.pages.find((page) => page.id === choice.pageId)?.url ?? null,
+      targetPageId: choice.pageId,
       saved: choice.saved,
       countryCode: choice.countryCode,
       languageCode: choice.languageCode,

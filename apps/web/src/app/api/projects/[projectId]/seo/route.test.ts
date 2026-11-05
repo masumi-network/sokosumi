@@ -17,11 +17,21 @@ import { GET } from "./route";
 
 const PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
 const PAGE = "2c32dca9-c44f-4372-9114-8c146d5eb30b";
-function read(query = "", expectedViewer: string | null = "owner") {
+function read(
+  query = "",
+  expectedViewer: string | null = "owner",
+  expectedOrganization: string | null = "personal",
+) {
   return GET(
     new Request(`https://web.test/api/projects/${PROJECT}/seo?${query}`, {
-      headers:
-        expectedViewer === null ? {} : { [SEO_VIEWER_HEADER]: expectedViewer },
+      headers: {
+        ...(expectedViewer === null
+          ? {}
+          : { [SEO_VIEWER_HEADER]: expectedViewer }),
+        ...(expectedOrganization === null
+          ? {}
+          : { "x-seo-organization": expectedOrganization }),
+      },
     }),
     { params: Promise.resolve({ projectId: PROJECT }) },
   );
@@ -30,11 +40,44 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.session.mockResolvedValue({
     status: "authenticated",
-    session: { user: { id: "owner" } },
+    session: { user: { id: "owner" }, session: { activeOrganizationId: null } },
   });
   mocks.getWorkspace.mockResolvedValue({ projectId: PROJECT });
 });
 describe("private SEO read boundary", () => {
+  it.each([
+    ["organization:org-a", "org-b"],
+    ["personal", "org-b"],
+    ["organization:org-a", null],
+    ["personal", "personal"],
+    [null, null],
+  ])(
+    "rejects a stale workspace header %s for the same viewer in %s",
+    async (expected, actual) => {
+      mocks.session.mockResolvedValue({
+        status: "authenticated",
+        session: {
+          user: { id: "owner" },
+          session: { activeOrganizationId: actual },
+        },
+      });
+      expect((await read("", "owner", expected)).status).toBe(409);
+      expect(mocks.getWorkspace).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reads the actual active organization after matching its explicit header", async () => {
+    mocks.session.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: { id: "owner" },
+        session: { activeOrganizationId: "org-b" },
+      },
+    });
+    expect((await read("", "owner", "organization:org-b")).status).toBe(200);
+    expect(mocks.getWorkspace).toHaveBeenCalled();
+  });
+
   it("forwards exact page/date filters and disables response caching", async () => {
     const response = await read(`pageId=${PAGE}&from=2026-01-01&to=2026-01-02`);
     expect(response.status).toBe(200);

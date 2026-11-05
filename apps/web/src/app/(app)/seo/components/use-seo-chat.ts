@@ -50,7 +50,10 @@ export function useSeoChat(model: SeoWorkspaceModel) {
         throw new DOMException("SEO viewer changed", "AbortError");
       const response = await fetch(endpoint, {
         signal,
-        headers: seoViewerHeaders(session?.user.id),
+        headers: seoViewerHeaders(
+          session?.user.id,
+          session?.session.activeOrganizationId,
+        ),
         cache: "no-store",
         credentials: "same-origin",
       });
@@ -102,7 +105,10 @@ export function useSeoChat(model: SeoWorkspaceModel) {
         credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          ...seoViewerHeaders(session?.user.id),
+          ...seoViewerHeaders(
+            session?.user.id,
+            session?.session.activeOrganizationId,
+          ),
         },
         signal: requestController.signal,
         body: JSON.stringify({ question: text, idempotencyKey, scope }),

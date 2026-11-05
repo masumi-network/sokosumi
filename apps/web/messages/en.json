@@ -10546,6 +10546,7 @@
     "Seo": {
       "title": "SEO",
       "intro": "See what changed, what needs work, and what to check next.",
+      "edit": "Edit",
       "pickTitle": "SEO audits",
       "pickBody": "Keep related pages, checks, statistics, actions and chat together in an audit.",
       "pickUnavailable": "This audit is unavailable. Open another audit.",
@@ -10624,10 +10625,21 @@
         "coverageCounts": "{checked} checked, {skipped} skipped, {failed} unavailable",
         "noFindings": "No findings in this scope",
         "noFindingsBody": "Run or import a check to inspect its evidence. Missing checks are not passing checks.",
-        "manageConnections": "Set up statistics"
+        "manageConnections": "Set up statistics",
+        "dailyTrend": "Daily trend",
+        "noDailyTrend": "This source did not include daily measurements for the selected period.",
+        "measurementDetails": "Measurement details",
+        "timeZone": "Reporting time zone: {timeZone}",
+        "trafficSetup": "See how these pages perform",
+        "trafficSetupBody": "Connect Google Analytics for visits and page views, or Search Console for search clicks, impressions and rankings.",
+        "googleConnections": "Your Google connections",
+        "recentChecks": "Recent checks",
+        "getStarted": "Get the first results for these pages",
+        "getStartedBody": "Run a page check or import a completed report. Add related pages to compare them in one audit."
       },
       "keywords": {
         "title": "Keywords",
+        "edit": "Edit keyword",
         "empty": "No keywords in this scope",
         "emptyBody": "Import an audit to discover keywords, or save a keyword to your list.",
         "add": "Save a keyword",
@@ -10695,6 +10707,16 @@
       },
       "timeline": {
         "title": "Timeline",
+        "runNewCheck": "Run a new check",
+        "statuses": {
+          "requested": "Requested",
+          "running": "Running",
+          "completed": "Completed",
+          "failed": "Failed",
+          "partial": "Partial",
+          "recorded": "Recorded",
+          "unavailable": "Unavailable"
+        },
         "empty": "No activity in this scope",
         "emptyBody": "Checks, statistics updates, page selections and action tasks will appear here.",
         "audit": "Audit",
@@ -10783,7 +10805,8 @@
         "ownerOnly": "Statistics use the account and access of the person who syncs them.",
         "synced": "Statistics synced",
         "invalidDates": "Choose a valid date range of up to 366 days.",
-        "channelAny": "All measured segments"
+        "channelAny": "All measured segments",
+        "lastDays": "Last {days} days"
       },
       "metrics": {
         "page_views": "Page views",
@@ -10849,6 +10872,7 @@
         "create": "Create audit",
         "saved": "Saved audits",
         "updated": "Updated",
+        "created": "Created",
         "empty": "No audits yet",
         "emptyBody": "Create an audit and add its first page. You can add related pages later.",
         "createHelp": "Name this audit and add a public page URL. This saves the page without running a paid check.",
@@ -10884,7 +10908,24 @@
         "popupBlocked": "Allow popups to connect {provider}, then try again.",
         "inFlight": "Finish the open connection window first.",
         "timeout": "The connection timed out. Try again.",
-        "pending": "Complete sign-in in the open window, or connect again."
+        "pending": "Finish approval in the connection window. If approval is complete, retry verification.",
+        "changeAccount": "Change account",
+        "resume": "Retry verification",
+        "restart": "Start a new connection",
+        "reconnect": "Reconnect {provider}",
+        "needsReconnect": "Google access for {provider} has expired or was removed. Reconnect to read statistics.",
+        "viewerChanged": "Your account or workspace changed. Return to the audit and connect again.",
+        "signInRequired": "Sign in again, then reconnect your Google account.",
+        "accessDenied": "This account cannot connect statistics in this workspace. Check your workspace access.",
+        "expired": "This connection attempt expired or was replaced. Start a new connection from the audit.",
+        "activationPending": "Google approval is not ready yet. Retry verification, or start a new connection.",
+        "consentFailed": "Google approval did not finish. Return to the audit and try again.",
+        "temporarilyUnavailable": "The connection service is temporarily unavailable. Retry verification in a moment.",
+        "callbackTitle": "Connect SEO statistics",
+        "callbackWorking": "Verifying your Google approval",
+        "callbackDone": "Your account is connected. Return to the audit to choose a property and sync statistics.",
+        "returnToAudit": "Return to audit",
+        "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit."
       }
     }
   },

@@ -2,9 +2,20 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 
 export type SeoOwner = { kind: "audit" | "project"; id: string };
 export const SEO_VIEWER_HEADER = "x-seo-viewer";
+export const SEO_ORGANIZATION_HEADER = "x-seo-organization";
+export const SEO_PERSONAL_ORGANIZATION = "personal";
 
-export function seoViewerHeaders(userId: string | undefined) {
-  return { [SEO_VIEWER_HEADER]: userId ?? "" };
+export function seoViewerHeaders(
+  userId: string | undefined,
+  organizationId: string | null | undefined,
+) {
+  return {
+    [SEO_VIEWER_HEADER]: userId ?? "",
+    [SEO_ORGANIZATION_HEADER]:
+      organizationId == null
+        ? SEO_PERSONAL_ORGANIZATION
+        : `organization:${organizationId}`,
+  };
 }
 
 /** An optional work link never changes which audit owns these pages. */

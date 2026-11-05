@@ -196,7 +196,7 @@ describe("native SEO connection ownership", () => {
     { authConfigId: "ac-other" },
     { connectorUserId: "bob" },
   ])(
-    "does not redeem local consent for substituted provider metadata: %o",
+    "does not accept substituted provider metadata after one-use redemption: %o",
     async (change) => {
       m.account.mockResolvedValue({
         id: "ca-google",
@@ -213,7 +213,7 @@ describe("native SEO connection ownership", () => {
           sessionUri: "one-use",
         }),
       ).rejects.toMatchObject({ status: 404 });
-      expect(m.redeemed).not.toHaveBeenCalled();
+      expect(m.redeemed).toHaveBeenCalledTimes(1);
     },
   );
 
