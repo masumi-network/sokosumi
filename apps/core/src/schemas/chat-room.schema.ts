@@ -716,7 +716,7 @@ export const chatSignalTagSchema = z
   .enum(CHAT_SIGNAL_TAGS)
   .openapi("ChatSignalTag", {
     description:
-      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).",
+      "What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only), `bug` (reports something broken), `review` (asks for feedback on something specific).",
   });
 
 /**

@@ -15,6 +15,8 @@ export const CHAT_SIGNAL_TAG_ORDER: readonly ChatSignalTag[] = [
   "urgent",
   "escalation",
   "workRequest",
+  "bug",
+  "review",
   "fyi",
   "chitChat",
 ];
@@ -31,9 +33,11 @@ const CHIP_ORDER: readonly ChatSignalChip[] = [
   "escalation",
   "urgent",
   "blocker",
+  "bug",
   "decisionMade",
   "announcement",
   "needsDecision",
+  "review",
   "commitment",
   "workRequest",
 ];

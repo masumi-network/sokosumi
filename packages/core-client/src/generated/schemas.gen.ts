@@ -3194,6 +3194,16 @@ export const ChatMessageSignalSchema = {
                     type: 'number',
                     minimum: 0,
                     maximum: 1
+                },
+                bug: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
+                },
+                review: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1
                 }
             },
             description: 'Jev\'s probability per tag, as it answered.'
@@ -3262,9 +3272,11 @@ export const ChatSignalTagSchema = {
         'urgent',
         'chitChat',
         'workRequest',
-        'escalation'
+        'escalation',
+        'bug',
+        'review'
     ],
-    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only).'
+    description: 'What Jev read in a message: `question` (asks a named person), `needsDecision`, `commitment`, `blocker`, `decisionMade`, `announcement` (news for the whole room), `fyi`, `urgent`, `chitChat`, `workRequest`, `escalation` (an unhappy outside party; external channels only), `bug` (reports something broken), `review` (asks for feedback on something specific).'
 } as const;
 
 export const AdminSokoBotDetailSchema = {
@@ -13546,11 +13558,13 @@ export const ChatCatchUpBucketSchema = {
         'escalation',
         'urgent',
         'blocker',
+        'bug',
         'decisionMade',
         'announcement',
         'needsDecision',
         'commitment',
         'workRequest',
+        'review',
         'question',
         'fyi',
         'chitChat'

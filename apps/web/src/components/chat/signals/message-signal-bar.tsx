@@ -13,6 +13,7 @@ import {
 import {
   AlertTriangle,
   Ban,
+  Bug,
   CalendarClock,
   CircleHelp,
   Flame,
@@ -20,6 +21,7 @@ import {
   ListChecks,
   Loader2,
   Megaphone,
+  MessageSquareText,
   Tags,
   X,
 } from "lucide-react";
@@ -60,6 +62,8 @@ const CHIP_ICONS: Record<ChatSignalChip, typeof Gavel> = {
   needsDecision: CircleHelp,
   commitment: CalendarClock,
   workRequest: ListChecks,
+  bug: Bug,
+  review: MessageSquareText,
   question: CircleHelp,
   fyi: CircleHelp,
   chitChat: CircleHelp,

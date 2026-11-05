@@ -101,3 +101,12 @@ describe("resolveChatSignalDueAt", () => {
     );
   });
 });
+
+describe("chatSignalThreshold", () => {
+  it("asks Jev to be surer of urgent than of the other tags", () => {
+    expect([...effectiveChatSignalTags({ urgent: 0.7, bug: 0.7 })]).toEqual([
+      "bug",
+    ]);
+    expect([...effectiveChatSignalTags({ urgent: 0.85 })]).toEqual(["urgent"]);
+  });
+});

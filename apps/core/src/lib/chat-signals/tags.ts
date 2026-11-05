@@ -18,6 +18,8 @@ export const CHAT_SIGNAL_TAGS = [
   "chitChat",
   "workRequest",
   "escalation",
+  "bug",
+  "review",
 ] as const;
 
 export type ChatSignalTag = (typeof CHAT_SIGNAL_TAGS)[number];
@@ -27,6 +29,14 @@ export type ChatSignalProbabilities = Partial<Record<ChatSignalTag, number>>;
 
 /** A tag applies at or above this probability. */
 export const CHAT_SIGNAL_THRESHOLD = 0.6;
+/** Urgent interrupts, so Jev must be surer before a message wears it. */
+const TAG_THRESHOLDS: Partial<Record<ChatSignalTag, number>> = {
+  urgent: 0.8,
+};
+
+export function chatSignalThreshold(tag: ChatSignalTag): number {
+  return TAG_THRESHOLDS[tag] ?? CHAT_SIGNAL_THRESHOLD;
+}
 /**
  * Interrupting costs attention, so a push needs Jev to be surer than a sort
  * does: the same bar mail importance uses.
@@ -54,10 +64,11 @@ export interface ChatSignalCorrection {
 export function effectiveChatSignalTags(
   probabilities: ChatSignalProbabilities,
   corrections: readonly ChatSignalCorrection[] = [],
-  threshold = CHAT_SIGNAL_THRESHOLD,
 ): Set<ChatSignalTag> {
   const tags = new Set(
-    CHAT_SIGNAL_TAGS.filter((tag) => (probabilities[tag] ?? 0) >= threshold),
+    CHAT_SIGNAL_TAGS.filter(
+      (tag) => (probabilities[tag] ?? 0) >= chatSignalThreshold(tag),
+    ),
   );
   for (const correction of corrections) {
     if (!isChatSignalTag(correction.tag)) continue;

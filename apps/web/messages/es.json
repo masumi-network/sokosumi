@@ -8835,6 +8835,8 @@
           "needsDecision": "{count, plural, one {# decisión pendiente} other {# decisiones pendientes}}",
           "commitment": "{count, plural, one {# compromiso} other {# compromisos}}",
           "workRequest": "{count, plural, one {# encargo} other {# encargos}}",
+          "bug": "{count, plural, one {# error} other {# errores}}",
+          "review": "{count, plural, one {# solicitud de revisión} other {# solicitudes de revisión}}",
           "question": "{count, plural, one {# pregunta} other {# preguntas}}",
           "fyi": "{count, plural, one {# aviso} other {# avisos}}",
           "chitChat": "{count, plural, one {# charla} other {# charlas}}"
@@ -8857,7 +8859,9 @@
           "needsDecision": "Necesita una decisión",
           "commitment": "Compromiso",
           "commitmentDue": "Compromiso · vence {date}",
-          "workRequest": "Encargo"
+          "workRequest": "Encargo",
+          "bug": "Error",
+          "review": "Revisión"
         },
         "Tags": {
           "question": "Hace una pregunta a alguien",
@@ -8869,6 +8873,8 @@
           "urgent": "Urgente",
           "escalation": "Escalada",
           "workRequest": "Encargo",
+          "bug": "Informa de un error",
+          "review": "Pide una revisión",
           "fyi": "Aviso",
           "chitChat": "Charla"
         },
