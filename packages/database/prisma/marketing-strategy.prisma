@@ -30,10 +30,11 @@ model MarketingStrategy {
   approvedByUserId String?
   approvedByUser   User?     @relation("MarketingStrategyApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
-  /// Once the month is made, which pillar the evaluator read each piece as
-  /// and whether a rewrite run was started, validated by
-  /// `cmoPillarCheckSchema` in Core. Core writes it; Cuso's saves never do.
-  pillarCheck Json?
+  /// Once the month is made, the evaluator's reading of each piece (its
+  /// pillar, whether it follows its writing skill and the brand voice) and
+  /// whether a rewrite run was started, validated by `cmoMonthReviewSchema`
+  /// in Core. Core writes it; Cuso's saves never do.
+  monthReview Json?
 
   socialPosts SocialPost[]
   files       MarketingStrategyFile[]

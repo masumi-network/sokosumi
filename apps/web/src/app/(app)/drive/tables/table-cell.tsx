@@ -40,6 +40,8 @@ interface Props extends GridCellProps {
   onSave: (version: number, value: Value) => Promise<void>;
   onHistory: () => void;
   onEditingChange?: (editing: boolean) => void;
+  /** Filters the grid by one tag of a `multiple_select` cell. */
+  onTagClick?: (tag: string) => void;
 }
 
 /** Types where a typed character replaces the value, as in a spreadsheet. */
@@ -91,6 +93,7 @@ export function TableCell({
   onSave,
   onHistory,
   onEditingChange,
+  onTagClick,
 }: Props) {
   const t = useTranslations("App.Tables");
   const format = useFormatter();
@@ -369,15 +372,39 @@ export function TableCell({
               wrap === "clip" ? "overflow-hidden" : "flex-wrap",
             )}
           >
-            {(Array.isArray(value) ? value : [text]).map((option) => (
-              <Badge
-                key={option}
-                variant="outline"
-                className="bg-quinary max-w-full shrink truncate border-transparent font-normal"
-              >
-                {option}
-              </Badge>
-            ))}
+            {(Array.isArray(value) ? value : [text]).map((option) =>
+              column.type === "multiple_select" && onTagClick ? (
+                // A tag filters the grid by itself; the cell still edits on
+                // double click, Enter or typing.
+                <button
+                  key={option}
+                  type="button"
+                  tabIndex={-1}
+                  aria-label={t("filterByTag", { tag: option })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onTagClick(option);
+                  }}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  className="max-w-full shrink truncate rounded-md"
+                >
+                  <Badge
+                    variant="outline"
+                    className="bg-quinary hover:bg-quaternary max-w-full truncate border-transparent font-normal"
+                  >
+                    {option}
+                  </Badge>
+                </button>
+              ) : (
+                <Badge
+                  key={option}
+                  variant="outline"
+                  className="bg-quinary max-w-full shrink truncate border-transparent font-normal"
+                >
+                  {option}
+                </Badge>
+              ),
+            )}
           </span>
         );
       default:
