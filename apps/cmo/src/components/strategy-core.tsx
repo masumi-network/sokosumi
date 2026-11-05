@@ -6,7 +6,6 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import {
   ArrowRight,
   ChartLine,
-  Check,
   Loader2,
   Search,
   ShoppingBag,
@@ -16,6 +15,7 @@ import { useEffect, useState, useTransition } from "react";
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
 import { ChannelIcon } from "./channel-icon";
+import { StatusText } from "./onboarding/parts";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Stage = NonNullable<Strategy["funnel"]>[number];
@@ -513,14 +513,11 @@ export function MeasureFunnel({
                 <span className="note">{source.measures}</span>
               </span>
               {source.status === "connected" ? (
-                <span className="sc-source-done">
-                  <Check size={14} aria-hidden="true" />
-                  Connected
-                </span>
+                <StatusText>Connected</StatusText>
               ) : (
                 <button
                   type="button"
-                  className="sc-source-button"
+                  className="button button-secondary button-small"
                   disabled={pending !== null}
                   onClick={() => connect(source.provider)}
                 >

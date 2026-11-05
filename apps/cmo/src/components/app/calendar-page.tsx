@@ -184,6 +184,7 @@ export function CalendarPage({
                   <PieceCard
                     entry={entry}
                     media={mediaFor(entry)}
+                    open={entry.id === openId}
                     onOpen={() => setOpenId(entry.id)}
                   />
                 </li>
@@ -224,10 +225,12 @@ export function CalendarPage({
 function PieceCard({
   entry,
   media,
+  open,
   onOpen,
 }: {
   entry: Entry;
   media?: Media;
+  open: boolean;
   onOpen: () => void;
 }) {
   const status = STATUS[entry.status];
@@ -239,7 +242,11 @@ function PieceCard({
     formatHasImage(entry.channel, entry.format) ||
     formatHasVideo(entry.channel, entry.format);
   return (
-    <button type="button" className="cal-card" onClick={onOpen}>
+    <button
+      type="button"
+      className={open ? "cal-card open" : "cal-card"}
+      onClick={onOpen}
+    >
       {visual ? (
         <span className="cal-thumb">
           {picture ? (

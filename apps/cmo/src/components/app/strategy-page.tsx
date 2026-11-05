@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays } from "lucide-react";
 import { useTransition } from "react";
 
 import { formatDay } from "../../lib/calendar";
+import { StatusText } from "../onboarding/parts";
 import { StrategyReveal } from "../strategy-reveal";
 
 interface StrategyVersionsProps {
@@ -42,7 +43,7 @@ export function StrategyVersions({
               {index === 0 ? "Newest" : `Version ${versions.length - index}`}
             </span>
             {version.approvedAt ? (
-              <span className="tag ok">Approved</span>
+              <StatusText>Approved</StatusText>
             ) : overview.viewerCanApprove && onApprove ? (
               <button
                 type="button"
@@ -55,7 +56,7 @@ export function StrategyVersions({
                   : "Go back to this version"}
               </button>
             ) : (
-              <span className="tag">Draft</span>
+              <span className="muted">Draft</span>
             )}
           </li>
         ))}

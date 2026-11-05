@@ -15,6 +15,7 @@ import {
 } from "../ads";
 import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
+import { StatusText } from "../onboarding/parts";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
 import { MeasureFunnel } from "../strategy-core";
@@ -66,7 +67,7 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Your numbers</h3>
         <p className="muted">
           Cuso reads real visits, searches and orders from these. Where none of
@@ -86,7 +87,7 @@ export function ResultsPage({
             : "Reach and clicks show here once you connect an account and Cuso's posts go out. Until then there is nothing to measure."}
         </p>
       </section>
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Weekly reports</h3>
         {weekly.length === 0 ? (
           <p className="muted">
@@ -106,7 +107,7 @@ export function ResultsPage({
                 <span className="grow">{update.headline}</span>
                 <button
                   type="button"
-                  className="button button-ghost button-small"
+                  className="button button-secondary button-small"
                   onClick={() => openUpdate(update.id)}
                 >
                   Open in chat
@@ -212,7 +213,7 @@ export function ChannelsPage({
           {error}
         </p>
       ) : null}
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Social accounts</h3>
         <ul className="list">
           {SOCIAL_PROVIDERS.map((provider) => {
@@ -233,7 +234,7 @@ export function ChannelsPage({
                   </span>
                 </span>
                 {active ? (
-                  <span className="tag ok">Connected</span>
+                  <StatusText>Connected</StatusText>
                 ) : (
                   <button
                     type="button"
@@ -252,7 +253,7 @@ export function ChannelsPage({
           })}
         </ul>
       </section>
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Ad accounts</h3>
         <p className="muted">
           Optional. Cuso writes the ads; you launch each one, and they never
@@ -266,7 +267,7 @@ export function ChannelsPage({
                 <b>{label}</b>
               </span>
               {overview.adProviders.includes(provider) ? (
-                <span className="tag ok">Connected</span>
+                <StatusText>Connected</StatusText>
               ) : (
                 <ConnectAdsButton
                   provider={provider}
@@ -288,7 +289,7 @@ export function ChannelsPage({
                 <br />
                 <span className="note">{kind}</span>
               </span>
-              <span className="tag">Not yet</span>
+              <span className="muted">Not yet</span>
             </li>
           ))}
         </ul>
@@ -315,7 +316,7 @@ export function SettingsPage({
 }) {
   return (
     <div className="page-body">
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Credits</h3>
         <div className="li">
           <span className="grow">
@@ -373,7 +374,7 @@ export function SettingsPage({
           ))}
         </ul>
       </section>
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Another website</h3>
         <p className="muted">Hire Cuso again for a different website.</p>
         <StartOver
@@ -381,7 +382,7 @@ export function SettingsPage({
           startOver={startOver}
         />
       </section>
-      <section className="panel">
+      <section className="panel panel-act">
         <h3>Account</h3>
         <div className="li">
           <span className="grow">

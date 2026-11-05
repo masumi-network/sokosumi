@@ -2,6 +2,9 @@
 
 import "../../components/onboarding/onboarding.css";
 
+import { Brain, CalendarDays, MessageSquare, Target } from "lucide-react";
+
+import { CusoStatus } from "../../components/app/cuso-status";
 import {
   AssumptionChip,
   Checklist,
@@ -14,8 +17,43 @@ import {
   StepMarkers,
   Tile,
 } from "../../components/onboarding/parts";
+import { overview } from "./app/fixtures";
 
 const noop = async () => {};
+
+const NAV = [
+  { Icon: MessageSquare, label: "Cuso" },
+  { Icon: Target, label: "Strategy", active: true },
+  { Icon: CalendarDays, label: "Calendar", count: 11 },
+  { Icon: Brain, label: "Brand Brain" },
+];
+
+const AT = new Date("2026-11-05T08:00:00Z");
+
+/** Cuso's status card in each pose, over the app fixture. */
+const STATUS_CARDS = [
+  { label: "Reading", overview: { ...overview, learning: "running" as const } },
+  { label: "Thinking", overview },
+  {
+    label: "Needs you",
+    overview: { ...overview, brandBrain: null, strategy: null },
+  },
+  {
+    label: "Reporting",
+    overview: {
+      ...overview,
+      production: { ...overview.production, state: "ready" as const },
+    },
+  },
+  {
+    label: "Done",
+    overview: {
+      ...overview,
+      production: { ...overview.production, state: "ready" as const },
+      updates: [],
+    },
+  },
+];
 
 /**
  * The composite parts the onboarding screens are built from, with small
@@ -111,6 +149,41 @@ export function PartsPreview() {
             { value: "1 plan", line: "You approve it." },
           ]}
         />
+      </div>
+
+      <div className="ds-part">
+        <p className="ds-t-small ds-muted">
+          Sidebar: workspace card, current row, ink count badge, Cuso status
+        </p>
+        <nav className="side ds-side" aria-label="Sidebar preview">
+          <div className="business">
+            <span className="business-text">
+              <span className="business-name">Acme</span>
+              <span className="note">acme.io</span>
+            </span>
+          </div>
+          <div className="nav">
+            {NAV.map(({ Icon, label, active, count }) => (
+              <a
+                key={label}
+                href="#sidebar"
+                className={active ? "active" : ""}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon size={16} aria-hidden="true" />
+                <span>{label}</span>
+                {count ? <span className="count num">{count}</span> : null}
+              </a>
+            ))}
+          </div>
+          <CusoStatus overview={overview} now={AT} />
+        </nav>
+        <p className="ds-t-small ds-muted">Cuso status, by pose</p>
+        <div className="ds-statuses">
+          {STATUS_CARDS.map((card) => (
+            <CusoStatus key={card.label} overview={card.overview} now={AT} />
+          ))}
+        </div>
       </div>
 
       <div className="ds-part">

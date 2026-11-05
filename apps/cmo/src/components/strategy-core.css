@@ -430,47 +430,6 @@
   gap: 2px;
 }
 
-.sc-source-done {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.sc-source-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--foreground);
-  border-radius: var(--radius-control);
-  background: var(--foreground);
-  color: var(--background);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: opacity 150ms;
-}
-
-.sc-source-button:hover:not(:disabled) {
-  opacity: 0.88;
-}
-
-.sc-source-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.sc-source-button:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
 .sc-source-error {
   margin: 8px 0 0;
   color: var(--foreground);

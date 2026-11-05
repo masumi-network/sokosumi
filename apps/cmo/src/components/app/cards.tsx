@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
+import { StatusText } from "../onboarding/parts";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -280,7 +281,7 @@ export function StrategyCard({
       <div className="cf">
         {approved ? (
           <>
-            <span className="tag ok">Approved</span>
+            <StatusText>Approved</StatusText>
             <span className="note">
               Cuso runs this plan and keeps it current.
             </span>
@@ -322,7 +323,7 @@ export function ConnectCard({ actions }: { actions: CardActions }) {
     <div className="card">
       <div className="ch">
         <b>Connect a channel</b>
-        <span className="tag warn">Not connected</span>
+        <span className="muted">Not connected</span>
       </div>
       <div className="cb">
         <p>

@@ -29,6 +29,7 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
+import { StatusText } from "../onboarding/parts";
 import { ThemeToggle } from "../theme-toggle";
 import { CalendarPage } from "./calendar-page";
 import {
@@ -39,6 +40,7 @@ import {
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { CusoStatus } from "./cuso-status";
 import {
   BrandBrainPage,
   ChannelsPage,
@@ -345,6 +347,7 @@ export function CmoApp({
           ))}
         </div>
         <div className="grow" />
+        <CusoStatus overview={overview} />
         <div className="who">
           <span className="avatar" aria-hidden="true">
             {initial(name || email)}
@@ -372,9 +375,11 @@ export function CmoApp({
             </span>
           ) : null}
           {view === "strategy" && overview.strategy ? (
-            <span className={strategyApproved(overview) ? "tag ok" : "tag"}>
-              {strategyApproved(overview) ? "Approved" : "Draft"}
-            </span>
+            strategyApproved(overview) ? (
+              <StatusText>Approved</StatusText>
+            ) : (
+              <span className="muted">Draft</span>
+            )
           ) : null}
           <span className="sp" />
           {view === "strategy" &&

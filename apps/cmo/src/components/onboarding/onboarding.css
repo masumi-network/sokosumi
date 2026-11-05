@@ -488,6 +488,12 @@ body:has(.ob) .site-header {
   color: var(--background);
 }
 
+.ob-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ob-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

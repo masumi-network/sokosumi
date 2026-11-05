@@ -44,12 +44,10 @@ export function ConnectAdsButton({
   provider,
   from,
   connectAds,
-  quiet = true,
 }: {
   provider: AdProvider;
   from: "onboarding" | "app";
   connectAds: AdActions["connectAds"];
-  quiet?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +55,7 @@ export function ConnectAdsButton({
     <span className="ads-actions">
       <button
         type="button"
-        className={quiet ? "ob-button ob-button-quiet" : "ob-button"}
+        className="button button-secondary button-small"
         disabled={pending}
         onClick={async () => {
           setPending(true);
@@ -234,7 +232,7 @@ export function AdsPanel({
   }, [connected, loadAdCampaigns]);
 
   return (
-    <section className="panel">
+    <section className="panel panel-act">
       <h3>Ads</h3>
       {!connected ? (
         <p className="muted">

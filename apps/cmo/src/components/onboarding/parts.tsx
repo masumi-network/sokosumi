@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
 import { SubmitButton } from "../submit-button";
+import "./onboarding.css";
 import { Refusal } from "./refusal";
 import { STEPS } from "./step";
 
@@ -166,10 +167,12 @@ export function SkeletonTile() {
 
 interface StatusDiscProps {
   status: "ok" | "warn" | "fail";
+  /** The words beside the disc already say it, so the disc stays silent. */
+  decorative?: boolean;
 }
 
 /** Done: green disc and check. Needs you: yellow disc and "!". Failed: ink disc and X. */
-export function StatusDisc({ status }: StatusDiscProps) {
+export function StatusDisc({ status, decorative = false }: StatusDiscProps) {
   const label =
     status === "ok"
       ? "Done"
@@ -177,7 +180,12 @@ export function StatusDisc({ status }: StatusDiscProps) {
         ? "Needs your answer"
         : "Failed";
   return (
-    <span role="img" aria-label={label} className={`ob-disc ob-disc-${status}`}>
+    <span
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : label}
+      aria-hidden={decorative ? "true" : undefined}
+      className={`ob-disc ob-disc-${status}`}
+    >
       <span aria-hidden="true">
         {status === "ok" ? (
           <Check size={12} strokeWidth={3} />
@@ -187,6 +195,22 @@ export function StatusDisc({ status }: StatusDiscProps) {
           <X size={12} strokeWidth={3} />
         )}
       </span>
+    </span>
+  );
+}
+
+/** A state in words with its disc: "Connected", "Approved". */
+export function StatusText({
+  status = "ok",
+  children,
+}: {
+  status?: StatusDiscProps["status"];
+  children: ReactNode;
+}) {
+  return (
+    <span className="ob-status">
+      <StatusDisc status={status} decorative />
+      {children}
     </span>
   );
 }
