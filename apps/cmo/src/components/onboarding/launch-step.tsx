@@ -193,8 +193,8 @@ export function LaunchStep({
         </div>
         <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
         <p className="ob-muted">
-          Your first posts land in your calendar. Nothing posts until you
-          approve it.
+          {AGENT_NAME} makes your month now and posts on your plan's schedule.
+          Pause or change any piece from the calendar.
         </p>
         {summary.length > 0 ? (
           <dl className="ob-summary">

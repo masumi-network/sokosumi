@@ -148,6 +148,15 @@ describe("Site while Cuso reads", () => {
     expect(html).not.toContain("See your brand");
   });
 
+  it("shows what was found once the Brand Brain exists, not skeletons", () => {
+    const html = site(asking({ work: work("research") }));
+    expect(html).toContain("What I found so far");
+    expect(html).toContain("What you sell");
+    expect(html).toContain("Source: acme.io");
+    expect(html).not.toContain("ob-skeleton");
+    expect(site(reading())).toContain("ob-skeleton");
+  });
+
   it("asks the questions once the read lands, with Skip", () => {
     const html = site(asking({ work: work("research") }));
     expect(html).toContain("Answer a few while you wait");
@@ -238,6 +247,35 @@ describe("Brand", () => {
     expect(html).toContain("Rocket Pro");
   });
 
+  it("keeps tile values short and puts the long text in the detail", () => {
+    const html = render(
+      draft({
+        brandBrain: {
+          ...brain,
+          products: [],
+          offers: [
+            { name: "Free", what: "Everything for one site", price: "$0" },
+            { name: "Team", what: "More seats", price: "$99" },
+          ],
+          competitors: [{ name: "Whaaat AI" }, { name: "Moonshot" }],
+          marketingToday: {
+            summary:
+              "The site features product, use-case, pricing, and comparison pages; the blog is quiet.",
+            channels: [
+              { name: "x", basis: "estimated" },
+              { name: "LinkedIn", basis: "measured" },
+            ],
+          },
+        },
+      }),
+    );
+    expect(html).toContain(">2 offers<");
+    expect(html).toContain(">2 compared<");
+    expect(html).toContain("Whaaat AI, Moonshot");
+    expect(html).toContain(">X and LinkedIn<");
+    expect(html).toContain("The site features product, use-case, pricing");
+  });
+
   it("counts unanswered questions", () => {
     expect(render(draft())).toContain("2 questions left");
     expect(
@@ -259,6 +297,8 @@ describe("Plan", () => {
       "planning",
     );
     expect(html).toContain("Writing your plan");
+    expect(html).toContain("This takes a few minutes.");
+    expect(html).toContain("min so far");
     expect(html).toContain("Your channels");
     expect(html).not.toContain("Approve plan");
   });
@@ -330,7 +370,8 @@ describe("Plan", () => {
       },
     });
     expect(html).toContain("Active");
-    expect(html).toContain("Is €200 a month OK for ads?");
+    expect(html).toContain("€200 a month for ads");
+    expect(html).not.toContain("OK for ads");
   });
 });
 

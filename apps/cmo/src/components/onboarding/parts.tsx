@@ -113,6 +113,27 @@ export function Checklist({ items }: ChecklistProps) {
 
 type Work = NonNullable<CmoOverview["work"]>;
 
+/** "4 min so far": the time since the work started, ticking while it runs. */
+export function useElapsed(
+  since: Date | string | undefined,
+  running: boolean,
+): string | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+  if (!running || !since) return null;
+  const seconds = Math.max(
+    0,
+    Math.round((now - new Date(since).getTime()) / 1_000),
+  );
+  return seconds < 60
+    ? `${seconds}s so far`
+    : `${Math.floor(seconds / 60)} min so far`;
+}
+
 export const RESEARCH_PHASES = [
   { kinds: ["read"], label: "Your website" },
   { kinds: ["search", "study"], label: "Your market and competitors" },
