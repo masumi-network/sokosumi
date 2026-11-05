@@ -76,7 +76,7 @@ import {
 } from "./soko-bot-proactive.service";
 
 describe("ensureSystemSchedules", () => {
-  it("gives a CMO bot the marketing rhythms instead of the stand-up", async () => {
+  it("gives a CMO bot the marketing rhythms and the nightly dream instead of the stand-up", async () => {
     scheduleFindManyMock.mockResolvedValue([]);
     scheduleCreateMock.mockResolvedValue({});
     await ensureSystemSchedules({
@@ -95,7 +95,14 @@ describe("ensureSystemSchedules", () => {
       "cmo-monthly-strategy",
       "cmo-brand-refresh",
       "cmo-strategy-nudge",
+      "dreaming",
     ]);
+    // His dream points to his daily run, never a stand-up he does not have.
+    const dream = scheduleCreateMock.mock.calls.find(
+      (call) => call[0].data.systemKey === "dreaming",
+    )?.[0].data.prompt;
+    expect(dream).toContain("your daily run does that");
+    expect(dream).not.toContain("stand-up");
     // Never a personal assistant's rhythms.
     for (const personal of [
       "standup",

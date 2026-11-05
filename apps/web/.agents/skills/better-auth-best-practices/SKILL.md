@@ -88,11 +88,13 @@ CLI looks for `auth.ts` in: `./`, `./lib`, `./utils`, or under `./src`. Use `--c
 ## Session Management
 
 **Storage priority:**
+
 1. If `secondaryStorage` defined → sessions go there (not DB)
 2. Set `session.storeSessionInDatabase: true` to also persist to DB
 3. No database + `cookieCache` → fully stateless mode
 
 **Cookie cache strategies:**
+
 - `compact` (default) - Base64url + HMAC. Smallest.
 - `jwt` - Standard JWT. Readable but signed.
 - `jwe` - Encrypted. Maximum security.
@@ -122,6 +124,7 @@ CLI looks for `auth.ts` in: `./`, `./lib`, `./utils`, or under `./src`. Use `--c
 ## Security
 
 **In `advanced`:**
+
 - `useSecureCookies` - Force HTTPS cookies
 - `disableCSRFCheck` - ⚠️ Security risk
 - `disableOriginCheck` - ⚠️ Security risk
@@ -146,6 +149,7 @@ CLI looks for `auth.ts` in: `./`, `./lib`, `./utils`, or under `./src`. Use `--c
 ## Plugins
 
 **Import from dedicated paths for tree-shaking:**
+
 ```
 import { twoFactor } from "better-auth/plugins/two-factor"
 ```

@@ -694,6 +694,36 @@ export const adminCmoSpendSchema = z
   })
   .openapi("AdminCmoSpend");
 
+export const adminWritingSkillsSchema = z
+  .object({
+    groups: z.array(
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        skills: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            description: z.string(),
+            channels: z.array(z.string()),
+            /** The skill in Markdown, as Cuso reads it. */
+            content: z.string(),
+            checklist: z.array(
+              z.object({
+                rule: z.string(),
+                /** The formats it applies to; every format when absent. */
+                formats: z.array(z.string()).optional(),
+                /** Core checks it in code instead of the evaluator. */
+                counted: z.boolean().optional(),
+              }),
+            ),
+          }),
+        ),
+      }),
+    ),
+  })
+  .openapi("AdminWritingSkills");
+
 export const adminSokoBotVersionMigrationRequestSchema = z
   .object({
     fromVersionId: sokoBotVersionSlugSchema.optional(),

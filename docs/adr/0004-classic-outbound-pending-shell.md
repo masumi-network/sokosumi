@@ -7,6 +7,7 @@ For classic room channel and thread POSTs (not coworker stream), the sender’s 
 **Why not fake-confirmed:** Looking fully sent before the server accepts lies on flaky networks. Pending / failed is honest.
 
 **Shape:**
+
 - **Outbound delivery status:** pending → confirmed | failed (sender-local; others only see confirmed).
 - **Client turn id:** one id per send chain; **Retry reuses** it (Core unique `roomId + clientMessageId`); **Remove** drops the local shell only.
 - **Failed send actions:** Retry + Remove only (no in-row edit).

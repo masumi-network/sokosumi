@@ -1,9 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import type { OrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  creditBucketRepository,
-  enterpriseContractRepository,
-} from "@sokosumi/database/repositories";
+import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 export interface EnterpriseContractBillingSummary {
@@ -96,10 +93,14 @@ export async function getEnterpriseContractBillingSummary(
   now: Date = new Date(),
 ): Promise<EnterpriseContractBillingSummary> {
   const [contract, poolBalances] = await Promise.all([
-    enterpriseContractRepository.getContractWithPeriods(
-      billingPlan.contractId,
-      tx,
-    ),
+    tx.enterpriseContract.findUnique({
+      where: { id: billingPlan.contractId },
+      include: {
+        periods: {
+          orderBy: { periodStart: "asc" },
+        },
+      },
+    }),
     creditBucketRepository.sumOrganizationEnterprisePoolBalances(
       organizationId,
       tx,

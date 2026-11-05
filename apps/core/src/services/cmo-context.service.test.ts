@@ -121,8 +121,16 @@ describe("loadCmoMarketingContext", () => {
         designMd: '---\nname: Acme\n---\nPrimary: "#ff6a00"',
       },
       brandPictures: [{ fileId: "f-shoe", alt: "red shoe" }],
+      writingSkills: expect.arrayContaining([
+        expect.objectContaining({ id: "brand-voice", name: "Brand voice" }),
+        expect.objectContaining({ id: "linkedin", use: expect.any(String) }),
+      ]),
     });
     expect(context).not.toHaveProperty("brandVisual");
+    // The list names each skill; read_writing_skill brings its words.
+    expect(JSON.stringify(context?.writingSkills)).not.toContain(
+      "## Before you save",
+    );
     expect(projectFindUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "project-1" } }),
     );

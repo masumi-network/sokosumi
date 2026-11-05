@@ -267,6 +267,7 @@ The outer VT handles list reorder/enter animations. The inner VT handles the cro
 ### Suspense Fallback to Content
 
 Simple cross-fade:
+
 ```jsx
 <ViewTransition>
   <Suspense fallback={<Skeleton />}><Content /></Suspense>
@@ -274,6 +275,7 @@ Simple cross-fade:
 ```
 
 Directional reveal:
+
 ```jsx
 <Suspense fallback={<ViewTransition exit="slide-down"><Skeleton /></ViewTransition>}>
   <ViewTransition enter="slide-up" default="none"><Content /></ViewTransition>
