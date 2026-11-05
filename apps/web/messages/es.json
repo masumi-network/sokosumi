@@ -3369,9 +3369,9 @@
               "skippedBounced": "Omitidos por correos devueltos",
               "pendingConfirmation": "En espera de confirmación"
             },
-            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidHint": "Estas filas necesitan un correo electrónico válido. Corrígelas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas.",
             "invalidRow": "Fila {row}: {value}",
-            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+            "blankEmail": "sin correo electrónico"
           },
           "dismiss": "Cerrar",
           "fromContacts": "Añadir desde Contactos",
