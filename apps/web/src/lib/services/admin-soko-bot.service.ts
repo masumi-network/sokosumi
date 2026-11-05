@@ -12,6 +12,7 @@ import type {
   AdminSokoBotVersionMigrationRequest,
   AdminSokoBotVersionMigrationResult,
   AdminSokoBotVersionUsage,
+  AdminWritingSkills,
   ChatRoomMessage,
   SokoBotGatewayModelList,
   SokoBotVersionDetail,
@@ -53,6 +54,12 @@ export const adminSokoBotService = {
       versionId: params.versionId,
       sokoBotId: params.sokoBotId,
     });
+    return response.data;
+  },
+
+  /** The writing skills Cuso reads before he writes each kind of piece. */
+  async writingSkills(): Promise<AdminWritingSkills> {
+    const response = await coreClient.getAdminWritingSkills();
     return response.data;
   },
 

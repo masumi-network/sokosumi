@@ -38,6 +38,7 @@ import {
   sokoBotProvideJobInputSchema as provideJobInputSchema,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  renderWritingSkill,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
@@ -82,6 +83,7 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
   sokoBotUpdateAssignedTaskInputSchema as updateAssignedTaskInputSchema,
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
+  WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import type { GoogleDisplayImageRole } from "@sokosumi/utils";
 import {
@@ -6528,8 +6530,12 @@ export class SokoBotRuntimeService {
   private async requireAdsAccess(
     authorized: AuthorizedSokoBotRuntime,
     projectId: string,
+    /** Reads spend nothing: Cuso reads results in his weekly review too. */
+    { read = false }: { read?: boolean } = {},
   ) {
-    if (authorized.turn.source !== "CHAT") {
+    const cmoRead =
+      read && getSokoBotVersion(authorized.turn.versionId).profile === "cmo";
+    if (authorized.turn.source !== "CHAT" && !cmoRead) {
       throw new SokoBotRuntimeAuthorizationError(
         "Ads tools are only available when a person asks in chat.",
       );
@@ -6562,7 +6568,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_accounts.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const accounts = await callAds(() =>
           listProjectAdAccounts({ ...params, workspaceId }),
         );
@@ -6587,7 +6595,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const { projectId, accountId } = params;
         const [accounts, result] = await callAds(() =>
           Promise.all([
@@ -6628,7 +6638,9 @@ export class SokoBotRuntimeService {
       case "get_market_keywords": {
         const { projectId } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.get_market_keywords.parse(input.input);
-        await this.requireAdsAccess(authorized, projectId);
+        await this.requireAdsAccess(authorized, projectId, {
+          read: true,
+        });
         const scope = { projectId, workspaceId };
         const profile = await callAds(() => getProjectAdMarketProfile(scope));
         if (!profile)
@@ -6709,7 +6721,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const { projectId, accountId, campaignId } = params;
         const details = await callAds(() =>
           getProjectAdCampaignDetails({ ...params, workspaceId }),
@@ -8265,6 +8279,18 @@ export class SokoBotRuntimeService {
         }
         // Said on every result, so Cuso stops before the cap refuses him.
         return { ...found, searchesLeft: EXA_SEARCHES_PER_TURN - searches };
+      }
+      case "read_writing_skill": {
+        const { skill: id } =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.read_writing_skill.parse(input.input);
+        const skill = WRITING_SKILLS.find((candidate) => candidate.id === id);
+        if (!skill)
+          throw new SokoBotRuntimeValidationError("No such writing skill.");
+        return {
+          skill: skill.id,
+          name: skill.name,
+          content: renderWritingSkill(skill),
+        };
       }
       case "read_social_profile": {
         const { url } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_social_profile.parse(

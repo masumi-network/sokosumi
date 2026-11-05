@@ -4,7 +4,7 @@ import {
   getSokoBotVersion,
   isCmoScheduleKey,
   parseSokoBotMemory,
-  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
@@ -161,11 +161,11 @@ export async function ensureSystemSchedules(bot: {
             select: { versionId: true },
           })
         )?.versionId;
-  // A CMO bot runs marketing rhythms, never the personal stand-up and wrap.
-  // They are the work Cuso was hired for, so they run on his shared bot too
-  // (ADR 0061).
+  // A CMO bot runs marketing rhythms and the nightly dream, never the
+  // personal stand-up and wrap. They are the work Cuso was hired for, so they
+  // run on his shared bot too (ADR 0061).
   const cmo = getSokoBotVersion(versionId).profile === "cmo";
-  const rhythms = cmo ? SOKO_BOT_CMO_SCHEDULES : SOKO_BOT_SYSTEM_SCHEDULES;
+  const rhythms = cmo ? SOKO_BOT_CMO_RHYTHMS : SOKO_BOT_SYSTEM_SCHEDULES;
   for (const schedule of rhythms) {
     if (have.has(schedule.key)) continue;
     const prompt = cmo

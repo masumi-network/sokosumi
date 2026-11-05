@@ -2041,6 +2041,91 @@ export const AdminCmoSpendSchema = {
     ]
 } as const;
 
+export const AdminWritingSkillsSchema = {
+    type: 'object',
+    properties: {
+        groups: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    skills: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                id: {
+                                    type: 'string'
+                                },
+                                name: {
+                                    type: 'string'
+                                },
+                                description: {
+                                    type: 'string'
+                                },
+                                channels: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string'
+                                    }
+                                },
+                                content: {
+                                    type: 'string'
+                                },
+                                checklist: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            rule: {
+                                                type: 'string'
+                                            },
+                                            formats: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string'
+                                                }
+                                            },
+                                            counted: {
+                                                type: 'boolean'
+                                            }
+                                        },
+                                        required: [
+                                            'rule'
+                                        ]
+                                    }
+                                }
+                            },
+                            required: [
+                                'id',
+                                'name',
+                                'description',
+                                'channels',
+                                'content',
+                                'checklist'
+                            ]
+                        }
+                    }
+                },
+                required: [
+                    'key',
+                    'name',
+                    'skills'
+                ]
+            }
+        }
+    },
+    required: [
+        'groups'
+    ]
+} as const;
+
 export const AdminSokoBotFleetDaysSchema = {
     type: 'object',
     properties: {

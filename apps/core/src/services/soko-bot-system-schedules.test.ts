@@ -1,6 +1,6 @@
 import {
   CMO_SOKO_BOT_VERSION_ID,
-  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_SYSTEM_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -108,15 +108,14 @@ describe("ensureSystemSchedules", () => {
     });
     const rows = scheduleCreateMock.mock.calls.map((call) => call[0].data);
     expect(rows.map((row) => row.systemKey)).toEqual(
-      SOKO_BOT_CMO_SCHEDULES.map((schedule) => schedule.key),
+      SOKO_BOT_CMO_RHYTHMS.map((schedule) => schedule.key),
     );
     for (const row of rows) {
       expect(row).not.toHaveProperty("enabled");
       expect(row.requestedByUserId).toBe("hirer-1");
       expect(row.prompt).toBe(
-        SOKO_BOT_CMO_SCHEDULES.find(
-          (schedule) => schedule.key === row.systemKey,
-        )?.prompt,
+        SOKO_BOT_CMO_RHYTHMS.find((schedule) => schedule.key === row.systemKey)
+          ?.prompt,
       );
     }
   });
