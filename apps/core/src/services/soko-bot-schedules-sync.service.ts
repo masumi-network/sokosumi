@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import {
+  getSokoBotVersion,
   redactSokoBotSensitiveText,
-  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_SYSTEM_SCHEDULES,
   sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
@@ -476,21 +477,33 @@ export class SokoBotSchedulesSyncService {
               userId: true,
               projectId: true,
               name: true,
+              versionId: true,
             },
           });
           if (bot) {
-            const rhythm = [
-              ...SOKO_BOT_SYSTEM_SCHEDULES,
-              ...SOKO_BOT_CMO_SCHEDULES,
-            ].find((candidate) => candidate.key === schedule.systemKey);
+            // A CMO bot's rhythms carry one prompt, its own: a dream there
+            // must not read like an assistant's with its morning stand-up.
+            const cmo = getSokoBotVersion(bot.versionId).profile === "cmo";
+            const cmoRhythm = cmo
+              ? SOKO_BOT_CMO_RHYTHMS.find(
+                  (candidate) => candidate.key === schedule.systemKey,
+                )
+              : undefined;
+            const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
+              (candidate) => candidate.key === schedule.systemKey,
+            );
             const beat = await buildSystemBeatMessage({
               bot,
               key: schedule.systemKey,
               // Registry prompt wins so wording changes ship without a migration.
-              prompt:
-                (rhythm &&
-                  sokoBotSystemSchedulePrompt(rhythm, isSharedSokoBot(bot))) ??
-                schedule.prompt,
+              prompt: cmo
+                ? (cmoRhythm?.prompt ?? schedule.prompt)
+                : ((rhythm &&
+                    sokoBotSystemSchedulePrompt(
+                      rhythm,
+                      isSharedSokoBot(bot),
+                    )) ??
+                  schedule.prompt),
               // Meeting prep reads the window after its own half-hour slot,
               // so a late or retried run briefs the same meetings, once.
               now:

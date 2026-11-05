@@ -10442,6 +10442,38 @@ describe("Social comment scope", () => {
   });
 });
 
+describe("ads access", () => {
+  const turn = (source: string, versionId: string) =>
+    ({
+      turn: { source, versionId },
+      reader: { sharedScope: { projectId: "project-1" } },
+    }) as never;
+  function service() {
+    const runtime = new SokoBotRuntimeService();
+    runtime["requireSocialAccess"] = vi.fn().mockResolvedValue({ id: "ws-1" });
+    return runtime;
+  }
+
+  it("lets Cuso read ads results on his own runs, never change them there", async () => {
+    await expect(
+      service()["requireAdsAccess"](turn("SCHEDULE", "cmo-v1"), "project-1", {
+        read: true,
+      }),
+    ).resolves.toEqual({ id: "ws-1" });
+    await expect(
+      service()["requireAdsAccess"](turn("SCHEDULE", "cmo-v1"), "project-1"),
+    ).rejects.toThrow("only available when a person asks in chat");
+  });
+
+  it("keeps every other bot's ads reads to chat", async () => {
+    await expect(
+      service()["requireAdsAccess"](turn("SCHEDULE", "v33"), "project-1", {
+        read: true,
+      }),
+    ).rejects.toThrow("only available when a person asks in chat");
+  });
+});
+
 describe("CMO record saves", () => {
   const report = {
     ...SCOPE,

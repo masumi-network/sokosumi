@@ -6530,8 +6530,12 @@ export class SokoBotRuntimeService {
   private async requireAdsAccess(
     authorized: AuthorizedSokoBotRuntime,
     projectId: string,
+    /** Reads spend nothing: Cuso reads results in his weekly review too. */
+    { read = false }: { read?: boolean } = {},
   ) {
-    if (authorized.turn.source !== "CHAT") {
+    const cmoRead =
+      read && getSokoBotVersion(authorized.turn.versionId).profile === "cmo";
+    if (authorized.turn.source !== "CHAT" && !cmoRead) {
       throw new SokoBotRuntimeAuthorizationError(
         "Ads tools are only available when a person asks in chat.",
       );
@@ -6564,7 +6568,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_accounts.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const accounts = await callAds(() =>
           listProjectAdAccounts({ ...params, workspaceId }),
         );
@@ -6589,7 +6595,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_ad_campaigns.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const { projectId, accountId } = params;
         const [accounts, result] = await callAds(() =>
           Promise.all([
@@ -6630,7 +6638,9 @@ export class SokoBotRuntimeService {
       case "get_market_keywords": {
         const { projectId } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.get_market_keywords.parse(input.input);
-        await this.requireAdsAccess(authorized, projectId);
+        await this.requireAdsAccess(authorized, projectId, {
+          read: true,
+        });
         const scope = { projectId, workspaceId };
         const profile = await callAds(() => getProjectAdMarketProfile(scope));
         if (!profile)
@@ -6711,7 +6721,9 @@ export class SokoBotRuntimeService {
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_ad_campaign.parse(
           input.input,
         );
-        await this.requireAdsAccess(authorized, params.projectId);
+        await this.requireAdsAccess(authorized, params.projectId, {
+          read: true,
+        });
         const { projectId, accountId, campaignId } = params;
         const details = await callAds(() =>
           getProjectAdCampaignDetails({ ...params, workspaceId }),

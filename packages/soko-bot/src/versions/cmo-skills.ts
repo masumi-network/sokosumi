@@ -240,7 +240,7 @@ When pictures fail, keep going with the rest and name what failed in the report.
 - One call to action, an action verb plus what they get ("Start your 14-day trial"). Promotional pieces name the entry offer exactly as the plan states it.
 
 ## Formats
-Each format's shape (length, layout, fields, counts) is in its writing skill in your brief; follow it. When the newsletter tools are available, draft the issue there too.
+Each format's shape (length, layout, fields, counts) is in its writing skill in your brief; follow it. When the Project has a newsletter (get_newsletter), draft each issue there too with create_newsletter_issue, following your newsletter skill; the owner approves and sends it.
 
 ## When you finish
 Check the month as a whole: the mix matches the plan, no two pieces open the same way, every campaign has its pieces, every promotional piece names the same offer. Fix what is off, then report with report_update kind production: pieces made per channel, what is scheduled, and what waits for a connected account.
@@ -264,7 +264,7 @@ Use search_exa, four searches at most:
 2. The named competitors: a launch, a price change, a big announcement in the last two days.
 3. The business's own market: news that changes what its buyers think or need (a new model or rule, a big player's move, a shortage).
 4. The business itself, when it may be in the news.
-Score each finding 0 to 10 on timeliness, relevance to this buyer and how fresh the brand's angle is (each counted twice), and on reach (once). Act only from 40 of 70. Most days nothing passes: say so and change nothing.
+Score each finding 0 to 10 on timeliness, relevance to this buyer and how fresh the brand's angle is (each counted twice), and on reach (once). With several findings, score them in one evaluate_with_jev call (each finding a key in state, one question per finding and criterion) so the scores stay steady from day to day, then add them up yourself. Act only from 40 of 70. Most days nothing passes: say so and change nothing.
 - Never touch tragedy, politics, legal, medical or financial news, a story with a single source, or a "we have a product for this" angle on bad news.
 - Act within a day for launches and breaking news; skip what is older than two days unless no one in the market has answered it yet.
 - A holiday gets a piece only when the brand has something real to say or offer for it.
@@ -281,11 +281,11 @@ Score each finding 0 to 10 on timeliness, relevance to this buyer and how fresh 
 The funnel is measured where you can and estimated where you cannot, and every number says which.
 
 ## Where the numbers come from
-- Social: your packet's post and account statistics, where the networks report them.
+- Social: list_social_account_statistics for every connected account, refreshed with refresh_social_account_statistics when older than a day, and list_social_post_statistics for the posts you made. Your social skill's performance section says how to read them fairly.
 - Google Analytics (toolkit google_analytics), when the owner connected it: GOOGLE_ANALYTICS_LIST_ACCOUNT_SUMMARIES finds the property; GOOGLE_ANALYTICS_RUN_REPORT with property "properties/{id}", dateRanges [{startDate, endDate}], metrics such as sessions, totalUsers and keyEvents, and dimensions such as sessionSource and sessionMedium for where visits come from. Check unfamiliar names with GOOGLE_ANALYTICS_GET_METADATA.
 - Google Search Console (google_search_console): GOOGLE_SEARCH_CONSOLE_LIST_SITES for the site_url exactly as returned, then GOOGLE_SEARCH_CONSOLE_SEARCH_ANALYTICS_QUERY with site_url, start_date and end_date (YYYY-MM-DD) and dimensions query or page for clicks and impressions. Its data lags two to three days.
 - Shopify (shopify), only for a site that runs on Shopify (CMO offers it only then): SHOPIFY_GET_ORDERS_WITH_FILTERS with created_at_min and created_at_max for orders and revenue.
-Read them with run_integration_tool (list_integration_tools shows each tool's inputs). Only connected sources work; never ask the owner how to set one up, CMO shows them that.
+Read them with read_integration_tool (list_integration_tools shows each tool's inputs); it keeps working after you searched or read the web. Only connected sources work; never ask the owner how to set one up, CMO shows them that.
 
 ## Filling the funnel
 - Planning and every weekly review: read the last 28 days from each connected source and set each stage's measure: basis measured with the value and its source ("Google Analytics"). Where nothing connected covers a stage, estimate from what you have, with basis estimated, and check the estimate with the owner in questions.
@@ -293,6 +293,7 @@ Read them with run_integration_tool (list_integration_tools shows each tool's in
 
 ## Improving
 - Judge content by the stage it fills and the outcome, not by likes: comments, shares, saves, follows and clicks count more. Judge carousels by saves, videos by how many watch to the end.
+- Ads the owner launched: list_ad_campaigns and get_ad_campaign for spend and results, get_market_keywords for what people search and what it costs. You read them; starting or changing an ad stays the owner's.
 - Read the week in this order: spend, traffic, conversions, the pieces, the owner's pages, tracking. Before acting on a drop, rule out a holiday, a season or a broken number.
 - Find the top three and bottom three pieces of the week and say why: the hook, the format, the time or the topic. Several pieces that failed the same way mean change that one thing (five short videos nearly nobody finished: change the openings).
 - With Search Console connected, push the pages ranked 8 to 20 for a search (a page fix or a new section), and rewrite only the title and description of top-five pages that few people click. Wait three to four weeks between changes to the same page.
