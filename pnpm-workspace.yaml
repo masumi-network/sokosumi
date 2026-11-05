@@ -24,15 +24,21 @@ overrides:
   # GHSA-5p4m-2wfm-xmqj, and GHSA-2883-xcg3-v3hh against that resolve. 4.3.2 is
   # still the latest 4.x patch. 5.x is a separate major (5.5.0); its advisories
   # are not the 4.x set.
+  # 2026-11-05 re-resolve with overrides removed (lockfile-only, today's bumped
+  # pins) landed the same js-yaml@4.2.0, plus undici@6.29.1, undici@7.30.1,
+  # undici@8.12.3, and esbuild@0.28.2. Audit reported the same three js-yaml
+  # GHSAs and no undici or esbuild advisory.
   "js-yaml@<4.3.2": "4.3.2"
   # undici GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c: dropped.
   # GHSA-w293-vg96-wgc3 (CVE-2026-84961) is patched in 7.29.1 and 8.10.2; 6.x is
   # outside the vulnerable range. Patched floors stay 6.29.1, 7.30.1, and 8.12.2.
   # 2026-11-04 re-resolve with overrides removed (lockfile-only) landed only
   # undici@6.29.1, undici@7.30.1, and undici@8.12.3.
-  # Those are still the patched floors (no newer 6/7/8).
+  # Those are still the patched floors (no newer 6/7/8). 2026-11-05 landed the
+  # same three undici versions.
   # esbuild GHSA-g7r4-m6w7-qqqr: dropped. 2026-11-04 re-resolve without an
   # override still lands only esbuild@0.28.2 (patched; 0.28.2 is still latest).
+  # 2026-11-05 re-resolve landed the same esbuild@0.28.2.
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
   # rendering PDF pages to images. Files extraction reads the **text layer

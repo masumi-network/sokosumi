@@ -40,6 +40,7 @@ and sokosumi already ingests them. They appear on public `GET /v1/agents` as
 `kind: "x402"` next to Cardano hire items (`kind: "cardano"`). There is no
 `/v1/agents/x402`. Web `/agents` restored Agent catalog browse (ADR-0024);
 app Hire stays off (SOK-805 remainder). Paying an x402 agent stays coworker
+
 - assigned task.
 
 The two rails differ structurally, not just by network:

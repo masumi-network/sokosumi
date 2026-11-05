@@ -214,19 +214,30 @@ function createGatewayProvider(): AvatarProvider {
       }
       const video = status.videos[0];
       if (!video) return { status: "failed", reason: "no video returned" };
-      if (video.type === "binary") {
-        return { status: "completed", video: Buffer.from(video.data) };
+      switch (video.type) {
+        case "binary":
+          return { status: "completed", video: Buffer.from(video.data) };
+        case "base64":
+          return {
+            status: "completed",
+            video: Buffer.from(video.data, "base64"),
+          };
+        case "url":
+          return {
+            status: "completed",
+            video: await downloadAvatarAsset(video.url),
+          };
+        case "uploaded":
+          // Caller-managed storage: the SDK has neither bytes nor a URL.
+          return {
+            status: "failed",
+            reason: "video has no downloadable bytes",
+          };
+        default: {
+          const unreachable: never = video;
+          return unreachable;
+        }
       }
-      if (video.type === "base64") {
-        return {
-          status: "completed",
-          video: Buffer.from(video.data, "base64"),
-        };
-      }
-      return {
-        status: "completed",
-        video: await downloadAvatarAsset(video.url),
-      };
     },
   };
 }
