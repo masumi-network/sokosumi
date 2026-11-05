@@ -213,7 +213,9 @@ describe("AuthSessionGuard", () => {
 
   it("reloads again when a kept document still shows another account", async () => {
     // A `beforeunload` prompt for unsaved edits can keep the document. The
-    // reload mock stands in for the reader choosing to stay.
+    // reload mock stands in for the reader choosing to stay. Dismissing the
+    // prompt refocuses the window, which must not ask again at once, or the
+    // reader could never reach the editor. Returning to the tab asks again.
     const reload = vi
       .spyOn(window.location, "reload")
       .mockImplementation(() => {});
@@ -230,7 +232,18 @@ describe("AuthSessionGuard", () => {
 
     window.dispatchEvent(new Event("focus"));
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
-    window.dispatchEvent(new Event("focus"));
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+    expect(authClient.getSession).toHaveBeenCalledTimes(2);
+    expect(reload).toHaveBeenCalledOnce();
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(2));
 
     expect(oldClient.close).toHaveBeenCalled();

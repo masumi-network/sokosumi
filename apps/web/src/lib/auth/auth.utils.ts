@@ -61,7 +61,10 @@ export function createAuthSessionGetter<TSession>(
     const sessionResponse = await getSessionResponse();
     if (sessionResponse?.error) {
       // A refused session is a signed-out reader, not an outage: the caller
-      // sends them to sign in. Anything else is an answer nobody gave.
+      // sends them to sign in. Anything else is an answer nobody gave. 403
+      // stays an outage, as on the server: on `/auth/get-session` it is the
+      // trusted-origin check or a WAF rule, and reading it as signed out
+      // would hide that misconfiguration behind a sign-in page.
       if (isSignedOutStatus(sessionResponse.error)) return null;
       throw sessionResponse.error;
     }
@@ -74,7 +77,7 @@ function isSignedOutStatus(error: unknown): boolean {
     typeof error === "object" &&
     error !== null &&
     "status" in error &&
-    (error.status === 401 || error.status === 403)
+    error.status === 401
   );
 }
 

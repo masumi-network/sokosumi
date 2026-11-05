@@ -721,17 +721,24 @@ describe("createAuthSessionGetter", () => {
     await expect(getSession()).rejects.toBe(error);
   });
 
-  it.each([401, 403])(
-    "reads a refused session (%i) as signed out rather than as an outage",
-    async (status) => {
-      const getSession = createAuthSessionGetter(async () => ({
-        data: null,
-        error: { status, message: "Refused" },
-      }));
+  it("reads a refused session (401) as signed out rather than as an outage", async () => {
+    const getSession = createAuthSessionGetter(async () => ({
+      data: null,
+      error: { status: 401, message: "Refused" },
+    }));
 
-      await expect(getSession()).resolves.toBeNull();
-    },
-  );
+    await expect(getSession()).resolves.toBeNull();
+  });
+
+  it("keeps the page on a 403, which is a trusted-origin or WAF refusal", async () => {
+    const error = { status: 403, message: "Forbidden" };
+    const getSession = createAuthSessionGetter(async () => ({
+      data: null,
+      error,
+    }));
+
+    await expect(getSession()).rejects.toBe(error);
+  });
 
   it("unwraps session data from the Better Auth response shape", async () => {
     const getSession = createAuthSessionGetter(async () => ({

@@ -29,6 +29,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
   const mountedRef = useRef(true);
   const probeGenerationRef = useRef(0);
   const renderedUserIdRef = useRef<string | undefined>(undefined);
+  const reloadAskedRef = useRef(false);
   const freshSessionRef = useRef<
     { userId: string; generation: number } | undefined
   >(undefined);
@@ -54,12 +55,14 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     const accountChanged =
       renderedUserIdRef.current !== undefined &&
       renderedUserIdRef.current !== freshSession.userId;
-    if (accountChanged) {
+    if (accountChanged && !reloadAskedRef.current) {
       // Asked before anything is awaited: the realtime chunk below can fail
       // to load on a tab open across a deploy, and the reload must not wait
-      // on it. Not latched either. A `beforeunload` prompt for unsaved edits
-      // can keep the document, and a kept document must ask again on the
-      // next focus rather than stop checking whose shell it is.
+      // on it. A `beforeunload` prompt for unsaved edits can keep the
+      // document, and dismissing that prompt refocuses the window. A kept
+      // document asks again on the next return to the tab, not on that
+      // focus, or the reader could never reach the editor to save.
+      reloadAskedRef.current = true;
       window.location.reload();
     }
     const realtime = await import("@/lib/ably/realtime-singleton.client");
@@ -128,11 +131,13 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
 
   useEffect(() => {
     function handleWindowFocus() {
+      if (reloadAskedRef.current) return;
       void validateSession();
     }
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
+        reloadAskedRef.current = false;
         void validateSession();
       }
     }
