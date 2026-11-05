@@ -113,7 +113,7 @@ describe("newsletter signup form page", () => {
       "href",
       `/newsletter/signup-form?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
-    expect(screen.getByRole("heading", { name: "Signup form" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Share" })).toBeVisible();
     expect(
       screen.getByText(
         messages.App.Projects.Newsletter.SignupForm.pageDescription,
