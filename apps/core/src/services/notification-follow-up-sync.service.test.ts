@@ -1488,10 +1488,22 @@ describe("NotificationFollowUpSyncService", () => {
     // The reminder reached the reader's tabs when it was written, so they are
     // told it is gone, and told while the row can still say who it was for.
     const reminderId = firstFollowUpInput()?.eventId;
+    // Read before it is published: the publish sends the row as it stands,
+    // and an unread row would reach the tabs as one more reminder.
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [reminderId] }, emailId: null },
+      data: { isRead: true, readAt: expect.any(Date) },
+    });
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith([reminderId]);
     expect(notificationDeleteManyMock).toHaveBeenCalledWith({
       where: { id: { in: [reminderId] }, emailId: null },
     });
+    const readAt = notificationUpdateManyMock.mock.calls.findIndex(
+      ([query]) => query.data?.isRead === true,
+    );
+    expect(
+      notificationUpdateManyMock.mock.invocationCallOrder[readAt],
+    ).toBeLessThan(publishClearedNotificationsMock.mock.invocationCallOrder[0]);
     expect(
       publishClearedNotificationsMock.mock.invocationCallOrder[0],
     ).toBeLessThan(notificationDeleteManyMock.mock.invocationCallOrder[0]);

@@ -4,12 +4,14 @@ import {
   NotificationKind,
   type Prisma,
 } from "@sokosumi/database";
+import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
+import { roomUnreadCountOf } from "@/helpers/notification-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import prisma from "@/lib/db/prisma";
 
 type EmailSource = Pick<
   Notification,
-  "id" | "kind" | "referenceId" | "metadata"
+  "id" | "kind" | "referenceId" | "metadata" | "messageKey" | "messageParams"
 >;
 
 function messageIdOf(notification: EmailSource): string | null {
@@ -26,7 +28,13 @@ function messageIdOf(notification: EmailSource): string | null {
     : null;
 }
 
-/** A deleted, missing or unverifiable message cannot authorize an email. */
+/**
+ * A deleted, missing or unverifiable message cannot authorize an email.
+ *
+ * A counted room row also represents earlier arrivals. Losing its latest
+ * message must not take their email away: the preview rewrite has already
+ * blanked what that message said. Same rule as the publish path.
+ */
 export async function hasLiveNotificationEmailSource(
   notification: EmailSource,
   client: Pick<Prisma.TransactionClient, "chatRoomMessage"> = prisma,
@@ -34,15 +42,24 @@ export async function hasLiveNotificationEmailSource(
   if (notification.kind !== NotificationKind.CHAT) return true;
   const messageId = messageIdOf(notification);
   if (!messageId) return false;
+  const live = await client.chatRoomMessage.findFirst({
+    where: {
+      id: messageId,
+      roomId: notification.referenceId,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+  if (live !== null) return true;
   return (
-    (await client.chatRoomMessage.findFirst({
-      where: {
-        id: messageId,
-        roomId: notification.referenceId,
-        deletedAt: null,
-      },
-      select: { id: true },
-    })) !== null
+    notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY &&
+    roomUnreadCountOf(
+      readNotificationRowJson(
+        notification.messageParams,
+        notification.id,
+        "messageParams",
+      ) ?? {},
+    ) !== null
   );
 }
 

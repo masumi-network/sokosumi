@@ -307,7 +307,7 @@ describe("resendRoomMessageEmail", () => {
       .mockResolvedValueOnce(scheduledRoomRow(3))
       .mockResolvedValueOnce({ isRead: false })
       .mockResolvedValueOnce({ isRead: false })
-      .mockResolvedValueOnce({ emailId: "email_2" });
+      .mockResolvedValueOnce({ isRead: false });
 
     await resend();
 
@@ -325,14 +325,15 @@ describe("resendRoomMessageEmail", () => {
   /**
    * The new email is handed over first. A cancel that runs before a send that
    * fails would leave the reader with no email at all, which is the more
-   * expensive failure than one duplicate.
+   * expensive failure than one duplicate. The write of the new id is what
+   * takes the old email back.
    */
   it("takes the old email back only once the new one is away", async () => {
     notificationFindUniqueMock
       .mockResolvedValueOnce(scheduledRoomRow(3))
       .mockResolvedValueOnce({ isRead: false })
       .mockResolvedValueOnce({ isRead: false })
-      .mockResolvedValueOnce({ emailId: "email_2" });
+      .mockResolvedValueOnce({ isRead: false });
 
     await resend();
 
@@ -349,8 +350,7 @@ describe("resendRoomMessageEmail", () => {
   it("keeps the old email when nothing replaced it", async () => {
     notificationFindUniqueMock
       .mockResolvedValueOnce(scheduledRoomRow(3))
-      .mockResolvedValueOnce({ isRead: true })
-      .mockResolvedValueOnce({ emailId: "email_stale" });
+      .mockResolvedValueOnce({ isRead: true });
 
     await resend();
 

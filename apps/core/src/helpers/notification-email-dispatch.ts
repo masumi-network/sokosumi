@@ -335,21 +335,10 @@ export async function resendRoomMessageEmail(
     )
       return;
 
-    const stale = row.emailId;
-
+    // The write of the new email's id takes the old one back. A dispatch
+    // that sent nothing leaves the old one standing, so the reader keeps
+    // the email they already had.
     await dispatchNotificationEmail(row, { scheduledAt: row.emailScheduledAt });
-
-    const live = await prisma.notification.findUnique({
-      where: { id: notificationId },
-      select: { emailId: true },
-    });
-
-    // Only once the row carries a different email. A dispatch that sent
-    // nothing left the old one standing, and cancelling it here would take
-    // away the reader's only email.
-    if (live?.emailId != null && live.emailId !== stale) {
-      await withResendGap(() => cancelEmail(stale));
-    }
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
@@ -516,26 +505,38 @@ async function dispatchNotificationEmailRevision(
     const persistSentEmail = async (
       client: Prisma.TransactionClient | typeof prisma,
       emailId: string,
-    ) => {
+    ): Promise<{ emailId: string; count: number; replaced: string | null }> => {
       await lockNotificationEmailSource(notification, client);
+      // The scheduled email this write takes off the row, if it is another
+      // one. A resend puts a new email where the old one was, and a refresh
+      // can land on a row that a counted arrival's own send has written in
+      // the meantime; left on Resend's queue, that one would still leave.
+      let replaced: string | null = null;
       if (replaceable && notification.kind === NotificationKind.CHAT) {
         const live = await client.notification.findUnique({
           where: { id: notification.id },
         });
-        if (!live || live.isRead) return { emailId, count: 0 };
+        if (!live || live.isRead) return { emailId, count: 0, replaced };
         if (
           live.messageParams !== notification.messageParams ||
           live.metadata !== notification.metadata
         ) {
           refresh = live;
-          return { emailId, count: 0 };
+          return { emailId, count: 0, replaced };
         }
+        if (
+          live.emailId &&
+          live.emailId !== emailId &&
+          live.emailScheduledAt &&
+          live.emailScheduledAt.getTime() > Date.now()
+        )
+          replaced = live.emailId;
       }
       if (
         replaceable &&
         !(await hasLiveNotificationEmailSource(notification, client))
       )
-        return { emailId, count: 0 };
+        return { emailId, count: 0, replaced: null };
       if (
         notification.workspaceId &&
         !(await hasCalendarWorkspaceAccess(
@@ -544,7 +545,7 @@ async function dispatchNotificationEmailRevision(
           notification.userId,
         ))
       ) {
-        return { emailId, count: 0 };
+        return { emailId, count: 0, replaced: null };
       }
 
       // Written only onto a row that is still unread. A row read while the
@@ -581,7 +582,7 @@ async function dispatchNotificationEmailRevision(
           refresh = latest;
       }
 
-      return { emailId, count };
+      return { emailId, count, replaced: count > 0 ? replaced : null };
     };
 
     const withWorkspaceMembershipFence = async <T>(
@@ -645,14 +646,24 @@ async function dispatchNotificationEmailRevision(
       await withResendGap(() => cancelEmail(sent.emailId));
     }
     unpersistedScheduledEmailId = null;
+    if (sent?.replaced) {
+      const replaced = sent.replaced;
+      await withResendGap(() => cancelEmail(replaced));
+    }
     if (
       refresh &&
       remainingRefreshes > 0 &&
       (sent === null || scheduledAt !== null)
     ) {
+      // Pinned only when the caller pinned it. A time this send decided
+      // came from a row that has since moved, and the arrival that moved it
+      // has a send of its own that reads the time from the moved row: both
+      // share one idempotency key, so both must name one time.
       await dispatchNotificationEmailRevision(
         refresh,
-        { scheduledAt },
+        options.scheduledAt !== undefined
+          ? { scheduledAt: options.scheduledAt }
+          : {},
         remainingRefreshes - 1,
       );
     }

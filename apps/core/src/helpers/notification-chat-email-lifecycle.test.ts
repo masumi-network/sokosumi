@@ -221,6 +221,62 @@ it("cancels existing pending mail when its source is deleted", async () => {
   expect(state.cancelled).toEqual(["old-email"]);
   expect(state.row.emailId).toBeNull();
 });
+it("keeps the counted email for earlier arrivals when the latest message is deleted", async () => {
+  state.row = {
+    ...row(),
+    messageParams: JSON.stringify({
+      authorName: "Ada",
+      roomName: "Design",
+      count: 2,
+    }),
+    emailId: "old-email",
+    emailScheduledAt: new Date(NOW + 600_000),
+  };
+  state.deleted = true;
+  await resendRoomMessageEmail("notification-1");
+  expect(state.sent[0]?.subject).toBe("Sokosumi - 2 unread messages in Design");
+  expect(state.cancelled).toEqual(["old-email"]);
+  expect(state.row.emailId).toBe("email-1");
+});
+it("names the moved row's time when a first send is refreshed", async () => {
+  // A counted arrival moved the row while the first send was in flight. Its
+  // own recovery send reads the time from the moved row, under the same key.
+  state.duringSend = () => {
+    state.duringSend = null;
+    state.row = {
+      ...state.row!,
+      createdAt: new Date(NOW + 120_000),
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        count: 2,
+      }),
+    };
+  };
+  await dispatchNotificationEmail(row());
+  expect(state.sent[1]?.scheduledAt).toBe(
+    new Date(NOW + 120_000 + 600_000).toISOString(),
+  );
+});
+it("takes back an email another send put on the row while this one was refreshed", async () => {
+  state.duringSend = () => {
+    state.duringSend = null;
+    state.row = {
+      ...state.row!,
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        count: 2,
+      }),
+      emailId: "other-email",
+      emailScheduledAt: new Date(NOW + 600_000),
+    };
+  };
+  await dispatchNotificationEmail(row());
+  expect(state.sent).toHaveLength(2);
+  expect(state.cancelled).toEqual(["email-1", "other-email"]);
+  expect(state.row?.emailId).toBe("email-2");
+});
 it("builds counted mail from the committed row instead of the old caller snapshot", async () => {
   const stale = row();
   state.row = {

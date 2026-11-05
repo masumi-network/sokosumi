@@ -420,6 +420,12 @@ async function flushFollowUpEmails(
         // A reminder that also reached the reader's tabs was published when it
         // was written, so those tabs are told it is gone before the row is.
         try {
+          // Read first: the publish sends the row as it stands, and an
+          // unread row would reach the tabs as one more reminder.
+          await prisma.notification.updateMany({
+            where: { id: { in: droppedIds }, emailId: null },
+            data: { isRead: true, readAt: new Date() },
+          });
           await publishClearedNotifications(droppedIds);
           await prisma.notification.deleteMany({
             where: { id: { in: droppedIds }, emailId: null },
