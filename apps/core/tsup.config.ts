@@ -17,6 +17,10 @@ export default defineConfig([
     // external stops the wasm query compiler being embedded as base64.
     noExternal: ["@sokosumi/database"],
     external: ["pg", "@prisma/client", "@prisma/adapter-pg"],
+    // `@hono/zod-openapi` adds `.openapi()` only to zod schemas built after it
+    // loads. Code splitting can hoist a chunk that loads `@sokosumi/soko-bot`
+    // first, leaving its schemas without `.openapi()` and crashing Core at boot.
+    banner: { js: 'import "@hono/zod-openapi";' },
     esbuildOptions(options) {
       options.alias = {
         "@": "./src",
