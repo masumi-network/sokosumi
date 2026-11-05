@@ -3348,6 +3348,10 @@
             "error": "Abonnent konnte nicht entfernt werden. Versuche es erneut.",
             "success": "Abonnent entfernt"
           },
+          "Unsubscribe": {
+            "title": "Abonnenten abmelden?",
+            "description": "Dieser Newsletter wird nicht mehr an {email} gesendet. Die Person kann nicht erneut hinzugefügt werden."
+          },
           "Import": {
             "description": "Importiere eine CSV mit einer E-Mail-Spalte und optional einer Namensspalte. Bestehende Abonnenten behalten ihren aktuellen Status.",
             "file": "CSV-Datei",
@@ -3373,7 +3377,6 @@
             "invalidRow": "Zeile {row}: {value}",
             "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
           },
-          "dismiss": "Schließen",
           "fromContacts": "Aus Kontakten hinzufügen",
           "openContactList": "Liste in Kontakte öffnen",
           "Consent": {

@@ -3348,6 +3348,10 @@
             "error": "No se pudo eliminar el suscriptor. Inténtalo de nuevo.",
             "success": "Suscriptor eliminado"
           },
+          "Unsubscribe": {
+            "title": "¿Dar de baja al suscriptor?",
+            "description": "Este boletín dejará de enviarse a {email}. Esta persona no se podrá volver a añadir."
+          },
           "Import": {
             "description": "Importa un CSV con una columna de correo electrónico y otra opcional de nombre. Los suscriptores existentes conservan su estado actual.",
             "file": "Archivo CSV",
@@ -3373,7 +3377,6 @@
             "invalidRow": "Fila {row}: {value}",
             "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
           },
-          "dismiss": "Cerrar",
           "fromContacts": "Añadir desde Contactos",
           "openContactList": "Abrir lista en Contactos",
           "Consent": {
