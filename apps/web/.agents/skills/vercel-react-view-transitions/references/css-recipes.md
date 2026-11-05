@@ -70,6 +70,7 @@ Keep the shared fade keyframe opacity-only. If a specific morph needs softness, 
 ```
 
 Usage:
+
 ```jsx
 <Suspense fallback={<ViewTransition exit="slide-down"><Skeleton /></ViewTransition>}>
   <ViewTransition default="none" enter="slide-up"><Content /></ViewTransition>

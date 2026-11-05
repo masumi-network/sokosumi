@@ -5230,6 +5230,10 @@
             "title": "CMO-Kosten",
             "description": "Was jeder CMO-Bot (Cuso) ausgegeben hat, was den Inhabern belastet wurde und wofür."
           },
+          "writingSkills": {
+            "title": "Schreib-Skills",
+            "description": "Wie Cuso für jedes Netzwerk schreibt: die Skills, die er vor jedem Beitrag liest, und die Checkliste, nach der jeder Beitrag geprüft wird."
+          },
           "designSystem": {
             "title": "Designsystem",
             "description": "Marken- und UI-Regeln der Masumi Family, dargestellt mit unseren echten Komponenten."
@@ -6608,6 +6612,17 @@
         "drifted": "{count} weg vom Hauptangebot",
         "unavailable": "{count} ohne Prüfmodell",
         "lastProblems": "Zuletzt zurück {at}:"
+      },
+      "WritingSkills": {
+        "title": "Schreib-Skills",
+        "description": "Was Cuso liest, bevor er eine Art von Beitrag schreibt. Sobald ein Monat erstellt ist, prüft ein Evaluator jeden Beitrag gegen die Checkliste seines Skills und die Markenstimme und schickt die Beiträge zurück, die nicht passen.",
+        "listLabel": "Schreib-Skills",
+        "channels": "Verwendet für",
+        "checklist": "Vor dem Speichern",
+        "checklistHint": "Jeder fertige Beitrag wird gegen diese Regeln geprüft: Der Evaluator beurteilt jede Regel, und Core zählt die als gezählt markierten im Code.",
+        "onlyFor": "Nur für {formats}",
+        "counted": "Im Code gezählt",
+        "empty": "Noch keine Schreib-Skills."
       },
       "DesignSystem": {
         "title": "Designsystem",
@@ -10054,6 +10069,13 @@
         "dropped": "{item} an die Stelle von {target} verschoben.",
         "cancelled": "Verschieben von {item} abgebrochen."
       },
+      "filterByTag": "Nach {tag} filtern",
+      "quickFilter": "{count, plural, =0 {Nach {column} filtern} one {Nach {column} filtern, # Option ausgewählt} other {Nach {column} filtern, # Optionen ausgewählt}}",
+      "matchAllOptions": "Zeilen mit allen ausgewählten Optionen",
+      "clearFilter": "Zurücksetzen",
+      "clearFilters": "Filter zurücksetzen",
+      "removeFilter": "Filter entfernen: {column}",
+      "matchingRows": "{count, plural, one {# Zeile passt} other {# Zeilen passen}}",
       "contactsName": "Kontakte",
       "contactsPinned": "Angeheftet",
       "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}"

@@ -22,6 +22,7 @@ You are an expert senior software engineer specializing in modern web developmen
 Working directory: `apps/web/`
 
 Key directories:
+
 - `src/app/` - App Router routes, layouts, and pages
 - `src/app/(app)/` - Protected authenticated routes
 - `src/app/(auth)/` - Public authentication routes
