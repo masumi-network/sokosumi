@@ -52,7 +52,7 @@ The user types `/create-new-in-sokosumi` with a PR, a description or screenshots
 
 ### Ask Matt
 
-Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
+Main engineering flow. Use the `ask-matt` skill (`mattpocock-skills` plugin) when choosing how to grill, spec, ticket, or implement.
 
 ### Steward
 
@@ -60,11 +60,11 @@ When watching a pull request, fixing its CI, or merging `main` into it, read [`.
 
 ### I have ADHD
 
-When the i-have-adhd skill is present, follow it for all replies. Off: "stop adhd mode" / "normal mode". See [`.agents/skills/i-have-adhd/`](../../.agents/skills/i-have-adhd/).
+When the i-have-adhd skill is present, follow it for all replies. Off: "stop adhd mode" / "normal mode". Provided by the `i-have-adhd` plugin.
 
 ### Ponytail
 
-Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. I have ADHD owns replies; ponytail owns what gets built. Load [`.agents/skills/ponytail/`](../../.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
+Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. I have ADHD owns replies; ponytail owns what gets built. Provided by the `ponytail` plugin. On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
 
 ### Sokosumi Task implementation
 

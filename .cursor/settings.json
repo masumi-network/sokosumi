@@ -5,6 +5,15 @@
     },
     "docs-canvas": {
       "enabled": true
+    },
+    "ponytail/ponytail": {
+      "enabled": true
+    },
+    "i-have-adhd/i-have-adhd": {
+      "enabled": true
+    },
+    "mattpocock/mattpocock-skills": {
+      "enabled": true
     }
   }
 }
