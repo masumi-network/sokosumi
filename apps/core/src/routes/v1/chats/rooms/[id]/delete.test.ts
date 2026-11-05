@@ -20,6 +20,10 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
+  notificationFindManyMock,
+  notificationUpdateManyMock,
+  cancelEmailMock,
+  background,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomDeleteManyMock: vi.fn(),
@@ -28,10 +32,26 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
+  notificationUpdateManyMock: vi.fn(),
+  cancelEmailMock: vi.fn(),
+  background: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { $transaction: prismaTransactionMock },
+  default: {
+    $transaction: prismaTransactionMock,
+    notification: { updateMany: notificationUpdateManyMock },
+  },
+}));
+
+vi.mock("@/clients/email.client", () => ({
+  cancelEmail: cancelEmailMock,
+  sendEmail: vi.fn(),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (work: Promise<unknown>) => background.push(work),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -43,6 +63,7 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   sokoBot: { findUnique: sokoBotFindUniqueMock },
+  notification: { findMany: notificationFindManyMock },
   $queryRaw: queryRawMock,
 };
 
@@ -119,6 +140,10 @@ beforeEach(() => {
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   roomDeleteManyMock.mockResolvedValue({ count: 1 });
   sokoBotFindUniqueMock.mockResolvedValue(null);
+  notificationFindManyMock.mockResolvedValue([]);
+  notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+  cancelEmailMock.mockResolvedValue(undefined);
+  background.length = 0;
 });
 
 describe("DELETE /chats/rooms/{id}", () => {
@@ -150,6 +175,54 @@ describe("DELETE /chats/rooms/{id}", () => {
 
     expect((await permanentlyDelete()).status).toBe(403);
     expect(roomDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels pending room mail committed while the message cascade waits", async () => {
+    roomFindFirstMock.mockResolvedValue(archivedRoom());
+    let committed = false;
+    const cancellationCommitStates: boolean[] = [];
+    const pendingEmailDelayMs = 10 * 60 * 1000;
+    let scheduledRows: {
+      id: string;
+      emailId: string;
+      emailScheduledAt: Date;
+    }[] = [];
+    const pending = {
+      id: "notification-1",
+      emailId: "scheduled-email-1",
+      emailScheduledAt: new Date(Date.now() + pendingEmailDelayMs),
+    };
+    prismaTransactionMock.mockImplementation(async (work) => {
+      const result = await work(tx);
+      committed = true;
+      return result;
+    });
+    roomDeleteManyMock.mockImplementation(async () => {
+      // The cascade waits for a sender holding the source-message lock.
+      // Its accepted email becomes visible before the delete can finish.
+      scheduledRows = [pending];
+      return { count: 1 };
+    });
+    notificationFindManyMock.mockImplementation(async () => scheduledRows);
+    cancelEmailMock.mockImplementation(async () => {
+      cancellationCommitStates.push(committed);
+    });
+
+    const response = await permanentlyDelete();
+    await Promise.all(background);
+
+    expect(response.status).toBe(204);
+    expect(cancelEmailMock).toHaveBeenCalledExactlyOnceWith(pending.emailId);
+    expect(cancellationCommitStates).toEqual([true]);
+    expect(notificationFindManyMock).toHaveBeenCalledWith({
+      where: {
+        kind: "CHAT",
+        referenceId: ROOM_ID,
+        emailId: { not: null },
+        emailScheduledAt: { gt: expect.any(Date) },
+      },
+      select: { id: true, emailId: true, emailScheduledAt: true },
+    });
   });
 
   it("rejects a plain member who is not the creator", async () => {

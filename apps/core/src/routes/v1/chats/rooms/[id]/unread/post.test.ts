@@ -21,7 +21,7 @@ const {
   memberFindUniqueMock,
   readStateUpsertMock,
   unreadQueryMock,
-  mentionGroupByMock,
+  mentionFindManyMock,
   membershipFindManyMock,
   readStateFindManyMock,
 } = vi.hoisted(() => ({
@@ -30,7 +30,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   unreadQueryMock: vi.fn(),
-  mentionGroupByMock: vi.fn(),
+  mentionFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
 }));
@@ -41,7 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     organization: { findUnique: organizationFindUniqueMock },
     member: { findUnique: memberFindUniqueMock },
     $queryRawUnsafe: unreadQueryMock,
-    notification: { groupBy: mentionGroupByMock },
+    notification: { findMany: mentionFindManyMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: {
       upsert: readStateUpsertMock,
@@ -119,7 +119,7 @@ beforeEach(() => {
     { roomId: ROOM_ID, markedUnreadAt: new Date("2026-08-03T12:00:00.000Z") },
   ]);
   unreadQueryMock.mockResolvedValue([]);
-  mentionGroupByMock.mockResolvedValue([]);
+  mentionFindManyMock.mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms/{id}/unread", () => {

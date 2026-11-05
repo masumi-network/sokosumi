@@ -1,11 +1,15 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 
-import { shouldEmitChatDirectMessageNotifications } from "@/helpers/chat-direct-message-notifications";
+import {
+  emitChatDirectMessageNotifications,
+  shouldEmitChatDirectMessageNotifications,
+} from "@/helpers/chat-direct-message-notifications";
 import {
   type ChatMentionRoomShape,
   emitChatMentionNotifications,
 } from "@/helpers/chat-mention-notifications";
+import { emitChatRoomMessageNotifications } from "@/helpers/chat-room-message-created-effects";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 import { resolveMentionedUserIds } from "@/routes/v1/chats/rooms/helpers";
@@ -109,7 +113,7 @@ export function chatMentionRoomShape(
   return isPair ? "pair" : "group";
 }
 
-interface EmitChatHumanMentionNotificationsParams {
+interface EmitChatMessageNotificationsParams {
   throwOnError?: boolean;
   messageId: string;
   mentionedUserIds: readonly string[];
@@ -129,23 +133,43 @@ interface EmitChatHumanMentionNotificationsParams {
  * Reports rather than rejects, for the reason the emitter beside it does.
  */
 export async function emitChatHumanMentionNotifications(
-  params: EmitChatHumanMentionNotificationsParams,
+  params: EmitChatMessageNotificationsParams,
 ): Promise<void> {
   if (params.mentionedUserIds.length === 0) {
     return;
   }
 
+  await emitStoredMessageNotifications(params, false);
+}
+
+/**
+ * Deliver a completed assistant Direct and its explicit human mentions.
+ * Channel and group replies also reach readers who opted into every message.
+ */
+export async function emitChatMessageNotifications(
+  params: EmitChatMessageNotificationsParams,
+): Promise<void> {
+  await emitStoredMessageNotifications(params, true);
+}
+
+async function emitStoredMessageNotifications(
+  params: EmitChatMessageNotificationsParams,
+  includeMessage: boolean,
+): Promise<void> {
   try {
     const message = await prisma.chatRoomMessage.findUnique({
       where: { id: params.messageId },
       select: {
         content: true,
+        deletedAt: true,
+        parentMessageId: true,
         senderCoworker: { select: { name: true } },
         senderSokoBot: { select: { name: true } },
         room: {
           select: {
             id: true,
             name: true,
+            groupName: true,
             organizationId: true,
             kind: true,
             userMembers: { select: { userId: true } },
@@ -156,34 +180,79 @@ export async function emitChatHumanMentionNotifications(
         },
       },
     });
-    if (!message) {
+    if (!message || message.deletedAt) {
       return;
     }
-
-    await emitChatMentionNotifications({
+    const memberUserIds = message.room.userMembers.map(
+      (member) => member.userId,
+    );
+    const authorName = message.senderSokoBot
+      ? sokoBotDisplayName(message.senderSokoBot)
+      : (message.senderCoworker?.name ?? "Someone");
+    const common = {
       roomId: message.room.id,
-      roomName: message.room.name,
-      roomShape: chatMentionRoomShape({
-        kind: message.room.kind,
-        memberUserIds: message.room.userMembers.map((member) => member.userId),
-        nonHumanMemberCount:
-          message.room._count.coworkerMembers +
-          message.room._count.sokoBotMembers,
-      }),
+      roomName: message.room.groupName ?? message.room.name,
       organizationId: message.room.organizationId,
       messageId: params.messageId,
       content: message.content,
       authorUserId: null,
-      authorName: message.senderSokoBot
-        ? sokoBotDisplayName(message.senderSokoBot)
-        : (message.senderCoworker?.name ?? "Someone"),
-      mentionedUserIds: params.mentionedUserIds,
+      authorName,
       ...(params.throwOnError ? { throwOnError: true } : {}),
-    });
+    };
+    const pending: Promise<void>[] = [];
+    if (includeMessage) {
+      if (
+        shouldEmitChatDirectMessageNotifications({
+          kind: message.room.kind,
+          memberUserIds,
+        })
+      ) {
+        pending.push(
+          emitChatDirectMessageNotifications({
+            ...common,
+            parentMessageId: message.parentMessageId,
+            recipientUserIds: memberUserIds,
+            mentionedUserIds: params.mentionedUserIds,
+          }),
+        );
+      } else {
+        pending.push(
+          emitChatRoomMessageNotifications(
+            {
+              ...common,
+              roomKind: message.room.kind,
+              parentMessageId: message.parentMessageId,
+              mentionedUserIds: params.mentionedUserIds,
+            },
+            memberUserIds,
+          ),
+        );
+      }
+    }
+    if (params.mentionedUserIds.length > 0) {
+      pending.push(
+        emitChatMentionNotifications({
+          ...common,
+          roomShape: chatMentionRoomShape({
+            kind: message.room.kind,
+            memberUserIds,
+            nonHumanMemberCount:
+              message.room._count.coworkerMembers +
+              message.room._count.sokoBotMembers,
+          }),
+          mentionedUserIds: params.mentionedUserIds,
+        }),
+      );
+    }
+    await Promise.all(pending);
   } catch (error) {
     if (params.throwOnError) throw error;
     Sentry.captureException(error, {
-      tags: { context: "chat_mention_notifications" },
+      tags: {
+        context: includeMessage
+          ? "chat_message_notifications"
+          : "chat_mention_notifications",
+      },
       extra: {
         messageId: params.messageId,
         mentionedCount: params.mentionedUserIds.length,

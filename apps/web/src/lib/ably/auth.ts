@@ -21,6 +21,7 @@ const CORE_ABLY_TOKEN_REQUEST_TIMEOUT_MS = 7000;
  */
 export default async function createAuthTokenRequest(options?: {
   clientInstanceId?: string | null;
+  roomIds?: string | null;
 }) {
   const requestHeaders = await headers();
   const cookie = requestHeaders.get("cookie");
@@ -29,6 +30,9 @@ export default async function createAuthTokenRequest(options?: {
   const url = new URL(joinCoreApiPath(baseUrl, "/realtime/ably-token"));
   if (options?.clientInstanceId) {
     url.searchParams.set("clientInstanceId", options.clientInstanceId);
+  }
+  if (options?.roomIds != null) {
+    url.searchParams.set("roomIds", options.roomIds);
   }
 
   const response = await fetch(url, {
