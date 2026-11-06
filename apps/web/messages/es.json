@@ -3233,7 +3233,6 @@
       },
       "Newsletter": {
         "title": "Boletín",
-        "description": "Configura el remitente, la marca y el correo de bienvenida del boletín de este proyecto.",
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
@@ -3283,7 +3282,6 @@
         },
         "Subscribers": {
           "title": "Suscriptores",
-          "description": "Gestiona las personas que reciben el boletín de este proyecto.",
           "add": "Añadir suscriptor",
           "import": "Importar CSV",
           "cancel": "Cancelar",
@@ -3369,9 +3367,9 @@
               "skippedBounced": "Omitidos por correos devueltos",
               "pendingConfirmation": "En espera de confirmación"
             },
-            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidHint": "Estas filas necesitan un correo electrónico válido. Corrígelas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas.",
             "invalidRow": "Fila {row}: {value}",
-            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+            "blankEmail": "sin correo electrónico"
           },
           "dismiss": "Cerrar",
           "fromContacts": "Añadir desde Contactos",
@@ -3420,7 +3418,6 @@
         },
         "Issues": {
           "title": "Ediciones",
-          "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
           "newIssue": "Nueva edición",
           "Ai": {
             "action": "Escríbelo por mí",
@@ -3682,7 +3679,8 @@
         "SignupForm": {
           "title": "Formulario de suscripción",
           "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
-          "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "shareTitle": "Compartir",
+          "description": "Los suscriptores confirman su correo antes de recibir ediciones.",
           "previewTitle": "Vista previa del formulario de suscripción",
           "previewDescription": "Los cambios aparecen aquí al instante. Guarda el diseño para actualizar la página pública y el formulario integrado.",
           "hostedPage": "Página de suscripción alojada",
@@ -3706,7 +3704,6 @@
         },
         "Analytics": {
           "title": "Estadísticas",
-          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
           "keyMetrics": "Métricas del boletín",
           "rangeLabel": "Intervalo de fechas",
           "rangeSelected": "Intervalo de fechas: {range}",
@@ -4805,8 +4802,7 @@
           "subject": "Nueva temporada, nuevos colores",
           "body": "Arena, arcilla y un azul mar profundo: la paleta detrás de la colección de verano."
         }
-      },
-      "projectTitle": "Boletín de {project}"
+      }
     },
     "Social": {
       "title": "Publicaciones sociales",

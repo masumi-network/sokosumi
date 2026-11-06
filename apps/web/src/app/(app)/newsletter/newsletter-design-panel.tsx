@@ -37,7 +37,18 @@ export function NewsletterDesignPanel({
 }) {
   const t = useTranslations("App.Projects.Newsletter");
   const [isUploading, setIsUploading] = useState(false);
+  const [openSections, setOpenSections] = useState<string[]>(() =>
+    Object.values(form.getValues("signupForm") ?? {}).some(Boolean)
+      ? ["customize"]
+      : [],
+  );
   const { isDirty, isSubmitting, errors } = form.formState;
+  // A closed section unmounts its fields, so an invalid one opens to show why Save failed.
+  const invalidSections = Object.keys(errors)
+    .filter((name) => name !== "root")
+    .map((name) => (name === "signupForm" ? "customize" : "shared"));
+  const visibleSections = [...new Set([...openSections, ...invalidSections])];
+  const showSave = !signupForm || isDirty || visibleSections.length > 0;
 
   async function handleSave(values: NewsletterSettingsValues) {
     form.clearErrors("root");
@@ -72,68 +83,80 @@ export function NewsletterDesignPanel({
         className="min-w-0 space-y-4"
       >
         <fieldset disabled={isSubmitting} className="min-w-0 space-y-4">
-          <section className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}>
-            {signupForm ? (
-              <Accordion type="single" collapsible>
-                <AccordionItem value="shared">
-                  <AccordionTrigger>
-                    {t("SignupForm.sharedDesign")}
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4">
-                    <p className="text-muted-foreground text-sm">
-                      {t("SignupForm.sharedDescription")}
-                    </p>
-                    <NewsletterDesignFields
-                      disabled={isSubmitting}
-                      onUploadingChange={setIsUploading}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold">
-                    {t("Design.title")}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {t("Design.description")}
-                  </p>
-                </div>
-                <NewsletterDesignFields
-                  disabled={isSubmitting}
-                  onUploadingChange={setIsUploading}
-                />
-              </>
-            )}
-          </section>
           {signupForm ? (
-            <NewsletterSignupDesignFields disabled={isSubmitting} />
-          ) : null}
+            <Accordion
+              type="multiple"
+              value={visibleSections}
+              onValueChange={setOpenSections}
+              className={cn(HOLDER_ITEM_CLASS, "min-w-0 px-3")}
+            >
+              <AccordionItem value="customize">
+                <AccordionTrigger className="px-1">
+                  {t("SignupForm.customize")}
+                </AccordionTrigger>
+                <AccordionContent className="px-1">
+                  <NewsletterSignupDesignFields disabled={isSubmitting} />
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="shared">
+                <AccordionTrigger className="px-1">
+                  {t("SignupForm.sharedDesign")}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 px-1">
+                  <p className="text-muted-foreground text-sm">
+                    {t("SignupForm.sharedDescription")}
+                  </p>
+                  <NewsletterDesignFields
+                    disabled={isSubmitting}
+                    onUploadingChange={setIsUploading}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          ) : (
+            <section className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}>
+              <div className="space-y-1">
+                <h3 className="text-base font-semibold">{t("Design.title")}</h3>
+                <p className="text-muted-foreground text-sm">
+                  {t("Design.description")}
+                </p>
+              </div>
+              <NewsletterDesignFields
+                disabled={isSubmitting}
+                onUploadingChange={setIsUploading}
+              />
+            </section>
+          )}
         </fieldset>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-1">
-          <Button
-            type="submit"
-            variant={isDirty ? "primary" : "outline"}
-            loading={isSubmitting}
-            disabled={isUploading}
-          >
-            {t("Design.save")}
-          </Button>
-          {isDirty && !isSubmitting ? (
-            <Button type="button" variant="ghost" onClick={() => form.reset()}>
-              {t("Design.reset")}
+        {showSave ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-1">
+            <Button
+              type="submit"
+              variant={isDirty ? "primary" : "outline"}
+              loading={isSubmitting}
+              disabled={isUploading}
+            >
+              {t("Design.save")}
             </Button>
-          ) : null}
-          <p role="status" className="text-muted-foreground text-sm">
-            {isDirty && !isSubmitting ? t("unsavedChanges") : null}
-          </p>
-          {errors.root?.message ? (
-            <p role="alert" className="text-foreground basis-full text-sm">
-              {errors.root.message}
+            {isDirty && !isSubmitting ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => form.reset()}
+              >
+                {t("Design.reset")}
+              </Button>
+            ) : null}
+            <p role="status" className="text-muted-foreground text-sm">
+              {isDirty && !isSubmitting ? t("unsavedChanges") : null}
             </p>
-          ) : null}
-        </div>
+            {errors.root?.message ? (
+              <p role="alert" className="text-foreground basis-full text-sm">
+                {errors.root.message}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </form>
     </Form>
   );

@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { PublicNewsletterHeader } from "./public-newsletter-header";
 import { NewsletterSignupForm } from "./signup-form";
 
 const PADDING = { compact: "p-5", normal: "p-8", roomy: "p-11" } as const;
@@ -52,16 +51,11 @@ export function NewsletterSignup({
     >
       <div
         className={cn(
-          "bg-card text-card-foreground min-w-0 space-y-6 rounded-lg border",
+          "bg-card text-card-foreground min-w-0 rounded-lg border",
           PADDING[brand.spacing ?? "normal"],
         )}
         style={{ color: brand.primaryColor }}
       >
-        <PublicNewsletterHeader
-          newsletter={{ ...newsletter, brand }}
-          slug={slug}
-          compact={embed}
-        />
         <div className="mx-auto max-w-md space-y-6">
           <div
             className={cn(
@@ -73,7 +67,7 @@ export function NewsletterSignup({
               id={headingId}
               className="text-2xl font-semibold tracking-tight wrap-anywhere"
             >
-              {embed ? newsletter.name : t("title", { name: newsletter.name })}
+              {t("title", { name: newsletter.name })}
             </Heading>
             {!embed ? (
               <p className="text-sm leading-relaxed">{t("description")}</p>

@@ -3233,7 +3233,6 @@
       },
       "Newsletter": {
         "title": "Newsletter",
-        "description": "Set the sender, brand, and welcome email for this project’s newsletter.",
         "navigation": "Newsletter sections",
         "settings": "Settings",
         "emptyTitle": "Set up your newsletter",
@@ -3283,7 +3282,6 @@
         },
         "Subscribers": {
           "title": "Subscribers",
-          "description": "Manage the people who receive this project’s newsletter.",
           "add": "Add subscriber",
           "import": "Import CSV",
           "cancel": "Cancel",
@@ -3369,9 +3367,9 @@
               "skippedBounced": "Skipped because they bounced",
               "pendingConfirmation": "Waiting for confirmation"
             },
-            "invalidHint": "Fix these rows and import them again. Row numbers include the header. Up to 100 invalid rows are reported.",
+            "invalidHint": "These rows need a valid email address. Fix them and import them again. Row numbers include the header. Up to 100 rows are reported.",
             "invalidRow": "Row {row}: {value}",
-            "moreInvalid": "{count, plural, one {# more invalid row reported} other {# more invalid rows reported}}"
+            "blankEmail": "no email"
           },
           "dismiss": "Dismiss",
           "fromContacts": "Add from Contacts",
@@ -3420,7 +3418,6 @@
         },
         "Issues": {
           "title": "Issues",
-          "description": "Write newsletter issues and preview how they look in an inbox.",
           "newIssue": "New issue",
           "Ai": {
             "action": "Write it for me",
@@ -3682,7 +3679,8 @@
         "SignupForm": {
           "title": "Signup form",
           "pageDescription": "Grow your newsletter audience with a hosted signup page or an embedded form.",
-          "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "shareTitle": "Share",
+          "description": "Subscribers confirm their email before receiving issues.",
           "previewTitle": "Signup form preview",
           "previewDescription": "Changes appear here immediately. Save design to update the public page and embed.",
           "hostedPage": "Hosted signup page",
@@ -3706,7 +3704,6 @@
         },
         "Analytics": {
           "title": "Analytics",
-          "description": "Track subscriber growth and newsletter engagement.",
           "keyMetrics": "Newsletter metrics",
           "rangeLabel": "Date range",
           "rangeSelected": "Date range: {range}",
@@ -4805,8 +4802,7 @@
           "subject": "New season, new colors",
           "body": "Sand, clay and a deep sea blue: the palette behind this summer's collection."
         }
-      },
-      "projectTitle": "{project} newsletter"
+      }
     },
     "Social": {
       "title": "Social posts",

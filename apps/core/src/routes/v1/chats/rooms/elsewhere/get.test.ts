@@ -17,7 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   roomFindManyMock,
   organizationFindManyMock,
-  notificationGroupByMock,
+  notificationFindManyMock,
   membershipFindManyMock,
   readStateFindManyMock,
   queryRawUnsafeMock,
@@ -25,7 +25,7 @@ const {
 } = vi.hoisted(() => ({
   roomFindManyMock: vi.fn(),
   organizationFindManyMock: vi.fn(),
-  notificationGroupByMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
@@ -37,11 +37,13 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoom: { findMany: roomFindManyMock },
     organization: { findMany: organizationFindManyMock },
     member: { findMany: vi.fn().mockResolvedValue([]) },
-    chatRoomMessage: { groupBy: vi.fn().mockResolvedValue([]) },
+    chatRoomMessage: {
+      groupBy: vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
     notification: {
-      groupBy: notificationGroupByMock,
-      findMany: vi.fn().mockResolvedValue([]),
+      findMany: notificationFindManyMock,
     },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     chatRoomReadState: { findMany: readStateFindManyMock },
@@ -265,11 +267,14 @@ function arrange({
         : []),
     ]),
   );
-  notificationGroupByMock.mockResolvedValue(
-    Object.entries(mentions).map(([referenceId, count]) => ({
-      referenceId,
-      _count: { _all: count },
-    })),
+  notificationFindManyMock.mockResolvedValue(
+    Object.entries(mentions).flatMap(([referenceId, count]) =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `notification-${referenceId}-${index}`,
+        referenceId,
+        eventId: `message-${referenceId}-${index}`,
+      })),
+    ),
   );
   membershipFindManyMock.mockResolvedValue(
     pinned.map((roomId) => ({

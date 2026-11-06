@@ -3,7 +3,10 @@ import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   type NotificationCategory,
 } from "@sokosumi/utils";
-import { resolveNotificationDelivery } from "@/helpers/notification-delivery";
+import {
+  deliveryOutsideMention,
+  resolveNotificationDelivery,
+} from "@/helpers/notification-delivery";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -29,17 +32,33 @@ interface Reader {
  * row written for them, so nothing dispatches and the cell they pressed
  * reaches nothing (SOK-1142).
  */
-function arrives(reader: Reader, category: NotificationCategory): boolean {
+function arrives(
+  reader: Reader,
+  category: NotificationCategory,
+  suppressMentionDelivery = false,
+): boolean {
   const delivery = resolveNotificationDelivery({
     category,
     preferences: reader.notificationPreferences,
     pushOptIn: reader.pushOptIn,
   });
 
-  return delivery.inApp || delivery.osBanner || delivery.email;
+  const reached = suppressMentionDelivery
+    ? deliveryOutsideMention(
+        delivery,
+        resolveNotificationDelivery({
+          category: "CHAT_MENTION",
+          preferences: reader.notificationPreferences,
+          pushOptIn: reader.pushOptIn,
+        }),
+      )
+    : delivery;
+
+  return reached.inApp || reached.osBanner || reached.email;
 }
 
 export interface ChatRoomMessageCreatedEffectsParams {
+  throwOnError?: boolean;
   roomId: string;
   roomName: string;
   /** Decides whether the direct-message row already covers this room. */
@@ -71,10 +90,10 @@ export interface ChatRoomMessageCreatedEffectsParams {
  * (`shouldEmitChatDirectMessageNotifications`), so a direct room with more
  * than two is a room like any other here rather than a room nobody hears from.
  *
- * A member who was named in the message is skipped only when the mention
- * actually reaches them. A reader who silenced mentions and asked for every
- * message would otherwise hear about every message in the room except the one
- * addressed to them.
+ * A member who was named in the message is sent the room row only on the
+ * channels their mention does not already reach. A reader who silenced
+ * mentions and asked for every message would otherwise hear about every
+ * message in the room except the one addressed to them.
  *
  * The rest are kept only when this category would reach them on some channel,
  * asked through the same `resolveNotificationDelivery` that decides delivery
@@ -171,7 +190,7 @@ export async function invalidateChatRoomMessageReaders(
   }
 }
 
-async function emitChatRoomMessageNotifications(
+export async function emitChatRoomMessageNotifications(
   params: ChatRoomMessageCreatedEffectsParams,
   memberUserIds: readonly string[],
 ): Promise<void> {
@@ -206,10 +225,8 @@ async function emitChatRoomMessageNotifications(
   });
   const mentioned = new Set(params.mentionedUserIds ?? []);
   const recipientUserIds = readers
-    .filter(
-      (reader) =>
-        arrives(reader, "CHAT_ROOM_MESSAGE") &&
-        !(mentioned.has(reader.id) && arrives(reader, "CHAT_MENTION")),
+    .filter((reader) =>
+      arrives(reader, "CHAT_ROOM_MESSAGE", mentioned.has(reader.id)),
     )
     .map((reader) => reader.id);
 
@@ -218,6 +235,7 @@ async function emitChatRoomMessageNotifications(
   }
 
   await fanOutChatNotifications({
+    ...(params.throwOnError ? { throwOnError: true } : {}),
     roomId: params.roomId,
     roomName: params.roomName,
     organizationId: params.organizationId,
@@ -227,6 +245,11 @@ async function emitChatRoomMessageNotifications(
     authorUserId: params.authorUserId,
     authorName: params.authorName,
     recipientUserIds,
+    mentionedUserIds: readers
+      .filter(
+        (reader) => mentioned.has(reader.id) && arrives(reader, "CHAT_MENTION"),
+      )
+      .map((reader) => reader.id),
     messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
     notificationType: "chat-room-message-notification",
     // A mention and a direct message are each about themselves. This one is

@@ -200,10 +200,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         })
       ) {
         // A member the message named was sent a mention of their own.
-        const mentionedUserIdSet = new Set(mentionedUserIds);
-        const recipientUserIds = memberUserIds.filter(
-          (userId) => !mentionedUserIdSet.has(userId),
-        );
+        // Direct delivery keeps only the channels that mention did not cover.
+        const recipientUserIds = memberUserIds;
         if (recipientUserIds.length > 0) {
           waitUntil(
             emitChatDirectMessageNotifications({
@@ -216,6 +214,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               authorUserId: null,
               authorName,
               recipientUserIds,
+              mentionedUserIds,
             }),
           );
         }
@@ -569,10 +568,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (isDirectPair) {
-        const mentionedUserIdSet = new Set(mentionedUserIds);
         const recipientUserIds = room.memberUserIds.filter(
-          (userId) =>
-            userId !== userContext.userId && !mentionedUserIdSet.has(userId),
+          (userId) => userId !== userContext.userId,
         );
         if (recipientUserIds.length > 0) {
           waitUntil(
@@ -586,6 +583,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               authorUserId: userContext.userId,
               authorName: message.senderUser?.name ?? "Someone",
               recipientUserIds,
+              mentionedUserIds,
             }),
           );
         }
