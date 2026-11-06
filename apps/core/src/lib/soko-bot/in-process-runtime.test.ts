@@ -1,6 +1,6 @@
 import { simulateReadableStream, wrapLanguageModel } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const pendingTurns: Promise<unknown>[] = [];
 
@@ -51,7 +51,10 @@ vi.mock("@/lib/db/prisma", () => {
     },
     sokoBotTurn: {
       findFirst: vi.fn(),
-      findUnique: vi.fn().mockResolvedValue({ source: "CHAT" }),
+      findUnique: vi.fn().mockResolvedValue({
+        source: "CHAT",
+        deadlineAt: new Date(Date.now() + 15 * 60 * 1_000),
+      }),
       update: vi.fn().mockResolvedValue({}),
     },
     sokoBotToolCall: { findMany: vi.fn().mockResolvedValue([]) },
@@ -78,6 +81,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   },
 }));
 
+import prisma from "@/lib/db/prisma";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
 import {
@@ -529,6 +533,58 @@ describe("InProcessSokoBotRuntime", () => {
       (event) => event.type === "turn.failed",
     );
     expect(failure?.data.message).toBe("Soko Bot turn is not active");
+  });
+
+  describe("turn budget", () => {
+    const FIFTEEN_MINUTES = 15 * 60 * 1_000;
+    const start = () =>
+      new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Learn the business",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+    const budgets = () =>
+      vi.mocked(AbortSignal.timeout).mock.calls.map(([ms]) => ms);
+
+    beforeEach(() => {
+      vi.spyOn(AbortSignal, "timeout");
+      vi.mocked(prisma.sokoBotTurn.findUnique).mockResolvedValue({
+        source: "EVENT",
+        deadlineAt: new Date(Date.now() + FIFTEEN_MINUTES),
+      } as never);
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.mocked(AbortSignal.timeout).mockRestore();
+    });
+
+    // CMO's first read (SOKD-126) needs most of its 15 minutes; four
+    // stopped it at about 10 of 16 Brand Brain sections on every local run.
+    it("runs a local turn until its own deadline", async () => {
+      vi.stubEnv("VERCEL", "");
+
+      await start();
+      await Promise.all(pendingTurns);
+
+      expect(budgets()).not.toContain(240_000);
+      expect(
+        budgets().some(
+          (ms) => ms > FIFTEEN_MINUTES - 60_000 && ms <= FIFTEEN_MINUTES,
+        ),
+      ).toBe(true);
+    });
+
+    it("stops on Vercel before maxDuration kills the invocation", async () => {
+      vi.stubEnv("VERCEL", "1");
+
+      await start();
+      await Promise.all(pendingTurns);
+
+      expect(budgets()).toContain(240_000);
+    });
   });
 
   it("replays recorded events from the requested index", async () => {

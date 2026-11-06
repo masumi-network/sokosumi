@@ -45,16 +45,29 @@ import {
 } from "./turn-loop";
 
 /**
- * How long one turn may run inside a single invocation. Vercel kills Core at
- * `maxDuration` (300s), and a killed invocation writes neither `turn.failed`
- * nor `session.waiting`. Stopping first keeps the loop able to settle itself.
- * Off Vercel there is no such kill, so a local lab may give big research
- * turns longer with SOKO_BOT_IN_PROCESS_TURN_BUDGET_MS.
+ * Vercel kills Core at `maxDuration` (300s), and a killed invocation writes
+ * neither `turn.failed` nor `session.waiting`. Stopping first keeps the loop
+ * able to settle itself.
  */
-const TURN_RUNTIME_BUDGET_MS =
-  (!process.env.VERCEL &&
-    Number(process.env.SOKO_BOT_IN_PROCESS_TURN_BUDGET_MS)) ||
-  240_000;
+const VERCEL_TURN_BUDGET_MS = 240_000;
+
+/**
+ * How long this turn may run here: until its own deadline, as in the
+ * sandbox, but on Vercel no longer than one invocation can live.
+ */
+async function turnBudgetMs(turnId: string): Promise<number> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { deadlineAt: true },
+  });
+  const untilDeadline = (turn?.deadlineAt.getTime() ?? 0) - Date.now();
+  return Math.max(
+    1_000,
+    process.env.VERCEL
+      ? Math.min(VERCEL_TURN_BUDGET_MS, untilDeadline)
+      : untilDeadline,
+  );
+}
 
 /** Runs one turn to completion, recording everything the drain needs. */
 async function runTurn(
@@ -62,9 +75,9 @@ async function runTurn(
   input: RuntimeTurnInput,
 ): Promise<void> {
   const log = new RuntimeEventLog(input.turnId, sessionId);
-  const abortSignal = AbortSignal.timeout(TURN_RUNTIME_BUDGET_MS);
 
   try {
+    const abortSignal = AbortSignal.timeout(await turnBudgetMs(input.turnId));
     await announceTurn(log, input.message);
     const turn = await prepareTurn(sessionId, input.turnId, {
       sandbox: false,
