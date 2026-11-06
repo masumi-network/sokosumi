@@ -28,10 +28,7 @@ import {
 import { Refusal } from "./refusal";
 import type { SitePhase } from "./step";
 
-/** Skeleton tiles shown for sections Cuso has not saved yet, at most. */
-const MAX_SKELETONS = 6;
-
-/** Found items shown once the Brand Brain exists, at most. */
+/** Found items (or skeletons for sections to come) shown at most. */
 const MAX_FOUND = 3;
 
 interface SiteStepProps {
@@ -113,7 +110,11 @@ export function SiteStep({
           : `I read ${site}. Answer a few before I show you.`;
 
   const found = work
-    ? { saved: work.sectionsSaved, total: work.sectionsTotal }
+    ? {
+        saved: work.sectionsSaved,
+        total: work.sectionsTotal,
+        sections: work.sections,
+      }
     : null;
   // Every section is saved and Cuso is writing the summary and his questions
   // from them: the slowest quiet stretch of the read. Holds the section count.
@@ -187,23 +188,40 @@ export function SiteStep({
                     </li>
                   ))}
               </ul>
-            ) : composing !== null ? (
-              <p className="muted">All {composing} sections are in.</p>
             ) : found ? (
-              <div className="ob-skeletons">
-                {Array.from(
-                  {
-                    length: Math.min(
-                      Math.max(found.total - found.saved, 0),
-                      MAX_SKELETONS,
-                    ),
-                  },
-                  (_, skeleton) => (
-                    // Placeholders have no identity beyond their place.
-                    <SkeletonTile key={skeleton} />
-                  ),
+              <>
+                {found.sections.length > 0 ? (
+                  // The latest sections Cuso saved, as he saves them.
+                  <ul className="ob-found-list">
+                    {found.sections.slice(-MAX_FOUND).map((section) => (
+                      <li key={section.key}>
+                        <span className="ob-small muted">
+                          {BRAND_SECTIONS[section.key].title}
+                        </span>
+                        <b>{section.headline}</b>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {composing !== null ? (
+                  <p className="muted">All {composing} sections are in.</p>
+                ) : (
+                  <div className="ob-skeletons">
+                    {Array.from(
+                      {
+                        length: Math.min(
+                          Math.max(found.total - found.saved, 0),
+                          MAX_FOUND,
+                        ),
+                      },
+                      (_, skeleton) => (
+                        // Placeholders have no identity beyond their place.
+                        <SkeletonTile key={skeleton} />
+                      ),
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             ) : null}
           </div>
         ) : null}
