@@ -76,6 +76,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Components
 
+**Logo.** The CMO.XYZ wordmark from the concept canvas (`src/components/logo.tsx`), drawn in the text colour: ink on a light page, white on a dark one. 16px high in a header, never recoloured or set in Iris. Cuso's pointer mark stays the favicon and app icon.
+
 **Header (onboarding).** Logo 16px high left, step markers centre, the site chip right (green 8px dot with a line edge, then the domain). Hairline below, 14px 32px padding.
 
 **Step marker.** 8px radius, small 500, "1 Site". Current: Iris fill, ink line, `aria-current="step"`. Done: check icon, ink line, text colour. Not yet: hairline, muted text. Four steps: Site, Brand, Plan, Launch.
