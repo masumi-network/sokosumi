@@ -1,7 +1,6 @@
 import type { OrbState } from "thinking-orbs";
 
 import type {
-  ChatDecision,
   ChatTurn,
   ChatTurnEvent,
   SokoBotChatState,
@@ -12,41 +11,10 @@ export function isActiveTurn(turn: Pick<ChatTurn, "status">): boolean {
   return ACTIVE_SOKO_BOT_TURN_STATUSES.has(turn.status);
 }
 
-export function hasActiveTurn(state: SokoBotChatState): boolean {
-  return state.turns.some(isActiveTurn);
-}
-
-/** Decisions still waiting on the user, across the bot and its turns. */
-export function pendingDecisionCount(state: SokoBotChatState): number {
-  const ids = new Set<string>();
-  for (const decision of state.bot.pendingDecisions) {
-    if (decision.status === "PENDING") ids.add(decision.id);
-  }
-  for (const turn of state.turns) {
-    for (const decision of turn.decisions) {
-      if (decision.status === "PENDING") ids.add(decision.id);
-    }
-  }
-  return ids.size;
-}
-
 /** Turns oldest-first for the timeline; Core returns them newest-first. */
 export function orderedTurns(state: SokoBotChatState): ChatTurn[] {
   return [...state.turns].sort((a, b) =>
     a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0,
-  );
-}
-
-/**
- * Bot-level decisions that no rendered turn owns (turn paged out of the
- * recent window). Rendered as a standalone card so nothing pending is hidden.
- */
-export function orphanPendingDecisions(
-  state: SokoBotChatState,
-): ChatDecision[] {
-  const owned = new Set(state.turns.map((turn) => turn.id));
-  return state.bot.pendingDecisions.filter(
-    (decision) => decision.status === "PENDING" && !owned.has(decision.turnId),
   );
 }
 
