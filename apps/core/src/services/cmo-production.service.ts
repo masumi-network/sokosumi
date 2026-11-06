@@ -117,15 +117,26 @@ export function cmoProductionSteps(
   const done = (piece: CmoPiece) =>
     piece.status === "published" || piece.status === "skipped";
   const withPictures = pieces.filter(cmoPieceNeedsMedia);
+  // A picture counts for the first piece that uses it, as in cmoReadyPieceIds.
+  const used = new Set<string>();
+  let pictured = 0;
+  for (const piece of withPictures) {
+    const files = pieceFiles(piece);
+    if (done(piece)) {
+      pictured += 1;
+    } else if (
+      files.length >= Math.max(1, cmoPieceMinSlides(piece)) &&
+      !files.some((file) => used.has(file))
+    ) {
+      for (const file of files) used.add(file);
+      pictured += 1;
+    }
+  }
   return {
     written: pieces.filter(
       (piece) => done(piece) || piece.draft?.trim() || piece.fileId,
     ).length,
-    pictured: withPictures.filter(
-      (piece) =>
-        done(piece) ||
-        new Set(piece.media).size >= Math.max(1, cmoPieceMinSlides(piece)),
-    ).length,
+    pictured,
     needPictures: withPictures.length,
   };
 }

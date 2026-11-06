@@ -791,9 +791,9 @@ function ProductionCard({
           : production.state === "stuck"
             ? "A few pieces didn't finish. Cuso tries them again on his next round."
             : notStarted
-              ? "He starts within ten minutes: first every piece's words, then the pictures."
+              ? "He starts shortly: first every piece's words, then the pictures."
               : production.state === "starting"
-                ? `${productionSteps(production)}. He makes the rest within ten minutes.`
+                ? `${productionSteps(production)}. He makes the rest shortly.`
                 : `${productionSteps(production)}. First the words, then the pictures.`}
       </p>
       <button

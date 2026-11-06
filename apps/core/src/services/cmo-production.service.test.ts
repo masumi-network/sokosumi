@@ -287,7 +287,7 @@ describe("cmoProductionSteps", () => {
         piece({ id: "a", draft: "Words" }),
         piece({ ...image, id: "b", draft: "Words" }),
         piece({ ...image, id: "c", draft: "Words" }, ["drive/1.png"]),
-        piece({ ...image, id: "d" }),
+        piece({ ...image, id: "d" }, ["drive/1.png"]),
         piece({ id: "e", status: "published" }),
       ]),
     ).toEqual({ written: 4, pictured: 1, needPictures: 3 });
