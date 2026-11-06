@@ -98,17 +98,46 @@ export function buildThread(
     .map(({ item }) => item);
 }
 
+/** What Cuso is doing, in the order that decides it. */
+export type CusoState =
+  | "stopped"
+  | "learning"
+  | "needs-answers"
+  | "paused"
+  | "working"
+  | "planning"
+  | "waiting-approval"
+  | "waiting-channel"
+  | "running";
+
+/** Each state in a word, for the chat header and Cuso's status card. */
+const CUSO_STATE_LABEL: Record<CusoState, string> = {
+  stopped: "Stopped",
+  learning: "Learning",
+  "needs-answers": "Needs your answers",
+  paused: "Paused",
+  working: "Working",
+  planning: "Planning",
+  "waiting-approval": "Waiting for approval",
+  "waiting-channel": "Waiting for a channel",
+  running: "Running",
+};
+
+export function cusoState(overview: CmoOverview): CusoState {
+  if (overview.learning === "failed") return "stopped";
+  if (overview.learning === "running") return "learning";
+  if (!overview.brandBrain) return "needs-answers";
+  if (overview.billing.availableCredits <= 0 && strategyApproved(overview)) {
+    return "paused";
+  }
+  if (overview.botStatus === "RUNNING") return "working";
+  if (!overview.strategy) return "planning";
+  if (!strategyApproved(overview)) return "waiting-approval";
+  if (overview.channels.length === 0) return "waiting-channel";
+  return "running";
+}
+
 /** Cuso's state in a word, for the chat header. */
 export function cusoStatus(overview: CmoOverview): string {
-  if (overview.learning === "failed") return "Stopped";
-  if (overview.learning === "running") return "Learning";
-  if (!overview.brandBrain) return "Needs your answers";
-  if (overview.billing.availableCredits <= 0 && strategyApproved(overview)) {
-    return "Paused";
-  }
-  if (overview.botStatus === "RUNNING") return "Working";
-  if (!overview.strategy) return "Planning";
-  if (!strategyApproved(overview)) return "Waiting for approval";
-  if (overview.channels.length === 0) return "Waiting for a channel";
-  return "Running";
+  return CUSO_STATE_LABEL[cusoState(overview)];
 }

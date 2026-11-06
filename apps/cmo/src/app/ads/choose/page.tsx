@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { SubmitButton } from "../../../components/submit-button";
+import { AGENT_NAME } from "../../../lib/agent";
 import { chooseAdAccount, loadAdChoices } from "../../cmo-actions";
 
 interface ChoosePageProps {
@@ -33,7 +34,7 @@ export default async function ChooseAdAccountPage({
     <main className="ads-choose">
       <h1>Which ad account?</h1>
       <p className="muted">
-        Cuso's ads run in the one you pick. You can add another later.
+        {AGENT_NAME}'s ads run in the one you pick. You can add another later.
       </p>
       <ul className="list">
         {accounts.map((account) => (

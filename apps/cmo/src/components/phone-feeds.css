@@ -33,7 +33,7 @@
   width: 248px;
   height: 500px;
   overflow: hidden;
-  border: 8px solid var(--foreground);
+  border: 1px solid var(--line);
   border-radius: 40px;
   background: var(--background);
 }
@@ -224,7 +224,7 @@
   gap: 8px;
   margin-left: 12px;
   padding-left: 12px;
-  border-left: 2px solid var(--border);
+  border-left: 1px solid var(--line);
 }
 
 .mw-link {

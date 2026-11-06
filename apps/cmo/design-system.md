@@ -6,12 +6,12 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 - **Source:** the concept canvas https://claude.ai/artifact/9mWPtBgNY9HQ8wLXcadZk4 (boards Vibe, Site, Reading, Brand, Plan, Launch, Home, each with a dark version). Where a board and this file disagree, this file wins; Plan, Launch and Home on the canvas still use the earlier "Cuso Pop" radii, pills and 2px borders, which this file replaces.
 - **Family:** colours follow the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide). CMO is its own product: never Sokosumi chrome, names or wording.
 - **Tokens:** values live once, as CSS custom properties in `src/app/globals.css`. Components read tokens, never literals. `src/design-guards.test.ts` enforces the rules below; `src/components/phone-feeds.css` and `showcases.css` are exempt because they draw the networks' own UIs.
-- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. Composite components join it as the screens that use them are built.
+- **Preview:** `/design-system` (local and preview deploys) renders the tokens and components in both themes. The onboarding parts (step markers, checklist, question card, tile, side panel, assumption chip, goal block, stat row, avatar sizes) and the sidebar with Cuso's status card sit under Components; `/design-system/onboarding/<screen>` (hire, reading, writing, asking, brand, plan, planning, launch, launch-connected) and `/design-system/app/<view>` (chat, strategy, calendar, results, brain, channels, settings) render each real screen over fixture data (`?theme=dark` pins the theme).
 
 ## Five rules
 
-1. **Lines do the work.** A 1px ink line on what you act on (cards with actions, inputs, buttons). A hairline for structure (header rule, dividers, inactive markers).
-2. **One hard shadow.** 3px offset, no blur. Only the primary action and the one focused card on a screen carry it.
+1. **Lines do the work.** A 1px ink line on every card, input and full-size button. A hairline for small buttons and chips, and for structure inside a card: dividers, list rows, inner items.
+2. **The hard shadow means: look here.** 3px offset, no blur, on the primary action, the card in focus, and any card that needs the owner now. When the action is done the card goes flat.
 3. **Iris means now.** The current step and the next action. Never decoration, never text, never a thin mark. Text on Iris is always Neutral 950.
 4. **Bold speaks, Regular works.** One Inter ExtraBold H1 per screen. Light for big numbers and statements, Regular for UI, Medium for labels, SemiBold for section heads.
 5. **Three layers.** White page, gray panel, outlined white cards. A card sits on a panel, never straight on the page.
@@ -34,6 +34,7 @@ The visual system for app.cmo.xyz: **corporate neobrutalism** on the Masumi pale
 | `--ok`                 | done                            | `#00D43B`           | `#00D43B`           |
 | `--warn`               | needs an answer                 | `#FFD300`           | `#FFD300`           |
 | `--shadow-hard`        | the one hard shadow             | `3px 3px 0 #0C0C0C` | `3px 3px 0 #FAFAFA` |
+| `--shadow-iris`        | selected tile's hard shadow     | `3px 3px 0 Iris`    | `3px 3px 0 Iris`    |
 | `--stage`              | Cuso's avatar circle            | `#F5F5F5`           | `#F5F5F5`           |
 | `--scrim`              | behind a modal sheet only       | black at 30%        | black at 30%        |
 
@@ -69,7 +70,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Elevation and motion
 
-- Flat by default. The hard shadow is the only elevation; at most two per screen (the primary button and the focused card). The Site hero's tilted labels are the one exception.
+- Flat by default. The hard shadow is the only elevation. It marks the primary button, the card in focus (the question card, the open side panel or sheet, the Launch accounts list) and a card that needs the owner now (an approval waiting, a measurement or network not connected, questions left, unanswered plan checks); the card goes flat once the action is done, and a card with only optional buttons stays flat. The Site hero's tilted labels are the one exception.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves 3px right and down and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`.
@@ -93,7 +94,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Selection.** Tabs, radio cards (pace) and the open tile button use the ink inversion: ink fill, inverted text. Iris is never selection; it means now.
 
-**Card.** Card fill, ink line when it holds actions, hairline when it only shows, 10px radius. The focused card (the question card, the accounts list, Approvals) adds the hard shadow. A selected tile in a grid gets an Iris shadow instead.
+**Card.** Card fill, 1px ink line, 10px radius, flat. The focused card, or one that needs the owner now, adds the hard shadow (`.card-focus`); a selected tile in a grid gets an Iris shadow instead.
 
 **Tile.** Label (small 500, muted) with a small button right, value (value step), one line of detail (small), source (micro, muted, hairline above). Tap opens the side panel.
 
@@ -119,8 +120,9 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card.
-- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 15px 600). This is the one place labels tilt.
+- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
 - **Celebration:** the party image shows only after Launch is pressed.
+- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`), and play once they are half on screen. The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.
 
 ## Accessibility
