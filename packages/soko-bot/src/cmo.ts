@@ -9,6 +9,7 @@ import {
   brandBrainSchema,
   type CmoBrandSectionKey,
   cmoBrandProfileSchema,
+  cmoBrandQuestionSchema,
   cmoBrandRevealSchema,
   cmoMarketingTodaySchema,
   longText,
@@ -138,6 +139,15 @@ export function isCmoMeasurementSource(
 }
 
 /**
+ * Top-level questions on a Brand Brain save: at least one, so an empty list
+ * cannot wipe questions the owner already answered.
+ */
+export const cmoBrandQuestionsPatchSchema = z
+  .array(cmoBrandQuestionSchema)
+  .min(1)
+  .max(6);
+
+/**
  * Sections as they are finished, the essentials last: each save merges into
  * the stored Brand Brain, and the owner sees it once the essentials exist.
  * `reveal`, `marketingToday` and `questions` may follow alone: they add to
@@ -149,15 +159,15 @@ export const cmoSaveBrandBrainInputSchema = z
     sections: cmoBrandProfileSchema.optional(),
     reveal: cmoBrandRevealSchema.optional(),
     marketingToday: cmoMarketingTodaySchema.optional(),
-    questions: brandBrainSchema.shape.questions.unwrap().optional(),
+    questions: cmoBrandQuestionsPatchSchema.optional(),
   })
   .refine(
     (input) =>
-      input.brandBrain ||
-      input.sections ||
-      input.reveal ||
-      input.marketingToday ||
-      input.questions,
+      input.brandBrain !== undefined ||
+      input.sections !== undefined ||
+      input.reveal !== undefined ||
+      input.marketingToday !== undefined ||
+      input.questions !== undefined,
     {
       message:
         "Send at least one of brandBrain, sections, reveal, marketingToday or questions",

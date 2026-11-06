@@ -130,6 +130,13 @@ describe("CMO version", () => {
 });
 
 describe("cmoSaveBrandBrainInputSchema", () => {
+  const question = {
+    id: "q1",
+    question: "Do customers come from Google?",
+    statement: "Customers come from Google",
+    section: "marketing" as const,
+  };
+
   it("accepts reveal, marketingToday or questions on their own", () => {
     const reveal = { positioning: "Rockets", insights: [], buyers: [] };
     expect(cmoSaveBrandBrainInputSchema.safeParse({ reveal }).success).toBe(
@@ -141,8 +148,14 @@ describe("cmoSaveBrandBrainInputSchema", () => {
       }).success,
     ).toBe(true);
     expect(
-      cmoSaveBrandBrainInputSchema.safeParse({ questions: [] }).success,
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [question] }).success,
     ).toBe(true);
+  });
+
+  it("rejects an empty questions list so it cannot wipe stored ones", () => {
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [] }).success,
+    ).toBe(false);
   });
 
   it("rejects a save that sends nothing", () => {

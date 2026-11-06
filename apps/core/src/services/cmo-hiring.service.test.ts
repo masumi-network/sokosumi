@@ -226,6 +226,20 @@ describe("work", () => {
     expect(work?.sections).toEqual([]);
     expect(work?.sectionsSaved).toBe(0);
   });
+
+  it("falls back to the section answer when no headline was saved", async () => {
+    turnFindFirst.mockResolvedValue(turn);
+    const work = await cmoWork(
+      cuso({
+        profile: {
+          company: { answer: "Acme sells rockets." },
+        },
+      }),
+    );
+    expect(work?.sections).toEqual([
+      { key: "company", headline: "Acme sells rockets." },
+    ]);
+  });
 });
 
 describe("starting over", () => {

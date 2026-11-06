@@ -101,13 +101,14 @@ export async function saveBrandBrain(
     const before = parseBrandBrain(stored);
     const { reveal, marketingToday } = save;
     const base = save.brandBrain ?? before;
-    if (!base && (reveal || marketingToday || save.questions)) {
+    const patchingQuestions = save.questions !== undefined;
+    if (!base && (reveal || marketingToday || patchingQuestions)) {
       throw unprocessableEntity(
         "Save the essentials in brandBrain first; reveal, marketingToday and questions add to them.",
       );
     }
     const questions = withCorrections(
-      save.brandBrain || save.questions
+      save.brandBrain || patchingQuestions
         ? keepAnswers(
             save.questions ?? save.brandBrain?.questions ?? [],
             before?.questions ?? [],
@@ -116,12 +117,14 @@ export async function saveBrandBrain(
       before?.questions ?? [],
       rewrittenSections(stored.profile, profile),
     );
-    const essentials = base && {
-      ...base,
-      ...(reveal && { reveal }),
-      ...(marketingToday && { marketingToday }),
-      questions,
-    };
+    const essentials = base
+      ? {
+          ...base,
+          ...(reveal ? { reveal } : {}),
+          ...(marketingToday ? { marketingToday } : {}),
+          questions,
+        }
+      : null;
     const body = essentials ? { ...essentials, profile } : { profile };
     const updatedAt = essentials ? { updatedAt: new Date() } : {};
     return tx.brandBrain.upsert({
