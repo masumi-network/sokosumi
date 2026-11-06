@@ -240,6 +240,38 @@ function badRadius(line: string): boolean {
   );
 }
 
+/**
+ * Every stroke is 1px (design-system.md, rule 1). A border wider than that,
+ * anywhere, including the drawings of networks' UIs, breaks the system; focus
+ * rings are outlines, not borders, and stay 2px for keyboard users.
+ */
+const BORDER_WIDTH =
+  /(?<![\w-])border(?:-(?:top|right|bottom|left))?(?:-width)?\s*:[^;]*?\b(\d+(?:\.\d+)?)px/;
+
+function thickBorder(line: string): boolean {
+  if (/radius/.test(line)) return false;
+  const width = BORDER_WIDTH.exec(line)?.[1];
+  return width !== undefined && Number(width) > 1;
+}
+
+describe("strokes", () => {
+  it("draws every border 1px", () => {
+    const css = FILES.filter((file) => file.rel.endsWith(".css"));
+    expect(
+      findLines(css, BORDER_WIDTH).filter((hit) => thickBorder(hit)),
+    ).toEqual([]);
+  });
+
+  it("flags a thick border and passes 1px, 0 and radius", () => {
+    expect(thickBorder("  border: 2px solid var(--line);")).toBe(true);
+    expect(thickBorder("  border-top: 6px solid var(--surface);")).toBe(true);
+    expect(thickBorder("  border-left-width: 3px;")).toBe(true);
+    expect(thickBorder("  border: 1px solid var(--line);")).toBe(false);
+    expect(thickBorder("  border-radius: 14px;")).toBe(false);
+    expect(thickBorder("  border: 0;")).toBe(false);
+  });
+});
+
 describe("visual system", () => {
   it("allows one hard shadow and no blur", () => {
     expect(

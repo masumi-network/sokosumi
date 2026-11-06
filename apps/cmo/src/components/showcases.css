@@ -28,7 +28,7 @@
 
 .sx-profile .business-mark {
   margin-top: -26px;
-  border: 3px solid var(--background);
+  border: 1px solid var(--line);
   border-radius: 999px;
 }
 
@@ -88,7 +88,7 @@
 }
 
 .sl-post + .sl-post {
-  border-top: 6px solid var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .sl-head {
@@ -215,7 +215,7 @@
 
 .sn-mail {
   padding: 16px;
-  border-top: 4px solid var(--brand);
+  border-top: 1px solid var(--line);
 }
 
 .sn-from {

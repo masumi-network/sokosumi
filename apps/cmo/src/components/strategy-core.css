@@ -40,7 +40,7 @@
 }
 
 .sc-ladder li:nth-child(2) {
-  border-color: var(--foreground);
+  border-color: var(--line);
 }
 
 /* The funnel: stages narrow toward the sale */
