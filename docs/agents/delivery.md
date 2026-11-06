@@ -27,7 +27,7 @@ docs(readme): update setup instructions
 
 ### Branches
 
-- **Sokosumi Tasks**: When implementing a Task, the branch name MUST start with the Task identifier (lowercased), followed by a short kebab-case description. For example, for `SOKD-109` name the branch `sokd-109-xxx-xxx-xxx`. Prefer `task.identifier` from `sokosumi --preprod tasks get … --json` when available. See [issue tracker](./issue-tracker.md).
+- **Sokosumi Tasks**: When implementing a Task, the branch name MUST start with the Task identifier (lowercased), followed by a short kebab-case description. For example, for `SOKD-109` name the branch `sokd-109-xxx-xxx-xxx`. Prefer `task.identifier` from `sokosumi --api-url https://api.sokosumi.com tasks get … --json` (mainnet — this repo's tracker) when available. See [issue tracker](./issue-tracker.md).
 - **One branch per PR.** Start every new PR on a branch name no earlier PR used. Preview `DATABASE_URL*` env vars are scoped to the git branch and owned by one PR (`scripts/ci/preview-resources.ts`), so a reused branch fails `/deploy` with "owned by another workflow" until the old PR's preview is cleaned up. Never push a branch under `preview-fork/`: the preview workflow owns it and force-moves `preview-fork/pr-<number>` to a fork PR's approved head SHA.
 
 ### Pull Requests
