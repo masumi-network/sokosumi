@@ -49,7 +49,8 @@ function MonthProduction({
           </span>
         </div>
         <span className="utitle">
-          {production.state === "running"
+          {production.state === "running" ||
+          (production.state === "starting" && production.written > 0)
             ? productionSteps(production)
             : production.state === "starting"
               ? "Starting on every post, picture and ad for the month"

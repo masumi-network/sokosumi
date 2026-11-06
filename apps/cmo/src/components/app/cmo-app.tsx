@@ -752,6 +752,10 @@ function ProductionCard({
 }) {
   const ready = production.state === "ready";
   const share = productionShare(production);
+  // Between two runs the month is partly made: only a month with no words
+  // yet is about to start.
+  const notStarted =
+    production.state === "starting" && production.written === 0;
   return (
     <div className="production">
       <p className="production-head">
@@ -763,7 +767,7 @@ function ProductionCard({
             ? "Your month is ready"
             : production.state === "stuck"
               ? "Most of your month is ready"
-              : production.state === "starting"
+              : notStarted
                 ? "Cuso is about to make your month"
                 : "Cuso is making your month"}
         </b>
@@ -786,9 +790,11 @@ function ProductionCard({
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
             ? "A few pieces didn't finish. Cuso tries them again on his next round."
-            : production.state === "starting"
+            : notStarted
               ? "He starts within ten minutes: first every piece's words, then the pictures."
-              : `${productionSteps(production)}. First the words, then the pictures.`}
+              : production.state === "starting"
+                ? `${productionSteps(production)}. He makes the rest within ten minutes.`
+                : `${productionSteps(production)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"
