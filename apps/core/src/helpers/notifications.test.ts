@@ -15,6 +15,7 @@ import {
   deletePendingVendorGrantNotifications,
   publishClearedNotifications,
   publishNotificationRow,
+  resolveDelivery,
 } from "./notifications";
 
 const {
@@ -404,6 +405,58 @@ describe("createNotification push gating", () => {
       metadata: JSON.stringify(chatInput.metadata),
     });
   }
+
+  it.each([false, true])(
+    "keeps enabled direct channels missing from mention delivery (mention toast: %s)",
+    async (mentionToast) => {
+      mockReader({
+        preferences: [
+          {
+            category: "CHAT_MENTION",
+            channel: "IN_APP",
+            enabled: mentionToast,
+          },
+          { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+          { category: "CHAT_MENTION", channel: "EMAIL", enabled: false },
+          { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
+          {
+            category: "CHAT_DIRECT_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: true,
+          },
+          { category: "CHAT_DIRECT_MESSAGE", channel: "EMAIL", enabled: true },
+        ],
+      });
+      expect(
+        await resolveDelivery({
+          ...chatInput,
+          messageKey: "Notifications.Chat.directMessage",
+          suppressMentionDelivery: true,
+        }),
+      ).toEqual({ inApp: !mentionToast, osBanner: true, email: true });
+    },
+  );
+
+  it("does not duplicate direct channels already delivered by a mention", async () => {
+    mockReader({
+      preferences: [
+        ...["CHAT_MENTION", "CHAT_DIRECT_MESSAGE"].flatMap((category) =>
+          ["IN_APP", "OS_BANNER", "EMAIL"].map((channel) => ({
+            category,
+            channel,
+            enabled: true,
+          })),
+        ),
+      ],
+    });
+    expect(
+      await resolveDelivery({
+        ...chatInput,
+        messageKey: "Notifications.Chat.directMessage",
+        suppressMentionDelivery: true,
+      }),
+    ).toEqual({ inApp: false, osBanner: false, email: false });
+  });
 
   it("queues push for a chat notification when the user opted in", async () => {
     const prismaMock = createPrismaMock();
@@ -1090,12 +1143,14 @@ describe("chat room arrival count", () => {
     notificationFindManyMock.mockResolvedValue([
       {
         id: "counted_row",
+        eventId: "first-message",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ roomName: "General", count: 4 }),
       },
       {
         id: "uncounted_row",
+        eventId: "another-message",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ authorName: "Alice" }),
@@ -1121,6 +1176,7 @@ describe("chat room arrival count", () => {
       select: {
         id: true,
         messageKey: true,
+        eventId: true,
         messageParams: true,
         inApp: true,
         metadata: true,
@@ -1138,6 +1194,7 @@ describe("chat room arrival count", () => {
     async (messageKey, inApp) => {
       const source = chatRecord({
         id: "source_message",
+        eventId: "source_message",
         messageKey: "Notifications.Chat.directMessage",
       });
       const reminder = chatRecord({
@@ -1148,6 +1205,7 @@ describe("chat room arrival count", () => {
       });
       const nextMessage = chatRecord({
         id: "next_message",
+        eventId: "next_message",
         messageKey: "Notifications.Chat.directMessage",
       });
       notificationFindManyMock.mockResolvedValue([
@@ -1222,12 +1280,14 @@ describe("chat room arrival count", () => {
     notificationFindManyMock.mockResolvedValue([
       {
         id: "notification_1",
+        eventId: "message_1",
         inApp: true,
         metadata: null,
         messageParams: "not json",
       },
       {
         id: "notification_2",
+        eventId: "message_2",
         inApp: true,
         metadata: null,
         messageParams: JSON.stringify({ count: "many" }),
@@ -1235,6 +1295,27 @@ describe("chat room arrival count", () => {
     ]);
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
+
+    expect(publishedGroupCount()).toBe(2);
+  });
+
+  // Two: the shared message once across its three rows, and the room row's
+  // other counted message.
+  it("counts one arrival when retries leave Direct, room, and mention rows for one message", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      chatRecord({ messageKey: "Notifications.Chat.directMessage" }),
+      chatRecord({
+        messageKey: "Notifications.Chat.roomMessage",
+        messageParams: JSON.stringify({ count: 2 }),
+      }),
+      chatRecord({ messageKey: "Notifications.Chat.mentioned" }),
+    ]);
 
     await publishNotificationRow(chatRecord(), {
       inApp: true,

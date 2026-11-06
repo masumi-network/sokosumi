@@ -196,7 +196,7 @@ describe("getAblyRealtimeClient", () => {
     const authResult = await invokeAuthCallback();
 
     expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/ably/auth?clientInstanceId=inst_test01",
+      "/api/ably/auth?clientInstanceId=inst_test01&roomIds=",
       expect.objectContaining({
         method: "POST",
         credentials: "include",

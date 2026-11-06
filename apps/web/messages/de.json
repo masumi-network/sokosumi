@@ -3369,9 +3369,9 @@
               "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
               "pendingConfirmation": "Warten auf Bestätigung"
             },
-            "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
+            "invalidHint": "Diese Zeilen brauchen eine gültige E-Mail-Adresse. Korrigiere sie und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 Zeilen gemeldet.",
             "invalidRow": "Zeile {row}: {value}",
-            "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
+            "blankEmail": "keine E-Mail-Adresse"
           },
           "dismiss": "Schließen",
           "fromContacts": "Aus Kontakten hinzufügen",
@@ -3714,7 +3714,7 @@
           "lastDays": "Letzte {days} Tage",
           "presetDays": "{days} Tage",
           "clearRange": "Zeitraum löschen",
-          "periodNoteAria": "Informationen zu Statistikzeiträumen",
+          "notesAria": "Informationen zu diesen Zahlen",
           "invalidRange": "Wähle einen gültigen Zeitraum von 1 bis 366 Tagen oder lösche den Zeitraum.",
           "periodNote": "Alle Daten gelten in UTC. Versand und Ereignisse zählen zum jeweiligen Zeitpunkt, auch Interaktionen mit älteren Ausgaben. Die Abonnentenzahl zeigt den aktuellen Stand.",
           "ratesNote": "Öffnungs- und Klickraten beziehen sich auf zugestellte E-Mails, bei fehlenden Zustellungen auf gesendete E-Mails. Öffnungen und Klicks zählen jeden Abonnenten einmal pro Zeitraum oder Ausgabe. Verzögerte Ereignisse können zu Raten über 100 % führen.",
@@ -3756,10 +3756,10 @@
           }
         },
         "generalDescription": "Von wem der Newsletter kommt und wohin Antworten gehen.",
-        "brandDescription": "Logo, Farben, Schrift und Layout für Newsletter-Ausgaben und Anmeldeformulare.",
+        "brandDescription": "Gilt für Newsletter-Ausgaben und Anmeldeformulare.",
         "welcomeCardDescription": "Eine optionale erste E-Mail an neue Abonnenten.",
         "unsavedChanges": "Du hast ungespeicherte Änderungen.",
-        "colorPlaceholder": "Keine Farbe",
+        "colorPlaceholder": "Standard",
         "presetColors": "Vorgegebene Farben",
         "clearColor": {
           "primaryColor": "Primärfarbe entfernen",
@@ -3768,7 +3768,7 @@
           "buttonTextColor": "Button-Textfarbe entfernen"
         },
         "Logo": {
-          "description": "Lade ein Bild bis {maxSize} hoch. Speichere die Einstellungen, um es in deinen Ausgaben zu verwenden.",
+          "description": "Bis zu {maxSize}",
           "upload": "Hochladen",
           "replace": "Ersetzen",
           "remove": "Logo entfernen",
@@ -3974,10 +3974,10 @@
           }
         },
         "colorHints": {
-          "primaryColor": "Überschriften und Text. Leer lassen für den Standard.",
-          "accentColor": "Button-Füllung. Leer lassen für den Standard.",
-          "backgroundColor": "Hinter der E-Mail-Karte. Leer lassen für Hellgrau.",
-          "buttonTextColor": "Button-Beschriftung. Sie muss auf der Akzentfarbe gut lesbar sein."
+          "primaryColor": "Überschriften und Text",
+          "accentColor": "Button-Füllung",
+          "backgroundColor": "Hinter der E-Mail-Karte",
+          "buttonTextColor": "Button-Beschriftung"
         },
         "Image": {
           "upload": "Bild hochladen",
@@ -3988,7 +3988,7 @@
           "fileTooLarge": "Die Datei ist zu groß",
           "fileTypeNotAccepted": "Verwende ein PNG-, JPEG-, WebP- oder GIF-Bild",
           "maxFilesExceeded": "Lade jeweils nur ein Bild hoch",
-          "headerDescription": "Ein Banner über deinem Logo, bis zu {maxSize}. Breite Bilder wirken am besten."
+          "headerDescription": "Breites Banner, bis zu {maxSize}"
         },
         "Design": {
           "title": "Newsletter-Design",

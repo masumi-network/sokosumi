@@ -22,7 +22,7 @@ const {
   memberFindUniqueMock,
   memberFindManyMock,
   queryRawUnsafeMock,
-  notificationGroupByMock,
+  notificationFindManyMock,
   pinGroupByMock,
   membershipFindManyMock,
   readStateFindManyMock,
@@ -33,7 +33,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
-  notificationGroupByMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
   pinGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
@@ -53,10 +53,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: memberFindManyMock,
     },
     notification: {
-      groupBy: notificationGroupByMock,
       // No Thread-reply rows: the badge count is the grouped count as is.
-      findMany: vi.fn().mockResolvedValue([]),
+      // The count now reads individual rows; their messages are not replies.
+      findMany: notificationFindManyMock,
     },
+    chatRoomMessage: { findMany: vi.fn().mockResolvedValue([]) },
     chatRoomPinnedMessage: {
       groupBy: pinGroupByMock,
     },
@@ -181,8 +182,8 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   memberFindManyMock.mockResolvedValue([]);
   mockUnreadCounts([{ roomId: ROOM_ID, source: "channel", unreadCount: 2 }]);
-  notificationGroupByMock.mockResolvedValue([
-    { referenceId: ROOM_ID, _count: { _all: 1 } },
+  notificationFindManyMock.mockResolvedValue([
+    { id: "notification_1", referenceId: ROOM_ID, eventId: "message_1" },
   ]);
   pinGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
@@ -201,7 +202,7 @@ describe("GET /chats/rooms/{id}", () => {
     expect(memberFindUniqueMock).toHaveBeenCalledOnce();
     // The unread count, and the needs-you count beside it; no Threads read.
     expect(queryRawUnsafeMock).toHaveBeenCalledTimes(2);
-    expect(notificationGroupByMock).toHaveBeenCalledOnce();
+    expect(notificationFindManyMock).toHaveBeenCalledTimes(2);
     expect(membershipFindManyMock).toHaveBeenCalledOnce();
     expect(readStateFindManyMock).toHaveBeenCalledOnce();
 

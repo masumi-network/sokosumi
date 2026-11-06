@@ -6,7 +6,11 @@ import Ably from "ably";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { rememberPushRenewal, revokePushRenewal } from "./push-renewal.client";
+import {
+  rememberPushRenewal,
+  revokePushRenewal,
+  revokePushRenewalForUser,
+} from "./push-renewal.client";
 
 const { getDevice, getWorker, getVersion } = vi.hoisted(() => ({
   getDevice: vi.fn(),
@@ -215,6 +219,14 @@ describe("worker renewal consent", () => {
     expect(subscription.unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
       unregister.mock.invocationCallOrder[0],
     );
+  });
+  it("leaves account-bound browser cleanup to its owner-checked queue if storage fails", async () => {
+    failStorage();
+    await expect(revokePushRenewalForUser("previous-reader")).resolves.toBe(
+      false,
+    );
+    expect(unregister).not.toHaveBeenCalled();
+    expect(subscription.unsubscribe).not.toHaveBeenCalled();
   });
   it("unregisters even when the unsubscribe fails", async () => {
     failStorage();

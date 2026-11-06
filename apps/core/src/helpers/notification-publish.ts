@@ -11,6 +11,7 @@ import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
 } from "@/helpers/calendar-membership-fence";
+import { withoutLostMessage } from "@/helpers/notification-chat-email-source";
 import {
   resolveNotificationDelivery,
   toNotificationCategory,
@@ -272,14 +273,9 @@ export async function dispatchNotificationPublish(
       delivery.osBanner = false;
     }
     if (chatDelivery === "room") {
-      const {
-        authorName: _author,
-        messagePreview: _preview,
-        ...roomParams
-      } = params;
-      const { messageId: _message, ...roomMetadata } = metadata ?? {};
-      latest.messageParams = JSON.stringify(roomParams);
-      latest.metadata = JSON.stringify(roomMetadata);
+      const room = withoutLostMessage(params, metadata);
+      latest.messageParams = JSON.stringify(room.messageParams);
+      latest.metadata = JSON.stringify(room.metadata);
     }
     const published = await publishNotificationRow(
       { ...latest, inApp: delivery.inApp },

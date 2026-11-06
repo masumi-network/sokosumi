@@ -50,6 +50,10 @@ const CHOICES = {
   buttonShape: ["square", "rounded", "pill"],
 } as const;
 
+/** Full touch height on mobile, slightly denser from `md` up. */
+const SELECT_TRIGGER_CLASS =
+  "w-full data-[size=default]:h-11 md:data-[size=default]:h-9";
+
 type DesignFieldValues = Pick<
   NewsletterSettingsValues,
   | "logoUrl"
@@ -119,10 +123,10 @@ export function NewsletterDesignFields({
     form.setValue(name, url, { shouldDirty: true, shouldValidate: true });
 
   return (
-    <div className="@container min-w-0 space-y-6">
-      <section className="space-y-4">
+    <div className="@container min-w-0 space-y-5">
+      <section className="space-y-3">
         <GroupLabel>{t("Design.header")}</GroupLabel>
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid gap-3 @lg:grid-cols-2">
           {(["logoUrl", "headerImageUrl"] as const).map((name) => (
             <FormField
               key={name}
@@ -162,9 +166,9 @@ export function NewsletterDesignFields({
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         <GroupLabel>{t("Design.colors")}</GroupLabel>
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid gap-3 @lg:grid-cols-2">
           {COLORS.map((name) => (
             <FormField
               key={name}
@@ -183,7 +187,7 @@ export function NewsletterDesignFields({
                         disabled={disabled}
                         placeholder={t("colorPlaceholder")}
                         presetsLabel={t("presetColors")}
-                        className="min-w-0 flex-1"
+                        className="min-w-0 flex-1 [&_button]:h-11 md:[&_button]:h-9"
                       />
                     </FormControl>
                     {field.value ? (
@@ -191,6 +195,7 @@ export function NewsletterDesignFields({
                         type="button"
                         variant="ghost"
                         size="icon"
+                        className="size-11 md:size-9"
                         aria-label={t(`clearColor.${name}`)}
                         onClick={() =>
                           form.setValue(name, "", {
@@ -203,7 +208,9 @@ export function NewsletterDesignFields({
                       </Button>
                     ) : null}
                   </div>
-                  <FormDescription>{t(`colorHints.${name}`)}</FormDescription>
+                  <FormDescription className="text-xs">
+                    {t(`colorHints.${name}`)}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -212,9 +219,9 @@ export function NewsletterDesignFields({
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         <GroupLabel>{t("Design.layout")}</GroupLabel>
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid gap-3 @lg:grid-cols-2">
           <FormField
             control={form.control}
             name="fontFamily"
@@ -231,7 +238,7 @@ export function NewsletterDesignFields({
                     <SelectTrigger
                       ref={field.ref}
                       onBlur={field.onBlur}
-                      className="w-full"
+                      className={SELECT_TRIGGER_CLASS}
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -271,7 +278,7 @@ export function NewsletterDesignFields({
                       <SelectTrigger
                         ref={field.ref}
                         onBlur={field.onBlur}
-                        className="w-full"
+                        className={SELECT_TRIGGER_CLASS}
                       >
                         <SelectValue />
                       </SelectTrigger>
@@ -292,7 +299,7 @@ export function NewsletterDesignFields({
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         <GroupLabel>{t("Design.footer")}</GroupLabel>
         <FormField
           control={form.control}

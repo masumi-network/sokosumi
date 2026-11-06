@@ -134,14 +134,14 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
   vi.hoisted(() => ({
     persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
   }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
@@ -977,11 +977,21 @@ describe("dispatchChatRoomMention claim", () => {
       expect.anything(),
       { messageId: "reply_1", roomId: "room_1", content: "Hello back" },
     );
-    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
       messageId: "reply_1",
       mentionedUserIds: ["user_alice"],
     });
     expect(publishRealtimeMock).toHaveBeenCalledWith("msg_1", "mention_status");
+  });
+
+  it("notifies the room when a dispatched reply names nobody", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    await dispatchChatRoomMention(MENTION_ID);
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith({
+      messageId: "reply_1",
+      mentionedUserIds: [],
+    });
   });
 
   it("notifies nobody of a mention when the reply names no member", async () => {
@@ -991,7 +1001,9 @@ describe("dispatchChatRoomMention claim", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionedUserIds: [] }),
+    );
   });
 
   it("keeps a failed Thought shell when mention dispatch fails after stream", async () => {

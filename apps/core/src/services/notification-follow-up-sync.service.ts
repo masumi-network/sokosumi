@@ -13,7 +13,11 @@ import {
 import { buildFollowUpEmail } from "@/helpers/notification-follow-up-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
-import { createNotification, resolveDelivery } from "@/helpers/notifications";
+import {
+  createNotification,
+  publishClearedNotifications,
+  resolveDelivery,
+} from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
 /** How long a notification waits on the reader before it is said again. */
@@ -91,7 +95,10 @@ export interface SendFollowUpsResult {
    */
   examined: number;
   /**
-   * Follow-ups this run actually wrote.
+   * Follow-ups this run wrote and left standing. A reminder written for a
+   * message that was deleted before its email left is taken back, and is
+   * not counted here once its row is gone; one whose release failed, read
+   * or not, still stands and is counted.
    *
    * Lower than `examined` without anything being wrong, and by more than one
    * cause. Several rows about the same room or task on one day share one
@@ -314,7 +321,8 @@ function toFollowUpInput(
  * Hand a batch of reminder emails to Resend.
  *
  * Empties what it is given, so a caller can flush repeatedly through a run
- * without tracking what already went. Returns how many Resend accepted.
+ * without tracking what already went. Returns how many Resend accepted, and
+ * how many written reminders it took back because their source was gone.
  *
  * Chunked here rather than handed over whole, even though `sendEmails` chunks
  * again inside. It throws on the first chunk Resend refuses and says nothing
@@ -331,6 +339,7 @@ function toFollowUpInput(
 interface PendingFollowUpEmail {
   notificationId: string;
   email: SendEmailInput;
+  chatMessage?: { id: string; roomId: string };
 }
 
 /**
@@ -360,18 +369,44 @@ async function recordFollowUpEmails(
 
 async function flushFollowUpEmails(
   pending: PendingFollowUpEmail[],
-): Promise<number> {
+): Promise<{ accepted: number; dropped: number }> {
   if (pending.length === 0) {
-    return 0;
+    return { accepted: 0, dropped: 0 };
   }
 
   const batch = pending.splice(0, pending.length);
   let accepted = 0;
+  let dropped = 0;
 
   for (let offset = 0; offset < batch.length; offset += RESEND_BATCH_MAX_SIZE) {
-    const chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+    let chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+    let droppedIds: string[] = [];
 
     try {
+      const chatMessages = chunk.flatMap((item) =>
+        item.chatMessage ? [item.chatMessage] : [],
+      );
+      if (chatMessages.length > 0) {
+        // A source can disappear while this page is being prepared.
+        const liveMessages = await prisma.chatRoomMessage.findMany({
+          where: { deletedAt: null, OR: chatMessages },
+          select: { id: true, roomId: true },
+        });
+        const liveRooms = new Map(
+          liveMessages.map((message) => [message.id, message.roomId]),
+        );
+        const droppedItems = chunk.filter(
+          (item) =>
+            item.chatMessage &&
+            liveRooms.get(item.chatMessage.id) !== item.chatMessage.roomId,
+        );
+        if (droppedItems.length > 0) {
+          droppedIds = droppedItems.map((item) => item.notificationId);
+          const droppedSet = new Set(droppedIds);
+          chunk = chunk.filter((item) => !droppedSet.has(item.notificationId));
+        }
+      }
+      if (chunk.length === 0) continue;
       const ids = await sendEmails(chunk.map((item) => item.email));
 
       await recordFollowUpEmails(chunk, ids);
@@ -384,10 +419,37 @@ async function flushFollowUpEmails(
           notificationType: "notification-follow-up-email",
         },
       });
+    } finally {
+      if (droppedIds.length > 0) {
+        // Published to every tab that may hold the reminder before the row
+        // goes; a failed publish is reported and the delete still runs.
+        try {
+          // Read first: the publish sends the row as it stands, and an
+          // unread row would reach the tabs as one more reminder.
+          await prisma.notification.updateMany({
+            where: { id: { in: droppedIds }, emailId: null },
+            data: { isRead: true, readAt: new Date() },
+          });
+          await publishClearedNotifications(droppedIds);
+          await prisma.notification.deleteMany({
+            where: { id: { in: droppedIds }, emailId: null },
+          });
+          // Counted once the row is gone: a release that fails leaves the
+          // reminder standing, and a standing reminder was sent.
+          dropped += droppedIds.length;
+        } catch (error) {
+          Sentry.captureException(error, {
+            extra: {
+              batchSize: droppedIds.length,
+              notificationType: "notification-follow-up-email-release",
+            },
+          });
+        }
+      }
     }
   }
 
-  return accepted;
+  return { accepted, dropped };
 }
 
 /**
@@ -556,7 +618,14 @@ export async function sendFollowUps(
         // reminder reaches nobody and would still be there to explain later.
         // The one exception is a reader who kept the email: that row is what
         // makes the email the only one, so it is worth storing unseen.
-        const delivery = await resolveDelivery(input);
+        const resolvedDelivery = await resolveDelivery(input);
+        // An unverifiable email must not claim an email-only daily reminder.
+        const delivery =
+          input.kind === NotificationKind.CHAT &&
+          typeof messageId !== "string" &&
+          resolvedDelivery.email
+            ? { ...resolvedDelivery, email: false }
+            : resolvedDelivery;
 
         // Asked again. The read above is itself an await, so it can be the
         // thing that crosses the deadline, and the check at the top of the
@@ -627,7 +696,14 @@ export async function sendFollowUps(
         });
 
         if (email) {
-          pendingEmails.push({ notificationId: notification.id, email });
+          pendingEmails.push({
+            notificationId: notification.id,
+            email,
+            ...(input.kind === NotificationKind.CHAT &&
+            typeof messageId === "string"
+              ? { chatMessage: { id: messageId, roomId: input.referenceId } }
+              : {}),
+          });
         }
       } catch (error) {
         Sentry.captureException(error, {
@@ -642,7 +718,10 @@ export async function sendFollowUps(
     // Per page rather than once at the end, so a run the deadline cuts short
     // still sends what it has already written reminders for. The rows in the
     // page are done with either way: the notifications are committed.
-    emailed += await flushFollowUpEmails(pendingEmails);
+    const flushed = await flushFollowUpEmails(pendingEmails);
+    emailed += flushed.accepted;
+    // Written and then taken back: not reminders this run sent.
+    sent -= flushed.dropped;
 
     const last = page.at(-1);
 

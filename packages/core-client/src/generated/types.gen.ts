@@ -84570,6 +84570,10 @@ export type PostRealtimeAblyTokenData = {
     path?: never;
     query?: {
         clientInstanceId?: string;
+        /**
+         * Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to 50 distinct comma-separated room UUIDs. Only current memberships receive grants.
+         */
+        roomIds?: string;
     };
     url: '/realtime/ably-token';
 };
@@ -84609,6 +84613,21 @@ export type PostRealtimeAblyTokenErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

@@ -63,7 +63,7 @@ const {
         findMany: vi.fn().mockResolvedValue([]),
       },
       notification: {
-        groupBy: vi.fn().mockResolvedValue([]),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       chatRoomPinnedMessage: {
         groupBy: vi.fn().mockResolvedValue([]),
