@@ -1,5 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import { BRAND_SECTIONS, type BrandSectionKey } from "../lib/brand-sections";
 import { cmoOverview, cmoStrategy } from "./cmo";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
@@ -82,6 +83,21 @@ export const strategy: Strategy = {
   changes: ["X now once a week"],
 };
 
+const HEADLINES: Partial<Record<BrandSectionKey, string>> = {
+  company: "Rockets for founders, since 2019",
+  offer: "Rocket Pro, for teams",
+  problems: "Launches take months, not days",
+};
+
+/** The first `count` sections in profile order, as Core reports them saved. */
+export const savedSections = (count: number) =>
+  (Object.keys(BRAND_SECTIONS) as BrandSectionKey[])
+    .slice(0, count)
+    .map((key) => ({
+      key,
+      headline: HEADLINES[key] ?? `What Acme found on ${key}`,
+    }));
+
 /** Cuso at work: one step done, seven of sixteen sections saved. */
 export const work = (
   kind: "research" | "strategy",
@@ -100,6 +116,7 @@ export const work = (
       at: new Date("2026-10-05T09:00:05Z"),
     },
   ],
+  sections: savedSections(patch.sectionsSaved ?? 7),
   sectionsSaved: 7,
   sectionsTotal: 16,
   ...patch,
