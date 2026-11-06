@@ -188,7 +188,7 @@ export function SiteStep({
                   ))}
               </ul>
             ) : composing !== null ? (
-              <p className="ob-muted">All {composing} sections are in.</p>
+              <p className="muted">All {composing} sections are in.</p>
             ) : found ? (
               <div className="ob-skeletons">
                 {Array.from(
