@@ -124,6 +124,48 @@ describe("public newsletter unsubscribe", () => {
     });
   });
 
+  it("cancels a re-subscribe link still in the inbox", async () => {
+    const consentAt = new Date("2026-10-20T00:00:00Z");
+    m.findUnique.mockResolvedValue({
+      ...NEWSLETTER_SUBSCRIBER,
+      status: "UNSUBSCRIBED",
+      consentAt,
+      unsubscribedAt: new Date("2026-10-01T00:00:00Z"),
+      newsletter: NEWSLETTER,
+    });
+    expect((await app().request(URL, { method: "POST" })).status).toBe(200);
+    expect(m.updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        id: NEWSLETTER_SUBSCRIBER_ID,
+        newsletterId: NEWSLETTER_ID,
+        status: "UNSUBSCRIBED",
+        consentAt,
+      },
+      data: { status: "UNSUBSCRIBED", unsubscribedAt: expect.any(Date) },
+    });
+  });
+
+  it("leaves an earlier opt-out untouched when no re-subscribe is waiting", async () => {
+    m.findUnique.mockResolvedValue({
+      ...NEWSLETTER_SUBSCRIBER,
+      status: "UNSUBSCRIBED",
+      consentAt: new Date("2026-09-01T00:00:00Z"),
+      unsubscribedAt: new Date("2026-10-01T00:00:00Z"),
+      newsletter: NEWSLETTER,
+    });
+    m.updateMany.mockReset().mockResolvedValue({ count: 0 });
+    expect((await app().request(URL, { method: "POST" })).status).toBe(200);
+    expect(m.updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        id: NEWSLETTER_SUBSCRIBER_ID,
+        newsletterId: NEWSLETTER_ID,
+        status: { not: "UNSUBSCRIBED" },
+      },
+      data: { status: "UNSUBSCRIBED", unsubscribedAt: expect.any(Date) },
+    });
+    expect(m.eventCreate).not.toHaveBeenCalled();
+  });
+
   it("accepts the plain confirmation form POST without a body", async () => {
     expect((await app().request(URL, { method: "POST" })).status).toBe(200);
     expect(m.eventCreate).toHaveBeenCalledOnce();

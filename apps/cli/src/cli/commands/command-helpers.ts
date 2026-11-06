@@ -77,7 +77,6 @@ export function parseInteger(
   return parsed;
 }
 
-/** Case-insensitive enum check; returns the matching allowed spelling. */
 export function validateChoice(
   value: CommandOption,
   allowed: readonly string[],

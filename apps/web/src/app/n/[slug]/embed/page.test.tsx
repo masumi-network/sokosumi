@@ -36,14 +36,17 @@ beforeEach(() => {
 });
 
 describe("newsletter signup embed", () => {
-  it("renders the shared form with the newsletter name and compact chrome", async () => {
+  it("renders the shared form under the same heading as the hosted page, with no brand bar", async () => {
     const { container } = render(
       <NextIntlClientProvider locale="en" messages={en}>
         {await EmbedPage(PROPS)}
       </NextIntlClientProvider>,
     );
     expect(
-      screen.getByRole("heading", { level: 1, name: PUBLIC_NEWSLETTER.name }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Subscribe to Project news",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Email address")).toBeInTheDocument();
     expect(screen.getByLabelText("Name (optional)")).toBeInTheDocument();

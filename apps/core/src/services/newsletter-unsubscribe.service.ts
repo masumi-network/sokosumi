@@ -2,6 +2,7 @@ import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { verifyNewsletterUnsubscribeToken } from "@/lib/newsletter/unsubscribe-token";
+import { hasResubscribeRequest } from "@/services/newsletter-signup.service";
 
 export async function getNewsletterUnsubscribeSubscriber(token: string) {
   const { subscriberId, newsletterId } = verifyNewsletterUnsubscribeToken(
@@ -24,7 +25,10 @@ export async function unsubscribeNewsletterSubscriber(token: string) {
       where: {
         id: subscriber.id,
         newsletterId: subscriber.newsletterId,
-        status: { not: "UNSUBSCRIBED" },
+        // A fresh opt-out also cancels a re-subscribe link still in the inbox.
+        ...(hasResubscribeRequest(subscriber)
+          ? { status: "UNSUBSCRIBED", consentAt: subscriber.consentAt }
+          : { status: { not: "UNSUBSCRIBED" } }),
       },
       data: { status: "UNSUBSCRIBED", unsubscribedAt: now },
     });
