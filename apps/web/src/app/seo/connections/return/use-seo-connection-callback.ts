@@ -74,19 +74,31 @@ export function useSeoConnectionCallback(
         sessionUri: null,
         errorMessage: null,
       };
+      let published = false;
       try {
         const channel = new BroadcastChannel(
           getComposioOAuthBroadcastChannelName(context.nonce),
         );
         channel.postMessage(payload);
+        published = true;
         channel.close();
       } catch {
         // An ordinary tab keeps the completed native page and its Audit link.
       }
       try {
-        window.opener?.postMessage(payload, window.location.origin);
+        if (window.opener) {
+          window.opener.postMessage(payload, window.location.origin);
+          published = true;
+        }
       } catch {
         // OAuth may isolate the opener. Same-origin BroadcastChannel remains independent.
+      }
+      if (published) {
+        try {
+          window.close();
+        } catch {
+          // The completed page and Audit link remain when the browser refuses closure.
+        }
       }
     } catch (error) {
       if (alive.current)
