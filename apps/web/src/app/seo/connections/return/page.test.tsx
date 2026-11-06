@@ -96,7 +96,9 @@ describe("native SEO callback recovery", () => {
       "temporarily unavailable",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Retry verification" }),
+      screen.getByRole("button", {
+        name: "Retry Google Analytics verification",
+      }),
     );
     expect(await screen.findByText(/Your account is connected/)).toBeVisible();
     expect(network.finalize).toHaveBeenCalledTimes(2);

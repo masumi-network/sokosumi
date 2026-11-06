@@ -38,7 +38,7 @@ export function SeoConnectionCallback({
               void model.complete();
             }}
           >
-            {t("resume")}
+            {t("resume", { provider })}
           </Button>
         ) : null}
         <Button variant="outline" asChild>

@@ -114,6 +114,10 @@ VERIFIED: The combined root Web rerun reported `145 passed (145)` across seven f
 
 VERIFIED: The actual built callback document passed four VM cases. A preserved-name native handoff returned to its saved SEO origin and context. Foreign, future-dated and production insecure-local returns kept the protected fallback. Evidence: `/private/tmp/seo-managed-return-actual-next-bundle-proof.json`, callback script SHA256 `3c70738c4ef94a85973a104a01eef71a0a34b4a48e3f1c45394600286fc8158e`.
 
+VERIFIED: Correction after hosted CI `42204345640`: its Web run reported one failed and `13490 passed` tests. The shared retry message gained a required provider value, but the ordinary-tab callback caller still omitted it. The earlier focused suite did not include that return-page test. The caller now supplies its existing provider name. The updated regression failed on the prior caller and passes with the fix. The combined eight-file rerun reports `149 passed (149)`. Evidence: `/private/tmp/seo-callback-provider-label-before.log` and `/private/tmp/seo-callback-provider-label-after.log`.
+
+VERIFIED: The complete local Web command `pnpm exec turbo run test:ci --filter=web` reported `1316 passed` files and `13451 passed` tests, with `6 successful, 6 total` tasks. This proves that local run, not a new hosted merge result. Hosted CI must still validate the follow-up commit. Evidence: `/private/tmp/seo-callback-provider-web-full.log`.
+
 ## Earlier delivered behavior
 
 VERIFIED: `apps/core/src/routes/v1/projects/[id]/seo/index.ts` mounts versioned Project operations. Stored evidence, page groups, saved keyword priorities and competitor choices remain separate. Each analysis freezes its pages, scope version, Market, devices and provider allowance before creating its Task. `project-seo.postgres.test.ts` checks dispatch retries, stale scope rejection and exact source authority.
