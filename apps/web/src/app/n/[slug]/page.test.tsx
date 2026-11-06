@@ -43,7 +43,7 @@ beforeEach(() => {
 });
 
 describe("hosted newsletter signup page", () => {
-  it("renders public branding, the signup form and the archive link", async () => {
+  it("renders the heading without a brand bar, the signup form and the archive link", async () => {
     render(
       <NextIntlClientProvider locale="en" messages={en}>
         {await SignupPage(PROPS)}
@@ -55,14 +55,7 @@ describe("hosted newsletter signup page", () => {
         name: "Subscribe to Project news",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("banner")).toHaveStyle({
-      borderTopColor: BRANDED_NEWSLETTER.brand.primaryColor,
-      borderBottomColor: BRANDED_NEWSLETTER.brand.accentColor,
-    });
-    expect(screen.getByRole("presentation")).toHaveAttribute(
-      "src",
-      PUBLIC_NEWSLETTER.brand.logoUrl,
-    );
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email address")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Browse the archive" }),

@@ -1,6 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { NotificationKind } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 
 import { badRequest, forbidden, notFound } from "@/helpers/error";
+import {
+  cancelNotificationEmails,
+  EMAILED_NOTIFICATION_COLUMNS,
+} from "@/helpers/notification-email-dispatch";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { assertNotSharedSokoBotRoom } from "@/helpers/shared-soko-bot-room";
@@ -56,7 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
+    const scheduledEmails = await prisma.$transaction(async (tx) => {
       const existing = await requireArchivedChatRoomUserAccess(
         id,
         userContext.userId,
@@ -107,7 +113,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (deleted.count === 0) {
         throw notFound("Room not found");
       }
+
+      // The cascade waits for source-message locks held by email persistence.
+      // Read afterwards so their committed provider ids are cancelled too.
+      return tx.notification.findMany({
+        where: {
+          kind: NotificationKind.CHAT,
+          referenceId: existing.id,
+          emailId: { not: null },
+          emailScheduledAt: { gt: new Date() },
+        },
+        select: EMAILED_NOTIFICATION_COLUMNS,
+      });
     });
+
+    waitUntil(cancelNotificationEmails(scheduledEmails));
 
     return c.body(null, 204);
   });

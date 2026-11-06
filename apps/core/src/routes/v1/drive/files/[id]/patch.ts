@@ -11,6 +11,7 @@ import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
@@ -202,13 +203,4 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     );
   });
-}
-
-/**
- * Parse max-age from Cache-Control header.
- * Example: "public, max-age=31536000" → 31536000
- */
-function parseCacheControlMaxAge(cacheControl: string): number | undefined {
-  const match = /max-age=(\d+)/.exec(cacheControl);
-  return match ? Number.parseInt(match[1], 10) : undefined;
 }

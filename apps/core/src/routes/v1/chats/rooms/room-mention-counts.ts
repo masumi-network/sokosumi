@@ -27,8 +27,7 @@ export async function getChatRoomUnreadMentionCounts(
     return new Map();
   }
 
-  const groups = await tx.notification.groupBy({
-    by: ["referenceId"],
+  const rows = await tx.notification.findMany({
     where: {
       userId,
       kind: NotificationKind.CHAT,
@@ -36,28 +35,28 @@ export async function getChatRoomUnreadMentionCounts(
       isRead: false,
       referenceId: { in: uniqueRoomIds },
     },
-    _count: { _all: true },
+    select: { id: true, referenceId: true, eventId: true },
   });
-  if (groups.length === 0) {
+  if (rows.length === 0) {
     return new Map();
   }
 
-  const counts = new Map(
-    groups.map((group) => [group.referenceId, group._count._all] as const),
-  );
   const passedRows = await findThreadReplyRowsPassedByRoomRead(
-    [...counts.keys()],
+    [...new Set(rows.map((row) => row.referenceId))],
     userId,
     tx,
   );
-  for (const row of passedRows) {
-    const remaining = (counts.get(row.roomId) ?? 0) - 1;
-    if (remaining > 0) {
-      counts.set(row.roomId, remaining);
-    } else {
-      counts.delete(row.roomId);
-    }
+  const passedIds = new Set(passedRows.map((row) => row.id));
+  const messagesByRoom = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (passedIds.has(row.id)) continue;
+    const messages = messagesByRoom.get(row.referenceId) ?? new Set<string>();
+    // Complementary mention and Direct channels still describe one message.
+    messages.add(row.eventId);
+    messagesByRoom.set(row.referenceId, messages);
   }
 
-  return counts;
+  return new Map(
+    [...messagesByRoom].map(([roomId, messages]) => [roomId, messages.size]),
+  );
 }

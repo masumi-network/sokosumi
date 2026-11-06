@@ -25,6 +25,7 @@ import {
   type ChatMembershipRevokedEvent,
   chatMembershipRevokedEventSchema,
 } from "./chat-membership-revoked-event";
+import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
 import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
@@ -33,7 +34,12 @@ const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 const CHAT_ROOM_AUTH_RETRY_MS = 15_000;
 
 interface UseChatRoomRealtimeOptions {
-  /** Membership room ids to attach (all rooms for sidebar/live parity). */
+  /**
+   * The room or rooms the reader has open. Each id is registered as token
+   * scope while a reader is signed in and named in every token request
+   * from then on. Core caps a request at 50 distinct rooms: above that, no
+   * channel in the tab can renew its token.
+   */
   roomIds: readonly string[];
   currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
@@ -149,6 +155,7 @@ export function useChatRoomRealtime({
       return;
     }
 
+    const releaseRoomScope = registerAblyChatRoomScope(roomIdsRef.current);
     const handleMessage = handleMessageRef.current;
     const handlePinnedMessage = handlePinnedMessageRef.current;
     const handleRoomRead = handleRoomReadRef.current;
@@ -188,6 +195,16 @@ export function useChatRoomRealtime({
       for (const roomId of [...locallyRevokedRoomIds]) {
         if (!propIds.has(roomId)) {
           locallyRevokedRoomIds.delete(roomId);
+        }
+      }
+
+      // A room the props dropped leaves before the token is renewed: the
+      // new token names only the rooms in scope, and a channel still
+      // attached when its grant goes is taken down by the server and
+      // refused on reattach until the detach below would reach it.
+      for (const roomId of [...channelsRef.current.keys()]) {
+        if (!propIds.has(roomId)) {
+          detachRoomLocally(roomId);
         }
       }
 
@@ -359,6 +376,7 @@ export function useChatRoomRealtime({
 
     return () => {
       syncGenerationRef.current += 1;
+      releaseRoomScope();
       syncQueued = false;
       clearTimeout(retryTimeout);
       window.removeEventListener("focus", onFocus);

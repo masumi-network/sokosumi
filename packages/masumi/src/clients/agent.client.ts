@@ -26,20 +26,6 @@ import {
 import type { Agent } from "../types/agent.js";
 import { safeAddPathComponent } from "../utils/url.js";
 
-export interface AgentClientConfig {
-  onError?: (error: {
-    type:
-      | "http_error"
-      | "json_parse_error"
-      | "schema_validation_error"
-      | "network_error";
-    operation: string;
-    agentId: string;
-    message: string;
-    context?: Record<string, unknown>;
-  }) => void;
-}
-
 interface AgentClientRequestOptions {
   signal?: AbortSignal;
 }
@@ -105,7 +91,7 @@ function classifyStartJobHttpFailure(
   return ambiguous(detailedMessage);
 }
 
-export function createAgentClient(config?: AgentClientConfig) {
+export function createAgentClient() {
   function getAgentUrlWithPathComponent(
     agent: Agent,
     pathComponent: string,
@@ -139,31 +125,6 @@ export function createAgentClient(config?: AgentClientConfig) {
     // so it also covers public hostnames that resolve to internal IPs.
 
     return ok(apiBaseUrl);
-  }
-
-  function logError(
-    type:
-      | "http_error"
-      | "json_parse_error"
-      | "schema_validation_error"
-      | "network_error",
-    operation: string,
-    agent: Agent,
-    message: string,
-    context?: Record<string, unknown>,
-  ): void {
-    config?.onError?.({
-      type,
-      operation,
-      agentId: agent.id,
-      message,
-      context: {
-        ...context,
-        agentName: agent.name,
-        blockchainIdentifier: agent.blockchainIdentifier,
-        apiBaseUrl: agent.apiBaseUrl,
-      },
-    });
   }
 
   async function requestStartJob<T>(
@@ -404,64 +365,19 @@ export function createAgentClient(config?: AgentClientConfig) {
 
         if (!response.ok) {
           const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-
-          logError(
-            "http_error",
-            "fetchInputSchema",
-            agent,
-            `Failed to fetch agent input schema: ${errorMessage}`,
-            {
-              status: response.status,
-              statusText: response.statusText,
-              url: inputSchemaUrl.toString(),
-              headers: Object.fromEntries(response.headers.entries()),
-            },
-          );
-
           return err(errorMessage);
         }
 
         let responseData: unknown;
         try {
           responseData = await response.json();
-        } catch (jsonError) {
-          logError(
-            "json_parse_error",
-            "fetchInputSchema",
-            agent,
-            "Failed to parse JSON response from agent API",
-            {
-              status: response.status,
-              url: inputSchemaUrl.toString(),
-              contentType: response.headers.get("content-type"),
-              error:
-                jsonError instanceof Error
-                  ? jsonError.message
-                  : String(jsonError),
-            },
-          );
-
+        } catch {
           return err("Failed to parse JSON response");
         }
 
         const parsedResult = inputSchemaSchema.safeParse(responseData);
 
         if (!parsedResult.success) {
-          logError(
-            "schema_validation_error",
-            "fetchInputSchema",
-            agent,
-            "Agent returned invalid input schema format",
-            {
-              issues: parsedResult.error.issues,
-              // Keys only: avoid logging the schema body.
-              responseDataKeys:
-                responseData && typeof responseData === "object"
-                  ? Object.keys(responseData)
-                  : "non-object response",
-            },
-          );
-
           return err("Failed to parse input schema");
         }
 
@@ -470,24 +386,6 @@ export function createAgentClient(config?: AgentClientConfig) {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        const isNetworkError =
-          error instanceof Error &&
-          (errorMessage.includes("fetch failed") ||
-            errorMessage.includes("ECONNREFUSED") ||
-            errorMessage.includes("ETIMEDOUT") ||
-            errorMessage.includes("ENOTFOUND"));
-
-        logError(
-          "network_error",
-          "fetchInputSchema",
-          agent,
-          "Network or unexpected error while fetching agent input schema",
-          {
-            message: errorMessage,
-            type: isNetworkError ? "connection_failure" : "unknown",
-          },
-        );
-
         return err(errorMessage);
       }
     },

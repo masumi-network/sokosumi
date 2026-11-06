@@ -65,6 +65,7 @@ describe("createAuthTokenRequest", () => {
 
     const result = await createAuthTokenRequest({
       clientInstanceId: "inst_test01",
+      roomIds: "00000000-0000-4000-8000-000000000001",
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -83,6 +84,9 @@ describe("createAuthTokenRequest", () => {
     );
     const fetchUrl = fetchMock.mock.calls[0]?.[0] as URL;
     expect(fetchUrl.searchParams.get("clientInstanceId")).toBe("inst_test01");
+    expect(fetchUrl.searchParams.get("roomIds")).toBe(
+      "00000000-0000-4000-8000-000000000001",
+    );
     const fetchInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect(fetchInit.signal).toBeInstanceOf(AbortSignal);
     expect(result).toEqual(tokenRequest);

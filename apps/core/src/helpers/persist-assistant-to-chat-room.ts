@@ -2,7 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
 import {
-  emitChatHumanMentionNotifications,
+  emitChatMessageNotifications,
   persistChatHumanMentions,
 } from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
@@ -195,14 +195,12 @@ export async function persistAssistantToChatRoom(params: {
       invalidateChatRoomMessageReaders({ roomId }),
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
-    if (created.mentionedUserIds.length > 0) {
-      waitUntil(
-        emitChatHumanMentionNotifications({
-          messageId: created.id,
-          mentionedUserIds: created.mentionedUserIds,
-        }),
-      );
-    }
+    waitUntil(
+      emitChatMessageNotifications({
+        messageId: created.id,
+        mentionedUserIds: created.mentionedUserIds,
+      }),
+    );
     return { id: created.id };
   } catch (error) {
     if (!responseId || !isPrismaUniqueViolation(error)) {

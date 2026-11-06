@@ -12,7 +12,7 @@ const route = createRoute({
   tags: ["Newsletter"],
   security: [],
   description:
-    "Confirm a pending subscription idempotently and send its welcome email at most once.",
+    "Confirm a pending subscription or a re-subscribe request idempotently and send its welcome email at most once.",
   request: { query: newsletterConfirmQuerySchema },
   responses: {
     200: {

@@ -19,6 +19,7 @@ const m = vi.hoisted(() => ({
   createMany: vi.fn(),
   subscriber: vi.fn(),
   pending: vi.fn(),
+  resubscribable: vi.fn(),
   updateMany: vi.fn(),
   eventCreate: vi.fn(),
   transaction: vi.fn(),
@@ -55,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
       createMany: m.createMany,
       findUnique: m.subscriber,
       findMany: m.pending,
+      count: m.resubscribable,
       updateMany: m.updateMany,
       update: m.update,
     },
@@ -111,6 +113,7 @@ beforeEach(() => {
     async ({ where }: { where: { OR: { id: string }[] } }) =>
       where.OR.map(({ id }) => ({ id })),
   );
+  m.resubscribable.mockResolvedValue(1);
   m.updateMany.mockResolvedValue({ count: 1 });
   m.send.mockResolvedValue({ data: { id: "confirmation" }, error: null });
   m.redis.mockResolvedValue(1);
@@ -300,18 +303,125 @@ describe("public newsletter signup", () => {
     expect(m.eventCreate).not.toHaveBeenCalled();
   });
 
-  it("preserves unsubscribe and confirmation history without sending another opt-in", async () => {
-    m.createMany.mockResolvedValue({ count: 0 });
-    m.subscriber.mockResolvedValue({
-      ...NEWSLETTER_SUBSCRIBER,
-      status: "UNSUBSCRIBED",
-      unsubscribedAt: NEWSLETTER_NOW,
-      confirmedAt: NEWSLETTER_NOW,
+  describe("someone who unsubscribed signs up again", () => {
+    const CONSENTED_AT = new Date("2026-09-01T00:00:00Z");
+    const UNSUBSCRIBED_AT = new Date("2026-10-01T00:00:00Z");
+    function unsubscribed(overrides: Record<string, unknown> = {}) {
+      return {
+        ...NEWSLETTER_SUBSCRIBER,
+        status: "UNSUBSCRIBED",
+        name: "Ada",
+        consentAt: CONSENTED_AT,
+        confirmedAt: CONSENTED_AT,
+        unsubscribedAt: UNSUBSCRIBED_AT,
+        ...overrides,
+      };
+    }
+    beforeEach(() => {
+      m.createMany.mockResolvedValue({ count: 0 });
+      m.subscriber.mockResolvedValue(unsubscribed());
     });
-    await signup();
-    expect(m.updateMany).not.toHaveBeenCalled();
-    expect(m.send).not.toHaveBeenCalled();
-    expect(m.eventCreate).not.toHaveBeenCalled();
+
+    it("reserves and sends a fresh opt-in while the row stays suppressed", async () => {
+      await signup({ name: "Someone else" });
+      expect(m.updateMany).toHaveBeenCalledExactlyOnceWith({
+        where: {
+          id: NEWSLETTER_SUBSCRIBER.id,
+          consentAt: CONSENTED_AT,
+          bouncedAt: null,
+          status: "UNSUBSCRIBED",
+          unsubscribedAt: { not: null },
+          events: {
+            none: {
+              OR: [
+                { type: "COMPLAINED" },
+                {
+                  type: "BOUNCED",
+                  OR: [
+                    { bounceType: null },
+                    { bounceType: { in: ["permanent", "hard"] } },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        data: { consentAt: NEWSLETTER_NOW },
+      });
+      expect(m.send).toHaveBeenCalledOnce();
+      const [email] = m.send.mock.calls[0]!;
+      const link = email.html.match(
+        /href="(https:\/\/core\.example\.com\/v1\/public\/newsletter\/confirm[^\"]+)"/,
+      )?.[1];
+      const token = new globalThis.URL(link!).searchParams.get("token")!;
+      expect(verifyNewsletterConfirmToken(token, "test-secret")).toMatchObject({
+        consentAt: NEWSLETTER_NOW.getTime(),
+      });
+      expect(m.eventCreate).not.toHaveBeenCalled();
+      expect(m.contactCreateMany).not.toHaveBeenCalled();
+      expect(m.update).not.toHaveBeenCalled();
+    });
+
+    it("re-sends at most once per ten minutes", async () => {
+      let consentAt = new Date(NEWSLETTER_NOW.getTime() - 10 * 60_000 + 1);
+      m.subscriber.mockImplementation(async () => unsubscribed({ consentAt }));
+      m.updateMany.mockImplementation(
+        async ({ data }: { data: { consentAt: Date } }) => {
+          consentAt = data.consentAt;
+          return { count: 1 };
+        },
+      );
+      await signup();
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      await signup();
+      await signup();
+      expect(m.send).toHaveBeenCalledOnce();
+    });
+
+    it("stays silent when the reservation misses: a complaint, a permanent bounce or a concurrent request", async () => {
+      m.updateMany.mockResolvedValue({ count: 0 });
+      await signup();
+      expect(m.updateMany).toHaveBeenCalledOnce();
+      expect(m.send).not.toHaveBeenCalled();
+      expect(m.eventCreate).not.toHaveBeenCalled();
+      expect(m.contactCreateMany).not.toHaveBeenCalled();
+    });
+
+    it("does not send when an opt-out or complaint wins before dispatch", async () => {
+      m.resubscribable.mockResolvedValue(0);
+      await signup();
+      expect(m.resubscribable).toHaveBeenCalledWith({
+        where: {
+          id: NEWSLETTER_SUBSCRIBER.id,
+          newsletterId: NEWSLETTER_ID,
+          newsletter: expect.any(Object),
+          status: "UNSUBSCRIBED",
+          consentAt: NEWSLETTER_NOW,
+          unsubscribedAt: { lt: NEWSLETTER_NOW },
+          bouncedAt: null,
+          events: { none: expect.any(Object) },
+        },
+      });
+      expect(m.pending).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    });
+
+    it("ignores a bounced address that also unsubscribed", async () => {
+      m.subscriber.mockResolvedValue(
+        unsubscribed({ bouncedAt: UNSUBSCRIBED_AT }),
+      );
+      await signup();
+      expect(m.updateMany).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    });
+
+    it("keeps provider failures private", async () => {
+      m.send.mockRejectedValue(new Error("test provider failure"));
+      await signup();
+      expect(m.send).toHaveBeenCalledOnce();
+    });
   });
 
   it.each(["unsubscribedAt", "bouncedAt"])(

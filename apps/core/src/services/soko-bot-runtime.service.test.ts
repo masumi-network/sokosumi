@@ -626,14 +626,14 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
-const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
   vi.hoisted(() => ({
     persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
-    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+    emitChatMessageNotificationsMock: vi.fn().mockResolvedValue(undefined),
   }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: persistChatHumanMentionsMock,
-  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+  emitChatMessageNotifications: emitChatMessageNotificationsMock,
 }));
 vi.mock("@/helpers/task-link", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/helpers/task-link")>()),
@@ -5344,7 +5344,7 @@ describe("post_chat chain depth", () => {
       content: "@user_owner the date is confirmed",
     });
     expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
-    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    expect(emitChatMessageNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {
@@ -10726,6 +10726,44 @@ describe("CMO record saves", () => {
     const upsert = tx.brandBrain.upsert.mock.calls[0]?.[0];
     expect(upsert.where).toEqual({ projectId: PROJECT });
     expect(upsert.create.body.profile.pricing.answer).toBe("From 9 dollars");
+  });
+
+  it("surfaces reveal-without-essentials as a tool validation error", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000c2";
+    const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      brandBrain: {
+        findUnique: vi.fn().mockResolvedValue({ body: { profile: {} } }),
+        upsert: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    await expect(
+      service["saveCmoRecord"](owner as never, {
+        ...SCOPE,
+        capability: "save_brand_brain",
+        toolCallId: "brain",
+        input: {
+          reveal: {
+            positioning: "Rockets for founders",
+            insights: [
+              { title: "One", detail: "First" },
+              { title: "Two", detail: "Second" },
+              { title: "Three", detail: "Third" },
+            ],
+            buyers: [],
+          },
+        },
+      }),
+    ).rejects.toThrow(/essentials in brandBrain first/);
+    expect(tx.brandBrain.upsert).not.toHaveBeenCalled();
   });
 
   it("checks the turn's authority inside the transaction that writes", async () => {

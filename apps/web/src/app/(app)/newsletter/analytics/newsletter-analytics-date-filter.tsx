@@ -54,6 +54,7 @@ export function NewsletterAnalyticsDateFilter({
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange>();
+  const [helpOpen, setHelpOpen] = useState(false);
   const start = parseUtcDate(from);
   const end = parseUtcDate(to);
   const selected =
@@ -169,19 +170,30 @@ export function NewsletterAnalyticsDateFilter({
           </div>
         </PopoverContent>
       </Popover>
-      <Tooltip>
+      <Tooltip open={helpOpen} onOpenChange={setHelpOpen}>
         <TooltipTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
             className="text-muted-foreground size-11 shrink-0 md:size-8"
-            aria-label={t("periodNoteAria")}
+            aria-label={t("notesAria")}
+            onClick={(event) => {
+              // Radix closes on click, and a tap on a phone has no hover to open it.
+              event.preventDefault();
+              setHelpOpen(true);
+            }}
           >
             <CircleHelp />
           </Button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs leading-relaxed" side="bottom">
-          {t("periodNote")}
+        <TooltipContent
+          className="max-w-xs space-y-2 leading-relaxed text-pretty"
+          collisionPadding={8}
+          side="bottom"
+        >
+          <p>{t("periodNote")}</p>
+          <p>{t("ratesNote")}</p>
+          <p>{t("opensNote")}</p>
         </TooltipContent>
       </Tooltip>
     </div>

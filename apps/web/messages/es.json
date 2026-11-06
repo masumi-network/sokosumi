@@ -3233,7 +3233,6 @@
       },
       "Newsletter": {
         "title": "Boletín",
-        "description": "Configura el remitente, la marca y el correo de bienvenida del boletín de este proyecto.",
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
@@ -3283,7 +3282,6 @@
         },
         "Subscribers": {
           "title": "Suscriptores",
-          "description": "Gestiona las personas que reciben el boletín de este proyecto.",
           "add": "Añadir suscriptor",
           "import": "Importar CSV",
           "cancel": "Cancelar",
@@ -3348,6 +3346,10 @@
             "error": "No se pudo eliminar el suscriptor. Inténtalo de nuevo.",
             "success": "Suscriptor eliminado"
           },
+          "Unsubscribe": {
+            "title": "¿Dar de baja al suscriptor?",
+            "description": "Este boletín dejará de enviarse a {email}. Solo esta persona puede volver a suscribirse."
+          },
           "Import": {
             "description": "Importa un CSV con una columna de correo electrónico y otra opcional de nombre. Los suscriptores existentes conservan su estado actual.",
             "file": "Archivo CSV",
@@ -3369,11 +3371,10 @@
               "skippedBounced": "Omitidos por correos devueltos",
               "pendingConfirmation": "En espera de confirmación"
             },
-            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidHint": "Estas filas necesitan un correo electrónico válido. Corrígelas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas.",
             "invalidRow": "Fila {row}: {value}",
-            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+            "blankEmail": "sin correo electrónico"
           },
-          "dismiss": "Cerrar",
           "fromContacts": "Añadir desde Contactos",
           "openContactList": "Abrir lista en Contactos",
           "Consent": {
@@ -3381,7 +3382,7 @@
             "CONFIRMED": "Ya dieron su consentimiento (añadir ahora)",
             "ASK": "Preguntar primero (enviar un correo de confirmación)",
             "confirm": "Confirmo que estas personas aceptaron recibir este boletín",
-            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». Las personas que se dieron de baja nunca se vuelven a añadir."
+            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». No puedes volver a añadir a las personas que se dieron de baja, pero ellas pueden suscribirse de nuevo por su cuenta."
           },
           "FromContacts": {
             "description": "Elige personas y listas de los Contactos de tu espacio de trabajo.",
@@ -3420,7 +3421,6 @@
         },
         "Issues": {
           "title": "Ediciones",
-          "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
           "newIssue": "Nueva edición",
           "Ai": {
             "action": "Escríbelo por mí",
@@ -3682,7 +3682,8 @@
         "SignupForm": {
           "title": "Formulario de suscripción",
           "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
-          "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "shareTitle": "Compartir",
+          "description": "Los suscriptores confirman su correo antes de recibir ediciones.",
           "previewTitle": "Vista previa del formulario de suscripción",
           "previewDescription": "Los cambios aparecen aquí al instante. Guarda el diseño para actualizar la página pública y el formulario integrado.",
           "hostedPage": "Página de suscripción alojada",
@@ -3706,14 +3707,13 @@
         },
         "Analytics": {
           "title": "Estadísticas",
-          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
           "keyMetrics": "Métricas del boletín",
           "rangeLabel": "Intervalo de fechas",
           "rangeSelected": "Intervalo de fechas: {range}",
           "lastDays": "Últimos {days} días",
           "presetDays": "{days} días",
           "clearRange": "Borrar intervalo de fechas",
-          "periodNoteAria": "Acerca de las fechas de las estadísticas",
+          "notesAria": "Acerca de estas cifras",
           "invalidRange": "Elige un intervalo de fechas válido de entre 1 y 366 días o borra el intervalo de fechas.",
           "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
           "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
@@ -3755,10 +3755,10 @@
           }
         },
         "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
-        "brandDescription": "Logotipo, colores, tipografía y distribución compartidos por los correos y los formularios de suscripción.",
+        "brandDescription": "Compartido por los correos y los formularios de suscripción.",
         "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
         "unsavedChanges": "Tienes cambios sin guardar.",
-        "colorPlaceholder": "Sin color",
+        "colorPlaceholder": "Predeterminado",
         "presetColors": "Colores predefinidos",
         "clearColor": {
           "primaryColor": "Quitar color principal",
@@ -3767,7 +3767,7 @@
           "buttonTextColor": "Quitar color del texto del botón"
         },
         "Logo": {
-          "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
+          "description": "Hasta {maxSize}",
           "upload": "Subir",
           "replace": "Reemplazar",
           "remove": "Quitar logotipo",
@@ -3803,34 +3803,31 @@
           "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
           "status": {
             "PENDING": "Pendiente",
+            "PARTIAL": "Verificado en parte",
             "VERIFIED": "Verificado",
             "FAILED": "Fallido"
           },
+          "statusDetail": {
+            "FAILED": "La verificación ha fallado. Compara tus registros DNS con los de abajo y vuelve a comprobar."
+          },
+          "recordsFound": "{found} de {total} registros DNS encontrados",
           "lastChecked": "Última comprobación: {time}",
-          "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
           "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
-          "checked": "Comprobado. Algunos registros DNS aún faltan o no se pudieron verificar. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
+          "checked": "{found} de {total} registros DNS encontrados. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
           "verifyRecords": "Verificar registros",
           "checkAgain": "Comprobar de nuevo",
-          "connectTitle": "Elige cómo configurar el DNS",
           "dmarc": {
             "title": "No se encontró ninguna política DMARC",
             "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
           },
           "oneClick": {
-            "title": "Configuración con un clic",
-            "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
             "checking": "Comprobando la configuración con un clic…",
-            "lookup": "Volver a buscar el proveedor",
-            "found": "Tu dominio usa {provider}.",
+            "lookup": "Reintentar",
             "connect": "Conectar con {provider}",
-            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Elige la configuración manual para añadir los registros con cualquier proveedor de DNS."
+            "unavailable": "La configuración con un clic no está disponible para tu proveedor de DNS."
           },
           "manual": {
-            "title": "Configurar los registros DNS manualmente",
-            "description": "Añade los registros tú mismo con cualquier proveedor de DNS.",
-            "action": "Ver registros DNS",
-            "saved": "Puedes salir y volver más tarde — guardaremos estos registros aquí hasta que estén verificados."
+            "action": "Configurar manualmente"
           },
           "cloudflare": {
             "title": "Token de la API de Cloudflare",
@@ -3841,15 +3838,10 @@
           },
           "records": {
             "title": "Registros DNS",
-            "description": "Añade todos los registros que aparecen aquí en los ajustes de tu proveedor de DNS. Usa el formato de host que espere tu proveedor.",
-            "type": "Tipo",
-            "host": "Host / Nombre",
             "relativeName": "Host relativo",
             "fullName": "Nombre completo (FQDN)",
             "value": "Valor",
             "priority": "Prioridad",
-            "ttl": "TTL",
-            "status": "Estado",
             "found": "Encontrado",
             "missing": "Falta",
             "wrongValue": "Valor incorrecto",
@@ -3864,7 +3856,7 @@
                 "explanation": "Permite que Sokosumi envíe en tu nombre."
               },
               "bounce": {
-                "label": "Ruta de retorno (MX)",
+                "label": "Ruta de retorno",
                 "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
               },
               "dmarc": {
@@ -3960,7 +3952,7 @@
             "resumeUnavailable": "Verifica este dominio de envío antes de reanudar. Comprueba sus registros DNS e inténtalo de nuevo."
           },
           "warmup": {
-            "title": "Calentamiento del dominio",
+            "chip": "Calentamiento · {used} / {cap} hoy",
             "progress": "Día {day} · {used} de {cap} enviados hoy (UTC)",
             "unlimited": "Día {day} · {used} enviados hoy (UTC) · Sin límite",
             "description": "Los destinatarios que superan el límite de hoy siguen en cola y reciben el boletín automáticamente cuando vuelve a haber capacidad. El límite diario se restablece a las 00:00 UTC.",
@@ -3973,10 +3965,10 @@
           }
         },
         "colorHints": {
-          "primaryColor": "Títulos y texto. Déjalo en blanco para usar el predeterminado.",
-          "accentColor": "Relleno de los botones. Déjalo en blanco para usar el predeterminado.",
-          "backgroundColor": "Detrás de la tarjeta del correo. Déjalo en blanco para gris claro.",
-          "buttonTextColor": "Texto de los botones. Que se lea bien sobre el color de acento."
+          "primaryColor": "Títulos y texto",
+          "accentColor": "Relleno de los botones",
+          "backgroundColor": "Detrás de la tarjeta del correo",
+          "buttonTextColor": "Texto de los botones"
         },
         "Image": {
           "upload": "Subir imagen",
@@ -3987,7 +3979,7 @@
           "fileTooLarge": "El archivo es demasiado grande",
           "fileTypeNotAccepted": "Usa una imagen PNG, JPEG, WebP o GIF",
           "maxFilesExceeded": "Sube una imagen cada vez",
-          "headerDescription": "Un banner sobre tu logotipo, de hasta {maxSize}. Las imágenes anchas funcionan mejor."
+          "headerDescription": "Banner ancho, de hasta {maxSize}"
         },
         "Design": {
           "title": "Diseño del boletín",
@@ -4813,8 +4805,7 @@
           "subject": "Nueva temporada, nuevos colores",
           "body": "Arena, arcilla y un azul mar profundo: la paleta detrás de la colección de verano."
         }
-      },
-      "projectTitle": "Boletín de {project}"
+      }
     },
     "Social": {
       "title": "Publicaciones sociales",

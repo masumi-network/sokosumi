@@ -12,22 +12,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   captureExceptionMock,
   chatRoomMessageFindFirstMock,
+  chatRoomMessageFindManyMock,
+  notificationDeleteManyMock,
   threadReadStateFindUniqueMock,
   createNotificationMock,
   notificationFindManyMock,
   notificationUpdateManyMock,
   notificationCountMock,
+  publishClearedNotificationsMock,
   resolveDeliveryMock,
   sendEmailsMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   chatRoomMessageFindFirstMock: vi.fn(),
+  chatRoomMessageFindManyMock: vi.fn(),
+  notificationDeleteManyMock: vi.fn(),
   threadReadStateFindUniqueMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationCountMock: vi.fn(),
+  publishClearedNotificationsMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
   sendEmailsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -39,12 +45,16 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    chatRoomMessage: { findFirst: chatRoomMessageFindFirstMock },
+    chatRoomMessage: {
+      findFirst: chatRoomMessageFindFirstMock,
+      findMany: chatRoomMessageFindManyMock,
+    },
     chatRoomThreadReadState: { findUnique: threadReadStateFindUniqueMock },
     notification: {
       findMany: notificationFindManyMock,
       updateMany: notificationUpdateManyMock,
       count: notificationCountMock,
+      deleteMany: notificationDeleteManyMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -59,6 +69,7 @@ vi.mock("@/clients/email.client", () => ({
 }));
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
+  publishClearedNotifications: publishClearedNotificationsMock,
   resolveDelivery: resolveDeliveryMock,
 }));
 
@@ -341,6 +352,17 @@ describe("NotificationFollowUpSyncService", () => {
       id: "message-1",
       parentMessageId: null,
     });
+    chatRoomMessageFindManyMock.mockImplementation(
+      async ({ where }: { where: { OR: { id: string; roomId: string }[] } }) =>
+        where.OR,
+    );
+    notificationDeleteManyMock.mockImplementation(
+      async ({ where }: { where: { id: { in: string[] }; emailId: null } }) => {
+        const before = written.length;
+        written = written.filter((item) => !where.id.in.includes(item.eventId));
+        return { count: before - written.length };
+      },
+    );
     threadReadStateFindUniqueMock.mockResolvedValue(null);
     seed([]);
     resolveDeliveryMock.mockResolvedValue({
@@ -1455,6 +1477,147 @@ describe("NotificationFollowUpSyncService", () => {
    * message it points at is gone. An emailed reminder has to keep it, so the
    * row has to say that its email left.
    */
+  it("does not email a reminder whose message was deleted after preparation", async () => {
+    wantsEmail();
+    seed([row()]);
+    chatRoomMessageFindManyMock.mockResolvedValue([]);
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+    // Written, then taken back below: not a reminder this run sent.
+    expect(result.sent).toBe(0);
+    expect(result.emailed).toBe(0);
+    expect(sendEmailsMock).not.toHaveBeenCalled();
+    // The reminder reached the reader's tabs when it was written, so they are
+    // told it is gone, and told while the row can still say who it was for.
+    const reminderId = firstFollowUpInput()?.eventId;
+    // Read before it is published: the publish sends the row as it stands,
+    // and an unread row would reach the tabs as one more reminder.
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [reminderId] }, emailId: null },
+      data: { isRead: true, readAt: expect.any(Date) },
+    });
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith([reminderId]);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [reminderId] }, emailId: null },
+    });
+    const readAt = notificationUpdateManyMock.mock.calls.findIndex(
+      ([query]) => query.data?.isRead === true,
+    );
+    expect(
+      notificationUpdateManyMock.mock.invocationCallOrder[readAt],
+    ).toBeLessThan(publishClearedNotificationsMock.mock.invocationCallOrder[0]);
+    expect(
+      publishClearedNotificationsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(notificationDeleteManyMock.mock.invocationCallOrder[0]);
+  });
+
+  it("still counts a taken-back reminder whose release failed", async () => {
+    wantsEmail();
+    seed([row()]);
+    chatRoomMessageFindManyMock.mockResolvedValue([]);
+    notificationDeleteManyMock.mockRejectedValueOnce(
+      new Error("release failed"),
+    );
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+    // The row is still there, so it is still a reminder this run sent.
+    expect(result.sent).toBe(1);
+    expect(result.emailed).toBe(0);
+  });
+
+  it("does not email an unverifiable chat reminder", async () => {
+    wantsEmail();
+    seed([row({ metadata: null })]);
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+    expect(result.sent).toBe(1);
+    expect(result.emailed).toBe(0);
+  });
+
+  it("does not reserve an email-only reminder for an unverifiable source", async () => {
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: false,
+      osBanner: false,
+      email: true,
+    });
+    seed([
+      row({ id: "old", metadata: null }),
+      row({
+        id: "new",
+        createdAt: JUST_A_DAY,
+        metadata: { messageId: "live" },
+      }),
+    ]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.sent).toBe(1);
+    expect(result.emailed).toBe(1);
+    expect(firstFollowUpInput()?.metadata).toEqual({ messageId: "live" });
+  });
+
+  it("releases an unsent email-only reminder for a later live source", async () => {
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: false,
+      osBanner: false,
+      email: true,
+    });
+    seed([
+      row({ id: "old", metadata: { messageId: "deleted" } }),
+      row({
+        id: "new",
+        createdAt: JUST_A_DAY,
+        metadata: { messageId: "live" },
+      }),
+    ]);
+    chatRoomMessageFindManyMock.mockResolvedValue([]);
+    const first = await notificationFollowUpSyncService.sendFollowUps({ now });
+    expect(first.emailed).toBe(0);
+    expect(written).toHaveLength(0);
+    chatRoomMessageFindFirstMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "deleted" ? null : { id: where.id, parentMessageId: null },
+    );
+    chatRoomMessageFindManyMock.mockImplementation(
+      async ({ where }: { where: { OR: { id: string; roomId: string }[] } }) =>
+        where.OR,
+    );
+    const second = await notificationFollowUpSyncService.sendFollowUps({ now });
+    expect(second.emailed).toBe(1);
+    expect(sendEmailsMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not put cleanup between the last source check and the provider", async () => {
+    wantsEmail();
+    seed([
+      row({
+        id: "old",
+        referenceId: "room-old",
+        metadata: { messageId: "deleted" },
+      }),
+      row({
+        id: "new",
+        referenceId: "room-live",
+        metadata: { messageId: "live" },
+      }),
+    ]);
+    let liveDeleted = false;
+    const providerSawDeleted: boolean[] = [];
+    chatRoomMessageFindManyMock.mockImplementation(
+      async ({ where }: { where: { OR: { id: string; roomId: string }[] } }) =>
+        where.OR.filter((message) => message.id === "live" && !liveDeleted),
+    );
+    notificationDeleteManyMock.mockImplementation(async () => {
+      liveDeleted = true;
+      return { count: 1 };
+    });
+    sendEmailsMock.mockImplementation(async (inputs: readonly unknown[]) => {
+      providerSawDeleted.push(liveDeleted);
+      return inputs.map((_, index) => ({ id: `resend_${index}` }));
+    });
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+    expect(result.emailed).toBe(1);
+    expect(providerSawDeleted).toEqual([false]);
+    expect(notificationDeleteManyMock).toHaveBeenCalledOnce();
+  });
+
   it("records the email id on the reminder it emailed", async () => {
     wantsEmail();
     seed([row()]);
@@ -1573,7 +1736,11 @@ describe("NotificationFollowUpSyncService", () => {
     wantsEmail();
     seed([
       row({ id: "notification-1", referenceId: "room-1" }),
-      row({ id: "notification-2", referenceId: "room-2" }),
+      row({
+        id: "notification-2",
+        referenceId: "room-2",
+        metadata: { messageId: "message-2" },
+      }),
     ]);
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
@@ -1625,7 +1792,11 @@ describe("NotificationFollowUpSyncService", () => {
     sendEmailsMock.mockRejectedValueOnce(new Error("resend refused the chunk"));
     seed(
       Array.from({ length: 150 }, (_, index) =>
-        row({ id: `notification-${index}`, referenceId: `room-${index}` }),
+        row({
+          id: `notification-${index}`,
+          referenceId: `room-${index}`,
+          metadata: { messageId: `message-${index}` },
+        }),
       ),
     );
 

@@ -71,6 +71,25 @@ describe("POST /api/ably/auth", () => {
     expect(response.status).toBe(401);
   });
 
+  it.each(["", "00000000-0000-4000-8000-000000000001"])(
+    "forwards the explicit browser room scope %j without broadening it",
+    async (roomIds) => {
+      fetchMock.mockResolvedValue(
+        Response.json({ data: { keyName: "app.key" } }),
+      );
+      const requestUrl = new URL(createRequest().url);
+      requestUrl.searchParams.set("roomIds", roomIds);
+      const response = await POST(
+        new NextRequest(requestUrl, { method: "POST" }),
+      );
+
+      expect(response.status).toBe(200);
+      const coreUrl = fetchMock.mock.calls[0]?.[0] as URL;
+      expect(coreUrl.searchParams.has("roomIds")).toBe(true);
+      expect(coreUrl.searchParams.get("roomIds")).toBe(roomIds);
+    },
+  );
+
   it.each([403, 429, 500, 503])(
     "keeps Core %i retryable instead of reporting session loss",
     async (status) => {

@@ -32,27 +32,28 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
-        <AuthSessionGuard />
-        <OtherWorkspaceRoomsLive />
-        {/* Applies the hidden-sidebar preference to the streamed shell before
+        <AuthSessionGuard>
+          <OtherWorkspaceRoomsLive />
+          {/* Applies the hidden-sidebar preference to the streamed shell before
             paint; SidebarProvider takes over at hydration. */}
-        <SidebarBootScript />
-        <SidebarProvider
-          // Cookie preference restored client-side (boot script before paint,
-          // SidebarProvider at hydration) so this layout stays sync for
-          // Instant Nav.
-          defaultOpen
-          data-app-shell
-          className="flex max-w-svw overflow-clip"
-        >
-          {/* AuthenticatedAppFrame owns the session + workspace gate; the
-              shell skeleton is the only fallback, so no blank frame. */}
-          <Suspense
-            fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
+          <SidebarBootScript />
+          <SidebarProvider
+            // Cookie preference restored client-side (boot script before paint,
+            // SidebarProvider at hydration) so this layout stays sync for
+            // Instant Nav.
+            defaultOpen
+            data-app-shell
+            className="flex max-w-svw overflow-clip"
           >
-            <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
-          </Suspense>
-        </SidebarProvider>
+            {/* AuthenticatedAppFrame owns the session + workspace gate; the
+              shell skeleton is the only fallback, so no blank frame. */}
+            <Suspense
+              fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
+            >
+              <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
+            </Suspense>
+          </SidebarProvider>
+        </AuthSessionGuard>
       </QueryProvider>
     </ClientMessageBoundary>
   );

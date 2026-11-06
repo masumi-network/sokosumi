@@ -10771,6 +10771,16 @@ export type CmoWork = {
     status: 'running' | 'failed' | 'done';
     startedAt: Date;
     steps: Array<CmoWorkStep>;
+    /**
+     * Brand Brain sections Cuso has saved, in profile order.
+     */
+    sections: Array<{
+        key: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+        /**
+         * The section's answer at a glance.
+         */
+        headline: string;
+    }>;
     sectionsSaved: number;
     sectionsTotal: number;
 };
@@ -11108,9 +11118,21 @@ export type CmoMeasurement = {
  * After approval Cuso makes the whole month at once: how many of its pieces are made.
  */
 export type CmoProduction = {
-    state: 'waiting' | 'running' | 'ready' | 'stuck';
+    /**
+     * starting: approved, but no run is working yet; the next sync starts one.
+     */
+    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck';
     ready: number;
     total: number;
+    /**
+     * Pieces whose words are written.
+     */
+    written: number;
+    /**
+     * Pieces with every picture they need, of needPictures.
+     */
+    pictured: number;
+    needPictures: number;
     finishedAt: string | null;
     /**
      * Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.
@@ -84570,6 +84592,10 @@ export type PostRealtimeAblyTokenData = {
     path?: never;
     query?: {
         clientInstanceId?: string;
+        /**
+         * Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to 50 distinct comma-separated room UUIDs. Only current memberships receive grants.
+         */
+        roomIds?: string;
     };
     url: '/realtime/ably-token';
 };
@@ -84609,6 +84635,21 @@ export type PostRealtimeAblyTokenErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

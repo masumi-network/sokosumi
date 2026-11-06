@@ -19,6 +19,7 @@ import { findThreadReplyRowsPassedByRoomRead } from "@/helpers/chat-thread-reply
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
   CHAT_ROOM_BADGE_MESSAGE_KEYS,
+  deliveryOutsideMention,
   resolveNotificationDelivery,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
@@ -45,6 +46,10 @@ export interface CreateNotificationInput {
   messageKey: string;
   messageParams: Record<string, unknown>;
   metadata?: Record<string, unknown> | null;
+  /** Deliver a Direct only on channels its mention does not already cover.
+   * Room messages use the same channel complement.
+   */
+  suppressMentionDelivery?: boolean;
 }
 
 export interface CreateNotificationResult {
@@ -89,11 +94,20 @@ export async function resolveDelivery(
       return { inApp: true, osBanner: false, email: false };
     }
 
-    return resolveNotificationDelivery({
+    const delivery = resolveNotificationDelivery({
       category: toNotificationCategory(input.kind, input.messageKey),
       preferences: user.notificationPreferences,
       pushOptIn: user.pushOptIn,
     });
+    if (!input.suppressMentionDelivery) return delivery;
+    return deliveryOutsideMention(
+      delivery,
+      resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: user.notificationPreferences,
+        pushOptIn: user.pushOptIn,
+      }),
+    );
   } catch (error) {
     console.error(
       "Failed to read the notification preferences; skipping push:",
@@ -171,6 +185,7 @@ async function chatRoomArrivals(
       select: {
         id: true,
         messageKey: true,
+        eventId: true,
         messageParams: true,
         inApp: true,
         metadata: true,
@@ -195,6 +210,7 @@ async function chatRoomArrivals(
       : new Set<string>();
 
     let count = 0;
+    const countedMessages = new Set<string>();
     for (const row of waiting) {
       // Reminders refer to existing messages, so they add no arrivals.
       if (isFollowUpMessageKey(row.messageKey) || passedIds.has(row.id)) {
@@ -223,6 +239,10 @@ async function chatRoomArrivals(
           continue;
         }
       }
+      // One message can carry a mention toast and a Direct banner on separate rows.
+      // A room companion can also include later arrivals. Subtract only this message.
+      if (countedMessages.has(row.eventId)) count -= 1;
+      countedMessages.add(row.eventId);
       count += arrivalsOn(row);
     }
     return count > 0 ? count : undefined;

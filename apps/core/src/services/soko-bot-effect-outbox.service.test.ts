@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   persistHumanMentions: vi.fn(),
-  emitHumanMentions: vi.fn(),
+  emitMessages: vi.fn(),
   humanMentions: vi.fn(),
   update: vi.fn(),
   find: vi.fn(),
@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   message: vi.fn(),
   event: vi.fn(),
   publish: vi.fn(),
-  notify: vi.fn(),
   invalidate: vi.fn(),
   taskPublish: vi.fn(),
   taskNotify: vi.fn(),
@@ -26,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: mocks.persistHumanMentions,
-  emitChatHumanMentionNotifications: mocks.emitHumanMentions,
+  emitChatMessageNotifications: mocks.emitMessages,
 }));
 vi.mock("@/helpers/calendar-invalidation", () => ({
   deliverCalendarInvalidationsNow: mocks.calendar,
@@ -61,10 +60,6 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 }));
 vi.mock("@/helpers/chat-room-message-created-effects", () => ({
   invalidateChatRoomMessageReaders: mocks.invalidate,
-}));
-vi.mock("@/helpers/chat-direct-message-notifications", () => ({
-  emitChatDirectMessageNotifications: mocks.notify,
-  shouldEmitChatDirectMessageNotifications: () => true,
 }));
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: mocks.taskPublish,
@@ -144,17 +139,39 @@ beforeEach(() => {
   mocks.mentions.mockResolvedValue([]);
 });
 describe("committed effect outbox", () => {
+  it.each(["channel", "direct"])(
+    "delivers opted-in messages from a %s tool effect with three humans",
+    async (kind) => {
+      const record = effect();
+      const userIds = ["owner", "reader", "third"];
+      mocks.find.mockResolvedValue({
+        ...record,
+        payload: { ...record.payload, userIds },
+      });
+      const current = message();
+      current.room.kind = kind;
+      current.room.userMembers = userIds.map((userId) => ({ userId }));
+      mocks.message.mockResolvedValue(current);
+
+      expect(await deliverSokoBotEffect("effect")).toBe(true);
+      expect(mocks.emitMessages).toHaveBeenCalledWith({
+        messageId: "message",
+        mentionedUserIds: [],
+        throwOnError: true,
+      });
+    },
+  );
   it("publishes existing message with strict notifications only after claiming", async () => {
     expect(await deliverSokoBotEffect("effect")).toBe(true);
     expect(mocks.publish).toHaveBeenCalledWith("message", "create", {
       throwOnError: true,
     });
-    expect(mocks.notify).toHaveBeenCalledWith(
+    expect(mocks.emitMessages).toHaveBeenCalledWith(
       expect.objectContaining({ messageId: "message", throwOnError: true }),
     );
     expect(mocks.update.mock.calls.at(-1)?.[0].data.status).toBe("PUBLISHED");
   });
-  it("notifies mentioned owner once and sends direct notification only to unmentioned reader", async () => {
+  it("retains mentioned owner for Direct channels not covered by the mention", async () => {
     const record = effect();
     mocks.find.mockResolvedValue({
       ...record,
@@ -165,13 +182,7 @@ describe("committed effect outbox", () => {
     mocks.message.mockResolvedValue(current);
     mocks.humanMentions.mockResolvedValue([{ userId: "owner" }]);
     expect(await deliverSokoBotEffect("effect")).toBe(true);
-    expect(mocks.notify).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipientUserIds: ["reader"],
-        throwOnError: true,
-      }),
-    );
-    expect(mocks.emitHumanMentions).toHaveBeenCalledWith({
+    expect(mocks.emitMessages).toHaveBeenCalledWith({
       messageId: "message",
       mentionedUserIds: ["owner"],
       throwOnError: true,
@@ -247,9 +258,8 @@ describe("committed effect outbox", () => {
     current.room.userMembers.push({ userId: "new-reader" });
     mocks.message.mockResolvedValue(current);
     expect(await deliverSokoBotEffect("effect")).toBe(false);
-    expect(mocks.notify).not.toHaveBeenCalled();
+    expect(mocks.emitMessages).not.toHaveBeenCalled();
     expect(mocks.persistHumanMentions).not.toHaveBeenCalled();
-    expect(mocks.emitHumanMentions).not.toHaveBeenCalled();
     expect(mocks.update.mock.calls.at(-1)?.[0].data.reason).toBe(
       "AUDIENCE_CHANGED",
     );
@@ -295,7 +305,7 @@ describe("committed effect outbox", () => {
       expect.objectContaining({ expandAll: true }),
     );
   });
-  it.each(["publish", "notify", "invalidate", "emitHumanMentions"] as const)(
+  it.each(["publish", "invalidate", "emitMessages"] as const)(
     "retains obligation when %s fails and retries same message",
     async (key) => {
       mocks[key].mockRejectedValueOnce(new Error("offline"));

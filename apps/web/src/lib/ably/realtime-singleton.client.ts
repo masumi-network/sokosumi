@@ -93,6 +93,11 @@ function retireAblyRealtimeClient(
   }
 }
 
+/** Keep the old identity closed while the document reloads for a new account. */
+export function retireAblyRealtimeClientForSessionChange(): void {
+  retireAblyRealtimeClient(getGlobalAblyRealtimeClient());
+}
+
 /**
  * Undo a session-loss retire, because a sign-in just happened in this document.
  *

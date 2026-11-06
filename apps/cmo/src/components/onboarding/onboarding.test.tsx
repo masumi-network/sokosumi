@@ -119,6 +119,9 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
       state: "waiting",
       ready: 0,
       total: 0,
+      written: 0,
+      pictured: 0,
+      needPictures: 0,
       finishedAt: null,
       pillars: null,
     },
@@ -159,6 +162,7 @@ const running = (kind: "research" | "strategy") => ({
       at: new Date("2026-10-05T09:00:05Z"),
     },
   ],
+  sections: [],
   sectionsSaved: 0,
   sectionsTotal: 16,
 });

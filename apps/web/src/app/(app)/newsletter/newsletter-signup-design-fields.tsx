@@ -12,7 +12,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
   Select,
   SelectContent,
@@ -21,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { NewsletterSettingsValues } from "@/lib/schemas/newsletter";
-import { cn } from "@/lib/utils";
 
 const CHOICES = {
   buttonShape: ["square", "rounded", "pill"],
@@ -37,21 +35,10 @@ export function NewsletterSignupDesignFields({
   const t = useTranslations("App.Projects.Newsletter");
   const form = useFormContext<NewsletterSettingsValues>();
   return (
-    <section
-      aria-labelledby="newsletter-signup-customize"
-      className={cn(HOLDER_ITEM_CLASS, "@container min-w-0 space-y-4 p-4")}
-    >
-      <div className="space-y-1">
-        <h3
-          id="newsletter-signup-customize"
-          className="text-base font-semibold"
-        >
-          {t("SignupForm.customize")}
-        </h3>
-        <p className="text-muted-foreground text-sm">
-          {t("SignupForm.customizeDescription")}
-        </p>
-      </div>
+    <div className="@container min-w-0 space-y-4">
+      <p className="text-muted-foreground text-sm">
+        {t("SignupForm.customizeDescription")}
+      </p>
       <div className="grid gap-4 @lg:grid-cols-2">
         {(["accentColor", "buttonTextColor"] as const).map((name) => (
           <FormField
@@ -159,6 +146,6 @@ export function NewsletterSignupDesignFields({
       >
         {t("SignupForm.resetOverrides")}
       </Button>
-    </section>
+    </div>
   );
 }
