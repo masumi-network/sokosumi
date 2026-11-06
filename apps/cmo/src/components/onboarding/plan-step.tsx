@@ -118,7 +118,7 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
         ) : (
           <p className="ob-muted">
             {running
-              ? `Every post, ad and email ${AGENT_NAME} will make, and when. This takes a few minutes.`
+              ? `Every post and ad ${AGENT_NAME} will make, and when. This takes a few minutes.`
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}
