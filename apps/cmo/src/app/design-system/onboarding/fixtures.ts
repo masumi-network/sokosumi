@@ -14,6 +14,7 @@ import {
 export const SCREENS = [
   "hire",
   "reading",
+  "writing",
   "asking",
   "brand",
   "plan",
@@ -230,6 +231,33 @@ export function screenOverview(screen: Screen): CmoOverview {
       return reading({
         work: work("research", { sectionsSaved: 3 }),
       });
+    case "writing": {
+      const research = work("research", { sectionsSaved: 16 });
+      return reading({
+        work: {
+          ...research,
+          steps: [
+            ...research.steps,
+            {
+              id: "s2",
+              kind: "search",
+              label: "Searching for tools like Acme",
+              url: null,
+              status: "done",
+              at: new Date("2026-10-05T09:01:00Z"),
+            },
+            {
+              id: "s3",
+              kind: "brain",
+              label: "Saving your Brand Brain",
+              url: null,
+              status: "running",
+              at: new Date("2026-10-05T09:03:40Z"),
+            },
+          ],
+        },
+      });
+    }
     case "asking":
       return asking({
         brandBrain: {
