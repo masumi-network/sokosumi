@@ -3367,9 +3367,9 @@
               "skippedBounced": "Omitidos por correos devueltos",
               "pendingConfirmation": "En espera de confirmación"
             },
-            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidHint": "Estas filas necesitan un correo electrónico válido. Corrígelas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas.",
             "invalidRow": "Fila {row}: {value}",
-            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+            "blankEmail": "sin correo electrónico"
           },
           "dismiss": "Cerrar",
           "fromContacts": "Añadir desde Contactos",
@@ -3678,7 +3678,9 @@
         "publicArchive": "Archivo público",
         "SignupForm": {
           "title": "Formulario de suscripción",
-          "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
+          "shareTitle": "Compartir",
+          "description": "Los suscriptores confirman su correo antes de recibir ediciones.",
           "previewTitle": "Vista previa del formulario de suscripción",
           "previewDescription": "Los cambios aparecen aquí al instante. Guarda el diseño para actualizar la página pública y el formulario integrado.",
           "hostedPage": "Página de suscripción alojada",

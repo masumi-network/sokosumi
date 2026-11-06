@@ -3367,9 +3367,9 @@
               "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
               "pendingConfirmation": "Warten auf Bestätigung"
             },
-            "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
+            "invalidHint": "Diese Zeilen brauchen eine gültige E-Mail-Adresse. Korrigiere sie und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 Zeilen gemeldet.",
             "invalidRow": "Zeile {row}: {value}",
-            "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
+            "blankEmail": "keine E-Mail-Adresse"
           },
           "dismiss": "Schließen",
           "fromContacts": "Aus Kontakten hinzufügen",
@@ -3678,7 +3678,9 @@
         "publicArchive": "Öffentliches Archiv",
         "SignupForm": {
           "title": "Anmeldeformular",
-          "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
+          "shareTitle": "Teilen",
+          "description": "Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
           "previewTitle": "Vorschau des Anmeldeformulars",
           "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
           "hostedPage": "Gehostete Anmeldeseite",

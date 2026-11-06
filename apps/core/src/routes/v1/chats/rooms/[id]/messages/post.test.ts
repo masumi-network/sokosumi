@@ -752,6 +752,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorName: "Hannah",
         parentMessageId: null,
         recipientUserIds: [ALICE_ID],
+        mentionedUserIds: [],
       });
       // Scheduled for every room. The emitter leaves a direct room of two to
       // the direct-message row, which is the only place that decision can see
@@ -805,7 +806,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         mentionedUserIds: [ALICE_ID],
       });
       expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith(
-        expect.objectContaining({ recipientUserIds: [BOB_ID] }),
+        expect.objectContaining({
+          recipientUserIds: [ALICE_ID, BOB_ID],
+          mentionedUserIds: [ALICE_ID],
+        }),
       );
       expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
         expect.objectContaining({ mentionedUserIds: [ALICE_ID] }),
@@ -1546,10 +1550,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorName: "Patrick",
         parentMessageId: null,
         recipientUserIds: [ALICE_ID],
+        mentionedUserIds: [],
       });
     });
 
-    it("skips direct-message emit for humans already covered by mention notifications", async () => {
+    it("passes mentioned humans to Direct delivery so their enabled channels survive", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
           kind: "direct",
@@ -1588,7 +1593,12 @@ describe("POST /chats/rooms/{id}/messages", () => {
           mentionedUserIds: [ALICE_ID],
         }),
       );
-      expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserIds: [ALICE_ID],
+          mentionedUserIds: [ALICE_ID],
+        }),
+      );
       await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
       expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
         userIds: [USER_ID, ALICE_ID],

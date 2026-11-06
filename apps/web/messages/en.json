@@ -3367,9 +3367,9 @@
               "skippedBounced": "Skipped because they bounced",
               "pendingConfirmation": "Waiting for confirmation"
             },
-            "invalidHint": "Fix these rows and import them again. Row numbers include the header. Up to 100 invalid rows are reported.",
+            "invalidHint": "These rows need a valid email address. Fix them and import them again. Row numbers include the header. Up to 100 rows are reported.",
             "invalidRow": "Row {row}: {value}",
-            "moreInvalid": "{count, plural, one {# more invalid row reported} other {# more invalid rows reported}}"
+            "blankEmail": "no email"
           },
           "dismiss": "Dismiss",
           "fromContacts": "Add from Contacts",
@@ -3678,7 +3678,9 @@
         "publicArchive": "Public archive",
         "SignupForm": {
           "title": "Signup form",
-          "description": "Share the hosted signup page or paste the iframe code into your website. Subscribers confirm their email before receiving issues.",
+          "pageDescription": "Grow your newsletter audience with a hosted signup page or an embedded form.",
+          "shareTitle": "Share",
+          "description": "Subscribers confirm their email before receiving issues.",
           "previewTitle": "Signup form preview",
           "previewDescription": "Changes appear here immediately. Save design to update the public page and embed.",
           "hostedPage": "Hosted signup page",

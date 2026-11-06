@@ -27,6 +27,7 @@ const {
   notificationFindManyMock,
   notificationUpdateManyMock,
   notificationFindUniqueMock,
+  notificationCreateManyMock,
   captureExceptionMock,
   transactionMock,
   executeRawMock,
@@ -49,6 +50,7 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
+  notificationCreateManyMock: vi.fn(),
   captureExceptionMock: vi.fn(),
   transactionMock: vi.fn(),
   executeRawMock: vi.fn(),
@@ -89,6 +91,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: notificationFindManyMock,
       updateMany: notificationUpdateManyMock,
       findUnique: notificationFindUniqueMock,
+      createMany: notificationCreateManyMock,
     },
   },
 }));
@@ -120,7 +123,7 @@ vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => promise,
 }));
 
-vi.mock("@/helpers/notification-email-dispatch", () => ({
+vi.mock("@/helpers/notification-email-resend", () => ({
   resendRoomMessageEmail: (...args: unknown[]) =>
     resendRoomMessageEmailMock(...args),
 }));
@@ -183,6 +186,7 @@ beforeEach(() => {
         findMany: notificationFindManyMock,
         updateMany: notificationUpdateManyMock,
         findUnique: notificationFindUniqueMock,
+        createMany: notificationCreateManyMock,
       },
       workspace: { findFirst: workspaceFindFirstAccessMock },
     }),
@@ -211,7 +215,12 @@ beforeEach(() => {
   messageSays("ship it");
   // One row matched, which is the write landing on the row it named.
   notificationUpdateManyMock.mockResolvedValue({ count: 1 });
-  notificationFindUniqueMock.mockResolvedValue({ id: "notification_1" });
+  notificationFindUniqueMock.mockImplementation(async ({ where }) =>
+    where.userId_kind_referenceId_eventId_messageKey
+      ? null
+      : { id: "notification_1" },
+  );
+  notificationCreateManyMock.mockResolvedValue({ count: 1 });
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: false });
   loadChatMentionNamesMock.mockResolvedValue(new Map());
   loadDirectRoomNamesByReaderMock.mockResolvedValue(new Map());
@@ -736,6 +745,7 @@ describe("fanOutChatNotifications", () => {
         kind: NotificationKind.CHAT,
         referenceId: ROOM_ID,
         metadata: { contains: `"messageId":"${MESSAGE_ID}"` },
+        NOT: { messageParams: "{}" },
       },
       select: { id: true, messageParams: true, metadata: true },
       orderBy: { id: "asc" },
@@ -948,6 +958,7 @@ describe("fanOutChatNotifications, counting per room", () => {
 
     expect(resendRoomMessageEmailMock).toHaveBeenCalledExactlyOnceWith(
       "notification_1",
+      { allowInitialSend: true },
     );
   });
 
@@ -1471,7 +1482,7 @@ describe("rewriteChatNotificationPreviews", () => {
     );
   });
 
-  it("looks only at the chat rows of the room the message is in", async () => {
+  it("looks only at the chat rows of the room the message is in, and never at a receipt", async () => {
     messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
@@ -1484,6 +1495,7 @@ describe("rewriteChatNotificationPreviews", () => {
           kind: NotificationKind.CHAT,
           referenceId: ROOM_ID,
           metadata: { contains: `"messageId":"${MESSAGE_ID}"` },
+          NOT: { messageParams: "{}" },
         },
       }),
     );
@@ -2005,3 +2017,65 @@ function everythingSaidToSentry(): string {
     )
     .join(" ");
 }
+
+describe("counted replay receipts", () => {
+  it("does not recount an older arrival after newer messages or a read", async () => {
+    const receipts = new Set(["first"]);
+    const aggregate = unreadRow({ count: 1 }, { messageId: "first" });
+    let isRead = false;
+    notificationFindUniqueMock.mockImplementation(async ({ where }) =>
+      receipts.has(where.userId_kind_referenceId_eventId_messageKey?.eventId)
+        ? { id: "receipt" }
+        : null,
+    );
+    notificationFindFirstMock.mockImplementation(async () =>
+      isRead ? null : { ...aggregate },
+    );
+    notificationUpdateManyMock.mockImplementation(async ({ data }) => {
+      Object.assign(aggregate, data);
+      return { count: 1 };
+    });
+    notificationCreateManyMock.mockImplementation(async ({ data }) => {
+      if (receipts.has(data.eventId)) return { count: 0 };
+      receipts.add(data.eventId);
+      return { count: 1 };
+    });
+    for (const messageId of ["second", "third", "second"]) {
+      await fanOutChatNotifications(params({ messageId, countPerRoom: true }));
+    }
+    expect(JSON.parse(aggregate.messageParams).count).toBe(3);
+    isRead = true;
+    await fanOutChatNotifications(
+      params({ messageId: "second", countPerRoom: true }),
+    );
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("starts the email resend only after the counting transaction commits", async () => {
+    let inTransaction = false;
+    const resendDuringTransaction: boolean[] = [];
+    const tx = {
+      $queryRaw: queryRawMock,
+      $executeRaw: executeRawMock,
+      notification: {
+        findUnique: notificationFindUniqueMock,
+        findFirst: notificationFindFirstMock,
+        updateMany: notificationUpdateManyMock,
+        createMany: notificationCreateManyMock,
+      },
+      workspace: { findFirst: workspaceFindFirstAccessMock },
+    };
+    transactionMock.mockImplementation(async (callback) => {
+      inTransaction = true;
+      const result = await callback(tx);
+      inTransaction = false;
+      return result;
+    });
+    notificationFindFirstMock.mockResolvedValue(unreadRow({ count: 1 }));
+    resendRoomMessageEmailMock.mockImplementation(async () => {
+      resendDuringTransaction.push(inTransaction);
+    });
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+    expect(resendDuringTransaction).toEqual([false]);
+  });
+});

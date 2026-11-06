@@ -22,7 +22,7 @@ const {
   membershipUpdateManyMock,
   membershipFindUniqueMock,
   unreadQueryMock,
-  mentionGroupByMock,
+  mentionFindManyMock,
   membershipFindManyMock,
   readStateFindManyMock,
 } = vi.hoisted(() => ({
@@ -32,7 +32,7 @@ const {
   membershipUpdateManyMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
   unreadQueryMock: vi.fn(),
-  mentionGroupByMock: vi.fn(),
+  mentionFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
 }));
@@ -43,7 +43,7 @@ vi.mock("@/lib/db/prisma", () => ({
     organization: { findUnique: organizationFindUniqueMock },
     member: { findUnique: memberFindUniqueMock },
     $queryRawUnsafe: unreadQueryMock,
-    notification: { groupBy: mentionGroupByMock },
+    notification: { findMany: mentionFindManyMock },
     chatRoomUserMember: {
       updateMany: membershipUpdateManyMock,
       findUnique: membershipFindUniqueMock,
@@ -118,7 +118,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   membershipUpdateManyMock.mockResolvedValue({ count: 1 });
   unreadQueryMock.mockResolvedValue([]);
-  mentionGroupByMock.mockResolvedValue([]);
+  mentionFindManyMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([
     {
       roomId: ROOM_ID,

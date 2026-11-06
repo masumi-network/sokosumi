@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import { NotificationUrlTargetOpener } from "@/app/components/notification-url-target-opener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
@@ -207,15 +206,12 @@ function NotificationRealtimeBridge({
   useNotificationRealtime({
     userId,
     onNotification,
+    onSubscribed,
     onError: (error) => {
       console.error("Ably notification error:", error);
     },
   });
   useNotificationFrontPresence(userId);
-
-  useMountEffect(() => {
-    onSubscribed();
-  });
 
   return null;
 }
@@ -585,11 +581,12 @@ export function NotificationProvider({
 
       // State-only publishes can arrive after a newer local write. Read the
       // current server state instead of replaying that possibly stale snapshot.
+      // Unloaded rows also need a fresh count without changing pagination.
       if (
         notification.created === false &&
-        confirmedState.current.notifications.some(
+        !confirmedState.current.notifications.some(
           (row) =>
-            row.id === notification.id && row.isRead !== notification.isRead,
+            row.id === notification.id && row.isRead === notification.isRead,
         )
       ) {
         void fetchNotifications();
