@@ -2,7 +2,7 @@
 
 import type * as Ably from "ably";
 import { useAbly, useChannel } from "ably/react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useEffectEvent } from "react";
 
 import {
   type NotificationEventData,
@@ -15,12 +15,14 @@ const NOTIFICATION_CREATED_EVENT_NAME = "notification_created";
 interface UseNotificationRealtimeOptions {
   userId: string;
   onNotification?: (notification: NotificationEventData) => void;
+  onSubscribed?: () => void;
   onError?: (error: Error) => void;
 }
 
 export function useNotificationRealtime({
   userId,
   onNotification,
+  onSubscribed,
   onError,
 }: UseNotificationRealtimeOptions) {
   const client = useAbly();
@@ -46,6 +48,29 @@ export function useNotificationRealtime({
     NOTIFICATION_CREATED_EVENT_NAME,
     handleMessage,
   );
+
+  const handleSubscribed = useEffectEvent(() => onSubscribed?.());
+
+  useEffect(() => {
+    function handleAttached() {
+      handleSubscribed();
+    }
+
+    function handleUpdate(change: Ably.ChannelStateChange) {
+      if (!change.resumed) handleSubscribed();
+    }
+
+    channel.on("attached", handleAttached);
+    channel.on("update", handleUpdate);
+    // The REST snapshot can precede attachment, and a non-resumed attach
+    // cannot replay everything the reader missed while disconnected.
+    if (channel.state === "attached") handleSubscribed();
+
+    return () => {
+      channel.off("attached", handleAttached);
+      channel.off("update", handleUpdate);
+    };
+  }, [channel]);
 
   return {
     /**

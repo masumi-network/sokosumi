@@ -13,16 +13,26 @@ import {
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/ably-token.schema";
 
+/** Rooms one token may name. The web client names the room it is in. */
+const ROOM_SCOPE_LIMIT = 50;
+const roomIdsSchema = z
+  .string()
+  .transform((value) => (value === "" ? [] : [...new Set(value.split(","))]))
+  .pipe(z.array(z.uuid()).max(ROOM_SCOPE_LIMIT));
+
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/ably-token",
     description:
-      "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+      "Mint an Ably TokenRequest for Realtime. Grants chat room subscribe for the caller's memberships, narrowed to the rooms named by roomIds when present, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
     tags: ["Realtime"],
     request: {
       query: z.object({
         clientInstanceId: z.string().optional(),
+        roomIds: roomIdsSchema.optional().openapi({
+          description: `Optional chat room scope. Omit for every membership, send an empty value for no chat rooms, or up to ${ROOM_SCOPE_LIMIT} distinct comma-separated room UUIDs. Only current memberships receive grants.`,
+        }),
       }),
     },
     responses: {
@@ -33,6 +43,7 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -46,8 +57,10 @@ export default function mount(
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
+    const { clientInstanceId: requestedClientInstanceId, roomIds } =
+      c.req.valid("query");
     const clientInstanceId =
-      c.req.valid("query").clientInstanceId ?? FALLBACK_CLIENT_INSTANCE_ID;
+      requestedClientInstanceId ?? FALLBACK_CLIENT_INSTANCE_ID;
 
     if (!isValidAblyClientInstanceId(clientInstanceId)) {
       throw badRequest("Invalid clientInstanceId");
@@ -55,7 +68,10 @@ export default function mount(
 
     const [roomMemberships, orgMemberships, workspaces] = await Promise.all([
       prisma.chatRoomUserMember.findMany({
-        where: { userId: userContext.userId },
+        where: {
+          userId: userContext.userId,
+          ...(roomIds ? { roomId: { in: roomIds } } : {}),
+        },
         select: { roomId: true },
       }),
       prisma.member.findMany({

@@ -15,6 +15,13 @@ import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
 } from "@/helpers/calendar-membership-fence";
+import {
+  lockNotificationEmailSource,
+  type NotificationEmailSource,
+  notificationEmailContentRevision,
+  notificationEmailSource,
+  withoutLostMessage,
+} from "@/helpers/notification-chat-email-source";
 import { toNotificationCategory } from "@/helpers/notification-delivery";
 import {
   buildNotificationEmail,
@@ -71,6 +78,7 @@ const RESEND_REQUEST_GAP_MS = 500;
  */
 const COMMIT_WAIT_ATTEMPTS = 5;
 const COMMIT_WAIT_MS = 1_000;
+const EMAIL_CONTENT_REFRESH_ATTEMPTS = 3;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,7 +105,7 @@ function withResendGap<T>(request: () => Promise<T>): Promise<T> {
  * report, or one slower than the wait, which is: that email is dropped, and
  * the wait is the number to raise.
  */
-async function committedRow(id: string): Promise<null | { isRead: boolean }> {
+async function committedRow(id: string): Promise<Notification | null> {
   for (let attempt = 0; attempt < COMMIT_WAIT_ATTEMPTS; attempt += 1) {
     if (attempt > 0) {
       await sleep(COMMIT_WAIT_MS);
@@ -105,7 +113,6 @@ async function committedRow(id: string): Promise<null | { isRead: boolean }> {
 
     const row = await prisma.notification.findUnique({
       where: { id },
-      select: { isRead: true },
     });
 
     if (row) {
@@ -237,7 +244,22 @@ async function sendTimeFor(
   delayMs: number,
 ): Promise<Date | null> {
   if (notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
-    return new Date(Date.now() + delayMs);
+    // A row that still holds a scheduled email has promised its time, and a
+    // send that replaces that email keeps it, as a resend does: the two can
+    // meet under one idempotency key, and Resend refuses the second of two
+    // sends under one key that name different times (409).
+    const held = notification.emailScheduledAt?.getTime();
+    if (held !== undefined && held > Date.now()) return new Date(held);
+    // Counted from the row rather than from now. The first send and a
+    // recovery send that a counted arrival starts while the first is still
+    // in flight share one idempotency key when both read the same row, and
+    // Resend refuses the second of two sends under one key that name
+    // different times (409). Both name the time the row promised. When the
+    // arrival moved the row first the keys differ, and the refresh takes
+    // the older email back. A row whose promised time has passed, because
+    // its first send never left, waits the delay out again.
+    const promised = notification.createdAt.getTime() + delayMs;
+    return new Date(promised > Date.now() ? promised : Date.now() + delayMs);
   }
 
   return (await appInFront(notification))
@@ -258,63 +280,6 @@ export interface DispatchNotificationEmailOptions {
 }
 
 /**
- * Send this room row's email again, because it now stands for one more
- * message.
- *
- * The new email is handed over before the old one is taken back, so a send
- * that fails leaves the reader with the email they already had rather than
- * with none. The cost of the other order would be silence; the cost of this
- * one is a duplicate when the cancel fails, which is the cheaper failure.
- *
- * Does nothing for a row whose email has already left, or never had one:
- * there is nothing left to say it differently (SOK-1142).
- *
- * Never throws, and meant for `waitUntil`.
- */
-export async function resendRoomMessageEmail(
-  notificationId: string,
-): Promise<void> {
-  try {
-    const row = await prisma.notification.findUnique({
-      where: { id: notificationId },
-    });
-
-    if (
-      !row ||
-      row.isRead ||
-      row.emailId === null ||
-      row.emailScheduledAt === null ||
-      row.emailScheduledAt.getTime() <= Date.now()
-    ) {
-      return;
-    }
-
-    const stale = row.emailId;
-
-    await dispatchNotificationEmail(row, { scheduledAt: row.emailScheduledAt });
-
-    const live = await prisma.notification.findUnique({
-      where: { id: notificationId },
-      select: { emailId: true },
-    });
-
-    // Only once the row carries a different email. A dispatch that sent
-    // nothing left the old one standing, and cancelling it here would take
-    // away the reader's only email.
-    if (live?.emailId != null && live.emailId !== stale) {
-      await withResendGap(() => cancelEmail(stale));
-    }
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        notificationId,
-        notificationType: "notification-email-resend",
-      },
-    });
-  }
-}
-
-/**
  * Send, or schedule, the email for a notification that was just written.
  *
  * Never throws, and does nothing for a row that is not emailed at the event:
@@ -326,7 +291,20 @@ export async function dispatchNotificationEmail(
   notification: Notification,
   options: DispatchNotificationEmailOptions = {},
 ): Promise<void> {
+  return dispatchNotificationEmailRevision(
+    notification,
+    options,
+    EMAIL_CONTENT_REFRESH_ATTEMPTS,
+  );
+}
+
+async function dispatchNotificationEmailRevision(
+  notification: Notification,
+  options: DispatchNotificationEmailOptions,
+  remainingRefreshes: number,
+): Promise<void> {
   let unpersistedScheduledEmailId: string | null = null;
+  let refresh: Notification | null = null;
   try {
     if (isFollowUpMessageKey(notification.messageKey)) {
       return;
@@ -346,6 +324,12 @@ export async function dispatchNotificationEmail(
 
     if (!row || row.isRead) {
       return;
+    }
+    let source: NotificationEmailSource = "message";
+    if (notification.kind === NotificationKind.CHAT) {
+      notification = row;
+      source = await notificationEmailSource(notification);
+      if (source === "none") return;
     }
 
     const reader = await prisma.user.findUnique({
@@ -380,12 +364,18 @@ export async function dispatchNotificationEmail(
       return;
     }
 
+    // A row kept for its earlier arrivals says nothing of the message it
+    // lost: the email names the room and its tally, and links to the room.
+    const spoken =
+      source === "room"
+        ? withoutLostMessage(messageParams, metadata)
+        : { messageParams, metadata };
     const email = await buildNotificationEmail({
       kind: notification.kind,
       referenceId: notification.referenceId,
       messageKey: notification.messageKey,
-      messageParams,
-      metadata,
+      messageParams: spoken.messageParams,
+      metadata: spoken.metadata,
       recipientEmail: reader.email,
       recipientName: reader.name,
     });
@@ -415,10 +405,17 @@ export async function dispatchNotificationEmail(
       // something nobody is asking any more.
       const live = await client.notification.findUnique({
         where: { id: notification.id },
-        select: { isRead: true },
       });
 
       if (!live || live.isRead) {
+        return false;
+      }
+      if (
+        notification.kind === NotificationKind.CHAT &&
+        (live.messageParams !== notification.messageParams ||
+          live.metadata !== notification.metadata)
+      ) {
+        refresh = live;
         return false;
       }
 
@@ -436,10 +433,54 @@ export async function dispatchNotificationEmail(
       return true;
     };
 
+    // An email that already left cannot be replaced or taken back, so its id
+    // is written whatever the row says by now. Left off the row, the next
+    // message in the room would find no earlier email and send a second one
+    // about the same unread room (SOK-1142). Only a scheduled email answers
+    // to a source that changed or vanished while it was being handed over.
+    const replaceable = scheduledAt !== null;
+
     const persistSentEmail = async (
       client: Prisma.TransactionClient | typeof prisma,
       emailId: string,
-    ) => {
+    ): Promise<{ emailId: string; count: number; replaced: string | null }> => {
+      await lockNotificationEmailSource(notification, client);
+      // The scheduled email this write takes off the row, if it is another
+      // one. A resend puts a new email where the old one was, and a refresh
+      // can land on a row that a counted arrival's own send has written in
+      // the meantime; left on Resend's queue, that one would still leave.
+      let replaced: string | null = null;
+      if (replaceable && notification.kind === NotificationKind.CHAT) {
+        const live = await client.notification.findUnique({
+          where: { id: notification.id },
+        });
+        if (!live || live.isRead) return { emailId, count: 0, replaced };
+        if (
+          live.messageParams !== notification.messageParams ||
+          live.metadata !== notification.metadata
+        ) {
+          refresh = live;
+          return { emailId, count: 0, replaced };
+        }
+        if (
+          live.emailId &&
+          live.emailId !== emailId &&
+          live.emailScheduledAt &&
+          live.emailScheduledAt.getTime() > Date.now()
+        )
+          replaced = live.emailId;
+      }
+      if (replaceable) {
+        const liveSource = await notificationEmailSource(notification, client);
+        if (liveSource === "none") return { emailId, count: 0, replaced: null };
+        // The row's bytes can stay while its message goes: a counted row
+        // without a preview is left as it is by a deletion. The email was
+        // built for the message, and the row now speaks for the room alone.
+        if (liveSource !== source) {
+          refresh = notification;
+          return { emailId, count: 0, replaced: null };
+        }
+      }
       if (
         notification.workspaceId &&
         !(await hasCalendarWorkspaceAccess(
@@ -448,18 +489,44 @@ export async function dispatchNotificationEmail(
           notification.userId,
         ))
       ) {
-        return { emailId, count: 0 };
+        return { emailId, count: 0, replaced: null };
       }
 
       // Written only onto a row that is still unread. A row read while the
       // email was being handed over has nothing to cancel it by, so it is
       // cancelled below instead; an email already on its way is left alone.
       const { count } = await client.notification.updateMany({
-        where: { id: notification.id, isRead: false },
+        where: {
+          id: notification.id,
+          isRead: false,
+          ...(replaceable && notification.kind === NotificationKind.CHAT
+            ? {
+                messageParams: notification.messageParams,
+                metadata: notification.metadata,
+              }
+            : {}),
+        },
         data: { emailId, emailScheduledAt: scheduledAt },
       });
 
-      return { emailId, count };
+      if (
+        count === 0 &&
+        replaceable &&
+        notification.kind === NotificationKind.CHAT
+      ) {
+        const latest = await client.notification.findUnique({
+          where: { id: notification.id },
+        });
+        if (
+          latest &&
+          !latest.isRead &&
+          (latest.messageParams !== notification.messageParams ||
+            latest.metadata !== notification.metadata)
+        )
+          refresh = latest;
+      }
+
+      return { emailId, count, replaced: count > 0 ? replaced : null };
     };
 
     const withWorkspaceMembershipFence = async <T>(
@@ -472,12 +539,19 @@ export async function dispatchNotificationEmail(
       });
 
     const sent = await withResendGap(async () => {
+      if (await alreadyEmailed(notification, category)) return null;
       const workspaceId = notification.workspaceId;
       const allowed = workspaceId
         ? await withWorkspaceMembershipFence(workspaceId, liveUnreadRecipient)
         : await liveUnreadRecipient(prisma);
 
-      if (!allowed || (await alreadyEmailed(notification, category))) {
+      if (!allowed) return null;
+      const liveSource = await notificationEmailSource(notification);
+      if (liveSource === "none") return null;
+      // Same as in `persistSentEmail`: a message that went while this send
+      // waited for its turn is sent again, for what the row speaks for now.
+      if (liveSource !== source) {
+        refresh = notification;
         return null;
       }
 
@@ -500,7 +574,12 @@ export async function dispatchNotificationEmail(
         // another message joins the row it stands for: that send is a
         // different email about a different number of messages, and the
         // first send's key would have Resend replay the old one (SOK-1142).
-        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}`,
+        //
+        // The source is in the key because a row that carries no preview
+        // keeps its bytes when its message is deleted: the revision would
+        // match the first send's, and the room's email is a different
+        // payload under it, which Resend refuses rather than replaces.
+        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}${notification.kind === NotificationKind.CHAT ? `/${notificationEmailContentRevision(notification)}` : ""}${source === "room" ? "/room" : ""}`,
       });
 
       if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;
@@ -513,13 +592,41 @@ export async function dispatchNotificationEmail(
         ? withWorkspaceMembershipFence(workspaceId, (tx) =>
             persistSentEmail(tx, emailId),
           )
-        : persistSentEmail(prisma, emailId);
+        : notification.kind === NotificationKind.CHAT
+          ? prisma.$transaction((tx) => persistSentEmail(tx, emailId))
+          : persistSentEmail(prisma, emailId);
     });
 
+    // Taken back before the refresh below sends again, so a row that moved
+    // under this send is never left with two emails. The refresh can send
+    // nothing, when its budget is spent or the row cannot send any more:
+    // then the row is left quiet rather than with an email about a message
+    // that is gone or a count that is wrong, until its next arrival.
     if (sent !== null && sent.count === 0 && scheduledAt !== null) {
       await withResendGap(() => cancelEmail(sent.emailId));
     }
     unpersistedScheduledEmailId = null;
+    if (sent?.replaced) {
+      const replaced = sent.replaced;
+      await withResendGap(() => cancelEmail(replaced));
+    }
+    if (
+      refresh &&
+      remainingRefreshes > 0 &&
+      (sent === null || scheduledAt !== null)
+    ) {
+      // Pinned only when the caller pinned it. A time this send decided
+      // came from a row that has since moved, and the arrival that moved it
+      // has a send of its own that reads the time from the moved row: both
+      // share one idempotency key, so both must name one time.
+      await dispatchNotificationEmailRevision(
+        refresh,
+        options.scheduledAt !== undefined
+          ? { scheduledAt: options.scheduledAt }
+          : {},
+        remainingRefreshes - 1,
+      );
+    }
   } catch (error) {
     if (unpersistedScheduledEmailId) {
       const emailId = unpersistedScheduledEmailId;
@@ -597,7 +704,7 @@ export async function cancelNotificationEmails(
 
       if (cancelled) {
         await prisma.notification.updateMany({
-          where: { id: row.id },
+          where: { id: row.id, emailId },
           data: { emailId: null, emailScheduledAt: null },
         });
       }

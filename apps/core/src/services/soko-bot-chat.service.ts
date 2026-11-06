@@ -324,7 +324,7 @@ export async function postSokoBotOwnerNotice(input: {
   const room = await resolveNoticeRoom(bot, input.mentionUserId ?? null);
   if (!room) return null;
   const content = withNoticeMention(input.content, room.mentionUserId);
-  const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
+  const { emitChatMessageNotifications, persistChatHumanMentions } =
     await import("@/helpers/chat-human-mentions");
   const message = await prisma.$transaction(async (tx) => {
     const posted = await tx.chatRoomMessage.upsert({
@@ -356,11 +356,10 @@ export async function postSokoBotOwnerNotice(input: {
     return posted;
   });
   await announceBotMessage(room.id, message.id);
-  if (room.mentionUserId !== null)
-    await emitChatHumanMentionNotifications({
-      messageId: message.id,
-      mentionedUserIds: [room.mentionUserId],
-    });
+  await emitChatMessageNotifications({
+    messageId: message.id,
+    mentionedUserIds: room.mentionUserId === null ? [] : [room.mentionUserId],
+  });
   return { messageId: message.id };
 }
 
