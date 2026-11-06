@@ -1,7 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel, relativeDay } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
@@ -41,7 +41,7 @@ function MonthProduction({
           {production.state === "running" ? (
             <span className="dot live" aria-hidden="true" />
           ) : null}
-          <span className="uchannel">Cuso</span>
+          <span className="uchannel">{AGENT_NAME}</span>
           <span className="when num">
             {production.ready} of {production.total}
           </span>
@@ -49,7 +49,7 @@ function MonthProduction({
         <span className="utitle">
           {production.state === "running"
             ? "Making every post, picture and ad for the month"
-            : "A few pieces didn't finish. Cuso tries again later."}
+            : `A few pieces didn't finish. ${AGENT_NAME} tries again later.`}
         </span>
         <span
           className="uprogress"
@@ -103,9 +103,9 @@ export function UpNext({
             <span className="shape" aria-hidden="true" />
             <span>
               {!strategyApproved(overview)
-                ? "Cuso starts working once you approve the strategy."
+                ? `${AGENT_NAME} starts working once you approve the strategy.`
                 : overview.channels.length === 0
-                  ? "Nothing queued. Cuso is waiting for a connected channel."
+                  ? `Nothing queued. ${AGENT_NAME} is waiting for a connected channel.`
                   : "Nothing due on your connected channels yet."}
             </span>
           </div>
@@ -117,7 +117,7 @@ export function UpNext({
               <div className="uitem working">
                 <div className="top">
                   <span className="dot live" aria-hidden="true" />
-                  <span className="uchannel">Cuso</span>
+                  <span className="uchannel">{AGENT_NAME}</span>
                   <span className="when">Now</span>
                 </div>
                 <span className="utitle">Working on your marketing</span>

@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import { useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { formatDay } from "../../lib/calendar";
 import { StatusText } from "../status";
 import { StrategyReveal } from "../strategy-reveal";
@@ -88,7 +88,7 @@ export function StrategyPage({
     return (
       <div className="empty">
         <span className="shape" aria-hidden="true" />
-        <span>Cuso is still writing the strategy.</span>
+        <span>{AGENT_NAME} is still writing the strategy.</span>
       </div>
     );
   }

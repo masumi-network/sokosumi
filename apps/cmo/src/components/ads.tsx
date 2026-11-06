@@ -3,6 +3,7 @@
 import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AGENT_NAME } from "../lib/agent";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 type AdAccounts = CmoAdCampaigns["accounts"];
@@ -77,12 +78,12 @@ export function ConnectAdsButton({
         }}
       >
         {pending ? (
-          <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+          <Loader2 size={14} className="spin" aria-hidden="true" />
         ) : null}
         Connect
       </button>
       {error ? (
-        <span className="ob-note" role="alert">
+        <span className="note" role="alert">
           {error}
         </span>
       ) : null}
@@ -131,7 +132,7 @@ export function SearchAdControl({
 
   return (
     <div className="ads-panel">
-      <p className="ob-label">Search ad</p>
+      <p className="label">Search ad</p>
       <p className="note">Keywords: {ad.keywords.join(", ")}</p>
       <p className="note">Headlines: {ad.headlines.join(" · ")}</p>
       <p className="note">Sends people to {ad.finalUrl}</p>
@@ -174,7 +175,7 @@ export function SearchAdControl({
             onClick={() => void run(() => actions.launchAd(entry.id))}
           >
             {pending ? (
-              <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+              <Loader2 size={14} className="spin" aria-hidden="true" />
             ) : null}
             Launch ad
           </button>
@@ -184,7 +185,7 @@ export function SearchAdControl({
         </div>
       )}
       {error ? (
-        <p className="ob-note" role="alert">
+        <p className="note" role="alert">
           {error}
         </p>
       ) : null}
@@ -245,7 +246,8 @@ export function AdsPanel({
           (account) => account.campaigns.length === 0,
         ) ? (
         <p className="muted">
-          No campaigns yet. Launch one of Cuso's search ads from Strategy.
+          No campaigns yet. Launch one of {AGENT_NAME}'s search ads from
+          Strategy.
         </p>
       ) : (
         <ul className="list">

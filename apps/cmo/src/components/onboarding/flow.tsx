@@ -20,6 +20,13 @@ import { PlanStep } from "./plan-step";
 import { SiteStep } from "./site-step";
 import { type OnboardingStep, onboardingStep, STEPS, stepIndex } from "./step";
 
+/** One answer to one of Cuso's questions, with what is true instead after a no. */
+interface AnswerInput {
+  questionId: string;
+  answer: Answer;
+  note?: string;
+}
+
 export interface OnboardingActions {
   loadState: () => Promise<{
     overview: CmoOverview | null;
@@ -42,21 +49,13 @@ export interface OnboardingActions {
   ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   /** The founder approved the Brand Brain; the plan comes next. */
   approveBrandBrain: () => Promise<CmoOverview>;
-  answerBrandQuestion: (answer: {
-    questionId: string;
-    answer: Answer;
-    note?: string;
-  }) => Promise<CmoOverview>;
+  answerBrandQuestion: (answer: AnswerInput) => Promise<CmoOverview>;
   /** The founder left Cuso's questions about the brand for later. */
   skipBrandQuestions: () => Promise<CmoOverview>;
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
-  answerPlanQuestion: (answer: {
-    questionId: string;
-    answer: Answer;
-    note?: string;
-  }) => Promise<CmoOverview>;
+  answerPlanQuestion: (answer: AnswerInput) => Promise<CmoOverview>;
   applyPlanAnswers: () => Promise<{
     overview: CmoOverview | null;
     error: string | null;
@@ -259,11 +258,7 @@ export function OnboardingFlow({
   };
   const request = async (note?: string) =>
     settle(await actions.requestStrategy(note));
-  const answerBrand = async (input: {
-    questionId: string;
-    answer: Answer;
-    note?: string;
-  }) => {
+  const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
   };
 

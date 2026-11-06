@@ -111,7 +111,7 @@ export type CusoState =
   | "running";
 
 /** Each state in a word, for the chat header and Cuso's status card. */
-export const CUSO_STATE_LABEL: Record<CusoState, string> = {
+const CUSO_STATE_LABEL: Record<CusoState, string> = {
   stopped: "Stopped",
   learning: "Learning",
   "needs-answers": "Needs your answers",

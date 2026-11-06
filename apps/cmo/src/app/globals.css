@@ -607,14 +607,8 @@ a.button {
   background: var(--card);
 }
 
-.chip.selected {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
-}
-
 /* The business's own mark, shared by onboarding and the app. */
-.ob-mark {
+.business-mark {
   flex: none;
   border-radius: var(--radius-control);
   object-fit: contain;
@@ -622,7 +616,7 @@ a.button {
   border: 1px solid var(--border);
 }
 
-.ob-mark-letter {
+.business-mark-letter {
   display: grid;
   place-items: center;
   background: var(--foreground);
@@ -687,14 +681,6 @@ a.button {
   flex: 1;
   width: 100%;
   padding: 16px;
-}
-
-.landing-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  max-width: 440px;
-  margin: 48px auto;
 }
 
 .landing h1 {
@@ -1298,14 +1284,6 @@ textarea {
   line-height: 1;
 }
 
-.cal-scroll {
-  overflow-x: auto;
-}
-
-.cal-scroll .cal {
-  min-width: 560px;
-}
-
 .entry-chip {
   display: flex;
   align-items: center;
@@ -1621,9 +1599,9 @@ textarea {
 
 .panel h3 {
   margin: 0 0 2px;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .panel.page-wide {
@@ -1652,13 +1630,6 @@ textarea {
   padding: 16px 20px;
 }
 
-.page-body > .card h3 {
-  margin: 0 0 2px;
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
 .page-body > .card > .button {
   align-self: flex-start;
 }
@@ -1666,13 +1637,6 @@ textarea {
 .page-body > .card > .li {
   padding: 0;
   border-top: 0;
-}
-
-.grid2 {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: 12px;
 }
 
 .grid4 {
@@ -1776,10 +1740,6 @@ textarea {
     z-index: 25;
     border: 0;
     background: var(--scrim);
-  }
-
-  .grid2 {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .grid4,
@@ -2722,12 +2682,6 @@ textarea {
   line-height: 1.0555;
   letter-spacing: -0.035em;
   text-wrap: balance;
-}
-
-.bb-sub {
-  font-size: 1.375rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
 }
 
 .bb-lede {

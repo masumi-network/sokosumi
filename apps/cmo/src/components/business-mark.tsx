@@ -39,7 +39,7 @@ export function BusinessMark({
   if (logo) {
     return (
       <img
-        className="ob-mark"
+        className="business-mark"
         src={logo}
         alt=""
         width={size}
@@ -59,7 +59,7 @@ export function BusinessMark({
   }
   return (
     <span
-      className="ob-mark ob-mark-letter"
+      className="business-mark business-mark-letter"
       style={{
         width: size,
         height: size,

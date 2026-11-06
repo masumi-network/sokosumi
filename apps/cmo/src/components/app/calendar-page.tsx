@@ -4,7 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, Clock, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
@@ -86,7 +86,7 @@ export function CalendarPage({
     return (
       <div className="empty">
         <span className="shape" aria-hidden="true" />
-        <span>Cuso is still writing the strategy.</span>
+        <span>{AGENT_NAME} is still writing the strategy.</span>
       </div>
     );
   }

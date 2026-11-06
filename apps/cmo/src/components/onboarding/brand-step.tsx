@@ -264,7 +264,7 @@ export function BrandStep({
         <CusoAvatar pose="thinking" size={48} />
         <div className="ob-title-copy">
           <h1 className="ob-h1">Here's {site} as I see it.</h1>
-          <p className="ob-muted">
+          <p className="muted">
             {AGENT_NAME} · tap any tile to see the source or fix it
           </p>
         </div>
@@ -307,11 +307,11 @@ export function BrandStep({
             </button>
           )}
           {fixing ? (
-            <p className="ob-small ob-muted">
+            <p className="ob-small muted">
               Updating your Brand Brain. About half a minute.
             </p>
           ) : stale && !answered ? (
-            <p className="ob-small ob-muted">
+            <p className="ob-small muted">
               That change didn't come through. Ask again, or approve this
               version.
             </p>

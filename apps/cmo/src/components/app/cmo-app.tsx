@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
+import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { strategyApproved } from "../../lib/strategy";
@@ -334,7 +335,7 @@ export function CmoApp({
               className="button button-secondary button-small"
               onClick={() => compose("")}
             >
-              Change with Cuso
+              Change with {AGENT_NAME}
             </button>
           ) : null}
           {view === "chat" ? (
@@ -359,7 +360,7 @@ export function CmoApp({
         {outOfCredits ? (
           <div className="banner" role="status">
             <span className="sw" aria-hidden="true" />
-            <b>Cuso is paused: out of credits.</b>
+            <b>{AGENT_NAME} is paused: out of credits.</b>
             <span className="muted">
               Scheduled work waits until you top up.
             </span>
@@ -394,7 +395,10 @@ export function CmoApp({
                 ))}
                 {overview.botStatus === "RUNNING" ? (
                   <CusoSays>
-                    <span className="typing" aria-label="Cuso is working">
+                    <span
+                      className="typing"
+                      aria-label={`${AGENT_NAME} is working`}
+                    >
                       <i />
                       <i />
                       <i />
@@ -422,8 +426,8 @@ export function CmoApp({
                   ref={input}
                   rows={2}
                   value={draft}
-                  aria-label="Message Cuso"
-                  placeholder="Ask Cuso anything, or tell him what to change"
+                  aria-label={`Message ${AGENT_NAME}`}
+                  placeholder={`Ask ${AGENT_NAME} anything, or tell him what to change`}
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) send(event);
@@ -705,7 +709,7 @@ function ProductionCard({
             ? "Your month is ready"
             : production.state === "stuck"
               ? "Most of your month is ready"
-              : "Cuso is making your month"}
+              : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
           {production.ready} of {production.total} ready
@@ -725,7 +729,7 @@ function ProductionCard({
         {ready
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
-            ? "A few pieces didn't finish. Cuso tries them again on his next round."
+            ? `A few pieces didn't finish. ${AGENT_NAME} tries them again on his next round.`
             : "Posts, pictures, articles and emails, in rounds. Read each one as it's made."}
       </p>
       <button
@@ -753,7 +757,7 @@ function CusoSays({
         <img alt="" src="/icon.svg" width={18} height={18} />
       </span>
       <div className="mbody">
-        <MessageMeta author="Cuso" at={at} />
+        <MessageMeta author={AGENT_NAME} at={at} />
         {children}
       </div>
     </div>

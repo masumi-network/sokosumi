@@ -1,5 +1,6 @@
 "use client";
 
+import { AGENT_NAME } from "../lib/agent";
 import "./strategy-core.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
@@ -85,7 +86,7 @@ export function Alternatives({
               }}
             >
               {picked === alternative.sentence ? (
-                <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+                <Loader2 size={14} className="spin" aria-hidden="true" />
               ) : null}
               Use this one instead
             </button>
@@ -123,9 +124,9 @@ export function OfferLadder({
 }
 
 const OWNERS: Record<NonNullable<Stage["owner"]>, string> = {
-  cuso: "Cuso runs this",
+  cuso: `${AGENT_NAME} runs this`,
   you: "On your side",
-  shared: "Cuso and you",
+  shared: `${AGENT_NAME} and you`,
 };
 
 const BASES = {
@@ -239,7 +240,7 @@ export function BeforeAfter({
         <span />
         <span className="label">Today</span>
         <span />
-        <span className="label">With Cuso</span>
+        <span className="label">With {AGENT_NAME}</span>
       </li>
       {rows.map((row) => (
         <li key={row.channel}>
@@ -306,7 +307,7 @@ export function PacePicker({
               <b>{option.name}</b>
               <span>{option.does}</span>
               {changing && asked === option.level ? (
-                <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+                <Loader2 size={14} className="spin" aria-hidden="true" />
               ) : null}
             </button>
           );
@@ -351,7 +352,8 @@ export function AdBudget({
       <p className="sc-ads-amount">
         <b className="num">{money(ads.monthly, ads.currency)}</b>
         <span className="note">
-          a month{ads.setByOwner ? ", your budget" : ", Cuso's suggestion"}
+          a month
+          {ads.setByOwner ? ", your budget" : `, ${AGENT_NAME}'s suggestion`}
         </span>
       </p>
       <p>{ads.monthly > 0 ? ads.expect : ads.without}</p>
@@ -359,7 +361,8 @@ export function AdBudget({
         <p className="note">Without ads: {ads.without}</p>
       ) : null}
       <p className="note">
-        Ads are the only extra cost. You pay the ad networks directly; Cuso
+        Ads are the only extra cost. You pay the ad networks directly;{" "}
+        {AGENT_NAME}
         never spends more than this.
       </p>
       {onSetAds ? (
@@ -526,7 +529,7 @@ export function MeasureFunnel({
                   onClick={() => connect(source.provider)}
                 >
                   {pending === source.provider ? (
-                    <Loader2 size={14} className="sc-spin" aria-hidden="true" />
+                    <Loader2 size={14} className="spin" aria-hidden="true" />
                   ) : null}
                   {source.status === "pending"
                     ? "Finish connecting"

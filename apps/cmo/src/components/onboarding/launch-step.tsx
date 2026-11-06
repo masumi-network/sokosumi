@@ -18,7 +18,7 @@ import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
-export function strategyChannels(overview: CmoOverview): string[] {
+function strategyChannels(overview: CmoOverview): string[] {
   return [
     ...new Set(
       (overview.strategy?.channels ?? [])
@@ -31,17 +31,15 @@ export function strategyChannels(overview: CmoOverview): string[] {
   ];
 }
 
-/** Whether the plan uses a channel the founder sets up: social, ads, newsletter. */
-export function needsAccounts(overview: CmoOverview): boolean {
-  return strategyChannels(overview).some((key) => key !== "seo");
-}
-
 /** The social networks in the strategy, which Cuso can post to once connected. */
 export function strategySocialChannels(
   overview: CmoOverview,
 ): SocialProvider[] {
   return strategyChannels(overview).filter(isSocialProvider);
 }
+
+/** SEO has nothing to connect and the newsletter is not set up while hiring. */
+const isOptionalKey = (key: string) => key !== "seo" && key !== "newsletter";
 
 /**
  * What the founder may add but need not: the plan's ads and the channels
@@ -58,8 +56,7 @@ export function optionalChannels(
     .filter(
       (key) =>
         !isSocialProvider(key) &&
-        key !== "seo" &&
-        key !== "newsletter" &&
+        isOptionalKey(key) &&
         calendar.some((entry) => channelKey(entry.channel) === key),
     )
     .map((key) => ({ key, perMonth: null }));
@@ -68,8 +65,7 @@ export function optionalChannels(
     return key &&
       channelInfo(key)?.status === "live" &&
       !planned.includes(key) &&
-      key !== "seo" &&
-      key !== "newsletter"
+      isOptionalKey(key)
       ? [{ key, perMonth: proposal.perMonth }]
       : [];
   });
@@ -193,7 +189,7 @@ export function LaunchStep({
           </div>
         </div>
         <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
-        <p className="ob-muted">
+        <p className="muted">
           {AGENT_NAME} makes your month now and posts on your plan's schedule.
           Pause or change any piece from the calendar.
         </p>
@@ -227,7 +223,8 @@ export function LaunchStep({
   const later = optional.filter(({ key }) =>
     isAds(key) ? !overview.adProviders.includes(key) : !connected.has(key),
   );
-  const accounts = needsAccounts(overview);
+  // Only a social network of the plan needs connecting before Launch.
+  const accounts = required.length > 0;
 
   return (
     <section className="ob-launch">
@@ -235,10 +232,10 @@ export function LaunchStep({
       <h1 className="ob-h1">
         {accounts ? "One thing, then I start." : "Ready when you are."}
       </h1>
-      <p className="ob-muted">
+      <p className="muted">
         {accounts
           ? "Your plan is approved. Connect where I post."
-          : "Your plan is approved. Nothing to connect."}
+          : "Your plan is approved."}
       </p>
 
       {rows.length > 0 ? (
@@ -254,16 +251,14 @@ export function LaunchStep({
                   <ChannelIcon channel={key} size={22} />
                   <div className="ob-network-text">
                     <p className="ob-network-name">{channelLabel(key)}</p>
-                    <p className="ob-small ob-muted">
+                    <p className="ob-small muted">
                       {key === "seo"
                         ? "Page fixes and articles you paste into your site."
                         : `${pieces(key)} of ${calendar.length} pieces go here`}
                     </p>
                   </div>
                   {key === "seo" ? (
-                    <span className="ob-small ob-muted">
-                      Nothing to connect
-                    </span>
+                    <span className="ob-small muted">Nothing to connect</span>
                   ) : done ? (
                     <span className="ob-connected">
                       <StatusDisc status="ok" />
@@ -272,9 +267,7 @@ export function LaunchStep({
                   ) : (
                     <>
                       {waiting && required.length === 1 ? (
-                        <span className="ob-small ob-muted">
-                          Needed to start
-                        </span>
+                        <span className="ob-small muted">Needed to start</span>
                       ) : null}
                       <button
                         type="button"
@@ -302,7 +295,7 @@ export function LaunchStep({
 
       {later.length > 0 ? (
         <div className="ob-later">
-          <p className="ob-small ob-muted">Add later</p>
+          <p className="ob-small muted">Add later</p>
           <div className="ob-later-chips">
             {later.map(({ key, perMonth }) => (
               <button
@@ -348,7 +341,7 @@ export function LaunchStep({
         {launching ? "Launching…" : `Launch ${AGENT_NAME}`}
         {launching ? null : <ArrowRight size={16} aria-hidden="true" />}
       </button>
-      <p className="ob-small ob-muted">
+      <p className="ob-small muted">
         {waiting
           ? `Connect ${joinNames(required.map(channelLabel), "or")} to launch.`
           : `${AGENT_NAME} only does what your approved plan says, and you can disconnect any time.`}

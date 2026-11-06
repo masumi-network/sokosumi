@@ -2,6 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useState, useTransition } from "react";
+import { AGENT_NAME } from "../../lib/agent";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
 import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
@@ -283,7 +284,7 @@ export function StrategyCard({
           <>
             <StatusText>Approved</StatusText>
             <span className="note">
-              Cuso runs this plan and keeps it current.
+              {AGENT_NAME} runs this plan and keeps it current.
             </span>
           </>
         ) : (
@@ -307,7 +308,7 @@ export function StrategyCard({
             </button>
             <span className="note">
               {overview.viewerCanApprove
-                ? "This is the only thing you approve. Cuso runs the rest."
+                ? `This is the only thing you approve. ${AGENT_NAME} runs the rest.`
                 : APPROVED_BY_OWNERS}
             </span>
           </>

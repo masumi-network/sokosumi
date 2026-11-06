@@ -41,8 +41,12 @@ function inertActions(overview: CmoOverview): OnboardingActions {
   };
 }
 
+interface FixtureScreenProps {
+  screen: Screen;
+}
+
 /** One onboarding screen over fixture data, for looking at without Core. */
-export function FixtureScreen({ screen }: { screen: Screen }) {
+export function FixtureScreen({ screen }: FixtureScreenProps) {
   if (screen === "hire") {
     return (
       <Onboarding onboard={async (previous) => previous} websiteUrl="acme.io" />

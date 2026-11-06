@@ -58,7 +58,7 @@ export function StepMarkers({ current, reached, open }: StepMarkersProps) {
 }
 
 /** Done (green, check), working (dashed, dot) or not yet (hairline). */
-export interface ChecklistItem {
+interface ChecklistItem {
   label: string;
   state: "done" | "working" | "next";
 }
@@ -117,9 +117,9 @@ export function useElapsed(
 }
 
 export const RESEARCH_PHASES = [
-  { kinds: ["read"], label: "Your website" },
-  { kinds: ["search", "study"], label: "Your market and competitors" },
-  { kinds: ["brain"], label: "Your Brand Brain" },
+  { kinds: ["read"], label: "Reading your site" },
+  { kinds: ["search", "study"], label: "Comparing your competitors" },
+  { kinds: ["brain"], label: "Writing your Brand Brain" },
 ] as const;
 
 export const PLANNING_PHASES = [

@@ -1,5 +1,5 @@
 import type { CmoOverview } from "@sokosumi/core-client";
-
+import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
 import { VIEW_PATHS, type View } from "../../../lib/views";
 import { cmoOverview, cmoStrategyVersion } from "../../../test-fixtures/cmo";
@@ -278,7 +278,7 @@ const message = (
 ): CusoMessage => ({
   id,
   fromCuso,
-  author: fromCuso ? "Cuso" : "Francis",
+  author: fromCuso ? AGENT_NAME : "Francis",
   content,
   createdAt: `2026-11-${time}Z`,
 });

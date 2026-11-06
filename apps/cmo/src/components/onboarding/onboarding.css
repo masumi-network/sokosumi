@@ -217,10 +217,6 @@ body:has(.ob) .site-header {
   letter-spacing: -0.005em;
 }
 
-.ob-muted {
-  color: var(--muted);
-}
-
 .ob-small {
   font-size: 0.75rem;
   line-height: 1rem;
@@ -242,44 +238,19 @@ body:has(.ob) .site-header {
   padding-left: 18px;
 }
 
-.ob-list a,
-.ob-link {
+.ob-list a {
   color: var(--foreground);
   text-underline-offset: 3px;
-}
-
-/* Used by the shared strategy and ads parts. */
-.ob-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.ob-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8125rem;
 }
 
 .ob-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.8125rem;
-}
-
-.ob-spin {
-  animation: ob-spin 900ms linear infinite;
-}
-
-@keyframes ob-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-underline-offset: 3px;
 }
 
 /* ── Shared pieces ── */
@@ -558,9 +529,10 @@ body:has(.ob) .site-header {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  border-color: var(--line);
-  box-shadow: none;
   overflow-y: auto;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100dvh - 96px);
 }
 
 .ob-side-head {
@@ -926,12 +898,6 @@ body:has(.ob) .site-header {
   min-width: 0;
 }
 
-.ob-side {
-  position: sticky;
-  top: 80px;
-  max-height: calc(100dvh - 96px);
-}
-
 .ob-promise,
 .ob-noticed,
 .ob-left {
@@ -1061,6 +1027,20 @@ body:has(.ob) .site-header {
   gap: 8px;
 }
 
+.ob-approved {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-approved li {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
 .ob-pace {
   padding: 16px;
   border: 1px solid var(--border);
@@ -1103,6 +1083,20 @@ body:has(.ob) .site-header {
 
 .ob-tabpanel {
   padding: 16px;
+}
+
+/* Inside a tab panel the plan's sections are not cards: hairline dividers. */
+.ob-tabpanel .bb-section {
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+}
+
+.ob-tabpanel .bb-section:first-child {
+  padding-top: 8px;
+  border-top: 0;
 }
 
 .ob-month {
@@ -1474,6 +1468,7 @@ body:has(.ob) .site-header {
 
   .ob-side {
     position: fixed;
+    top: auto;
     right: 0;
     bottom: 0;
     left: 0;
@@ -1544,10 +1539,6 @@ body:has(.ob) .site-header {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ob-spin {
-    animation: none;
-  }
-
   .ob-step > button {
     transition: none;
   }

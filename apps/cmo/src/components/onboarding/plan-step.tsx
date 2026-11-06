@@ -10,7 +10,7 @@ import { changeIdeas } from "../../lib/change-ideas";
 import { strategyApproved } from "../../lib/strategy";
 import { AGENT_NAME, CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money, PacePicker } from "../strategy-core";
+import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import {
@@ -40,6 +40,13 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 
 const NUMBER_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
+
+const ANSWER_WORDS: Record<string, string> = {
+  yes: "Yes",
+  no: "No",
+  unsure: "Not sure",
+  "": "Not answered",
+};
 
 interface PlanStepProps {
   overview: CmoOverview;
@@ -100,13 +107,13 @@ function Planning({ overview, onRetry }: PlanningProps) {
         {noCredits ? (
           <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
         ) : (
-          <p className="ob-muted">
+          <p className="muted">
             {running
               ? `Every post, ad and email ${AGENT_NAME} will make, and when. This takes a few minutes.`
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}
-        {elapsed ? <p className="ob-small ob-muted num">{elapsed}</p> : null}
+        {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
         <Checklist
           items={workChecklist(
             work?.kind === "strategy" ? work.steps : [],
@@ -136,7 +143,7 @@ function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
       <div className="card card-focus ob-says">
         <CusoAvatar pose="reporting" size={96} />
         <h1 className="ob-h1">Ready to write your plan</h1>
-        <p className="ob-muted">
+        <p className="muted">
           I build it from your Brand Brain and your answers.
         </p>
         <button
@@ -249,7 +256,7 @@ function PlanReview({
       <ArrowRight size={16} aria-hidden="true" />
     </button>
   ) : approved ? null : !overview.viewerCanApprove && !unfitted ? (
-    <p className="ob-muted">An owner or admin approves the plan.</p>
+    <p className="muted">An owner or admin approves the plan.</p>
   ) : (
     <button
       type="button"
@@ -292,6 +299,7 @@ function PlanReview({
   );
 
   const ads = strategy.ads;
+  const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
 
   return (
@@ -302,23 +310,25 @@ function PlanReview({
           <h1 className="ob-statement-title">{statement}</h1>
         </div>
         <div className="ob-title-action">
-          <button
-            type="button"
-            className="button button-secondary"
-            aria-expanded={asking}
-            disabled={busy}
-            onClick={() => {
-              setAsking(!asking);
-              if (!asking) window.setTimeout(() => input.current?.focus(), 0);
-            }}
-          >
-            Ask for a change
-          </button>
+          {approved ? null : (
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-expanded={asking}
+              disabled={busy}
+              onClick={() => {
+                setAsking(!asking);
+                if (!asking) window.setTimeout(() => input.current?.focus(), 0);
+              }}
+            >
+              Ask for a change
+            </button>
+          )}
           {primary}
         </div>
       </div>
 
-      {asking ? (
+      {asking && !approved ? (
         <div className="panel">
           <form
             className="card ob-change"
@@ -382,7 +392,7 @@ function PlanReview({
           <div className="card ob-replanning" role="status">
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
-            <p className="ob-muted">
+            <p className="muted">
               {replanning}. About two minutes; your new plan opens here.
             </p>
           </div>
@@ -410,7 +420,34 @@ function PlanReview({
           </div>
         ) : null}
 
-        {hasChecks ? (
+        {approved && hasChecks ? (
+          <div className="card ob-checks">
+            <h2>What you approved</h2>
+            <ul className="ob-approved">
+              {questions.map((question) => (
+                <li key={question.id}>
+                  {question.question}{" "}
+                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                  {question.answer === "no" && question.note
+                    ? `: ${question.note}`
+                    : ""}
+                </li>
+              ))}
+              {pace ? (
+                <li>
+                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
+                </li>
+              ) : null}
+              {ads ? (
+                <li>
+                  {ads.monthly > 0
+                    ? `${money(ads.monthly, ads.currency)} a month for ads`
+                    : "No ads"}
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ) : hasChecks ? (
           <div
             className={
               questions.some((question) => !question.answer)

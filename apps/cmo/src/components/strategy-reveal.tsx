@@ -5,7 +5,7 @@ import { CMO_CHANNELS } from "@sokosumi/utils";
 import { ArrowRight, ChevronDown, CircleCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
-
+import { AGENT_NAME } from "../lib/agent";
 import { channelLabel, formatDay } from "../lib/calendar";
 import {
   type ChannelGroup,
@@ -173,7 +173,7 @@ export function StrategyReveal({
       </Section>
 
       {strategy.pace ? (
-        <Section title="How much Cuso publishes">
+        <Section title={`How much ${AGENT_NAME} publishes`}>
           <PacePicker pace={strategy.pace} onAsk={onAsk} />
         </Section>
       ) : null}
@@ -187,15 +187,15 @@ export function StrategyReveal({
       {(strategy.improvements ?? []).length > 0 ? (
         <Section title="What you can improve">
           <p className="note">
-            Cuso doesn't control your pages, prices or checkout. These changes
-            would help the funnel most.
+            {AGENT_NAME} doesn't control your pages, prices or checkout. These
+            changes would help the funnel most.
           </p>
           <Improvements items={strategy.improvements ?? []} />
         </Section>
       ) : null}
 
       {(strategy.alternatives ?? []).length > 0 ? (
-        <Section title="Other ways Cuso considered">
+        <Section title={`Other ways ${AGENT_NAME} considered`}>
           <Alternatives
             alternatives={strategy.alternatives ?? []}
             onAsk={onAsk}
@@ -234,15 +234,15 @@ export function StrategyReveal({
         </Section>
       ) : null}
 
-      <Section title="Where Cuso works" wide>
+      <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
 
       {(strategy.proposals ?? []).length > 0 ? (
         <Section title="Channels you could add" wide>
           <p className="note">
-            Cuso runs these too. They're not in the plan because you don't have
-            them set up yet. Add one and he starts on it.
+            {AGENT_NAME} runs these too. They're not in the plan because you
+            don't have them set up yet. Add one and he starts on it.
           </p>
           <Proposals proposals={strategy.proposals ?? []} />
         </Section>
@@ -302,7 +302,7 @@ export function StrategyReveal({
                         {(week.tasks ?? []).map((task) => (
                           <li key={task.task}>
                             <span className={`ff-owner ${task.owner}`}>
-                              {task.owner === "you" ? "You" : "Cuso"}
+                              {task.owner === "you" ? "You" : AGENT_NAME}
                             </span>
                             <span>
                               {task.task}
@@ -477,8 +477,8 @@ export function Pillars({
       {made ? (
         <p className="note">
           {made.rewriting
-            ? "Some pieces read as another topic than planned. Cuso is rewriting them now."
-            : "Cuso read every piece he made and counted what each one is really about."}
+            ? `Some pieces read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
+            : `${AGENT_NAME} read every piece he made and counted what each one is really about.`}
         </p>
       ) : null}
       <ul className="bb-mix">
@@ -537,11 +537,15 @@ function plural(name: string, count: number): string {
   return `${count} ${/(x|s|sh|ch)$/.test(lower) ? `${lower}es` : `${lower}s`}`;
 }
 
+interface ChannelPlanProps {
+  strategy: Strategy;
+}
+
 /**
  * Each channel of the plan: what Cuso makes there, counted from the
  * calendar, how often, and the one thing the founder does for it.
  */
-export function ChannelPlan({ strategy }: { strategy: Strategy }) {
+export function ChannelPlan({ strategy }: ChannelPlanProps) {
   const channels = strategy.channels
     .map((channel) => ({ ...channel, key: channelKey(channel.channel) }))
     .filter(
@@ -603,10 +607,10 @@ export function ChannelPlan({ strategy }: { strategy: Strategy }) {
                     .map(([name, count]) => plural(name, count))
                     .join(", ")}
                   {images ? (
-                    <span className="cw-images">Images by Cuso</span>
+                    <span className="cw-images">Images by {AGENT_NAME}</span>
                   ) : null}
                   {videos ? (
-                    <span className="cw-images">Videos by Cuso</span>
+                    <span className="cw-images">Videos by {AGENT_NAME}</span>
                   ) : null}
                 </p>
               ) : null}
@@ -618,7 +622,7 @@ export function ChannelPlan({ strategy }: { strategy: Strategy }) {
       </ul>
       {more.length > 0 ? (
         <p className="note">
-          Cuso can also run {joinNames(more)}. Ask him to add one below.
+          {AGENT_NAME} can also run {joinNames(more)}. Ask him to add one below.
           {soon.length > 0 ? ` ${joinNames(soon)} is coming soon.` : ""}
         </p>
       ) : null}
@@ -657,7 +661,7 @@ function Basics({ strategy }: { strategy: Strategy }) {
 }
 
 const SHEET_LABELS = {
-  questions: "What Cuso assumed",
+  questions: `What ${AGENT_NAME} assumed`,
   campaign: "Campaign",
   start: "Where you start",
   channels: "Why these channels",
@@ -689,7 +693,7 @@ function pieceCount(calendar: Entry[], language?: string): string {
     formatHasImage(entry.channel, entry.format),
   ).length;
   const written = language ? ` Written in ${language}.` : "";
-  return `${pieces.length} ${pieces.length === 1 ? "piece" : "pieces"}${images ? `, ${images} with images by Cuso` : ""}.${written}`;
+  return `${pieces.length} ${pieces.length === 1 ? "piece" : "pieces"}${images ? `, ${images} with images by ${AGENT_NAME}` : ""}.${written}`;
 }
 
 function lowerFirst(text: string): string {
@@ -833,7 +837,7 @@ function SheetBody({
     case "questions":
       return (
         <>
-          <h3 className="sheet-title">What Cuso assumed</h3>
+          <h3 className="sheet-title">What {AGENT_NAME} assumed</h3>
           <ul className="rv-question-list">
             {questions.map((question) => (
               <li key={question}>
@@ -842,7 +846,7 @@ function SheetBody({
                   <AskForm
                     cta="Answer"
                     placeholder="Your answer"
-                    sentNote="Sent. Cuso updates the plan in about two minutes."
+                    sentNote={`Sent. ${AGENT_NAME} updates the plan in about two minutes.`}
                     onAsk={(answer) =>
                       onAsk(`Answer for my strategy: “${question}” ${answer}`)
                     }

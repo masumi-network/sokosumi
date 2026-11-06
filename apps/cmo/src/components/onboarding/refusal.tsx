@@ -13,13 +13,13 @@ export function Refusal({
 }) {
   if (!/credits/i.test(text)) {
     return (
-      <p className="ob-note" role="alert">
+      <p className="note" role="alert">
         {text}
       </p>
     );
   }
   return (
-    <p className="ob-note" role="alert">
+    <p className="note" role="alert">
       You're out of credits.{" "}
       <a className="ob-link" href={topUpUrl} target="_blank" rel="noreferrer">
         Top up on Sokosumi

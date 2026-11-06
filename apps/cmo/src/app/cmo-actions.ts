@@ -41,7 +41,7 @@ import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
+import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
@@ -105,7 +105,7 @@ async function skipStep(step: SkippedStep): Promise<CmoOverview> {
 
 async function requireOverview(): Promise<CmoOverview> {
   const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   return overview;
 }
 
@@ -330,7 +330,7 @@ export async function loadState(): Promise<{
   if (response?.status === 404) return { overview: null, messages: [] };
   // Any other failure is not "not hired": showing the hire flow would offer
   // a second business.
-  if (!data) throw new Error("Could not load Cuso");
+  if (!data) throw new Error(`Could not load ${AGENT_NAME}`);
   return {
     overview: await withSkipped(data.data),
     messages: await messagesFor(core, data.data),
@@ -342,7 +342,7 @@ export async function sendMessage(content: string): Promise<void> {
   if (!text) return;
   const core = await requireCore();
   const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   const { error } = await postChatsRoomsByIdMessages({
     client: core.client,
     headers: chatHeaders(core, overview),

@@ -435,13 +435,3 @@
   color: var(--foreground);
   font-size: 0.875rem;
 }
-
-.sc-spin {
-  animation: sc-spin 800ms linear infinite;
-}
-
-@keyframes sc-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}

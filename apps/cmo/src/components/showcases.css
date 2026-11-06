@@ -26,7 +26,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-.sx-profile .ob-mark {
+.sx-profile .business-mark {
   margin-top: -26px;
   border: 3px solid var(--background);
   border-radius: 999px;
@@ -56,7 +56,7 @@
   border-top: 1px solid var(--border);
 }
 
-.sx-post .ob-mark {
+.sx-post .business-mark {
   border-radius: 999px;
 }
 
@@ -137,7 +137,7 @@
   padding: 14px;
 }
 
-.si-head .ob-mark {
+.si-head .business-mark {
   border-radius: 999px;
 }
 
@@ -262,7 +262,7 @@
   margin: 0;
 }
 
-.ss-site .ob-mark {
+.ss-site .business-mark {
   border-radius: 999px;
 }
 

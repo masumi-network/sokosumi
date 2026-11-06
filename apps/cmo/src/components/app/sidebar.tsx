@@ -11,7 +11,7 @@ import {
   Share2,
   Target,
 } from "lucide-react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { VIEW_PATHS, type View } from "../../lib/views";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
@@ -19,7 +19,7 @@ import { ThemeToggle } from "../theme-toggle";
 import { CusoStatus } from "./cuso-status";
 
 export const VIEWS = [
-  ["chat", "Cuso", MessageSquare],
+  ["chat", AGENT_NAME, MessageSquare],
   ["strategy", "Strategy", Target],
   ["calendar", "Calendar", CalendarDays],
   ["results", "Results", ChartLine],

@@ -4,6 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
@@ -74,8 +75,8 @@ export function ResultsPage({
       <section className={measurementNeeded ? "card card-focus" : "card"}>
         <h3>Your numbers</h3>
         <p className="muted">
-          Cuso reads real visits, searches and orders from these. Where none of
-          them reaches, he estimates and asks you for the number.
+          {AGENT_NAME} reads real visits, searches and orders from these. Where
+          none of them reaches, he estimates and asks you for the number.
         </p>
         <MeasureFunnel
           sources={overview.measurement}
@@ -87,8 +88,8 @@ export function ResultsPage({
         <h3>Reach and clicks</h3>
         <p className="muted">
           {connected
-            ? "Your networks haven't reported reach or clicks yet, so there is nothing to chart. Cuso says so in each weekly report instead of guessing."
-            : "Reach and clicks show here once you connect an account and Cuso's posts go out. Until then there is nothing to measure."}
+            ? `Your networks haven't reported reach or clicks yet, so there is nothing to chart. ${AGENT_NAME} says so in each weekly report instead of guessing.`
+            : `Reach and clicks show here once you connect an account and ${AGENT_NAME}'s posts go out. Until then there is nothing to measure.`}
         </p>
       </section>
       <section className="card">
@@ -146,7 +147,7 @@ export function BrandBrainPage({
 }) {
   const brain = overview.brandBrain;
   if (!brain) {
-    return <Empty>Cuso is still learning your business.</Empty>;
+    return <Empty>{AGENT_NAME} is still learning your business.</Empty>;
   }
   return (
     <div className="page-body">
@@ -264,8 +265,8 @@ export function ChannelsPage({
       <section className="card">
         <h3>Ad accounts</h3>
         <p className="muted">
-          Optional. Cuso writes the ads; you launch each one, and they never
-          spend more than your plan's ad budget.
+          Optional. {AGENT_NAME} writes the ads; you launch each one, and they
+          never spend more than your plan's ad budget.
         </p>
         <ul className="list">
           {AD_PROVIDERS.map(([provider, label]) => (
@@ -303,8 +304,8 @@ export function ChannelsPage({
         </ul>
       </section>
       <p className="note">
-        Cuso plans for every channel he can reach, and never posts outside the
-        strategy you approved.
+        {AGENT_NAME} plans for every channel he can reach, and never posts
+        outside the strategy you approved.
       </p>
     </div>
   );
@@ -346,12 +347,12 @@ export function SettingsPage({
       <section className="card">
         <h3>Autonomy</h3>
         <p className="muted">
-          Full autopilot. You approve the strategy; Cuso runs everything inside
-          it and tells you what he did.
+          Full autopilot. You approve the strategy; {AGENT_NAME} runs everything
+          inside it and tells you what he did.
         </p>
       </section>
       <section className="card">
-        <h3>What Cuso does when</h3>
+        <h3>What {AGENT_NAME} does when</h3>
         <p className="muted">
           Every routine works from your strategy. Nothing runs until you approve
           it.
@@ -384,7 +385,9 @@ export function SettingsPage({
       </section>
       <section className="card">
         <h3>Another website</h3>
-        <p className="muted">Hire Cuso again for a different website.</p>
+        <p className="muted">
+          Hire {AGENT_NAME} again for a different website.
+        </p>
         <StartOver
           className="button button-secondary button-small"
           startOver={startOver}

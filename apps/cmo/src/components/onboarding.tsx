@@ -59,7 +59,7 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
           >
             <div className="ob-intro">
               <CusoAvatar pose="needs-you" size={48} />
-              <p className="ob-muted">
+              <p className="muted">
                 {AGENT_NAME} is your AI CMO. He reads your site, plans your
                 month and runs it.
               </p>
@@ -106,7 +106,7 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
                   {errors.websiteUrl}
                 </p>
               ) : (
-                <span className="ob-small ob-muted">
+                <span className="ob-small muted">
                   A shop, a SaaS, a portfolio. Any public site works.
                 </span>
               )}

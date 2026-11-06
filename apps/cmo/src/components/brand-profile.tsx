@@ -22,7 +22,7 @@ import {
   useState,
   useTransition,
 } from "react";
-
+import { AGENT_NAME } from "../lib/agent";
 import {
   BRAND_GROUPS,
   BRAND_SECTIONS,
@@ -95,8 +95,8 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
             </div>
           </div>
           <p className="bb-eyebrow">
-            Your Brand Brain: what Cuso learned about your business. Everything
-            he writes follows it.
+            Your Brand Brain: what {AGENT_NAME} learned about your business.
+            Everything he writes follows it.
           </p>
           <h1 className="bb-line">
             {reveal?.positioning ?? firstSentence(brain.summary)}
@@ -113,13 +113,13 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
       {researched === 0 ? (
         <div className="card bb-callout">
           <p>
-            <b>This is the short version.</b> Cuso can look deeper: customers,
-            pricing, competitors, reviews and more, each with a source. It takes
-            about three minutes.
+            <b>This is the short version.</b> {AGENT_NAME} can look deeper:
+            customers, pricing, competitors, reviews and more, each with a
+            source. It takes about three minutes.
           </p>
           <AskForm
             cta="Look deeper"
-            placeholder="Anything Cuso should know first? (optional)"
+            placeholder={`Anything ${AGENT_NAME} should know first? (optional)`}
             optional
             sentNote={RESEARCH_SENT}
             onAsk={(text) => onAsk(researchRequest(text))}
@@ -222,7 +222,7 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
       ) : null}
 
       {reveal && reveal.insights.length > 0 ? (
-        <Section title="What Cuso noticed">
+        <Section title={`What ${AGENT_NAME} noticed`}>
           <ol className="bb-list bb-numbered">
             {reveal.insights.map((insight) => (
               <li key={insight.title}>
@@ -321,18 +321,17 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
   );
 }
 
+interface OffersProps {
+  brain: BrandBrain;
+  onSave: (brain: BrandBrain) => Promise<void>;
+}
+
 /** One idea: its name on the left, the answer on the right. */
 /**
  * What the business sells and what it costs, the main offer first: every
  * plan is built on it. Older Brand Brains only name their products.
  */
-export function Offers({
-  brain,
-  onSave,
-}: {
-  brain: BrandBrain;
-  onSave: (brain: BrandBrain) => Promise<void>;
-}) {
+export function Offers({ brain, onSave }: OffersProps) {
   // The list changes on the tap; the save follows.
   const [offers, showOffers] = useOptimistic(
     brain.offers ?? [],
@@ -397,7 +396,7 @@ export function Offers({
       </ul>
       {removed ? (
         <p className="bb-undo" aria-live="polite">
-          Removed {removed.offer.name}. Cuso won't market it.{" "}
+          Removed {removed.offer.name}. {AGENT_NAME} won't market it.{" "}
           <button
             type="button"
             className="bb-undo-button"
@@ -537,8 +536,12 @@ function MarketMap({
   );
 }
 
+interface VoiceProps {
+  brain: BrandBrain;
+}
+
 /** "Clear, direct, practical. Explains the technical plainly." → its first sentence large. */
-export function Voice({ brain }: { brain: BrandBrain }) {
+export function Voice({ brain }: VoiceProps) {
   // The tone's first clause is the headline: "Clear, direct, practical."
   const tone =
     brain.voice.tone.match(/^.+?[.;!?](?=\s|$)/)?.[0] ?? brain.voice.tone;
@@ -609,14 +612,13 @@ export function accountFromLink(
   }
 }
 
-/** The accounts Cuso found, and the owner's own additions. */
-export function Accounts({
-  brain,
-  onSave,
-}: {
+interface AccountsProps {
   brain: BrandBrain;
   onSave: (brain: BrandBrain) => Promise<void>;
-}) {
+}
+
+/** The accounts Cuso found, and the owner's own additions. */
+export function Accounts({ brain, onSave }: AccountsProps) {
   const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   // The list changes on the tap; the save follows.
@@ -641,8 +643,8 @@ export function Accounts({
   return (
     <div className="bb-accounts">
       <p className="note">
-        Where your business shows up today. These are links so Cuso knows your
-        voice; you connect accounts for posting later.
+        Where your business shows up today. These are links so {AGENT_NAME}{" "}
+        knows your voice; you connect accounts for posting later.
       </p>
       {channels.length > 0 ? (
         <ul className="bb-account-list">
@@ -674,7 +676,7 @@ export function Accounts({
           ))}
         </ul>
       ) : (
-        <p className="note">Cuso found no profiles yet.</p>
+        <p className="note">{AGENT_NAME} found no profiles yet.</p>
       )}
       {channels.length < 12 ? (
         <form
@@ -692,7 +694,7 @@ export function Accounts({
           }}
         >
           <input
-            aria-label="Add an account Cuso missed"
+            aria-label={`Add an account ${AGENT_NAME} missed`}
             value={link}
             onChange={(event) => setLink(event.target.value)}
             placeholder="Missing one? Paste the link"
@@ -712,15 +714,13 @@ export function Accounts({
   );
 }
 
-function Tile({
-  sectionKey,
-  section,
-  onOpen,
-}: {
+interface TileProps {
   sectionKey: BrandSectionKey;
   section: BrandSection | undefined;
   onOpen: () => void;
-}) {
+}
+
+function Tile({ sectionKey, section, onOpen }: TileProps) {
   const { question } = BRAND_SECTIONS[sectionKey];
   const asks = section?.openQuestions?.length ?? 0;
   return (
@@ -873,18 +873,20 @@ function SectionSheet({
   );
 }
 
+interface SectionDetailProps {
+  sectionKey: BrandSectionKey;
+  section: BrandSection | undefined;
+  onSave: (section: BrandSection) => Promise<void>;
+  onAsk: (text: string) => Promise<void>;
+}
+
 /** One profile section: its answer and findings, with the owner's edit. */
 export function SectionDetail({
   sectionKey,
   section,
   onSave,
   onAsk,
-}: {
-  sectionKey: BrandSectionKey;
-  section: BrandSection | undefined;
-  onSave: (section: BrandSection) => Promise<void>;
-  onAsk: (text: string) => Promise<void>;
-}) {
+}: SectionDetailProps) {
   const [mode, setMode] = useState<"view" | "edit" | "research">("view");
   const { title, question } = BRAND_SECTIONS[sectionKey];
   return (
@@ -931,7 +933,7 @@ export function SectionDetail({
           ))}
         </>
       ) : (
-        <p className="note">Cuso has not researched this yet.</p>
+        <p className="note">{AGENT_NAME} has not researched this yet.</p>
       )}
 
       {section ? (
@@ -950,7 +952,7 @@ export function SectionDetail({
       ) : mode === "research" ? (
         <AskForm
           cta="Send"
-          placeholder="Anything Cuso should know? (optional)"
+          placeholder={`Anything ${AGENT_NAME} should know? (optional)`}
           optional
           autoFocus
           onCancel={() => setMode("view")}
@@ -1192,8 +1194,7 @@ export function ownerFinding(
   };
 }
 
-const RESEARCH_SENT =
-  "Sent. Cuso is researching; sections fill in here over the next few minutes.";
+const RESEARCH_SENT = `Sent. ${AGENT_NAME} is researching; sections fill in here over the next few minutes.`;
 
 function researchRequest(note: string): string {
   return `Research my business again from scratch: re-read my site, customers, market and competitors, rewrite every Brand Brain section, then save the essentials and the reveal.${note ? ` ${note}` : ""}`;
@@ -1204,7 +1205,7 @@ export function AskForm({
   placeholder,
   optional = false,
   autoFocus = false,
-  sentNote = "Sent. Cuso updates the Brand Brain in about half a minute.",
+  sentNote = `Sent. ${AGENT_NAME} updates the Brand Brain in about half a minute.`,
   onAsk,
   onCancel,
 }: {

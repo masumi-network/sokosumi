@@ -7,7 +7,7 @@ import { strategyApproved } from "../../lib/strategy";
 export type OnboardingStep = "site" | "brand" | "plan" | "launch";
 
 /** What the step shows: Site reads or asks, Plan waits, asks for a plan, or reviews. */
-export type Phase =
+type Phase =
   | "reading"
   | "asking"
   | "failed"
@@ -23,7 +23,7 @@ export type PlanPhase = Extract<
   "planning" | "writing-needed" | "review"
 >;
 
-export type Position =
+type Position =
   | { step: "site"; phase: SitePhase }
   | { step: "brand" | "launch"; phase: "review" }
   | { step: "plan"; phase: PlanPhase };
@@ -40,7 +40,7 @@ export function stepIndex(step: OnboardingStep): number {
 }
 
 /** Cuso's yes/no questions about the brand that the founder has not answered. */
-export function unansweredBrandQuestions(overview: CmoOverview) {
+function unansweredBrandQuestions(overview: CmoOverview) {
   return (overview.brandBrain?.questions ?? []).filter(
     (question) => !question.answer,
   );
