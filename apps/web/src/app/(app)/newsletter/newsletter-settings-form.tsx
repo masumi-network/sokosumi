@@ -45,12 +45,14 @@ import {
   newsletterDesignDefaults,
 } from "./newsletter-design-fields";
 
+const SETTINGS_FORM_ID = "newsletter-settings-form";
+
 interface NewsletterSettingsFormProps {
   projectId: string;
   projectName: string;
   projectLogo: string | null;
   newsletter: Newsletter | null;
-  /** The project's sending domain card, shown below these settings. */
+  /** The project's sending domain card, shown above the Save button. */
   sendingDomain?: ReactNode;
 }
 
@@ -112,11 +114,12 @@ export function NewsletterSettingsForm({
   return (
     <Form {...form}>
       <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-        <div className="min-w-0 space-y-4">
+        <div className={cn(HOLDER_CLASS, "min-w-0 space-y-3 p-3")}>
           <form
+            id={SETTINGS_FORM_ID}
             noValidate
             onSubmit={form.handleSubmit(handleSubmit)}
-            className={cn(HOLDER_CLASS, "min-w-0 space-y-3 p-3")}
+            className="min-w-0 space-y-3"
           >
             {!newsletter && !publicSlug ? (
               <section
@@ -274,33 +277,30 @@ export function NewsletterSettingsForm({
                 </Card>
               </section>
             </fieldset>
-            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-1 pb-1">
-              <Button
-                type="submit"
-                variant="primary"
-                loading={isSubmitting}
-                disabled={isUploadingLogo}
-              >
-                {t("save")}
-              </Button>
-              {isDirty && !isSubmitting ? (
-                <p className="text-muted-foreground text-sm">
-                  {t("unsavedChanges")}
-                </p>
-              ) : null}
-              {form.formState.errors.root?.message ? (
-                <p role="alert" className="text-destructive basis-full text-sm">
-                  {form.formState.errors.root.message}
-                </p>
-              ) : null}
-            </div>
           </form>
           {/* Its own forms sit outside the settings form: forms don't nest. */}
-          {sendingDomain ? (
-            <div className={cn(HOLDER_CLASS, "min-w-0 p-3")}>
-              {sendingDomain}
-            </div>
-          ) : null}
+          {sendingDomain}
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-1 pb-1">
+            <Button
+              type="submit"
+              form={SETTINGS_FORM_ID}
+              variant="primary"
+              loading={isSubmitting}
+              disabled={isUploadingLogo}
+            >
+              {t("save")}
+            </Button>
+            {isDirty && !isSubmitting ? (
+              <p className="text-muted-foreground text-sm">
+                {t("unsavedChanges")}
+              </p>
+            ) : null}
+            {form.formState.errors.root?.message ? (
+              <p role="alert" className="text-destructive basis-full text-sm">
+                {form.formState.errors.root.message}
+              </p>
+            ) : null}
+          </div>
         </div>
         <aside className="min-w-0 lg:sticky lg:top-4">
           <NewsletterBrandPreview control={form.control} />
