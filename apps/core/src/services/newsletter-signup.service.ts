@@ -1,5 +1,9 @@
 import { captureException } from "@sentry/node";
-import type { Newsletter, NewsletterSubscriber } from "@sokosumi/database";
+import type {
+  Newsletter,
+  NewsletterSubscriber,
+  Prisma,
+} from "@sokosumi/database";
 import {
   renderNewsletterConfirmationEmail,
   renderNewsletterEmail,
@@ -35,6 +39,48 @@ import { resolveNewsletterSender } from "@/services/newsletter-sending-domain.se
 
 const CONFIRMATION_RESEND_MS = 10 * 60_000;
 const WELCOME_LEASE_MS = 5 * 60_000;
+
+/** On the row these look like a plain unsubscribe, but they stay blocked forever. */
+const PERMANENT_SUPPRESSION_EVENT = {
+  OR: [
+    { type: "COMPLAINED" },
+    {
+      type: "BOUNCED",
+      OR: [{ bounceType: null }, { bounceType: { in: ["permanent", "hard"] } }],
+    },
+  ],
+} satisfies Prisma.NewsletterEventWhereInput;
+
+/**
+ * A link sent after the person's last opt-out. The row stays UNSUBSCRIBED until
+ * they click it, so a form submission alone changes nothing for owners, sends
+ * or analytics.
+ */
+export function hasResubscribeRequest(
+  subscriber: Pick<
+    NewsletterSubscriber,
+    "status" | "consentAt" | "unsubscribedAt"
+  >,
+) {
+  return (
+    subscriber.status === "UNSUBSCRIBED" &&
+    subscriber.consentAt !== null &&
+    subscriber.unsubscribedAt !== null &&
+    subscriber.unsubscribedAt < subscriber.consentAt
+  );
+}
+
+function resubscribeWhere(
+  consentAt: Date,
+): Prisma.NewsletterSubscriberWhereInput {
+  return {
+    status: "UNSUBSCRIBED",
+    consentAt,
+    unsubscribedAt: { lt: consentAt },
+    bouncedAt: null,
+    events: { none: PERMANENT_SUPPRESSION_EVENT },
+  };
+}
 
 export async function getPublicNewsletter(publicSlug: string) {
   const newsletter = await prisma.newsletter.findUnique({
@@ -80,10 +126,13 @@ export async function subscribeToNewsletter(
         },
       });
       if (!subscriber) return null;
+      const resubscribing =
+        subscriber.status === "UNSUBSCRIBED" &&
+        subscriber.unsubscribedAt !== null;
       if (
-        subscriber.status !== "PENDING" ||
-        subscriber.unsubscribedAt ||
-        subscriber.bouncedAt
+        subscriber.bouncedAt ||
+        (!resubscribing &&
+          (subscriber.status !== "PENDING" || subscriber.unsubscribedAt))
       )
         return null;
       if (!created) {
@@ -97,20 +146,29 @@ export async function subscribeToNewsletter(
         const { count } = await tx.newsletterSubscriber.updateMany({
           where: {
             id: subscriber.id,
-            status: "PENDING",
             consentAt: subscriber.consentAt,
-            unsubscribedAt: null,
             bouncedAt: null,
+            ...(resubscribing
+              ? {
+                  status: "UNSUBSCRIBED",
+                  unsubscribedAt: { not: null },
+                  events: { none: PERMANENT_SUPPRESSION_EVENT },
+                }
+              : { status: "PENDING", unsubscribedAt: null }),
           },
-          data: {
-            status: "PENDING",
-            consentAt: now,
-            source: "SIGNUP_FORM",
-            name: input.name,
-          },
+          data: resubscribing
+            ? { consentAt: now }
+            : {
+                status: "PENDING",
+                consentAt: now,
+                source: "SIGNUP_FORM",
+                name: input.name,
+              },
         });
         if (!count) return null;
       }
+      // Anyone can type this address, so their Contact waits for the click too.
+      if (resubscribing) return subscriber;
       // Only reserved signups become Contacts; suppressed addresses stay untouched.
       const contacts = await linkNewsletterContacts(
         tx,
@@ -170,7 +228,8 @@ type ConfirmationSubscriber = Pick<NewsletterSubscriber, "id" | "email"> & {
 /** Opt-in email for public signup. */
 async function sendNewsletterConfirmation(
   newsletter: Newsletter,
-  subscriber: ConfirmationSubscriber,
+  subscriber: ConfirmationSubscriber &
+    Pick<NewsletterSubscriber, "status" | "unsubscribedAt">,
   locale = "en",
 ) {
   try {
@@ -180,7 +239,17 @@ async function sendNewsletterConfirmation(
       subscriber,
       locale,
     );
-    if (!(await pendingConfirmations(newsletter, [subscriber])).length) return;
+    const confirmable = hasResubscribeRequest(subscriber)
+      ? await prisma.newsletterSubscriber.count({
+          where: {
+            id: subscriber.id,
+            newsletterId: newsletter.id,
+            newsletter: NEWSLETTER_BETA_SCOPE,
+            ...resubscribeWhere(subscriber.consentAt),
+          },
+        })
+      : (await pendingConfirmations(newsletter, [subscriber])).length;
+    if (!confirmable) return;
     await sendEmail(email);
   } catch (error) {
     // Provider failures must not expose whether the address needed confirmation.
@@ -292,14 +361,21 @@ export async function getNewsletterConfirmSubscriber(token: string) {
   if (subscriber.consentAt?.getTime() !== consentAt) {
     throw badRequest("Invalid or expired confirmation token");
   }
+  const resubscribing = hasResubscribeRequest(subscriber);
   if (
-    (subscriber.status !== "PENDING" && subscriber.status !== "ACTIVE") ||
-    subscriber.unsubscribedAt ||
-    subscriber.bouncedAt
+    subscriber.bouncedAt ||
+    (!resubscribing &&
+      ((subscriber.status !== "PENDING" && subscriber.status !== "ACTIVE") ||
+        subscriber.unsubscribedAt)) ||
+    (resubscribing &&
+      (await prisma.newsletterEvent.findFirst({
+        where: { subscriberId: subscriber.id, ...PERMANENT_SUPPRESSION_EVENT },
+        select: { id: true },
+      })))
   ) {
     throw badRequest("This subscription cannot be confirmed");
   }
-  return subscriber;
+  return { ...subscriber, consentAt: subscriber.consentAt };
 }
 
 export async function confirmNewsletterSubscriber(
@@ -307,16 +383,22 @@ export async function confirmNewsletterSubscriber(
   locale: string,
 ) {
   let subscriber = await getNewsletterConfirmSubscriber(token);
+  const resubscribing = hasResubscribeRequest(subscriber);
   const activated = await prisma.$transaction(async (tx) => {
     const now = new Date();
     const { count } = await tx.newsletterSubscriber.updateMany({
       where: {
         id: subscriber.id,
         newsletterId: subscriber.newsletterId,
-        status: "PENDING",
-        consentAt: subscriber.consentAt,
+        ...(resubscribing
+          ? resubscribeWhere(subscriber.consentAt)
+          : { status: "PENDING", consentAt: subscriber.consentAt }),
       },
-      data: { status: "ACTIVE", confirmedAt: now },
+      data: {
+        status: "ACTIVE",
+        confirmedAt: now,
+        ...(resubscribing ? { unsubscribedAt: null } : {}),
+      },
     });
     if (count)
       await tx.newsletterEvent.create({

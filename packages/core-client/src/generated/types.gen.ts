@@ -10771,6 +10771,16 @@ export type CmoWork = {
     status: 'running' | 'failed' | 'done';
     startedAt: Date;
     steps: Array<CmoWorkStep>;
+    /**
+     * Brand Brain sections Cuso has saved, in profile order.
+     */
+    sections: Array<{
+        key: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+        /**
+         * The section's answer at a glance.
+         */
+        headline: string;
+    }>;
     sectionsSaved: number;
     sectionsTotal: number;
 };

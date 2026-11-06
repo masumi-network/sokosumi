@@ -19,6 +19,7 @@ const m = vi.hoisted(() => ({
   findUnique: vi.fn(),
   updateMany: vi.fn(),
   eventCreate: vi.fn(),
+  eventFindFirst: vi.fn(),
   transaction: vi.fn(),
   send: vi.fn(),
   afterRender: vi.fn(),
@@ -54,7 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: m.findUnique,
       updateMany: m.updateMany,
     },
-    newsletterEvent: { create: m.eventCreate },
+    newsletterEvent: { create: m.eventCreate, findFirst: m.eventFindFirst },
     newsletterSendingDomain: { findUnique: async () => null },
     $transaction: m.transaction,
   },
@@ -525,6 +526,137 @@ describe("public newsletter confirmation", () => {
       expect(m.send).not.toHaveBeenCalled();
     },
   );
+
+  describe("re-subscribing after an unsubscribe", () => {
+    const FIRST_CONFIRMED_AT = new Date("2026-09-01T00:00:00Z");
+    const UNSUBSCRIBED_AT = new Date("2026-10-01T00:00:00Z");
+    function resubscribing(overrides: Record<string, unknown> = {}) {
+      return pending({
+        status: "UNSUBSCRIBED",
+        confirmedAt: FIRST_CONFIRMED_AT,
+        unsubscribedAt: UNSUBSCRIBED_AT,
+        ...overrides,
+      });
+    }
+
+    it("GET shows the form without reactivating", async () => {
+      subscriber = resubscribing();
+      const response = await app().request(url());
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain('method="post"');
+      expect(subscriber.status).toBe("UNSUBSCRIBED");
+      expect(m.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("POST reactivates, clears the opt-out and records CONFIRMED once", async () => {
+      subscriber = resubscribing();
+      const server = app();
+      const responses = await Promise.all([
+        server.request(url(), { method: "POST" }),
+        server.request(url(), { method: "POST" }),
+      ]);
+      for (const response of responses) expect(response.status).toBe(200);
+      expect(m.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: NEWSLETTER_SUBSCRIBER_ID,
+          newsletterId: NEWSLETTER_ID,
+          status: "UNSUBSCRIBED",
+          consentAt: NEWSLETTER_NOW,
+          unsubscribedAt: { lt: NEWSLETTER_NOW },
+          bouncedAt: null,
+          events: { none: expect.any(Object) },
+        },
+        data: {
+          status: "ACTIVE",
+          confirmedAt: NEWSLETTER_NOW,
+          unsubscribedAt: null,
+        },
+      });
+      expect(subscriber).toMatchObject({
+        status: "ACTIVE",
+        unsubscribedAt: null,
+        confirmedAt: NEWSLETTER_NOW,
+        consentAt: NEWSLETTER_NOW,
+      });
+      expect(m.eventCreate).toHaveBeenCalledExactlyOnceWith({
+        data: {
+          newsletterId: NEWSLETTER_ID,
+          subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+          type: "CONFIRMED",
+          occurredAt: NEWSLETTER_NOW,
+        },
+      });
+    });
+
+    it("does not repeat a welcome they already received", async () => {
+      subscriber = resubscribing({ welcomeSentAt: FIRST_CONFIRMED_AT });
+      expect((await app().request(url(), { method: "POST" })).status).toBe(200);
+      expect(subscriber.status).toBe("ACTIVE");
+      expect(m.send).not.toHaveBeenCalled();
+    });
+
+    it("sends the welcome they never received", async () => {
+      subscriber = resubscribing();
+      expect((await app().request(url(), { method: "POST" })).status).toBe(200);
+      expect(m.send).toHaveBeenCalledOnce();
+    });
+
+    it.each(["GET", "POST"])(
+      "%s rejects a link from before the opt-out",
+      async (method) => {
+        subscriber = resubscribing({
+          unsubscribedAt: new Date(NEWSLETTER_NOW.getTime() + 1),
+        });
+        expect((await app().request(url(), { method })).status).toBe(400);
+        expect(m.updateMany).not.toHaveBeenCalled();
+        expect(subscriber.status).toBe("UNSUBSCRIBED");
+      },
+    );
+
+    it.each(["GET", "POST"])(
+      "%s rejects an address with a complaint or permanent bounce on record",
+      async (method) => {
+        subscriber = resubscribing();
+        m.eventFindFirst.mockResolvedValue({ id: "event" });
+        expect((await app().request(url(), { method })).status).toBe(400);
+        expect(m.eventFindFirst).toHaveBeenCalledWith({
+          where: {
+            subscriberId: NEWSLETTER_SUBSCRIBER_ID,
+            OR: [
+              { type: "COMPLAINED" },
+              {
+                type: "BOUNCED",
+                OR: [
+                  { bounceType: null },
+                  { bounceType: { in: ["permanent", "hard"] } },
+                ],
+              },
+            ],
+          },
+          select: { id: true },
+        });
+        expect(m.updateMany).not.toHaveBeenCalled();
+        expect(m.eventCreate).not.toHaveBeenCalled();
+      },
+    );
+
+    it("rejects an unsubscribed row that also bounced", async () => {
+      subscriber = resubscribing({ bouncedAt: UNSUBSCRIBED_AT });
+      expect((await app().request(url(), { method: "POST" })).status).toBe(400);
+      expect(m.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("does not claim confirmation when a complaint arrives during activation", async () => {
+      m.updateMany.mockReset().mockResolvedValue({ count: 0 });
+      subscriber = resubscribing();
+      m.eventFindFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue({ id: "event" });
+      expect((await app().request(url(), { method: "POST" })).status).toBe(400);
+      expect(m.eventCreate).not.toHaveBeenCalled();
+      expect(m.send).not.toHaveBeenCalled();
+    });
+  });
 
   it.each(["unsubscribedAt", "bouncedAt"])(
     "never confirms pending rows with retained %s",

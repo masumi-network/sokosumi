@@ -57,8 +57,6 @@ export default async function NewsletterIssuesPage({
 
   return (
     <NewsletterPageShell
-      description={t("Issues.description")}
-      heading={page("projectTitle", { project: project.name })}
       navigationLabel={t("navigation")}
       tabs={getNewsletterTabs(project.id, true, t)}
       title={page("title")}

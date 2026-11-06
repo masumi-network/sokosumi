@@ -35,9 +35,7 @@ describe("NewsletterSignupCard", () => {
         <NewsletterSignupCard publicSlug={PUBLIC_NEWSLETTER_SLUG} />
       </NextIntlClientProvider>,
     );
-    expect(
-      screen.getByRole("heading", { name: "Signup form" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Share" })).toBeInTheDocument();
     const open = screen.getByRole("link", { name: "Open signup page" });
     expect(open).toHaveAttribute("href", SIGNUP_URL);
     expect(open).toHaveAttribute("target", "_blank");
@@ -71,7 +69,7 @@ describe("NewsletterSignupCard", () => {
       );
       const copy = messages.App.Projects.Newsletter.SignupForm;
       expect(
-        screen.getByRole("heading", { name: copy.title }),
+        screen.getByRole("heading", { name: copy.shareTitle }),
       ).toBeInTheDocument();
       expect(screen.getByText(copy.description)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: copy.open })).toHaveAttribute(

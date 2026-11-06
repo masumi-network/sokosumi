@@ -153,23 +153,20 @@ export function ImportSubscribersDialog({
                   <p className="text-muted-foreground text-sm">
                     {t("Import.invalidHint")}
                   </p>
-                  <ul className="space-y-1 text-sm">
-                    {result.invalid.slice(0, 5).map((row) => (
+                  <ul
+                    aria-label={t("Import.result.invalid")}
+                    tabIndex={0}
+                    className="app-scrollbar focus-visible:outline-ring max-h-64 space-y-1 overflow-y-auto overscroll-contain rounded-lg border p-3 text-sm focus-visible:outline-2"
+                  >
+                    {result.invalid.map((row) => (
                       <li key={row.row} className="break-all">
                         {t("Import.invalidRow", {
                           row: row.row,
-                          value: row.value,
+                          value: row.value.trim() || t("Import.blankEmail"),
                         })}
                       </li>
                     ))}
                   </ul>
-                  {result.invalid.length > 5 ? (
-                    <p className="text-muted-foreground text-sm">
-                      {t("Import.moreInvalid", {
-                        count: result.invalid.length - 5,
-                      })}
-                    </p>
-                  ) : null}
                 </div>
               ) : null}
             </div>

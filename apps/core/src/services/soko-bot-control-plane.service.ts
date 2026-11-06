@@ -2260,7 +2260,9 @@ export class SokoBotControlPlane {
           : routeCapabilities) as readonly SokoBotCapability[],
     ).filter(
       (capability) =>
-        !isSokoBotNewsletterCapability(capability) || newsletterAvailable,
+        (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        // Without a key `search_exa` refuses on every call; offer web_search only.
+        (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(
       Date.now() +
