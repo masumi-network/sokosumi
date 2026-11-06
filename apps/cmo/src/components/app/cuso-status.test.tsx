@@ -89,3 +89,24 @@ it.each(cases)("Cuso's status card: $name", ({ patch, pose, line }) => {
   // Needs you is the one pose whose state line sits on Iris.
   expect(html.includes("cuso-status-iris")).toBe(pose === "needs-you");
 });
+
+it("is a focused button that opens the chat only while Cuso needs the owner", () => {
+  const needs = renderToStaticMarkup(
+    <CusoStatus overview={cmoOverview()} now={NOW} onOpen={() => {}} />,
+  );
+  expect(needs).toContain("<button");
+  expect(needs).toContain("card-focus");
+  const calm = renderToStaticMarkup(
+    <CusoStatus
+      overview={cmoOverview({
+        ...approved,
+        channels: [channel],
+        production: production({}),
+      })}
+      now={NOW}
+      onOpen={() => {}}
+    />,
+  );
+  expect(calm).not.toContain("<button");
+  expect(calm).not.toContain("card-focus");
+});

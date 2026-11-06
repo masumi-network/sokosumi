@@ -7,6 +7,7 @@ import { useEffect, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
+import type { CusoMessage } from "../../lib/chat-messages";
 import { strategyApproved } from "../../lib/strategy";
 import {
   type AdActions,
@@ -14,8 +15,8 @@ import {
   adsReturnError,
   ConnectAdsButton,
 } from "../ads";
-import { BrandReveal } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
+import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
 import { StatusText } from "../status";
@@ -136,22 +137,31 @@ function Kpi({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function BrandBrainPage({
-  overview,
-  onSave,
-  onAsk,
-}: {
+interface BrandBrainPageProps {
   overview: CmoOverview;
+  messages: CusoMessage[];
   onSave: (brain: BrandBrain) => Promise<void>;
   onAsk: (text: string) => Promise<void>;
-}) {
-  const brain = overview.brandBrain;
-  if (!brain) {
+}
+
+/** The hiring review's Brand Brain, without the approval: edit and tell Cuso what's off. */
+export function BrandBrainPage({
+  overview,
+  messages,
+  onSave,
+  onAsk,
+}: BrandBrainPageProps) {
+  if (!overview.brandBrain) {
     return <Empty>{AGENT_NAME} is still learning your business.</Empty>;
   }
   return (
     <div className="page-body">
-      <BrandReveal overview={overview} onSave={onSave} onAsk={onAsk} />
+      <BrandStep
+        overview={overview}
+        messages={messages}
+        onCorrect={onAsk}
+        onSave={onSave}
+      />
     </div>
   );
 }
@@ -163,10 +173,7 @@ export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
 
-const COMING_SOON = [
-  ["Website / SEO", "Articles"],
-  ["Newsletter", "Email"],
-] as const;
+const COMING_SOON = [["Website / SEO", "Articles"]] as const;
 
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
@@ -177,9 +184,13 @@ export function ChannelsPage({
   overview,
   connect,
   connectAds,
+  addMailingList,
+  onChange,
   connectFailed = false,
 }: PageProps & {
   connect: ConnectChannel;
+  addMailingList: AddMailingList;
+  onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
   connectFailed?: boolean;
 }) {
@@ -289,6 +300,14 @@ export function ChannelsPage({
         </ul>
       </section>
       <section className="card">
+        <h3>Newsletter</h3>
+        <MailingList
+          size={overview.mailingListSize}
+          add={addMailingList}
+          onChange={onChange}
+        />
+      </section>
+      <section className="card">
         <h3>Coming soon</h3>
         <ul className="list">
           {COMING_SOON.map(([label, kind]) => (
@@ -308,6 +327,107 @@ export function ChannelsPage({
         outside the strategy you approved.
       </p>
     </div>
+  );
+}
+
+export type AddMailingList = (
+  text: string,
+) => Promise<{ overview: CmoOverview | null; error: string | null }>;
+
+interface MailingListProps {
+  size: number;
+  add: AddMailingList;
+  onChange: (overview: CmoOverview) => void;
+}
+
+/** The addresses Cuso writes the newsletter for; sending is not built yet. */
+function MailingList({ size, add, onChange }: MailingListProps) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const count = new Intl.NumberFormat("en-GB").format(size);
+  return (
+    <>
+      <p className="muted">
+        {AGENT_NAME} writes each issue for the people on your list. Sending is
+        not built yet.
+      </p>
+      <div className="li">
+        <span className="grow">
+          {size > 0 ? (
+            <StatusText>
+              <span className="num">{count}</span> addresses
+            </StatusText>
+          ) : (
+            <span className="muted">No list yet</span>
+          )}
+        </span>
+        {open ? null : (
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={() => setOpen(true)}
+          >
+            {size > 0 ? "Add more" : "Add your list"}
+          </button>
+        )}
+      </div>
+      {open ? (
+        <form
+          className="stack-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            startTransition(async () => {
+              setError(null);
+              try {
+                const result = await add(text);
+                if (result.error || !result.overview) {
+                  setError(result.error ?? "Could not add the list.");
+                  return;
+                }
+                onChange(result.overview);
+                setText("");
+                setOpen(false);
+              } catch {
+                setError("That didn't go through. Try again.");
+              }
+            });
+          }}
+        >
+          <label className="label" htmlFor="mailing-list">
+            Paste email addresses, one per line or separated by commas
+          </label>
+          <textarea
+            id="mailing-list"
+            rows={5}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+          {error ? (
+            <p className="note" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="acts">
+            <button
+              type="submit"
+              className="button button-secondary button-small"
+              disabled={pending || !text.trim()}
+            >
+              {pending ? "Adding…" : "Add"}
+            </button>
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
+    </>
   );
 }
 

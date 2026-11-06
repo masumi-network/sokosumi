@@ -245,8 +245,27 @@ export function OnboardingFlow({
       }
     : undefined;
 
+  // Asked for the plan this session: it is being written, even before Core
+  // reports the work, so the button is not offered a second time.
+  const [planRequested, setPlanRequested] = useState(false);
+  useEffect(() => {
+    if (
+      planRequested &&
+      (overview.work?.kind === "strategy" || overview.strategy)
+    ) {
+      setPlanRequested(false);
+    }
+  }, [planRequested, overview.work, overview.strategy]);
+  const starting =
+    planRequested &&
+    position.step === "plan" &&
+    position.phase === "writing-needed";
   const planPhase =
-    position.step === "plan" && step === derived ? position.phase : "review";
+    position.step === "plan" && step === derived
+      ? starting
+        ? "planning"
+        : position.phase
+      : "review";
 
   /** Keeps the overview a call brought back; its error, if any, is the answer. */
   const settle = (result: {
@@ -256,8 +275,12 @@ export function OnboardingFlow({
     if (result.overview) setOverview(result.overview);
     return result.error;
   };
-  const request = async (note?: string) =>
-    settle(await actions.requestStrategy(note));
+  const request = async (note?: string) => {
+    setPlanRequested(true);
+    const refused = settle(await actions.requestStrategy(note));
+    if (refused) setPlanRequested(false);
+    return refused;
+  };
   const answerBrand = async (input: AnswerInput) => {
     setOverview(await actions.answerBrandQuestion(input));
   };
@@ -348,6 +371,7 @@ export function OnboardingFlow({
           <PlanStep
             overview={overview}
             phase={planPhase}
+            starting={starting}
             initialTab={initialStep === "results" ? "results" : undefined}
             ahead={ahead}
             onRequest={request}

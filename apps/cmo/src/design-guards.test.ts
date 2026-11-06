@@ -202,10 +202,34 @@ const IRIS_TEXT =
   /(?<![\w-])(?:color|stroke|text-decoration-color|border[\w-]*|outline[\w-]*|borderColor|outlineColor)\s*:[^;]*var\(--primary(?:-hover)?\)/;
 const SIGNAL_TEXT = /(?<![\w-])(?:color|stroke)\s*:[^;]*var\(--(?:ok|warn)\)/;
 const GRADIENT = /gradient\(/;
+const FONT_SIZE_DECLARATION = /(?<![\w-])font-size\s*:\s*([^;}]*)/;
+/** The type scale's sizes in rem (design-system.md), plus sizes relative to the parent. */
+const SCALE_SIZES = new Set([
+  "4.5rem",
+  "2.25rem",
+  "1.75rem",
+  "1.5rem",
+  "1rem",
+  "0.875rem",
+  "0.75rem",
+  "0.6875rem",
+]);
+const FONT_SIZE_OK = /^(?:inherit|\d*\.?\d+em)$/;
 
 function badShadow(line: string): boolean {
   const value = SHADOW_DECLARATION.exec(line)?.[1]?.trim();
   return value !== undefined && !SHADOW_OK.test(value);
+}
+
+function badFontSize(line: string): boolean {
+  const value = FONT_SIZE_DECLARATION.exec(line)?.[1]?.trim();
+  if (value === undefined) return false;
+  const sizes = value.startsWith("clamp(")
+    ? (value.match(/\d*\.?\d+rem/g) ?? [])
+    : [value];
+  return !sizes.every(
+    (size) => SCALE_SIZES.has(size) || FONT_SIZE_OK.test(size),
+  );
 }
 
 function badRadius(line: string): boolean {
@@ -227,6 +251,15 @@ describe("visual system", () => {
   it("takes every radius from the tokens", () => {
     expect(
       findLines(STYLED, RADIUS_DECLARATION).filter((hit) => badRadius(hit)),
+    ).toEqual([]);
+  });
+
+  it("sets type only in the scale's sizes", () => {
+    expect(
+      findLines(
+        STYLED.filter((file) => file.rel.endsWith(".css")),
+        FONT_SIZE_DECLARATION,
+      ).filter((hit) => badFontSize(hit)),
     ).toEqual([]);
   });
 
@@ -258,6 +291,17 @@ describe("visual system", () => {
       expect(BLUR.test("  backdrop-filter: blur(12px);")).toBe(true);
       expect(BLUR.test("  filter: blur(2px);")).toBe(true);
       expect(BLUR.test("  filter: grayscale(1);")).toBe(false);
+    });
+
+    it("flags a size off the type scale and passes the scale's own", () => {
+      expect(badFontSize("  font-size: 0.8125rem;")).toBe(true);
+      expect(badFontSize("  font-size: 17px;")).toBe(true);
+      expect(badFontSize("  font-size: clamp(2rem, 5vw, 2.75rem);")).toBe(true);
+      expect(badFontSize("  font-size: 0.875rem;")).toBe(false);
+      expect(badFontSize("  font-size: clamp(2.25rem, 6vw, 4.5rem);")).toBe(
+        false,
+      );
+      expect(badFontSize("  font-size: 0.8em;")).toBe(false);
     });
 
     it("flags a literal radius and passes a token", () => {

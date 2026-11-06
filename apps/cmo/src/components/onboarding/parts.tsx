@@ -187,16 +187,31 @@ export function StatRow({ stats }: StatRowProps) {
 
 interface GoalBlockProps {
   label: string;
+  /** The short goal: the screen's one H1 when `headline` is set. */
   goal: string;
+  /** The long sentence under it, in the muted inverted colour. */
+  statement?: string;
+  headline?: boolean;
   facts: { term: string; value: string }[];
 }
 
 /** The plan's goal: an ink block that inverts again in dark. */
-export function GoalBlock({ label, goal, facts }: GoalBlockProps) {
+export function GoalBlock({
+  label,
+  goal,
+  statement,
+  headline = false,
+  facts,
+}: GoalBlockProps) {
   return (
     <section className="ob-goal" aria-label={label}>
       <p className="ob-goal-label">{label}</p>
-      <p className="ob-goal-text">{goal}</p>
+      {headline ? (
+        <h1 className="ob-goal-headline">{goal}</h1>
+      ) : (
+        <p className="ob-goal-text">{goal}</p>
+      )}
+      {statement ? <p className="ob-goal-statement">{statement}</p> : null}
       {facts.length > 0 ? (
         <dl className="ob-goal-facts">
           {facts.map((fact) => (
@@ -254,6 +269,8 @@ interface SidePanelProps {
   title: string;
   onClose: () => void;
   source?: string;
+  /** Makes the source a link. */
+  sourceUrl?: string;
   children: ReactNode;
 }
 
@@ -262,6 +279,7 @@ export function SidePanel({
   title,
   onClose,
   source,
+  sourceUrl,
   children,
 }: SidePanelProps) {
   useEffect(() => {
@@ -285,7 +303,17 @@ export function SidePanel({
         </button>
       </div>
       <div className="ob-side-body">{children}</div>
-      {source ? <p className="ob-side-source">{source}</p> : null}
+      {source ? (
+        <p className="ob-side-source">
+          {sourceUrl ? (
+            <a href={sourceUrl} target="_blank" rel="noreferrer">
+              {source}
+            </a>
+          ) : (
+            source
+          )}
+        </p>
+      ) : null}
     </aside>
   );
 }

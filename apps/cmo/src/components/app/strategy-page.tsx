@@ -5,8 +5,9 @@ import { ArrowRight, CalendarDays } from "lucide-react";
 import { useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { formatDay } from "../../lib/calendar";
+import { PlanReview } from "../onboarding/plan-step";
+import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StatusText } from "../status";
-import { StrategyReveal } from "../strategy-reveal";
 
 interface StrategyVersionsProps {
   overview: CmoOverview;
@@ -65,24 +66,24 @@ export function StrategyVersions({
   );
 }
 
+interface StrategyPageProps {
+  overview: CmoOverview;
+  onOpenCalendar: () => void;
+  connectMeasurement: ConnectMeasurement;
+  /** Approves an earlier version again: Cuso goes back to that plan. */
+  onApprove?: (versionId: string) => Promise<void>;
+}
+
 /**
- * The plan: what Cuso does and why. The pieces themselves live on the
- * Calendar page, one link away.
+ * The plan as the hiring review shows it, read-only: the goal, what was
+ * checked and the tabs. The pieces themselves live on the Calendar page.
  */
 export function StrategyPage({
   overview,
-  onAsk,
   onOpenCalendar,
-  onSetAds,
+  connectMeasurement,
   onApprove,
-}: {
-  overview: CmoOverview;
-  onAsk: (text: string) => Promise<void>;
-  onOpenCalendar: () => void;
-  onSetAds?: (monthly: number, currency: string) => Promise<void>;
-  /** Approves an earlier version again: Cuso goes back to that plan. */
-  onApprove?: (versionId: string) => Promise<void>;
-}) {
+}: StrategyPageProps) {
   const strategy = overview.strategy;
   if (!strategy) {
     return (
@@ -98,24 +99,28 @@ export function StrategyPage({
 
   return (
     <div className="plan">
-      <StrategyReveal
+      <PlanReview
         overview={overview}
-        onAsk={onAsk}
-        onSetAds={onSetAds}
-        calendar={
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={onOpenCalendar}
-          >
-            <CalendarDays size={15} aria-hidden="true" />
-            See all {pieces} pieces in your calendar
-            <ArrowRight size={15} aria-hidden="true" />
-          </button>
-        }
+        readOnly
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={async () => {}}
+        onUpdate={async () => null}
+        onApprove={async () => {}}
+        onConnectMeasurement={connectMeasurement}
       />
-
-      <StrategyVersions overview={overview} onApprove={onApprove} />
+      <div className="panel">
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={onOpenCalendar}
+        >
+          <CalendarDays size={15} aria-hidden="true" />
+          See all {pieces} pieces in your calendar
+          <ArrowRight size={15} aria-hidden="true" />
+        </button>
+        <StrategyVersions overview={overview} onApprove={onApprove} />
+      </div>
     </div>
   );
 }

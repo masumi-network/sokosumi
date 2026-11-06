@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { cmoOverview } from "../test-fixtures/cmo";
-
+import { PlanPanel } from "./onboarding/plan-tabs";
 import { planPieces } from "./phone-feeds";
-import { goalLine, planDays, StrategyReveal } from "./strategy-reveal";
+import { goalLine } from "./strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -133,13 +133,6 @@ const overview = (patch: Partial<Strategy> = {}) =>
   });
 
 describe("strategy reveal", () => {
-  it("counts at least four weeks from the first piece", () => {
-    const days = planDays(calendar);
-    expect(days[0]).toBe("2026-10-27");
-    expect(days).toHaveLength(28);
-    expect(planDays([])).toEqual([]);
-  });
-
   it("shows every piece but skipped ones, earliest first", () => {
     expect(planPieces(calendar).map((item) => item.id)).toEqual([
       "a",
@@ -158,26 +151,13 @@ describe("strategy reveal", () => {
     );
   });
 
-  it("says which language the posts are written in", () => {
-    const html = renderToStaticMarkup(
-      <StrategyReveal
-        overview={overview({ contentLanguage: "German" })}
-        calendar={<p>The calendar</p>}
-        onAsk={async () => {}}
-      />,
-    );
-    expect(html).toContain(
-      "4 pieces, 1 with images by Cuso. Written in German.",
-    );
-  });
-
   it("shows each pillar's share, and once the month is made, the share Cuso's pieces have", () => {
     const pillars = [
       { name: "Setup proof", share: 60, why: "Shows setup takes minutes" },
       { name: "Founder stories", share: 40 },
     ];
     const planned = renderToStaticMarkup(
-      <StrategyReveal
+      <PlanPanel
         overview={overview({
           pillars,
           calendar: calendar.map((piece) => ({
@@ -185,7 +165,15 @@ describe("strategy reveal", () => {
             pillar: "Setup proof",
           })),
         })}
-        calendar={null}
+        strategy={
+          overview({
+            pillars,
+            calendar: calendar.map((piece) => ({
+              ...piece,
+              pillar: "Setup proof",
+            })),
+          }).strategy as Strategy
+        }
       />,
     );
     expect(planned).toContain("What the posts are about");
@@ -210,41 +198,9 @@ describe("strategy reveal", () => {
       },
     };
     const html = renderToStaticMarkup(
-      <StrategyReveal overview={made} calendar={null} />,
+      <PlanPanel overview={made} strategy={made.strategy as Strategy} />,
     );
     expect(html).toContain("75% made · 60% planned");
     expect(html).toContain("Cuso is rewriting them now.");
-  });
-
-  it("opens on the goal, then the month, the barrier and the mix", () => {
-    const html = renderToStaticMarkup(
-      <StrategyReveal
-        overview={overview()}
-        calendar={<p>The calendar</p>}
-        onAsk={async () => {}}
-      />,
-    );
-    expect(html).toContain("More trial starts");
-    expect(html).not.toContain("35 by 23 Nov");
-    expect(html).toContain("4 pieces, 1 with images by Cuso.");
-    expect(html).toContain("LinkedIn posts");
-    expect(html).toContain("How people become customers");
-    expect(html).toContain("Hear about us");
-    expect(html).toContain("Trial starts · 40 by 30 Nov");
-    expect(html).toContain("Channels you could add");
-    expect(html).toContain("Quote images of setup tips");
-    expect(html).toContain("if you add Instagram");
-    expect(html).toContain("Founders don&#x27;t see how setup works");
-    expect(html).toContain("So most posts teach.");
-    expect(html).toContain("Helpful tips");
-    expect(html).toContain("60%");
-    expect(html).toContain("proof beats promises");
-    expect(html).toContain("Setup proof");
-    expect(html).toContain("The calendar");
-    expect(html).toContain("1 question to make this");
-    // Campaigns, weekly tasks and the budget wait under "The details".
-    expect(html).toContain("The details");
-    expect(html).not.toContain("Live in ten minutes");
-    expect(html).not.toContain("0 dollars, organic only");
   });
 });

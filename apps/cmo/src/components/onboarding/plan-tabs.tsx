@@ -2,17 +2,31 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, CalendarDays, Repeat, Sparkles, Sun } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { formatDay, planWeeks } from "../../lib/calendar";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
 import { AGENT_NAME } from "../cuso";
+import { PhoneFeeds } from "../phone-feeds";
 import { withoutLabel } from "../showcases";
-import { FunnelPlan, MeasureFunnel } from "../strategy-core";
+import {
+  Alternatives,
+  BeforeAfter,
+  FunnelPlan,
+  Improvements,
+  MeasureFunnel,
+  OfferLadder,
+} from "../strategy-core";
 import { Funnel } from "../strategy-funnel";
-import { ChannelPlan, Mix, outcomeLine, Pillars } from "../strategy-reveal";
+import {
+  APPROACHES,
+  ChannelPlan,
+  Mix,
+  outcomeLine,
+  Pillars,
+} from "../strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -37,12 +51,21 @@ const UP_FIRST = 3;
 interface PlanPanelProps {
   overview: CmoOverview;
   strategy: Strategy;
+  /** Asks Cuso for another strategy; unset once the plan is approved. */
+  onAsk?: (text: string, label?: string) => Promise<void>;
 }
 
-/** The moves, the mix of posts, the topics and where Cuso works. */
-export function PlanPanel({ overview, strategy }: PlanPanelProps) {
+/**
+ * The moves, what stops people buying, the mix of posts, the other plans
+ * Cuso weighed, the topics and where he works; the rest sits under
+ * "Everything in the plan".
+ */
+export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   const stages = strategy.funnel ?? [];
   const mix = strategy.mix ?? [];
+  const alternatives = strategy.alternatives ?? [];
+  const [comparing, setComparing] = useState(false);
+  const { barrier } = strategy;
   return (
     <div className="bb" style={brandStyle(overview)}>
       {stages.length > 0 ? (
@@ -57,6 +80,18 @@ export function PlanPanel({ overview, strategy }: PlanPanelProps) {
           )}
         </Section>
       ) : null}
+      {barrier ? (
+        <Section title="What stops people buying">
+          <div className="panel ob-barrier">
+            <p className="ob-statement">{barrier.text}</p>
+            {mix[0] ? (
+              <p className="muted">
+                So most posts {APPROACHES[mix[0].approach].so}.
+              </p>
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
       {mix.length > 0 ? (
         <Section title="What the posts do">
           <Mix
@@ -65,6 +100,25 @@ export function PlanPanel({ overview, strategy }: PlanPanelProps) {
             business={businessDisplayName(overview)}
           />
         </Section>
+      ) : null}
+      {alternatives.length > 0 ? (
+        <div className="ob-alts">
+          <p>
+            I also looked at {alternatives.length} other{" "}
+            {alternatives.length === 1 ? "plan" : "plans"}.{" "}
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              aria-expanded={comparing}
+              onClick={() => setComparing(!comparing)}
+            >
+              {comparing ? "Hide them" : "Compare them"}
+            </button>
+          </p>
+          {comparing ? (
+            <Alternatives alternatives={alternatives} onAsk={onAsk} />
+          ) : null}
+        </div>
       ) : null}
       {strategy.pillars.length > 0 ? (
         <Section title="What the posts are about">
@@ -78,7 +132,57 @@ export function PlanPanel({ overview, strategy }: PlanPanelProps) {
       <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
+      <Everything overview={overview} strategy={strategy} />
     </div>
+  );
+}
+
+/** The rest of the plan, closed until the founder wants it. */
+function Everything({ overview, strategy }: PlanPanelProps) {
+  const improvements = strategy.improvements ?? [];
+  const beforeAfter = strategy.beforeAfter ?? [];
+  if (
+    !strategy.ladder &&
+    !strategy.why &&
+    improvements.length === 0 &&
+    beforeAfter.length === 0 &&
+    strategy.calendar.length === 0
+  ) {
+    return null;
+  }
+  return (
+    <details className="ob-more">
+      <summary>Everything in the plan</summary>
+      {strategy.why ? (
+        <Section title="Why this plan">
+          <p>{strategy.why}</p>
+        </Section>
+      ) : null}
+      {strategy.ladder ? (
+        <Section title="The offer">
+          <OfferLadder ladder={strategy.ladder} />
+        </Section>
+      ) : null}
+      {beforeAfter.length > 0 ? (
+        <Section title="Before and after" wide>
+          <BeforeAfter rows={beforeAfter} />
+        </Section>
+      ) : null}
+      {strategy.calendar.length > 0 ? (
+        <Section title="Where it shows up" wide>
+          <PhoneFeeds overview={overview} strategy={strategy} />
+        </Section>
+      ) : null}
+      {improvements.length > 0 ? (
+        <Section title="What you can improve">
+          <p className="note">
+            {AGENT_NAME} doesn't control your pages, prices or checkout. These
+            changes would help the funnel most.
+          </p>
+          <Improvements items={improvements} />
+        </Section>
+      ) : null}
+    </details>
   );
 }
 

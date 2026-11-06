@@ -118,7 +118,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 - **Cuso is the status.** Poses map to states: Reading, Thinking, Needs you (the only one labelled on Iris), Reporting, Done.
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card.
-- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 15px 600). This is the one place labels tilt.
+- **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
 - **Celebration:** the party image shows only after Launch is pressed.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.
 

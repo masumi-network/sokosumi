@@ -97,7 +97,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -151,7 +151,7 @@ body {
 h1 {
   text-wrap: balance;
   margin: 0;
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -164,7 +164,7 @@ p {
 
 .lead {
   color: var(--muted);
-  font-size: 1.25rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -339,7 +339,7 @@ p {
 }
 
 .account-name {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -585,12 +585,6 @@ a.button {
   font-weight: 400;
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .chip {
   padding: 4px 12px;
   border: 1px solid var(--border);
@@ -598,7 +592,7 @@ a.button {
   background: var(--surface);
   color: var(--foreground);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: background-color 150ms;
 }
@@ -684,7 +678,7 @@ a.button {
 }
 
 .landing h1 {
-  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-size: 2.25rem;
 }
 
 .field {
@@ -727,7 +721,7 @@ textarea {
 }
 
 .app .note {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
 .app .list > li {
@@ -747,7 +741,7 @@ textarea {
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -864,6 +858,13 @@ textarea {
   gap: 10px;
   margin: 0 12px 12px;
   padding: 10px 12px;
+}
+
+button.cuso-status {
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .cuso-status-text {
@@ -987,7 +988,7 @@ textarea {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .scroll {
@@ -1032,10 +1033,8 @@ textarea {
 }
 
 .mav {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border);
-  background: var(--background);
+  width: 36px;
+  height: 36px;
 }
 
 .mav.user {
@@ -1181,7 +1180,7 @@ textarea {
   height: 16px;
   border: 1px solid var(--border);
   background: transparent;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 
 .step.run {
@@ -1223,7 +1222,7 @@ textarea {
 
 .kv dt {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
 .kv dd {
@@ -1345,7 +1344,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .pv-head {
@@ -1528,7 +1527,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--background);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .uitem .top {
@@ -1557,7 +1556,7 @@ textarea {
 .uitem .acts .button-small {
   min-height: 28px;
   padding: 0 8px;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
 .uitem.paused {
@@ -1571,7 +1570,7 @@ textarea {
   gap: 12px;
   padding: 32px 8px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 
@@ -1591,8 +1590,8 @@ textarea {
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
+  gap: 12px;
+  padding: 12px;
   border-radius: var(--radius-panel);
   background: var(--surface);
 }
@@ -1602,12 +1601,6 @@ textarea {
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.25;
-}
-
-.panel.page-wide {
-  width: 100%;
-  padding: 12px;
-  gap: 12px;
 }
 
 .page-body,
@@ -1840,7 +1833,7 @@ textarea {
 
 .sheet-title {
   margin: 8px 0 16px;
-  font-size: 1.25rem;
+  font-size: 1rem;
   line-height: 1.25;
   letter-spacing: -0.01em;
 }
@@ -1905,7 +1898,7 @@ textarea {
   gap: 8px;
   margin-top: 16px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .sheet-why svg {
@@ -1980,7 +1973,7 @@ textarea {
   background: var(--background);
   color: var(--foreground);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-align: left;
   cursor: pointer;
   transition: border-color 150ms;
@@ -2014,261 +2007,12 @@ textarea {
   -webkit-box-orient: vertical;
 }
 
-.rv-map {
-  display: grid;
-  gap: 6px;
-}
-
-.rv-plot {
-  position: relative;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-
-/* The two axes, drawn as hairlines through the middle. */
-.rv-plot::before,
-.rv-plot::after {
-  content: "";
-  position: absolute;
-  background: var(--border);
-}
-
-.rv-plot::before {
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-}
-
-.rv-plot::after {
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: 1px;
-}
-
-.rv-axis {
-  position: absolute;
-  left: 10px;
-  color: var(--muted);
-  font-size: 0.6875rem;
-  white-space: nowrap;
-}
-
-.rv-axis.top {
-  top: 8px;
-}
-
-.rv-axis.bottom {
-  bottom: 8px;
-}
-
-.rv-xaxis {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 0.6875rem;
-}
-
-.rv-dot {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  translate: -6px 50%;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.rv-dot i {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--muted);
-}
-
-.rv-dot.you {
-  z-index: 1;
-  font-weight: 600;
-  translate: -9px 50%;
-}
-
-/* Near the right edge the label sits left of its dot. */
-.rv-dot.flip {
-  flex-direction: row-reverse;
-  translate: calc(-100% + 6px) 50%;
-}
-
-.rv-dot.you.flip {
-  translate: calc(-100% + 9px) 50%;
-}
-
-.rv-dot.you i {
-  width: 18px;
-  height: 18px;
-  background: var(--brand);
-  outline: 2px solid var(--line);
-  outline-offset: 2px;
-}
-
 .rv-yes,
 .rv-no {
   color: var(--foreground);
 }
 
-.rv-group {
-  display: grid;
-  gap: 8px;
-}
-
-.rv-group .label {
-  margin: 0;
-}
-
-.rv-tiles {
-  display: grid;
-  gap: 10px;
-}
-
-@media (min-width: 640px) {
-  .rv-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1100px) {
-  .rv-tiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-.rv-tile {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-height: 132px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--background);
-  color: var(--foreground);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 150ms,
-    transform 150ms var(--ease, ease);
-}
-
-.rv-tile:hover {
-  border-color: var(--brand);
-  transform: translateY(-2px);
-}
-
-.rv-tile:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
-.rv-tile.missing {
-  border-style: dashed;
-  color: var(--muted);
-}
-
-.rv-tile-q {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.rv-tile-h {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-}
-
-.rv-tile-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 6px;
-}
-
-.rv-dots {
-  display: flex;
-  gap: 4px;
-}
-
-.rv-dots i {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--line);
-}
-
-.rv-dots i.fact {
-  background: var(--ok);
-}
-
-.rv-dots i.inference {
-  border: 1px solid var(--line);
-  background: transparent;
-}
-
-.rv-tile-ask {
-  color: var(--brand);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.rv-sheet {
-  width: min(560px, calc(100vw - 16px));
-}
-
-.rv-sheet-headline {
-  font-size: 1.0625rem;
-  font-weight: 600;
-}
-
-.rv-sheet .bp-findings {
-  margin-bottom: 16px;
-}
-
-.rv-sheet-question,
-.rv-question-list li {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.rv-sheet-question p,
-.rv-question-list p {
-  margin: 0;
-}
-
-.rv-question-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.rv-question-list li {
-  max-width: none;
-}
-
-.rv-sheet-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
 /* Evidence, edits and answers inside a section's sheet */
-.bp-findings,
 .bp-edit-findings {
   display: grid;
   gap: 8px;
@@ -2316,7 +2060,7 @@ textarea {
 .bp-so {
   display: flex;
   gap: 6px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .bp-so span {
@@ -2358,7 +2102,7 @@ textarea {
   gap: 6px;
   margin: 0;
   color: var(--foreground);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
 .bp-editor {
@@ -2401,234 +2145,6 @@ textarea {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rv-tile {
-    transition: none;
-  }
-
-  .rv-tile:hover {
-    transform: none;
-  }
-}
-
-.ff-assumed {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-style: italic;
-}
-
-.ff-campaigns {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
-.ff-campaign {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--background);
-  color: var(--foreground);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 150ms cubic-bezier(0.25, 1, 0.5, 1),
-    transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.ff-campaign:hover {
-  border-color: var(--brand);
-  transform: translateY(-2px);
-}
-
-.ff-campaign:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
-.ff-campaign-name {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.ff-campaign-message {
-  color: var(--muted);
-}
-
-.ff-span {
-  position: relative;
-  height: 8px;
-  margin: 4px 0;
-  border-radius: 999px;
-  background: var(--surface);
-}
-
-.ff-span i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 999px;
-  background: var(--brand);
-  transform-origin: left;
-}
-
-.ff-campaign-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.8125rem;
-}
-
-.ff-icons {
-  display: flex;
-  gap: 6px;
-}
-
-.ff-campaign-metric {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.ff-weeks {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (min-width: 900px) {
-  .ff-weeks {
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  }
-}
-
-.ff-week {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-}
-
-.ff-week-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin: 0;
-}
-
-.ff-week-focus {
-  margin: 0;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.ff-tasks {
-  display: grid;
-  gap: 8px;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.875rem;
-}
-
-.ff-tasks li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-}
-
-.ff-owner {
-  padding: 1px 8px;
-  border-radius: var(--radius-mark);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 500;
-}
-
-.ff-owner.you {
-  background: var(--foreground);
-  color: var(--background);
-}
-
-.ff-needs {
-  display: block;
-  color: var(--foreground);
-  font-size: 0.75rem;
-}
-
-.ff-facts {
-  display: grid;
-  gap: 8px;
-  margin: 0 0 16px;
-}
-
-.ff-facts div {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 12px;
-}
-
-.ff-facts dt {
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-
-.ff-facts dd {
-  margin: 0;
-}
-
-.ff-sheet-label {
-  margin: 16px 0 6px;
-}
-
-.ff-sheet-list {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ff-sheet-list p {
-  margin: 0;
-}
-
-.ff-sheet-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ff-journey {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding-left: 20px;
-}
-
-.ff-journey p {
-  margin: 0;
-}
-
-.ff-fix {
-  color: var(--foreground);
-  font-size: 0.875rem;
-}
-
 /* Brand Brain and Strategy: one calm column, the answer first */
 .bb {
   --brand: var(--foreground);
@@ -2639,91 +2155,6 @@ textarea {
 
 .bb[hidden] {
   display: none;
-}
-
-.bb-hero {
-  display: grid;
-  gap: 16px;
-  padding: 24px;
-}
-
-.bb-id {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.bb-id p,
-.bb-hero p {
-  margin: 0;
-}
-
-.bb-name {
-  font-weight: 600;
-}
-
-.bb-id a {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.bb-eyebrow {
-  color: var(--muted);
-  font-size: 1.0625rem;
-  font-weight: 500;
-}
-
-.bb-line {
-  max-width: 20ch;
-  margin: 0;
-  font-size: 2.25rem;
-  font-weight: 800;
-  line-height: 1.0555;
-  letter-spacing: -0.035em;
-  text-wrap: balance;
-}
-
-.bb-lede {
-  max-width: 46ch;
-  color: var(--muted);
-  font-size: 1.1875rem;
-  line-height: 1.45;
-}
-
-.bb-callout {
-  display: grid;
-  gap: 12px;
-  padding: 20px 24px;
-  color: var(--foreground);
-  font: inherit;
-  text-align: left;
-}
-
-.bb-callout p {
-  margin: 0;
-}
-
-.bb-callout-button {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  cursor: pointer;
-}
-
-.bb-callout-button:focus-visible,
-.bb-toggle:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
-.bb-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
 }
 
 .bb-section {
@@ -2742,9 +2173,14 @@ textarea {
   }
 }
 
+/* The app's pages are narrower than the hiring screens: titles sit above. */
+.plan .bb-section {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .bb-title {
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -2781,13 +2217,9 @@ textarea {
 }
 
 .bb-list b {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-}
-
-.bb-competitors {
-  margin-top: 24px;
 }
 
 /* Their marketing today: one row a channel, then the site and ads */
@@ -2829,7 +2261,7 @@ textarea {
 
 .mt-stat {
   color: var(--foreground);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
 }
 
 .mt-what {
@@ -2879,21 +2311,6 @@ textarea {
   margin: 0;
   padding-left: 18px;
   color: var(--muted);
-}
-
-/* The brand's site beside the headline: a browser window, the phone in front */
-.bb-hero-copy {
-  display: grid;
-  align-content: start;
-  gap: 16px;
-}
-
-@media (min-width: 960px) {
-  .bb-hero-show {
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: center;
-    gap: 48px;
-  }
 }
 
 .bm-show {
@@ -3086,7 +2503,7 @@ textarea {
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 600;
 }
 
@@ -3105,60 +2522,6 @@ textarea {
   line-clamp: 2;
 }
 
-.bb-competitors a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.bb-competitors a:hover b,
-a.rv-dot:hover {
-  text-decoration: underline;
-}
-
-.bb-alternatives {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 16px;
-  margin: 24px 0 0;
-}
-
-.bb-alternatives .label {
-  flex-basis: 100%;
-}
-
-.bb-alternatives a {
-  color: inherit;
-}
-
-a.rv-dot {
-  color: inherit;
-  text-decoration: none;
-}
-
-.bb-numbered {
-  counter-reset: bb;
-}
-
-.bb-numbered li {
-  position: relative;
-  padding-left: 32px;
-  counter-increment: bb;
-}
-
-.bb-numbered li::before {
-  content: counter(bb);
-  position: absolute;
-  top: 1px;
-  left: 0;
-  color: var(--muted);
-  font-size: 1.125rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .bb-voice {
   display: grid;
   gap: 16px;
@@ -3168,7 +2531,7 @@ a.rv-dot {
   margin: 0;
   padding-left: 16px;
   border-left: 2px solid var(--brand);
-  font-size: 1.125rem;
+  font-size: 1rem;
   line-height: 1.45;
 }
 
@@ -3247,36 +2610,6 @@ a.rv-dot {
   color: var(--foreground);
 }
 
-.bb-more {
-  display: grid;
-  gap: 16px;
-  padding: 32px 0;
-  border-top: 1px solid var(--border);
-}
-
-.bb-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-self: start;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--foreground);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.bb-toggle[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
-.bb-all {
-  display: grid;
-  gap: 24px;
-}
-
 .bb-mix {
   display: grid;
   gap: 24px;
@@ -3294,7 +2627,7 @@ a.rv-dot {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: 1.125rem;
+  font-size: 1rem;
 }
 
 .bb-bar {
@@ -3368,7 +2701,7 @@ a.rv-dot {
 }
 
 .cw-name {
-  font-size: 1.0625rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -3378,7 +2711,7 @@ a.rv-dot {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 10px;
-  font-size: 1.0625rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -3508,7 +2841,7 @@ a.rv-dot {
 }
 
 .bb-offer-price {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -3600,7 +2933,7 @@ a.rv-dot {
   background: var(--background);
   color: var(--muted);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -3732,7 +3065,7 @@ a.rv-dot {
   display: -webkit-box;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;

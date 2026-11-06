@@ -307,10 +307,13 @@ it("opens a tile into the side panel with a way to say what is off", async () =>
   const panel = container.querySelector("aside");
   expect(panel?.getAttribute("aria-label")).toBe("What you sell");
   expect(panel?.textContent).toContain("Rocket Pro");
+  // One labelled field, not a bare placeholder.
+  expect(panel?.querySelector('label[for="ob-tell"]')?.textContent).toBe(
+    "Tell Cuso what's off",
+  );
+  expect(panel?.querySelectorAll("form")).toHaveLength(1);
   typeInto(
-    panel?.querySelector<HTMLInputElement>(
-      'input[aria-label="Tell Cuso what\'s off"]',
-    ) ?? null,
+    panel?.querySelector<HTMLInputElement>("#ob-tell") ?? null,
     "Rocket Pro costs $149",
   );
   await act(async () =>
@@ -437,6 +440,51 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
       ?.click(),
   );
   expect(text()).toContain("Up first");
+});
+
+// Asking for the plan: no second offer while the request is in flight.
+
+it("holds Plan as writing once the plan is requested, until Core reports it", async () => {
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () => draft({ strategy: null })),
+    requestStrategy: vi.fn(async () => ({ overview: null, error: null })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ brandBrainConfirmedAt: null, strategy: null })}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(actions.requestStrategy).toHaveBeenCalledTimes(1);
+  expect(text()).toContain("Writing your plan");
+  expect(text()).not.toContain("Write my plan");
+});
+
+it("offers Write my plan again when the request is refused", async () => {
+  const actions = actionsFor({
+    approveBrandBrain: vi.fn(async () => draft({ strategy: null })),
+    requestStrategy: vi.fn(async () => ({
+      overview: null,
+      error: "Not enough credits",
+    })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft({ brandBrainConfirmedAt: null, strategy: null })}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Looks like us");
+  expect(text()).toContain("Write my plan");
 });
 
 // Revisiting a finished step from the markers.

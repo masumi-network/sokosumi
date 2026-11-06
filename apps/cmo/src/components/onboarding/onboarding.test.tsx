@@ -279,6 +279,37 @@ describe("Brand", () => {
     expect(html).toContain("The site features product, use-case, pricing");
   });
 
+  it("shows the site with its logo and colours when media exists", () => {
+    const shot = { url: "/home.jpg", fileId: null, pageUrl: "https://acme.io" };
+    const html = render(
+      draft({
+        brandMedia: {
+          capturedAt: "2026-10-05T09:02:00Z",
+          pages: [
+            { ...shot, label: "Home", device: "desktop" },
+            { ...shot, label: "Home", device: "mobile" },
+          ],
+          competitors: [],
+          pictures: [],
+        },
+        brandVisual: {
+          logoUrl: null,
+          colors: ["a", "b", "c", "d", "e", "f"].map((d) => `#${d.repeat(6)}`),
+          fonts: [],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
+      }),
+    );
+    expect(html).toContain("Your site");
+    expect(html).toContain("acme.io homepage");
+    expect(html).toContain("acme.io on a phone");
+    expect(html.match(/ob-swatches/g)).toHaveLength(1);
+    expect(html.match(/<li style="background:/g)).toHaveLength(5);
+    expect(render(draft())).not.toContain("Your site");
+  });
+
   it("counts unanswered questions", () => {
     expect(render(draft())).toContain("2 questions left");
     expect(
@@ -313,6 +344,57 @@ describe("Plan", () => {
     );
     expect(html).toContain("Planning stopped");
     expect(html).toContain("Try again");
+  });
+
+  it("makes the short goal the one H1, with the long sentence under it", () => {
+    const sentence =
+      "We'll reach marketing leads with recurring backlogs, show named specialists turning briefs into finished files, and invite them to try the Free plan.";
+    const base = draft();
+    const html = plan({
+      ...base,
+      strategy: {
+        ...strategy,
+        objective: { outcome: "More marketing teams starting Free" },
+        idea: {
+          who: "Leads",
+          position: "Specialists",
+          attract: "Demos",
+          offer: "Free",
+          sentence,
+        },
+      },
+    });
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toMatch(
+      /<h1 class="ob-goal-headline">More marketing teams starting Free<\/h1>/,
+    );
+    expect(html).toContain(
+      `<p class="ob-goal-statement">${sentence.replace("'", "&#x27;")}</p>`,
+    );
+  });
+
+  it("shows what stops people buying, the other plans and the rest closed", () => {
+    const base = draft();
+    const html = plan({
+      ...base,
+      strategy: {
+        ...strategy,
+        barrier: { kind: "trust", text: "Teams fear vendors that go quiet." },
+        alternatives: [
+          { sentence: "Lead with price.", why: "Fast, but fickle." },
+        ],
+        ladder: { core: { what: "Rocket Pro" } },
+        why: "Founders read LinkedIn.",
+      },
+    });
+    expect(html).toContain("What stops people buying");
+    expect(html).toContain("Teams fear vendors that go quiet.");
+    expect(html).toContain("I also looked at 1 other plan.");
+    expect(html).toContain("Compare them");
+    expect(html).not.toContain("Lead with price.");
+    expect(html).toMatch(/<details class="ob-more">/);
+    expect(html).toContain("Everything in the plan");
+    expect(html).toContain("Why this plan");
   });
 
   it("is read-only once approved: answers, pace and budget as text, no change", () => {
@@ -517,6 +599,10 @@ describe("Launch", () => {
     expect(html).toContain("1 of 4 pieces go here");
     // Either network unlocks Launch, so neither row claims to be needed.
     expect(html).not.toContain("Needed to start");
+    // The chips say what each would add.
+    expect(html).toContain("Google Ads, +4 ads");
+    expect(html).toContain("Instagram, +4 posts");
+    expect(html).toContain("Facebook &amp; Instagram ads, +1 ad");
     // Ads are an add-later chip, not a row.
     expect(html).not.toContain("Can wait");
     expect(html).toContain("Add later");

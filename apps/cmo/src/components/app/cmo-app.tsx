@@ -1,5 +1,7 @@
 "use client";
 
+import "../onboarding/onboarding.css";
+
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowUp, CalendarDays, PanelRight } from "lucide-react";
 import {
@@ -17,6 +19,7 @@ import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
+import { CusoAvatar, type Pose } from "../cuso";
 import { StatusText } from "../status";
 import { CalendarPage } from "./calendar-page";
 import {
@@ -28,6 +31,7 @@ import {
   UpdateCard,
 } from "./cards";
 import {
+  type AddMailingList,
   BrandBrainPage,
   ChannelsPage,
   type ConnectChannel,
@@ -81,6 +85,7 @@ export interface CmoAppActions extends AdActions {
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
   connectChannel: ConnectChannel;
+  addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
     from: "onboarding" | "app",
@@ -394,7 +399,7 @@ export function CmoApp({
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
-                  <CusoSays>
+                  <CusoSays pose="thinking">
                     <span
                       className="typing"
                       aria-label={`${AGENT_NAME} is working`}
@@ -448,7 +453,11 @@ export function CmoApp({
           </>
         ) : (
           <div className="scroll">
-            <div className="panel page-wide">
+            <div
+              className={
+                view === "strategy" || view === "brain" ? undefined : "panel"
+              }
+            >
               {view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
@@ -470,14 +479,9 @@ export function CmoApp({
                 <StrategyPage
                   overview={overview}
                   onOpenCalendar={() => go("calendar")}
-                  onAsk={async (text) => {
-                    await actions.sendMessage(text);
-                    await refresh();
-                  }}
-                  onSetAds={async (monthly, currency) => {
-                    const result = await actions.setAdBudget(monthly, currency);
-                    if (result.overview) setOverview(result.overview);
-                  }}
+                  connectMeasurement={(provider) =>
+                    actions.connectMeasurement(provider, "app")
+                  }
                   onApprove={async (versionId) =>
                     setOverview(await actions.approveStrategy(versionId))
                   }
@@ -496,6 +500,7 @@ export function CmoApp({
               ) : view === "brain" ? (
                 <BrandBrainPage
                   overview={overview}
+                  messages={messages}
                   onSave={async (brandBrain) =>
                     setOverview(await actions.saveBrandBrain(brandBrain))
                   }
@@ -510,6 +515,8 @@ export function CmoApp({
                   compose={compose}
                   connect={actions.connectChannel}
                   connectAds={actions.connectAds}
+                  addMailingList={actions.addMailingList}
+                  onChange={setOverview}
                   connectFailed={connectFailed}
                 />
               ) : (
@@ -744,18 +751,17 @@ function ProductionCard({
   );
 }
 
-function CusoSays({
-  at,
-  children,
-}: {
+interface CusoSaysProps {
   at?: string;
+  /** Working shows him thinking; everything else he has already said. */
+  pose?: Pose;
   children: React.ReactNode;
-}) {
+}
+
+function CusoSays({ at, pose = "done", children }: CusoSaysProps) {
   return (
     <div className="msg">
-      <span className="mav" aria-hidden="true">
-        <img alt="" src="/icon.svg" width={18} height={18} />
-      </span>
+      <CusoAvatar pose={pose} size={36} />
       <div className="mbody">
         <MessageMeta author={AGENT_NAME} at={at} />
         {children}

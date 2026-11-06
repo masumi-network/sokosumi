@@ -18,6 +18,7 @@ const actions: CmoAppActions = {
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
   connectChannel: async () => ({ url: null, error: null }),
+  addMailingList: async () => ({ overview, error: null }),
   connectMeasurement: async () => ({ url: null, error: null }),
   connectAds: async () => ({ url: null, error: null }),
   launchAd: async () => ({ overview, error: null }),

@@ -133,7 +133,7 @@ export function SiteStep({
   const elapsed = useElapsed(work?.startedAt, running);
 
   return (
-    <section className="ob-panel panel ob-site">
+    <section className="panel ob-site">
       <div className="ob-site-left">
         <div className="card ob-reading">
           <img

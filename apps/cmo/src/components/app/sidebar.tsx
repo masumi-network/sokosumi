@@ -93,7 +93,11 @@ export function Sidebar({
         ))}
       </div>
       <div className="grow" />
-      <CusoStatus overview={overview} now={now} />
+      <CusoStatus
+        overview={overview}
+        now={now}
+        onOpen={() => onSelect("chat")}
+      />
       <div className="who">
         <span className="avatar" aria-hidden="true">
           {initial(name || email)}

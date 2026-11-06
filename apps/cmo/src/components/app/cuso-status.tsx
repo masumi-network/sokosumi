@@ -52,21 +52,47 @@ interface CusoStatusProps {
   overview: CmoOverview;
   /** The time "just filed" counts from; tests and the preview pin it. */
   now?: Date;
+  /** Opens what needs the owner (the chat); only used while he is needed. */
+  onOpen?: () => void;
 }
 
-/** Cuso's status card at the bottom of the sidebar. */
-export function CusoStatus({ overview, now = new Date() }: CusoStatusProps) {
+/**
+ * Cuso's status card at the bottom of the sidebar. When he needs the owner it
+ * is a button in focus that opens what he is waiting on.
+ */
+export function CusoStatus({
+  overview,
+  now = new Date(),
+  onOpen,
+}: CusoStatusProps) {
   const pose = cusoPose(overview, now);
-  return (
-    <div className="cuso-status card" role="status">
+  const needsYou = pose === "needs-you";
+  const content = (
+    <>
       <CusoAvatar pose={pose} size={36} />
       <span className="cuso-status-text">
         <span className="cuso-status-name">{AGENT_NAME}</span>
         {/* Needs you is the one state labelled on Iris. */}
-        <span className={pose === "needs-you" ? "cuso-status-iris" : "note"}>
+        <span className={needsYou ? "cuso-status-iris" : "note"}>
           {cusoLine(overview)}
         </span>
       </span>
+    </>
+  );
+  if (needsYou && onOpen) {
+    return (
+      <button
+        type="button"
+        className="cuso-status card card-focus"
+        onClick={onOpen}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div className="cuso-status card" role="status">
+      {content}
     </div>
   );
 }
