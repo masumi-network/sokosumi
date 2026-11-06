@@ -441,6 +441,27 @@ body:has(.ob) .site-header {
   background: var(--foreground);
 }
 
+/* In progress: the dot breathes, so the step reads as working, not waiting. */
+.working > .ob-box .ob-box-dot {
+  animation: ob-working 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes ob-working {
+  from {
+    transform: scale(0.5);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working > .ob-box .ob-box-dot {
+    animation: none;
+  }
+}
+
 .ob-found-list {
   display: grid;
   gap: 8px;
