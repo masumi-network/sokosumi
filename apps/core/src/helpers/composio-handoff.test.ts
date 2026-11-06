@@ -59,4 +59,22 @@ describe("composioHandoffUrl", () => {
     expect(handoff.searchParams.get("return")).toBe(callback);
     expect(handoff.searchParams.get("connection")).toBe("ca-native");
   });
+
+  it("preserves a same-origin native SEO callback so it can redeem consent before notifying the opener", () => {
+    const callback =
+      "https://app.sokosumi.com/seo/connections/callback?provider=ga4&viewer=alice&seo_state=attempt-123";
+    const handoff = new URL(
+      composioHandoffUrl({
+        redirectUrl,
+        returnUrl: callback,
+        connectionId: "ca-native",
+      }),
+    );
+    expect(handoff.origin + handoff.pathname).toBe(
+      "https://app.sokosumi.com/composio/handoff",
+    );
+    expect(handoff.searchParams.get("to")).toBe(redirectUrl);
+    expect(handoff.searchParams.get("return")).toBe(callback);
+    expect(handoff.searchParams.get("connection")).toBe("ca-native");
+  });
 });

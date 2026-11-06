@@ -88,11 +88,11 @@ function browser(name = "") {
       },
     });
   }
-  function handoff() {
+  function handoff(returnUrl = nativeReturn) {
     run(
       buildComposioHandoffInlineScript({
         to: "https://connect.composio.dev/link/native-seo",
-        returnUrl: nativeReturn.toString(),
+        returnUrl: returnUrl.toString(),
         connectionId: CONNECTION_ID,
       }),
     );
@@ -124,23 +124,33 @@ beforeEach(() => {
 });
 
 describe("managed verifier cross-protocol relay", () => {
-  it("returns a native SEO handoff to its feature callback despite a surviving popup name", () => {
-    const flow = browser(getComposioOAuthPopupName(REMOTE_NONCE));
-    flow.handoff();
-    flow.callback();
-    expect(flow.redirected).toHaveLength(1);
-    const target = flow.redirected[0];
-    expect(target.origin + target.pathname).toBe(
-      FEATURE_ORIGIN + "/seo/connections/callback",
-    );
-    expect(target.searchParams.get("session_uri")).toBe(SESSION_URI);
-    expect(target.searchParams.get("connected_account_id")).toBe(CONNECTION_ID);
-    expect(target.searchParams.get("seo_state")).toBe(REMOTE_NONCE);
-    expect(flow.broadcast).toEqual([]);
-    expect(flow.openerMessage).not.toHaveBeenCalled();
-    expect(flow.close).not.toHaveBeenCalled();
-    expect(flow.stored.has(COMPOSIO_HANDOFF_STORAGE_KEY)).toBe(false);
-  });
+  it.each([FEATURE_ORIGIN, CANONICAL_ORIGIN])(
+    "returns a native SEO handoff to its %s callback before notifying the opener",
+    (origin) => {
+      const flow = browser(getComposioOAuthPopupName(REMOTE_NONCE));
+      const returnUrl = new URL(
+        nativeReturn.pathname + nativeReturn.search,
+        origin,
+      );
+      flow.stored.set(COMPOSIO_OAUTH_NONCE_STORAGE_KEY, REMOTE_NONCE);
+      flow.handoff(returnUrl);
+      flow.callback();
+      expect(flow.redirected).toHaveLength(1);
+      const target = flow.redirected[0];
+      expect(target.origin + target.pathname).toBe(
+        origin + "/seo/connections/callback",
+      );
+      expect(target.searchParams.get("session_uri")).toBe(SESSION_URI);
+      expect(target.searchParams.get("connected_account_id")).toBe(
+        CONNECTION_ID,
+      );
+      expect(target.searchParams.get("seo_state")).toBe(REMOTE_NONCE);
+      expect(flow.broadcast).toEqual([]);
+      expect(flow.openerMessage).not.toHaveBeenCalled();
+      expect(flow.close).not.toHaveBeenCalled();
+      expect(flow.stored.has(COMPOSIO_HANDOFF_STORAGE_KEY)).toBe(false);
+    },
+  );
 
   it("clears an inherited canonical nonce when a different first-party app starts its handoff", () => {
     const flow = browser(getComposioOAuthPopupName(REMOTE_NONCE));
