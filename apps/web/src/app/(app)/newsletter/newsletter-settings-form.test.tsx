@@ -14,9 +14,13 @@ const mocks = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
   upload: vi.fn(),
+  loadBrand: vi.fn(),
 }));
 vi.mock("@/lib/actions/newsletter/action", () => ({
   saveNewsletterSettings: mocks.save,
+}));
+vi.mock("@/lib/actions/newsletter/design-md", () => ({
+  loadNewsletterBrandFromDesignMd: mocks.loadBrand,
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
@@ -30,6 +34,7 @@ vi.mock("@/lib/utils/user-file-upload.client", () => ({
     fallback,
 }));
 
+import type { NewsletterDesignMdOption } from "./newsletter-design-md-picker";
 import { NewsletterSettingsForm } from "./newsletter-settings-form";
 
 const NEWSLETTER: Newsletter = {
@@ -55,7 +60,12 @@ const NEWSLETTER: Newsletter = {
   updatedAt: new Date(),
 };
 
-function renderForm(newsletter: Newsletter | null = null) {
+const DESIGN_PICKER = en.App.Projects.Newsletter.DesignPicker;
+
+function renderForm(
+  newsletter: Newsletter | null = null,
+  designMdOptions?: NewsletterDesignMdOption[],
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
       <NewsletterSettingsForm
@@ -63,6 +73,7 @@ function renderForm(newsletter: Newsletter | null = null) {
         projectName="Launch"
         projectLogo="https://example.com/project.png"
         newsletter={newsletter}
+        designMdOptions={designMdOptions}
       />
     </NextIntlClientProvider>,
   );
@@ -326,6 +337,154 @@ describe("NewsletterSettingsForm", () => {
     expect(screen.getByLabelText("Newsletter name")).toHaveValue(
       NEWSLETTER.name,
     );
+  });
+
+  describe("design picker", () => {
+    const OPTIONS: NewsletterDesignMdOption[] = [
+      { source: "workspace", label: "Acme" },
+      { source: "project", label: "Launch" },
+    ];
+
+    async function choose(option: string) {
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole("combobox", { name: DESIGN_PICKER.label }),
+      );
+      await user.click(screen.getByRole("option", { name: option }));
+      return user;
+    }
+
+    it("shows nothing when there is no design to pick", () => {
+      renderForm(NEWSLETTER, []);
+      expect(screen.queryByText(DESIGN_PICKER.label)).toBeNull();
+    });
+
+    it("fills only what the design names, as an unsaved edit the user can tweak", async () => {
+      mocks.loadBrand.mockResolvedValue({
+        ok: true,
+        value: {
+          primaryColor: "#cc0000",
+          fontFamily: "Verdana",
+          logoUrl: "https://cdn.example.com/acme.png",
+        },
+      });
+      renderForm(NEWSLETTER, OPTIONS);
+      const user = await choose("Launch");
+
+      expect(mocks.loadBrand).toHaveBeenCalledWith({
+        projectId: "p1",
+        source: "project",
+      });
+      await waitFor(() =>
+        expect(screen.getByLabelText("Primary color")).toHaveTextContent(
+          "#cc0000",
+        ),
+      );
+      expect(
+        screen.getByRole("combobox", { name: "Font family" }),
+      ).toHaveTextContent("Verdana");
+      // Not in the design, so still the saved values.
+      expect(screen.getByLabelText("Accent color")).toHaveTextContent("#abc");
+      expect(screen.getByLabelText("Footer text")).toHaveValue(
+        "Thanks for reading",
+      );
+      expect(screen.getByText("You have unsaved changes.")).toBeInTheDocument();
+      expect(mocks.save).not.toHaveBeenCalled();
+
+      await user.click(
+        screen.getByRole("button", { name: "Clear primary color" }),
+      );
+      await user.click(screen.getByRole("button", { name: "Save settings" }));
+      await waitFor(() =>
+        expect(mocks.save).toHaveBeenCalledWith({
+          projectId: "p1",
+          values: expect.objectContaining({
+            primaryColor: "",
+            accentColor: "#abc",
+            fontFamily: "Verdana",
+            logoUrl: "https://cdn.example.com/acme.png",
+          }),
+        }),
+      );
+    });
+
+    it("can apply the same design again over later tweaks", async () => {
+      mocks.loadBrand.mockResolvedValue({
+        ok: true,
+        value: { primaryColor: "#cc0000" },
+      });
+      renderForm(NEWSLETTER, OPTIONS);
+      const user = await choose("Acme");
+      await waitFor(() =>
+        expect(screen.getByLabelText("Primary color")).toHaveTextContent(
+          "#cc0000",
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByRole("combobox", { name: DESIGN_PICKER.label }),
+        ).toHaveTextContent(DESIGN_PICKER.placeholder),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Clear primary color" }),
+      );
+      await choose("Acme");
+      await waitFor(() =>
+        expect(screen.getByLabelText("Primary color")).toHaveTextContent(
+          "#cc0000",
+        ),
+      );
+      expect(mocks.loadBrand).toHaveBeenCalledTimes(2);
+    });
+
+    it("blocks a second pick while one is loading", async () => {
+      let finish: (value: unknown) => void = () => undefined;
+      mocks.loadBrand.mockReturnValue(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      renderForm(NEWSLETTER, OPTIONS);
+      await choose("Acme");
+      const trigger = screen.getByRole("combobox", {
+        name: DESIGN_PICKER.label,
+      });
+      expect(trigger).toBeDisabled();
+      expect(trigger).toHaveAttribute("aria-busy", "true");
+      finish({ ok: true, value: { primaryColor: "#cc0000" } });
+      await waitFor(() => expect(trigger).toBeEnabled());
+    });
+
+    it.each([
+      [
+        "the action fails",
+        () =>
+          mocks.loadBrand.mockResolvedValue({
+            ok: false,
+            error: { message: DESIGN_PICKER.error },
+          }),
+        DESIGN_PICKER.error,
+      ],
+      [
+        "the request breaks",
+        () => mocks.loadBrand.mockRejectedValue(new Error("Connection closed")),
+        DESIGN_PICKER.error,
+      ],
+      [
+        "the design names nothing",
+        () => mocks.loadBrand.mockResolvedValue({ ok: true, value: {} }),
+        DESIGN_PICKER.empty,
+      ],
+    ])("keeps the form as it is when %s", async (_name, arrange, message) => {
+      arrange();
+      renderForm(NEWSLETTER, OPTIONS);
+      await choose("Acme");
+      await waitFor(() => expect(mocks.error).toHaveBeenCalledWith(message));
+      expect(screen.getByLabelText("Primary color")).toHaveTextContent(
+        "#123456",
+      );
+      expect(screen.queryByText("You have unsaved changes.")).toBeNull();
+    });
   });
 
   it.each([

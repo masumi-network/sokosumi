@@ -4013,6 +4013,13 @@
             "rounded": "Rounded",
             "pill": "Pill"
           }
+        },
+        "DesignPicker": {
+          "label": "Use workspace design",
+          "placeholder": "Select a design",
+          "workspace": "Workspace",
+          "error": "Unable to load this design. Try again.",
+          "empty": "No colors, font or logo found in this design."
         }
       }
     },

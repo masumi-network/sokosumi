@@ -4013,6 +4013,13 @@
             "rounded": "Abgerundet",
             "pill": "Pille"
           }
+        },
+        "DesignPicker": {
+          "label": "Arbeitsbereich-Design verwenden",
+          "placeholder": "Design auswählen",
+          "workspace": "Arbeitsbereich",
+          "error": "Dieses Design konnte nicht geladen werden. Versuche es erneut.",
+          "empty": "In diesem Design wurden keine Farben, Schrift oder Logo gefunden."
         }
       }
     },

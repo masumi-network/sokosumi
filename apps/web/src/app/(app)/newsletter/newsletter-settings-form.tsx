@@ -44,12 +44,18 @@ import {
   NewsletterDesignFields,
   newsletterDesignDefaults,
 } from "./newsletter-design-fields";
+import {
+  type NewsletterDesignMdOption,
+  NewsletterDesignMdPicker,
+} from "./newsletter-design-md-picker";
 
 interface NewsletterSettingsFormProps {
   projectId: string;
   projectName: string;
   projectLogo: string | null;
   newsletter: Newsletter | null;
+  /** DESIGN.md files the Brand card can be filled from. */
+  designMdOptions?: NewsletterDesignMdOption[];
   /** The project's sending domain card, shown below these settings. */
   sendingDomain?: ReactNode;
 }
@@ -59,6 +65,7 @@ export function NewsletterSettingsForm({
   projectName,
   projectLogo,
   newsletter,
+  designMdOptions = [],
   sendingDomain,
 }: NewsletterSettingsFormProps) {
   const t = useTranslations("App.Projects.Newsletter");
@@ -192,7 +199,11 @@ export function NewsletterSettingsForm({
                     </CardTitle>
                     <CardDescription>{t("brandDescription")}</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-5">
+                    <NewsletterDesignMdPicker
+                      projectId={projectId}
+                      options={designMdOptions}
+                    />
                     <NewsletterDesignFields
                       disabled={isSubmitting}
                       onUploadingChange={setIsUploadingLogo}

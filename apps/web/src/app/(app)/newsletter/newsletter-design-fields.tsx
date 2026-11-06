@@ -37,6 +37,8 @@ const FONTS = [
   { value: "Times New Roman", label: "timesNewRoman" },
 ] as const;
 
+export type NewsletterFont = (typeof FONTS)[number]["value"];
+
 const COLORS = [
   "primaryColor",
   "accentColor",
@@ -51,7 +53,7 @@ const CHOICES = {
 } as const;
 
 /** Full touch height on mobile, slightly denser from `md` up. */
-const SELECT_TRIGGER_CLASS =
+export const SELECT_TRIGGER_CLASS =
   "w-full data-[size=default]:h-11 md:data-[size=default]:h-9";
 
 type DesignFieldValues = Pick<
