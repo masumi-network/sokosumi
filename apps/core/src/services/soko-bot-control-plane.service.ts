@@ -1793,8 +1793,13 @@ export class SokoBotControlPlane {
     const message = input.message.trim();
     const clientTurnId = input.clientTurnId.trim();
     const source = input.source ?? "CHAT";
-    if (!message || message.length > 20_000) {
-      throw new SokoBotValidationError("Message must be 1-20,000 characters");
+    // A person types a chat message; Core writes the rest, and a CMO
+    // production brief carries a month of pieces and their writing skills.
+    const limit = source === "CHAT" ? 20_000 : 100_000;
+    if (!message || message.length > limit) {
+      throw new SokoBotValidationError(
+        `Message must be 1-${limit.toLocaleString("en")} characters`,
+      );
     }
     if (!clientTurnId || clientTurnId.length > 120) {
       throw new SokoBotValidationError("Invalid client turn id");

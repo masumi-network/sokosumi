@@ -15,6 +15,7 @@ import {
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
@@ -187,7 +188,8 @@ export function CmoApp({
   // An empty Up next would take a quarter of the screen to say so.
   const [upNextOpen, setUpNextOpen] = useState(
     initialOverview.upNext.length > 0 ||
-      initialOverview.production.state === "running",
+      initialOverview.production.state === "running" ||
+      initialOverview.production.state === "starting",
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerLayout = useDrawerLayout();
@@ -701,10 +703,11 @@ function ProductionCard({
   openCalendar: () => void;
 }) {
   const ready = production.state === "ready";
-  const share =
-    production.total > 0
-      ? Math.round((production.ready / production.total) * 100)
-      : 0;
+  const share = productionShare(production);
+  // Between two runs the month is partly made: only a month with no words
+  // yet is about to start.
+  const notStarted =
+    production.state === "starting" && production.written === 0;
   return (
     <div className="production">
       <p className="production-head">
@@ -716,7 +719,9 @@ function ProductionCard({
             ? "Your month is ready"
             : production.state === "stuck"
               ? "Most of your month is ready"
-              : `${AGENT_NAME} is making your month`}
+              : notStarted
+                ? `${AGENT_NAME} is about to make your month`
+                : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
           {production.ready} of {production.total} ready
@@ -726,9 +731,9 @@ function ProductionCard({
         className="uprogress"
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={production.total}
-        aria-valuenow={production.ready}
-        aria-label="Pieces made"
+        aria-valuemax={100}
+        aria-valuenow={share}
+        aria-label="Month made"
       >
         <span style={{ width: `${share}%` }} />
       </span>
@@ -737,7 +742,11 @@ function ProductionCard({
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
             ? `A few pieces didn't finish. ${AGENT_NAME} tries them again on his next round.`
-            : "Posts, pictures, articles and emails, in rounds. Read each one as it's made."}
+            : notStarted
+              ? "He starts shortly: first every piece's words, then the pictures."
+              : production.state === "starting"
+                ? `${productionSteps(production)}. He makes the rest shortly.`
+                : `${productionSteps(production)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"
