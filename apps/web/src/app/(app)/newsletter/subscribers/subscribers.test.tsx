@@ -28,7 +28,6 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   refresh: vi.fn(),
   success: vi.fn(),
-  error: vi.fn(),
   url: vi.fn(),
 }));
 vi.mock("@/lib/actions/newsletter/subscribers", () => ({
@@ -41,7 +40,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
 vi.mock("sonner", () => ({
-  toast: { success: mocks.success, error: mocks.error },
+  toast: { success: mocks.success },
 }));
 
 import { Subscribers } from "./subscribers";
@@ -677,6 +676,17 @@ describe("newsletter subscribers", () => {
       await user.click(
         screen.getByRole("menuitem", { name: COPY.unsubscribe }),
       );
+      const dialog = within(screen.getByRole("alertdialog"));
+      expect(
+        dialog.getByText(
+          COPY.Unsubscribe.description.replace("{email}", PERSON.email),
+        ),
+      ).toBeInTheDocument();
+      expect(mocks.status).not.toHaveBeenCalled();
+      await user.click(dialog.getByRole("button", { name: COPY.unsubscribe }));
+      await waitFor(() =>
+        expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+      );
       expect(mocks.status).toHaveBeenCalledWith({
         projectId: "p1",
         subscriberId: PERSON.id,
@@ -685,6 +695,53 @@ describe("newsletter subscribers", () => {
       expect(mocks.refresh).toHaveBeenCalled();
     },
   );
+
+  it("leaves the subscriber untouched when unsubscribe is cancelled", async () => {
+    const user = userEvent.setup();
+    renderSubscribers();
+    await user.click(
+      within(screen.getByRole("list", { name: COPY.title })).getByRole(
+        "button",
+        { name: `Manage subscriber ${PERSON.email}` },
+      ),
+    );
+    await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: COPY.cancel,
+      }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(mocks.status).not.toHaveBeenCalled();
+  });
+
+  it("blocks dismissal and duplicate requests while unsubscribing", async () => {
+    const deferred = Promise.withResolvers<{
+      ok: true;
+      value: NewsletterSubscriber;
+    }>();
+    mocks.status.mockReturnValue(deferred.promise);
+    const user = userEvent.setup();
+    renderSubscribers();
+    await user.click(
+      within(screen.getByRole("list", { name: COPY.title })).getByRole(
+        "button",
+        { name: `Manage subscriber ${PERSON.email}` },
+      ),
+    );
+    await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
+    const dialog = within(screen.getByRole("alertdialog"));
+    await user.click(dialog.getByRole("button", { name: COPY.unsubscribe }));
+    expect(dialog.getByRole("button", { name: COPY.cancel })).toBeDisabled();
+    await user.click(dialog.getByRole("button", { name: COPY.unsubscribe }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(mocks.status).toHaveBeenCalledTimes(1);
+    await act(async () => deferred.resolve({ ok: true, value: PERSON }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+  });
 
   it("offers removal only for a pending subscriber", async () => {
     const user = userEvent.setup();
@@ -724,7 +781,7 @@ describe("newsletter subscribers", () => {
     expect(mocks.remove).not.toHaveBeenCalled();
   });
 
-  it("reports stale status errors without claiming success", async () => {
+  it("keeps stale status errors in the dialog without claiming success", async () => {
     mocks.status.mockResolvedValue({
       ok: false,
       error: { message: COPY.transitionError },
@@ -738,11 +795,36 @@ describe("newsletter subscribers", () => {
       ),
     );
     await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
-    expect(mocks.error).toHaveBeenCalledWith(COPY.transitionError, {
-      duration: Infinity,
-      cancel: { label: COPY.dismiss, onClick: expect.any(Function) },
-    });
+    const dialog = within(screen.getByRole("alertdialog"));
+    await user.click(dialog.getByRole("button", { name: COPY.unsubscribe }));
+    expect(await dialog.findByRole("alert")).toHaveTextContent(
+      COPY.transitionError,
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("keeps a rejected unsubscribe open for retry", async () => {
+    mocks.status.mockRejectedValueOnce(new Error("Network"));
+    const user = userEvent.setup();
+    renderSubscribers();
+    await user.click(
+      within(screen.getByRole("list", { name: COPY.title })).getByRole(
+        "button",
+        { name: `Manage subscriber ${PERSON.email}` },
+      ),
+    );
+    await user.click(screen.getByRole("menuitem", { name: COPY.unsubscribe }));
+    const dialog = within(screen.getByRole("alertdialog"));
+    await user.click(dialog.getByRole("button", { name: COPY.unsubscribe }));
+    expect(await dialog.findByRole("alert")).toHaveTextContent(
+      COPY.updateError,
+    );
+    await user.click(dialog.getByRole("button", { name: COPY.unsubscribe }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(mocks.status).toHaveBeenCalledTimes(2);
   });
 
   it("confirms removal, keeps failures visible, and allows retry", async () => {

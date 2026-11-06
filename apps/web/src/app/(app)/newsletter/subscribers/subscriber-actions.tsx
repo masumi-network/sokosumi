@@ -42,22 +42,26 @@ export function SubscriberActions({
 }: SubscriberActionsProps) {
   const t = useTranslations("App.Projects.Newsletter.Subscribers");
   const router = useRouter();
-  const [removeOpen, setRemoveOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [unsubscribing, setUnsubscribing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const trigger = useRef<HTMLButtonElement>(null);
-  const errorToastOptions = {
-    duration: Infinity,
-    cancel: { label: t("dismiss"), onClick: () => undefined },
-  };
   const canUnsubscribe =
     subscriber.status === NewsletterSubscriberStatus.ACTIVE;
   const canRemove =
     canUnsubscribe || subscriber.status === NewsletterSubscriberStatus.PENDING;
 
+  function openConfirm(unsubscribe: boolean) {
+    setUnsubscribing(unsubscribe);
+    setError("");
+    setConfirmOpen(true);
+  }
+
   async function handleStatus() {
     if (!canUnsubscribe) return;
     setPending(true);
+    setError("");
     try {
       const result = await changeNewsletterSubscriberStatus({
         projectId,
@@ -65,13 +69,14 @@ export function SubscriberActions({
         status: NewsletterSubscriberStatus.UNSUBSCRIBED,
       });
       if (!result.ok) {
-        toast.error(result.error.message, errorToastOptions);
+        setError(result.error.message);
         return;
       }
       toast.success(t("unsubscribed"));
+      setConfirmOpen(false);
       router.refresh();
     } catch {
-      toast.error(t("updateError"), errorToastOptions);
+      setError(t("updateError"));
     } finally {
       setPending(false);
     }
@@ -90,7 +95,7 @@ export function SubscriberActions({
         return;
       }
       toast.success(t("Remove.success"));
-      setRemoveOpen(false);
+      setConfirmOpen(false);
       router.refresh();
     } catch {
       setError(t("Remove.error"));
@@ -111,32 +116,28 @@ export function SubscriberActions({
             variant="ghost"
             className="size-10 md:size-8"
             aria-label={t("rowActions", { email: subscriber.email })}
-            loading={pending && !removeOpen}
           >
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {canUnsubscribe ? (
-            <DropdownMenuItem onSelect={() => void handleStatus()}>
+            <DropdownMenuItem onSelect={() => openConfirm(true)}>
               {t("unsubscribe")}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
             variant="destructive"
-            onSelect={() => {
-              setError("");
-              setRemoveOpen(true);
-            }}
+            onSelect={() => openConfirm(false)}
           >
             {t("remove")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <AlertDialog
-        open={removeOpen}
+        open={confirmOpen}
         onOpenChange={(open) => {
-          if (!pending) setRemoveOpen(open);
+          if (!pending) setConfirmOpen(open);
         }}
       >
         <AlertDialogContent
@@ -146,9 +147,13 @@ export function SubscriberActions({
           }}
         >
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("Remove.title")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {unsubscribing ? t("Unsubscribe.title") : t("Remove.title")}
+            </AlertDialogTitle>
             <AlertDialogDescription className="break-all">
-              {t("Remove.description", { email: subscriber.email })}
+              {unsubscribing
+                ? t("Unsubscribe.description", { email: subscriber.email })
+                : t("Remove.description", { email: subscriber.email })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? (
@@ -165,10 +170,10 @@ export function SubscriberActions({
               className="bg-semantic-destructive-solid text-semantic-destructive-foreground hover:bg-destructive-hover"
               onClick={(event) => {
                 event.preventDefault();
-                void handleRemove();
+                void (unsubscribing ? handleStatus() : handleRemove());
               }}
             >
-              {t("remove")}
+              {unsubscribing ? t("unsubscribe") : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

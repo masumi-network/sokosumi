@@ -3346,6 +3346,10 @@
             "error": "Failed to remove subscriber. Try again.",
             "success": "Subscriber removed"
           },
+          "Unsubscribe": {
+            "title": "Unsubscribe subscriber?",
+            "description": "Stop sending this newsletter to {email}. Only they can re-subscribe."
+          },
           "Import": {
             "description": "Import a CSV with an email column and an optional name column. Existing subscribers keep their current status.",
             "file": "CSV file",
@@ -3371,7 +3375,6 @@
             "invalidRow": "Row {row}: {value}",
             "blankEmail": "no email"
           },
-          "dismiss": "Dismiss",
           "fromContacts": "Add from Contacts",
           "openContactList": "Open list in Contacts",
           "Consent": {
