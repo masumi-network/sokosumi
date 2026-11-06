@@ -350,34 +350,47 @@ describe("hand-off from another first-party app", () => {
     );
   });
 
-  it("sends Composio's callback back to that app with the connection", () => {
-    const replace = vi.fn();
-    const removeItem = vi.fn();
-    const stored = JSON.stringify({
+  it.each([
+    {
       returnUrl: "https://app.cmo.xyz/connect/callback",
-      connectionId: "ca_1",
-      at: Date.now(),
-    });
-    runInNewContext(buildComposioCallbackInlineScript(), {
-      URL,
-      URLSearchParams,
-      window: {
-        sessionStorage: {
-          getItem: (key: string) =>
-            key === COMPOSIO_HANDOFF_STORAGE_KEY ? stored : null,
-          removeItem,
+      expected:
+        "https://app.cmo.xyz/connect/callback?session_uri=one-use&connected_account_id=ca_1",
+    },
+    {
+      returnUrl:
+        "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com/seo/connections/callback?provider=ga4&viewer=alice&organization=team&seo_state=attempt-123",
+      expected:
+        "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com/seo/connections/callback?provider=ga4&viewer=alice&organization=team&seo_state=attempt-123&session_uri=one-use&connected_account_id=ca_1",
+    },
+  ])(
+    "sends Composio's callback to $returnUrl with its exact connection",
+    ({ returnUrl, expected }) => {
+      const replace = vi.fn();
+      const removeItem = vi.fn();
+      const stored = JSON.stringify({
+        returnUrl,
+        connectionId: "ca_1",
+        at: Date.now(),
+      });
+      runInNewContext(buildComposioCallbackInlineScript(), {
+        URL,
+        URLSearchParams,
+        window: {
+          sessionStorage: {
+            getItem: (key: string) =>
+              key === COMPOSIO_HANDOFF_STORAGE_KEY ? stored : null,
+            removeItem,
+          },
+          name: "",
+          location: {
+            origin: "https://app.sokosumi.com",
+            search: "?session_uri=one-use",
+            replace,
+          },
         },
-        name: "",
-        location: {
-          origin: "https://app.sokosumi.com",
-          search: "?session_uri=one-use",
-          replace,
-        },
-      },
-    });
-    expect(replace).toHaveBeenCalledExactlyOnceWith(
-      "https://app.cmo.xyz/connect/callback?session_uri=one-use&connected_account_id=ca_1",
-    );
-    expect(removeItem).toHaveBeenCalledWith(COMPOSIO_HANDOFF_STORAGE_KEY);
-  });
+      });
+      expect(replace).toHaveBeenCalledExactlyOnceWith(expected);
+      expect(removeItem).toHaveBeenCalledWith(COMPOSIO_HANDOFF_STORAGE_KEY);
+    },
+  );
 });

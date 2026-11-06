@@ -34,10 +34,7 @@ app.openapi(
       tags: ["SEO"],
       request: { params: seoProjectParamsSchema },
       responses: {
-        200: jsonSuccessResponse(
-          seoChatHistorySchema,
-          "Private audit conversation",
-        ),
+        200: jsonSuccessResponse(seoChatHistorySchema, "Audit conversation"),
         ...errors,
       },
     }),

@@ -10,6 +10,8 @@ INFERRED: Open Marketing, then SEO. Enter an Audit name and the first public pag
 
 INFERRED: The SEO navigation opens Workspace Audits even when a Sokosumi Project was selected. Existing bookmarked Project report links remain readable.
 
+INFERRED: SEO hides the global Project selector on desktop and mobile. An Audit belongs to the active organization Workspace. A linked Sokosumi Project adds its scope and lifecycle checks.
+
 INFERRED: Creating the Audit saves the page collection. It does not create a bot or start a paid check.
 
 INFERRED: Use Pages to add related URLs. Save a page selection when several pages need the same checks.
@@ -27,6 +29,8 @@ INFERRED: Successful approval returns to the Audit. An interrupted verification 
 INFERRED: Choose an authorized property and a period in Sync statistics. Presets cover the last 7, 28 or 90 complete days.
 
 INFERRED: Later syncs retain the saved source and property. A changed Google account must expose that property before reuse.
+
+INFERRED: Organization members with access to this Audit can read its newly saved statistics. Google account consent and account controls remain with the person who connected it. Personal Workspace statistics remain personal.
 
 INFERRED: Statistics retain their own reporting period. Syncing a report does not change Audit activity dates or hide new findings.
 
@@ -72,9 +76,15 @@ INFERRED: Monitoring has a finite schedule. Pause, resume and end controls manag
 
 INFERRED: SEO chat opens inside the Audit. It explains authorized results and proposes native forms or connection controls.
 
-INFERRED: Chat history and private Google statistics stay with the current reader and Workspace context.
+INFERRED: Organization Audit chat is shared with its authorized members. Questions identify their authors. Personal Workspace conversations remain private.
+
+INFERRED: Existing private conversations and statistics are excluded from the new shared history and model context. The sharing migration does not publish those records.
 
 ## 5. Online acceptance still required
+
+REPORTED: The owner chose `https://www.battery-sensei.app/` because its Google Search Console property is available to their Google account.
+
+VERIFIED: On deployed revision `b59f0b8ffa`, the real Preprod UI created Audit `01a1b014-b853-71da-b7b8-5fe2d643456c` for Battery Sensei. A saved `MacBook battery health` keyword retained its target URL and edited High priority after reload. A manually chosen competitor displayed its confirmation separately from unavailable ranking and link measurements. These checks do not prove the subsequent source corrections are deployed.
 
 | Journey                 | Required online evidence                                                                                   |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -89,6 +99,6 @@ INFERRED: Chat history and private Google statistics stay with the current reade
 
 ## Least confident decisions
 
-1. INFERRED: Live Google consent behavior needs the owner's signed-in browser and an authorized Google account.
+1. VERIFIED: The consent attempts reached main Preprod's protected `/personal-assistant/integrations/verify`, then sign-in. Native popup closure still needs the canonical relay rollout and verification of the managed Composio project's setting. An unrelated personal Composio project is not the integration owner.
 2. INFERRED: Automatic monitoring needs a scheduler that targets this feature Preview's database and isolated worker context.
 3. REPORTED: Release records show the paid-provider test allowance at `32/32`. Additional paid-provider executions require a new allowance.

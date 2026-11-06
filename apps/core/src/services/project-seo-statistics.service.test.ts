@@ -85,6 +85,7 @@ vi.mock("@/lib/db/prisma", () => {
     projectSeoAnalysis: { findMany: async () => [] },
     projectSeoActionTask: { findMany: async () => [] },
     taskSchedule: { findMany: async () => [] },
+    $queryRaw: async (_query: TemplateStringsArray, id: string) => [{ id }],
     $transaction: async (work: (tx: unknown) => unknown) => work(db),
   };
   return { default: db };

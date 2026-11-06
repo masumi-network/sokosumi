@@ -6,6 +6,7 @@ import {
 } from "@/clients/composio.client";
 import { isFirstPartyAppUrl } from "@/config/cors-allow-origin";
 import { getWebAppBaseUrl } from "@/config/env";
+import { composioHandoffUrl } from "@/helpers/composio-handoff";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -137,7 +138,14 @@ export async function connectSeoConnection(
         label: "seo_connection_superseded_cleanup",
       });
     });
-  return linked;
+  return {
+    ...linked,
+    redirectUrl: composioHandoffUrl({
+      redirectUrl: linked.redirectUrl,
+      returnUrl: callback,
+      connectionId: linked.connectionId,
+    }),
+  };
 }
 
 async function requireIntent(input: {

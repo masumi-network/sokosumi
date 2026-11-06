@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-
 import { dateTimeSchema } from "@/helpers/datetime";
+import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 
 export const SEO_MAX_PAGES = 10;
 export const SEO_MAX_KEYWORDS = 20;
@@ -417,6 +417,7 @@ export const seoJobSchema = z
   .openapi("ProjectSeoAnalysis");
 export const projectSeoWorkspaceSchema = z
   .object({
+    sharing: z.enum(SEO_SHARING_SCOPES).optional(),
     projectId: seoIdSchema.nullable(),
     auditId: seoIdSchema.nullable(),
     auditName: z.string().nullable(),

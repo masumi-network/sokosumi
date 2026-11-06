@@ -70,6 +70,7 @@ function observation(
     sourceTaskId: null,
     sourceFileId: null,
     ownerId: null,
+    visibility: "PRIVATE",
     pageIds: input.scope.pageIds,
     scopeVersion: 0,
     artifactHash: "hash",

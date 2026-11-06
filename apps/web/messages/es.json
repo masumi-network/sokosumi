@@ -10706,6 +10706,7 @@
         "relationship": "Relación",
         "selected": "En la selección actual",
         "choose": "Ver página",
+        "chooseSelection": "Ver selección",
         "version": "Versión {version}",
         "count": "{count, plural, one {# página} other {# páginas}}"
       },
@@ -10809,6 +10810,7 @@
         "notConnected": "Conecta esta cuenta aquí para consultar sus estadísticas.",
         "noProperties": "No hay propiedades autorizadas disponibles.",
         "ownerOnly": "Las estadísticas usan la cuenta y los permisos de la persona que las sincroniza.",
+        "shared": "Las estadísticas guardadas se comparten en esta auditoría de tu organización. Tu cuenta de Google sigue bajo tu control.",
         "synced": "Estadísticas sincronizadas",
         "invalidDates": "Elige un intervalo de fechas válido de hasta 366 días.",
         "channelAny": "Todos los segmentos medidos",
@@ -10901,6 +10903,9 @@
         "loadFailed": "No se pudo cargar esta conversación. Inténtalo de nuevo.",
         "pages": "{count, plural, one {# página} other {# páginas}}",
         "private": "Solo tú puedes ver esta conversación y las estadísticas de tus cuentas conectadas.",
+        "shared": "Esta conversación y las estadísticas guardadas se comparten en esta auditoría de tu organización.",
+        "you": "Tú",
+        "member": "Miembro",
         "open": "Abrir {action}",
         "auditRequired": "Abre una auditoría para usar el chat SEO.",
         "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana."

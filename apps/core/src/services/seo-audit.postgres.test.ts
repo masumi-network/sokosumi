@@ -221,7 +221,7 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
     );
   });
 
-  it("keeps linked Audit edits available but blocks new Tasks after the native Project closes", async () => {
+  it("keeps linked Audit history readable and blocks edits or new Tasks after its Project closes", async () => {
     const project = await prisma.project.create({
       data: { workspaceId, name: "Optional native link" },
     });
@@ -236,13 +236,15 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
       data: { closedAt: new Date() },
     });
     const owner = auditActor(audit.auditId);
-    const page = await addProjectSeoPage(owner, {
-      url: "https://example.test/related",
-      relationship: "related",
-      relatedToPageId: audit.pages[0].id,
-    });
+    await expect(
+      addProjectSeoPage(owner, {
+        url: "https://example.test/related",
+        relationship: "related",
+        relatedToPageId: audit.pages[0].id,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
     expect((await getProjectSeoWorkspace(owner)).availableActions.canEdit).toBe(
-      true,
+      false,
     );
     const previous = getEnv().SEO_ANALYSIS_DISPATCH_ENABLED;
     getEnv().SEO_ANALYSIS_DISPATCH_ENABLED = true;
@@ -252,7 +254,7 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
           owner,
           requestSeoAnalysisSchema.parse({
             kind: "page_check",
-            pageIds: [page.id],
+            pageIds: [audit.pages[0].id],
             countryCode: "US",
             languageCode: "en",
             devices: ["desktop"],

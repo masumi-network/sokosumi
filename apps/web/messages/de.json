@@ -10706,6 +10706,7 @@
         "relationship": "Beziehung",
         "selected": "In der aktuellen Auswahl",
         "choose": "Seite ansehen",
+        "chooseSelection": "Auswahl ansehen",
         "version": "Version {version}",
         "count": "{count, plural, one {# Seite} other {# Seiten}}"
       },
@@ -10809,6 +10810,7 @@
         "notConnected": "Verbinde dieses Konto hier, um seine Statistiken zu lesen.",
         "noProperties": "Keine autorisierten Properties verfügbar.",
         "ownerOnly": "Statistiken nutzen das Konto und die Zugriffsrechte der synchronisierenden Person.",
+        "shared": "Gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt. Dein Google-Konto bleibt unter deiner Kontrolle.",
         "synced": "Statistiken synchronisiert",
         "invalidDates": "Wähle einen gültigen Zeitraum von bis zu 366 Tagen.",
         "channelAny": "Alle gemessenen Segmente",
@@ -10901,6 +10903,9 @@
         "loadFailed": "Die Unterhaltung konnte nicht geladen werden. Versuche es erneut.",
         "pages": "{count, plural, one {# Seite} other {# Seiten}}",
         "private": "Diese Unterhaltung und deine verbundenen Statistiken sind nur für dich sichtbar.",
+        "shared": "Diese Unterhaltung und gespeicherte Statistiken werden in diesem Audit mit deiner Organisation geteilt.",
+        "you": "Du",
+        "member": "Mitglied",
         "open": "{action} öffnen",
         "auditRequired": "Öffne ein Audit, um den SEO-Chat zu nutzen.",
         "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut."

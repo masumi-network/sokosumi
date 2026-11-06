@@ -22,6 +22,7 @@ import {
   SEO_CHAT_SYSTEM,
   seoChatContext,
 } from "@/lib/seo/chat-context";
+import { seoSharingFor, seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import type { SeoActor } from "@/schemas/project-seo.schema";
@@ -45,6 +46,20 @@ const SEO_CHAT_TIMEOUT_MS = 25_000;
 const SEO_CHAT_LEASE_MS = 60_000;
 const SEO_CHAT_MAX_OUTPUT_TOKENS = 3_000;
 const SEO_CHAT_HISTORY_MAX_CHARS = 16_000;
+const SEO_CHAT_AUTHOR_INCLUDE = {
+  user: { select: { id: true, name: true } },
+} as const;
+type TurnWithAuthor = StoredTurn & {
+  user: { id: string; name: string | null };
+};
+
+function conversationWhere(actor: SeoActor, auditId: string) {
+  return {
+    auditId,
+    visibility: seoVisibilityFor(actor),
+    ...(actor.organizationId ? {} : { userId: actor.userId }),
+  };
+}
 
 export interface SeoChatDeps {
   generate: (
@@ -78,10 +93,14 @@ function auditIdFor(actor: SeoActor): string {
   return actor.owner.id;
 }
 
-function turnView(row: StoredTurn, canRequestAnalysis: boolean): SeoChatTurn {
+function turnView(
+  row: TurnWithAuthor,
+  canRequestAnalysis: boolean,
+): SeoChatTurn {
   const actions = seoChatActionSchema.array().safeParse(row.actions);
   return {
     id: row.id,
+    author: { id: row.user.id, name: row.user.name },
     question: row.question,
     response: row.response,
     actions: actions.success
@@ -102,15 +121,26 @@ export async function listSeoChat(actor: SeoActor) {
   const auditId = auditIdFor(actor);
   await requireSeoOwner(actor);
   const turns = await prisma.seoAuditChatTurn.findMany({
-    where: { auditId, userId: actor.userId },
+    where: conversationWhere(actor, auditId),
+    include: SEO_CHAT_AUTHOR_INCLUDE,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: SEO_CHAT_HISTORY_LIMIT,
   });
   const executor = await findSeoAnalysisExecutor(actor);
   // Membership may have changed during the read. Never return a stale private projection.
-  await requireSeoOwner(actor);
+  const currentOwner = await requireSeoOwner(actor);
   return {
-    turns: turns.reverse().map((row) => turnView(row, executor !== null)),
+    sharing: seoSharingFor(actor),
+    turns: turns
+      .reverse()
+      .map((row) =>
+        turnView(
+          row,
+          executor !== null &&
+            !currentOwner.closingAt &&
+            !currentOwner.closedAt,
+        ),
+      ),
   };
 }
 
@@ -150,6 +180,7 @@ export async function sendSeoChat(
   const reservation = await serializableTransaction(async (tx) => {
     await requireLockedSeoOwner(tx, actor);
     const previous = await tx.seoAuditChatTurn.findUnique({
+      include: SEO_CHAT_AUTHOR_INCLUDE,
       where: {
         auditId_userId_idempotencyKey: {
           auditId,
@@ -159,7 +190,10 @@ export async function sendSeoChat(
       },
     });
     if (previous) {
-      if (previous.requestHash !== requestHash)
+      if (
+        previous.requestHash !== requestHash ||
+        previous.visibility !== seoVisibilityFor(actor)
+      )
         throw conflict(
           "This chat request key was already used for another message",
         );
@@ -187,15 +221,14 @@ export async function sendSeoChat(
       );
     await tx.seoAuditChatTurn.updateMany({
       where: {
-        auditId,
-        userId: actor.userId,
+        ...conversationWhere(actor, auditId),
         status: "running",
         leaseExpiresAt: { lte: now },
       },
       data: { status: "failed", completedAt: now },
     });
     const active = await tx.seoAuditChatTurn.findFirst({
-      where: { auditId, userId: actor.userId, status: "running" },
+      where: { ...conversationWhere(actor, auditId), status: "running" },
       select: { id: true },
     });
     if (active) throw conflict("An SEO chat reply is already in progress");
@@ -203,6 +236,7 @@ export async function sendSeoChat(
       data: {
         auditId,
         userId: actor.userId,
+        visibility: seoVisibilityFor(actor),
         idempotencyKey: input.idempotencyKey,
         requestHash,
         question: input.question,
@@ -211,6 +245,7 @@ export async function sendSeoChat(
         createdAt: now,
         leaseExpiresAt: new Date(now.getTime() + SEO_CHAT_LEASE_MS),
       },
+      include: SEO_CHAT_AUTHOR_INCLUDE,
     });
     return { row, fresh: true };
   }, "The audit conversation changed. Try again.");
@@ -224,8 +259,7 @@ export async function sendSeoChat(
   try {
     const previous = await prisma.seoAuditChatTurn.findMany({
       where: {
-        auditId,
-        userId: actor.userId,
+        ...conversationWhere(actor, auditId),
         status: "completed",
         id: { not: reservation.row.id },
       },
@@ -269,6 +303,7 @@ export async function sendSeoChat(
         throw conflict("The SEO chat reply expired. Send a new message.");
       const row = await tx.seoAuditChatTurn.findUniqueOrThrow({
         where: { id: reservation.row.id },
+        include: SEO_CHAT_AUTHOR_INCLUDE,
       });
       const executor = await findSeoAnalysisExecutor(actor, tx);
       return turnView(

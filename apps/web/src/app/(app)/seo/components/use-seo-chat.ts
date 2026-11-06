@@ -122,6 +122,7 @@ export function useSeoChat(model: SeoWorkspaceModel) {
       const turn: SeoAuditChatTurn = await response.json();
       if (!alive.current) return;
       queryClient.setQueryData<SeoAuditChatHistory>(key, (previous) => ({
+        sharing: previous?.sharing ?? model.data.sharing ?? "personal",
         turns: [
           ...(previous?.turns ?? []).filter((item) => item.id !== turn.id),
           turn,
@@ -142,5 +143,16 @@ export function useSeoChat(model: SeoWorkspaceModel) {
       if (alive.current) setSending(false);
     }
   }
-  return { question, setQuestion, error, busy, sending, history, turns, send };
+  return {
+    question,
+    setQuestion,
+    error,
+    busy,
+    sending,
+    history,
+    turns,
+    send,
+    sharing: history.data?.sharing ?? model.data.sharing ?? "personal",
+    viewerId: session?.user.id,
+  };
 }

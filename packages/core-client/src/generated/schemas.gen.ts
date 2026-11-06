@@ -36787,6 +36787,13 @@ export const ProjectImageStudioCaptionSchema = {
 export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
+        sharing: {
+            type: 'string',
+            enum: [
+                'organization',
+                'personal'
+            ]
+        },
         projectId: {
             type: [
                 'string',
@@ -38600,6 +38607,13 @@ export const CreateSeoAuditRequestSchema = {
 export const SeoAuditChatHistorySchema = {
     type: 'object',
     properties: {
+        sharing: {
+            type: 'string',
+            enum: [
+                'organization',
+                'personal'
+            ]
+        },
         turns: {
             type: 'array',
             items: {
@@ -38618,6 +38632,25 @@ export const SeoAuditChatTurnSchema = {
         id: {
             type: 'string',
             format: 'uuid'
+        },
+        author: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    minLength: 1
+                },
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
         },
         question: {
             type: 'string'

@@ -5,6 +5,11 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
 import {
+  SEO_DATA_VISIBILITY,
+  seoSharingFor,
+  seoVisibilityFor,
+} from "@/lib/seo/data-visibility";
+import {
   addSeoPageSchema,
   createSeoScopeSchema,
   type NativeSeoMetrics,
@@ -199,7 +204,7 @@ export async function recordNativeSeoMetrics(
 ) {
   const payload = nativeSeoMetricsSchema.parse(input);
   const write = async (client: Prisma.TransactionClient) => {
-    await requireSeoOwner(actor, client, true);
+    await requireLockedSeoOwner(client, actor);
     await options.authorize?.(client);
     if (!(await canReadPrivateSeoMetrics(actor, client)))
       throw forbidden(
@@ -237,15 +242,17 @@ export async function recordNativeSeoMetrics(
           throw conflict("The page group changed during collection");
       }
     }
+    const visibility = seoVisibilityFor(actor);
     const body = JSON.stringify(payload),
       artifactHash = sha256(body),
-      sourceKey = `native:${sha256(`${actor.userId}:${payload.provider}:${payload.propertyId}:${artifactHash}`)}`;
+      sourceKey = `native:${sha256(`${visibility === SEO_DATA_VISIBILITY.SHARED ? `${visibility}:` : ""}${actor.userId}:${payload.provider}:${payload.propertyId}:${artifactHash}`)}`;
     const data: Prisma.InputJsonObject = payload;
     const result = await client.projectSeoObservation.upsert({
       where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
       create: {
         ...seoOwnerWhere(actor),
         ownerId: actor.userId,
+        visibility,
         kind: "metrics",
         source: payload.provider,
         sourceKey,
@@ -271,7 +278,7 @@ export async function getProjectSeoWorkspace(
   actor: SeoActor,
   query: SeoWorkspaceQuery = {},
 ) {
-  const project = await requireSeoOwner(actor);
+  await requireSeoOwner(actor);
   const scope = await resolveSeoScope(actor, query);
   const privateMetricsAllowed = await canReadPrivateSeoMetrics(actor);
   const executor = await findSeoAnalysisExecutor(actor);
@@ -299,7 +306,15 @@ export async function getProjectSeoWorkspace(
         pageIds: { hasSome: scope.pageIds },
         OR: [
           { ownerId: null },
-          ...(privateMetricsAllowed ? [{ ownerId: actor.userId }] : []),
+          ...(privateMetricsAllowed
+            ? [
+                {
+                  kind: "metrics",
+                  visibility: seoVisibilityFor(actor),
+                  ...(actor.organizationId ? {} : { ownerId: actor.userId }),
+                },
+              ]
+            : []),
         ],
       },
       orderBy: { observedAt: "desc" },
@@ -352,8 +367,10 @@ export async function getProjectSeoWorkspace(
     status: task.status,
     completedAt: task.events[0]?.createdAt ?? null,
   }));
+  const currentOwner = await requireSeoOwner(actor);
   return projectSeoProjection({
-    project,
+    project: currentOwner,
+    sharing: seoSharingFor(actor),
     query,
     scope,
     pages,

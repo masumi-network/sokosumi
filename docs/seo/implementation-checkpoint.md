@@ -74,6 +74,24 @@ VERIFIED: only this PR's Core Preview branch received the noncredential `SEO_ANA
 
 The following evidence records the earlier Project-scoped implementation before this native revision.
 
+## Organization context and consent return correction
+
+REPORTED: The owner clarified that organization Audit chat and statistics must be shared in the organization's work context. They also requested removal of the global Project selector from SEO, and chose Battery Sensei for Google Search Console testing.
+
+VERIFIED: Correction to the earlier reader-only design: its tests proved personal isolation but did not prove the requested organization collaboration. `lib/seo/data-visibility.ts` now distinguishes organization and personal context. `seo-chat.service.ts:120` reads the shared conversation, identifies each author and excludes legacy private turns. Shared inference also excludes the original author's private metrics. Account consent and Google account operations remain bound to the initiating user and Workspace.
+
+VERIFIED: Migration `20261106090654_seo_shared_organization_context` adds two visibility columns with `DEFAULT 'PRIVATE'` and two value checks. Its approved localhost run applied only that pending migration. Existing records are not published by the migration. `project-seo-store.ts:78` also applies linked Project scope and lifecycle checks to an Audit; public report and saved-data ownership remain separate.
+
+VERIFIED: Root checks reported `97 passed (97)` across fourteen Core/database files, `43 passed (43)` across the workspace/header Web files, `20 successful, 20 total` for normal checks and `10 successful, 10 total` for Core/Web builds. Evidence: `/private/tmp/seo-organization-context-core-root.log`, `seo-shared-context-web-root.log`, `seo-organization-context-precommit.log` and `seo-organization-context-build.log`.
+
+REPORTED: Prior services in a newly created temporary tree failed seven of eight retained cases, including six sharing, privacy or linked-Project behavior checks. Prior Web source failed two of three retained cases; the personal privacy control passed. Source files in the working tree were never overwritten during those comparisons. Independent Core, Web-sharing and OAuth reviews found no actionable issue.
+
+VERIFIED: The signed-in Preprod UI created native Audits and saved related pages and a two-page selection. Battery Sensei's keyword target and edited High priority survived reload. No paid provider request was added. The top-bar selector, empty parent name and saved-selection label corrections remain source changes pending deployment.
+
+REPORTED: Runtime request metadata showed main Preprod's `/personal-assistant/integrations/verify` returning `307` to `/signin` during the consent attempts. Public probes also found the generic `/composio/callback` and `/composio/handoff` documents behind sign-in. Native initiation now reuses the canonical-origin handoff, and the proxy permits exactly those two existing documents. Finalization remains authenticated. Old-source comparisons reproduce two Web, three helper and one lifecycle failure; fixed checks pass.
+
+VERIFIED: The canonical Web-only relay patch is prepared against base `26328bac4a`, with changes limited to `proxy.ts` and its test. Its manifest reports `48 passed (48)` and a clean apply-check. No canonical deployment or Composio setting change has occurred. The actual project behind Sokosumi's managed Composio credential remains to be checked in its server environment. The owner's personal Composio Workspace is not evidence of that project's configuration.
+
 ## Earlier delivered behavior
 
 VERIFIED: `apps/core/src/routes/v1/projects/[id]/seo/index.ts` mounts versioned Project operations. Stored evidence, page groups, saved keyword priorities and competitor choices remain separate. Each analysis freezes its pages, scope version, Market, devices and provider allowance before creating its Task. `project-seo.postgres.test.ts` checks dispatch retries, stale scope rejection and exact source authority.

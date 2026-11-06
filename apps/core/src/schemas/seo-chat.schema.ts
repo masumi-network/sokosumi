@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { seoWorkspaceQuerySchema } from "@/schemas/project-seo.schema";
 
 export const SEO_CHAT_MAX_QUESTION_CHARS = 4_000;
@@ -58,6 +59,9 @@ export const seoChatScopeSchema = z.object({
 export const seoChatTurnSchema = z
   .object({
     id: z.uuid(),
+    author: z
+      .object({ id: z.string().min(1), name: z.string().nullable() })
+      .optional(),
     question: z.string(),
     response: z.string().nullable(),
     actions: z.array(seoChatActionSchema),
@@ -69,6 +73,7 @@ export const seoChatTurnSchema = z
 
 export const seoChatHistorySchema = z
   .object({
+    sharing: z.enum(SEO_SHARING_SCOPES).optional(),
     turns: z.array(seoChatTurnSchema),
   })
   .openapi("SeoAuditChatHistory");

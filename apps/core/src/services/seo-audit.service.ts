@@ -26,7 +26,10 @@ export async function listSeoAudits(
 ) {
   await requireSeoWorkspace(actor);
   const { cursor, take, skip } = parseCursorPagination(query);
-  const where = { workspaceId: actor.workspaceId };
+  const where = {
+    workspaceId: actor.workspaceId,
+    OR: [{ projectId: null }, { project: { workspaceId: actor.workspaceId } }],
+  };
   if (
     cursor &&
     !(await prisma.seoAudit.findFirst({
@@ -83,7 +86,7 @@ export async function createSeoAudit(
     if (input.projectId)
       await requireScopedProject(
         { projectId: input.projectId, workspaceId: actor.workspaceId },
-        { client: tx },
+        { client: tx, requireOpen: true },
       );
     return tx.seoAudit.create({
       data: {

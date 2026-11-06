@@ -9872,6 +9872,7 @@ export type ProjectImageStudioCaption = {
 };
 
 export type ProjectSeoWorkspace = {
+    sharing?: 'organization' | 'personal';
     projectId: string | null;
     auditId: string | null;
     auditName: string | null;
@@ -10214,11 +10215,16 @@ export type CreateSeoAuditRequest = {
 };
 
 export type SeoAuditChatHistory = {
+    sharing?: 'organization' | 'personal';
     turns: Array<SeoAuditChatTurn>;
 };
 
 export type SeoAuditChatTurn = {
     id: string;
+    author?: {
+        id: string;
+        name: string | null;
+    };
     question: string;
     response: string | null;
     actions: Array<{
@@ -67501,7 +67507,7 @@ export type ListSeoAuditChatError = ListSeoAuditChatErrors[keyof ListSeoAuditCha
 
 export type ListSeoAuditChatResponses = {
     /**
-     * Private audit conversation
+     * Audit conversation
      */
     200: {
         data: SeoAuditChatHistory;

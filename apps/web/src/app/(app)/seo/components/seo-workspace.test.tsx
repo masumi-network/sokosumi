@@ -145,6 +145,59 @@ afterEach(() => {
 });
 
 describe("SEO workspace integration", () => {
+  it.each([
+    { label: "", expected: "Related to: https://example.com/" },
+    { label: "Home", expected: "Related to: Home" },
+  ])(
+    "shows the related page's parent when its label is '$label'",
+    async ({ label, expected }) => {
+      const workspace = seoTestWorkspace();
+      workspace.pages[0].label = label;
+      workspace.pages.push({
+        ...workspace.pages[0],
+        id: crypto.randomUUID(),
+        url: "https://example.com/blogs",
+        label: "Blog",
+        relationship: "related",
+        relatedToPageId: workspace.pages[0].id,
+      });
+      workspace.scope.pageIds = workspace.pages.map((page) => page.id);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace, "tab=pages");
+      const row = screen.getByRole("heading", { name: "Blog" }).closest("li");
+      if (!row) throw new Error("Related page row missing");
+      expect(within(row).getByText(expected)).toBeVisible();
+    },
+  );
+
+  it("labels a saved page group's navigation as a selection", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.scopes[0].name = "Website and blog";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "tab=pages");
+    const row = screen
+      .getByRole("heading", { name: "Website and blog" })
+      .closest("li");
+    if (!row) throw new Error("Saved page selection missing");
+    expect(within(row).queryByRole("button", { name: "View page" })).toBeNull();
+    await user.click(
+      within(row).getByRole("button", { name: "View selection" }),
+    );
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining(`scopeId=${workspace.scopes[0].id}`),
+        expect.any(Object),
+      ),
+    );
+  });
+
   it("renders source measurements without replacing missing values with zero", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -1092,6 +1145,117 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByRole("link", { name: /Soko Bot|personal assistant/i }),
     ).toBeNull();
+  });
+
+  it("identifies a shared organization conversation and its member author", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+      sharing: "organization" as const,
+    };
+    const history = {
+      sharing: "organization",
+      turns: [
+        {
+          id: crypto.randomUUID(),
+          author: { id: "another-member", name: "Alex" },
+          question: "Which pages need attention?",
+          response: "The saved audit has no measured results yet.",
+          status: "completed",
+          actions: [],
+          scope: { pageIds: workspace.scope.pageIds },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+    history.turns.push({
+      ...history.turns[0],
+      id: crypto.randomUUID(),
+      author: { id: "owner", name: "Sandro" },
+      question: "Which source should I connect?",
+      response: "Connect Search Console to read search measurements.",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/chat") ? history : workspace),
+      ),
+    );
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    const panel = await screen.findByRole("dialog", { name: "SEO chat" });
+    await within(panel).findByText(history.turns[0].response);
+    expect(within(panel).getByText("Alex")).toBeVisible();
+    expect(within(panel).getByText("You")).toBeVisible();
+    expect(
+      within(panel).getByText(
+        "This conversation and saved statistics are shared within this audit in your organization.",
+      ),
+    ).toBeVisible();
+    expect(within(panel).queryByText(/visible only to you/)).toBeNull();
+  });
+
+  it("explains organization statistics sharing before a sync", async () => {
+    const workspace = {
+      ...seoTestWorkspace(),
+      sharing: "organization" as const,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("/statistics/properties")
+            ? {
+                provider: "ga4",
+                status: "not_connected",
+                reason: null,
+                properties: [],
+              }
+            : workspace,
+        ),
+      ),
+    );
+    renderWorkspace(workspace);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Sync statistics" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Sync statistics",
+    });
+    expect(
+      within(dialog).getByText(
+        "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("keeps personal workspace chat privacy explicit", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      sharing: "personal" as const,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.endsWith("/chat")
+            ? { sharing: "personal", turns: [] }
+            : workspace,
+        ),
+      ),
+    );
+    renderWorkspace(workspace);
+    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    expect(
+      await screen.findByText(
+        "This conversation and your connected statistics are visible only to you.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/shared within this audit/)).toBeNull();
   });
 
   it("does not retain another viewer's private unsent SEO question", async () => {

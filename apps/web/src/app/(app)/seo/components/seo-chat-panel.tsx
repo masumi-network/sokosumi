@@ -115,6 +115,12 @@ function SeoChatConversation({ model }: { model: SeoWorkspaceModel }) {
           {chat.turns.map((turn) => (
             <article key={turn.id} className="space-y-3 border-b pb-5">
               <div className="bg-muted ml-6 rounded-lg px-3 py-2">
+                <p className="mb-1 text-xs font-medium">
+                  {turn.author?.id === chat.viewerId ||
+                  (!turn.author && chat.sharing === "personal")
+                    ? t("chat.you")
+                    : turn.author?.name || t("chat.member")}
+                </p>
                 <p className="text-sm whitespace-pre-wrap">{turn.question}</p>
               </div>
               <p className="text-muted-foreground text-xs">
@@ -150,7 +156,11 @@ function SeoChatConversation({ model }: { model: SeoWorkspaceModel }) {
             void chat.send();
           }}
         >
-          <p className="text-muted-foreground text-xs">{t("chat.private")}</p>
+          <p className="text-muted-foreground text-xs">
+            {t(
+              chat.sharing === "organization" ? "chat.shared" : "chat.private",
+            )}
+          </p>
           <Label htmlFor="seo-chat-question">{t("chat.question")}</Label>
           <Textarea
             id="seo-chat-question"

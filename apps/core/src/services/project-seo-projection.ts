@@ -29,6 +29,7 @@ import {
 } from "./project-seo-store";
 
 interface ProjectionInput {
+  sharing?: "organization" | "personal";
   project: {
     id: string;
     auditId?: string | null;
@@ -507,6 +508,7 @@ export function projectSeoProjection(
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
   return projectSeoWorkspaceSchema.parse({
+    sharing: input.sharing ?? "personal",
     projectId: project.auditId ? (project.projectId ?? null) : project.id,
     auditId: project.auditId ?? null,
     auditName: project.name ?? null,

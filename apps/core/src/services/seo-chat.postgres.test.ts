@@ -152,7 +152,7 @@ describe.skipIf(!enabled)(
       expect((await original).status).toBe("completed");
     });
 
-    it("keeps history and measured analytics private to each reader without exposing connection records to inference", async () => {
+    it("shares organization history and saved analytics without exposing personal connection records to inference", async () => {
       const { actor, workspace } =
         await createConversation("Private analytics");
       await recordNativeSeoMetrics(actor, {
@@ -209,18 +209,21 @@ describe.skipIf(!enabled)(
       await sendSeoChat(other, request("My own question"), {
         generate: async (_system, prompt) => {
           const envelope = JSON.parse(prompt);
-          expect(envelope.history).toEqual([]);
-          expect(JSON.parse(envelope.auditEvidence).metrics).toEqual([]);
-          expect(prompt).not.toContain("My private analytics");
+          expect(envelope.history).toMatchObject([
+            { question: "My private analytics" },
+          ]);
+          expect(JSON.parse(envelope.auditEvidence).metrics).toMatchObject([
+            { key: "page_views", value: 321 },
+          ]);
           expect(prompt).not.toContain("must-stay-private");
           return modelReply;
         },
       });
-      expect((await listSeoChat(actor)).turns.map((turn) => turn.id)).toEqual([
+      expect((await listSeoChat(actor)).turns.map((turn) => turn.id)).toContain(
         own.id,
-      ]);
+      );
       expect(
-        (await listSeoChat(other)).turns.every((turn) => turn.id !== own.id),
+        (await listSeoChat(other)).turns.some((turn) => turn.id === own.id),
       ).toBe(true);
       const foreign = { ...outsideActor, owner: actor.owner };
       const deniedGenerate = vi.fn(async () => modelReply);

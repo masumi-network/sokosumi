@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
+const previewOrigin = vi.hoisted(
+  () =>
+    "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com",
+);
 vi.mock("@/config/env", () => ({
-  getWebAppBaseUrl: () => "https://app.sokosumi.com",
+  getEnv: () => ({ WEB_APP_BASE_URL: "https://app.sokosumi.com" }),
+  getWebAppBaseUrl: () => previewOrigin,
 }));
 
 import { composioHandoffUrl } from "./composio-handoff";
@@ -37,5 +42,21 @@ describe("composioHandoffUrl", () => {
     expect(composioHandoffUrl({ redirectUrl, returnUrl: undefined })).toBe(
       redirectUrl,
     );
+  });
+
+  it("uses the canonical verifier host when the return address is a Preview", () => {
+    const callback = `${previewOrigin}/seo/connections/callback?provider=ga4&seo_state=attempt-123`;
+    const handoff = new URL(
+      composioHandoffUrl({
+        redirectUrl,
+        returnUrl: callback,
+        connectionId: "ca-native",
+      }),
+    );
+    expect(handoff.origin + handoff.pathname).toBe(
+      "https://app.sokosumi.com/composio/handoff",
+    );
+    expect(handoff.searchParams.get("return")).toBe(callback);
+    expect(handoff.searchParams.get("connection")).toBe("ca-native");
   });
 });

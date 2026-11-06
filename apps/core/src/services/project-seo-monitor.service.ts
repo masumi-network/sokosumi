@@ -177,6 +177,7 @@ export async function releaseSeoMonitorRun(
 export async function listProjectSeoMonitors(
   actor: SeoActor,
 ): Promise<ProjectSeoWorkspace["monitors"]> {
+  await requireSeoOwner(actor);
   const result: ProjectSeoWorkspace["monitors"] = [];
   let cursor: string | null = null;
   while (result.length < SEO_MONITOR_LIST_LIMIT) {

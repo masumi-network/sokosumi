@@ -62,7 +62,7 @@ model ProjectSeoScope {
   @@map("project_seo_scope")
 }
 
-/// Immutable evidence. ownerId is non-null for native private analytics only.
+/// Immutable evidence. ownerId records the collector of native analytics.
 /// Source Task/file IDs intentionally remain provenance when their source is archived.
 model ProjectSeoObservation {
   id           String    @id @default(uuid(7)) @db.Uuid
@@ -77,6 +77,8 @@ model ProjectSeoObservation {
   sourceFileId String?
   ownerId      String?
   owner        User?     @relation("ProjectSeoMetricOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// Legacy native snapshots stay PRIVATE. New organization snapshots are SHARED within this SEO owner.
+  visibility   String    @default("PRIVATE")
   pageIds      String[]  @db.Uuid
   scopeVersion Int       @default(0)
   artifactHash String

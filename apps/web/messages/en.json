@@ -10706,6 +10706,7 @@
         "relationship": "Relationship",
         "selected": "In selected scope",
         "choose": "View page",
+        "chooseSelection": "View selection",
         "version": "Version {version}",
         "count": "{count, plural, one {# page} other {# pages}}"
       },
@@ -10809,6 +10810,7 @@
         "notConnected": "Connect this account here to read its statistics.",
         "noProperties": "No authorized properties available.",
         "ownerOnly": "Statistics use the account and access of the person who syncs them.",
+        "shared": "Saved statistics are shared within this audit in your organization. Your Google account stays under your control.",
         "synced": "Statistics synced",
         "invalidDates": "Choose a valid date range of up to 366 days.",
         "channelAny": "All measured segments",
@@ -10901,6 +10903,9 @@
         "loadFailed": "Could not load this conversation. Try again.",
         "pages": "{count, plural, one {# page} other {# pages}}",
         "private": "This conversation and your connected statistics are visible only to you.",
+        "shared": "This conversation and saved statistics are shared within this audit in your organization.",
+        "you": "You",
+        "member": "Member",
         "open": "Open {action}",
         "auditRequired": "Open an audit to use SEO chat.",
         "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow."

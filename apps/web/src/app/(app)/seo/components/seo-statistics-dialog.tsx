@@ -163,6 +163,11 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
           <p className="text-muted-foreground text-sm">
             {t("statistics.ownerOnly")}
           </p>
+          {model.data.sharing === "organization" ? (
+            <p className="text-muted-foreground text-sm">
+              {t("statistics.shared")}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"

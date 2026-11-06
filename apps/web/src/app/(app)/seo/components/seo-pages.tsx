@@ -24,42 +24,45 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
       >
         {model.data.pages.length ? (
           <ul className="space-y-2">
-            {model.data.pages.map((page) => (
-              <li
-                key={page.id}
-                className={`${HOLDER_ITEM_CLASS} space-y-3 p-4`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <h3 className="text-sm font-medium break-words">
-                      {page.label || page.url}
-                    </h3>
-                    <SeoPageLink url={page.url} />
-                  </div>
-                  <SeoState>{t(page.relationship)}</SeoState>
-                </div>
-                {page.relatedToPageId ? (
-                  <p className="text-muted-foreground text-sm">
-                    {t("relatedTo")}:{" "}
-                    {model.data.pages.find(
-                      (candidate) => candidate.id === page.relatedToPageId,
-                    )?.label ?? t("page")}
-                  </p>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    void model.setFilters({ pageId: page.id, scopeId: null });
-                  }}
+            {model.data.pages.map((page) => {
+              const parent = model.data.pages.find(
+                (candidate) => candidate.id === page.relatedToPageId,
+              );
+              return (
+                <li
+                  key={page.id}
+                  className={`${HOLDER_ITEM_CLASS} space-y-3 p-4`}
                 >
-                  {model.filters.pageId === page.id ? (
-                    <Check className="size-4" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="text-sm font-medium break-words">
+                        {page.label || page.url}
+                      </h3>
+                      <SeoPageLink url={page.url} />
+                    </div>
+                    <SeoState>{t(page.relationship)}</SeoState>
+                  </div>
+                  {page.relatedToPageId ? (
+                    <p className="text-muted-foreground text-sm">
+                      {t("relatedTo")}:{" "}
+                      {parent?.label || parent?.url || t("page")}
+                    </p>
                   ) : null}
-                  {t("pages.choose")}
-                </Button>
-              </li>
-            ))}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void model.setFilters({ pageId: page.id, scopeId: null });
+                    }}
+                  >
+                    {model.filters.pageId === page.id ? (
+                      <Check className="size-4" />
+                    ) : null}
+                    {t("pages.choose")}
+                  </Button>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <SeoEmpty title={t("noPages")} description={t("noPagesBody")} />
@@ -112,7 +115,7 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                   {model.filters.scopeId === scope.id ? (
                     <Check className="size-4" />
                   ) : null}
-                  {t("pages.choose")}
+                  {t("pages.chooseSelection")}
                 </Button>
               </li>
             ))}

@@ -1,4 +1,4 @@
-import { getWebAppBaseUrl } from "@/config/env";
+import { getEnv } from "@/config/env";
 
 /**
  * Composio returns every sign-in to Web's callback verifier, whatever return
@@ -12,7 +12,8 @@ export function composioHandoffUrl(input: {
   connectionId?: string;
 }): string {
   if (!input.returnUrl) return input.redirectUrl;
-  const web = getWebAppBaseUrl();
+  // The verifier is fixed to the canonical Web host, including for previews.
+  const web = getEnv().WEB_APP_BASE_URL;
   if (new URL(input.returnUrl).origin === new URL(web).origin) {
     return input.redirectUrl;
   }

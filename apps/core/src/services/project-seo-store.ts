@@ -87,14 +87,24 @@ export async function requireSeoOwner(
       select: { id: true, projectId: true, name: true },
     });
     if (!audit) throw notFound("SEO audit not found");
+    const linkedProject = audit.projectId
+      ? await requireScopedProject(
+          { projectId: audit.projectId, workspaceId: actor.workspaceId },
+          {
+            client,
+            requireOpen,
+            closedMessage: "Cannot change a closing or closed Project",
+          },
+        )
+      : null;
     return {
       id: audit.id,
       auditId: audit.id,
       projectId: audit.projectId,
       name: audit.name,
       websiteUrl: null,
-      closingAt: null,
-      closedAt: null,
+      closingAt: linkedProject?.closingAt ?? null,
+      closedAt: linkedProject?.closedAt ?? null,
     };
   }
   const projectActor = {
@@ -128,6 +138,16 @@ export async function requireLockedSeoOwner(
   )
     throw notFound("SEO workspace not found");
   if (actor.owner.kind === "audit") {
+    const audit = await client.seoAudit.findFirst({
+      where: { id: actor.owner.id, workspaceId: actor.workspaceId },
+      select: { projectId: true },
+    });
+    if (!audit) throw notFound("SEO audit not found");
+    if (
+      audit.projectId &&
+      !(await lockCalendarScope(client, actor.workspaceId, [audit.projectId]))
+    )
+      throw notFound("Linked Project not found");
     const rows = await client.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "seo_audit"
       WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid

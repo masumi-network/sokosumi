@@ -147,6 +147,26 @@ describe.skipIf(!enabled)(
       await prisma.$disconnect();
     });
 
+    it("routes native Preview consent through the canonical Web handoff with its exact account", async () => {
+      const returnUrl =
+        "https://sokosumi-app-preprod-git-feat-seo-workspace.preview.sokosumi.com/seo/connections/callback?provider=ga4&seo_state=attempt-123";
+      const linked = await connectSeoConnection(owner, "ga4", returnUrl);
+      const handoff = new URL(linked.redirectUrl);
+      expect(handoff.pathname).toBe("/composio/handoff");
+      expect(handoff.searchParams.get("to")).toBe(
+        `https://connect.composio.dev/${linked.connectionId}`,
+      );
+      expect(handoff.searchParams.get("return")).toBe(returnUrl);
+      expect(handoff.searchParams.get("connection")).toBe(linked.connectionId);
+      expect(
+        await prisma.seoConnectionIntent.findUnique({
+          where: { connectionId: linked.connectionId },
+          select: { userId: true, workspaceId: true, callbackRedeemedAt: true },
+        }),
+      ).toEqual({ ...owner, callbackRedeemedAt: null });
+      expect(network.complete).not.toHaveBeenCalled();
+    });
+
     it("connects, finalizes, reuses and disconnects without creating a Soko Bot", async () => {
       const linked = await connectSeoConnection(owner, "ga4", callback);
       await expect(
