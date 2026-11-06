@@ -1,7 +1,7 @@
 import {
   type BrandBrain,
   type MarketingStrategyPlan,
-  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_CMO_RHYTHMS,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -354,7 +354,7 @@ export async function getCmoOverview(
       timezone: true,
     },
   });
-  const routines = SOKO_BOT_CMO_SCHEDULES.map((routine) => {
+  const routines = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
     const row = schedules.find((s) => s.systemKey === routine.key);
     return {
       key: routine.key,

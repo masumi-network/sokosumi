@@ -780,7 +780,9 @@ describe("syncCmoProduction", () => {
     expect(scheduleUpdateMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
         sokoBotId: "bot-1",
-        systemKey: { in: expect.arrayContaining(["cmo-daily-run"]) },
+        systemKey: {
+          in: expect.arrayContaining(["cmo-daily-run", "dreaming"]),
+        },
       }),
       data: { requestedByUserId: "owner-2" },
     });
