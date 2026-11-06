@@ -770,7 +770,8 @@ interface CusoSaysProps {
 function CusoSays({ at, pose = "done", children }: CusoSaysProps) {
   return (
     <div className="msg">
-      <CusoAvatar pose={pose} size={36} />
+      {/* Only the live working row moves; past messages keep the still. */}
+      <CusoAvatar pose={pose} size={36} animate={pose === "thinking"} />
       <div className="mbody">
         <MessageMeta author={AGENT_NAME} at={at} />
         {children}

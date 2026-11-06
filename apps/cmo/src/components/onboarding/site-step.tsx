@@ -12,6 +12,7 @@ import {
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
 import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import { brandTiles, tileSource } from "./brand-step";
 import {
@@ -143,7 +144,7 @@ export function SiteStep({
     <section className="panel ob-site">
       <div className="ob-site-left">
         <div className="card ob-reading">
-          <img
+          <CusoClip
             src="/cuso/reading-scene.jpg"
             alt={`${AGENT_NAME} reading a site with a magnifier`}
             width={168}

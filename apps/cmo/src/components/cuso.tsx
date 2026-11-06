@@ -1,17 +1,47 @@
+import { CusoClip } from "./cuso-clip";
+
 export { AGENT_NAME } from "../lib/agent";
 
 export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
 
+/** How long the avatar rests on its still between two plays. */
+export const AVATAR_REPLAY_MS = 30_000;
+
 interface CusoAvatarProps {
   pose: Pose;
   size?: 36 | 48 | 96;
+  /** False keeps the still (a past chat message). */
+  animate?: boolean;
+  /** Holds the first play until true (the hire screen waits for its hero). */
+  play?: boolean;
 }
 
-/** Cuso's pose on his light circle: the status of the screen. */
-export function CusoAvatar({ pose, size = 48 }: CusoAvatarProps) {
+/**
+ * Cuso's pose on his light circle: the status of the screen. The pose plays
+ * once, then again every 30 seconds.
+ */
+export function CusoAvatar({
+  pose,
+  size = 48,
+  animate = true,
+  play = true,
+}: CusoAvatarProps) {
+  const src = `/cuso/${pose}.png`;
   return (
     <span className="cuso-avatar" style={{ width: size, height: size }}>
-      <img src={`/cuso/${pose}.png`} alt="" width={size} height={size} />
+      {animate ? (
+        <CusoClip
+          key={pose}
+          src={src}
+          alt=""
+          width={size}
+          height={size}
+          play={play}
+          replayAfterMs={AVATAR_REPLAY_MS}
+        />
+      ) : (
+        <img src={src} alt="" width={size} height={size} />
+      )}
     </span>
   );
 }

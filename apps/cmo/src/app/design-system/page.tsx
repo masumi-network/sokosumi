@@ -1,6 +1,8 @@
 import "../../components/onboarding/onboarding.css";
 import "./design-system.css";
 
+import { AVATAR_REPLAY_MS } from "../../components/cuso";
+import { CusoClip } from "../../components/cuso-clip";
 import { StatusDisc } from "../../components/status";
 import { AGENT_NAME } from "../../lib/agent";
 import { previewOnly } from "./fixture-frame";
@@ -245,11 +247,12 @@ function Board({ scheme }: BoardProps) {
           {POSES.map((pose) => (
             <li key={pose.file}>
               <span className="ds-avatar">
-                <img
+                <CusoClip
                   src={`/cuso/${pose.file}.png`}
                   alt=""
                   width={48}
                   height={48}
+                  replayAfterMs={AVATAR_REPLAY_MS}
                 />
               </span>
               <span
@@ -269,7 +272,7 @@ function Board({ scheme }: BoardProps) {
       <Section title="Scenes">
         <ul className="ds-scenes">
           <li>
-            <img
+            <CusoClip
               src="/cuso/reading-scene.jpg"
               alt="Cuso reading a site with a magnifier"
               width={160}
@@ -277,7 +280,7 @@ function Board({ scheme }: BoardProps) {
             />
           </li>
           <li>
-            <img
+            <CusoClip
               src="/cuso/celebration.jpg"
               alt="Cuso celebrating next to a toy rocket"
               width={160}
@@ -289,7 +292,7 @@ function Board({ scheme }: BoardProps) {
 
       <Section title="Hero stage">
         <div className="ds-stage">
-          <img
+          <CusoClip
             className="ds-stage-art"
             src="/cuso/hero.jpg"
             alt="Cuso walking with a megaphone"

@@ -14,6 +14,7 @@ import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { CusoClip } from "../cuso-clip";
 import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
 
@@ -180,7 +181,7 @@ export function LaunchStep({
       <section className="ob-launch ob-launch-done">
         <div className="panel ob-celebration-panel">
           <div className="card ob-celebration">
-            <img
+            <CusoClip
               src="/cuso/celebration.jpg"
               alt={`${AGENT_NAME} celebrating next to a toy rocket`}
               width={320}

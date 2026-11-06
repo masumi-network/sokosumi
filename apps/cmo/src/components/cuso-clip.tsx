@@ -1,0 +1,106 @@
+"use client";
+
+import {
+  type SyntheticEvent,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
+
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+function subscribeToMotion(onChange: () => void): () => void {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/** False on the server and under reduced motion, so both render the still. */
+function useMotionAllowed(): boolean {
+  return useSyncExternalStore(
+    subscribeToMotion,
+    () => !window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+}
+
+export interface CusoClipProps {
+  /** The still in `public/cuso/`; its MP4 (scripts/animate-cuso.ts) sits beside it. */
+  src: string;
+  /** Empty for a decorative Cuso. */
+  alt: string;
+  width: number;
+  height: number;
+  className?: string;
+  /** Plays once this is true. */
+  play?: boolean;
+  /** Plays again this long after each end; without it the clip plays once. */
+  replayAfterMs?: number;
+  onEnded?: () => void;
+}
+
+/**
+ * One of Cuso's stills, animated: the clip starts and ends on the still, which
+ * is its poster, so it swaps in without a jump and rests on it. Under reduced
+ * motion only the still shows.
+ */
+export function CusoClip({
+  src,
+  alt,
+  width,
+  height,
+  className,
+  play = true,
+  replayAfterMs,
+  onEnded,
+}: CusoClipProps) {
+  const motion = useMotionAllowed();
+  const video = useRef<HTMLVideoElement>(null);
+  const replay = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    if (!motion || !play) return;
+    // A refused autoplay (low power mode) leaves the poster, which is the still.
+    video.current?.play().catch(() => {});
+  }, [motion, play]);
+
+  useEffect(() => () => clearTimeout(replay.current), []);
+
+  if (!motion) {
+    return (
+      <img
+        className={className}
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+      />
+    );
+  }
+
+  function ended(event: SyntheticEvent<HTMLVideoElement>) {
+    onEnded?.();
+    if (replayAfterMs === undefined) return;
+    const element = event.currentTarget;
+    replay.current = setTimeout(() => {
+      element.currentTime = 0;
+      element.play().catch(() => {});
+    }, replayAfterMs);
+  }
+
+  return (
+    <video
+      ref={video}
+      className={className}
+      src={src.replace(/\.\w+$/, ".mp4")}
+      poster={src}
+      width={width}
+      height={height}
+      muted
+      playsInline
+      disablePictureInPicture
+      onEnded={ended}
+      {...(alt ? { role: "img", "aria-label": alt } : { "aria-hidden": true })}
+    />
+  );
+}

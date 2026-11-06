@@ -3,11 +3,12 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
 import { AGENT_NAME, CusoAvatar } from "./cuso";
+import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { StatRow, StepMarkers } from "./onboarding/parts";
@@ -40,6 +41,8 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
+  // The hero plays first; the avatar by the intro answers once it ends.
+  const [heroPlayed, setHeroPlayed] = useState(false);
 
   return (
     <div className="ob">
@@ -58,7 +61,7 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
             className="ob-hire-copy"
           >
             <div className="ob-intro">
-              <CusoAvatar pose="needs-you" size={48} />
+              <CusoAvatar pose="needs-you" size={48} play={heroPlayed} />
               <p className="muted">
                 {AGENT_NAME} is your AI CMO. He reads your site, plans your
                 month and runs it.
@@ -115,12 +118,13 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
           </form>
           <div className="panel ob-hire-stage">
             <div className="ob-stage">
-              <img
+              <CusoClip
                 className="ob-stage-art"
                 src="/cuso/hero.jpg"
                 alt={`${AGENT_NAME} walking with a megaphone`}
                 width={640}
                 height={800}
+                onEnded={() => setHeroPlayed(true)}
               />
               <span className="ob-tilt ob-tilt-a">Reads your site</span>
               <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
