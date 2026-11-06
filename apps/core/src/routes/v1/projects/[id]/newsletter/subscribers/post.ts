@@ -21,7 +21,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/subscribers",
     tags: ["Projects"],
     description:
-      "Add a subscriber by hand. CONFIRMED records existing consent; ASK sends a double opt-in email. Existing emails return 409. Unsubscribed and bounced subscribers are never reactivated.",
+      "Add a subscriber by hand. CONFIRMED records existing consent; ASK sends a double opt-in email. Existing emails return 409. Owners cannot reactivate unsubscribed or bounced subscribers; someone who unsubscribed can re-subscribe themselves through the public signup form.",
     request: {
       params: newsletterProjectParamsSchema,
       body: {

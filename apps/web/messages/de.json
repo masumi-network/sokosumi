@@ -3381,7 +3381,7 @@
             "CONFIRMED": "Sie haben bereits zugestimmt (jetzt hinzufügen)",
             "ASK": "Zuerst fragen (Bestätigungs-E-Mail senden)",
             "confirm": "Ich bestätige, dass diese Personen dem Erhalt dieses Newsletters zugestimmt haben",
-            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, werden nie erneut hinzugefügt."
+            "note": "Hinzugefügte Personen werden auch unter Kontakte in der Liste „{newsletterName} subscribers“ gespeichert. Personen, die sich abgemeldet haben, kannst du nicht erneut hinzufügen, aber sie können sich selbst wieder anmelden."
           },
           "FromContacts": {
             "description": "Wähle Personen und Listen aus den Kontakten deines Arbeitsbereichs.",

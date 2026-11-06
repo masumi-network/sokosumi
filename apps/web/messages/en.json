@@ -3381,7 +3381,7 @@
             "CONFIRMED": "They already agreed (add them now)",
             "ASK": "Ask them first (send a confirmation email)",
             "confirm": "I confirm these people agreed to receive this newsletter",
-            "note": "People you add are also saved in Contacts, on the list ‘{newsletterName} subscribers’. People who unsubscribed are never added again."
+            "note": "People you add are also saved in Contacts, on the list ‘{newsletterName} subscribers’. You can’t add back people who unsubscribed, but they can sign up again themselves."
           },
           "FromContacts": {
             "description": "Choose people and lists from your workspace’s Contacts.",

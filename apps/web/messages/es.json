@@ -3381,7 +3381,7 @@
             "CONFIRMED": "Ya dieron su consentimiento (añadir ahora)",
             "ASK": "Preguntar primero (enviar un correo de confirmación)",
             "confirm": "Confirmo que estas personas aceptaron recibir este boletín",
-            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». Las personas que se dieron de baja nunca se vuelven a añadir."
+            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». No puedes volver a añadir a las personas que se dieron de baja, pero ellas pueden suscribirse de nuevo por su cuenta."
           },
           "FromContacts": {
             "description": "Elige personas y listas de los Contactos de tu espacio de trabajo.",
