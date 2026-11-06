@@ -9,6 +9,8 @@ import {
   brandBrainSchema,
   type CmoBrandSectionKey,
   cmoBrandProfileSchema,
+  cmoBrandRevealSchema,
+  cmoMarketingTodaySchema,
   longText,
   marketingStrategyPlanSchema,
   shortText,
@@ -138,15 +140,29 @@ export function isCmoMeasurementSource(
 /**
  * Sections as they are finished, the essentials last: each save merges into
  * the stored Brand Brain, and the owner sees it once the essentials exist.
+ * `reveal`, `marketingToday` and `questions` may follow alone: they add to
+ * the saved essentials, so nothing is re-sent.
  */
 export const cmoSaveBrandBrainInputSchema = z
   .object({
     brandBrain: brandBrainSchema.optional(),
     sections: cmoBrandProfileSchema.optional(),
+    reveal: cmoBrandRevealSchema.optional(),
+    marketingToday: cmoMarketingTodaySchema.optional(),
+    questions: brandBrainSchema.shape.questions.unwrap().optional(),
   })
-  .refine((input) => input.brandBrain || input.sections, {
-    message: "Send brandBrain, sections, or both",
-  });
+  .refine(
+    (input) =>
+      input.brandBrain ||
+      input.sections ||
+      input.reveal ||
+      input.marketingToday ||
+      input.questions,
+    {
+      message:
+        "Send at least one of brandBrain, sections, reveal, marketingToday or questions",
+    },
+  );
 export type CmoSaveBrandBrainInput = z.input<
   typeof cmoSaveBrandBrainInputSchema
 >;

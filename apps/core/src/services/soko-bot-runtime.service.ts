@@ -5443,7 +5443,7 @@ export class SokoBotRuntimeService {
               ...(missing.length > 0
                 ? {
                     missing,
-                    next: `Save brandBrain again with ${missing.join(" and ")}: the owner opens on the reveal and answers the yes/no questions next.`,
+                    next: `Send ${missing.join(" and ")} with save_brand_brain, on their own (no brandBrain): they add to the essentials you saved.`,
                   }
                 : {}),
             },
@@ -5563,7 +5563,10 @@ export class SokoBotRuntimeService {
       }
     };
     const { targetId, result } = await run().catch((error: unknown) => {
-      if (error instanceof CmoNotFoundError) {
+      if (
+        error instanceof CmoNotFoundError ||
+        (error instanceof HTTPException && error.status === 422)
+      ) {
         throw new SokoBotRuntimeValidationError(error.message);
       }
       throw error;

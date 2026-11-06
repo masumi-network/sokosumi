@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   cmoMayExecute,
   cmoRoutineSkipReason,
+  cmoSaveBrandBrainInputSchema,
   cmoSaveStrategyInputSchema,
   isCmoScheduleKey,
   parseCmoStrategySave,
@@ -125,6 +126,27 @@ describe("CMO version", () => {
     for (const capability of SOKO_BOT_CMO_CAPABILITIES) {
       expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toBeTruthy();
     }
+  });
+});
+
+describe("cmoSaveBrandBrainInputSchema", () => {
+  it("accepts reveal, marketingToday or questions on their own", () => {
+    const reveal = { positioning: "Rockets", insights: [], buyers: [] };
+    expect(cmoSaveBrandBrainInputSchema.safeParse({ reveal }).success).toBe(
+      true,
+    );
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({
+        marketingToday: { summary: "Weekly posts" },
+      }).success,
+    ).toBe(true);
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [] }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a save that sends nothing", () => {
+    expect(cmoSaveBrandBrainInputSchema.safeParse({}).success).toBe(false);
   });
 });
 

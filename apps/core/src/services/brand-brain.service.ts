@@ -15,7 +15,7 @@ import {
   cmoBrandProfileSchema,
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { answerNote, keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 
@@ -99,18 +99,29 @@ export async function saveBrandBrain(
       ...kept,
     });
     const before = parseBrandBrain(stored);
+    const { reveal, marketingToday } = save;
+    const base = save.brandBrain ?? before;
+    if (!base && (reveal || marketingToday || save.questions)) {
+      throw unprocessableEntity(
+        "Save the essentials in brandBrain first; reveal, marketingToday and questions add to them.",
+      );
+    }
     const questions = withCorrections(
-      save.brandBrain
-        ? keepAnswers(save.brandBrain.questions, before?.questions ?? [])
+      save.brandBrain || save.questions
+        ? keepAnswers(
+            save.questions ?? save.brandBrain?.questions ?? [],
+            before?.questions ?? [],
+          )
         : (before?.questions ?? []),
       before?.questions ?? [],
       rewrittenSections(stored.profile, profile),
     );
-    const essentials = save.brandBrain
-      ? { ...save.brandBrain, questions }
-      : before
-        ? { ...before, questions }
-        : null;
+    const essentials = base && {
+      ...base,
+      ...(reveal && { reveal }),
+      ...(marketingToday && { marketingToday }),
+      questions,
+    };
     const body = essentials ? { ...essentials, profile } : { profile };
     const updatedAt = essentials ? { updatedAt: new Date() } : {};
     return tx.brandBrain.upsert({
