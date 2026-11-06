@@ -3369,9 +3369,9 @@
               "skippedBounced": "Wegen unzustellbarer E-Mail übersprungen",
               "pendingConfirmation": "Warten auf Bestätigung"
             },
-            "invalidHint": "Korrigiere diese Zeilen und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 ungültige Zeilen gemeldet.",
+            "invalidHint": "Diese Zeilen brauchen eine gültige E-Mail-Adresse. Korrigiere sie und importiere sie erneut. Die Kopfzeile wird mitgezählt. Es werden bis zu 100 Zeilen gemeldet.",
             "invalidRow": "Zeile {row}: {value}",
-            "moreInvalid": "{count, plural, one {# weitere ungültige Zeile gemeldet} other {# weitere ungültige Zeilen gemeldet}}"
+            "blankEmail": "keine E-Mail-Adresse"
           },
           "dismiss": "Schließen",
           "fromContacts": "Aus Kontakten hinzufügen",
