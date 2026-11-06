@@ -118,6 +118,7 @@ function createTaskApi(projectId: string | null = null) {
     id: "tsk_123",
     createdAt: "2026-04-02T08:00:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
+    workspaceId: WORKSPACE_ID,
     ownerId: "user_123",
     organizationId: "org_123",
     projectId,

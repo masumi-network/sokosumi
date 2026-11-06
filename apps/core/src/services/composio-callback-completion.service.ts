@@ -107,5 +107,9 @@ export async function completeComposioCallback(input: {
     return;
   }
 
+  const { completeSeoConnectionCallback } = await import(
+    "@/services/seo-connection-oauth.service"
+  );
+  if (await completeSeoConnectionCallback(input)) return;
   throw notFound("Unknown or expired connection");
 }

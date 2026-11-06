@@ -12,6 +12,7 @@ import {
   Mail,
   Megaphone,
   Repeat,
+  SearchCheck,
   Share2,
   Users,
 } from "lucide-react";
@@ -211,6 +212,13 @@ function ScopedMenuItems({
       group: "marketing",
     },
     {
+      key: "seo",
+      href: "/seo",
+      label: t("seo"),
+      Icon: SearchCheck,
+      group: "marketing",
+    },
+    {
       key: "ads",
       href: "/ads",
       label: t("ads"),
@@ -259,7 +267,7 @@ function ScopedMenuItems({
         <SidebarMenuButton asChild isActive={isActive}>
           <SheetClose asChild>
             <Link
-              href={hrefFor(href)}
+              href={key === "seo" ? href : hrefFor(href)}
               onClick={() => feature && markFeatureSeen(feature)}
               aria-current={isActive ? "page" : undefined}
               className={cn(

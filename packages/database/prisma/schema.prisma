@@ -156,6 +156,10 @@ model Workspace {
   contacts     Contact[]
   contactLists ContactList[]
 
+  seoAudits            SeoAudit[]
+  seoConnections       SeoConnection[]
+  seoConnectionIntents SeoConnectionIntent[]
+
   calendarRevision Int @default(0)
 
   userId String? @unique
@@ -460,10 +464,18 @@ model Project {
   contextMdUpdatedAt      DateTime?
   contextMdModel          String?
   contextMdUpdatingSince  DateTime?
-  contextMdVersion        Int       @default(0)
+  contextMdVersion        Int                     @default(0)
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  seoAudits               SeoAudit[]
+  seoPages                ProjectSeoPage[]
+  seoScopes               ProjectSeoScope[]
+  seoObservations         ProjectSeoObservation[]
+  seoKeywords             ProjectSeoKeyword[]
+  seoCompetitors          ProjectSeoCompetitor[]
+  seoAnalyses             ProjectSeoAnalysis[]
+  seoActionTasks          ProjectSeoActionTask[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?

@@ -387,14 +387,113 @@ describe("auth.server", () => {
     await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 
-  it("gives the Core session read 8 seconds", async () => {
+  it("gives the Core session read 20 seconds", async () => {
     const timeoutMock = vi.spyOn(AbortSignal, "timeout");
 
     const { getSession } = await import("./auth.server");
     await getSession({ refresh: true });
 
-    expect(timeoutMock).toHaveBeenCalledWith(8000);
+    expect(timeoutMock).toHaveBeenCalledWith(20_000);
     timeoutMock.mockRestore();
+  });
+
+  describe("bounded session startup deadline", () => {
+    const MEASURED_SLOW_SESSION_MS = 11_100;
+    let restoreTimeout: () => void;
+    beforeEach(() => {
+      vi.useFakeTimers();
+      const timeout = vi
+        .spyOn(AbortSignal, "timeout")
+        .mockImplementation((milliseconds) => {
+          const controller = new AbortController();
+          setTimeout(
+            () =>
+              controller.abort(
+                new DOMException("The operation timed out.", "TimeoutError"),
+              ),
+            milliseconds,
+          );
+          return controller.signal;
+        });
+      restoreTimeout = () => timeout.mockRestore();
+    });
+    afterEach(() => {
+      restoreTimeout();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    });
+
+    function pendingFetch(delay?: number) {
+      fetchMock.mockImplementation(
+        (_input: string | URL, init: RequestInit) =>
+          new Promise((resolve, reject) => {
+            const timer =
+              delay === undefined
+                ? undefined
+                : setTimeout(
+                    () =>
+                      resolve({
+                        ok: true,
+                        json: async () => ({
+                          session: { activeOrganizationId: null },
+                          user: { id: "user_123" },
+                        }),
+                      }),
+                    delay,
+                  );
+            init.signal?.addEventListener(
+              "abort",
+              () => {
+                clearTimeout(timer);
+                reject(init.signal?.reason);
+              },
+              { once: true },
+            );
+          }),
+      );
+    }
+
+    it("accepts one session response after the measured startup delay without retrying", async () => {
+      pendingFetch(MEASURED_SLOW_SESSION_MS);
+      const { getSessionResult } = await import("./auth.server");
+      const pending = getSessionResult({ refresh: true });
+      await vi.advanceTimersByTimeAsync(MEASURED_SLOW_SESSION_MS);
+      const result = await pending;
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) expect(result.value?.user.id).toBe("user_123");
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("keeps a stalled session bounded and reports an outage without retrying", async () => {
+      pendingFetch();
+      const { getSessionResult } = await import("./auth.server");
+      const pending = getSessionResult({ refresh: true });
+      await vi.advanceTimersByTimeAsync(20_000);
+      const result = await pending;
+      expect(result.isErr()).toBe(true);
+      if (result.isErr())
+        expect(result.error).toEqual({
+          path: "/auth/get-session",
+          reason: "timeout",
+        });
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("retains the eight-second deadline for other Core auth reads", async () => {
+      pendingFetch();
+      const { listUserAccounts } = await import("./auth.server");
+      let settled = false;
+      const pending = listUserAccounts().then((result) => {
+        settled = true;
+        return result;
+      });
+      await vi.advanceTimersByTimeAsync(8_000);
+      expect(settled).toBe(true);
+      const result = await pending;
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) expect(result.error.reason).toBe("timeout");
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
   });
 
   it("rethrows Cache Components hanging-promise aborts instead of null", async () => {
@@ -576,20 +675,20 @@ describe("auth.server", () => {
   });
 
   /**
-   * The literal, not the constant: reading `CORE_AUTH_REQUEST_TIMEOUT_MS`
+   * The literal, not the constant: reading `CORE_AUTH_SESSION_READ_TIMEOUT_MS`
    * here would assert the budget against itself and let any drift through.
-   * 8s is what the callers in front of this read allow - the background chat
-   * reads give the browser 20-30s - and 5s is what turned a Core stall into
-   * "no session". The Better Auth client hop keeps its own 5s on purpose.
+   * 20s covers the measured 11s Core startup and leaves the background chat
+   * reads within their browser budget. The old 8s cutoff reported a successful
+   * delayed session as an outage. Other Core auth reads keep their 8s default.
    */
-  it("spends the 8s Core auth budget on the session read", async () => {
+  it("spends the dedicated 20s Core budget on the session read", async () => {
     const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
 
     const { getSession } = await import("./auth.server");
 
     await getSession({ refresh: true });
 
-    expect(timeoutSpy).toHaveBeenCalledWith(8000);
+    expect(timeoutSpy).toHaveBeenCalledWith(20_000);
     timeoutSpy.mockRestore();
   });
 

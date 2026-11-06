@@ -41,6 +41,10 @@ import {
   chatResultReferenceSchema,
   sokoBotPreviewResultInputSchema,
 } from "./result-previews.js";
+import {
+  SOKO_BOT_SEO_DESCRIPTIONS,
+  SOKO_BOT_SEO_INPUT_SCHEMAS,
+} from "./seo.js";
 import { WRITING_SKILLS } from "./writing-skills/index.js";
 
 const emptyInputSchema = z.object({}).strict();
@@ -1185,6 +1189,7 @@ export const sokoBotStartBackgroundRunInputSchema = z
 const backgroundRunRefSchema = z.object({ runId: z.uuid() }).strict();
 
 export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
+  ...SOKO_BOT_SEO_INPUT_SCHEMAS,
   newsletter_draft_issue: newsletterDraftInputSchema.extend({
     projectId: z.uuid(),
   }),
@@ -1476,6 +1481,7 @@ const SOCIAL_X_THREADS_AND_QUOTES = `X only: threadParts adds up to ${SOCIAL_POS
 const ADS_NEVER_CONNECT = `Ads run only through the Project's connected ad account (the Ads page); you never connect Google Ads or Meta Ads yourself, and a person connects accounts there.`;
 
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
+  ...SOKO_BOT_SEO_DESCRIPTIONS,
   start_background_run:
     "Start work that takes longer than a few minutes as a background run: it gets your tools, its own computer and up to six hours, while you keep talking with the owner. Use it for bulk work — going through months of email, building or filling a large table, research across many sources, hiring Agents and waiting for their results. Write a complete brief: the goal, what done looks like, where results go (a Files table, a Task, a chat message) and any ids; the run does not see this conversation. Tell the owner it has started. When it finishes, its final answer is posted in this chat. At most three run at once.",
   wait_for:

@@ -80,6 +80,131 @@ describe("proxy", () => {
     expect(getSessionCookieMock).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    "/seo/connections/callback",
+    "/seo/connections/return",
+    "/composio/callback",
+    "/composio/handoff",
+  ])(
+    "keeps OAuth return documents out of sign-in URLs after session expiry: %s",
+    async (path) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+      const response = await proxy(
+        new NextRequest(
+          `https://preprod.sokosumi.com${path}?session_uri=one-use-secret`,
+        ),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(getSessionCookieMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "/seo",
+    "/seo/connections",
+    "/seo/connections/callback/extra",
+    "/seo/connections/return-extra",
+    "/composio",
+    "/composio/callback/extra",
+    "/composio/handoff-extra",
+    "/personal-assistant/integrations/verify",
+  ])(
+    "keeps neighboring pages and the bot verifier protected: %s",
+    async (path) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+      const response = await proxy(
+        new NextRequest(`https://preprod.sokosumi.com${path}`),
+      );
+      expect(response.status).toBe(307);
+      expect(getSessionCookieMock).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    "session_uri=one-use-secret",
+    "session_uri=one-use-secret&returnUrl=https%3A%2F%2Fevil.example",
+  ])(
+    "relays a raw managed verifier return before sign-in: %s",
+    async (query) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+      const response = await proxy(
+        new NextRequest(
+          `https://preprod.sokosumi.com/personal-assistant/integrations/verify?${query}`,
+        ),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      const destination = new URL(
+        response.headers.get("x-middleware-rewrite") ??
+          "https://missing.invalid",
+      );
+      expect(destination.origin).toBe("https://preprod.sokosumi.com");
+      expect(destination.pathname).toBe("/composio/callback");
+      expect(destination.searchParams.get("session_uri")).toBe(
+        "one-use-secret",
+      );
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+      expect(response.headers.get("Cross-Origin-Opener-Policy")).toBe(
+        CROSS_ORIGIN_OPENER_POLICY,
+      );
+      expect(getSessionCookieMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["GET", ""],
+    ["GET", "session_uri="],
+    ["GET", "session_uri=%20%20"],
+    ["GET", "session_uri=first&session_uri=second"],
+    ["GET", "session_uri=one-use&botId="],
+    ["GET", "session_uri=one-use&botId=invalid"],
+    ["GET", "session_uri=one-use&botId=first&botId=second"],
+    ["GET", "session_uri=one-use&__sokosumi_owner_verification="],
+    ["GET", "session_uri=one-use&__sokosumi_owner_verification=1"],
+    [
+      "GET",
+      "session_uri=one-use&__sokosumi_owner_verification=&__sokosumi_owner_verification=1",
+    ],
+    ["POST", "session_uri=one-use"],
+  ])(
+    "keeps explicit or malformed owner returns authenticated: %s %s",
+    async (method, query) => {
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("./proxy");
+      getSessionCookieMock.mockReturnValue(null);
+      const response = await proxy(
+        new NextRequest(
+          `https://preprod.sokosumi.com/personal-assistant/integrations/verify?${query}`,
+          { method },
+        ),
+      );
+      expect(response.status).toBe(307);
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(getSessionCookieMock).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("does not rewrite an authenticated owner-verification reentry", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    const response = await proxy(
+      new NextRequest(
+        "https://preprod.sokosumi.com/personal-assistant/integrations/verify?session_uri=one-use&__sokosumi_owner_verification=1",
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(getSessionCookieMock).toHaveBeenCalledOnce();
+  });
+
   it("checks the session cookie using the preview commit ref", async () => {
     const { NextRequest, NextResponse } = await import("next/server");
     const { proxy } = await import("./proxy");

@@ -1,0 +1,180 @@
+/// A Workspace-owned collection of related pages. Project is an optional link only.
+model SeoAudit {
+  id           String                  @id @default(uuid(7)) @db.Uuid
+  workspaceId  String                  @db.Uuid
+  workspace    Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId    String?                 @db.Uuid
+  project      Project?                @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  name         String
+  createdById  String
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  pages        ProjectSeoPage[]
+  scopes       ProjectSeoScope[]
+  observations ProjectSeoObservation[]
+  keywords     ProjectSeoKeyword[]
+  competitors  ProjectSeoCompetitor[]
+  analyses     ProjectSeoAnalysis[]
+  actionTasks  ProjectSeoActionTask[]
+  chatTurns    SeoAuditChatTurn[]
+
+  @@index([workspaceId, createdAt, id])
+  @@index([projectId])
+  @@map("seo_audit")
+}
+
+/// Public page identity is independent of saved keyword and competitor choices.
+model ProjectSeoPage {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  projectId       String?   @db.Uuid
+  project         Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId         String?   @db.Uuid
+  audit           SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  url             String
+  label           String    @default("")
+  relationship    String    @default("primary")
+  relatedToPageId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([projectId, url])
+  @@unique([auditId, url])
+  @@index([projectId, createdAt])
+  @@index([auditId, createdAt])
+  @@map("project_seo_page")
+}
+
+/// Membership is current state; each analysis and observation freezes its page IDs.
+model ProjectSeoScope {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  projectId String?   @db.Uuid
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId   String?   @db.Uuid
+  audit     SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  name      String
+  pageIds   String[]  @db.Uuid
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([auditId, createdAt])
+  @@map("project_seo_scope")
+}
+
+/// Immutable evidence. ownerId records the collector of native analytics.
+/// Source Task/file IDs intentionally remain provenance when their source is archived.
+model ProjectSeoObservation {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  projectId    String?   @db.Uuid
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId      String?   @db.Uuid
+  audit        SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  kind         String
+  source       String
+  sourceKey    String
+  sourceTaskId String?
+  sourceFileId String?
+  ownerId      String?
+  owner        User?     @relation("ProjectSeoMetricOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  /// Legacy native snapshots stay PRIVATE. New organization snapshots are SHARED within this SEO owner.
+  visibility   String    @default("PRIVATE")
+  pageIds      String[]  @db.Uuid
+  scopeVersion Int       @default(0)
+  artifactHash String
+  payload      Json
+  observedAt   DateTime
+  createdAt    DateTime  @default(now())
+
+  @@unique([projectId, sourceKey])
+  @@unique([auditId, sourceKey])
+  @@index([projectId, ownerId, observedAt])
+  @@index([auditId, ownerId, observedAt])
+  @@map("project_seo_observation")
+}
+
+model ProjectSeoKeyword {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  projectId    String?   @db.Uuid
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId      String?   @db.Uuid
+  audit        SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  keyword      String
+  keywordKey   String
+  countryCode  String
+  languageCode String
+  pageId       String?   @db.Uuid
+  priority     String    @default("medium")
+  saved        Boolean   @default(true)
+  version      Int       @default(1)
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([projectId, keywordKey, countryCode, languageCode])
+  @@unique([auditId, keywordKey, countryCode, languageCode])
+  @@index([projectId, saved])
+  @@index([auditId, saved])
+  @@map("project_seo_keyword")
+}
+
+model ProjectSeoCompetitor {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  projectId String?   @db.Uuid
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId   String?   @db.Uuid
+  audit     SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  url       String
+  confirmed Boolean   @default(false)
+  version   Int       @default(1)
+  updatedAt DateTime  @updatedAt
+
+  @@unique([projectId, url])
+  @@unique([auditId, url])
+  @@map("project_seo_competitor")
+}
+
+/// One analysis dispatch creates at most one Task, even after an uncertain reply.
+model ProjectSeoAnalysis {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  projectId      String?   @db.Uuid
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId        String?   @db.Uuid
+  audit          SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  idempotencyKey String
+  requestHash    String
+  kind           String
+  status         String    @default("requested")
+  taskId         String?   @unique
+  pageIds        String[]  @db.Uuid
+  scopeVersion   Int       @default(0)
+  request        Json
+  requestedBy    String
+  failureReason  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([projectId, idempotencyKey])
+  @@unique([auditId, idempotencyKey])
+  @@index([projectId, createdAt])
+  @@index([auditId, createdAt])
+  @@map("project_seo_analysis")
+}
+
+/// Links a recommendation to existing Task execution; completing a Task is not verification.
+model ProjectSeoActionTask {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  projectId      String?   @db.Uuid
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditId        String?   @db.Uuid
+  audit          SeoAudit? @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  observationId  String    @db.Uuid
+  actionId       String
+  taskId         String
+  idempotencyKey String
+  createdAt      DateTime  @default(now())
+
+  @@unique([projectId, observationId, actionId])
+  @@unique([auditId, observationId, actionId])
+  @@unique([projectId, idempotencyKey])
+  @@unique([auditId, idempotencyKey])
+  @@map("project_seo_action_task")
+}

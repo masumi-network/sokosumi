@@ -1,11 +1,11 @@
 import { getEnv } from "@/config/env";
 import type { SokoBotSelector } from "@/helpers/soko-bot-resolver";
-import { requireBot } from "@/services/soko-bot-integration-connection.service";
 import {
   composioEntityId,
   SokoBotIntegrationError,
   withComposio,
-} from "@/services/soko-bot-integrations.service";
+} from "@/services/composio-integration-tools.service";
+import { requireBot } from "@/services/soko-bot-integration-connection.service";
 
 /** Composio's own default host; mirrors the SDK when no override is set. */
 const COMPOSIO_DEFAULT_BASE_URL = "https://backend.composio.dev";

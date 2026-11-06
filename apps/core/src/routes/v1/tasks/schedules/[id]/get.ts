@@ -13,7 +13,7 @@ import {
 import {
   getTaskSchedule,
   mapTaskSchedule,
-} from "@/services/task-schedule.service";
+} from "@/services/task-schedule-read.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({

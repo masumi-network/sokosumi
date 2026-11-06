@@ -234,7 +234,15 @@ export const taskScheduleSchema = z
     updatedAt: dateTimeSchema,
     canWrite: z.boolean().openapi({
       description:
-        "Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).",
+        "Whether the caller has permission to manage this schedule and its Runs (ADR 0048). State and operation-specific flags can further limit writes.",
+    }),
+    canRunNow: z.boolean().openapi({
+      description:
+        "Whether the caller may release an extra manual Run now. Finite SEO monitors permit only their approved planned Runs.",
+    }),
+    canEditPlan: z.boolean().openapi({
+      description:
+        "Whether the caller may edit the schedule blueprint and rule. Finite SEO monitor plans stay fixed; pause and end use canWrite.",
     }),
   })
   .openapi("TaskSchedule");

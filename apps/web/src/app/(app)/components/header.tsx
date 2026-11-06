@@ -29,14 +29,19 @@ export default function Header({ className }: HeaderProps) {
 
       <SidebarToggle />
 
-      <HeaderCenter>
+      <HeaderCenter
+        mobileProjectScope={
+          <Suspense fallback={null}>
+            <SidebarScopeMobileChip />
+          </Suspense>
+        }
+      >
         <Suspense fallback={<HeaderProjectScopeFallback />}>
           <HeaderProjectScope />
         </Suspense>
       </HeaderCenter>
 
       <Suspense fallback={null}>
-        <SidebarScopeMobileChip />
         <ProjectScopeGuard />
       </Suspense>
 

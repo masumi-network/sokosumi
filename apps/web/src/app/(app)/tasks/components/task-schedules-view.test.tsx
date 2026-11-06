@@ -115,6 +115,8 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
     canWrite: true,
+    canRunNow: true,
+    canEditPlan: true,
     ...overrides,
   };
 }

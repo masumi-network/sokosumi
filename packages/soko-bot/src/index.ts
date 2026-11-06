@@ -152,6 +152,15 @@ export {
   type SokoBotScenario,
 } from "./scenarios.js";
 export {
+  isSokoBotSeoCapability,
+  SOKO_BOT_SEO_CAPABILITIES,
+  SOKO_BOT_SEO_DESCRIPTIONS,
+  SOKO_BOT_SEO_INPUT_SCHEMAS,
+  SOKO_BOT_SEO_READ_CAPABILITIES,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+  type SokoBotSeoCapability,
+} from "./seo.js";
+export {
   isSokoBotDecisionTarget,
   SOKO_BOT_EXA_CATEGORIES,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,

@@ -16,7 +16,7 @@ import {
   type CmoOverview,
   getCmoOverview,
 } from "@/services/cmo-overview.service";
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 
 function mapOverview(overview: CmoOverview) {
   const { cuso } = overview;
