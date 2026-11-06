@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -21,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import AuthBackground from "./components/auth-background";
+import { CmoWordmark } from "./components/cmo-wordmark";
 
 // Instant Nav prerenders a Cache Components shell that Vercel serves for
 // POST/RSC to /signin|/signup as 405 (Method Not Allowed). Auth entry must
@@ -77,7 +77,7 @@ export default async function AuthLayout({
 
   const logo =
     brand === "cmo" ? (
-      <CmoLogo />
+      <CmoWordmark />
     ) : (
       <ThemedLogo
         LogoComponent={SokosumiLogo}
@@ -113,22 +113,6 @@ export default async function AuthLayout({
         {carriesOAuthRequest ? null : <AuthBackground />}
       </div>
     </ClientMessageBoundary>
-  );
-}
-
-/** CMO.xyz's mark, the mascot's head, beside its name. */
-function CmoLogo() {
-  return (
-    <span className="inline-flex items-center gap-2 font-semibold tracking-tight">
-      <Image
-        src="/images/logos/cmo-logo.svg"
-        alt=""
-        width={17}
-        height={24}
-        priority
-      />
-      CMO.xyz
-    </span>
   );
 }
 
