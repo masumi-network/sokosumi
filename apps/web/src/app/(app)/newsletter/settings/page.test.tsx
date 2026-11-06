@@ -107,15 +107,13 @@ describe("NewsletterSettingsPage", () => {
   });
 
   describe("with a project", () => {
-    it("shows setup for the named project without a lone Settings tab", async () => {
+    it("shows setup without a page header or a lone Settings tab", async () => {
       render(
         await NewsletterSettingsPage(props({ projectId: ` ${PROJECT_ID} ` })),
       );
 
       expect(mocks.getProject).toHaveBeenCalledWith(PROJECT_ID);
-      expect(
-        screen.getByRole("heading", { level: 2, name: "Launch newsletter" }),
-      ).toBeInTheDocument();
+      expect(screen.queryByText("Launch newsletter")).toBeNull();
       // The form introduces setup itself; one tab is not navigation.
       expect(
         screen.queryByRole("navigation", { name: SETTINGS.navigation }),

@@ -1,29 +1,23 @@
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
-import {
-  type ProjectTab,
-  ProjectTabs,
-} from "@/app/projects/components/project-tabs";
+import type { ProjectTab } from "@/app/projects/components/project-tabs";
+
+import { NewsletterTabs } from "./newsletter-tabs";
 
 /**
- * Newsletter as a destination of its own, in the same shell as Social.
- *
- * The heading names the project whose newsletter this is: the project comes
- * from `?projectId=`, and nothing else on the page would say which one it is.
+ * Newsletter as a destination of its own, in the same shell as Social. It opens
+ * without a visible headline: the sidebar's project selector, which reads
+ * `?projectId=`, already says whose newsletter this is.
  *
  * A single tab is not navigation (setup has only Settings), so the bar shows
  * once there is somewhere else to go.
  */
 export function NewsletterPageShell({
   children,
-  description,
-  heading,
   navigationLabel,
   tabs,
   title,
 }: {
   children: React.ReactNode;
-  description: string;
-  heading: string;
   navigationLabel?: string;
   tabs?: readonly ProjectTab[];
   /** The `sr-only` page title, as on Social. */
@@ -32,12 +26,8 @@ export function NewsletterPageShell({
   return (
     <WorkspacePageShell title={title}>
       <div className="min-w-0 space-y-6">
-        <header className="space-y-1">
-          <h2 className="text-lg font-semibold">{heading}</h2>
-          <p className="text-muted-foreground text-sm">{description}</p>
-        </header>
         {tabs && tabs.length > 1 && navigationLabel ? (
-          <ProjectTabs ariaLabel={navigationLabel} tabs={tabs} />
+          <NewsletterTabs ariaLabel={navigationLabel} tabs={tabs} />
         ) : null}
         {children}
       </div>

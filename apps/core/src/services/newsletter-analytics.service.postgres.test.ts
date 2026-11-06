@@ -425,5 +425,39 @@ describe.runIf(process.env.NEWSLETTER_ANALYTICS_TEST_DATABASE_URL)(
       ]);
       expect(result.totals.unsubscribes).toBe(2);
     });
+
+    it("counts a self re-subscribe as an add, and an abandoned request as nothing", async () => {
+      const returned = await subscriber(
+        1,
+        "MANUAL",
+        "2026-09-30",
+        "2026-10-03",
+        null,
+        null,
+      );
+      await event(returned, "CONFIRMED", "2026-09-30");
+      await event(returned, "UNSUBSCRIBED", "2026-10-02");
+      await event(returned, "CONFIRMED", "2026-10-03");
+      const abandoned = await subscriber(
+        2,
+        "SIGNUP_FORM",
+        "2026-09-30",
+        "2026-09-30",
+        "2026-10-02",
+        null,
+      );
+      await event(abandoned, "CONFIRMED", "2026-09-30");
+      await event(abandoned, "UNSUBSCRIBED", "2026-10-02");
+      const result = await getNewsletterAnalytics(SCOPE, RANGE);
+      expect(result.subscriberGrowth.map((day) => day.newActive)).toEqual([
+        0, 0, 1, 0,
+      ]);
+      expect(result.subscriberGrowth.map((day) => day.unsubscribed)).toEqual([
+        0, 2, 0, 0,
+      ]);
+      expect(result.subscriberGrowth.map((day) => day.runningTotal)).toEqual([
+        2, 0, 1, 1,
+      ]);
+    });
   },
 );

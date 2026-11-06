@@ -11,15 +11,7 @@ export default async function NewsletterLoading() {
   return (
     <WorkspacePageShell title={t("title")}>
       <div className="min-w-0 space-y-6" aria-busy="true">
-        <div className="space-y-2" aria-hidden>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </div>
-        <div className="flex gap-4 overflow-hidden" aria-hidden>
-          {[0, 1, 2, 3].map((key) => (
-            <Skeleton key={key} className="h-5 w-20 shrink-0" />
-          ))}
-        </div>
+        <Skeleton className="h-9 w-96 max-w-full rounded-lg" aria-hidden />
         <div className={cn(HOLDER_CLASS, "space-y-2")} aria-hidden>
           <Skeleton className="h-11 w-full" />
           <Skeleton className="h-11 w-full" />
