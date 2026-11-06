@@ -477,6 +477,28 @@ describe("research", () => {
     expect(html).not.toContain("Approve");
   });
 
+  it("shows the plan in the feed as Cuso saves it", () => {
+    const planning = (patch: Partial<CmoOverview>) =>
+      renderToStaticMarkup(
+        <ResearchStep
+          overview={overview({ work: running("strategy"), ...patch })}
+          messages={[]}
+          onRetry={async () => null}
+          onReply={async () => {}}
+        />,
+      );
+    const before = planning({ strategy: null });
+    expect(before).toContain("Choosing your idea, channels and pillars");
+    expect(before).not.toContain("Getting started");
+
+    const after = planning({ strategy: { ...strategy, calendar: [] } });
+    expect(after).toContain("Show the rockets working.");
+    expect(after).toContain("LinkedIn, 2 a week");
+    expect(after).toContain("Launch stories: 100% of pieces");
+    expect(after).toContain("Writing four weeks, day by day");
+    expect(after).not.toContain("Writing your strategy");
+  });
+
   it("offers a retry when planning ended without a calendar", () => {
     const html = renderToStaticMarkup(
       <ResearchStep
