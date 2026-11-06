@@ -1,6 +1,6 @@
 /**
- * CMO.xyz's wordmark, the same outlines as CMO's own header logo
- * (`apps/cmo/src/components/logo.tsx`), drawn in the text colour.
+ * CMO.xyz's wordmark from its concept canvas (2026-11-04), drawn in the text
+ * colour. CMO's own header draws the same outlines; change both together.
  */
 const PATHS = [
   "M209.06,253.69A118.38,118.38 0 1 1 209.06,101.51L183.87,122.65A85.49,85.49 0 1 0 183.87,232.55Z",
