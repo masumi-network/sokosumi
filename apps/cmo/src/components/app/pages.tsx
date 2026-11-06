@@ -21,6 +21,7 @@ import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
 import { StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
+import { SubmitButton } from "../submit-button";
 
 interface PageProps {
   overview: CmoOverview;
@@ -345,7 +346,6 @@ function MailingList({ size, add, onChange }: MailingListProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const count = new Intl.NumberFormat("en-GB").format(size);
   return (
     <>
@@ -376,23 +376,22 @@ function MailingList({ size, add, onChange }: MailingListProps) {
       {open ? (
         <form
           className="stack-sm"
-          onSubmit={(event) => {
-            event.preventDefault();
-            startTransition(async () => {
-              setError(null);
-              try {
-                const result = await add(text);
-                if (result.error || !result.overview) {
-                  setError(result.error ?? "Could not add the list.");
-                  return;
-                }
-                onChange(result.overview);
-                setText("");
-                setOpen(false);
-              } catch {
-                setError("That didn't go through. Try again.");
+          action={async () => {
+            const value = text.trim();
+            if (!value) return;
+            setError(null);
+            try {
+              const result = await add(value);
+              if (result.error || !result.overview) {
+                setError(result.error ?? "Could not add the list.");
+                return;
               }
-            });
+              onChange(result.overview);
+              setText("");
+              setOpen(false);
+            } catch {
+              setError("That didn't go through. Try again.");
+            }
           }}
         >
           <label className="label" htmlFor="mailing-list">
@@ -403,6 +402,7 @@ function MailingList({ size, add, onChange }: MailingListProps) {
             rows={5}
             value={text}
             onChange={(event) => setText(event.target.value)}
+            required
           />
           {error ? (
             <p className="note" role="alert">
@@ -410,13 +410,9 @@ function MailingList({ size, add, onChange }: MailingListProps) {
             </p>
           ) : null}
           <div className="acts">
-            <button
-              type="submit"
-              className="button button-secondary button-small"
-              disabled={pending || !text.trim()}
-            >
-              {pending ? "Adding…" : "Add"}
-            </button>
+            <SubmitButton className="button button-secondary button-small">
+              Add
+            </SubmitButton>
             <button
               type="button"
               className="button button-ghost button-small"
