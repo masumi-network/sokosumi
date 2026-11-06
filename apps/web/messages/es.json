@@ -3350,7 +3350,7 @@
           },
           "Unsubscribe": {
             "title": "¿Dar de baja al suscriptor?",
-            "description": "Este boletín dejará de enviarse a {email}. Esta persona no se podrá volver a añadir."
+            "description": "Este boletín dejará de enviarse a {email}. Solo esta persona puede volver a suscribirse."
           },
           "Import": {
             "description": "Importa un CSV con una columna de correo electrónico y otra opcional de nombre. Los suscriptores existentes conservan su estado actual.",

@@ -3350,7 +3350,7 @@
           },
           "Unsubscribe": {
             "title": "Unsubscribe subscriber?",
-            "description": "Stop sending this newsletter to {email}. They can’t be added again."
+            "description": "Stop sending this newsletter to {email}. Only they can re-subscribe."
           },
           "Import": {
             "description": "Import a CSV with an email column and an optional name column. Existing subscribers keep their current status.",
