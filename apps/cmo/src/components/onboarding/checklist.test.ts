@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { workChecklist } from "./parts";
+import { elapsedLabel, workChecklist } from "./parts";
 
 const PHASES = [
   { kinds: ["other"], label: "Your channels" },
@@ -33,5 +33,13 @@ describe("workChecklist", () => {
       "done",
       "working",
     ]);
+  });
+});
+
+describe("elapsedLabel", () => {
+  it("counts seconds, then minutes, then hours", () => {
+    expect(elapsedLabel(12)).toBe("12s so far");
+    expect(elapsedLabel(4 * 60 + 5)).toBe("4 min so far");
+    expect(elapsedLabel(2 * 3600 + 120)).toBe("2 h so far");
   });
 });

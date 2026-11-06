@@ -142,7 +142,7 @@ describe("Site while Cuso reads", () => {
     expect(html).toContain("Cuso is reading");
     expect(html).toContain("Reading your site");
     expect(html).toContain("Cuso is reading · ");
-    expect(html).toContain("min so far");
+    expect(html).toContain(" so far");
     expect(html).toContain("/cuso/reading.png");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
@@ -332,7 +332,7 @@ describe("Plan", () => {
     );
     expect(html).toContain("Writing your plan");
     expect(html).toContain("This takes a few minutes.");
-    expect(html).toContain("min so far");
+    expect(html).toContain(" so far");
     expect(html).toContain("Your channels");
     expect(html).not.toContain("Approve plan");
   });
