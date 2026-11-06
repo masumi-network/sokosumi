@@ -159,6 +159,7 @@ const running = (kind: "research" | "strategy") => ({
       at: new Date("2026-10-05T09:00:05Z"),
     },
   ],
+  sections: [],
   sectionsSaved: 0,
   sectionsTotal: 16,
 });

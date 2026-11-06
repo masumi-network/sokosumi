@@ -105,6 +105,7 @@ const {
     () => {
       SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
+      EXA_API_KEY?: string;
     }
   >(() => ({ SOKO_BOT_PROACTIVE_PAUSED: false })),
   jobFindManyMock: vi.fn(),
@@ -510,6 +511,56 @@ describe("SokoBotControlPlane lifecycle", () => {
       }
       // Unrelated reads stay either way.
       expect(granted).toContain("list_social_posts");
+    },
+  );
+
+  it.each([
+    { exaKey: "exa-key", offered: true },
+    { exaKey: undefined, offered: false },
+  ])(
+    "offers search_exa to Cuso only with a key: $offered",
+    async ({ exaKey, offered }) => {
+      getEnvMock.mockReturnValue({
+        SOKO_BOT_PROACTIVE_PAUSED: false,
+        EXA_API_KEY: exaKey,
+      });
+      const cuso = adminBot({
+        userId: null,
+        projectId: "project_1",
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      });
+      botFindFirstMock.mockResolvedValue(cuso);
+      botFindUniqueMock.mockResolvedValue(cuso);
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "cuso-turn",
+        leaseToken: "cuso-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "cuso-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "cuso-client",
+        message: "Research the competition",
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      expect(granted.includes("search_exa")).toBe(offered);
+      // The rest of Cuso's toolset stays either way.
+      expect(granted).toContain("save_brand_brain");
     },
   );
 

@@ -2,6 +2,7 @@ import {
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
   CMO_SOKO_BOT_VERSION_ID,
+  type CmoBrandSectionKey,
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationMetadataWithUrl,
@@ -14,7 +15,7 @@ import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
-  brandBrainSectionsSaved,
+  brandBrainSectionHeadlines,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
 import { grantCmoStarterCredits } from "@/services/cmo-billing.service";
@@ -131,6 +132,7 @@ export interface CmoWork {
   status: CmoLearningState;
   startedAt: Date;
   steps: CmoWorkStep[];
+  sections: { key: CmoBrandSectionKey; headline: string }[];
   sectionsSaved: number;
   sectionsTotal: number;
 }
@@ -294,6 +296,7 @@ export async function cmoWork(
       },
     ];
   });
+  const sections = brandBrainSectionHeadlines(cuso.brandBrain);
   return {
     kind: turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
       ? "strategy"
@@ -301,7 +304,8 @@ export async function cmoWork(
     status: await settledTurnStatus(turn, now),
     startedAt: turn.createdAt,
     steps,
-    sectionsSaved: brandBrainSectionsSaved(cuso.brandBrain).length,
+    sections,
+    sectionsSaved: sections.length,
     sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
   };
 }
@@ -396,7 +400,7 @@ export function startCmoResearch(
   return startCmoTurn(cuso, userId, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
     message:
-      brandBrainSectionsSaved(cuso.brandBrain).length > 0
+      brandBrainSectionHeadlines(cuso.brandBrain).length > 0
         ? finishBrandBrainMessage(cuso)
         : onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,
