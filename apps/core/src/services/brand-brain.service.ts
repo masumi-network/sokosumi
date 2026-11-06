@@ -268,10 +268,25 @@ export async function answerBrandBrainQuestion(
   });
 }
 
+/**
+ * The profile sections a stored Brand Brain holds, in profile order, each with
+ * its headline (the answer when a section was saved without one).
+ */
+export function brandBrainSectionHeadlines(
+  value: unknown,
+): { key: CmoBrandSectionKey; headline: string }[] {
+  const { profile } = storedBrandBrain(value);
+  return CMO_BRAND_SECTION_KEYS.flatMap((key) => {
+    const section = profile[key];
+    return section
+      ? [{ key, headline: section.headline ?? section.answer }]
+      : [];
+  });
+}
+
 /** The profile sections a stored Brand Brain holds, in profile order. */
 export function brandBrainSectionsSaved(value: unknown): CmoBrandSectionKey[] {
-  const { profile } = storedBrandBrain(value);
-  return CMO_BRAND_SECTION_KEYS.filter((key) => profile[key]);
+  return brandBrainSectionHeadlines(value).map(({ key }) => key);
 }
 
 function storedBrandBrain(value: unknown): { profile: CmoBrandProfile } {

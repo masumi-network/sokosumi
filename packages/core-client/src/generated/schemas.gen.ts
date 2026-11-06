@@ -40970,6 +40970,44 @@ export const CmoWorkSchema = {
                 $ref: '#/components/schemas/CmoWorkStep'
             }
         },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string',
+                        enum: [
+                            'company',
+                            'offer',
+                            'problems',
+                            'customers',
+                            'buyers',
+                            'value',
+                            'pricing',
+                            'positioning',
+                            'competition',
+                            'sales',
+                            'marketing',
+                            'content',
+                            'proof',
+                            'reputation',
+                            'momentum',
+                            'opportunities'
+                        ]
+                    },
+                    headline: {
+                        type: 'string',
+                        description: 'The section\'s answer at a glance.'
+                    }
+                },
+                required: [
+                    'key',
+                    'headline'
+                ]
+            },
+            description: 'Brand Brain sections Cuso has saved, in profile order.'
+        },
         sectionsSaved: {
             type: 'integer',
             minimum: 0
@@ -40984,6 +41022,7 @@ export const CmoWorkSchema = {
         'status',
         'startedAt',
         'steps',
+        'sections',
         'sectionsSaved',
         'sectionsTotal'
     ]
