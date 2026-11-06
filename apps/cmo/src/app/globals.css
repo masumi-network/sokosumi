@@ -92,19 +92,12 @@ body {
   padding: 24px 16px;
 }
 
-/* TEMPORARY logo: the style guide's logo is open, so the mascot's pointer sits beside the name set in type. */
+/* The CMO.XYZ wordmark (design-system.md, Logo): 16px high in a header, in the text colour. */
 .logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.logo-mark {
-  height: 1.75em;
+  display: block;
+  height: 1rem;
   width: auto;
+  color: var(--foreground);
 }
 
 .hero {
@@ -730,10 +723,6 @@ textarea {
   height: 64px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
-}
-
-.side-head .logo {
-  font-size: 1rem;
 }
 
 .business {

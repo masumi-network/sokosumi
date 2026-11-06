@@ -69,7 +69,7 @@ Example prompt responses, from the current live build:
 | Voice and tone                          | Locked                       |
 | Typeface                                | Locked                       |
 | Colors, graphic language, agent avatars | Locked, see design-system.md |
-| Logo                                    | Open                         |
+| Logo                                    | Locked, see design-system.md |
 | Layout, elevation, shapes, components   | Locked, see design-system.md |
 
 Colors, layout, elevation, shapes, components and how Cuso is used live in [`design-system.md`](design-system.md). This file keeps the product, voice and naming rules.
