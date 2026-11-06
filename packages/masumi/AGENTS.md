@@ -51,9 +51,7 @@ const resultHash = hashResult(resultString, purchaserId);
 ```typescript
 import { createAgentClient } from "@sokosumi/masumi/clients";
 
-const agentClient = createAgentClient({
-  onError: (error) => console.error(error),
-});
+const agentClient = createAgentClient();
 ```
 
 ### Schemas Export (`@sokosumi/masumi/schemas`)
@@ -100,12 +98,7 @@ Masumi-hosted auth translations and helpers. See `src/auth/`.
 The agent client provides methods for interacting with Masumi-compliant agents:
 
 ```typescript
-const client = createAgentClient({
-  onError: (error) => {
-    // Handle errors (http_error, json_parse_error, schema_validation_error, network_error)
-    console.error(error.type, error.message);
-  },
-});
+const client = createAgentClient();
 
 // Start a paid job
 const result = await client.startPaidAgentJob(agent, purchaserId, inputData);
