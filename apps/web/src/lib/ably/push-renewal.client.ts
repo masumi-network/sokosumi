@@ -42,14 +42,30 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-async function writeSnapshot(device: PushRenewalDevice | null): Promise<void> {
+async function writeSnapshot(
+  device: PushRenewalDevice | null,
+  expectedUserId?: string,
+): Promise<void> {
   const database = await openDatabase();
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, "readwrite");
       const store = transaction.objectStore(STORE_NAME);
       if (device) store.put(device, RECORD_KEY);
-      else store.delete(RECORD_KEY);
+      else if (expectedUserId !== undefined) {
+        const current = store.get(RECORD_KEY);
+        current.onsuccess = () => {
+          const stored: unknown = current.result;
+          if (
+            stored !== null &&
+            typeof stored === "object" &&
+            "userId" in stored &&
+            stored.userId === expectedUserId
+          ) {
+            store.delete(RECORD_KEY);
+          }
+        };
+      } else store.delete(RECORD_KEY);
       transaction.oncomplete = () => resolve();
       transaction.onabort = () => reject(transaction.error);
       transaction.onerror = () => reject(transaction.error);
@@ -94,7 +110,7 @@ export async function rememberPushRenewal(
   }
 }
 
-async function stopBrowserDelivery(): Promise<void> {
+export async function stopBrowserDelivery(): Promise<void> {
   if (!("serviceWorker" in navigator)) return;
   const registration = await navigator.serviceWorker.getRegistration();
   if (!registration) return;
@@ -125,5 +141,18 @@ export async function revokePushRenewal(): Promise<void> {
       // registered and push arriving for a reader who has signed out.
       console.error("Failed to stop browser push delivery", error),
     );
+  }
+}
+
+/** Report storage failure so the owner-checked queue can unregister safely. */
+export async function revokePushRenewalForUser(
+  userId: string,
+): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return true;
+  try {
+    await writeSnapshot(null, userId);
+    return true;
+  } catch {
+    return false;
   }
 }

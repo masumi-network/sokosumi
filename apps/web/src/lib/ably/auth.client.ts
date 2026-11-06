@@ -1,5 +1,7 @@
 import type { TokenRequest } from "ably";
 
+import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
+
 const ABLY_BROWSER_AUTH_PATH = "/api/ably/auth";
 // 9s, strictly inside ably-js's 10s realtimeRequestTimeout and outside the
 // 7s Core mint. Two clocks at 10s let ably-js replace a classified error.
@@ -24,7 +26,10 @@ export class AblyBrowserAuthError extends Error {
 export async function fetchAblyBrowserAuthTokenRequest(
   clientInstanceId: string,
 ): Promise<TokenRequest> {
-  const params = new URLSearchParams({ clientInstanceId });
+  const params = new URLSearchParams({
+    clientInstanceId,
+    roomIds: getAblyChatRoomScope().join(","),
+  });
   const response = await fetch(`${ABLY_BROWSER_AUTH_PATH}?${params}`, {
     method: "POST",
     credentials: "include",

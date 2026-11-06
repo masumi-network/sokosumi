@@ -3,7 +3,7 @@ import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import {
-  emitChatHumanMentionNotifications,
+  emitChatMessageNotifications,
   persistChatHumanMentions,
 } from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
@@ -661,12 +661,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         publishedMessageIds.sourceMessageId,
         "mention_status",
       );
-      if (publishedMessageIds.mentionedUserIds.length > 0) {
-        await emitChatHumanMentionNotifications({
-          messageId: publishedMessageIds.responseMessageId,
-          mentionedUserIds: publishedMessageIds.mentionedUserIds,
-        });
-      }
+      await emitChatMessageNotifications({
+        messageId: publishedMessageIds.responseMessageId,
+        mentionedUserIds: publishedMessageIds.mentionedUserIds,
+      });
     } catch (error) {
       keepFailedPlaceholder = true;
       throw error;

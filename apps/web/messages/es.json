@@ -3716,7 +3716,7 @@
           "lastDays": "Últimos {days} días",
           "presetDays": "{days} días",
           "clearRange": "Borrar intervalo de fechas",
-          "periodNoteAria": "Acerca de las fechas de las estadísticas",
+          "notesAria": "Acerca de estas cifras",
           "invalidRange": "Elige un intervalo de fechas válido de entre 1 y 366 días o borra el intervalo de fechas.",
           "periodNote": "Las fechas usan UTC. Los envíos y eventos se cuentan cuando ocurren, incluidas las interacciones con ediciones anteriores. El total de suscriptores muestra la audiencia actual.",
           "ratesNote": "Las tasas de apertura y clics se calculan sobre los correos entregados, o los enviados si no hay entregas registradas. Las aperturas y clics cuentan cada suscriptor una vez por período o edición. Los eventos tardíos pueden generar tasas superiores al 100 %.",
@@ -3758,10 +3758,10 @@
           }
         },
         "generalDescription": "Quién envía el boletín y adónde llegan las respuestas.",
-        "brandDescription": "Logotipo, colores, tipografía y distribución compartidos por los correos y los formularios de suscripción.",
+        "brandDescription": "Compartido por los correos y los formularios de suscripción.",
         "welcomeCardDescription": "Un primer correo opcional para los nuevos suscriptores.",
         "unsavedChanges": "Tienes cambios sin guardar.",
-        "colorPlaceholder": "Sin color",
+        "colorPlaceholder": "Predeterminado",
         "presetColors": "Colores predefinidos",
         "clearColor": {
           "primaryColor": "Quitar color principal",
@@ -3770,7 +3770,7 @@
           "buttonTextColor": "Quitar color del texto del botón"
         },
         "Logo": {
-          "description": "Sube una imagen de hasta {maxSize}. Guarda los ajustes para usarla en tus números.",
+          "description": "Hasta {maxSize}",
           "upload": "Subir",
           "replace": "Reemplazar",
           "remove": "Quitar logotipo",
@@ -3976,10 +3976,10 @@
           }
         },
         "colorHints": {
-          "primaryColor": "Títulos y texto. Déjalo en blanco para usar el predeterminado.",
-          "accentColor": "Relleno de los botones. Déjalo en blanco para usar el predeterminado.",
-          "backgroundColor": "Detrás de la tarjeta del correo. Déjalo en blanco para gris claro.",
-          "buttonTextColor": "Texto de los botones. Que se lea bien sobre el color de acento."
+          "primaryColor": "Títulos y texto",
+          "accentColor": "Relleno de los botones",
+          "backgroundColor": "Detrás de la tarjeta del correo",
+          "buttonTextColor": "Texto de los botones"
         },
         "Image": {
           "upload": "Subir imagen",
@@ -3990,7 +3990,7 @@
           "fileTooLarge": "El archivo es demasiado grande",
           "fileTypeNotAccepted": "Usa una imagen PNG, JPEG, WebP o GIF",
           "maxFilesExceeded": "Sube una imagen cada vez",
-          "headerDescription": "Un banner sobre tu logotipo, de hasta {maxSize}. Las imágenes anchas funcionan mejor."
+          "headerDescription": "Banner ancho, de hasta {maxSize}"
         },
         "Design": {
           "title": "Diseño del boletín",

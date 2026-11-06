@@ -1,6 +1,33 @@
 {
   "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "ponytail@ponytail": true,
+    "i-have-adhd@i-have-adhd": true,
+    "mattpocock-skills@mattpocock": true
+  },
+  "extraKnownMarketplaces": {
+    "ponytail": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/DietrichGebert/ponytail.git"
+      },
+      "autoUpdate": true
+    },
+    "i-have-adhd": {
+      "source": {
+        "source": "github",
+        "repo": "ayghri/i-have-adhd"
+      },
+      "autoUpdate": true
+    },
+    "mattpocock": {
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills"
+      },
+      "autoUpdate": true
+    }
   },
   "hooks": {
     "SessionStart": [

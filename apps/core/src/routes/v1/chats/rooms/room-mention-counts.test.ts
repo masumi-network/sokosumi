@@ -23,14 +23,53 @@ beforeEach(() => {
 });
 
 describe("getChatRoomUnreadMentionCounts", () => {
-  it("counts only the chat notifications addressed to the reader", async () => {
-    const groupBy = vi.fn().mockResolvedValue([]);
-
-    await getChatRoomUnreadMentionCounts(["room-a"], "user_1", {
-      notification: { groupBy },
+  it("counts complementary mention and Direct rows as one message", async () => {
+    const rows = [
+      { id: "mention-a", referenceId: "room-a", eventId: "message-a" },
+      { id: "direct-a", referenceId: "room-a", eventId: "message-a" },
+      { id: "direct-b", referenceId: "room-a", eventId: "message-b" },
+    ];
+    const counts = await getChatRoomUnreadMentionCounts(["room-a"], "user_1", {
+      notification: {
+        findMany: vi.fn().mockResolvedValue(rows),
+      },
     } as never);
 
-    const where = groupBy.mock.calls[0]?.[0]?.where;
+    expect(counts.get("room-a")).toBe(2);
+  });
+
+  it("removes both delivery rows of a passed Thread reply once", async () => {
+    const rows = [
+      { id: "mention-a", referenceId: "room-a", eventId: "message-a" },
+      { id: "direct-a", referenceId: "room-a", eventId: "message-a" },
+      { id: "mention-b", referenceId: "room-a", eventId: "message-b" },
+      { id: "direct-b", referenceId: "room-a", eventId: "message-b" },
+    ];
+    findPassedRowsMock.mockResolvedValue(
+      ["mention-a", "direct-a"].map((id) => ({
+        id,
+        roomId: "room-a",
+        parentMessageId: "parent-a",
+        replyAttentionAt: new Date("2026-09-29T08:00:00.000Z"),
+      })),
+    );
+    const counts = await getChatRoomUnreadMentionCounts(["room-a"], "user_1", {
+      notification: {
+        findMany: vi.fn().mockResolvedValue(rows),
+      },
+    } as never);
+
+    expect(counts.get("room-a")).toBe(1);
+  });
+
+  it("counts only the chat notifications addressed to the reader", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+
+    await getChatRoomUnreadMentionCounts(["room-a"], "user_1", {
+      notification: { findMany },
+    } as never);
+
+    const where = findMany.mock.calls[0]?.[0]?.where;
 
     // Every message in a room is a CHAT notification on the same room, so the
     // kind cannot keep it out. Named here, so a third chat notification cannot
@@ -42,18 +81,18 @@ describe("getChatRoomUnreadMentionCounts", () => {
   });
 
   it("groups unread CHAT notifications by room referenceId", async () => {
-    const groupBy = vi.fn().mockResolvedValue([
-      { referenceId: "room-a", _count: { _all: 2 } },
-      { referenceId: "room-b", _count: { _all: 1 } },
+    const findMany = vi.fn().mockResolvedValue([
+      { id: "a-1", referenceId: "room-a", eventId: "message-a-1" },
+      { id: "a-2", referenceId: "room-a", eventId: "message-a-2" },
+      { id: "b-1", referenceId: "room-b", eventId: "message-b-1" },
     ]);
     const counts = await getChatRoomUnreadMentionCounts(
       ["room-a", "room-b", "room-c"],
       "user_1",
-      { notification: { groupBy } } as never,
+      { notification: { findMany } } as never,
     );
 
-    expect(groupBy).toHaveBeenCalledWith({
-      by: ["referenceId"],
+    expect(findMany).toHaveBeenCalledWith({
       where: {
         userId: "user_1",
         kind: NotificationKind.CHAT,
@@ -63,7 +102,7 @@ describe("getChatRoomUnreadMentionCounts", () => {
         isRead: false,
         referenceId: { in: ["room-a", "room-b", "room-c"] },
       },
-      _count: { _all: true },
+      select: { id: true, referenceId: true, eventId: true },
     });
     expect(counts.get("room-a")).toBe(2);
     expect(counts.get("room-b")).toBe(1);
@@ -71,14 +110,14 @@ describe("getChatRoomUnreadMentionCounts", () => {
   });
 
   it("returns an empty map without querying when room ids are empty", async () => {
-    const groupBy = vi.fn();
+    const findMany = vi.fn();
 
     const counts = await getChatRoomUnreadMentionCounts([], "user_1", {
-      notification: { groupBy },
+      notification: { findMany },
     } as never);
 
     expect(counts.size).toBe(0);
-    expect(groupBy).not.toHaveBeenCalled();
+    expect(findMany).not.toHaveBeenCalled();
   });
 
   /**
@@ -87,10 +126,11 @@ describe("getChatRoomUnreadMentionCounts", () => {
    * room past it, as it did when Room last-read cleared the row.
    */
   it("leaves out the Thread-reply rows Room last-read has passed", async () => {
-    const groupBy = vi.fn().mockResolvedValue([
-      { referenceId: "room-a", _count: { _all: 2 } },
-      { referenceId: "room-b", _count: { _all: 1 } },
-      { referenceId: "room-c", _count: { _all: 1 } },
+    const findMany = vi.fn().mockResolvedValue([
+      { id: "n-room-a", referenceId: "room-a", eventId: "message-a-1" },
+      { id: "a-2", referenceId: "room-a", eventId: "message-a-2" },
+      { id: "n-room-b", referenceId: "room-b", eventId: "message-b-1" },
+      { id: "c-1", referenceId: "room-c", eventId: "message-c-1" },
     ]);
     findPassedRowsMock.mockResolvedValue(
       ["room-a", "room-b"].map((roomId) => ({
@@ -100,7 +140,7 @@ describe("getChatRoomUnreadMentionCounts", () => {
         replyAttentionAt: new Date("2026-09-29T08:00:00.000Z"),
       })),
     );
-    const tx = { notification: { groupBy } } as never;
+    const tx = { notification: { findMany } } as never;
 
     const counts = await getChatRoomUnreadMentionCounts(
       ["room-a", "room-b", "room-c"],

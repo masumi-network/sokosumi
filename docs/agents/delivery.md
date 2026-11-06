@@ -54,7 +54,7 @@ docs(readme): update setup instructions
 - **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. CI (`ci.yml`, `apple.yml`, CodeQL) skips every job on a draft; `Validate PR Title` still runs. Mark the PR ready for review once the change is complete and the pre-commit checks pass: that starts CI.
 - **Review feedback**: Treat each finding as a hypothesis. Check it against the code or the rule it cites before changing anything, fix what holds, then reply on the PR thread: what changed, or why not. A review that arrives as one summary comment (a review bot's `## <Name> review`, or a human's single PR comment) has no thread, so answer it with one PR comment that links it and covers every finding, Minors included: the commit that fixed it, or why it stays. Reply after the fix is pushed, so the reviewer can see you worked on it.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
-- **Body**: write it with the [`pr` skill](../../.agents/skills/pr/SKILL.md); the repo has no PR template.
+- **Body**: write it with the `pr` skill (`mattpocock-skills` plugin); the repo has no PR template.
 - **Description**: Explain user-facing impact
 - **Links**: Reference the Sokosumi Task identifier (and GitHub issues when relevant)
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)

@@ -13,7 +13,6 @@ import { TASK_COMPLETED_MESSAGE_KEY } from "./notification-delivery";
 import {
   cancelNotificationEmails,
   dispatchNotificationEmail,
-  resendRoomMessageEmail,
 } from "./notification-email-dispatch";
 
 const {
@@ -30,6 +29,7 @@ const {
   notificationUpdateManyMock,
   userFindUniqueMock,
   transactionState,
+  storedNotifications,
 } = vi.hoisted(() => ({
   transactionCommitMock: vi.fn(),
   lockCalendarWorkspaceMembershipMock: vi.fn(),
@@ -47,6 +47,7 @@ const {
     open: false,
     sendEmailWhileOpen: false,
   },
+  storedNotifications: new Map<string, Notification>(),
 }));
 
 vi.mock("@/helpers/calendar-membership-fence", () => ({
@@ -71,11 +72,26 @@ vi.mock("@/lib/ably/channel-occupancy", () => ({
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     notification: {
-      findUnique: notificationFindUniqueMock,
+      findUnique: async (query: { where: { id: string } }) => {
+        const read = await notificationFindUniqueMock(query);
+        if (read === null) return null;
+        const stored = storedNotifications.get(query.where.id);
+        return stored ? { ...stored, ...read } : read;
+      },
       findMany: notificationFindManyMock,
-      updateMany: notificationUpdateManyMock,
+      updateMany: async (query: {
+        where: { id: string };
+        data: Partial<Notification>;
+      }) => {
+        const result = await notificationUpdateManyMock(query);
+        const stored = storedNotifications.get(query.where.id);
+        if (result.count > 0 && stored) Object.assign(stored, query.data);
+        return result;
+      },
     },
     user: { findUnique: userFindUniqueMock },
+    chatRoomMessage: { findFirst: async () => ({ id: "message_1" }) },
+    $queryRaw: async () => [],
   };
   return {
     default: {
@@ -103,6 +119,8 @@ vi.mock("@/lib/db/prisma", () => {
     },
   };
 });
+
+beforeEach(() => storedNotifications.clear());
 
 const NOW = new Date("2026-09-19T10:00:00.000Z");
 const TEN_MINUTES_LATER = new Date("2026-09-19T10:10:00.000Z");
@@ -175,7 +193,7 @@ async function flushUntil(isReady: () => boolean): Promise<void> {
 }
 
 function mention(overrides: Partial<Notification> = {}): Notification {
-  return {
+  const notification: Notification = {
     id: "notification_1",
     userId: "user_1",
     workspaceId: null,
@@ -203,6 +221,8 @@ function mention(overrides: Partial<Notification> = {}): Notification {
     publishNextAttemptAt: null,
     ...overrides,
   };
+  storedNotifications.set(notification.id, notification);
+  return notification;
 }
 
 /** A finished task, for the reader who started it. */
@@ -227,137 +247,6 @@ function finished(overrides: Partial<Notification> = {}): Notification {
 async function dispatch(notification: Notification): Promise<void> {
   await flush(dispatchNotificationEmail(notification));
 }
-
-/** A room row whose email is already scheduled, standing for `count` messages. */
-function scheduledRoomRow(
-  count: number,
-  overrides: Partial<Notification> = {},
-) {
-  return mention({
-    messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-    messageParams: JSON.stringify({
-      authorName: "Ada",
-      count,
-      messagePreview: "Can you check this?",
-      roomName: "Design",
-    }),
-    emailId: "email_stale",
-    emailScheduledAt: TEN_MINUTES_LATER,
-    ...overrides,
-  });
-}
-
-/** Run the resend to the end, through every wait it schedules. */
-async function resend(): Promise<void> {
-  await flush(resendRoomMessageEmail("notification_1"));
-}
-
-describe("resendRoomMessageEmail", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-    vi.clearAllMocks();
-    notificationFindManyMock.mockResolvedValue([]);
-    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
-    userFindUniqueMock.mockResolvedValue({
-      email: "reader@example.com",
-      name: "Grace",
-    });
-    hasAppInFrontMock.mockResolvedValue(false);
-    sendEmailMock.mockResolvedValue({ id: "email_2" });
-    cancelEmailMock.mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    restoreTimers();
-  });
-
-  /**
-   * The row now stands for three messages rather than two, so the email says
-   * three. The send time it was promised is kept: deciding a fresh delay on
-   * every message would push a busy room's email away for as long as anyone
-   * kept writing (SOK-1142).
-   */
-  it("sends the new tally at the time the old email was promised", async () => {
-    // Three minutes into the wait, so a fresh delay would be a different
-    // instant and the assertion below can tell the two apart.
-    vi.setSystemTime(new Date("2026-09-19T10:03:00.000Z"));
-    notificationFindUniqueMock
-      .mockResolvedValueOnce(scheduledRoomRow(3))
-      .mockResolvedValueOnce({ isRead: false })
-      .mockResolvedValueOnce({ isRead: false })
-      .mockResolvedValueOnce({ emailId: "email_2" });
-
-    await resend();
-
-    expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        subject: "Sokosumi - 3 unread messages in Design",
-        scheduledAt: TEN_MINUTES_LATER.toISOString(),
-        idempotencyKey: "notification-email/notification_1/3",
-      }),
-    );
-  });
-
-  /**
-   * The new email is handed over first. A cancel that runs before a send that
-   * fails would leave the reader with no email at all, which is the more
-   * expensive failure than one duplicate.
-   */
-  it("takes the old email back only once the new one is away", async () => {
-    notificationFindUniqueMock
-      .mockResolvedValueOnce(scheduledRoomRow(3))
-      .mockResolvedValueOnce({ isRead: false })
-      .mockResolvedValueOnce({ isRead: false })
-      .mockResolvedValueOnce({ emailId: "email_2" });
-
-    await resend();
-
-    expect(cancelEmailMock).toHaveBeenCalledExactlyOnceWith("email_stale");
-    expect(sendEmailMock.mock.invocationCallOrder[0]).toBeLessThan(
-      cancelEmailMock.mock.invocationCallOrder[0] as number,
-    );
-  });
-
-  /**
-   * The dispatch sent nothing, so the old email is the reader's only one and
-   * cancelling it here would take it away.
-   */
-  it("keeps the old email when nothing replaced it", async () => {
-    notificationFindUniqueMock
-      .mockResolvedValueOnce(scheduledRoomRow(3))
-      .mockResolvedValueOnce({ isRead: true })
-      .mockResolvedValueOnce({ emailId: "email_stale" });
-
-    await resend();
-
-    expect(sendEmailMock).not.toHaveBeenCalled();
-    expect(cancelEmailMock).not.toHaveBeenCalled();
-  });
-
-  /** Nothing left to say differently: that email is already on its way. */
-  it("does nothing once the email has left", async () => {
-    notificationFindUniqueMock.mockResolvedValueOnce(
-      scheduledRoomRow(3, { emailScheduledAt: null }),
-    );
-
-    await resend();
-
-    expect(sendEmailMock).not.toHaveBeenCalled();
-    expect(cancelEmailMock).not.toHaveBeenCalled();
-  });
-
-  it("does nothing for a row the reader has already read", async () => {
-    notificationFindUniqueMock.mockResolvedValueOnce(
-      scheduledRoomRow(3, { isRead: true }),
-    );
-
-    await resend();
-
-    expect(sendEmailMock).not.toHaveBeenCalled();
-    expect(cancelEmailMock).not.toHaveBeenCalled();
-  });
-});
 
 describe("dispatchNotificationEmail", () => {
   beforeEach(() => {
@@ -527,12 +416,14 @@ describe("dispatchNotificationEmail", () => {
         to: "reader@example.com",
         subject: "Sokosumi - Ada mentioned you in Design",
         tag: "notification",
-        idempotencyKey: "notification-email/notification_1/1",
+        idempotencyKey: expect.stringMatching(
+          /^notification-email\/notification_1\/1\/[a-f0-9]{64}$/,
+        ),
       }),
     );
     expect(sendEmailMock.mock.calls[0]?.[0]).not.toHaveProperty("scheduledAt");
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "notification_1", isRead: false },
+      where: expect.objectContaining({ id: "notification_1", isRead: false }),
       data: { emailId: "email_1", emailScheduledAt: null },
     });
     expect(cancelEmailMock).not.toHaveBeenCalled();
@@ -551,7 +442,7 @@ describe("dispatchNotificationEmail", () => {
       }),
     );
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "notification_1", isRead: false },
+      where: expect.objectContaining({ id: "notification_1", isRead: false }),
       data: { emailId: "email_1", emailScheduledAt: TEN_MINUTES_LATER },
     });
     // The write took the row, so the email waits. Cancelling it here would
@@ -626,7 +517,8 @@ describe("dispatchNotificationEmail", () => {
     await dispatch(mention());
 
     // Two reads that found nothing, the one that found the row, then the
-    // one at this row's turn in the queue.
+    // one at this row's turn in the queue. An email that leaves at once is
+    // recorded without a read behind the provider: nothing can replace it.
     expect(notificationFindUniqueMock).toHaveBeenCalledTimes(4);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
@@ -1002,7 +894,7 @@ describe("cancelNotificationEmails", () => {
     expect(cancelEmailMock).toHaveBeenCalledWith("e_future");
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "n_future" },
+      where: { id: "n_future", emailId: "e_future" },
       data: { emailId: null, emailScheduledAt: null },
     });
     // A row with no send time is passed over, not tripped over and swallowed.
@@ -1045,7 +937,7 @@ describe("cancelNotificationEmails", () => {
     expect(cancelEmailMock).toHaveBeenCalledTimes(2);
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(notificationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "n2" } }),
+      expect.objectContaining({ where: { id: "n2", emailId: "e2" } }),
     );
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),

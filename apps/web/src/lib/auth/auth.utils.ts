@@ -24,6 +24,7 @@ interface AuthSessionResponse<TSession = unknown> {
   data?: {
     session?: TSession | null;
   } | null;
+  error?: unknown;
 }
 
 function waitForMs(ms: number): Promise<void> {
@@ -58,8 +59,26 @@ export function createAuthSessionGetter<TSession>(
 ): () => Promise<TSession | null> {
   return async () => {
     const sessionResponse = await getSessionResponse();
+    if (sessionResponse?.error) {
+      // A refused session is a signed-out reader, not an outage: the caller
+      // sends them to sign in. Anything else is an answer nobody gave. 403
+      // stays an outage, as on the server: on `/auth/get-session` it is the
+      // trusted-origin check or a WAF rule, and reading it as signed out
+      // would hide that misconfiguration behind a sign-in page.
+      if (isSignedOutStatus(sessionResponse.error)) return null;
+      throw sessionResponse.error;
+    }
     return sessionResponse?.data?.session ?? null;
   };
+}
+
+function isSignedOutStatus(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 401
+  );
 }
 
 /**

@@ -54,6 +54,10 @@ export function hasPushPreference(): boolean {
   return readPreference() !== null;
 }
 
+export function readPushPreferenceUserId(): string | null {
+  return readPreference()?.userId ?? null;
+}
+
 export function rememberPushPreference(
   userId: string,
   suspended = false,
