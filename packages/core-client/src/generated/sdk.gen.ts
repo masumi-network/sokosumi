@@ -4027,7 +4027,7 @@ export const getProjectsByIdNewsletterSubscribers = <ThrowOnError extends boolea
 });
 
 /**
- * Add a subscriber by hand. CONFIRMED records existing consent; ASK sends a double opt-in email. Existing emails return 409. Unsubscribed and bounced subscribers are never reactivated.
+ * Add a subscriber by hand. CONFIRMED records existing consent; ASK sends a double opt-in email. Existing emails return 409. Owners cannot reactivate unsubscribed or bounced subscribers; someone who unsubscribed can re-subscribe themselves through the public signup form.
  */
 export const postProjectsByIdNewsletterSubscribers = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterSubscribersData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterSubscribersResponses, PostProjectsByIdNewsletterSubscribersErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterSubscribersResponses, PostProjectsByIdNewsletterSubscribersErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterSubscribersResponseTransformer,
@@ -4695,7 +4695,7 @@ export const postPublicNewsletterUnsubscribe = <ThrowOnError extends boolean = f
 export const getPublicNewsletterConfirm = <ThrowOnError extends boolean = false>(options: Options<GetPublicNewsletterConfirmData, ThrowOnError>): RequestResult<GetPublicNewsletterConfirmResponses, GetPublicNewsletterConfirmErrors, ThrowOnError> => (options.client ?? client).get<GetPublicNewsletterConfirmResponses, GetPublicNewsletterConfirmErrors, ThrowOnError>({ url: '/public/newsletter/confirm', ...options });
 
 /**
- * Confirm a pending subscription idempotently and send its welcome email at most once.
+ * Confirm a pending subscription or a re-subscribe request idempotently and send its welcome email at most once.
  */
 export const postPublicNewsletterConfirm = <ThrowOnError extends boolean = false>(options: Options<PostPublicNewsletterConfirmData, ThrowOnError>): RequestResult<PostPublicNewsletterConfirmResponses, PostPublicNewsletterConfirmErrors, ThrowOnError> => (options.client ?? client).post<PostPublicNewsletterConfirmResponses, PostPublicNewsletterConfirmErrors, ThrowOnError>({ url: '/public/newsletter/confirm', ...options });
 
