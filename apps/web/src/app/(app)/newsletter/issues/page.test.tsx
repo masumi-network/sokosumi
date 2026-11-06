@@ -97,11 +97,9 @@ describe("newsletter issues page", () => {
     );
     expect(mocks.list).not.toHaveBeenCalled();
   });
-  it("selects Issues, names the project and keeps it on every tab", async () => {
+  it("selects Issues without a page header and keeps the project on every tab", async () => {
     render(await NewsletterIssuesPage(PROPS));
-    expect(
-      screen.getByRole("heading", { level: 2, name: "projectTitle" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
     expect(screen.getByRole("link", { name: "Issues.title" })).toHaveAttribute(
       "aria-current",
       "page",

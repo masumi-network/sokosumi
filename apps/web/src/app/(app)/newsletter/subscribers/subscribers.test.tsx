@@ -536,10 +536,13 @@ describe("newsletter subscribers", () => {
         skippedUnsubscribed: 1,
         skippedBounced: 1,
         pendingConfirmation: 0,
-        invalid: Array.from({ length: 7 }, (_, i) => ({
-          row: i + 4,
-          value: `invalid-${i}`,
-        })),
+        invalid: [
+          ...Array.from({ length: 7 }, (_, i) => ({
+            row: i + 4,
+            value: `invalid-${i}`,
+          })),
+          { row: 11, value: " " },
+        ],
       },
     });
     renderSubscribers();
@@ -555,10 +558,13 @@ describe("newsletter subscribers", () => {
     expect(values.get("consent")).toBe("CONFIRMED");
     expect(values.get("consentConfirmed")).toBe("true");
     expect(await dialog.findByText("Row 4: invalid-0")).toBeInTheDocument();
-    expect(dialog.queryByText("Row 9: invalid-5")).not.toBeInTheDocument();
-    expect(
-      dialog.getByText("2 more invalid rows reported"),
-    ).toBeInTheDocument();
+    expect(dialog.getByText("Row 10: invalid-6")).toBeInTheDocument();
+    expect(dialog.getByText("Row 11: no email")).toBeInTheDocument();
+    const invalidRows = dialog.getByRole("list", {
+      name: COPY.Import.result.invalid,
+    });
+    expect(invalidRows).toHaveAttribute("tabindex", "0");
+    expect(within(invalidRows).getAllByRole("listitem")).toHaveLength(8);
     for (const label of Object.values(COPY.Import.result))
       expect(dialog.getByText(label)).toBeInTheDocument();
     expect(

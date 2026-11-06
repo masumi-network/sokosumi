@@ -28,7 +28,7 @@ export function NewsletterSignupCard({ publicSlug }: { publicSlug: string }) {
       <Card>
         <CardHeader>
           <CardTitle>
-            <h3 id="newsletter-signup-card">{t("title")}</h3>
+            <h3 id="newsletter-signup-card">{t("shareTitle")}</h3>
           </CardTitle>
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
