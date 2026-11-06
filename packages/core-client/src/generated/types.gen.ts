@@ -11108,9 +11108,21 @@ export type CmoMeasurement = {
  * After approval Cuso makes the whole month at once: how many of its pieces are made.
  */
 export type CmoProduction = {
-    state: 'waiting' | 'running' | 'ready' | 'stuck';
+    /**
+     * starting: approved, but no run is working yet; the next sync starts one.
+     */
+    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck';
     ready: number;
     total: number;
+    /**
+     * Pieces whose words are written.
+     */
+    written: number;
+    /**
+     * Pieces with every picture they need, of needPictures.
+     */
+    pictured: number;
+    needPictures: number;
     finishedAt: string | null;
     /**
      * Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.

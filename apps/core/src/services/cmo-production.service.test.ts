@@ -85,8 +85,10 @@ import {
   cmoMixLedger,
   cmoPieceReady,
   cmoProductionMessage,
+  cmoProductionSteps,
   cmoReadyPieceIds,
   cmoSyncOrder,
+  readCmoProduction,
   syncCmoProduction,
 } from "./cmo-production.service";
 
@@ -277,6 +279,21 @@ describe("a piece kept in the Project's Files", () => {
   });
 });
 
+describe("cmoProductionSteps", () => {
+  it("counts the words pass and the pictures pass apart", () => {
+    const image = { format: "image" };
+    expect(
+      cmoProductionSteps([
+        piece({ id: "a", draft: "Words" }),
+        piece({ ...image, id: "b", draft: "Words" }),
+        piece({ ...image, id: "c", draft: "Words" }, ["drive/1.png"]),
+        piece({ ...image, id: "d" }),
+        piece({ id: "e", status: "published" }),
+      ]),
+    ).toEqual({ written: 4, pictured: 1, needPictures: 3 });
+  });
+});
+
 describe("cmoReadyPieceIds", () => {
   it("counts a picture for the first piece that uses it, not a second", () => {
     const image = { format: "image", draft: "Words" };
@@ -372,6 +389,43 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("carousel: at least 3 slides, 1 made");
     expect(message).toContain("referenceFileIds");
+  });
+
+  it("fits a full batch on every network in one background turn", () => {
+    const channels = [
+      ["x", "post"],
+      ["linkedin", "text"],
+      ["instagram", "carousel"],
+      ["facebook", "post"],
+      ["tiktok", "video"],
+      ["youtube", "short"],
+      ["seo", "article"],
+      ["newsletter", "issue"],
+      ["google_ads", "search"],
+      ["meta_ads", "image"],
+    ];
+    const calendar = Array.from({ length: 60 }, (_, index) => {
+      const [channel, format] = channels[index % channels.length] ?? [];
+      return entry({
+        id: `piece-${index}`,
+        channel,
+        format,
+        title: "A useful report without a visitor profile behind it",
+        brief:
+          "Show one real report and the decision it settles, in the brand's own words.",
+      } as Partial<CmoCalendarEntry>);
+    });
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    // Over a chat message's 20,000 characters, under a background turn's cap.
+    expect(message.length).toBeGreaterThan(20_000);
+    expect(message.length).toBeLessThan(100_000);
   });
 
   it("hands the run the writing skills of the batch's channels only", () => {
@@ -493,6 +547,15 @@ describe("advanceCmoProduction", () => {
         }),
       }),
     );
+  });
+
+  it("says starting, not running, while no run works yet", async () => {
+    const read = await readCmoProduction(cuso([post({})]), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+    expect(read.status).toMatchObject({ state: "starting", written: 0 });
   });
 
   it("leaves a working run alone", async () => {

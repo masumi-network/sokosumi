@@ -110,6 +110,26 @@ export function cmoPieceReady(
   return !connected.has(piece.channel) || piece.status === "scheduled";
 }
 
+/** How far each pass of a run got: words first, then pictures. */
+export function cmoProductionSteps(
+  pieces: CmoPiece[],
+): Pick<CmoProductionStatus, "written" | "pictured" | "needPictures"> {
+  const done = (piece: CmoPiece) =>
+    piece.status === "published" || piece.status === "skipped";
+  const withPictures = pieces.filter(cmoPieceNeedsMedia);
+  return {
+    written: pieces.filter(
+      (piece) => done(piece) || piece.draft?.trim() || piece.fileId,
+    ).length,
+    pictured: withPictures.filter(
+      (piece) =>
+        done(piece) ||
+        new Set(piece.media).size >= Math.max(1, cmoPieceMinSlides(piece)),
+    ).length,
+    needPictures: withPictures.length,
+  };
+}
+
 /**
  * Ids of the finished pieces. A picture counts for the first piece that uses
  * it: a production run once reused one image across two posts to finish
@@ -162,12 +182,18 @@ export function cmoProductionPieces(
 
 export interface CmoProductionStatus {
   /**
-   * waiting: not approved and paid yet; running: Cuso is making pieces;
-   * ready: every piece is made; stuck: today's runs ended with pieces missing.
+   * waiting: not approved and paid yet; starting: approved, no run working
+   * yet (the next sync starts one); running: a run is making pieces; ready:
+   * every piece is made; stuck: today's runs ended with pieces missing.
    */
-  state: "waiting" | "running" | "ready" | "stuck";
+  state: "waiting" | "starting" | "running" | "ready" | "stuck";
   ready: number;
   total: number;
+  /** Pieces whose words are written: the first pass of a run. */
+  written: number;
+  /** Pieces with every picture their format needs, of those that need one. */
+  pictured: number;
+  needPictures: number;
   finishedAt: string | null;
   /**
    * Once the made month was read: each pillar's planned share beside the
@@ -457,6 +483,9 @@ export async function readCmoProduction(
         state: "waiting",
         ready: 0,
         total: 0,
+        written: 0,
+        pictured: 0,
+        needPictures: 0,
         finishedAt: null,
         pillars: null,
       },
@@ -501,6 +530,7 @@ export async function readCmoProduction(
       state,
       ready: ready.size,
       total: pieces.length,
+      ...cmoProductionSteps(pieces),
       finishedAt:
         state === "ready"
           ? (runs
@@ -538,7 +568,7 @@ export async function readCmoProduction(
     ready.size <= lastReady;
   if (today.length >= CMO_PRODUCTION_RUNS_PER_DAY || stalled)
     return read("stuck", runs);
-  return read("running", runs);
+  return read("starting", runs);
 }
 
 /**
@@ -589,7 +619,7 @@ export async function advanceCmoProduction(
     });
     return current;
   }
-  if (current.state !== "running") return current;
+  if (current.state !== "starting") return current;
   const attempt = runs.length + 1;
   await startProductionRun(
     cuso,
@@ -603,7 +633,7 @@ export async function advanceCmoProduction(
     }),
     `${approvalRunPrefix(cuso.sokoBotId, approvedAt)}${attempt}:${current.ready}`,
   );
-  return current;
+  return { ...current, state: "running" };
 }
 
 /** Starts production in the background; the caller's request does not wait. */

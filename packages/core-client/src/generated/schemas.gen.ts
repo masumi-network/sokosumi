@@ -42822,15 +42822,28 @@ export const CmoProductionSchema = {
             type: 'string',
             enum: [
                 'waiting',
+                'starting',
                 'running',
                 'ready',
                 'stuck'
-            ]
+            ],
+            description: 'starting: approved, but no run is working yet; the next sync starts one.'
         },
         ready: {
             type: 'integer'
         },
         total: {
+            type: 'integer'
+        },
+        written: {
+            type: 'integer',
+            description: 'Pieces whose words are written.'
+        },
+        pictured: {
+            type: 'integer',
+            description: 'Pieces with every picture they need, of needPictures.'
+        },
+        needPictures: {
             type: 'integer'
         },
         finishedAt: {
@@ -42894,6 +42907,9 @@ export const CmoProductionSchema = {
         'state',
         'ready',
         'total',
+        'written',
+        'pictured',
+        'needPictures',
         'finishedAt',
         'pillars'
     ],
