@@ -793,7 +793,8 @@ body:has(.ob) .site-header {
 .ob-stage {
   position: relative;
   flex: 1;
-  min-height: 420px;
+  /* The canvas Site board's height; phones drop to 320px below. */
+  min-height: 560px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
