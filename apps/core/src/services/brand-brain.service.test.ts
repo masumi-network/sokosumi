@@ -112,7 +112,7 @@ describe("saveBrandBrain", () => {
 
     it("adds reveal to the stored essentials", async () => {
       brainFindUnique.mockResolvedValue(storedEssentials());
-      await saveBrandBrain(PROJECT_ID, { reveal: reveal as never });
+      await saveBrandBrain(PROJECT_ID, { reveal });
       const data = brainUpsert.mock.calls[0]?.[0].update;
       expect(data.body).toMatchObject({ ...essentials, reveal });
       expect(data.updatedAt).toBeInstanceOf(Date);
@@ -120,9 +120,7 @@ describe("saveBrandBrain", () => {
 
     it("adds marketingToday to the stored essentials", async () => {
       brainFindUnique.mockResolvedValue(storedEssentials());
-      await saveBrandBrain(PROJECT_ID, {
-        marketingToday: marketingToday as never,
-      });
+      await saveBrandBrain(PROJECT_ID, { marketingToday });
       const data = brainUpsert.mock.calls[0]?.[0].update;
       expect(data.body).toMatchObject({ ...essentials, marketingToday });
     });
@@ -159,7 +157,7 @@ describe("saveBrandBrain", () => {
       brainFindUnique.mockResolvedValue(null);
       await saveBrandBrain(PROJECT_ID, {
         brandBrain: { ...essentials, profile: {}, questions: [] },
-        reveal: reveal as never,
+        reveal,
       });
       const saved = brainUpsert.mock.calls[0]?.[0].update.body;
       expect(saved.reveal).toEqual(reveal);
@@ -167,9 +165,21 @@ describe("saveBrandBrain", () => {
 
     it("refuses them while no essentials are stored", async () => {
       brainFindUnique.mockResolvedValue({ body: { profile: {} } });
+      await expect(saveBrandBrain(PROJECT_ID, { reveal })).rejects.toThrow(
+        "Save the essentials in brandBrain first",
+      );
+      expect(brainUpsert).not.toHaveBeenCalled();
+    });
+
+    it("refuses an empty questions list before it can wipe stored ones", async () => {
+      brainFindUnique.mockResolvedValue(
+        storedEssentials({
+          questions: [{ ...question, answer: "yes" as const }],
+        }),
+      );
       await expect(
-        saveBrandBrain(PROJECT_ID, { reveal: reveal as never }),
-      ).rejects.toThrow("Save the essentials in brandBrain first");
+        saveBrandBrain(PROJECT_ID, { questions: [] }),
+      ).rejects.toThrow();
       expect(brainUpsert).not.toHaveBeenCalled();
     });
   });
