@@ -10618,7 +10618,7 @@
         "partial": "Some statistics are missing. Check each source and coverage note.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
-        "findings": "Findings and observations",
+        "findings": "Issues to review",
         "audits": "Captured results",
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
@@ -10639,7 +10639,11 @@
         "getStartedUnavailable": "Import an existing report to see public findings. Connect a statistics source below for traffic measurements.",
         "noMeasuredReports": "No reports measured in these activity dates",
         "noMeasuredReportsBody": "Clear activity dates to see reports from other dates. Statistics keep their own reporting period.",
-        "clearActivityDates": "Clear activity dates"
+        "clearActivityDates": "Clear activity dates",
+        "noFixes": "No fixes recommended from these checks",
+        "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
+        "checkDetails": "Check details",
+        "diagnostics": "Measurements and notes"
       },
       "keywords": {
         "title": "Keywords",
@@ -10697,7 +10701,13 @@
         "task_created": "Draft task created",
         "implemented": "Implemented",
         "verified": "Verified",
-        "help": "An implemented task needs a compatible recheck before the SEO result is verified."
+        "help": "An implemented task needs a compatible recheck before the SEO result is verified.",
+        "noFixes": "No fixes recommended from these checks",
+        "noFixesBody": "The recorded checks have no recommended fixes. Review their coverage or set up statistics to decide what to check next.",
+        "checksIncomplete": "These checks are incomplete",
+        "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
+        "unplannedIssues": "No recommended actions yet",
+        "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or open SEO chat to decide what to do next."
       },
       "pages": {
         "title": "Pages",
@@ -10731,7 +10741,25 @@
         "scope": "Page selection",
         "details": "Work details",
         "page_change": "Page change",
-        "rulebook": "Rulebook {version}"
+        "rulebook": "Rulebook {version}",
+        "graphDescription": "Checks, changes and action Tasks, from oldest to newest. Spacing does not show elapsed time.",
+        "graphLabel": "SEO activity graph",
+        "auditRun": "Audit results",
+        "checkRun": "Check results",
+        "recheckRun": "Recheck results",
+        "analysisRequested": "Check requested",
+        "metricsSynced": "Statistics synced",
+        "actionLinked": "Action Task linked",
+        "scopeChanged": "Page selection changed",
+        "pageChanged": "Page change recorded",
+        "checkedAt": "Checked",
+        "savedAt": "Saved",
+        "currentTaskStatus": "Current Task status",
+        "checkSummary": "{checked} checks recorded",
+        "previousCheck": "Repeats an earlier check of the same pages, market, devices and rulebook.",
+        "sourceDetails": "Event details",
+        "resultsSaved": "Results saved",
+        "incomplete": "Some requested work could not be completed."
       },
       "analysis": {
         "title": "Run a check",
@@ -10939,7 +10967,10 @@
         "callbackDone": "Your account is connected. Return to the audit to choose a property and sync statistics.",
         "returnToAudit": "Return to audit",
         "invalidCallback": "This return link has no valid SEO connection context. Start a connection from the audit."
-      }
+      },
+      "unavailableTitle": "SEO unavailable in this Workspace",
+      "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
+      "openAllPages": "Open all pages"
     }
   },
   "Share": {

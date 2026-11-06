@@ -9,6 +9,7 @@ import { SeoActions } from "./seo-actions";
 import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoMeasurements } from "./seo-measurements";
 import { SeoMonitors } from "./seo-monitors";
+import { seoOverviewModel } from "./seo-overview-model";
 import {
   SeoDate,
   SeoEmpty,
@@ -23,22 +24,87 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const { data } = model;
-  const running = data.analyses.filter(
-    (item) =>
-      item.status === "requested" ||
-      item.status === "running" ||
-      item.status === "failed",
-  );
+  const overview = seoOverviewModel(data);
   return (
     <div className="space-y-5">
       {!data.observations.length ? <SeoGettingStarted model={model} /> : null}
+      {overview.recommendedActions.length ? (
+        <SeoActions model={model} compact />
+      ) : null}
+      {overview.issues.length ? (
+        <SeoSection title={t("overview.findings")}>
+          {overview.issues.map((finding) => (
+            <article
+              key={finding.id}
+              className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}
+            >
+              <div className="flex flex-wrap items-start gap-2">
+                <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
+                <h3 className="text-sm font-medium">{finding.title}</h3>
+              </div>
+              <SeoPageLink url={finding.pageUrl} />
+              <details className="text-muted-foreground text-sm">
+                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 focus-visible:ring-2 focus-visible:outline-none">
+                  {t("overview.checkDetails")}
+                </summary>
+                <ul className="list-inside list-disc space-y-1 pt-3">
+                  {finding.evidence.map((evidence, index) => (
+                    <li key={`${index}:${evidence}`} className="break-words">
+                      {evidence}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-wrap gap-3 pt-3 text-xs">
+                  <SeoDate value={finding.observedAt} />
+                  <SeoSource
+                    observationId={finding.observationId}
+                    workspace={data}
+                  />
+                </div>
+              </details>
+            </article>
+          ))}
+        </SeoSection>
+      ) : !overview.recommendedActions.length &&
+        (data.observations.length || overview.emptyState === "incomplete") ? (
+        <SeoEmpty
+          title={t(
+            overview.emptyState === "no_fixes"
+              ? "overview.noFixes"
+              : overview.emptyState === "incomplete"
+                ? "actions.checksIncomplete"
+                : "overview.noFindings",
+          )}
+          body={t(
+            overview.emptyState === "no_fixes"
+              ? "overview.noFixesBody"
+              : overview.emptyState === "incomplete"
+                ? "actions.checksIncompleteBody"
+                : "overview.noFindingsBody",
+          )}
+        >
+          {data.availableActions.canSyncMetrics ? (
+            <Button
+              variant="outline"
+              onClick={() => model.setDialog("statistics")}
+            >
+              {t("overview.manageConnections")}
+            </Button>
+          ) : null}
+        </SeoEmpty>
+      ) : null}
+      {overview.hasFailedChecks && overview.emptyState !== "incomplete" ? (
+        <p className="text-muted-foreground px-2 text-sm">
+          {t("actions.checksIncompleteBody")}
+        </p>
+      ) : null}
       <SeoMeasurements
         workspace={data}
         onSync={() => model.setDialog("statistics")}
       />
-      {running.length ? (
+      {overview.recentChecks.length ? (
         <SeoSection title={t("overview.recentChecks")}>
-          {running.map((item) => (
+          {overview.recentChecks.map((item) => (
             <div
               key={item.id}
               className={cn(
@@ -68,18 +134,30 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
       data.availableActions.canCreateMonitor === true ? (
         <SeoMonitors model={model} />
       ) : null}
-      {data.actions.length ? <SeoActions model={model} compact /> : null}
-      {data.observations.length ||
-      data.findings.length ||
-      data.timeline.length ? (
-        <div className="grid items-start gap-5 xl:grid-cols-2">
-          <SeoSection title={t("overview.findings")}>
-            {data.findings.length ? (
-              data.findings.map((finding) => (
-                <article
-                  key={finding.id}
-                  className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4")}
+      {overview.diagnostics.length || data.observations.length ? (
+        <SeoSection title={t("overview.diagnostics")}>
+          <details className={cn(HOLDER_ITEM_CLASS, "p-4 text-sm")}>
+            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 font-medium focus-visible:ring-2 focus-visible:outline-none">
+              {t("overview.checkDetails")}
+            </summary>
+            <div className="space-y-4 pt-4">
+              {data.observations.map((observation) => (
+                <div
+                  key={observation.id}
+                  className="text-muted-foreground space-y-2"
                 >
+                  <p>{t("overview.coverageCounts", observation.coverage)}</p>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <SeoDate value={observation.observedAt} />
+                    <SeoSource
+                      observationId={observation.id}
+                      workspace={data}
+                    />
+                  </div>
+                </div>
+              ))}
+              {overview.diagnostics.map((finding) => (
+                <article key={finding.id} className="space-y-3">
                   <div className="flex flex-wrap items-start gap-2">
                     <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
                     <h3 className="text-sm font-medium">{finding.title}</h3>
@@ -100,31 +178,19 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
                     />
                   </div>
                 </article>
-              ))
-            ) : (
-              <SeoEmpty
-                title={t("overview.noFindings")}
-                body={t("overview.noFindingsBody")}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => model.setDialog("import")}
-                >
-                  {t("importAudit")}
-                </Button>
-              </SeoEmpty>
-            )}
-          </SeoSection>
-          <SeoTimeline
-            workspace={data}
-            onRetry={
-              data.availableActions.canRequestAnalysis
-                ? () => model.setDialog("analysis")
-                : undefined
-            }
-          />
-        </div>
+              ))}
+            </div>
+          </details>
+        </SeoSection>
       ) : null}
+      <SeoTimeline
+        workspace={data}
+        onRetry={
+          data.availableActions.canRequestAnalysis
+            ? () => model.setDialog("analysis")
+            : undefined
+        }
+      />
     </div>
   );
 }

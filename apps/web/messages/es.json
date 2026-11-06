@@ -10618,7 +10618,7 @@
         "partial": "Faltan algunas estadísticas. Revisa cada fuente y las notas de cobertura.",
         "available": "Hay estadísticas disponibles para los periodos indicados.",
         "priority": "Acciones recomendadas",
-        "findings": "Hallazgos y observaciones",
+        "findings": "Problemas para revisar",
         "audits": "Resultados capturados",
         "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
         "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
@@ -10639,7 +10639,11 @@
         "getStartedUnavailable": "Importa un informe existente para ver hallazgos públicos. Conecta una fuente de estadísticas abajo para medir el tráfico.",
         "noMeasuredReports": "No hay informes medidos en estas fechas de actividad",
         "noMeasuredReportsBody": "Borra las fechas de actividad para ver informes de otras fechas. Las estadísticas conservan su propio periodo de informe.",
-        "clearActivityDates": "Borrar fechas de actividad"
+        "clearActivityDates": "Borrar fechas de actividad",
+        "noFixes": "Estas comprobaciones no recomiendan correcciones",
+        "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
+        "checkDetails": "Detalles de las comprobaciones",
+        "diagnostics": "Mediciones y notas"
       },
       "keywords": {
         "title": "Palabras clave",
@@ -10697,7 +10701,13 @@
         "task_created": "Borrador de tarea creado",
         "implemented": "Implementada",
         "verified": "Verificada",
-        "help": "Una tarea implementada necesita una nueva comprobación compatible para verificar el resultado de SEO."
+        "help": "Una tarea implementada necesita una nueva comprobación compatible para verificar el resultado de SEO.",
+        "noFixes": "Estas comprobaciones no recomiendan correcciones",
+        "noFixesBody": "Las comprobaciones registradas no recomiendan correcciones. Revisa su cobertura o configura estadísticas para decidir qué comprobar después.",
+        "checksIncomplete": "Estas comprobaciones están incompletas",
+        "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
+        "unplannedIssues": "Todavía no hay acciones recomendadas",
+        "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o abre el chat de SEO para decidir el siguiente paso."
       },
       "pages": {
         "title": "Páginas",
@@ -10731,7 +10741,25 @@
         "scope": "Selección de páginas",
         "details": "Detalles del trabajo",
         "page_change": "Cambio de página",
-        "rulebook": "Reglas {version}"
+        "rulebook": "Reglas {version}",
+        "graphDescription": "Comprobaciones, cambios y tareas de acciones, del más antiguo al más reciente. Las distancias no indican el tiempo transcurrido.",
+        "graphLabel": "Gráfico de actividad SEO",
+        "auditRun": "Resultados de la auditoría",
+        "checkRun": "Resultados de la comprobación",
+        "recheckRun": "Resultados de la nueva comprobación",
+        "analysisRequested": "Comprobación solicitada",
+        "metricsSynced": "Estadísticas sincronizadas",
+        "actionLinked": "Tarea de acción vinculada",
+        "scopeChanged": "Selección de páginas cambiada",
+        "pageChanged": "Cambio de página registrado",
+        "checkedAt": "Comprobado",
+        "savedAt": "Guardado",
+        "currentTaskStatus": "Estado actual de la tarea",
+        "checkSummary": "{checked} comprobaciones registradas",
+        "previousCheck": "Repite una comprobación anterior de las mismas páginas, mercado, dispositivos y reglas.",
+        "sourceDetails": "Detalles del evento",
+        "resultsSaved": "Resultados guardados",
+        "incomplete": "No se pudo completar parte del trabajo solicitado."
       },
       "analysis": {
         "title": "Iniciar comprobación",
@@ -10939,7 +10967,10 @@
         "callbackDone": "Tu cuenta está conectada. Vuelve a la auditoría, elige una propiedad y sincroniza las estadísticas.",
         "returnToAudit": "Volver a la auditoría",
         "invalidCallback": "Este enlace no tiene un contexto de conexión SEO válido. Inicia la conexión desde la auditoría."
-      }
+      },
+      "unavailableTitle": "SEO no está disponible en este Workspace",
+      "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
+      "openAllPages": "Abrir todas las páginas"
     }
   },
   "Share": {

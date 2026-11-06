@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { seoOverviewModel } from "./seo-overview-model";
 import {
   SeoEmpty,
   SeoPageLink,
@@ -24,11 +25,10 @@ export function SeoActions({
   compact?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const overview = seoOverviewModel(model.data);
   const actions = compact
-    ? model.data.actions
-        .filter((action) => action.status === "recommended")
-        .slice(0, SEO_OVERVIEW_ACTION_LIMIT)
-    : model.data.actions;
+    ? overview.recommendedActions.slice(0, SEO_OVERVIEW_ACTION_LIMIT)
+    : overview.actions;
   return (
     <SeoSection title={t(compact ? "overview.priority" : "actions.title")}>
       <p className="text-muted-foreground px-2 pb-2 text-sm">
@@ -55,39 +55,41 @@ export function SeoActions({
                   {action.expectedEffect}
                 </dd>
               </dl>
-              <p className="text-muted-foreground text-xs">
-                {t("actions.effort")}: {t(`priority.${action.effort}`)}
-              </p>
-              {action.edit ? (
-                <details className="text-sm">
-                  <summary className="cursor-pointer font-medium">
-                    {t("actions.after")}
-                  </summary>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <p className="text-muted-foreground mb-1 text-xs">
-                        {t("actions.before")}
-                      </p>
-                      <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                        {action.edit.before ?? t("actions.noBefore")}
-                      </pre>
+              <details className="text-sm">
+                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 font-medium focus-visible:ring-2 focus-visible:outline-none">
+                  {t("overview.checkDetails")}
+                </summary>
+                <div className="space-y-3 pt-3">
+                  <p className="text-muted-foreground text-xs">
+                    {t("actions.effort")}: {t(`priority.${action.effort}`)}
+                  </p>
+                  <SeoSource
+                    observationId={action.observationId}
+                    workspace={model.data}
+                  />
+                  {action.edit ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-muted-foreground mb-1 text-xs">
+                          {t("actions.before")}
+                        </p>
+                        <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                          {action.edit.before ?? t("actions.noBefore")}
+                        </pre>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1 text-xs">
+                          {t("actions.after")}
+                        </p>
+                        <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                          {action.edit.after}
+                        </pre>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground mb-1 text-xs">
-                        {t("actions.after")}
-                      </p>
-                      <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                        {action.edit.after}
-                      </pre>
-                    </div>
-                  </div>
-                </details>
-              ) : null}
+                  ) : null}
+                </div>
+              </details>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <SeoSource
-                  observationId={action.observationId}
-                  workspace={model.data}
-                />
                 {action.taskId ? (
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
@@ -111,7 +113,51 @@ export function SeoActions({
           ))}
         </div>
       ) : (
-        <SeoEmpty title={t("actions.empty")} body={t("actions.emptyBody")} />
+        <SeoEmpty
+          title={t(
+            overview.emptyState === "no_fixes"
+              ? "actions.noFixes"
+              : overview.emptyState === "incomplete"
+                ? "actions.checksIncomplete"
+                : overview.emptyState === "issues"
+                  ? "actions.unplannedIssues"
+                  : "actions.empty",
+          )}
+          body={t(
+            overview.emptyState === "no_fixes"
+              ? "actions.noFixesBody"
+              : overview.emptyState === "incomplete"
+                ? "actions.checksIncompleteBody"
+                : overview.emptyState === "issues"
+                  ? "actions.unplannedIssuesBody"
+                  : "actions.emptyBody",
+          )}
+        >
+          {overview.emptyState === "issues" && model.data.auditId ? (
+            <Button variant="outline" onClick={model.openChat}>
+              {t("chat.title")}
+            </Button>
+          ) : model.data.availableActions.canSyncMetrics &&
+            overview.emptyState !== "no_checks" ? (
+            <Button
+              variant="outline"
+              onClick={() => model.setDialog("statistics")}
+            >
+              {t("overview.manageConnections")}
+            </Button>
+          ) : model.data.availableActions.canRequestAnalysis ? (
+            <Button
+              variant="outline"
+              onClick={() => model.setDialog("analysis")}
+            >
+              {t("runAnalysis")}
+            </Button>
+          ) : model.data.availableActions.canEdit ? (
+            <Button variant="outline" onClick={() => model.setDialog("import")}>
+              {t("importAudit")}
+            </Button>
+          ) : null}
+        </SeoEmpty>
       )}
     </SeoSection>
   );

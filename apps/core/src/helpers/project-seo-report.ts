@@ -6,6 +6,7 @@ import {
   seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
+import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -250,7 +251,7 @@ const partial = z
     keywords: z.array(keyword).max(5000),
     competitors: z.array(competitor).max(1000),
     findings: z.array(finding).max(5000),
-    actions: z.array(z.never()),
+    actions: z.array(action).max(100),
     coverage: z.object({
       requested: z.array(text),
       completed: z.array(text),
@@ -434,6 +435,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!parsed.success)
       throw badRequest("The SEO result does not match its supported format");
     const result = parsed.data;
+    assertValidPartialSeoActions(result);
     return publicSeoPayloadSchema.parse({
       version: 1,
       kind: result.kind,
@@ -450,7 +452,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         scopePageUrls: result.scope.pageUrls,
       })),
       findings: result.findings,
-      actions: [],
+      actions: result.actions,
       coverage: {
         checked: result.checks.filter((check) => check.result !== "not_checked")
           .length,

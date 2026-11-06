@@ -11,6 +11,12 @@ import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  SeoWorkspaceLoadError,
+  seoLoadErrorStatus,
+  seoLoadRecovery,
+  shouldRetrySeoLoad,
+} from "@/app/seo/seo-load-error-model";
 import { SEO_TABS } from "@/app/seo/seo-query";
 import { mutateSeo } from "@/lib/actions/seo/action";
 import type { SeoCommand } from "@/lib/actions/seo/types";
@@ -73,6 +79,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   ];
   const result = useQuery<ProjectSeoWorkspace>({
     queryKey: key,
+    retry: shouldRetrySeoLoad,
     queryFn: async ({ signal }) => {
       const response = await fetch(`${seoOwnerApiPath(owner)}?${query}`, {
         signal,
@@ -83,7 +90,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
           session?.session.activeOrganizationId,
         ),
       });
-      if (!response.ok) throw new Error("SEO workspace unavailable");
+      if (!response.ok) throw new SeoWorkspaceLoadError(response.status);
       return response.json();
     },
     initialData:
@@ -95,6 +102,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     enabled: !invalidDates && !!session?.user.id,
     refetchOnWindowFocus: false,
     refetchInterval: (state) =>
+      !seoLoadRecovery({ status: seoLoadErrorStatus(state.state.error) })
+        .contextual &&
       state.state.data?.analyses.some(
         (analysis) =>
           analysis.status === "requested" || analysis.status === "running",
@@ -227,6 +236,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     toggleCompetitor,
     createActionTask,
     loadingScope: !result.data,
+    waitingForContext: !result.data && identity !== initialIdentity.current,
     filters,
     setFilters,
     result,

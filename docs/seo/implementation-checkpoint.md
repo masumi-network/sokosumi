@@ -170,6 +170,24 @@ VERIFIED: the deployed worker's earlier Task parser does not understand the new 
 
 INFERRED: release should apply the additive SEO migration and deploy Core, Web and the updated public worker together after review. This tab is a Sokosumi feature; its Core and Web changes require a separate release decision. Existing native Google connections remain the connection path.
 
+## Results, recovery and activity graph revision
+
+REPORTED: The owner selected TUM-Hackathon when the Battery Sensei Audit returned 404. VERIFIED: the request-scoped diagnostic recorded `404` for that active context and `200` for SEO Bot Preprod. The Audit was not lost. Evidence: `/private/tmp/seo-dd84-seo-load-error-evidence.json`.
+
+VERIFIED: `seo-load-error-model.ts` distinguishes contextual errors from transient failures. The recovery view explains the current Workspace and offers the Audit list or an all-pages reset. It does not discover other Workspaces or weaken Core access checks. REPORTED: retained original-source recovery tests reported `5 failed` and `1 passed`; the default-query retry regression reported four reads instead of one.
+
+VERIFIED: `seo-overview-model.ts` separates critical, major and minor issues from measurements, notes and diagnostic tests. `seo-overview.tsx` places diagnostics and citations inside closed Check details. Existing action Tasks remain visible. Coverage limits do not imply that unrequested modules failed. REPORTED: original-source disclosure regressions reported `2 failed`; independent model and Workspace checks reported `43 passed`.
+
+VERIFIED: `seo-timeline-model.ts` orders dated graph nodes by actual check time. Saved-report time remains separate. Only comparable page checks receive the Recheck label. Other request kinds lack enough keyword or module identity for that claim. Action nodes retain their link date and identify current Task status. `/private/tmp/seo-timeline-focused.log` reports `22 passed`.
+
+VERIFIED: the real Timeline and app stylesheet rendered in a local synthetic harness. Full-width and 375-pixel-container checks covered light and dark themes, keyboard horizontal scrolling and the saved-time disclosure. This was not a mobile-viewport test or a live Audit. Evidence: `/private/tmp/seo-activity-graph-desktop.png` and `/private/tmp/seo-activity-graph-narrow-dark.png`.
+
+VERIFIED: the companion worker now generates fixed recommendations from confirmed, supported HTML failures. It leaves normal metadata measurements actionless and performs no additional provider or model read. Root retained the new test with the previous producer in a disposable tree: `tests 1`, `fail 1`, `0 !== 1`. The current complete worker suite reports `tests 2161`, `pass 2159`, `fail 0`, `skipped 2`; TypeScript exits 0. Evidence: `/private/tmp/seo-actions-worker-old-source.log`, `seo-actions-worker-full.log` and `seo-actions-worker-typecheck.log`.
+
+REPORTED: Core partial-report validation checks exact page, device, row, source, time and evidence references before importing those recommendations. Focused checks reported `20 passed`; independent parser review reported `8 passed`. Historical empty partial reports and full reports remain supported. This revision adds no migration, live Task or hosted change.
+
+VERIFIED: final complete Web run reported `1320 passed` files and `13499 passed` tests, with `6 successful, 6 total` tasks. Evidence: `/private/tmp/seo-results-graph-web-final.log`. This followed both contextual automatic-read corrections. The prior full run reported `13498 passed` before the final polling test was added.
+
 ## Least confident decisions
 
 1. INFERRED: supported Composio tools may still vary by connected account. Runtime metadata checks refuse unsupported or non-read-only tools.

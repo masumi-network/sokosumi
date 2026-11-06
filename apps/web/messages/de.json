@@ -10618,7 +10618,7 @@
         "partial": "Einige Statistiken fehlen. Prüfe die Quellen und Hinweise zur Abdeckung.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
-        "findings": "Befunde und Beobachtungen",
+        "findings": "Probleme prüfen",
         "audits": "Erfasste Ergebnisse",
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
@@ -10639,7 +10639,11 @@
         "getStartedUnavailable": "Importiere einen vorhandenen Bericht, um öffentliche Befunde zu sehen. Verbinde unten eine Statistikquelle für Zugriffsmessungen.",
         "noMeasuredReports": "Keine Berichte in diesem Aktivitätszeitraum gemessen",
         "noMeasuredReportsBody": "Entferne die Aktivitätsdaten, um Berichte aus anderen Zeiträumen zu sehen. Statistiken behalten ihren eigenen Berichtszeitraum.",
-        "clearActivityDates": "Aktivitätsdaten entfernen"
+        "clearActivityDates": "Aktivitätsdaten entfernen",
+        "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
+        "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
+        "checkDetails": "Prüfdetails",
+        "diagnostics": "Messwerte und Hinweise"
       },
       "keywords": {
         "title": "Keywords",
@@ -10697,7 +10701,13 @@
         "task_created": "Entwurfsaufgabe erstellt",
         "implemented": "Umgesetzt",
         "verified": "Verifiziert",
-        "help": "Eine umgesetzte Aufgabe braucht eine passende Nachprüfung, bevor das SEO-Ergebnis verifiziert ist."
+        "help": "Eine umgesetzte Aufgabe braucht eine passende Nachprüfung, bevor das SEO-Ergebnis verifiziert ist.",
+        "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
+        "noFixesBody": "Die erfassten Prüfungen empfehlen keine Korrekturen. Prüfe ihre Abdeckung oder richte Statistiken ein, um den nächsten Schritt zu wählen.",
+        "checksIncomplete": "Diese Prüfungen sind unvollständig",
+        "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
+        "unplannedIssues": "Noch keine empfohlenen Aktionen",
+        "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder öffne den SEO-Chat für die nächsten Schritte."
       },
       "pages": {
         "title": "Seiten",
@@ -10731,7 +10741,25 @@
         "scope": "Seitenauswahl",
         "details": "Arbeitsdetails",
         "page_change": "Seitenänderung",
-        "rulebook": "Regelwerk {version}"
+        "rulebook": "Regelwerk {version}",
+        "graphDescription": "Prüfungen, Änderungen und Aktionsaufgaben, von alt nach neu. Die Abstände zeigen keine Zeitdauer.",
+        "graphLabel": "SEO-Aktivitätsdiagramm",
+        "auditRun": "Audit-Ergebnisse",
+        "checkRun": "Prüfergebnisse",
+        "recheckRun": "Ergebnisse der Nachprüfung",
+        "analysisRequested": "Prüfung angefordert",
+        "metricsSynced": "Statistiken synchronisiert",
+        "actionLinked": "Aktionsaufgabe verknüpft",
+        "scopeChanged": "Seitenauswahl geändert",
+        "pageChanged": "Seitenänderung erfasst",
+        "checkedAt": "Geprüft",
+        "savedAt": "Gespeichert",
+        "currentTaskStatus": "Aktueller Aufgabenstatus",
+        "checkSummary": "{checked} Prüfungen erfasst",
+        "previousCheck": "Wiederholt eine frühere Prüfung derselben Seiten, Märkte, Geräte und Regeln.",
+        "sourceDetails": "Ereignisdetails",
+        "resultsSaved": "Ergebnisse gespeichert",
+        "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden."
       },
       "analysis": {
         "title": "Prüfung starten",
@@ -10939,7 +10967,10 @@
         "callbackDone": "Dein Konto ist verbunden. Kehre zum Audit zurück, wähle eine Property und synchronisiere die Statistiken.",
         "returnToAudit": "Zurück zum Audit",
         "invalidCallback": "Dieser Link enthält keinen gültigen SEO-Verbindungskontext. Starte die Verbindung im Audit."
-      }
+      },
+      "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
+      "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
+      "openAllPages": "Alle Seiten öffnen"
     }
   },
   "Share": {

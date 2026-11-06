@@ -3,10 +3,12 @@ import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
+import type { SeoOwner } from "@/lib/seo/owner";
 import { seoService } from "@/lib/services/seo.service";
 import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
+import { seoLoadErrorStatus } from "./seo-load-error-model";
 import { readSeoPageQuery } from "./seo-query";
 
 export const instant = false;
@@ -30,8 +32,13 @@ export default async function SeoPage({
       </WorkspacePageShell>
     );
   const { auditId, projectId, cursor, tab: _tab, ...query } = parsed.data;
+  const owner: SeoOwner | undefined = auditId
+    ? { kind: "audit", id: auditId }
+    : projectId
+      ? { kind: "project", id: projectId }
+      : undefined;
   try {
-    if (!auditId && !projectId) {
+    if (!owner) {
       const index = await seoService.listAudits({ cursor });
       return (
         <WorkspacePageShell title={t("title")}>
@@ -42,9 +49,6 @@ export default async function SeoPage({
         </WorkspacePageShell>
       );
     }
-    const owner = auditId
-      ? { kind: "audit" as const, id: auditId }
-      : { kind: "project" as const, id: projectId! };
     const workspace = await seoService.getWorkspace(owner, query);
     return (
       <WorkspacePageShell title={t("title")}>
@@ -58,7 +62,12 @@ export default async function SeoPage({
     unstable_rethrow(error);
     return (
       <WorkspacePageShell title={t("title")}>
-        <SeoPageError resetHref="/seo" />
+        <SeoPageError
+          resetHref="/seo"
+          status={seoLoadErrorStatus(error)}
+          owner={owner}
+          hasSelection={Boolean(query.pageId || query.scopeId)}
+        />
       </WorkspacePageShell>
     );
   }

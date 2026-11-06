@@ -145,6 +145,128 @@ afterEach(() => {
 });
 
 describe("SEO workspace integration", () => {
+  it("keeps passing measurements behind closed check details and offers statistics after limited checks", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.observations.push({
+      id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: workspace.observations[0].id,
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Title length measured",
+      severity: "measure",
+      evidence: [
+        "The title has 42 characters. Technical reference: HTML title element.",
+      ],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes("/statistics/properties")
+            ? { status: "not_connected", properties: [] }
+            : workspace,
+        ),
+      ),
+    );
+    renderWorkspace(workspace);
+    const measurement = screen.getByText("Title length measured");
+    expect(measurement).not.toBeVisible();
+    expect(measurement.closest("details")).not.toHaveAttribute("open");
+    expect(
+      screen.getByText("No fixes recommended from these checks"),
+    ).toBeVisible();
+    await user.click(
+      screen.getAllByRole("button", { name: "Set up statistics" })[0],
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Sync statistics" }),
+    ).toBeVisible();
+  });
+
+  it("keeps raw issue evidence out of the default findings cards", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "missing-description",
+      observationId: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "meta-description",
+      title: "The page has no description",
+      severity: "major",
+      evidence: ["Raw HTML evidence: no meta description element."],
+      sourceRef: "html:head",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(screen.getByText("The page has no description")).toBeVisible();
+    const evidence = screen.getByText(
+      "Raw HTML evidence: no meta description element.",
+    );
+    expect(evidence).not.toBeVisible();
+    await user.click(screen.getByText("Check details"));
+    expect(evidence).toBeVisible();
+  });
+
+  it.each([false, true])(
+    "distinguishes an empty Actions tab when checked evidence exists: %s",
+    async (checked) => {
+      const workspace = seoTestWorkspace();
+      if (checked)
+        workspace.observations.push({
+          id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+          kind: "page_check",
+          source: "seo_coworker",
+          observedAt: new Date("2026-01-03T12:00:00Z"),
+          pageIds: workspace.scope.pageIds,
+          scopeVersion: 2,
+          sourceTaskId: null,
+          countryCode: "US",
+          languageCode: "en",
+          devices: ["desktop"],
+          rulebookVersion: "html-v1",
+          artifactHash: "checked-html",
+          coverage: { checked: 2, skipped: 2, failed: 0 },
+        });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace, "tab=actions");
+      expect(
+        screen.getByText(
+          checked
+            ? "No fixes recommended from these checks"
+            : "No recommended actions",
+        ),
+      ).toBeVisible();
+      expect(screen.queryByText("These checks are incomplete")).toBeNull();
+    },
+  );
+
   it.each([
     { label: "", expected: "Related to: https://example.com/" },
     { label: "Home", expected: "Related to: Home" },

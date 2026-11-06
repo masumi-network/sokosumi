@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import {
+  seoLoadErrorStatus,
+  seoLoadRecovery,
+} from "@/app/seo/seo-load-error-model";
 import { SEO_TABS, type SeoTab } from "@/app/seo/seo-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +36,7 @@ import { SeoImportDialog } from "./seo-import-dialog";
 import { SeoKeywords } from "./seo-keywords";
 import { SeoOverview } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
+import { SeoPageError } from "./seo-page-error";
 import { SeoPages } from "./seo-pages";
 import { SeoScopeBar } from "./seo-scope-bar";
 import { SeoEmpty } from "./seo-shared";
@@ -54,6 +59,31 @@ export function SeoWorkspace({
     model.dialog === "edit_keyword" ||
     model.dialog === "competitor";
   const unavailable = model.loadingScope || model.invalidDates;
+  const loadStatus = seoLoadErrorStatus(model.result.error);
+  if (
+    model.result.isError &&
+    (model.loadingScope || seoLoadRecovery({ status: loadStatus }).contextual)
+  )
+    return (
+      <SeoPageError
+        resetHref="/seo"
+        status={loadStatus}
+        owner={model.owner}
+        hasSelection={Boolean(model.filters.pageId || model.filters.scopeId)}
+        onRetry={() => {
+          void model.result.refetch();
+        }}
+      />
+    );
+  if (model.waitingForContext)
+    return (
+      <p
+        role="status"
+        className="py-8 text-center text-muted-foreground text-sm"
+      >
+        {t("loading")}
+      </p>
+    );
   return (
     <div className="space-y-6">
       <div className="space-y-2">

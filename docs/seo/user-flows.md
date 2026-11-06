@@ -103,6 +103,16 @@ INFERRED: The next source correction preserves the managed verifier URL. Its exa
 | Chat                    | A real reply inside the Audit, working native proposals, no personal assistant onboarding                  |
 | Access and layout       | Viewer/Workspace isolation, keyboard controls, narrow screen, loading and recoverable errors               |
 
+## Results and activity graph revision
+
+INFERRED: Overview should lead with recommended work and real issues. A normal title length belongs in closed Check details. An empty recommendation list should explain the measured scope and offer a useful next step.
+
+INFERRED: Timeline should connect dated events across the selected pages. A check uses its measurement time; its later save time remains in details. Comparable page checks can be labeled Recheck. Ranking and Audit lite runs need more request identity before making that comparison.
+
+INFERRED: An action node shows when its Task was linked and the Task's current status. It does not invent an implementation or verification date. Source Task links and failed-check recovery remain available.
+
+INFERRED: A Workspace mismatch should explain the unavailable Audit and link to the current Workspace's Audit list. It should keep the existing access checks and should not switch Workspaces automatically.
+
 ## Least confident decisions
 
 1. VERIFIED: The consent attempts reached main Preprod's protected `/personal-assistant/integrations/verify`, then sign-in. Native popup closure remains unverified online. The source correction preserves the managed project's setting; a personal Composio admin account is not required.
