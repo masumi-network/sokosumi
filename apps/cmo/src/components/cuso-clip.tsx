@@ -32,7 +32,7 @@ export interface CusoClipProps {
   width: number;
   height: number;
   className?: string;
-  /** Plays once this is true. */
+  /** Plays once this is true and half the clip is on screen. */
   play?: boolean;
   /** Plays again this long after each end; without it the clip plays once. */
   replayAfterMs?: number;
@@ -70,10 +70,21 @@ export function CusoClip({
   });
 
   useEffect(() => {
-    if (!motion || !play) return;
+    const element = video.current;
+    if (!motion || !play || !element) return;
     const start = () => started.current?.();
-    // A refused autoplay (low power mode) leaves the poster, which is the still.
-    video.current?.play().then(start, start);
+    // Below the fold (the hire hero on a phone) it waits to be seen.
+    const view = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        view.disconnect();
+        // A refused autoplay (low power mode) leaves the poster, the still.
+        element.play().then(start, start);
+      },
+      { threshold: 0.5 },
+    );
+    view.observe(element);
+    return () => view.disconnect();
   }, [motion, play]);
 
   useEffect(() => () => clearTimeout(replay.current), []);

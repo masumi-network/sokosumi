@@ -11,6 +11,12 @@ import { Onboarding } from "./onboarding";
 const media = { matches: false };
 /** Every element `play()` was called on, in order. */
 let played: HTMLMediaElement[];
+/** Whether a clip is on screen as soon as it is watched. */
+let onScreen: boolean;
+let views: {
+  seen: boolean;
+  report: (entries: { isIntersecting: boolean }[]) => void;
+}[];
 let root: Root;
 let host: HTMLDivElement;
 
@@ -25,6 +31,25 @@ beforeEach(() => {
     removeEventListener() {},
   }));
   played = [];
+  onScreen = true;
+  views = [];
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      seen = false;
+      constructor(
+        readonly report: (entries: { isIntersecting: boolean }[]) => void,
+      ) {
+        views.push(this);
+      }
+      observe() {
+        if (onScreen) this.report([{ isIntersecting: true }]);
+      }
+      disconnect() {
+        this.seen = true;
+      }
+    },
+  );
   vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (
     this: HTMLMediaElement,
   ) {
@@ -132,6 +157,22 @@ describe("CusoClip", () => {
       />,
     );
     expect(onStart).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits until it is on screen", async () => {
+    onScreen = false;
+    await render(
+      <CusoClip src="/cuso/hero.jpg" alt="" width={640} height={800} />,
+    );
+    expect(played).toEqual([]);
+
+    await act(async () => {
+      for (const view of views) {
+        if (!view.seen) view.report([{ isIntersecting: true }]);
+      }
+    });
+
+    expect(played).toEqual([video()]);
   });
 
   it("plays a scene once", async () => {
