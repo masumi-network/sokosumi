@@ -215,7 +215,9 @@ p {
   background: var(--surface);
 }
 
-.button[aria-busy="true"] {
+/* Any SubmitButton (including menu items that are not .button). Without
+   this the bar anchors to a positioned ancestor and sweeps out of a menu. */
+button[aria-busy="true"] {
   position: relative;
   overflow: hidden;
   cursor: progress;
