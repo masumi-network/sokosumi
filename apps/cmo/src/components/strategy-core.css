@@ -44,7 +44,7 @@
   gap: 4px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
 }
 
 .sc-ladder li:nth-child(2) {
@@ -66,10 +66,10 @@
   margin-inline: calc(var(--sc-step, 0) * 20px);
   padding: 20px 24px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: color-mix(
     in srgb,
-    var(--brand, var(--accent)) calc(10% - var(--sc-step, 0) * 2%),
+    var(--brand, var(--border)) calc(10% - var(--sc-step, 0) * 2%),
     var(--background)
   );
 }
@@ -164,7 +164,7 @@
   gap: 6px;
   margin: 0;
   padding: 12px 16px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--surface);
   list-style: none;
 }
@@ -190,7 +190,7 @@
 }
 
 .sc-basis.measured {
-  color: var(--ok);
+  color: var(--foreground);
 }
 
 /* Before and after, one row a channel */
@@ -262,7 +262,7 @@
   gap: 2px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
   font: inherit;
@@ -333,7 +333,7 @@
   height: 36px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
 }
 
 .sc-ads-input input {
@@ -415,7 +415,7 @@
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -428,7 +428,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--ok);
+  color: var(--foreground);
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -440,7 +440,7 @@
   height: 32px;
   padding: 0 12px;
   border: 1px solid var(--foreground);
-  border-radius: var(--radius);
+  border-radius: var(--radius-control);
   background: var(--foreground);
   color: var(--background);
   font: inherit;
@@ -467,7 +467,7 @@
 
 .sc-source-error {
   margin: 8px 0 0;
-  color: var(--warn);
+  color: var(--foreground);
   font-size: 0.875rem;
 }
 

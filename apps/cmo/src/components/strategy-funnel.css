@@ -21,10 +21,10 @@
   width: var(--fn-width);
   min-height: 64px;
   padding: 12px 16px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: color-mix(
     in srgb,
-    var(--brand, var(--accent)) var(--fn-tint),
+    var(--brand, var(--border)) var(--fn-tint),
     var(--background)
   );
   color: var(--foreground);
@@ -80,8 +80,8 @@
   align-content: start;
   gap: 4px;
   padding: 16px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
 }
 
 .fn-proposals p {
