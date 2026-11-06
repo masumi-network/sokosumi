@@ -82,12 +82,64 @@ async function setColor(
   await user.keyboard("{Escape}");
 }
 
+async function openCustomize(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", { name: "Customize signup form" }),
+  );
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.save.mockResolvedValue({ ok: true, value: BRANDED });
 });
 
 describe("newsletter signup designer", () => {
+  it("leads with share and preview, with customization closed and no save action", () => {
+    renderDesigner();
+    const [share, preview, customize] = [
+      "Share",
+      "Signup form preview",
+      "Customize signup form",
+    ].map((name) => screen.getByRole("heading", { name }));
+    expect(share.compareDocumentPosition(preview)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(preview.compareDocumentPosition(customize)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(
+      screen.getByRole("button", { name: "Customize signup form" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Button color")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save design" })).toBeNull();
+  });
+
+  it("opens customization when a signup override is saved", () => {
+    renderDesigner({
+      ...BRANDED,
+      brand: { ...BRANDED.brand, signupForm: { spacing: "compact" } },
+    });
+    expect(
+      screen.getByRole("button", { name: "Customize signup form" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Save design" })).toBeVisible();
+  });
+
+  it("keeps unsaved edits saveable when closed and reopens an invalid section", async () => {
+    const user = userEvent.setup();
+    renderDesigner();
+    await openCustomize(user);
+    await setColor(user, "Button color", "#12");
+    await openCustomize(user);
+    expect(screen.queryByLabelText("Button color")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Save design" }));
+    expect(await screen.findByLabelText("Button color")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
   it("uses shared design by default and previews unsaved overrides in both formats", async () => {
     const user = userEvent.setup();
     const { container } = renderDesigner();
@@ -99,6 +151,7 @@ describe("newsletter signup designer", () => {
       color: "#111111",
     });
     expect(previewButton(container)).toHaveClass("rounded-full");
+    await openCustomize(user);
     await setColor(user, "Button color", "#123456");
     expect(previewButton(container)).toHaveStyle({
       backgroundColor: "#123456",
@@ -121,6 +174,7 @@ describe("newsletter signup designer", () => {
   it("saves through existing newsletter settings and reloads the same design", async () => {
     const user = userEvent.setup();
     const { container, unmount } = renderDesigner();
+    await openCustomize(user);
     await setColor(user, "Button color", "#123456");
     await user.click(screen.getByRole("button", { name: "Save design" }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
@@ -200,6 +254,7 @@ describe("newsletter signup designer", () => {
     const user = userEvent.setup();
     const { container } = renderDesigner();
     const copy = en.App.Projects.Newsletter;
+    await openCustomize(user);
     for (const [label, option] of [
       [copy.fields.buttonShape, copy.Design.buttonShape.square],
       [copy.fields.headerAlign, copy.Design.headerAlign.left],
@@ -233,6 +288,7 @@ describe("newsletter signup designer", () => {
       error: { message: en.App.Projects.Newsletter.error },
     });
     const { container } = renderDesigner();
+    await openCustomize(user);
     await setColor(user, "Button color", "#123456");
     await user.click(screen.getByRole("button", { name: "Save design" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(

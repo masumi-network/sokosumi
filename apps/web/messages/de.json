@@ -3682,7 +3682,8 @@
         "SignupForm": {
           "title": "Anmeldeformular",
           "pageDescription": "Gewinne neue Newsletter-Abonnenten mit einer gehosteten Anmeldeseite oder einem eingebetteten Formular.",
-          "description": "Teile die Anmeldeseite oder füge den iframe-Code in deine Website ein. Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
+          "shareTitle": "Teilen",
+          "description": "Neue Abonnenten bestätigen ihre E-Mail-Adresse, bevor sie Ausgaben erhalten.",
           "previewTitle": "Vorschau des Anmeldeformulars",
           "previewDescription": "Änderungen sind hier sofort sichtbar. Speichere das Design, um die öffentliche Seite und das eingebettete Formular zu aktualisieren.",
           "hostedPage": "Gehostete Anmeldeseite",
