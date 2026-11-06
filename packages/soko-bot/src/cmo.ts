@@ -448,6 +448,9 @@ if (!dreaming?.promptShared?.includes(STAND_UP_LINE))
 export const CMO_DREAMING_SCHEDULE = {
   key: "dreaming",
   name: dreaming.name,
+  when: "Every night at 03:00",
+  description:
+    "Turns the day's corrections and anything that failed into lasting rules, so he doesn't repeat a mistake. Silent: it never messages you.",
   cronExpression: dreaming.cronExpression,
   prompt: dreaming.promptShared.replace(
     STAND_UP_LINE,

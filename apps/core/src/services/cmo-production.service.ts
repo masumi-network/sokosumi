@@ -2,7 +2,7 @@ import {
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
   type MarketingStrategyPlan,
-  SOKO_BOT_CMO_SCHEDULES,
+  SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
@@ -671,7 +671,7 @@ async function keepCmoRhythmsWithRunner(cuso: Cuso): Promise<void> {
   await prisma.sokoBotSchedule.updateMany({
     where: {
       sokoBotId: cuso.sokoBotId,
-      systemKey: { in: SOKO_BOT_CMO_SCHEDULES.map((schedule) => schedule.key) },
+      systemKey: { in: SOKO_BOT_CMO_RHYTHMS.map((schedule) => schedule.key) },
       OR: [
         { requestedByUserId: null },
         { requestedByUserId: { not: runnerId } },
