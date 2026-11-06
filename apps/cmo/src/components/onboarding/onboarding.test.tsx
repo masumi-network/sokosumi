@@ -484,7 +484,7 @@ describe("Plan", () => {
     expect(html).toContain("Approve plan");
     expect(html).toContain("Ask for a change");
     expect(html).toContain("X now once a week");
-    for (const tab of ["The plan", "Your month", "How we know it works"]) {
+    for (const tab of ["Three moves", "Your month", "How we know it works"]) {
       expect(html).toContain(tab);
     }
     expect(html).toContain('role="tablist"');

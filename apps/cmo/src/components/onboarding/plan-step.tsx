@@ -4,11 +4,11 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { strategyApproved } from "../../lib/strategy";
-import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
@@ -522,7 +522,7 @@ export function PlanReview({
           </div>
         ) : null}
 
-        <div className="ob-tabs" role="tablist" aria-label="The plan">
+        <div className="ob-tabs" role="tablist" aria-label="Plan">
           {TABS.map((candidate) => (
             <button
               key={candidate.id}

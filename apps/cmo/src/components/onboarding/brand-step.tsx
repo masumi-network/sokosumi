@@ -4,7 +4,7 @@ import "./onboarding.css";
 import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
   type BrandBrain,
@@ -30,7 +30,7 @@ import {
   Voice,
 } from "../brand-profile";
 import { BusinessMark } from "../business-mark";
-import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import {

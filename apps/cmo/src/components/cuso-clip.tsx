@@ -63,28 +63,42 @@ export function CusoClip({
   const motion = useMotionAllowed();
   const video = useRef<HTMLVideoElement>(null);
   const replay = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // The latest callback, so a new function each render does not replay the clip.
+  // The latest callbacks, so a new function each render does not replay the clip.
   const started = useRef(onStart);
+  const finished = useRef(onEnded);
   useEffect(() => {
     started.current = onStart;
+    finished.current = onEnded;
   });
 
   useEffect(() => {
     const element = video.current;
     if (!motion || !play || !element) return;
-    const start = () => started.current?.();
+    let cancelled = false;
+    const start = () => {
+      if (!cancelled) started.current?.();
+    };
+    // A refused autoplay leaves the poster; still finish so hire sequences
+    // waiting on onEnded (the avatar after the hero) do not stall.
+    const refuse = () => {
+      if (cancelled) return;
+      started.current?.();
+      finished.current?.();
+    };
     // Below the fold (the hire hero on a phone) it waits to be seen.
     const view = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         view.disconnect();
-        // A refused autoplay (low power mode) leaves the poster, the still.
-        element.play().then(start, start);
+        element.play().then(start, refuse);
       },
       { threshold: 0.5 },
     );
     view.observe(element);
-    return () => view.disconnect();
+    return () => {
+      cancelled = true;
+      view.disconnect();
+    };
   }, [motion, play]);
 
   useEffect(() => () => clearTimeout(replay.current), []);

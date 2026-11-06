@@ -136,8 +136,8 @@ const BASES = {
 } as const;
 
 /**
- * The funnel, top to bottom: each stage's job, what every channel does there
- * and how often, who moves it, and today's number with how it is known.
+ * The three moves, top to bottom: each stage's job, what every channel does
+ * there and how often, who moves it, and today's number with how it is known.
  */
 export function FunnelPlan({
   stages,

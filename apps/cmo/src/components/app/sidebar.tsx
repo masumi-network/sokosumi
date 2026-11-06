@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AGENT_NAME } from "../../lib/agent";
 import { VIEW_PATHS, type View } from "../../lib/views";
+import { hostOf } from "../brand-profile";
 import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
@@ -28,16 +29,9 @@ export const VIEWS = [
   ["settings", "Settings", Settings],
 ] as const satisfies readonly (readonly [View, string, LucideIcon])[];
 
+/** First letter for the person avatar chip. */
 export function initial(text: string): string {
   return text.trim().charAt(0).toUpperCase() || "?";
-}
-
-function siteHost(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
 
 interface SidebarProps {
@@ -59,7 +53,7 @@ export function Sidebar({
   email,
   now,
 }: SidebarProps) {
-  const host = siteHost(overview.websiteUrl);
+  const host = hostOf(overview.websiteUrl);
   const displayName = businessDisplayName(overview);
   return (
     <nav className="side" aria-label="Main">

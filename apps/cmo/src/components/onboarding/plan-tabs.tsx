@@ -3,12 +3,11 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, CalendarDays, Repeat, Sparkles, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { formatDay, planWeeks } from "../../lib/calendar";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
-import { AGENT_NAME } from "../cuso";
 import { PhoneFeeds } from "../phone-feeds";
 import { withoutLabel } from "../showcases";
 import {
@@ -39,7 +38,7 @@ export type ConnectMeasurement = (
 export type PlanTab = "plan" | "month" | "results";
 
 export const TABS: { id: PlanTab; label: string }[] = [
-  { id: "plan", label: "The plan" },
+  { id: "plan", label: "Three moves" },
   { id: "month", label: "Your month" },
   { id: "results", label: "How we know it works" },
 ];
@@ -56,9 +55,9 @@ interface PlanPanelProps {
 }
 
 /**
- * The moves, what stops people buying, the mix of posts, the other plans
- * Cuso weighed, the topics and where he works; the rest sits under
- * "Everything in the plan".
+ * Three moves (each stage's channels and what it measures), what stops
+ * people buying, the mix of posts, the other plans Cuso weighed, the
+ * topics and where he works; the rest sits under "Everything in the plan".
  */
 export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   const stages = strategy.funnel ?? [];
@@ -69,7 +68,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   return (
     <div className="bb" style={brandStyle(overview)}>
       {stages.length > 0 ? (
-        <Section title="How people become customers" wide>
+        <Section title="Three moves" wide>
           {stages.some((stage) => (stage.plays ?? []).length > 0) ? (
             <FunnelPlan
               stages={stages}
@@ -82,7 +81,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
       ) : null}
       {barrier ? (
         <Section title="What stops people buying">
-          <div className="panel ob-barrier">
+          <div className="ob-barrier">
             <p className="ob-statement">{barrier.text}</p>
             {mix[0] ? (
               <p className="muted">

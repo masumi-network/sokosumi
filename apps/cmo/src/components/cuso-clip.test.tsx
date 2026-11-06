@@ -132,6 +132,7 @@ describe("CusoClip", () => {
 
   it("says when it starts, and when autoplay is refused", async () => {
     const onStart = vi.fn();
+    const onEnded = vi.fn();
     await render(
       <CusoClip
         src="/cuso/hero.jpg"
@@ -139,9 +140,11 @@ describe("CusoClip", () => {
         width={640}
         height={800}
         onStart={onStart}
+        onEnded={onEnded}
       />,
     );
     expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onEnded).toHaveBeenCalledTimes(0);
 
     await act(async () => root.render(null));
     vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(
@@ -154,9 +157,11 @@ describe("CusoClip", () => {
         width={640}
         height={800}
         onStart={onStart}
+        onEnded={onEnded}
       />,
     );
     expect(onStart).toHaveBeenCalledTimes(2);
+    expect(onEnded).toHaveBeenCalledTimes(1);
   });
 
   it("waits until it is on screen", async () => {
@@ -243,6 +248,27 @@ describe("hire screen", () => {
     await end(hero);
 
     expect(played).toEqual([hero, avatar]);
+  });
+
+  it("plays the avatar when the hero's autoplay is refused", async () => {
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(function (
+      this: HTMLMediaElement,
+    ) {
+      played.push(this);
+      return Promise.reject(new Error("NotAllowedError"));
+    });
+    await render(<Onboarding onboard={vi.fn()} />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const hero = video(".ob-stage-art");
+    const avatar = video(".cuso-avatar video");
+    expect(played).toEqual([hero, avatar]);
+    expect(
+      host.querySelector(".ob-stage")?.classList.contains("ob-stage-live"),
+    ).toBe(true);
   });
 
   it("lets Cuso announce the stage labels once the hero starts", async () => {

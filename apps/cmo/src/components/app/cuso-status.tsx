@@ -1,7 +1,8 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import { AGENT_NAME } from "../../lib/agent";
 import { type CusoState, cusoState, cusoStatus } from "../../lib/thread";
-import { AGENT_NAME, CusoAvatar, type Pose } from "../cuso";
+import { CusoAvatar, type Pose } from "../cuso";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

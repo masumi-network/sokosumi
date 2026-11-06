@@ -7,7 +7,8 @@ import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
-import { AGENT_NAME, CusoAvatar } from "./cuso";
+import { AGENT_NAME } from "../lib/agent";
+import { CusoAvatar } from "./cuso";
 import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";

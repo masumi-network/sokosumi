@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
   isSocialProvider,
@@ -13,7 +13,7 @@ import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
-import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";

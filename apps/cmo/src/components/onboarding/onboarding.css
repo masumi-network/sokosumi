@@ -1755,10 +1755,11 @@ body:has(.ob) .site-header {
   justify-self: start;
 }
 
-/* Plan: what stops people buying on a panel strip, the other plans, the rest. */
+/* Plan: what stops people buying, inside the tab's card (not a nested panel). */
 .ob-barrier {
+  display: grid;
   gap: 8px;
-  padding: 20px;
+  padding: 4px 0;
 }
 
 .ob-alts {

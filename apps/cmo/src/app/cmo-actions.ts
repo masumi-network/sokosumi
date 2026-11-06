@@ -458,7 +458,9 @@ export async function addMailingList(
   text: string,
 ): Promise<{ overview: CmoOverview | null; error: string | null }> {
   const overview = await loadOverview();
-  if (!overview) return { overview: null, error: "Cuso is not hired yet" };
+  if (!overview) {
+    return { overview: null, error: `${AGENT_NAME} is not hired yet` };
+  }
   const options = await inCusoWorkspace(overview);
   const listId = await newsletterListId(options);
   if (!listId) return { overview: null, error: "Could not add the list" };

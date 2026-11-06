@@ -1,7 +1,5 @@
 import { CusoClip } from "./cuso-clip";
 
-export { AGENT_NAME } from "../lib/agent";
-
 export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
 
 /** How long the avatar rests on its still between two plays. */

@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
   brandProfile,
@@ -11,7 +11,7 @@ import {
 } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
-import { AGENT_NAME, CusoAvatar } from "../cuso";
+import { CusoAvatar } from "../cuso";
 import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import { brandTiles, tileSource } from "./brand-step";

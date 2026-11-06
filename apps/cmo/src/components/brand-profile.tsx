@@ -15,8 +15,6 @@ import {
   type BrandBrain,
   type BrandFinding,
   type BrandSection,
-  EVIDENCE_LABELS,
-  formatAsOf,
   sourceHost,
 } from "../lib/brand-sections";
 import { ChannelIcon } from "./channel-icon";
@@ -393,40 +391,6 @@ function channelKey(name: string, url?: string): string {
   if (/newsletter|email|substack/.test(text)) return "newsletter";
   if (/blog/.test(text)) return "blog";
   return "website";
-}
-
-function _Finding({ finding }: { finding: BrandFinding }) {
-  const meta = [
-    `${finding.confidence} confidence`,
-    finding.asOf ? formatAsOf(finding.asOf) : null,
-  ].filter(Boolean);
-  return (
-    <li className="bp-finding">
-      <span className={`bp-evidence ${finding.evidence}`}>
-        {EVIDENCE_LABELS[finding.evidence]}
-      </span>
-      <div className="bp-finding-body">
-        <p>{finding.point}</p>
-        {finding.implication ? (
-          <p className="bp-so">
-            <span>So</span>
-            {finding.implication}
-          </p>
-        ) : null}
-        <p className="bp-meta">
-          {meta.join(" · ")}
-          {finding.sourceUrl ? (
-            <>
-              {" · "}
-              <a href={finding.sourceUrl} target="_blank" rel="noreferrer">
-                {sourceHost(finding.sourceUrl)}
-              </a>
-            </>
-          ) : null}
-        </p>
-      </div>
-    </li>
-  );
 }
 
 /** The month the owner confirmed something, for the finding's date. */
