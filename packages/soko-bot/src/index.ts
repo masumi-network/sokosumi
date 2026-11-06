@@ -8,6 +8,7 @@ export {
   type CmoSaveBrandBrainInput,
   type CmoStrategySave,
   type CmoSystemSchedule,
+  cmoBrandQuestionsPatchSchema,
   cmoMayExecute,
   cmoReportUpdateInputSchema,
   cmoRoutineSkipReason,
