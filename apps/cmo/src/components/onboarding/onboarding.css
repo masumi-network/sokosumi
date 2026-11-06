@@ -32,10 +32,6 @@ body:has(.ob) .site-header {
   border-bottom: 1px solid var(--border);
 }
 
-.ob-top .logo {
-  font-size: 1rem;
-}
-
 .ob-steps {
   display: flex;
   gap: 8px;
