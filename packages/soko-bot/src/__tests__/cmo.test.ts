@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   cmoMayExecute,
   cmoRoutineSkipReason,
+  cmoSaveBrandBrainInputSchema,
   cmoSaveStrategyInputSchema,
   isCmoScheduleKey,
   parseCmoStrategySave,
@@ -125,6 +126,40 @@ describe("CMO version", () => {
     for (const capability of SOKO_BOT_CMO_CAPABILITIES) {
       expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toBeTruthy();
     }
+  });
+});
+
+describe("cmoSaveBrandBrainInputSchema", () => {
+  const question = {
+    id: "q1",
+    question: "Do customers come from Google?",
+    statement: "Customers come from Google",
+    section: "marketing" as const,
+  };
+
+  it("accepts reveal, marketingToday or questions on their own", () => {
+    const reveal = { positioning: "Rockets", insights: [], buyers: [] };
+    expect(cmoSaveBrandBrainInputSchema.safeParse({ reveal }).success).toBe(
+      true,
+    );
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({
+        marketingToday: { summary: "Weekly posts" },
+      }).success,
+    ).toBe(true);
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [question] }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty questions list so it cannot wipe stored ones", () => {
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a save that sends nothing", () => {
+    expect(cmoSaveBrandBrainInputSchema.safeParse({}).success).toBe(false);
   });
 });
 

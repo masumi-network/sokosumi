@@ -15,6 +15,7 @@ const running = (kind: Work["kind"], status: Work["status"] = "running") => ({
   status,
   startedAt: new Date("2026-10-05T09:00:00Z"),
   steps: [],
+  sections: [],
   sectionsSaved: 0,
   sectionsTotal: 16,
 });

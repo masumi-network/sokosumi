@@ -100,6 +100,7 @@ export const work = (
       at: new Date("2026-10-05T09:00:05Z"),
     },
   ],
+  sections: [],
   sectionsSaved: 7,
   sectionsTotal: 16,
   ...patch,

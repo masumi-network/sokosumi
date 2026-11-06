@@ -14,7 +14,9 @@ import { getUserWorkspace } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
+  brandBrainSectionHeadlines,
   brandBrainSectionsSaved,
+  type CmoSectionHeadline,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
 import { grantCmoStarterCredits } from "@/services/cmo-billing.service";
@@ -131,6 +133,7 @@ export interface CmoWork {
   status: CmoLearningState;
   startedAt: Date;
   steps: CmoWorkStep[];
+  sections: CmoSectionHeadline[];
   sectionsSaved: number;
   sectionsTotal: number;
 }
@@ -294,6 +297,7 @@ export async function cmoWork(
       },
     ];
   });
+  const sections = brandBrainSectionHeadlines(cuso.brandBrain);
   return {
     kind: turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
       ? "strategy"
@@ -301,7 +305,8 @@ export async function cmoWork(
     status: await settledTurnStatus(turn, now),
     startedAt: turn.createdAt,
     steps,
-    sectionsSaved: brandBrainSectionsSaved(cuso.brandBrain).length,
+    sections,
+    sectionsSaved: sections.length,
     sectionsTotal: CMO_BRAND_SECTION_KEYS.length,
   };
 }
