@@ -10,6 +10,7 @@ import pLimit from "p-limit";
 import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
 import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
@@ -289,13 +290,4 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(c, body);
   });
-}
-
-/**
- * Parse max-age from Cache-Control header.
- * Example: "public, max-age=31536000" → 31536000
- */
-function parseCacheControlMaxAge(cacheControl: string): number | undefined {
-  const match = /max-age=(\d+)/.exec(cacheControl);
-  return match ? Number.parseInt(match[1], 10) : undefined;
 }
