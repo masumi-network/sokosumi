@@ -88,6 +88,91 @@ describe("saveBrandBrain", () => {
     expect(data.body.summary).toBe("Acme sells rockets.");
     expect(data.body.profile.company.answer).toBe("Founded 2019");
   });
+
+  describe("top-level reveal, marketingToday and questions", () => {
+    const reveal = {
+      positioning: "Rockets for founders",
+      insights: [
+        { title: "One", detail: "First" },
+        { title: "Two", detail: "Second" },
+        { title: "Three", detail: "Third" },
+      ],
+      buyers: [],
+    };
+    const marketingToday = { summary: "Posts weekly on LinkedIn." };
+    const question = {
+      id: "q1",
+      question: "Do customers come from Google?",
+      statement: "Customers come from Google",
+      section: "marketing" as const,
+    };
+    const storedEssentials = (extra: object = {}) => ({
+      body: { ...essentials, profile: {}, questions: [], ...extra },
+    });
+
+    it("adds reveal to the stored essentials", async () => {
+      brainFindUnique.mockResolvedValue(storedEssentials());
+      await saveBrandBrain(PROJECT_ID, { reveal: reveal as never });
+      const data = brainUpsert.mock.calls[0]?.[0].update;
+      expect(data.body).toMatchObject({ ...essentials, reveal });
+      expect(data.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it("adds marketingToday to the stored essentials", async () => {
+      brainFindUnique.mockResolvedValue(storedEssentials());
+      await saveBrandBrain(PROJECT_ID, {
+        marketingToday: marketingToday as never,
+      });
+      const data = brainUpsert.mock.calls[0]?.[0].update;
+      expect(data.body).toMatchObject({ ...essentials, marketingToday });
+    });
+
+    it("replaces the questions and keeps the owner's answers", async () => {
+      brainFindUnique.mockResolvedValue(
+        storedEssentials({
+          questions: [{ ...question, answer: "yes" as const }],
+        }),
+      );
+      await saveBrandBrain(PROJECT_ID, {
+        questions: [question, { ...question, id: "q2" }],
+      });
+      const saved = brainUpsert.mock.calls[0]?.[0].update.body;
+      expect(saved.summary).toBe("Acme sells rockets.");
+      expect(saved.questions.map((q: { id: string }) => q.id)).toEqual([
+        "q1",
+        "q2",
+      ]);
+      expect(saved.questions[0].answer).toBe("yes");
+    });
+
+    it("lets top-level questions win over brandBrain.questions", async () => {
+      brainFindUnique.mockResolvedValue(storedEssentials());
+      await saveBrandBrain(PROJECT_ID, {
+        brandBrain: { ...essentials, profile: {}, questions: [question] },
+        questions: [{ ...question, id: "q2" }],
+      });
+      const saved = brainUpsert.mock.calls[0]?.[0].update.body;
+      expect(saved.questions.map((q: { id: string }) => q.id)).toEqual(["q2"]);
+    });
+
+    it("adds to brandBrain sent in the same call", async () => {
+      brainFindUnique.mockResolvedValue(null);
+      await saveBrandBrain(PROJECT_ID, {
+        brandBrain: { ...essentials, profile: {}, questions: [] },
+        reveal: reveal as never,
+      });
+      const saved = brainUpsert.mock.calls[0]?.[0].update.body;
+      expect(saved.reveal).toEqual(reveal);
+    });
+
+    it("refuses them while no essentials are stored", async () => {
+      brainFindUnique.mockResolvedValue({ body: { profile: {} } });
+      await expect(
+        saveBrandBrain(PROJECT_ID, { reveal: reveal as never }),
+      ).rejects.toThrow("Save the essentials in brandBrain first");
+      expect(brainUpsert).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("Brand Brain questions", () => {
