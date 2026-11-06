@@ -32,7 +32,7 @@ export function isScreen(value: string): value is Screen {
 type Brain = NonNullable<CmoOverview["brandBrain"]>;
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 
-const richBrain: Brain = {
+export const richBrain: Brain = {
   ...brain,
   marketingToday: {
     summary: "Mostly LinkedIn, about one post a week.",
@@ -83,7 +83,7 @@ const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   pictures: [],
 };
 
-const richPlan: Strategy = {
+export const richPlan: Strategy = {
   ...strategy,
   changes: [],
   why: "Founders read LinkedIn and X, and they trust named people over brands.",

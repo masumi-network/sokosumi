@@ -428,7 +428,7 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
   );
   expect(
     container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
-  ).toBe("The plan");
+  ).toBe("Three moves");
   await act(async () =>
     [...container.querySelectorAll<HTMLElement>('[role="tab"]')]
       .find((tab) => tab.textContent === "How we know it works")

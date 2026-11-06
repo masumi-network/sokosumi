@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
   isSocialProvider,
@@ -13,8 +13,10 @@ import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
+import { CusoAvatar } from "../cuso";
+import { CusoClip } from "../cuso-clip";
+import { StatusDisc } from "../status";
 import { money, PACES } from "../strategy-core";
-import { AGENT_NAME, CusoAvatar, StatusDisc } from "./parts";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
 function strategyChannels(overview: CmoOverview): string[] {
@@ -179,7 +181,7 @@ export function LaunchStep({
       <section className="ob-launch ob-launch-done">
         <div className="panel ob-celebration-panel">
           <div className="card ob-celebration">
-            <img
+            <CusoClip
               src="/cuso/celebration.jpg"
               alt={`${AGENT_NAME} celebrating next to a toy rocket`}
               width={320}
@@ -189,7 +191,7 @@ export function LaunchStep({
         </div>
         <div className="ob-celebration-copy">
           <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
-          <p className="ob-muted">
+          <p className="muted">
             {AGENT_NAME} makes your month now and posts on your plan's schedule.
             Pause or change any piece from the calendar.
           </p>
@@ -233,7 +235,7 @@ export function LaunchStep({
       <h1 className="ob-h1">
         {accounts ? "One thing, then I start." : "Ready when you are."}
       </h1>
-      <p className="ob-muted">
+      <p className="muted">
         {accounts
           ? "Your plan is approved. Connect where I post."
           : "Your plan is approved."}
@@ -241,7 +243,7 @@ export function LaunchStep({
 
       {rows.length > 0 ? (
         <div className="panel ob-networks-panel">
-          <ul className="card ob-focus ob-networks">
+          <ul className="card card-focus ob-networks">
             {rows.map((key) => {
               const done = connected.has(key);
               const account = overview.channels.find(
@@ -252,16 +254,14 @@ export function LaunchStep({
                   <ChannelIcon channel={key} size={22} />
                   <div className="ob-network-text">
                     <p className="ob-network-name">{channelLabel(key)}</p>
-                    <p className="ob-small ob-muted">
+                    <p className="ob-small muted">
                       {key === "seo"
                         ? "Page fixes and articles you paste into your site."
                         : `${pieces(key)} of ${calendar.length} pieces go here`}
                     </p>
                   </div>
                   {key === "seo" ? (
-                    <span className="ob-small ob-muted">
-                      Nothing to connect
-                    </span>
+                    <span className="ob-small muted">Nothing to connect</span>
                   ) : done ? (
                     <span className="ob-connected">
                       <StatusDisc status="ok" />
@@ -270,9 +270,7 @@ export function LaunchStep({
                   ) : (
                     <>
                       {waiting && required.length === 1 ? (
-                        <span className="ob-small ob-muted">
-                          Needed to start
-                        </span>
+                        <span className="ob-small muted">Needed to start</span>
                       ) : null}
                       <button
                         type="button"
@@ -300,7 +298,7 @@ export function LaunchStep({
 
       {later.length > 0 ? (
         <div className="ob-later">
-          <p className="ob-small ob-muted">Add later</p>
+          <p className="ob-small muted">Add later</p>
           <div className="ob-later-chips">
             {later.map(({ key, perMonth }) => {
               // What connecting it adds: the plan's own pieces, or Cuso's proposal.
@@ -360,7 +358,7 @@ export function LaunchStep({
         {launching ? "Launching…" : `Launch ${AGENT_NAME}`}
         {launching ? null : <ArrowRight size={16} aria-hidden="true" />}
       </button>
-      <p className="ob-small ob-muted">
+      <p className="ob-small muted">
         {waiting
           ? `Connect ${joinNames(required.map(channelLabel), "or")} to launch.`
           : `${AGENT_NAME} only does what your approved plan says, and you can disconnect any time.`}

@@ -160,6 +160,16 @@ describe("Site while Cuso reads", () => {
     expect(site(reading())).toContain("ob-skeleton");
   });
 
+  it("shows the latest sections Cuso saved, with skeletons for the rest", () => {
+    const html = site(
+      reading({ work: work("research", { sectionsSaved: 3 }) }),
+    );
+    expect(html).toContain("Company basics");
+    expect(html).toContain("Rockets for founders, since 2019");
+    expect(html).toContain("Launches take months, not days");
+    expect(html).toContain("ob-skeleton");
+  });
+
   it("says what happens once every section is in, before the Brand Brain lands", () => {
     const html = site(
       reading({ work: work("research", { sectionsSaved: 16 }) }),
@@ -474,7 +484,7 @@ describe("Plan", () => {
     expect(html).toContain("Approve plan");
     expect(html).toContain("Ask for a change");
     expect(html).toContain("X now once a week");
-    for (const tab of ["The plan", "Your month", "How we know it works"]) {
+    for (const tab of ["Three moves", "Your month", "How we know it works"]) {
       expect(html).toContain(tab);
     }
     expect(html).toContain('role="tablist"');

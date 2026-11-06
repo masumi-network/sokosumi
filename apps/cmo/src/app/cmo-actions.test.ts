@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const startCmoOnboarding = vi.fn();
 const getCmoOverview = vi.fn();
+const getContactLists = vi.fn();
+const postContactLists = vi.fn();
+const postContactListsByIdImport = vi.fn();
 const postProjectsByIdSocialConnectionsInitiate = vi.fn();
 const postProjectsByIdSocialConnectionsFinalize = vi.fn();
 const startCmoOver = vi.fn();
@@ -37,12 +40,16 @@ vi.mock("../lib/core", () => ({
 vi.mock("@sokosumi/core-client", () => ({
   startCmoOnboarding,
   getCmoOverview,
+  getContactLists,
+  postContactLists,
+  postContactListsByIdImport,
   postProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialConnectionsFinalize,
   startCmoOver,
 }));
 
 const {
+  addMailingList,
   connectChannel,
   connectSetupChannel,
   finalizeChannel,
@@ -171,6 +178,74 @@ describe("social accounts", () => {
         body: { connectionId: "ca_1" },
       }),
     );
+  });
+});
+
+describe("addMailingList", () => {
+  const inWorkspace = {
+    headers: { authorization: "Bearer t", "x-organization-slug": "acme" },
+  };
+
+  beforeEach(() => {
+    getCmoOverview.mockResolvedValue({
+      data: { data: { projectId: "project-1", organizationSlug: "acme" } },
+      response: { status: 200 },
+    });
+    postContactListsByIdImport.mockResolvedValue({ data: { data: {} } });
+  });
+
+  it("imports into the workspace's Newsletter list", async () => {
+    getContactLists.mockResolvedValue({
+      data: {
+        data: [
+          { id: "list-0", name: "VIP", kind: "manual" },
+          { id: "list-1", name: "newsletter", kind: "manual" },
+        ],
+      },
+    });
+
+    const result = await addMailingList("ada@example.com");
+
+    expect(result.error).toBeNull();
+    expect(postContactLists).not.toHaveBeenCalled();
+    expect(postContactListsByIdImport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...inWorkspace,
+        path: { id: "list-1" },
+        body: { text: "ada@example.com" },
+      }),
+    );
+  });
+
+  it("creates the Newsletter list the first time", async () => {
+    getContactLists.mockResolvedValue({ data: { data: [] } });
+    postContactLists.mockResolvedValue({ data: { data: { id: "list-9" } } });
+
+    await addMailingList("ada@example.com");
+
+    expect(postContactLists).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...inWorkspace,
+        body: { name: "Newsletter", color: "blue" },
+      }),
+    );
+    expect(postContactListsByIdImport).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { id: "list-9" } }),
+    );
+  });
+
+  it("passes Core's refusal on", async () => {
+    getContactLists.mockResolvedValue({
+      data: { data: [{ id: "list-1", name: "Newsletter", kind: "manual" }] },
+    });
+    postContactListsByIdImport.mockResolvedValue({
+      error: { message: "No email addresses found in that text" },
+    });
+
+    expect(await addMailingList("nothing")).toEqual({
+      overview: null,
+      error: "No email addresses found in that text",
+    });
   });
 });
 

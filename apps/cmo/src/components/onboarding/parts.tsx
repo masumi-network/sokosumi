@@ -4,28 +4,10 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, ChevronRight, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
-import { AGENT_NAME } from "../../lib/agent";
+import { StatusDisc } from "../status";
 import { SubmitButton } from "../submit-button";
 import { Refusal } from "./refusal";
 import { STEPS } from "./step";
-
-export { AGENT_NAME };
-
-export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
-
-interface CusoAvatarProps {
-  pose: Pose;
-  size?: 36 | 48 | 96;
-}
-
-/** Cuso's pose on his light circle: the status of the screen. */
-export function CusoAvatar({ pose, size = 48 }: CusoAvatarProps) {
-  return (
-    <span className="ob-avatar" style={{ width: size, height: size }}>
-      <img src={`/cuso/${pose}.png`} alt="" width={size} height={size} />
-    </span>
-  );
-}
 
 /**
  * The four steps in the header. `reached` is where Cuso has got to; `current`
@@ -196,33 +178,6 @@ export function SkeletonTile() {
   );
 }
 
-interface StatusDiscProps {
-  status: "ok" | "warn" | "fail";
-}
-
-/** Done: green disc and check. Needs you: yellow disc and "!". Failed: ink disc and X. */
-export function StatusDisc({ status }: StatusDiscProps) {
-  const label =
-    status === "ok"
-      ? "Done"
-      : status === "warn"
-        ? "Needs your answer"
-        : "Failed";
-  return (
-    <span role="img" aria-label={label} className={`ob-disc ob-disc-${status}`}>
-      <span aria-hidden="true">
-        {status === "ok" ? (
-          <Check size={12} strokeWidth={3} />
-        ) : status === "warn" ? (
-          "!"
-        ) : (
-          <X size={12} strokeWidth={3} />
-        )}
-      </span>
-    </span>
-  );
-}
-
 interface StatRowProps {
   stats: { value: string; line: string }[];
 }
@@ -346,7 +301,7 @@ export function SidePanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <aside className="ob-side card" aria-label={title}>
+    <aside className="ob-side card card-focus" aria-label={title}>
       <div className="ob-side-head">
         <h2>{title}</h2>
         <button
@@ -538,7 +493,7 @@ export function QuestionCard({
   const chosen = correcting ? "no" : question.answer;
 
   return (
-    <section className="ob-question card" aria-label="Quick read">
+    <section className="ob-question card card-focus" aria-label="Quick read">
       <div className="ob-question-head">
         <span className="ob-question-title">Quick read</span>
         <span className="ob-question-count num">

@@ -20,12 +20,15 @@ import {
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryText,
   getCmoOverview,
+  getContactLists,
   launchCmoSearchAd,
   listCmoAdCampaigns,
   listCmoAdChoices,
   pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   postComposioCallbackComplete,
+  postContactLists,
+  postContactListsByIdImport,
   postProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate,
   requestCmoStrategy,
@@ -41,7 +44,7 @@ import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
+import { AGENT_NAME } from "../lib/agent";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import { coreForCurrentUser } from "../lib/core";
@@ -105,7 +108,7 @@ async function skipStep(step: SkippedStep): Promise<CmoOverview> {
 
 async function requireOverview(): Promise<CmoOverview> {
   const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   return overview;
 }
 
@@ -330,7 +333,7 @@ export async function loadState(): Promise<{
   if (response?.status === 404) return { overview: null, messages: [] };
   // Any other failure is not "not hired": showing the hire flow would offer
   // a second business.
-  if (!data) throw new Error("Could not load Cuso");
+  if (!data) throw new Error(`Could not load ${AGENT_NAME}`);
   return {
     overview: await withSkipped(data.data),
     messages: await messagesFor(core, data.data),
@@ -342,7 +345,7 @@ export async function sendMessage(content: string): Promise<void> {
   if (!text) return;
   const core = await requireCore();
   const overview = await loadOverview();
-  if (!overview) throw new Error("Cuso is not hired yet");
+  if (!overview) throw new Error(`${AGENT_NAME} is not hired yet`);
   const { error } = await postChatsRoomsByIdMessages({
     client: core.client,
     headers: chatHeaders(core, overview),
@@ -427,6 +430,52 @@ export async function startOver(): Promise<string | null> {
   }
   revalidatePath("/");
   redirect("/");
+}
+
+/** The contact list Cuso writes the newsletter for; Core counts it by this name. */
+const NEWSLETTER_LIST = "Newsletter";
+
+/** The workspace's Newsletter list, created the first time. */
+async function newsletterListId(
+  options: Awaited<ReturnType<typeof inCusoWorkspace>>,
+): Promise<string | null> {
+  const { data } = await getContactLists(options);
+  const existing = data?.data.find(
+    (list) =>
+      list.kind === "manual" &&
+      list.name.toLowerCase() === NEWSLETTER_LIST.toLowerCase(),
+  );
+  if (existing) return existing.id;
+  const { data: created } = await postContactLists({
+    ...options,
+    body: { name: NEWSLETTER_LIST, color: "blue" },
+  });
+  return created?.data.id ?? null;
+}
+
+/** Adds the founder's mailing list for the newsletter Cuso writes. */
+export async function addMailingList(
+  text: string,
+): Promise<{ overview: CmoOverview | null; error: string | null }> {
+  const overview = await loadOverview();
+  if (!overview) {
+    return { overview: null, error: `${AGENT_NAME} is not hired yet` };
+  }
+  const options = await inCusoWorkspace(overview);
+  const listId = await newsletterListId(options);
+  if (!listId) return { overview: null, error: "Could not add the list" };
+  const { error } = await postContactListsByIdImport({
+    ...options,
+    path: { id: listId },
+    body: { text },
+  });
+  if (error) {
+    return {
+      overview: null,
+      error: errorText(error, "Could not add the list"),
+    };
+  }
+  return { overview: await loadOverview(), error: null };
 }
 
 /** Where the provider sends the founder back after connecting. */

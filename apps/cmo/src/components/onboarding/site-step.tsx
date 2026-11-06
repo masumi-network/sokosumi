@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
   brandProfile,
@@ -11,13 +11,13 @@ import {
 } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { hostOf } from "../brand-profile";
+import { CusoAvatar } from "../cuso";
+import { CusoClip } from "../cuso-clip";
 import { SubmitButton } from "../submit-button";
 import { brandTiles, tileSource } from "./brand-step";
 import {
-  AGENT_NAME,
   type Answer,
   Checklist,
-  CusoAvatar,
   QuestionCard,
   RESEARCH_PHASES,
   RetryButton,
@@ -29,10 +29,7 @@ import {
 import { Refusal } from "./refusal";
 import type { SitePhase } from "./step";
 
-/** Skeleton tiles shown for sections Cuso has not saved yet, at most. */
-const MAX_SKELETONS = 6;
-
-/** Found items shown once the Brand Brain exists, at most. */
+/** Found items (or skeletons for sections to come) shown at most. */
 const MAX_FOUND = 3;
 
 interface SiteStepProps {
@@ -114,7 +111,11 @@ export function SiteStep({
           : `I read ${site}. Answer a few before I show you.`;
 
   const found = work
-    ? { saved: work.sectionsSaved, total: work.sectionsTotal }
+    ? {
+        saved: work.sectionsSaved,
+        total: work.sectionsTotal,
+        sections: work.sections,
+      }
     : null;
   // Every section is saved and Cuso is writing the summary and his questions
   // from them: the slowest quiet stretch of the read. Holds the section count.
@@ -140,16 +141,16 @@ export function SiteStep({
   const elapsed = useElapsed(work?.startedAt, running);
 
   return (
-    <section className="ob-panel panel ob-site">
+    <section className="panel ob-site">
       <div className="ob-site-left">
         <div className="card ob-reading">
-          <img
+          <CusoClip
             src="/cuso/reading-scene.jpg"
             alt={`${AGENT_NAME} reading a site with a magnifier`}
             width={168}
             height={168}
           />
-          <p className="ob-muted">
+          <p className="muted">
             {running
               ? `${AGENT_NAME} is reading${elapsed ? ` · ${elapsed}` : ""}`
               : `${AGENT_NAME} read your site`}
@@ -173,7 +174,7 @@ export function SiteStep({
                   .slice(0, MAX_FOUND)
                   .map((tile) => (
                     <li key={tile.id}>
-                      <span className="ob-small ob-muted">{tile.label}</span>
+                      <span className="ob-small muted">{tile.label}</span>
                       <b>{tile.value}</b>
                       <span className="ob-tile-source">
                         Source:{" "}
@@ -188,23 +189,40 @@ export function SiteStep({
                     </li>
                   ))}
               </ul>
-            ) : composing !== null ? (
-              <p className="ob-muted">All {composing} sections are in.</p>
             ) : found ? (
-              <div className="ob-skeletons">
-                {Array.from(
-                  {
-                    length: Math.min(
-                      Math.max(found.total - found.saved, 0),
-                      MAX_SKELETONS,
-                    ),
-                  },
-                  (_, skeleton) => (
-                    // Placeholders have no identity beyond their place.
-                    <SkeletonTile key={skeleton} />
-                  ),
+              <>
+                {found.sections.length > 0 ? (
+                  // The latest sections Cuso saved, as he saves them.
+                  <ul className="ob-found-list">
+                    {found.sections.slice(-MAX_FOUND).map((section) => (
+                      <li key={section.key}>
+                        <span className="ob-small muted">
+                          {BRAND_SECTIONS[section.key].title}
+                        </span>
+                        <b>{section.headline}</b>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {composing !== null ? (
+                  <p className="muted">All {composing} sections are in.</p>
+                ) : (
+                  <div className="ob-skeletons">
+                    {Array.from(
+                      {
+                        length: Math.min(
+                          Math.max(found.total - found.saved, 0),
+                          MAX_FOUND,
+                        ),
+                      },
+                      (_, skeleton) => (
+                        // Placeholders have no identity beyond their place.
+                        <SkeletonTile key={skeleton} />
+                      ),
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             ) : null}
           </div>
         ) : null}
@@ -212,7 +230,7 @@ export function SiteStep({
 
       <div className="ob-site-right">
         {failed ? (
-          <div className="card ob-focus ob-says">
+          <div className="card card-focus ob-says">
             <CusoAvatar pose="needs-you" size={96} />
             {noCredits ? (
               <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
@@ -250,7 +268,7 @@ export function SiteStep({
             }}
           />
         ) : finished || (skipping && phase !== "reading") ? (
-          <div className="card ob-focus ob-says">
+          <div className="card card-focus ob-says">
             <CusoAvatar pose="done" size={96} />
             <p className="ob-value">That's all I need.</p>
             <button
@@ -277,7 +295,7 @@ export function SiteStep({
             ) : null}
           </div>
         ) : (
-          <div className="card ob-focus ob-says" aria-live="polite">
+          <div className="card ob-says" aria-live="polite">
             <CusoAvatar pose="reading" size={96} />
             <p className="ob-value">
               {questions.length > 0
@@ -303,7 +321,7 @@ function QuestionReply({ question, onReply }: QuestionReplyProps) {
   const [text, setText] = useState("");
   return (
     <form
-      className="card ob-focus ob-says"
+      className="card card-focus ob-says"
       action={async () => {
         const reply = text.trim();
         if (!reply) return;

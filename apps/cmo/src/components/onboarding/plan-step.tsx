@@ -4,20 +4,19 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { strategyApproved } from "../../lib/strategy";
+import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import {
-  AGENT_NAME,
   type Answer,
   AssumptionChip,
   Checklist,
-  CusoAvatar,
   GoalBlock,
   NoteField,
   PLANNING_PHASES,
@@ -107,8 +106,8 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
   const noCredits = !running && overview.billing.availableCredits <= 0;
   const elapsed = useElapsed(work?.startedAt, running);
   return (
-    <section className="ob-panel panel ob-wait">
-      <div className="card ob-focus ob-says">
+    <section className="panel ob-wait">
+      <div className={running ? "card ob-says" : "card card-focus ob-says"}>
         <CusoAvatar pose="reporting" size={96} />
         <h1 className="ob-h1">
           {running ? "Writing your plan" : "Planning stopped"}
@@ -116,13 +115,13 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
         {noCredits ? (
           <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
         ) : (
-          <p className="ob-muted">
+          <p className="muted">
             {running
               ? `Every post and ad ${AGENT_NAME} will make, and when. This takes a few minutes.`
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}
-        {elapsed ? <p className="ob-small ob-muted num">{elapsed}</p> : null}
+        {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
         <Checklist
           items={workChecklist(
             work?.kind === "strategy" ? work.steps : [],
@@ -148,11 +147,11 @@ function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
-    <section className="ob-panel panel ob-wait">
-      <div className="card ob-focus ob-says">
+    <section className="panel ob-wait">
+      <div className="card card-focus ob-says">
         <CusoAvatar pose="reporting" size={96} />
         <h1 className="ob-h1">Ready to write your plan</h1>
-        <p className="ob-muted">
+        <p className="muted">
           I build it from your Brand Brain and your answers.
         </p>
         <button
@@ -180,8 +179,15 @@ function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
   );
 }
 
-function PlanReview({
+interface PlanReviewProps extends Omit<PlanStepProps, "phase" | "starting"> {
+  /** Shows the plan as it stands: no answers, pace, budget or approval. */
+  readOnly?: boolean;
+}
+
+/** The goal, what was checked and the plan's tabs; reused by the app's Strategy page. */
+export function PlanReview({
   overview,
+  readOnly = false,
   initialTab = "plan",
   onRequest,
   onSetAds,
@@ -190,7 +196,7 @@ function PlanReview({
   onApprove,
   onConnectMeasurement,
   ahead,
-}: PlanStepProps) {
+}: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
   const [tab, setTab] = useState<PlanTab>(initialTab);
   const [open, setOpen] = useState<Entry | null>(null);
@@ -214,6 +220,7 @@ function PlanReview({
   const replanning = sending ?? (writing && asked ? asked : null);
   const changes = strategy.changes ?? [];
   const approved = strategyApproved(overview);
+  const locked = readOnly || approved;
   const [questions, answer] = useAnswers(strategy.questions ?? [], onAnswer);
   // A no is fitted once Cuso has changed the plan; until then, update it.
   const unfitted = planUnfitted({
@@ -256,7 +263,7 @@ function PlanReview({
   const line =
     pages > 0
       ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks. Nothing goes out until you approve the plan.`;
+      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${approved ? "" : " Nothing goes out until you approve the plan."}`;
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -266,8 +273,8 @@ function PlanReview({
       Continue to {ahead.label}
       <ArrowRight size={16} aria-hidden="true" />
     </button>
-  ) : approved ? null : !overview.viewerCanApprove && !unfitted ? (
-    <p className="ob-muted">An owner or admin approves the plan.</p>
+  ) : locked ? null : !overview.viewerCanApprove && !unfitted ? (
+    <p className="muted">An owner or admin approves the plan.</p>
   ) : (
     <button
       type="button"
@@ -318,10 +325,10 @@ function PlanReview({
       <div className="ob-title-row">
         <CusoAvatar pose="reporting" size={48} />
         <div className="ob-title-copy">
-          <p className="ob-muted">{line}</p>
+          <p className="muted">{line}</p>
         </div>
         <div className="ob-title-action">
-          {approved ? null : (
+          {locked ? null : (
             <button
               type="button"
               className="button button-secondary"
@@ -339,7 +346,7 @@ function PlanReview({
         </div>
       </div>
 
-      {asking && !approved ? (
+      {asking && !locked ? (
         <div className="panel">
           <form
             className="card ob-change"
@@ -403,7 +410,7 @@ function PlanReview({
           <div className="card ob-replanning" role="status">
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
-            <p className="ob-muted">
+            <p className="muted">
               {replanning}. About two minutes; your new plan opens here.
             </p>
           </div>
@@ -430,9 +437,9 @@ function PlanReview({
           </div>
         ) : null}
 
-        {approved && hasChecks ? (
-          <div className="ob-checks">
-            <h2>What you approved</h2>
+        {locked && hasChecks ? (
+          <div className="card ob-checks">
+            <h2>{approved ? "What you approved" : "Your answers"}</h2>
             <ul className="ob-approved">
               {questions.map((question) => (
                 <li key={question.id}>
@@ -458,7 +465,13 @@ function PlanReview({
             </ul>
           </div>
         ) : hasChecks ? (
-          <div className="ob-checks">
+          <div
+            className={
+              questions.some((question) => !question.answer)
+                ? "card card-focus ob-checks"
+                : "card ob-checks"
+            }
+          >
             <h2>Check these</h2>
             {questions.map((question) => (
               <PlanQuestionChip
@@ -468,7 +481,7 @@ function PlanReview({
               />
             ))}
             {strategy.pace ? (
-              <div className="card ob-pace">
+              <div className="ob-pace">
                 <PacePicker
                   pace={strategy.pace}
                   onAsk={(text, label) =>
@@ -478,7 +491,7 @@ function PlanReview({
               </div>
             ) : null}
             {ads ? (
-              <div className="card ob-budget">
+              <div className="ob-budget">
                 <div className="ob-budget-row">
                   <p>
                     {ads.monthly > 0
@@ -509,7 +522,7 @@ function PlanReview({
           </div>
         ) : null}
 
-        <div className="ob-tabs" role="tablist" aria-label="The plan">
+        <div className="ob-tabs" role="tablist" aria-label="Plan">
           {TABS.map((candidate) => (
             <button
               key={candidate.id}
@@ -536,7 +549,7 @@ function PlanReview({
               overview={overview}
               strategy={strategy}
               onAsk={
-                approved
+                locked
                   ? undefined
                   : (text, label) => send(label ?? text, () => onRequest(text))
               }

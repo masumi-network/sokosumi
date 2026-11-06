@@ -7,7 +7,6 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import {
   ArrowRight,
   ChartLine,
-  Check,
   Loader2,
   Search,
   ShoppingBag,
@@ -17,6 +16,7 @@ import { useEffect, useState, useTransition } from "react";
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
 import { ChannelIcon } from "./channel-icon";
+import { StatusText } from "./status";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Stage = NonNullable<Strategy["funnel"]>[number];
@@ -86,7 +86,7 @@ export function Alternatives({
               }}
             >
               {picked === alternative.sentence ? (
-                <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+                <Loader2 size={14} className="spin" aria-hidden="true" />
               ) : null}
               Use this one instead
             </button>
@@ -136,8 +136,8 @@ const BASES = {
 } as const;
 
 /**
- * The funnel, top to bottom: each stage's job, what every channel does there
- * and how often, who moves it, and today's number with how it is known.
+ * The three moves, top to bottom: each stage's job, what every channel does
+ * there and how often, who moves it, and today's number with how it is known.
  */
 export function FunnelPlan({
   stages,
@@ -307,7 +307,7 @@ export function PacePicker({
               <b>{option.name}</b>
               <span>{option.does}</span>
               {changing && asked === option.level ? (
-                <Loader2 size={14} className="ob-spin" aria-hidden="true" />
+                <Loader2 size={14} className="spin" aria-hidden="true" />
               ) : null}
             </button>
           );
@@ -352,7 +352,8 @@ export function AdBudget({
       <p className="sc-ads-amount">
         <b className="num">{money(ads.monthly, ads.currency)}</b>
         <span className="note">
-          a month{ads.setByOwner ? ", your budget" : ", Cuso's suggestion"}
+          a month
+          {ads.setByOwner ? ", your budget" : `, ${AGENT_NAME}'s suggestion`}
         </span>
       </p>
       <p>{ads.monthly > 0 ? ads.expect : ads.without}</p>
@@ -360,7 +361,8 @@ export function AdBudget({
         <p className="note">Without ads: {ads.without}</p>
       ) : null}
       <p className="note">
-        Ads are the only extra cost. You pay the ad networks directly; Cuso
+        Ads are the only extra cost. You pay the ad networks directly;{" "}
+        {AGENT_NAME}
         never spends more than this.
       </p>
       {onSetAds ? (
@@ -390,12 +392,16 @@ export function AdBudget({
                 aria-label={`Monthly ad budget in ${ads.currency}`}
               />
             </label>
-            <button type="submit" className="ob-button" disabled={saving}>
+            <button
+              type="submit"
+              className="button button-secondary button-small"
+              disabled={saving}
+            >
               {saving ? "Saving…" : "Set budget"}
             </button>
             <button
               type="button"
-              className="ob-button ob-button-quiet"
+              className="button button-ghost button-small"
               onClick={() => setEditing(false)}
             >
               Cancel
@@ -514,19 +520,16 @@ export function MeasureFunnel({
                 <span className="note">{source.measures}</span>
               </span>
               {source.status === "connected" ? (
-                <span className="sc-source-done">
-                  <Check size={14} aria-hidden="true" />
-                  Connected
-                </span>
+                <StatusText>Connected</StatusText>
               ) : (
                 <button
                   type="button"
-                  className="sc-source-button"
+                  className="button button-secondary button-small"
                   disabled={pending !== null}
                   onClick={() => connect(source.provider)}
                 >
                   {pending === source.provider ? (
-                    <Loader2 size={14} className="sc-spin" aria-hidden="true" />
+                    <Loader2 size={14} className="spin" aria-hidden="true" />
                   ) : null}
                   {source.status === "pending"
                     ? "Finish connecting"

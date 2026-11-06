@@ -1,9 +1,10 @@
 "use client";
 
+import "./onboarding.css";
 import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-
+import { AGENT_NAME } from "../../lib/agent";
 import {
   BRAND_SECTIONS,
   type BrandBrain,
@@ -29,12 +30,11 @@ import {
   Voice,
 } from "../brand-profile";
 import { BusinessMark } from "../business-mark";
+import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import {
-  AGENT_NAME,
   type Answer,
-  CusoAvatar,
   QuestionCard,
   SidePanel,
   Tile,
@@ -187,9 +187,10 @@ interface BrandStepProps {
   messages: CusoMessage[];
   onCorrect: (text: string) => Promise<void>;
   onSave: (brain: BrandBrain) => Promise<void>;
-  /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. */
-  onApprove: () => Promise<string | null>;
-  onAnswer: (
+  /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. Without it the step only shows the Brand Brain. */
+  onApprove?: () => Promise<string | null>;
+  /** Without it the open questions are not asked here. */
+  onAnswer?: (
     questionId: string,
     answer: Answer,
     note?: string,
@@ -257,7 +258,11 @@ export function BrandStep({
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
 
-  const [questions, answer] = useAnswers(brain.questions ?? [], onAnswer);
+  const [shownQuestions, answer] = useAnswers(
+    brain.questions ?? [],
+    onAnswer ?? (async () => {}),
+  );
+  const questions = onAnswer ? shownQuestions : [];
   const left = questions.filter((question) => !question.answer);
   const openQuestion = questions.findIndex((question) => !question.answer);
   const current = questions[openQuestion];
@@ -279,7 +284,7 @@ export function BrandStep({
         <CusoAvatar pose="thinking" size={48} />
         <div className="ob-title-copy">
           <h1 className="ob-h1">Here's {site} as I see it.</h1>
-          <p className="ob-muted">
+          <p className="muted">
             {AGENT_NAME} · tap any tile to see the source or fix it
           </p>
         </div>
@@ -289,7 +294,7 @@ export function BrandStep({
               Continue to {lead.label}
               <ArrowRight size={16} aria-hidden="true" />
             </button>
-          ) : (
+          ) : onApprove ? (
             <button
               type="button"
               className="button"
@@ -320,13 +325,13 @@ export function BrandStep({
                 </>
               )}
             </button>
-          )}
+          ) : null}
           {fixing ? (
-            <p className="ob-small ob-muted">
+            <p className="ob-small muted">
               Updating your Brand Brain. About half a minute.
             </p>
           ) : stale && !answered ? (
-            <p className="ob-small ob-muted">
+            <p className="ob-small muted">
               That change didn't come through. Ask again, or approve this
               version.
             </p>
@@ -345,7 +350,7 @@ export function BrandStep({
           </div>
 
           {left.length > 0 ? (
-            <div className="card ob-left">
+            <div className="card card-focus ob-left">
               <p>
                 {left.length} {left.length === 1 ? "question" : "questions"}{" "}
                 left
@@ -551,7 +556,7 @@ export function tileSource(
 ): string {
   const section = tile.section ? profile[tile.section] : undefined;
   return (
-    section?.findings.find((finding) => finding.sourceUrl)?.sourceUrl ??
+    section?.findings?.find((finding) => finding.sourceUrl)?.sourceUrl ??
     fallback
   );
 }

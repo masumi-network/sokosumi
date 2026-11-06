@@ -1,4 +1,5 @@
 import { CMO_CHANNELS, type CmoChannelKey } from "@sokosumi/utils";
+import { AGENT_NAME } from "./agent";
 
 export type ChannelInfo = (typeof CMO_CHANNELS)[CmoChannelKey];
 export type ChannelGroup = ChannelInfo["group"];
@@ -60,13 +61,10 @@ export const GROUP_NAMES: Record<ChannelGroup, string> = {
 
 /** What the owner does for each kind of channel, in one line. */
 export const OWNER_PART: Record<ChannelInfo["owner"], string> = {
-  connect: "Connect your account. Cuso posts for you.",
-  ad_account:
-    "Cuso writes and designs the ads. You connect your ad account, set the budget and launch them.",
-  mailing_list:
-    "Cuso writes every issue, ready to send. Add your mailing list so he writes for the people on it.",
-  publish:
-    "Cuso finds what to improve and writes it ready to paste. You publish it on your site.",
+  connect: `Connect your account. ${AGENT_NAME} posts for you.`,
+  ad_account: `${AGENT_NAME} writes and designs the ads. You connect your ad account, set the budget and launch them.`,
+  mailing_list: `${AGENT_NAME} writes every issue, ready to send. Add your mailing list so he writes for the people on it.`,
+  publish: `${AGENT_NAME} finds what to improve and writes it ready to paste. You publish it on your site.`,
 };
 
 /** Social networks Cuso posts to once connected. */

@@ -2,10 +2,12 @@
 
 import "../../components/onboarding/onboarding.css";
 
+import { CusoStatus } from "../../components/app/cuso-status";
+import { Sidebar } from "../../components/app/sidebar";
+import { CusoAvatar } from "../../components/cuso";
 import {
   AssumptionChip,
   Checklist,
-  CusoAvatar,
   GoalBlock,
   QuestionCard,
   SidePanel,
@@ -14,8 +16,37 @@ import {
   StepMarkers,
   Tile,
 } from "../../components/onboarding/parts";
+import { AGENT_NAME } from "../../lib/agent";
+import { overview } from "./app/fixtures";
 
 const noop = async () => {};
+
+const AT = new Date("2026-11-05T08:00:00Z");
+
+/** Cuso's status card in each pose, over the app fixture. */
+const STATUS_CARDS = [
+  { label: "Reading", overview: { ...overview, learning: "running" as const } },
+  { label: "Thinking", overview },
+  {
+    label: "Needs you",
+    overview: { ...overview, brandBrain: null, strategy: null },
+  },
+  {
+    label: "Reporting",
+    overview: {
+      ...overview,
+      production: { ...overview.production, state: "ready" as const },
+    },
+  },
+  {
+    label: "Done",
+    overview: {
+      ...overview,
+      production: { ...overview.production, state: "ready" as const },
+      updates: [],
+    },
+  },
+];
 
 /**
  * The composite parts the onboarding screens are built from, with small
@@ -25,12 +56,12 @@ export function PartsPreview() {
   return (
     <div className="ds-parts">
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Step markers</p>
+        <p className="ds-t-small muted">Step markers</p>
         <StepMarkers current={1} reached={1} />
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Checklist and skeleton tile</p>
+        <p className="ds-t-small muted">Checklist and skeleton tile</p>
         <Checklist
           items={[
             { label: "Your website", state: "done" },
@@ -42,7 +73,7 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Question card</p>
+        <p className="ds-t-small muted">Question card</p>
         <QuestionCard
           topic="Target customers"
           question={{ question: "Are households your largest customer group?" }}
@@ -54,7 +85,7 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Tile, closed and open</p>
+        <p className="ds-t-small muted">Tile, closed and open</p>
         <div className="ds-tiles">
           <Tile
             label="What you sell"
@@ -73,14 +104,14 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Side panel</p>
+        <p className="ds-t-small muted">Side panel</p>
         <SidePanel title="Who buys" onClose={() => {}} source="Source: acme.io">
           <p>Teams of ten to fifty who ship a product every month.</p>
         </SidePanel>
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Assumption chip</p>
+        <p className="ds-t-small muted">Assumption chip</p>
         <AssumptionChip
           question="Is €200 a month OK for ads?"
           yes={{ onClick: () => {} }}
@@ -89,7 +120,7 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Goal block</p>
+        <p className="ds-t-small muted">Goal block</p>
         <GoalBlock
           label="The goal"
           goal="More demo requests"
@@ -103,7 +134,7 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Stat row</p>
+        <p className="ds-t-small muted">Stat row</p>
         <StatRow
           stats={[
             { value: "3 min", line: "I read your site." },
@@ -114,7 +145,27 @@ export function PartsPreview() {
       </div>
 
       <div className="ds-part">
-        <p className="ds-t-small ds-muted">Cuso avatar sizes</p>
+        <p className="ds-t-small muted">The sidebar, as the app renders it</p>
+        <div className="ds-side">
+          <Sidebar
+            overview={overview}
+            view="strategy"
+            onSelect={noop}
+            name="Francis Luz"
+            email="francis@acme.io"
+            now={AT}
+          />
+        </div>
+        <p className="ds-t-small muted">{AGENT_NAME} status, by pose</p>
+        <div className="ds-statuses">
+          {STATUS_CARDS.map((card) => (
+            <CusoStatus key={card.label} overview={card.overview} now={AT} />
+          ))}
+        </div>
+      </div>
+
+      <div className="ds-part">
+        <p className="ds-t-small muted">{AGENT_NAME} avatar sizes</p>
         <div className="ds-avatars">
           <CusoAvatar pose="thinking" size={36} />
           <CusoAvatar pose="reporting" size={48} />

@@ -14,6 +14,7 @@ import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import type { View } from "../lib/views";
 import { signOut } from "./actions";
 import {
+  addMailingList,
   answerBrandQuestion,
   answerPlanQuestion,
   applyPlanAnswers,
@@ -208,6 +209,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         saveBrandBrain,
         pauseEntry,
         connectChannel,
+        addMailingList,
         connectMeasurement,
         connectAds,
         launchAd,
