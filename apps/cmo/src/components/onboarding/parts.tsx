@@ -1,7 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { Check, X } from "lucide-react";
+import { Check, ChevronRight, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
 import { AGENT_NAME } from "../../lib/agent";
@@ -280,7 +280,10 @@ interface TileProps {
   onToggle?: () => void;
 }
 
-/** One idea from the Brand Brain; the open one inverts and takes an Iris shadow. */
+/**
+ * One idea from the Brand Brain. The whole card is the button that opens its
+ * side panel; the open one keeps an Iris shadow.
+ */
 export function Tile({
   label,
   value,
@@ -290,23 +293,20 @@ export function Tile({
   onToggle,
 }: TileProps) {
   return (
-    <article className={open ? "ob-tile open" : "ob-tile"}>
-      <div className="ob-tile-head">
+    <button
+      type="button"
+      className={open ? "ob-tile open" : "ob-tile"}
+      aria-expanded={open ?? false}
+      onClick={onToggle}
+    >
+      <span className="ob-tile-head">
         <span className="ob-tile-label">{label}</span>
-        <button
-          type="button"
-          className="button button-secondary button-small"
-          aria-pressed={open ?? false}
-          aria-label={`${open ? "Open" : "Details"}: ${label}`}
-          onClick={onToggle}
-        >
-          {open ? "Open" : "Details"}
-        </button>
-      </div>
-      <p className="ob-tile-value">{value}</p>
-      {detail ? <p className="ob-tile-detail">{detail}</p> : null}
-      {source ? <p className="ob-tile-source">{source}</p> : null}
-    </article>
+        <ChevronRight size={16} aria-hidden="true" className="ob-tile-go" />
+      </span>
+      <span className="ob-tile-value">{value}</span>
+      {detail ? <span className="ob-tile-detail">{detail}</span> : null}
+      {source ? <span className="ob-tile-source">{source}</span> : null}
+    </button>
   );
 }
 

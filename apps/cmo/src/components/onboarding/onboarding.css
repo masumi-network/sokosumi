@@ -58,7 +58,9 @@ body:has(.ob) .site-header {
 
 .ob-step > button {
   cursor: pointer;
-  transition: background-color 150ms;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
 }
 
 .ob-step > button:hover {
@@ -590,19 +592,61 @@ body:has(.ob) .site-header {
   gap: 12px;
 }
 
+/* The whole tile is a button: it opens the tile's side panel. */
 .ob-tile {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+/* Hover: one fill step and the border to the text colour, visible in both themes. */
+.ob-tile:hover {
+  border-color: var(--foreground);
+  background: var(--surface);
+}
+
+.ob-tile:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-tile > span {
+  display: block;
+}
+
+.ob-tile > .ob-tile-head {
+  display: flex;
+}
+
+.ob-tile-go {
+  flex: none;
+  color: var(--muted);
+}
+
+.ob-tile:hover .ob-tile-go,
+.ob-tile.open .ob-tile-go {
+  color: var(--foreground);
 }
 
 .ob-tile.open {
   border-color: var(--line);
   box-shadow: var(--shadow-iris);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-tile {
+    transition: none;
+  }
 }
 
 .ob-tile-head {

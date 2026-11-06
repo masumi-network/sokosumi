@@ -298,12 +298,13 @@ it("opens a tile into the side panel with a way to say what is off", async () =>
     ),
   );
   expect(container.querySelector("aside")).toBeNull();
-  await act(async () =>
-    container
-      .querySelector<HTMLButtonElement>('[aria-label="Details: What you sell"]')
-      ?.click(),
-  );
-  expect(button("Open").getAttribute("aria-pressed")).toBe("true");
+  // The whole tile is the button.
+  const tile = [
+    ...container.querySelectorAll<HTMLButtonElement>("button.ob-tile"),
+  ].find((candidate) => candidate.textContent?.startsWith("What you sell"));
+  expect(tile?.getAttribute("aria-expanded")).toBe("false");
+  await act(async () => tile?.click());
+  expect(tile?.getAttribute("aria-expanded")).toBe("true");
   const panel = container.querySelector("aside");
   expect(panel?.getAttribute("aria-label")).toBe("What you sell");
   expect(panel?.textContent).toContain("Rocket Pro");
