@@ -54,16 +54,15 @@ export function NewsletterSignupDesigner({
     <div
       className={cn(
         HOLDER_CLASS,
-        "grid min-w-0 items-start gap-4 p-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
+        "grid min-w-0 items-start gap-4 p-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-[auto_1fr]",
       )}
     >
-      <div className="min-w-0 space-y-4">
-        <NewsletterDesignPanel form={form} projectId={projectId} signupForm />
+      <div className="min-w-0">
         <NewsletterSignupCard publicSlug={newsletter.publicSlug} />
       </div>
       <aside
         aria-labelledby="newsletter-signup-preview"
-        className="min-w-0 xl:sticky xl:top-4"
+        className="min-w-0 xl:sticky xl:top-4 xl:col-start-2 xl:row-span-2 xl:row-start-1"
       >
         <Card>
           <CardHeader>
@@ -106,6 +105,9 @@ export function NewsletterSignupDesigner({
           </CardContent>
         </Card>
       </aside>
+      <div className="min-w-0 xl:col-start-1">
+        <NewsletterDesignPanel form={form} projectId={projectId} signupForm />
+      </div>
     </div>
   );
 }
