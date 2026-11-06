@@ -17,7 +17,7 @@ import { money, PACES } from "../strategy-core";
 import { AGENT_NAME, CusoAvatar, StatusDisc } from "./parts";
 
 /** Every channel in the strategy that Cuso runs, by its key. */
-export function strategyChannels(overview: CmoOverview): string[] {
+function strategyChannels(overview: CmoOverview): string[] {
   return [
     ...new Set(
       (overview.strategy?.channels ?? [])
@@ -30,17 +30,15 @@ export function strategyChannels(overview: CmoOverview): string[] {
   ];
 }
 
-/** Whether the plan uses a channel the founder sets up: social, ads, newsletter. */
-export function needsAccounts(overview: CmoOverview): boolean {
-  return strategyChannels(overview).some((key) => key !== "seo");
-}
-
 /** The social networks in the strategy, which Cuso can post to once connected. */
 export function strategySocialChannels(
   overview: CmoOverview,
 ): SocialProvider[] {
   return strategyChannels(overview).filter(isSocialProvider);
 }
+
+/** SEO has nothing to connect and the newsletter is not set up while hiring. */
+const isOptionalKey = (key: string) => key !== "seo" && key !== "newsletter";
 
 /**
  * What the founder may add but need not: the plan's ads and the channels
@@ -57,8 +55,7 @@ export function optionalChannels(
     .filter(
       (key) =>
         !isSocialProvider(key) &&
-        key !== "seo" &&
-        key !== "newsletter" &&
+        isOptionalKey(key) &&
         calendar.some((entry) => channelKey(entry.channel) === key),
     )
     .map((key) => ({ key, perMonth: null }));
@@ -67,8 +64,7 @@ export function optionalChannels(
     return key &&
       channelInfo(key)?.status === "live" &&
       !planned.includes(key) &&
-      key !== "seo" &&
-      key !== "newsletter"
+      isOptionalKey(key)
       ? [{ key, perMonth: proposal.perMonth }]
       : [];
   });
@@ -226,7 +222,8 @@ export function LaunchStep({
   const later = optional.filter(({ key }) =>
     isAds(key) ? !overview.adProviders.includes(key) : !connected.has(key),
   );
-  const accounts = needsAccounts(overview);
+  // Only a social network of the plan needs connecting before Launch.
+  const accounts = required.length > 0;
 
   return (
     <section className="ob-launch">
@@ -237,7 +234,7 @@ export function LaunchStep({
       <p className="ob-muted">
         {accounts
           ? "Your plan is approved. Connect where I post."
-          : "Your plan is approved. Nothing to connect."}
+          : "Your plan is approved."}
       </p>
 
       {rows.length > 0 ? (

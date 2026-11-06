@@ -439,6 +439,41 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
   expect(text()).toContain("Up first");
 });
 
+// Revisiting a finished step from the markers.
+
+const markerButtons = () =>
+  [...container.querySelectorAll(".ob-steps button")].map((element) =>
+    element.textContent?.replace(/^\d/, ""),
+  );
+
+it("revisits Brand from the markers and leads forward again, never back to Site", async () => {
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={draft()}
+        messages={[]}
+        skipped={["questions"]}
+        actions={actionsFor()}
+      />,
+    ),
+  );
+  expect(text()).toContain("Approve plan");
+  // Site is done but not revisitable; Brand is.
+  expect(markerButtons()).toEqual(["Brand"]);
+  await act(async () =>
+    container
+      .querySelectorAll<HTMLButtonElement>(".ob-steps button")[0]
+      ?.click(),
+  );
+  expect(text()).toContain("Here's acme.io as I see it.");
+  expect(
+    container.querySelector(".ob-step.now")?.getAttribute("aria-current"),
+  ).toBe("step");
+  expect(text()).not.toContain("Approve plan");
+  await press("Continue to Plan");
+  expect(text()).toContain("Approve plan");
+});
+
 // Plan chips and the way to Launch, through the real flow.
 
 const planQuestions = [

@@ -4,12 +4,12 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { Check, X } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
+import { AGENT_NAME } from "../../lib/agent";
 import { SubmitButton } from "../submit-button";
 import { Refusal } from "./refusal";
 import { STEPS } from "./step";
 
-/** How today's code names the agent; every screen builds its copy from it. */
-export const AGENT_NAME = "Cuso";
+export { AGENT_NAME };
 
 export type Pose = "reading" | "thinking" | "needs-you" | "reporting" | "done";
 
@@ -76,7 +76,7 @@ export function StepMarkers({ current, reached, open }: StepMarkersProps) {
 }
 
 /** Done (green, check), working (dashed, dot) or not yet (hairline). */
-export interface ChecklistItem {
+interface ChecklistItem {
   label: string;
   state: "done" | "working" | "next";
 }
@@ -135,9 +135,9 @@ export function useElapsed(
 }
 
 export const RESEARCH_PHASES = [
-  { kinds: ["read"], label: "Your website" },
-  { kinds: ["search", "study"], label: "Your market and competitors" },
-  { kinds: ["brain"], label: "Your Brand Brain" },
+  { kinds: ["read"], label: "Reading your site" },
+  { kinds: ["search", "study"], label: "Comparing your competitors" },
+  { kinds: ["brain"], label: "Writing your Brand Brain" },
 ] as const;
 
 export const PLANNING_PHASES = [

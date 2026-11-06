@@ -5,7 +5,7 @@ import { CMO_CHANNELS } from "@sokosumi/utils";
 import { ArrowRight, ChevronDown, CircleCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
-
+import { AGENT_NAME } from "../lib/agent";
 import { channelLabel, formatDay } from "../lib/calendar";
 import {
   type ChannelGroup,
@@ -173,7 +173,7 @@ export function StrategyReveal({
       </Section>
 
       {strategy.pace ? (
-        <Section title="How much Cuso publishes">
+        <Section title={`How much ${AGENT_NAME} publishes`}>
           <PacePicker pace={strategy.pace} onAsk={onAsk} />
         </Section>
       ) : null}
@@ -195,7 +195,7 @@ export function StrategyReveal({
       ) : null}
 
       {(strategy.alternatives ?? []).length > 0 ? (
-        <Section title="Other ways Cuso considered">
+        <Section title={`Other ways ${AGENT_NAME} considered`}>
           <Alternatives
             alternatives={strategy.alternatives ?? []}
             onAsk={onAsk}
@@ -234,7 +234,7 @@ export function StrategyReveal({
         </Section>
       ) : null}
 
-      <Section title="Where Cuso works" wide>
+      <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
 
@@ -842,7 +842,7 @@ function SheetBody({
                   <AskForm
                     cta="Answer"
                     placeholder="Your answer"
-                    sentNote="Sent. Cuso updates the plan in about two minutes."
+                    sentNote={`Sent. ${AGENT_NAME} updates the plan in about two minutes.`}
                     onAsk={(answer) =>
                       onAsk(`Answer for my strategy: “${question}” ${answer}`)
                     }

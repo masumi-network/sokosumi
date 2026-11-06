@@ -23,6 +23,7 @@ import {
   RetryButton,
   SkeletonTile,
   useAnswers,
+  useElapsed,
   workChecklist,
 } from "./parts";
 import { Refusal } from "./refusal";
@@ -115,13 +116,22 @@ export function SiteStep({
   const found = work
     ? { saved: work.sectionsSaved, total: work.sectionsTotal }
     : null;
+  const rivals =
+    (brain?.competitors.length ?? 0) + (brain?.alternatives?.length ?? 0);
   const checklist = workChecklist(
     work?.steps ?? [],
     RESEARCH_PHASES,
     running,
-  ).map((item) =>
-    brain && !running ? { ...item, state: "done" as const } : item,
-  );
+  ).map((item, at) => ({
+    ...item,
+    // The count, once the data gives one.
+    label:
+      at === 1 && rivals > 0
+        ? `Comparing ${rivals} ${rivals === 1 ? "competitor" : "competitors"}`
+        : item.label,
+    state: brain && !running ? ("done" as const) : item.state,
+  }));
+  const elapsed = useElapsed(work?.startedAt, running);
 
   return (
     <section className="ob-panel panel ob-site">
@@ -135,7 +145,7 @@ export function SiteStep({
           />
           <p className="ob-muted">
             {running
-              ? `${AGENT_NAME} is reading`
+              ? `${AGENT_NAME} is reading${elapsed ? ` · ${elapsed}` : ""}`
               : `${AGENT_NAME} read your site`}
           </p>
           <h1 className="ob-h1">{title}</h1>
@@ -260,7 +270,7 @@ export function SiteStep({
           </div>
         ) : (
           <div className="card ob-focus ob-says" aria-live="polite">
-            <CusoAvatar pose="thinking" size={96} />
+            <CusoAvatar pose="reading" size={96} />
             <p className="ob-value">
               {questions.length === 0
                 ? "My questions come when the read lands."

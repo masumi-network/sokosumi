@@ -22,7 +22,7 @@ import {
   useState,
   useTransition,
 } from "react";
-
+import { AGENT_NAME } from "../lib/agent";
 import {
   BRAND_GROUPS,
   BRAND_SECTIONS,
@@ -220,7 +220,7 @@ export function BrandReveal({ overview, onSave, onAsk }: BrandRevealProps) {
       ) : null}
 
       {reveal && reveal.insights.length > 0 ? (
-        <Section title="What Cuso noticed">
+        <Section title={`What ${AGENT_NAME} noticed`}>
           <ol className="bb-list bb-numbered">
             {reveal.insights.map((insight) => (
               <li key={insight.title}>
@@ -1190,8 +1190,7 @@ export function ownerFinding(
   };
 }
 
-const RESEARCH_SENT =
-  "Sent. Cuso is researching; sections fill in here over the next few minutes.";
+const RESEARCH_SENT = `Sent. ${AGENT_NAME} is researching; sections fill in here over the next few minutes.`;
 
 function researchRequest(note: string): string {
   return `Research my business again from scratch: re-read my site, customers, market and competitors, rewrite every Brand Brain section, then save the essentials and the reveal.${note ? ` ${note}` : ""}`;
@@ -1202,7 +1201,7 @@ export function AskForm({
   placeholder,
   optional = false,
   autoFocus = false,
-  sentNote = "Sent. Cuso updates the Brand Brain in about half a minute.",
+  sentNote = `Sent. ${AGENT_NAME} updates the Brand Brain in about half a minute.`,
   onAsk,
   onCancel,
 }: {

@@ -1,5 +1,6 @@
 "use client";
 
+import { AGENT_NAME } from "../lib/agent";
 import "./strategy-core.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
@@ -123,9 +124,9 @@ export function OfferLadder({
 }
 
 const OWNERS: Record<NonNullable<Stage["owner"]>, string> = {
-  cuso: "Cuso runs this",
+  cuso: `${AGENT_NAME} runs this`,
   you: "On your side",
-  shared: "Cuso and you",
+  shared: `${AGENT_NAME} and you`,
 };
 
 const BASES = {
@@ -239,7 +240,7 @@ export function BeforeAfter({
         <span />
         <span className="label">Today</span>
         <span />
-        <span className="label">With Cuso</span>
+        <span className="label">With {AGENT_NAME}</span>
       </li>
       {rows.map((row) => (
         <li key={row.channel}>

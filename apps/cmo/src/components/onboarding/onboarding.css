@@ -242,8 +242,7 @@ body:has(.ob) .site-header {
   padding-left: 18px;
 }
 
-.ob-list a,
-.ob-link {
+.ob-list a {
   color: var(--foreground);
   text-underline-offset: 3px;
 }
@@ -262,14 +261,18 @@ body:has(.ob) .site-header {
 .ob-note {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .ob-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.8125rem;
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-underline-offset: 3px;
 }
 
 .ob-button {
@@ -652,6 +655,9 @@ body:has(.ob) .site-header {
   border-color: var(--line);
   box-shadow: none;
   overflow-y: auto;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100dvh - 96px);
 }
 
 .ob-side-head {
@@ -1019,12 +1025,6 @@ body:has(.ob) .site-header {
   min-width: 0;
 }
 
-.ob-side {
-  position: sticky;
-  top: 80px;
-  max-height: calc(100dvh - 96px);
-}
-
 .ob-promise,
 .ob-noticed,
 .ob-left {
@@ -1149,6 +1149,20 @@ body:has(.ob) .site-header {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.ob-approved {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-approved li {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
 }
 
 .ob-pace {
@@ -1562,6 +1576,7 @@ body:has(.ob) .site-header {
 
   .ob-side {
     position: fixed;
+    top: auto;
     right: 0;
     bottom: 0;
     left: 0;

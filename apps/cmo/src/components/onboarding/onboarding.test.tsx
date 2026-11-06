@@ -140,7 +140,10 @@ describe("Site while Cuso reads", () => {
     const html = site(reading());
     expect(html).toContain("Reading acme.io.");
     expect(html).toContain("Cuso is reading");
-    expect(html).toContain("Your website");
+    expect(html).toContain("Reading your site");
+    expect(html).toContain("Cuso is reading · ");
+    expect(html).toContain("min so far");
+    expect(html).toContain("/cuso/reading.png");
     expect(html).toContain("What I found so far");
     expect(html).toContain("7 of 16 sections");
     expect(html).toContain("questions come when the read lands");
@@ -310,6 +313,60 @@ describe("Plan", () => {
     );
     expect(html).toContain("Planning stopped");
     expect(html).toContain("Try again");
+  });
+
+  it("is read-only once approved: answers, pace and budget as text, no change", () => {
+    const base = draft(cmoStrategyVersion(new Date()));
+    const html = renderToStaticMarkup(
+      <PlanStep
+        overview={{
+          ...base,
+          strategy: {
+            ...strategy,
+            pace: { level: "active", why: "One a day", perWeek: 7 },
+            ads: {
+              monthly: 200,
+              currency: "EUR",
+              expect: "Some sales",
+              without: "Organic only",
+            },
+            questions: [
+              {
+                id: "q",
+                question: "Do you ship every month?",
+                statement: "They ship.",
+                answer: "no",
+                note: "Every quarter",
+              },
+            ],
+          },
+        }}
+        phase="review"
+        ahead={{ label: "Launch", onClick: () => {} }}
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("Continue to Launch");
+    expect(html).toContain("Do you ship every month?");
+    expect(html).toContain("Every quarter");
+    expect(html).toContain("Pace:");
+    expect(html).toContain("about one a day");
+    expect(html).toContain("€200 a month for ads");
+    for (const live of [
+      "Ask for a change",
+      "Approve plan",
+      "Update plan",
+      ">All-in<",
+      ">Change<",
+      ">Yes<",
+    ]) {
+      expect(html).not.toContain(live);
+    }
   });
 
   it("asks for the plan when Brand is confirmed and nothing writes it", () => {
@@ -490,6 +547,33 @@ describe("Launch", () => {
       },
     });
     expect(html).toContain("Needed to start");
+  });
+
+  it("with only ads in the plan, is ready at once and keeps ads under Add later", () => {
+    const base = approved();
+    const html = render({
+      ...base,
+      strategy: {
+        ...(base.strategy as Strategy),
+        channels: [{ channel: "meta_ads", cadence: "2 a month" }],
+        calendar: [
+          {
+            id: "meta-1",
+            date: "2026-10-09",
+            channel: "meta_ads",
+            format: "image",
+            title: "Try it free",
+            status: "idea" as const,
+          },
+        ],
+        proposals: [],
+      },
+    });
+    expect(html).toContain("Ready when you are.");
+    expect(html).not.toContain("Connect where I post.");
+    expect(html).toContain("Add later");
+    expect(html).toContain("Facebook &amp; Instagram ads");
+    expect(launchOff(html)).toBe(false);
   });
 
   it("shows no celebration before Launch is pressed", () => {

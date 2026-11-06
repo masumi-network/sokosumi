@@ -9,7 +9,7 @@ import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { strategyApproved } from "../../lib/strategy";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money, PacePicker } from "../strategy-core";
+import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import {
@@ -41,6 +41,13 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 
 const NUMBER_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
+
+const ANSWER_WORDS: Record<string, string> = {
+  yes: "Yes",
+  no: "No",
+  unsure: "Not sure",
+  "": "Not answered",
+};
 
 interface PlanStepProps {
   overview: CmoOverview;
@@ -293,6 +300,7 @@ function PlanReview({
   );
 
   const ads = strategy.ads;
+  const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
 
   return (
@@ -303,23 +311,25 @@ function PlanReview({
           <h1 className="ob-statement-title">{statement}</h1>
         </div>
         <div className="ob-title-action">
-          <button
-            type="button"
-            className="button button-secondary"
-            aria-expanded={asking}
-            disabled={busy}
-            onClick={() => {
-              setAsking(!asking);
-              if (!asking) window.setTimeout(() => input.current?.focus(), 0);
-            }}
-          >
-            Ask for a change
-          </button>
+          {approved ? null : (
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-expanded={asking}
+              disabled={busy}
+              onClick={() => {
+                setAsking(!asking);
+                if (!asking) window.setTimeout(() => input.current?.focus(), 0);
+              }}
+            >
+              Ask for a change
+            </button>
+          )}
           {primary}
         </div>
       </div>
 
-      {asking ? (
+      {asking && !approved ? (
         <div className="panel">
           <form
             className="card ob-change"
@@ -411,7 +421,34 @@ function PlanReview({
           </div>
         ) : null}
 
-        {hasChecks ? (
+        {approved && hasChecks ? (
+          <div className="ob-checks">
+            <h2>What you approved</h2>
+            <ul className="ob-approved">
+              {questions.map((question) => (
+                <li key={question.id}>
+                  {question.question}{" "}
+                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                  {question.answer === "no" && question.note
+                    ? `: ${question.note}`
+                    : ""}
+                </li>
+              ))}
+              {pace ? (
+                <li>
+                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
+                </li>
+              ) : null}
+              {ads ? (
+                <li>
+                  {ads.monthly > 0
+                    ? `${money(ads.monthly, ads.currency)} a month for ads`
+                    : "No ads"}
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ) : hasChecks ? (
           <div className="ob-checks">
             <h2>Check these</h2>
             {questions.map((question) => (
