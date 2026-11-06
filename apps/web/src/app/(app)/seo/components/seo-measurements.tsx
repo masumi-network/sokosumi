@@ -13,14 +13,17 @@ import { cn } from "@/lib/utils";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import { SeoDate, SeoSection, SeoState } from "./seo-shared";
-import { latestSeoMeasurements } from "./seo-statistics-model";
+import {
+  latestSeoMeasurements,
+  type SeoStatisticsProvider,
+} from "./seo-statistics-model";
 
 export function SeoMeasurements({
   workspace,
   onSync,
 }: {
   workspace: ProjectSeoWorkspace;
-  onSync: () => void;
+  onSync: (source?: SeoStatisticsProvider) => void;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
@@ -31,6 +34,8 @@ export function SeoMeasurements({
   const provider = providers.includes(chosenProvider)
     ? chosenProvider
     : providers[0];
+  const selectedSource =
+    provider === "ga4" || provider === "search_console" ? provider : undefined;
   const visible = metrics.filter((metric) => metric.source === provider);
   const active =
     visible.find((metric) => metric.id === chosenMetric) ?? visible[0];
@@ -65,7 +70,11 @@ export function SeoMeasurements({
       title={t("overview.measurements")}
       actions={
         workspace.availableActions.canSyncMetrics ? (
-          <Button size="sm" variant="outline" onClick={onSync}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onSync(selectedSource)}
+          >
             {t("syncStatistics")}
           </Button>
         ) : undefined
@@ -181,7 +190,7 @@ export function SeoMeasurements({
             {t("overview.trafficSetupBody")}
           </p>
           {workspace.availableActions.canSyncMetrics ? (
-            <Button variant="outline" size="sm" onClick={onSync}>
+            <Button variant="outline" size="sm" onClick={() => onSync()}>
               {t("overview.manageConnections")}
             </Button>
           ) : null}

@@ -13,13 +13,22 @@ import {
 } from "@/components/ui/dialog";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoField, SeoSelect } from "./seo-form-fields";
-import { SEO_STATISTICS_PERIODS } from "./seo-statistics-model";
+import {
+  SEO_STATISTICS_PERIODS,
+  type SeoStatisticsProvider,
+} from "./seo-statistics-model";
 import { useSeoStatistics } from "./use-seo-statistics";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
+export function SeoStatisticsDialog({
+  model,
+  source,
+}: {
+  model: SeoWorkspaceModel;
+  source?: SeoStatisticsProvider;
+}) {
   const t = useTranslations("App.Seo");
-  const form = useSeoStatistics(model);
+  const form = useSeoStatistics(model, source);
   const properties = form.properties.data;
   return (
     <Dialog
@@ -58,12 +67,13 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
             <p role="status" className="text-muted-foreground text-sm">
               {t("statistics.propertiesLoading")}
             </p>
-          ) : form.properties.isError ? (
+          ) : form.propertiesUnavailable ? (
             <div role="alert">
               <p>{t("statistics.propertiesFailed")}</p>
               <Button
                 type="button"
                 variant="outline"
+                loading={form.properties.isFetching}
                 onClick={() => {
                   void form.properties.refetch();
                 }}
@@ -182,6 +192,7 @@ export function SeoStatisticsDialog({ model }: { model: SeoWorkspaceModel }) {
               loading={model.pending}
               disabled={
                 model.pending ||
+                form.propertiesUnavailable ||
                 !form.propertyId ||
                 form.invalidDates ||
                 !model.data.scope.pageIds.length ||

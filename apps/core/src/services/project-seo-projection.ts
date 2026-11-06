@@ -409,6 +409,7 @@ export function projectSeoProjection(
   }
   for (const choice of input.keywords) {
     if (
+      !choice.saved ||
       (choice.pageId && !selectedIds.has(choice.pageId)) ||
       observedKeywordChoices.has(choice.id)
     )

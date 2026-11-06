@@ -19,19 +19,24 @@ import {
 } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-export function useSeoStatistics(model: SeoWorkspaceModel) {
+export function useSeoStatistics(
+  model: SeoWorkspaceModel,
+  source?: SeoStatisticsProvider,
+) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [workspace] = useState(() => model.data);
   const owner = seoWorkspaceOwner(workspace);
-  const [saved] = useState(() => savedSeoStatistics(workspace.metrics));
+  const [saved] = useState(() => savedSeoStatistics(workspace.metrics, source));
   const [provider, setProvider] = useState<SeoStatisticsProvider>(
-    saved?.source === "search_console" ? "search_console" : "ga4",
+    source ?? (saved?.source === "search_console" ? "search_console" : "ga4"),
   );
   const [chosenPropertyId, setPropertyId] = useState(saved?.propertyId ?? "");
   const [channel, setChannel] = useState<"all" | "organic">(
-    model.filters.channel ?? saved?.channel ?? "all",
+    source && saved
+      ? saved.channel
+      : (model.filters.channel ?? saved?.channel ?? "all"),
   );
   const [defaultPeriod] = useState(() =>
     seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS),
@@ -78,6 +83,8 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
     refetchOnWindowFocus: false,
   });
   const availableProperties = properties.data?.properties ?? [];
+  const propertiesUnavailable =
+    properties.isError || properties.data?.status === "unavailable";
   const propertyId = availableProperties.some(
     (item) => item.id === chosenPropertyId,
   )
@@ -98,6 +105,7 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
   }
   async function submit() {
     if (
+      propertiesUnavailable ||
       invalidDates ||
       !properties.data?.properties.some(
         (property) => property.id === propertyId,
@@ -134,6 +142,7 @@ export function useSeoStatistics(model: SeoWorkspaceModel) {
     channel,
     setChannel,
     properties,
+    propertiesUnavailable,
     from,
     setFrom,
     to,

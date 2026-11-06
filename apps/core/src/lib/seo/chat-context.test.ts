@@ -69,6 +69,81 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("keeps confirmed issues ahead of neutral measurements when evidence is limited", () => {
+    const workspace = workspaceFixture();
+    const measurement = {
+      id: "measurement",
+      observationId: randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      device: "desktop" as const,
+      rowId: "O-06",
+      title: "Title length",
+      severity: "measure" as const,
+      evidence: ["The title contains 56 characters"],
+      sourceRef: "synthetic-html",
+      observedAt: new Date().toISOString(),
+    };
+    workspace.findings = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        ...measurement,
+        id: `measurement-${index}`,
+      })),
+      {
+        ...measurement,
+        id: "indexing",
+        rowId: "AC-05",
+        title: "Indexing instruction",
+        severity: "critical",
+        evidence: ["The fetched HTML includes noindex"],
+      },
+    ];
+    const evidence = JSON.parse(seoChatContext(workspace));
+    expect(evidence.findings[0]).toMatchObject({
+      title: "Indexing instruction",
+      severity: "critical",
+    });
+    expect(evidence.limited).toBe(true);
+    expect(evidence.totals.findings).toBe(21);
+  });
+
+  it("keeps the audited page distinct from competing pages in chat evidence", () => {
+    const workspace = workspaceFixture();
+    const measured = {
+      id: "own-page",
+      url: workspace.pages[0].url,
+      role: "page" as const,
+      countryCode: "US",
+      languageCode: "en",
+      scopeVersion: 0,
+      observationId: randomUUID(),
+      rank: null,
+      backlinks: 30,
+      referringDomains: 4,
+      source: "backlinks",
+      observedAt: new Date().toISOString(),
+      confirmed: false,
+      canConfirm: false,
+      version: 1,
+      exclusionReason: null,
+    };
+    workspace.competitors = [
+      measured,
+      {
+        ...measured,
+        id: "other-page",
+        url: "https://other.test/",
+        role: "competitor",
+        canConfirm: true,
+      },
+    ];
+    const evidence = JSON.parse(seoChatContext(workspace));
+    expect(evidence.totals.competitors).toBe(1);
+    expect(evidence.competitors).toMatchObject([
+      { url: workspace.pages[0].url, role: "page", backlinks: 30 },
+      { url: "https://other.test/", role: "competitor", backlinks: 30 },
+    ]);
+  });
+
   it("distinguishes an observed ranking page from the saved target without inventing saved-only observations", () => {
     const workspace = workspaceFixture();
     const target = workspace.pages[0];

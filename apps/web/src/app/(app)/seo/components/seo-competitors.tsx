@@ -81,9 +81,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     <div className="mt-1">
                       <SeoState>
                         {t(
-                          row.confirmed
-                            ? "competitors.confirmed"
-                            : "competitors.suggested",
+                          row.role === "page"
+                            ? "competitors.yourPage"
+                            : row.confirmed
+                              ? "competitors.confirmed"
+                              : "competitors.suggested",
                         )}
                       </SeoState>
                     </div>
@@ -120,6 +122,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                   </TableCell>
                   <TableCell>
                     {model.data.availableActions.canEdit &&
+                    row.role === "competitor" &&
                     (row.canConfirm || row.confirmed) ? (
                       <Button
                         variant="outline"

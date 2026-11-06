@@ -37,8 +37,13 @@ export function latestSeoMeasurements(metrics: ProjectSeoMetric[]) {
 }
 
 /** Saved metrics already belong to the current reader and selected pages. */
-export function savedSeoStatistics(metrics: ProjectSeoMetric[]) {
-  return latestSeoMeasurements(metrics).find((metric) => metric.propertyId);
+export function savedSeoStatistics(
+  metrics: ProjectSeoMetric[],
+  source?: SeoStatisticsProvider,
+) {
+  return latestSeoMeasurements(metrics).find(
+    (metric) => metric.propertyId && (!source || metric.source === source),
+  );
 }
 
 export function seoStatisticsPeriod(days: number, now = new Date()) {

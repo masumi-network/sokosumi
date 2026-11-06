@@ -10684,7 +10684,8 @@
         "backlinks": "Enlaces entrantes",
         "domains": "Dominios de referencia",
         "excluded": "No se puede confirmar este candidato.",
-        "help": "Los competidores de búsqueda pueden ser artículos o foros. Confirma las páginas relevantes para esta auditoría."
+        "help": "Los competidores de búsqueda pueden ser artículos o foros. Confirma las páginas relevantes para esta auditoría.",
+        "yourPage": "Tu página"
       },
       "actions": {
         "title": "Acciones",

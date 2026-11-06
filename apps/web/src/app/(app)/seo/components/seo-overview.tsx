@@ -98,10 +98,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
           {t("actions.checksIncompleteBody")}
         </p>
       ) : null}
-      <SeoMeasurements
-        workspace={data}
-        onSync={() => model.setDialog("statistics")}
-      />
+      <SeoMeasurements workspace={data} onSync={model.openStatistics} />
       {overview.recentChecks.length ? (
         <SeoSection title={t("overview.recentChecks")}>
           {overview.recentChecks.map((item) => (

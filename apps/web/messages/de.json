@@ -10684,7 +10684,8 @@
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
-        "help": "Suchmitbewerber können Artikel oder Foren sein. Bestätige die für dieses Audit relevanten Seiten."
+        "help": "Suchmitbewerber können Artikel oder Foren sein. Bestätige die für dieses Audit relevanten Seiten.",
+        "yourPage": "Deine Seite"
       },
       "actions": {
         "title": "Aktionen",

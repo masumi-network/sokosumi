@@ -188,6 +188,22 @@ REPORTED: Core partial-report validation checks exact page, device, row, source,
 
 VERIFIED: final complete Web run reported `1320 passed` files and `13499 passed` tests, with `6 successful, 6 total` tasks. Evidence: `/private/tmp/seo-results-graph-web-final.log`. This followed both contextual automatic-read corrections. The prior full run reported `13498 passed` before the final polling test was added.
 
+## Human flow corrections after the results review
+
+VERIFIED: `seo-competitors.tsx` keeps audited-page backlink measurements labeled Your page and hides competitor controls for those rows. `project-seo-projection.ts` omits unsaved manual keyword choices that have no observed result. Real observed unsaved keywords remain. REPORTED: prior-source tests failed two real-view cases and one projection case; current focused suites reported `4 passed` and `13 passed`. Evidence: `/private/tmp/seo-own-page-competitor-before.log` and `/private/tmp/seo-watchlist-projection-before.log`.
+
+VERIFIED: `seo-analysis-market-model.ts` prefills only saved keywords for the selected country and language. Its controller keeps edited and empty drafts per market. Repeated device observations share one keyword identity. HTML-only requests still use zero-provider inputs. REPORTED: the actual previous dialog failed the retained market case; current focused checks reported `68 passed`. Evidence: `/private/tmp/seo-market-prior-view-ihioq2l2/red.log` and `/private/tmp/seo-analysis-market-green.log`.
+
+VERIFIED: Statistics Sync forwards the displayed provider to setup with its saved property, period and channel. Generic setup clears that hint. A successful HTTP response with unavailable property data offers Retry and retains entered dates. REPORTED: previous source failed both new real Workspace cases; current statistics checks reported `44 passed`. Evidence: `/private/tmp/seo-statistics-selection-before.log` and `/private/tmp/seo-statistics-selection-after.log`.
+
+VERIFIED: Native chat evidence retains audited-page and competitor roles, counts only competing pages, and places confirmed issues before neutral diagnostics at the evidence limit. The original helper with retained corrected tests reports `2 failed`, `3 passed`; current combined Core checks report `26 passed`. Evidence: `/private/tmp/seo-chat-clarity-old-source.log`, `/private/tmp/seo-watchlists-chat-core-final.log` and `/private/tmp/seo-chat-clarity-evidence.md`.
+
+VERIFIED correction: The earlier general worker-completion gate predates the approved single-Task delivery. Battery Sensei Task `01a1b079-504a-76c5-a573-baddc8ac34d8` completed with one report and zero provider calls. New revision deployment, ongoing worker automation and further Tasks remain unverified and outside that one execution. The recorded worker scope permits only that completed Task. Evidence: `/private/tmp/seo-battery-task-after-delivery.json` and `/private/tmp/seo-battery-one-task-deployed.json`.
+
+INFERRED: Further online acceptance needs approved updated Preview and worker releases, an authorized request scope and transport, canonical consent return verification, and real Google statistics. Paid-provider and scheduled paths need their own approved test scope. Local tests do not complete those gates.
+
+VERIFIED: the complete post-correction Web run reports `1324 passed` files, `13509 passed` tests and `6 successful, 6 total` tasks. Evidence: `/private/tmp/seo-user-flows-web-full.log`. The companion worker source remains at reviewed `b419a6099d958f4379ea40b32055b36f7669fd90`; these changes do not add another worker run.
+
 ## Least confident decisions
 
 1. INFERRED: supported Composio tools may still vary by connected account. Runtime metadata checks refuse unsupported or non-read-only tools.

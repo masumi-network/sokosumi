@@ -10684,7 +10684,8 @@
         "backlinks": "Backlinks",
         "domains": "Referring domains",
         "excluded": "This candidate cannot be confirmed.",
-        "help": "Search competitors can be articles or forums. Confirm the pages relevant to this audit."
+        "help": "Search competitors can be articles or forums. Confirm the pages relevant to this audit.",
+        "yourPage": "Your page"
       },
       "actions": {
         "title": "Actions",

@@ -25,6 +25,7 @@ import {
   SEO_MAX_PROVIDER_CALLS,
 } from "./seo-form-model";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
+import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoAnalysisDialog({
@@ -39,7 +40,7 @@ export function SeoAnalysisDialog({
   const full = form.kind === "audit_full";
   const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
-  const savedKeywords = form.workspace.keywords.filter((row) => row.saved);
+  const market = useSeoAnalysisMarket(form.workspace.keywords);
   return (
     <Dialog
       open
@@ -119,7 +120,8 @@ export function SeoAnalysisDialog({
               <SeoSelect
                 id="seo-analysis-country"
                 name="countryCode"
-                defaultValue={savedKeywords[0]?.countryCode}
+                value={market.countryCode}
+                onValueChange={market.setCountryCode}
                 required
                 options={SEO_COUNTRIES.map((value) => ({
                   value,
@@ -131,7 +133,8 @@ export function SeoAnalysisDialog({
               <Input
                 id="seo-analysis-language"
                 name="languageCode"
-                defaultValue={savedKeywords[0]?.languageCode}
+                value={market.languageCode}
+                onChange={(event) => market.setLanguageCode(event.target.value)}
                 required
                 pattern="[a-z]{2}"
                 maxLength={2}
@@ -148,9 +151,8 @@ export function SeoAnalysisDialog({
                 id="seo-analysis-keywords"
                 name="keywords"
                 rows={3}
-                defaultValue={[
-                  ...new Set(savedKeywords.map((row) => row.keyword)),
-                ].join("\n")}
+                value={market.keywords}
+                onChange={(event) => market.setKeywords(event.target.value)}
               />
             </SeoField>
           ) : null}

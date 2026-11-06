@@ -312,7 +312,11 @@ export function SeoWorkspace({
             <SeoPageChangeDialog key={dialogKey} model={model} />
           ) : null}
           {model.dialog === "statistics" ? (
-            <SeoStatisticsDialog key={dialogKey} model={model} />
+            <SeoStatisticsDialog
+              key={dialogKey}
+              model={model}
+              source={model.statisticsSource}
+            />
           ) : null}
         </>
       ) : null}

@@ -26,6 +26,7 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import type { SeoStatisticsProvider } from "./seo-statistics-model";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
 
@@ -113,7 +114,17 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   });
   const [keywordSearch, setKeywordSearch] = useState("");
   const [competitorSearch, setCompetitorSearch] = useState("");
-  const [dialog, setDialog] = useState<SeoDialog>(null);
+  const [dialog, setDialogState] = useState<SeoDialog>(null);
+  const [statisticsSource, setStatisticsSource] =
+    useState<SeoStatisticsProvider>();
+  function setDialog(value: SeoDialog) {
+    setStatisticsSource(undefined);
+    setDialogState(value);
+  }
+  function openStatistics(source?: SeoStatisticsProvider) {
+    setStatisticsSource(source);
+    setDialogState("statistics");
+  }
   const [editingKeyword, setEditingKeyword] =
     useState<ProjectSeoKeyword | null>(null);
   const [pending, setPending] = useState(false);
@@ -243,6 +254,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     invalidDates,
     dialog,
     setDialog,
+    statisticsSource,
+    openStatistics,
     pending,
     execute,
     operationKey,

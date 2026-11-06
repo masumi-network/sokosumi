@@ -142,6 +142,64 @@ function actionFixture() {
 }
 
 describe("stored SEO workspace projections", () => {
+  it("omits unsaved manual keywords while keeping real observations and saved choices", () => {
+    const { input, original } = actionFixture();
+    const choice = {
+      projectId: input.project.id,
+      auditId: null,
+      countryCode: "US",
+      languageCode: "en",
+      pageId: input.pages[0].id,
+      priority: "high",
+      version: 2,
+      updatedAt: now,
+    };
+    input.keywords = [
+      {
+        ...choice,
+        id: randomUUID(),
+        keyword: "example",
+        keywordKey: "example",
+        saved: false,
+      },
+      {
+        ...choice,
+        id: randomUUID(),
+        keyword: "removed manual keyword",
+        keywordKey: "removed manual keyword",
+        saved: false,
+      },
+      {
+        ...choice,
+        id: randomUUID(),
+        keyword: "saved manual keyword",
+        keywordKey: "saved manual keyword",
+        saved: true,
+      },
+    ];
+    const result = projectSeoProjection(input);
+    expect(result.keywords.map((row) => row.keyword)).not.toContain(
+      "removed manual keyword",
+    );
+    const observed = result.keywords.filter((row) => row.keyword === "example");
+    expect(observed.length).toBeGreaterThan(0);
+    for (const row of observed)
+      expect(row).toMatchObject({
+        saved: false,
+        observationId: original.id,
+        observedAt: original.observedAt.toISOString(),
+        pageUrl: SEO_TEST_PAGE,
+      });
+    expect(
+      result.keywords.find((row) => row.keyword === "saved manual keyword"),
+    ).toMatchObject({
+      saved: true,
+      source: "saved",
+      observationId: null,
+      observedAt: null,
+    });
+  });
+
   it("keeps the saved keyword target distinct from the page observed in search", () => {
     const { input } = actionFixture();
     const target = {
