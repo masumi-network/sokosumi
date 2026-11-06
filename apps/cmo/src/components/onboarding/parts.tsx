@@ -107,13 +107,17 @@ export function useElapsed(
     return () => window.clearInterval(timer);
   }, [running]);
   if (!running || !since) return null;
-  const seconds = Math.max(
-    0,
-    Math.round((now - new Date(since).getTime()) / 1_000),
+  return elapsedLabel(
+    Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000)),
   );
-  return seconds < 60
-    ? `${seconds}s so far`
-    : `${Math.floor(seconds / 60)} min so far`;
+}
+
+/** "12s so far", "4 min so far", "2 h so far". */
+export function elapsedLabel(seconds: number): string {
+  if (seconds < 60) return `${seconds}s so far`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min so far`;
+  return `${Math.floor(minutes / 60)} h so far`;
 }
 
 export const RESEARCH_PHASES = [
