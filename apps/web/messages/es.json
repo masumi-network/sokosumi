@@ -3233,7 +3233,6 @@
       },
       "Newsletter": {
         "title": "Boletín",
-        "description": "Configura el remitente, la marca y el correo de bienvenida del boletín de este proyecto.",
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
@@ -3283,7 +3282,6 @@
         },
         "Subscribers": {
           "title": "Suscriptores",
-          "description": "Gestiona las personas que reciben el boletín de este proyecto.",
           "add": "Añadir suscriptor",
           "import": "Importar CSV",
           "cancel": "Cancelar",
@@ -3420,7 +3418,6 @@
         },
         "Issues": {
           "title": "Ediciones",
-          "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
           "newIssue": "Nueva edición",
           "Ai": {
             "action": "Escríbelo por mí",
@@ -3707,7 +3704,6 @@
         },
         "Analytics": {
           "title": "Estadísticas",
-          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
           "keyMetrics": "Métricas del boletín",
           "rangeLabel": "Intervalo de fechas",
           "rangeSelected": "Intervalo de fechas: {range}",
@@ -4814,8 +4810,7 @@
           "subject": "Nueva temporada, nuevos colores",
           "body": "Arena, arcilla y un azul mar profundo: la paleta detrás de la colección de verano."
         }
-      },
-      "projectTitle": "Boletín de {project}"
+      }
     },
     "Social": {
       "title": "Publicaciones sociales",

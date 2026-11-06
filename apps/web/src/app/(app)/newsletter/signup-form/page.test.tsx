@@ -102,9 +102,7 @@ describe("newsletter signup form page", () => {
     expect(mocks.settings).toHaveBeenCalledExactlyOnceWith(
       NEWSLETTER_PROJECT_ID,
     );
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Launch newsletter" }),
-    ).toBeVisible();
+    expect(screen.queryByText("Launch newsletter")).toBeNull();
     expect(screen.getByRole("link", { name: "Signup form" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -114,11 +112,6 @@ describe("newsletter signup form page", () => {
       `/newsletter/signup-form?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(screen.getByRole("heading", { name: "Share" })).toBeVisible();
-    expect(
-      screen.getByText(
-        messages.App.Projects.Newsletter.SignupForm.pageDescription,
-      ),
-    ).toBeVisible();
     expect(
       screen.getByText(messages.App.Projects.Newsletter.SignupForm.description),
     ).toBeVisible();
