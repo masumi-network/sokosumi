@@ -1,20 +1,23 @@
 "use client";
 
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoBrandMedia, CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 
 import {
   BRAND_SECTIONS,
   type BrandBrain,
+  type BrandSection,
   type BrandSectionKey,
   brandProfile,
+  EVIDENCE_LABELS,
   sourceHost,
 } from "../../lib/brand-sections";
 import { channelLabel } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
+import { CompetitorCards, SiteShowcase } from "../brand-media";
 import {
   Accounts,
   AskForm,
@@ -22,9 +25,10 @@ import {
   firstSentence,
   hostOf,
   Offers,
-  SectionDetail,
+  SectionEditor,
   Voice,
 } from "../brand-profile";
+import { BusinessMark } from "../business-mark";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import {
@@ -37,6 +41,9 @@ import {
   useAnswers,
 } from "./parts";
 import { Refusal } from "./refusal";
+
+/** Brand colours the site card shows, at most. */
+const MAX_COLORS = 5;
 
 /** Insights "What I noticed" lists, at most. */
 const MAX_INSIGHTS = 3;
@@ -65,6 +72,7 @@ interface TileData {
 export function brandTiles(
   brain: BrandBrain,
   onSave: (brain: BrandBrain) => Promise<void>,
+  media: CmoBrandMedia | null = null,
 ): TileData[] {
   const tiles: TileData[] = [];
   const offers = brain.offers ?? [];
@@ -141,22 +149,25 @@ export function brandTiles(
       value: `${rivals.length} compared`,
       detail: short(rivals.map((rival) => rival.name).join(", ")),
       section: "competition",
-      body: (
-        <ul className="ob-list">
-          {rivals.map((rival) => (
-            <li key={rival.name}>
-              {rival.url ? (
-                <a href={rival.url} target="_blank" rel="noreferrer">
-                  {rival.name}
-                </a>
-              ) : (
-                rival.name
-              )}
-              {rival.note ? ` · ${rival.note}` : ""}
-            </li>
-          ))}
-        </ul>
-      ),
+      body:
+        media && media.competitors.length > 0 ? (
+          <CompetitorCards brain={brain} media={media} />
+        ) : (
+          <ul className="ob-list">
+            {rivals.map((rival) => (
+              <li key={rival.name}>
+                {rival.url ? (
+                  <a href={rival.url} target="_blank" rel="noreferrer">
+                    {rival.name}
+                  </a>
+                ) : (
+                  rival.name
+                )}
+                {rival.note ? ` · ${rival.note}` : ""}
+              </li>
+            ))}
+          </ul>
+        ),
     });
   }
   if (brain.channels.length > 0) {
@@ -242,7 +253,7 @@ export function BrandStep({
     }
   }
 
-  const tiles = brandTiles(brain, onSave);
+  const tiles = brandTiles(brain, onSave, overview.brandMedia);
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
 
@@ -256,6 +267,9 @@ export function BrandStep({
     (question) => question.answer === "no" && question.corrected === false,
   ).length;
   const lead = corrections > 0 ? undefined : ahead;
+  const hasShot = overview.brandMedia?.pages.some(
+    (page) => page.device === "desktop" && page.label === "Home",
+  );
   const insights = brain.reveal?.insights ?? [];
   const busy = approving || fixing || finishing;
 
@@ -325,7 +339,10 @@ export function BrandStep({
 
       <div className="panel ob-brand-panel">
         <div className="ob-brand-main">
-          <PromiseCard brain={brain} site={site} onSave={onSave} />
+          <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
+            <PromiseCard brain={brain} site={site} onSave={onSave} />
+            {hasShot ? <SiteCard overview={overview} host={site} /> : null}
+          </div>
 
           {left.length > 0 ? (
             <div className="card ob-left">
@@ -387,32 +404,37 @@ export function BrandStep({
             title={shown.label}
             onClose={() => setOpen(null)}
             source={`Source: ${sourceHost(tileSource(shown, profile, overview.websiteUrl))}`}
+            sourceUrl={tileSource(shown, profile, overview.websiteUrl)}
           >
-            {shown.body}
-            {shown.section ? (
-              <SectionDetail
-                sectionKey={shown.section}
-                section={section}
-                onSave={async (next) => {
-                  if (!shown.section) return;
-                  await onSave({
-                    ...brain,
-                    profile: { ...profile, [shown.section]: next },
-                  });
-                  // The summary comes from Cuso, so he brings it in line.
-                  await ask(
-                    `I corrected the ${BRAND_SECTIONS[shown.section].title} research in my Brand Brain. Update the summary to match it.`,
-                  );
-                }}
+            <TileDetail
+              section={section}
+              body={shown.body}
+              onSave={
+                shown.section
+                  ? async (next) => {
+                      if (!shown.section) return;
+                      await onSave({
+                        ...brain,
+                        profile: { ...profile, [shown.section]: next },
+                      });
+                      // The summary comes from Cuso, so he brings it in line.
+                      await ask(
+                        `I corrected the ${BRAND_SECTIONS[shown.section].title} research in my Brand Brain. Update the summary to match it.`,
+                      );
+                    }
+                  : undefined
+              }
+            />
+            <div className="ob-ask-field">
+              <label htmlFor="ob-tell">Tell {AGENT_NAME} what's off</label>
+              <AskForm
+                key={shown.id}
+                inputId="ob-tell"
+                cta="Send"
+                placeholder="Say what to fix"
                 onAsk={ask}
               />
-            ) : null}
-            <AskForm
-              key={shown.id}
-              cta="Send"
-              placeholder={`Tell ${AGENT_NAME} what's off`}
-              onAsk={ask}
-            />
+            </div>
             {sent && answered && lastWord ? (
               <p className="note" aria-live="polite">
                 {AGENT_NAME}: {lastWord.content}
@@ -422,6 +444,102 @@ export function BrandStep({
         ) : null}
       </div>
     </section>
+  );
+}
+
+interface TileDetailProps {
+  section: BrandSection | undefined;
+  /** What the Brand Brain's own fields show, such as the offers or the voice. */
+  body: ReactNode;
+  /** Saves the owner's edit of the section; unset where it has none. */
+  onSave: ((section: BrandSection) => Promise<void>) | undefined;
+}
+
+/** One short summary, the Brand Brain's own fields, then the findings in rows. */
+function TileDetail({ section, body, onSave }: TileDetailProps) {
+  const [editing, setEditing] = useState(false);
+  if (editing && section && onSave) {
+    return (
+      <SectionEditor
+        section={section}
+        onCancel={() => setEditing(false)}
+        onSave={async (next) => {
+          await onSave(next);
+          setEditing(false);
+        }}
+      />
+    );
+  }
+  return (
+    <>
+      {section ? (
+        <p className="ob-side-summary">
+          {section.headline ?? clip(section.answer, 140)}
+        </p>
+      ) : null}
+      {body}
+      {section && section.findings.length > 0 ? (
+        <ul className="ob-findings">
+          {section.findings.map((finding) => (
+            <li key={finding.point}>
+              <span>{finding.point}</span>
+              <span className="ob-tile-source">
+                {EVIDENCE_LABELS[finding.evidence]}
+                {finding.sourceUrl ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={finding.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {sourceHost(finding.sourceUrl)}
+                    </a>
+                  </>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {section && onSave ? (
+        <button
+          type="button"
+          className="button button-secondary button-small ob-edit"
+          onClick={() => setEditing(true)}
+        >
+          Edit
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+interface SiteCardProps {
+  overview: CmoOverview;
+  host: string;
+}
+
+/** The homepage as visitors see it, with the brand's logo and colours. */
+function SiteCard({ overview, host }: SiteCardProps) {
+  const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
+  return (
+    <div className="card ob-sitecard">
+      <h2>Your site</h2>
+      <SiteShowcase media={overview.brandMedia} host={host} />
+      <div className="ob-brandmark">
+        <BusinessMark overview={overview} size={36} wide />
+        {colors.length > 0 ? (
+          <ul className="ob-swatches" aria-label="Brand colours">
+            {colors.map((color) => (
+              <li key={color} style={{ background: color }}>
+                <span className="ob-sr">{color}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

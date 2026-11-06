@@ -40,8 +40,6 @@ import { type PlanPhase, planUnfitted } from "./step";
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 
-const NUMBER_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
-
 const ANSWER_WORDS: Record<string, string> = {
   yes: "Yes",
   no: "No",
@@ -67,6 +65,8 @@ interface PlanStepProps {
   onUpdate: () => Promise<string | null>;
   onApprove: () => Promise<void>;
   onConnectMeasurement: ConnectMeasurement;
+  /** The plan was just requested: wait for Cuso's work to show up. */
+  starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
 }
@@ -79,7 +79,13 @@ interface PlanStepProps {
 export function PlanStep(props: PlanStepProps) {
   const { overview, phase, onRequest } = props;
   if (phase === "planning") {
-    return <Planning overview={overview} onRetry={() => onRequest()} />;
+    return (
+      <Planning
+        overview={overview}
+        starting={props.starting ?? false}
+        onRetry={() => onRequest()}
+      />
+    );
   }
   if (phase === "writing-needed" || !overview.strategy) {
     return <WriteNeeded overview={overview} onWrite={() => onRequest()} />;
@@ -89,13 +95,15 @@ export function PlanStep(props: PlanStepProps) {
 
 interface PlanningProps {
   overview: CmoOverview;
+  starting: boolean;
   onRetry: () => Promise<string | null>;
 }
 
 /** The first plan is being written: the checklist, and the way to try again. */
-function Planning({ overview, onRetry }: PlanningProps) {
+function Planning({ overview, starting, onRetry }: PlanningProps) {
   const work = overview.work;
-  const running = work?.kind === "strategy" && work.status === "running";
+  const running =
+    starting || (work?.kind === "strategy" && work.status === "running");
   const noCredits = !running && overview.billing.availableCredits <= 0;
   const elapsed = useElapsed(work?.startedAt, running);
   return (
@@ -216,7 +224,6 @@ function PlanReview({
   const pages =
     overview.brandMedia?.pages.filter((page) => page.device === "desktop")
       .length ?? 0;
-  const moves = (strategy.funnel ?? []).length;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -246,10 +253,13 @@ function PlanReview({
     );
   }
 
-  const statement =
-    moves > 0 && pages > 0
-      ? `One goal, ${NUMBER_WORDS[moves] ?? moves} ${moves === 1 ? "move" : "moves"}. Built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.`
-      : `${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks. Nothing goes out until you approve the plan.`;
+  const line =
+    pages > 0
+      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site`
+      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks. Nothing goes out until you approve the plan.`;
+  // The short goal is the headline; the long sentence sits under it.
+  const sentence = strategy.idea?.sentence ?? strategy.summary;
+  const goal = outcomeLine(strategy) || firstClause(sentence);
 
   const primary = ahead ? (
     <button type="button" className="button" onClick={ahead.onClick}>
@@ -308,7 +318,7 @@ function PlanReview({
       <div className="ob-title-row">
         <CusoAvatar pose="reporting" size={48} />
         <div className="ob-title-copy">
-          <h1 className="ob-statement-title">{statement}</h1>
+          <p className="ob-muted">{line}</p>
         </div>
         <div className="ob-title-action">
           {approved ? null : (
@@ -403,10 +413,9 @@ function PlanReview({
       <div className="ob-plan-body panel" hidden={replanning !== null}>
         <GoalBlock
           label="The goal"
-          goal={
-            strategy.idea?.sentence ??
-            (outcomeLine(strategy) || strategy.summary)
-          }
+          headline
+          goal={goal}
+          statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
 
@@ -523,7 +532,15 @@ function PlanReview({
           aria-labelledby={`ob-tab-${tab}`}
         >
           {tab === "plan" ? (
-            <PlanPanel overview={overview} strategy={strategy} />
+            <PlanPanel
+              overview={overview}
+              strategy={strategy}
+              onAsk={
+                approved
+                  ? undefined
+                  : (text, label) => send(label ?? text, () => onRequest(text))
+              }
+            />
           ) : tab === "month" ? (
             <MonthPanel strategy={strategy} onOpen={setOpen} />
           ) : (
@@ -547,6 +564,12 @@ function PlanReview({
       </AnimatePresence>
     </section>
   );
+}
+
+/** "We'll reach X, show Y, and invite Z." → "We'll reach X". */
+function firstClause(text: string): string {
+  const clause = text.split(/[,;.]/)[0]?.trim() ?? text;
+  return clause || text;
 }
 
 /** Who, what, where and how much, from whatever the plan fills in. */

@@ -180,6 +180,10 @@ body:has(.ob) .site-header {
   max-width: 760px;
 }
 
+.ob-main:has(> .ob-launch-done) {
+  max-width: 1080px;
+}
+
 .ob-foot {
   display: flex;
   justify-content: center;
@@ -201,8 +205,7 @@ body:has(.ob) .site-header {
   letter-spacing: -0.035em;
 }
 
-.ob-statement,
-.ob-statement-title {
+.ob-statement {
   font-size: 1.75rem;
   line-height: 2rem;
   font-weight: 300;
@@ -1420,8 +1423,8 @@ body:has(.ob) .site-header {
   width: 100%;
 }
 
-.ob-launch-done .panel {
-  width: min(100%, 344px);
+.ob-celebration-panel {
+  width: 100%;
 }
 
 .ob-networks {
@@ -1478,19 +1481,29 @@ body:has(.ob) .site-header {
 }
 
 .ob-launch-done {
-  justify-items: center;
-  text-align: center;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: center;
+  gap: 32px;
+  justify-items: stretch;
+}
+
+.ob-celebration-copy {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
 }
 
 .ob-celebration {
-  width: min(100%, 320px);
+  width: 100%;
+  aspect-ratio: 1;
   border-color: var(--line);
 }
 
 .ob-celebration img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
 }
 
 .ob-summary {
@@ -1654,4 +1667,147 @@ body:has(.ob) .site-header {
   .ob-step > button {
     transition: none;
   }
+}
+
+/* ── Every card in onboarding carries the ink line ── */
+.ob .card {
+  border-color: var(--line);
+}
+
+/* The goal is the headline: short, two lines at most; the sentence under it. */
+.ob-goal-headline {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 2.25rem;
+  line-height: 2.375rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ob-goal-statement {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 300;
+  color: var(--background);
+}
+
+/* Brand: the promise, with the site beside it on wide screens. */
+.ob-hero-row {
+  display: grid;
+  gap: 12px;
+}
+
+.ob-hero-row.has-site {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+
+.ob-sitecard {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.ob-sitecard h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-brandmark {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ob-swatches {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-swatches li {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-mark);
+}
+
+/* Side panel: a summary line, findings in hairline rows, one labelled field. */
+.ob-side-summary {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+}
+
+.ob-findings {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-findings li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.ob-findings a,
+.ob-side-source a {
+  color: var(--muted);
+  text-underline-offset: 3px;
+}
+
+.ob-findings .ob-tile-source {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ob-ask-field {
+  display: grid;
+  gap: 6px;
+}
+
+.ob-ask-field label {
+  font-weight: 500;
+}
+
+.ob-edit {
+  justify-self: start;
+}
+
+/* Plan: what stops people buying on a panel strip, the other plans, the rest. */
+.ob-barrier {
+  gap: 8px;
+  padding: 20px;
+}
+
+.ob-alts {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.ob-more {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.ob-more > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.ob-more > summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }

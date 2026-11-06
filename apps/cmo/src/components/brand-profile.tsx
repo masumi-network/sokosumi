@@ -1054,7 +1054,7 @@ function thisMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function SectionEditor({
+export function SectionEditor({
   section,
   onSave,
   onCancel,
@@ -1201,6 +1201,7 @@ export function AskForm({
   placeholder,
   optional = false,
   autoFocus = false,
+  inputId,
   sentNote = `Sent. ${AGENT_NAME} updates the Brand Brain in about half a minute.`,
   onAsk,
   onCancel,
@@ -1209,6 +1210,8 @@ export function AskForm({
   placeholder: string;
   optional?: boolean;
   autoFocus?: boolean;
+  /** Ties the input to a visible label, which then names it. */
+  inputId?: string;
   sentNote?: string;
   onAsk: (text: string) => Promise<void>;
   onCancel?: () => void;
@@ -1240,8 +1243,9 @@ export function AskForm({
       <input
         value={text}
         onChange={(event) => setText(event.target.value)}
+        id={inputId}
         placeholder={placeholder}
-        aria-label={placeholder}
+        aria-label={inputId ? undefined : placeholder}
         autoFocus={autoFocus}
       />
       <SubmitButton className="button button-secondary button-small">

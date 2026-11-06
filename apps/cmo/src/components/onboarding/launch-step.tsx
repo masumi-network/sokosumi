@@ -177,7 +177,7 @@ export function LaunchStep({
     ].filter((row) => row.value);
     return (
       <section className="ob-launch ob-launch-done">
-        <div className="panel">
+        <div className="panel ob-celebration-panel">
           <div className="card ob-celebration">
             <img
               src="/cuso/celebration.jpg"
@@ -187,32 +187,34 @@ export function LaunchStep({
             />
           </div>
         </div>
-        <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
-        <p className="ob-muted">
-          {AGENT_NAME} makes your month now and posts on your plan's schedule.
-          Pause or change any piece from the calendar.
-        </p>
-        {summary.length > 0 ? (
-          <dl className="ob-summary">
-            {summary.map((row) => (
-              <div key={row.term}>
-                <dt>{row.term}</dt>
-                <dd>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
-        <button type="button" className="button ob-wide" onClick={onGoToday}>
-          Go to Today
-          <ArrowRight size={16} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="button button-ghost button-small"
-          onClick={() => setCelebrating(false)}
-        >
-          Change settings
-        </button>
+        <div className="ob-celebration-copy">
+          <h1 className="ob-h1">{AGENT_NAME} is on it.</h1>
+          <p className="ob-muted">
+            {AGENT_NAME} makes your month now and posts on your plan's schedule.
+            Pause or change any piece from the calendar.
+          </p>
+          {summary.length > 0 ? (
+            <dl className="ob-summary">
+              {summary.map((row) => (
+                <div key={row.term}>
+                  <dt>{row.term}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          <button type="button" className="button ob-wide" onClick={onGoToday}>
+            Go to Today
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setCelebrating(false)}
+          >
+            Change settings
+          </button>
+        </div>
       </section>
     );
   }
@@ -300,20 +302,34 @@ export function LaunchStep({
         <div className="ob-later">
           <p className="ob-small ob-muted">Add later</p>
           <div className="ob-later-chips">
-            {later.map(({ key, perMonth }) => (
-              <button
-                key={key}
-                type="button"
-                className="button button-secondary button-small"
-                disabled={pending !== null}
-                title={
-                  perMonth === null ? undefined : `Adds ${perMonth} a month`
-                }
-                onClick={() => connect(key)}
-              >
-                {channelLabel(key)}
-              </button>
-            ))}
+            {later.map(({ key, perMonth }) => {
+              // What connecting it adds: the plan's own pieces, or Cuso's proposal.
+              const gain = perMonth ?? pieces(key);
+              const noun =
+                channelInfo(key)?.group === "ads"
+                  ? gain === 1
+                    ? "ad"
+                    : "ads"
+                  : key === "youtube"
+                    ? gain === 1
+                      ? "video"
+                      : "videos"
+                    : gain === 1
+                      ? "post"
+                      : "posts";
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className="button button-secondary button-small"
+                  disabled={pending !== null}
+                  onClick={() => connect(key)}
+                >
+                  {channelLabel(key)}
+                  {gain > 0 ? `, +${gain} ${noun}` : ""}
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}

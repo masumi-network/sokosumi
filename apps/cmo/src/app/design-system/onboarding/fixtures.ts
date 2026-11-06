@@ -63,16 +63,83 @@ const richBrain: Brain = {
   },
 };
 
+/** A site colour as Core sends it; the digits stay out of the source's colour literals. */
+const hex = (digits: string) => `#${digits}`;
+
+const shot = (url: string) => ({
+  url,
+  fileId: null,
+  pageUrl: "https://acme.io",
+});
+
+const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
+  capturedAt: "2026-10-05T09:02:00Z",
+  pages: [
+    { ...shot("/cuso/hero.jpg"), label: "Home", device: "desktop" },
+    { ...shot("/cuso/hero.jpg"), label: "Home", device: "mobile" },
+  ],
+  competitors: [{ ...shot("/cuso/reading-scene.jpg"), name: "Moonshot" }],
+  pictures: [],
+};
+
 const richPlan: Strategy = {
   ...strategy,
   changes: [],
+  why: "Founders read LinkedIn and X, and they trust named people over brands.",
+  channels: [
+    ...strategy.channels,
+    { channel: "meta_ads", cadence: "2 a month" },
+  ],
+  calendar: [
+    ...strategy.calendar,
+    {
+      id: "meta-1",
+      date: "2026-10-09",
+      channel: "meta_ads",
+      format: "image",
+      title: "Try it free",
+      status: "idea",
+    },
+  ],
+  proposals: [
+    { channel: "instagram", why: "Product shots", what: "Posts", perMonth: 8 },
+  ],
+  barrier: {
+    kind: "trust",
+    text: "Teams have been burned by vendors that go quiet after the sale, so they want to see named people ship.",
+  },
+  alternatives: [
+    {
+      sentence: "Lead with price and run a launch discount.",
+      why: "It moves fast, but it attracts the buyers who leave first.",
+    },
+    {
+      sentence: "Sell to agencies first, and teams later.",
+      why: "Agencies decide quicker, with smaller budgets.",
+    },
+  ],
+  ladder: { core: { what: "Rocket Pro", why: "The plan most teams pick" } },
+  beforeAfter: [
+    {
+      channel: "linkedin",
+      before: "One post a month",
+      after: "Three posts a week",
+    },
+  ],
+  improvements: [
+    {
+      area: "pricing",
+      idea: "Show the team price on the homepage",
+      why: "Buyers look for it first.",
+    },
+  ],
   idea: {
     who: "Product teams",
     position: "The rocket that ships on time",
     attract: "Launch stories",
     offer: "A 14-day trial",
     sentence:
-      "Product teams find the rocket that ships on time, and start a trial.",
+      "We'll reach product teams with recurring launch backlogs, show named engineers turning briefs into finished launches on LinkedIn and X, and invite them to try the 14-day trial.",
   },
   focus: {
     segment: "Product teams of ten to fifty",
@@ -184,6 +251,15 @@ export function screenOverview(screen: Screen): CmoOverview {
         brandBrain: richBrain,
         brandBrainConfirmedAt: null,
         strategy: null,
+        brandMedia: richMedia,
+        brandVisual: {
+          logoUrl: null,
+          colors: ["ff6a00", "1b1b1b", "f4e9d8"].map(hex),
+          fonts: ["Inter"],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
       });
     case "planning":
       return draft({
