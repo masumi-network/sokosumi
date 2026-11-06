@@ -116,6 +116,12 @@ export function SiteStep({
   const found = work
     ? { saved: work.sectionsSaved, total: work.sectionsTotal }
     : null;
+  // Every section is saved and Cuso is writing the summary and his questions
+  // from them: the slowest quiet stretch of the read. Holds the section count.
+  const composing =
+    running && !brain && found && found.saved >= found.total
+      ? found.total
+      : null;
   const rivals =
     (brain?.competitors.length ?? 0) + (brain?.alternatives?.length ?? 0);
   const checklist = workChecklist(
@@ -182,6 +188,8 @@ export function SiteStep({
                     </li>
                   ))}
               </ul>
+            ) : composing !== null ? (
+              <p className="ob-muted">All {composing} sections are in.</p>
             ) : found ? (
               <div className="ob-skeletons">
                 {Array.from(
@@ -272,9 +280,11 @@ export function SiteStep({
           <div className="card ob-focus ob-says" aria-live="polite">
             <CusoAvatar pose="reading" size={96} />
             <p className="ob-value">
-              {questions.length === 0
-                ? "My questions come when the read lands."
-                : "Thanks. I'm finishing the read."}
+              {questions.length > 0
+                ? "Thanks. I'm finishing the read."
+                : composing !== null
+                  ? `Now I'm putting your ${composing} sections together: your promise, your voice and the questions I still have.`
+                  : "My questions come when the read lands."}
             </p>
           </div>
         )}

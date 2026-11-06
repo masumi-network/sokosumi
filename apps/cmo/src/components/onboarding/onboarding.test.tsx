@@ -160,6 +160,17 @@ describe("Site while Cuso reads", () => {
     expect(site(reading())).toContain("ob-skeleton");
   });
 
+  it("says what happens once every section is in, before the Brand Brain lands", () => {
+    const html = site(
+      reading({ work: work("research", { sectionsSaved: 16 }) }),
+    );
+    expect(html).toContain("16 of 16 sections");
+    expect(html).toContain("All 16 sections are in.");
+    expect(html).toContain("Now I&#x27;m putting your 16 sections together");
+    expect(html).not.toContain("ob-skeleton");
+    expect(html).not.toContain("questions come when the read lands");
+  });
+
   it("asks the questions once the read lands, with Skip", () => {
     const html = site(asking({ work: work("research") }));
     expect(html).toContain("Answer a few while you wait");
