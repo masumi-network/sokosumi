@@ -268,18 +268,24 @@ export async function answerBrandBrainQuestion(
   });
 }
 
+/** A saved profile section at a glance. */
+export interface CmoSectionHeadline {
+  key: CmoBrandSectionKey;
+  headline: string;
+}
+
 /**
  * The profile sections a stored Brand Brain holds, in profile order, each with
  * its headline (the answer when a section was saved without one).
  */
 export function brandBrainSectionHeadlines(
   value: unknown,
-): { key: CmoBrandSectionKey; headline: string }[] {
+): CmoSectionHeadline[] {
   const { profile } = storedBrandBrain(value);
   return CMO_BRAND_SECTION_KEYS.flatMap((key) => {
     const section = profile[key];
     return section
-      ? [{ key, headline: section.headline ?? section.answer }]
+      ? [{ key, headline: section.headline || section.answer }]
       : [];
   });
 }
