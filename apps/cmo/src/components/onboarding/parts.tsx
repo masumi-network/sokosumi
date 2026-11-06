@@ -139,7 +139,7 @@ export function workChecklist(
 ): ChecklistItem[] {
   const touched = (at: number) =>
     steps.filter((step) => phases[at]?.kinds.includes(step.kind));
-  return phases.map((phase, index) => {
+  const items = phases.map((phase, index) => {
     const mine = touched(index);
     const laterStarted = phases
       .slice(index + 1)
@@ -155,6 +155,13 @@ export function workChecklist(
           : "next";
     return { label: phase.label, state };
   });
+  // Core reports a phase's first step a moment after the work starts; until
+  // then the first phase not done is the one being worked on, never "next".
+  if (running && !items.some((item) => item.state === "working")) {
+    const first = items.find((item) => item.state === "next");
+    if (first) first.state = "working";
+  }
+  return items;
 }
 
 /** A section Cuso has not saved yet: a dashed outline, never a shimmer. */
