@@ -9,6 +9,9 @@ import {
   brandBrainSchema,
   type CmoBrandSectionKey,
   cmoBrandProfileSchema,
+  cmoBrandQuestionSchema,
+  cmoBrandRevealSchema,
+  cmoMarketingTodaySchema,
   longText,
   marketingStrategyPlanSchema,
   shortText,
@@ -136,17 +139,40 @@ export function isCmoMeasurementSource(
 }
 
 /**
+ * Top-level questions on a Brand Brain save: at least one, so an empty list
+ * cannot wipe questions the owner already answered.
+ */
+export const cmoBrandQuestionsPatchSchema = z
+  .array(cmoBrandQuestionSchema)
+  .min(1)
+  .max(6);
+
+/**
  * Sections as they are finished, the essentials last: each save merges into
  * the stored Brand Brain, and the owner sees it once the essentials exist.
+ * `reveal`, `marketingToday` and `questions` may follow alone: they add to
+ * the saved essentials, so nothing is re-sent.
  */
 export const cmoSaveBrandBrainInputSchema = z
   .object({
     brandBrain: brandBrainSchema.optional(),
     sections: cmoBrandProfileSchema.optional(),
+    reveal: cmoBrandRevealSchema.optional(),
+    marketingToday: cmoMarketingTodaySchema.optional(),
+    questions: cmoBrandQuestionsPatchSchema.optional(),
   })
-  .refine((input) => input.brandBrain || input.sections, {
-    message: "Send brandBrain, sections, or both",
-  });
+  .refine(
+    (input) =>
+      input.brandBrain !== undefined ||
+      input.sections !== undefined ||
+      input.reveal !== undefined ||
+      input.marketingToday !== undefined ||
+      input.questions !== undefined,
+    {
+      message:
+        "Send at least one of brandBrain, sections, reveal, marketingToday or questions",
+    },
+  );
 export type CmoSaveBrandBrainInput = z.input<
   typeof cmoSaveBrandBrainInputSchema
 >;
