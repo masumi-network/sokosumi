@@ -867,6 +867,41 @@ body:has(.ob) .site-header {
   transform: rotate(-2deg);
 }
 
+/*
+ * Cuso announces the labels: once the hero plays, each pops out of his
+ * megaphone while he shouts (onboarding.tsx aims them). The one entrance
+ * longer than 150ms; transform only, and none under reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .ob-stage .ob-tilt {
+    animation: ob-announce 500ms cubic-bezier(0.45, 0, 0.3, 1.3) backwards
+      paused;
+  }
+
+  .ob-stage .ob-tilt-a {
+    animation-delay: 2.4s;
+  }
+
+  .ob-stage .ob-tilt-b {
+    animation-delay: 2.9s;
+  }
+
+  .ob-stage .ob-tilt-c {
+    animation-delay: 3.4s;
+  }
+
+  .ob-stage-live .ob-tilt {
+    animation-play-state: running;
+  }
+}
+
+@keyframes ob-announce {
+  from {
+    translate: var(--from-x, 0) var(--from-y, 0);
+    scale: 0;
+  }
+}
+
 /* Reading and asking: the read on the left, the question on the right. */
 .ob-site {
   display: grid;

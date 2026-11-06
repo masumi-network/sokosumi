@@ -36,6 +36,11 @@ export interface CusoClipProps {
   play?: boolean;
   /** Plays again this long after each end; without it the clip plays once. */
   replayAfterMs?: number;
+  /**
+   * The first play started, or was refused (then the still stays), so
+   * whatever waits on the clip never waits forever.
+   */
+  onStart?: () => void;
   onEnded?: () => void;
 }
 
@@ -52,16 +57,23 @@ export function CusoClip({
   className,
   play = true,
   replayAfterMs,
+  onStart,
   onEnded,
 }: CusoClipProps) {
   const motion = useMotionAllowed();
   const video = useRef<HTMLVideoElement>(null);
   const replay = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The latest callback, so a new function each render does not replay the clip.
+  const started = useRef(onStart);
+  useEffect(() => {
+    started.current = onStart;
+  });
 
   useEffect(() => {
     if (!motion || !play) return;
+    const start = () => started.current?.();
     // A refused autoplay (low power mode) leaves the poster, which is the still.
-    video.current?.play().catch(() => {});
+    video.current?.play().then(start, start);
   }, [motion, play]);
 
   useEffect(() => () => clearTimeout(replay.current), []);

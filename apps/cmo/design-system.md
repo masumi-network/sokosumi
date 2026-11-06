@@ -122,7 +122,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 - **Avatar:** always on a `#F5F5F5` circle with a line edge and a little padding, in both themes, so his black outline reads in dark. 36px in rows, 48px beside a title, 72 to 96px in a hero card.
 - **Stage:** the Site hero puts Cuso on an Iris stage with up to three tilted labels (8px radius, ink line, hard shadow, 16px 600). This is the one place labels tilt.
 - **Celebration:** the party image shows only after Launch is pressed.
-- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`). The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first, then the avatar beside the intro; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
+- **Motion:** Cuso's images are short clips that start and end on their still (`CusoClip`). The avatar plays once, then every 30 seconds; a past chat message keeps the still. The hire hero plays first and Cuso announces its three labels: each pops out of his megaphone while he shouts (500ms, transform only, the one entrance longer than 150ms); then the avatar beside the intro plays; the reading scene and the celebration play once. Under `prefers-reduced-motion` only the still shows.
 - **Name:** every string with the agent's name comes from the person's chosen name; build it in one string so no double space appears.
 
 ## Accessibility

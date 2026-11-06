@@ -22,7 +22,7 @@ node --env-file=../core/.env scripts/animate-cuso.ts hero done  # some clips
 node scripts/animate-cuso.ts --reencode                         # re-encode the last raw clips, no Seedance
 ```
 
-`CusoClip` (`src/components/cuso-clip.tsx`) plays a clip with its still as the poster and shows only the still under `prefers-reduced-motion` (and on the server). `CusoAvatar` plays its pose once, then again every 30 seconds; past chat messages keep the still. The hire screen plays its hero first and the avatar after it; the reading scene and the celebration play once as they appear. Keep the stills: they are the posters and the reduced-motion fallback.
+`CusoClip` (`src/components/cuso-clip.tsx`) plays a clip with its still as the poster and shows only the still under `prefers-reduced-motion` (and on the server). `CusoAvatar` plays its pose once, then again every 30 seconds; past chat messages keep the still. The hire screen plays its hero first, its labels fly out of the megaphone while Cuso shouts (`aimLabels` in `onboarding.tsx` measures from the hero's megaphone; re-measure `MEGAPHONE` if `hero.mp4` changes), and the avatar plays after it; the reading scene and the celebration play once as they appear. Keep the stills: they are the posters and the reduced-motion fallback.
 
 ## Run CMO locally against a local Core
 

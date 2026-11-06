@@ -105,6 +105,35 @@ describe("CusoClip", () => {
     expect(played).toEqual([]);
   });
 
+  it("says when it starts, and when autoplay is refused", async () => {
+    const onStart = vi.fn();
+    await render(
+      <CusoClip
+        src="/cuso/hero.jpg"
+        alt=""
+        width={640}
+        height={800}
+        onStart={onStart}
+      />,
+    );
+    expect(onStart).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.render(null));
+    vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(
+      new Error("NotAllowedError"),
+    );
+    await render(
+      <CusoClip
+        src="/cuso/hero.jpg"
+        alt=""
+        width={640}
+        height={800}
+        onStart={onStart}
+      />,
+    );
+    expect(onStart).toHaveBeenCalledTimes(2);
+  });
+
   it("plays a scene once", async () => {
     vi.useFakeTimers();
     await render(
@@ -173,5 +202,26 @@ describe("hire screen", () => {
     await end(hero);
 
     expect(played).toEqual([hero, avatar]);
+  });
+
+  it("lets Cuso announce the stage labels once the hero starts", async () => {
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(
+      () => new Promise(() => {}),
+    );
+    await render(<Onboarding onboard={vi.fn()} />);
+    const stage = host.querySelector(".ob-stage");
+    expect(stage?.classList.contains("ob-stage-live")).toBe(false);
+
+    vi.mocked(HTMLMediaElement.prototype.play).mockResolvedValue();
+    await act(async () => root.render(null));
+    await render(<Onboarding onboard={vi.fn()} />);
+
+    expect(
+      host.querySelector(".ob-stage")?.classList.contains("ob-stage-live"),
+    ).toBe(true);
+    for (const label of host.querySelectorAll<HTMLElement>(".ob-tilt")) {
+      expect(label.style.getPropertyValue("--from-x")).toMatch(/px$/);
+      expect(label.style.getPropertyValue("--from-y")).toMatch(/px$/);
+    }
   });
 });
