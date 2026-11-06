@@ -23,6 +23,7 @@ export const subscriptionUpdate = vi.fn();
 export const projectFindUnique = vi.fn();
 export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
+export const toolCallFindMany = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
 export const postFindFirst = vi.fn();
@@ -244,6 +245,7 @@ const client = {
   },
   workspace: { findUnique: workspaceFindUnique },
   sokoBotTurn: { findFirst: turnFindFirst },
+  sokoBotToolCall: { findMany: toolCallFindMany },
   projectSocialConnection: { findMany: connectionFindMany },
   socialPost: {
     findFirst: postFindFirst,
@@ -340,6 +342,7 @@ export function resetCmoServiceMocks(): void {
   vi.clearAllMocks();
   strategyRows.length = 0;
   expireTurn.mockResolvedValue(true);
+  toolCallFindMany.mockResolvedValue([]);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({
     id: args.create.id,

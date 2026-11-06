@@ -10728,6 +10728,44 @@ describe("CMO record saves", () => {
     expect(upsert.create.body.profile.pricing.answer).toBe("From 9 dollars");
   });
 
+  it("surfaces reveal-without-essentials as a tool validation error", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000c2";
+    const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      sokoBot: {
+        findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      brandBrain: {
+        findUnique: vi.fn().mockResolvedValue({ body: { profile: {} } }),
+        upsert: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+    await expect(
+      service["saveCmoRecord"](owner as never, {
+        ...SCOPE,
+        capability: "save_brand_brain",
+        toolCallId: "brain",
+        input: {
+          reveal: {
+            positioning: "Rockets for founders",
+            insights: [
+              { title: "One", detail: "First" },
+              { title: "Two", detail: "Second" },
+              { title: "Three", detail: "Third" },
+            ],
+            buyers: [],
+          },
+        },
+      }),
+    ).rejects.toThrow(/essentials in brandBrain first/);
+    expect(tx.brandBrain.upsert).not.toHaveBeenCalled();
+  });
+
   it("checks the turn's authority inside the transaction that writes", async () => {
     const tx = cmoTx();
     const service = new SokoBotRuntimeService();
