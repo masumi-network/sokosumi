@@ -148,6 +148,9 @@ export const overview: CmoOverview = cmoOverview({
     state: "running",
     ready: 8,
     total: 11,
+    written: 11,
+    pictured: 5,
+    needPictures: 6,
     finishedAt: null,
     pillars: {
       shares: [

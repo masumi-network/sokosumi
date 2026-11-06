@@ -187,6 +187,9 @@ describe("strategy reveal", () => {
         state: "ready" as const,
         ready: 4,
         total: 4,
+        written: 4,
+        pictured: 0,
+        needPictures: 0,
         finishedAt: null,
         pillars: {
           shares: [
