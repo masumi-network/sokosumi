@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { badRequest } from "@/helpers/error";
 import {
   seoDeviceSchema,
+  seoModuleCoverageSchema,
   seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
@@ -80,10 +81,39 @@ export const publicSeoPayloadSchema = z.object({
     checked: z.number().int().nonnegative(),
     skipped: z.number().int().nonnegative(),
     failed: z.number().int().nonnegative(),
+    modules: seoModuleCoverageSchema.optional(),
   }),
   notes: z.array(text).max(500),
 });
 export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
+
+function focusedRuleCoverage(
+  checks: PublicSeoPayload["checks"],
+  modules: NonNullable<PublicSeoPayload["coverage"]["modules"]>,
+): PublicSeoPayload["coverage"] {
+  return {
+    checked: checks.filter(
+      (check) => check.result === "pass" || check.result === "fired",
+    ).length,
+    skipped: checks.filter((check) => check.result === "not_checked").length,
+    failed: checks.filter((check) => check.result === "blocked").length,
+    modules,
+  };
+}
+
+/** Older focused payloads stored module counts in the rule coverage fields. */
+export function seoPayloadCoverage(
+  payload: PublicSeoPayload,
+): PublicSeoPayload["coverage"] {
+  if (payload.kind === "audit_full") return payload.coverage;
+  return focusedRuleCoverage(
+    payload.checks,
+    payload.coverage.modules ?? {
+      notRequested: payload.coverage.skipped,
+      failed: payload.coverage.failed,
+    },
+  );
+}
 
 const frozenRequest = z.object({
   pageUrls: z.array(seoUrlSchema).min(1),
@@ -453,12 +483,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       })),
       findings: result.findings,
       actions: result.actions,
-      coverage: {
-        checked: result.checks.filter((check) => check.result !== "not_checked")
-          .length,
-        skipped: result.coverage.skipped.length,
+      coverage: focusedRuleCoverage(result.checks, {
+        notRequested: result.coverage.skipped.length,
         failed: result.coverage.failed.length,
-      },
+        notRequestedNames: result.coverage.skipped,
+        failedNames: result.coverage.failed,
+      }),
       notes: result.gaps.map((gap) => gap.reason),
     });
   }

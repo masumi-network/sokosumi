@@ -41,10 +41,11 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const hasCheckedEvidence = workspace.observations.some(
     (observation) => observation.coverage.checked > 0,
   );
-  // Skipped counts can include modules that were never requested.
   const hasFailedChecks =
     workspace.observations.some(
-      (observation) => observation.coverage.failed > 0,
+      (observation) =>
+        observation.coverage.failed > 0 ||
+        (observation.coverage.modules?.failed ?? 0) > 0,
     ) ||
     (!hasCheckedEvidence &&
       workspace.analyses.some((analysis) => analysis.status === "failed"));

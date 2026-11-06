@@ -143,7 +143,21 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
                   key={observation.id}
                   className="text-muted-foreground space-y-2"
                 >
-                  <p>{t("overview.coverageCounts", observation.coverage)}</p>
+                  <p>
+                    {t("overview.coverageCounts", {
+                      checked: observation.coverage.checked,
+                      skipped: observation.coverage.skipped,
+                      failed: observation.coverage.failed,
+                    })}
+                  </p>
+                  {observation.coverage.modules ? (
+                    <p>
+                      {t("overview.moduleCoverage", {
+                        notRequested: observation.coverage.modules.notRequested,
+                        failed: observation.coverage.modules.failed,
+                      })}
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-3 text-xs">
                     <SeoDate value={observation.observedAt} />
                     <SeoSource

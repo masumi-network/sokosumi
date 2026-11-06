@@ -69,6 +69,48 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("separates rule checks from unrequested analysis modules in chat evidence", () => {
+    const workspace = workspaceFixture();
+    workspace.observations = [
+      {
+        id: randomUUID(),
+        kind: "page_check",
+        source: "seo_coworker",
+        observedAt: "2026-11-01T12:00:00.000Z",
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 0,
+        sourceTaskId: null,
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop"],
+        rulebookVersion: "test",
+        artifactHash: "hash",
+        coverage: {
+          checked: 12,
+          skipped: 0,
+          failed: 0,
+          modules: {
+            notRequested: 2,
+            failed: 0,
+            notRequestedNames: ["keyword.refresh", "links.refresh"],
+            failedNames: [],
+          },
+        },
+      },
+    ];
+    const evidence = JSON.parse(seoChatContext(workspace));
+    expect(evidence.observations[0]).toMatchObject({
+      ruleChecks: { checked: 12, notChecked: 0, unavailable: 0 },
+      analysisModules: {
+        notRequested: 2,
+        failed: 0,
+        notRequestedNames: ["keyword.refresh", "links.refresh"],
+        failedNames: [],
+      },
+    });
+    expect(evidence.observations[0]).not.toHaveProperty("coverage");
+  });
+
   it("keeps confirmed issues ahead of neutral measurements when evidence is limited", () => {
     const workspace = workspaceFixture();
     const measurement = {

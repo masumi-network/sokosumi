@@ -19,7 +19,10 @@ import type {
   CoreAuthReadError,
   CoreAuthReadErrorReason,
 } from "./core-auth-read-error";
-import { CORE_AUTH_REQUEST_TIMEOUT_MS } from "./core-auth-timeout";
+import {
+  CORE_AUTH_REQUEST_TIMEOUT_MS,
+  CORE_AUTH_SESSION_READ_TIMEOUT_MS,
+} from "./core-auth-timeout";
 import { CoreAuthUnavailableError } from "./errors";
 
 interface GetSessionOptions {
@@ -87,7 +90,11 @@ async function fetchCoreAuth<T>(
     const response = await fetch(url, {
       headers: buildAuthHeaders(requestHeaders),
       cache: "no-store",
-      signal: AbortSignal.timeout(CORE_AUTH_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(
+        path === CORE_GET_SESSION_PATH
+          ? CORE_AUTH_SESSION_READ_TIMEOUT_MS
+          : CORE_AUTH_REQUEST_TIMEOUT_MS,
+      ),
     });
 
     if (!response.ok) {

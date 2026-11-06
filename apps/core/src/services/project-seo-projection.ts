@@ -12,6 +12,7 @@ import { internalServerError } from "@/helpers/error";
 import {
   type PublicSeoPayload,
   publicSeoPayloadSchema,
+  seoPayloadCoverage,
 } from "@/helpers/project-seo-report";
 import {
   nativeSeoMetricsSchema,
@@ -233,6 +234,7 @@ export function projectSeoProjection(
     if (!parsed.success)
       throw internalServerError("Stored SEO evidence is not readable");
     const data = parsed.data;
+    const coverage = seoPayloadCoverage(data);
     scopedPublicSources.set(row.id, row);
     timeline.push({
       id: `observation:${row.id}`,
@@ -245,8 +247,13 @@ export function projectSeoProjection(
       pageIds: row.pageIds,
       observationId: row.id,
       taskId: row.sourceTaskId,
-      status: data.coverage.failed ? "partial" : "completed",
-      detail: `${data.coverage.checked} checks recorded. ${data.coverage.skipped} skipped. ${data.coverage.failed} failed.`,
+      status:
+        coverage.failed || coverage.modules?.failed ? "partial" : "completed",
+      detail:
+        `Rule checks: ${coverage.checked} checked, ${coverage.skipped} not checked, ${coverage.failed} unavailable.` +
+        (coverage.modules
+          ? ` Analysis types: ${coverage.modules.notRequested} not requested, ${coverage.modules.failed} unavailable.`
+          : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
     observations.push({
@@ -268,7 +275,7 @@ export function projectSeoProjection(
       ],
       rulebookVersion: data.rulebookVersion,
       artifactHash: row.artifactHash,
-      coverage: data.coverage,
+      coverage,
     });
     for (const check of data.checks) {
       const identity = checkIdentity(data, check);

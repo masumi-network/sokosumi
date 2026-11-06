@@ -61,6 +61,15 @@ function observation(
 }
 
 describe("SEO overview relevance", () => {
+  it("treats requested module failures as incomplete without counting unrequested modules as skipped rules", () => {
+    const workspace = seoTestWorkspace();
+    workspace.observations = [observation(12)];
+    workspace.observations[0].coverage.modules = { notRequested: 2, failed: 0 };
+    expect(seoOverviewModel(workspace).emptyState).toBe("no_fixes");
+    workspace.observations[0].coverage.modules.failed = 1;
+    expect(seoOverviewModel(workspace).emptyState).toBe("incomplete");
+  });
+
   it("prioritizes actual issue severities without treating measures, notes or tests as fixes", () => {
     const workspace = seoTestWorkspace();
     workspace.findings = [

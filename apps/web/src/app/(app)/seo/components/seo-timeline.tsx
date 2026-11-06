@@ -117,9 +117,21 @@ export function SeoTimeline({
                         {observation ? (
                           <div className="text-muted-foreground space-y-2 text-xs">
                             <p>
-                              {t("timeline.checkSummary", observation.coverage)}
+                              {t("timeline.checkSummary", {
+                                checked: observation.coverage.checked,
+                              })}
                             </p>
-                            {observation.coverage.failed > 0 ? (
+                            {observation.coverage.modules ? (
+                              <p>
+                                {t("overview.moduleCoverage", {
+                                  notRequested:
+                                    observation.coverage.modules.notRequested,
+                                  failed: observation.coverage.modules.failed,
+                                })}
+                              </p>
+                            ) : null}
+                            {observation.coverage.failed > 0 ||
+                            (observation.coverage.modules?.failed ?? 0) > 0 ? (
                               <p>{t("timeline.incomplete")}</p>
                             ) : null}
                             <p>

@@ -383,6 +383,12 @@ export const seoTimelineSchema = z
     detail: z.string(),
   })
   .openapi("ProjectSeoTimelineItem");
+export const seoModuleCoverageSchema = z.object({
+  notRequested: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  notRequestedNames: z.array(z.string().max(20_000)).optional(),
+  failedNames: z.array(z.string().max(20_000)).optional(),
+});
 export const seoObservationSchema = z
   .object({
     id: seoIdSchema,
@@ -401,6 +407,7 @@ export const seoObservationSchema = z
       checked: z.number().int(),
       skipped: z.number().int(),
       failed: z.number().int(),
+      modules: seoModuleCoverageSchema.optional(),
     }),
   })
   .openapi("ProjectSeoObservation");

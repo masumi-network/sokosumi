@@ -37163,6 +37163,37 @@ export const ProjectSeoObservationSchema = {
                 },
                 failed: {
                     type: 'integer'
+                },
+                modules: {
+                    type: 'object',
+                    properties: {
+                        notRequested: {
+                            type: 'integer',
+                            minimum: 0
+                        },
+                        failed: {
+                            type: 'integer',
+                            minimum: 0
+                        },
+                        notRequestedNames: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                maxLength: 20000
+                            }
+                        },
+                        failedNames: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                maxLength: 20000
+                            }
+                        }
+                    },
+                    required: [
+                        'notRequested',
+                        'failed'
+                    ]
                 }
             },
             required: [

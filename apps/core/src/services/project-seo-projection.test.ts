@@ -142,6 +142,37 @@ function actionFixture() {
 }
 
 describe("stored SEO workspace projections", () => {
+  it("projects historical focused module counts without adding phantom rule checks", () => {
+    const input = fixture();
+    const payload = parsePublicSeoArtifact(focusedReport());
+    payload.coverage = { checked: 1, skipped: 2, failed: 0 };
+    const original = observation(input, payload, "2026-11-01T12:00:00Z");
+    input.observations = [original];
+
+    const result = projectSeoProjection(input);
+    expect(result.observations[0].coverage).toEqual({
+      checked: 1,
+      skipped: 0,
+      failed: 0,
+      modules: { notRequested: 2, failed: 0 },
+    });
+    expect(result.timeline[0]).toMatchObject({
+      status: "completed",
+      detail:
+        "Rule checks: 1 checked, 0 not checked, 0 unavailable. Analysis types: 2 not requested, 0 unavailable.",
+    });
+    expect(payload.coverage).toEqual({ checked: 1, skipped: 2, failed: 0 });
+
+    payload.coverage.failed = 1;
+    expect(projectSeoProjection(input).timeline[0].status).toBe("partial");
+
+    const legacy = parsePublicSeoArtifact(legacyReport());
+    input.observations = [observation(input, legacy, "2026-11-01T12:00:00Z")];
+    expect(projectSeoProjection(input).observations[0].coverage).toEqual(
+      legacy.coverage,
+    );
+  });
+
   it("omits unsaved manual keywords while keeping real observations and saved choices", () => {
     const { input, original } = actionFixture();
     const choice = {

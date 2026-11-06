@@ -9943,6 +9943,12 @@ export type ProjectSeoObservation = {
         checked: number;
         skipped: number;
         failed: number;
+        modules?: {
+            notRequested: number;
+            failed: number;
+            notRequestedNames?: Array<string>;
+            failedNames?: Array<string>;
+        };
     };
 };
 

@@ -7,6 +7,61 @@ import { seoTestWorkspace } from "./seo-test-fixture";
 import { SeoTimeline } from "./seo-timeline";
 
 describe("SEO timeline recovery", () => {
+  it("labels unrequested analysis modules separately from recorded checks", () => {
+    const workspace = seoTestWorkspace();
+    const observation = {
+      id: "html",
+      kind: "page_check",
+      source: "agent",
+      observedAt: new Date("2026-11-01T10:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 0,
+      sourceTaskId: null,
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop" as const],
+      rulebookVersion: "test",
+      artifactHash: "hash",
+      coverage: {
+        checked: 12,
+        skipped: 0,
+        failed: 0,
+        modules: { notRequested: 2, failed: 0 },
+      },
+    };
+    workspace.observations = [observation];
+    workspace.timeline = [
+      {
+        id: "html",
+        kind: "check",
+        title: "SEO check results imported",
+        status: "completed",
+        detail: "",
+        at: observation.observedAt,
+        pageIds: observation.pageIds,
+        taskId: null,
+        observationId: observation.id,
+      },
+    ];
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("12 checks recorded")).toBeVisible();
+    expect(
+      screen.getByText("Analysis types: 2 not requested, 0 unavailable"),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Some requested work could not be completed."),
+    ).toBeNull();
+  });
+
   it.each([
     ["READY", "Ready"],
     ["INPUT_REQUIRED", "Input required"],

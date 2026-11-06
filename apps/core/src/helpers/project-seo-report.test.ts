@@ -11,6 +11,38 @@ import {
 } from "./project-seo-report";
 
 describe("public SEO report trust boundary", () => {
+  it("keeps unrequested modules separate from individual rule check counts", () => {
+    const fixture = focusedReport();
+    const raw = {
+      ...fixture,
+      checks: ["pass", "fired", "not_checked", "blocked"].map(
+        (result, index) => ({
+          ...fixture.checks[0],
+          id: String(index),
+          result,
+        }),
+      ),
+      coverage: {
+        ...fixture.coverage,
+        skipped: ["keyword.refresh", "links.refresh"],
+        failed: ["page.inspect"],
+        completed: [],
+      },
+    };
+
+    expect(parsePublicSeoArtifact(raw).coverage).toEqual({
+      checked: 2,
+      skipped: 1,
+      failed: 1,
+      modules: {
+        notRequested: 2,
+        failed: 1,
+        notRequestedNames: ["keyword.refresh", "links.refresh"],
+        failedNames: ["page.inspect"],
+      },
+    });
+  });
+
   it("retains ranked, opportunity and gap provenance without inventing rank zero", () => {
     const report = parsePublicSeoArtifact(legacyReport());
     expect(report.keywords).toEqual(
