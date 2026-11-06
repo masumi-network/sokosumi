@@ -90,7 +90,29 @@ VERIFIED: The signed-in Preprod UI created native Audits and saved related pages
 
 REPORTED: Runtime request metadata showed main Preprod's `/personal-assistant/integrations/verify` returning `307` to `/signin` during the consent attempts. Public probes also found the generic `/composio/callback` and `/composio/handoff` documents behind sign-in. Native initiation now reuses the canonical-origin handoff, and the proxy permits exactly those two existing documents. Finalization remains authenticated. Old-source comparisons reproduce two Web, three helper and one lifecycle failure; fixed checks pass.
 
-VERIFIED: The canonical Web-only relay patch is prepared against base `26328bac4a`, with changes limited to `proxy.ts` and its test. Its manifest reports `48 passed (48)` and a clean apply-check. No canonical deployment or Composio setting change has occurred. The actual project behind Sokosumi's managed Composio credential remains to be checked in its server environment. The owner's personal Composio Workspace is not evidence of that project's configuration.
+VERIFIED: Correction to the initial canonical patch record: `26328bac4a` was an earlier repository base, not the current callback host's source. Full deployment metadata identified `5ab3223c1d70fe5004bcfdc840bc8e973afc566c` behind canonical deployment `dpl_6tiYckHE1i2Xm8tCtffb6Ja2CQYb`. A refreshed Web-only relay subset uses that actual base. No canonical deployment or Composio setting change has occurred.
+
+## Deployed organization context and managed-return correction
+
+VERIFIED: Approved commit `2cc506ba429e0c09353a7b28a8ca557492335537` was pushed to PR #6876. Preview workflow `42197656370` reported `success`; Web deployment `dpl_BzKBb8rhARrK1hdQsMVSDcSmond6` and Core deployment `dpl_5yE4LHim9cEMLyhcLn7GndEPbu2r` reported `READY`. Evidence: `/private/tmp/seo-2cc-preview-deploy.log:179`.
+
+VERIFIED: CI `42197528651` passed. Its Core unit run reported `14178 passed`, and its PostgreSQL run reported `457 passed`. Its Web run reported `13457 passed`. These results prove those tests pass. They do not prove the remaining hosted Google or worker journeys. Evidence: `/private/tmp/seo-2cc-ci-green.log`.
+
+VERIFIED: On that deployed Preview, the signed-in Battery Sensei Audit showed no global Project selector. Its embedded chat displayed `This conversation and saved statistics are shared within this audit in your organization.` A real reply named the saved keyword and competitor and identified unavailable measurements. Evidence: `/private/tmp/seo-battery-shared-chat-live.png` and the live Audit `01a1b014-b853-71da-b7b8-5fe2d643456c`.
+
+VERIFIED: The approved single read-only server check ended with `config_read_failed` on diagnostic deployment `dpl_FYVMUKKNWBHUkQHyxepcynygLpiB`. No verifier configuration or HTTP status was returned. The script stopped before normal build, migrations or publication. No retry or settings change occurred. Evidence: `/private/tmp/seo-composio-preflight-build.log`.
+
+INFERRED: Reading or changing the managed Composio project is unnecessary for the prepared source-only correction. The fixed verifier return can reuse the existing generic consent document, then preserve the initiating native handoff.
+
+VERIFIED: The source correction rewrites only an exact GET verifier request with one nonblank `session_uri`, no bot selector and no owner-reentry marker. Existing bot fallback sets an explicit reentry marker and remains authenticated. The callback gives a current same-origin nonce precedence, then validates stored first-party handoff time, popup attempt and connection identity before the legacy popup-name fallback. It preserves native identity fields and withholds the session URI on an account mismatch.
+
+REPORTED: Independent checks passed `84` proxy/protocol/managed-relay tests and `9` connection-control tests. Before source edits, the retained regressions reproduced two proxy failures and eleven managed-relay failures. No missing import or fixture error caused those failures. Independent source review found no actionable issue.
+
+VERIFIED: Root connection-control checks reported `9 passed (9)`. The new paired-provider recovery test failed on the original labels, then passed with provider-specific retry and restart names. Evidence: `/private/tmp/seo-provider-recovery-labels-before.log` and `/private/tmp/seo-provider-recovery-labels-after.log`.
+
+VERIFIED: The combined root Web rerun reported `145 passed (145)` across seven files. The full Web build reported `6 successful, 6 total`. The first build hit a sandbox socket error; its cached graph replayed that failure after escalation. A successful independent loopback-listener check and a fresh generated Next cache produced the passing build. Source remained unchanged. Evidence: `/private/tmp/seo-managed-return-web-root.log` and `/private/tmp/seo-managed-return-web-clean-build.log`.
+
+VERIFIED: The actual built callback document passed four VM cases. A preserved-name native handoff returned to its saved SEO origin and context. Foreign, future-dated and production insecure-local returns kept the protected fallback. Evidence: `/private/tmp/seo-managed-return-actual-next-bundle-proof.json`, callback script SHA256 `3c70738c4ef94a85973a104a01eef71a0a34b4a48e3f1c45394600286fc8158e`.
 
 ## Earlier delivered behavior
 
@@ -148,4 +170,4 @@ INFERRED: release should apply the additive SEO migration and deploy Core, Web a
 
 1. INFERRED: supported Composio tools may still vary by connected account. Runtime metadata checks refuse unsupported or non-read-only tools.
 2. INFERRED: real provider latency and billed usage need a separately approved live test. Offline call budgets are not a price guarantee.
-3. VERIFIED: the hosted Preview browser is signed out and test credentials are unset. Live owner journeys remain pending.
+3. VERIFIED: The owner signed in and a real embedded chat reply completed. Google popup closure, statistics sync and hosted worker completion remain pending.

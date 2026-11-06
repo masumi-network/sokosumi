@@ -24,7 +24,7 @@ INFERRED: Overview shows Google Analytics and Search Console connection controls
 
 INFERRED: Google approval uses a consent window. Its return belongs to SEO, including ordinary-tab and lost-popup recovery.
 
-INFERRED: Successful approval returns to the Audit. An interrupted verification offers Retry verification or Start a new connection.
+INFERRED: Successful approval returns to the Audit. Interrupted verification offers provider-specific retry and restart controls.
 
 INFERRED: Choose an authorized property and a period in Sync statistics. Presets cover the last 7, 28 or 90 complete days.
 
@@ -86,6 +86,12 @@ REPORTED: The owner chose `https://www.battery-sensei.app/` because its Google S
 
 VERIFIED: On deployed revision `b59f0b8ffa`, the real Preprod UI created Audit `01a1b014-b853-71da-b7b8-5fe2d643456c` for Battery Sensei. A saved `MacBook battery health` keyword retained its target URL and edited High priority after reload. A manually chosen competitor displayed its confirmation separately from unavailable ranking and link measurements. These checks do not prove the subsequent source corrections are deployed.
 
+VERIFIED: Revision `2cc506ba429e0c09353a7b28a8ca557492335537` deployed through [Preview workflow 42197656370](https://github.com/masumi-network/sokosumi/actions/runs/42197656370). Core and Web reported `READY`. [CI 42197528651](https://github.com/masumi-network/sokosumi/actions/runs/42197528651) passed. The signed-in Battery Sensei Audit now hides the Project selector and shows the organization-sharing notice. A real chat reply named the saved keyword and competitor, identified missing measurements, and stayed inside the Audit.
+
+VERIFIED: The approved read-only managed-project check ended with `config_read_failed`. It returned no verifier configuration and made no configuration change. The owner's personal Composio account does not identify the managed integration.
+
+INFERRED: The next source correction preserves the managed verifier URL. Its exact raw return enters the existing consent relay. Stored native context returns to the initiating SEO origin. Ordinary bot verification still requires its existing authenticated owner path. Live acceptance requires the canonical Preprod Web relay rollout and the updated PR Preview.
+
 | Journey                 | Required online evidence                                                                                   |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Audit and pages         | Created through the real UI, visible after reload, correct selected pages                                  |
@@ -99,6 +105,6 @@ VERIFIED: On deployed revision `b59f0b8ffa`, the real Preprod UI created Audit `
 
 ## Least confident decisions
 
-1. VERIFIED: The consent attempts reached main Preprod's protected `/personal-assistant/integrations/verify`, then sign-in. Native popup closure still needs the canonical relay rollout and verification of the managed Composio project's setting. An unrelated personal Composio project is not the integration owner.
+1. VERIFIED: The consent attempts reached main Preprod's protected `/personal-assistant/integrations/verify`, then sign-in. Native popup closure remains unverified online. The source correction preserves the managed project's setting; a personal Composio admin account is not required.
 2. INFERRED: Automatic monitoring needs a scheduler that targets this feature Preview's database and isolated worker context.
 3. REPORTED: Release records show the paid-provider test allowance at `32/32`. Additional paid-provider executions require a new allowance.

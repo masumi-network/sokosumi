@@ -83,7 +83,7 @@ function SeoConnectionControl({
               void model.connect();
             }}
           >
-            {t("connections.changeAccount")}
+            {t("connections.changeAccount", { provider: name })}
           </Button>
           <Button
             type="button"
@@ -118,7 +118,7 @@ function SeoConnectionControl({
             void model.resume();
           }}
         >
-          {t("connections.resume")}
+          {t("connections.resume", { provider: name })}
         </Button>
       ) : null}
       <Button

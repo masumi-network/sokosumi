@@ -38,7 +38,7 @@ vi.mock("@/lib/composio/use-composio-oauth-popup", () => ({
 vi.mock("sonner", () => ({ toast: { error: m.error } }));
 
 const clients: QueryClient[] = [];
-function show(onConnected = vi.fn()) {
+function show(onConnected = vi.fn(), withAnalytics = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -46,6 +46,9 @@ function show(onConnected = vi.fn()) {
   render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider locale="en" messages={messages}>
+        {withAnalytics ? (
+          <SeoConnectionButton provider="ga4" onConnected={onConnected} />
+        ) : null}
         <SeoConnectionButton
           provider="search_console"
           onConnected={onConnected}
@@ -130,6 +133,24 @@ async function connectButton() {
 }
 
 describe("native SEO connection consent", () => {
+  it("names each pending provider's recovery actions", async () => {
+    m.status = "pending";
+    m.resumable = true;
+    show(vi.fn(), true);
+    for (const provider of ["Google Analytics", "Search Console"]) {
+      expect(
+        await screen.findByRole("button", {
+          name: `Retry ${provider} verification`,
+        }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("button", {
+          name: `Start a new ${provider} connection`,
+        }),
+      ).toBeVisible();
+    }
+  });
+
   it("checks status on mount without starting OAuth or assistant setup", async () => {
     show();
     expect(await connectButton()).toBeEnabled();
@@ -209,7 +230,9 @@ describe("native SEO connection consent", () => {
     m.resumable = true;
     show();
     await userEvent.click(
-      await screen.findByRole("button", { name: "Retry verification" }),
+      await screen.findByRole("button", {
+        name: "Retry Search Console verification",
+      }),
     );
     expect(await screen.findByText("Search Console connected")).toBeVisible();
     expect(m.finalize).toHaveBeenCalledWith({
@@ -227,7 +250,9 @@ describe("native SEO connection consent", () => {
     m.callback.mockResolvedValue({ kind: "cancelled" });
     show();
     await userEvent.click(
-      await screen.findByRole("button", { name: "Change account" }),
+      await screen.findByRole("button", {
+        name: "Change Search Console account",
+      }),
     );
     expect(screen.getByText("Search Console connected")).toBeVisible();
     expect(m.disconnect).not.toHaveBeenCalled();

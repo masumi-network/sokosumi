@@ -223,7 +223,7 @@ describe("same-tab Composio verification", () => {
       });
 
       expect(replace).toHaveBeenCalledExactlyOnceWith(
-        `/personal-assistant/integrations/verify?session_uri=${encodeURIComponent(sessionUri)}`,
+        `/personal-assistant/integrations/verify?session_uri=${encodeURIComponent(sessionUri)}&__sokosumi_owner_verification=1`,
       );
       expect(broadcast).not.toHaveBeenCalled();
       expect(postMessage).not.toHaveBeenCalled();
@@ -274,7 +274,7 @@ describe("same-tab verification for a shared Soko Bot", () => {
       [COMPOSIO_BOT_ID_STORAGE_KEY]: BOT_ID,
     });
     expect(replace).toHaveBeenCalledExactlyOnceWith(
-      `/personal-assistant/integrations/verify?session_uri=one-use&botId=${BOT_ID}`,
+      `/personal-assistant/integrations/verify?session_uri=one-use&__sokosumi_owner_verification=1&botId=${BOT_ID}`,
     );
     expect(removeItem).toHaveBeenCalledWith(COMPOSIO_BOT_ID_STORAGE_KEY);
   });
@@ -282,7 +282,7 @@ describe("same-tab verification for a shared Soko Bot", () => {
   it("ignores a botId on Composio's query and verifies the caller's own bot", () => {
     const { replace } = runCallback({});
     expect(replace).toHaveBeenCalledExactlyOnceWith(
-      "/personal-assistant/integrations/verify?session_uri=one-use",
+      "/personal-assistant/integrations/verify?session_uri=one-use&__sokosumi_owner_verification=1",
     );
   });
 
