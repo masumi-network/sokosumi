@@ -51,8 +51,8 @@ vi.mock("@/lib/db/prisma", () => {
     },
     sokoBotTurn: {
       findFirst: vi.fn(),
-      findUnique: vi.fn().mockResolvedValue({
-        source: "CHAT",
+      findUnique: vi.fn().mockResolvedValue({ source: "CHAT" }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({
         deadlineAt: new Date(Date.now() + 15 * 60 * 1_000),
       }),
       update: vi.fn().mockResolvedValue({}),
@@ -551,18 +551,18 @@ describe("InProcessSokoBotRuntime", () => {
 
     beforeEach(() => {
       vi.spyOn(AbortSignal, "timeout");
-      vi.mocked(prisma.sokoBotTurn.findUnique).mockResolvedValue({
-        source: "EVENT",
+      vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockResolvedValue({
         deadlineAt: new Date(Date.now() + FIFTEEN_MINUTES),
-      } as never);
+      } as Awaited<ReturnType<typeof prisma.sokoBotTurn.findUniqueOrThrow>>);
     });
     afterEach(() => {
       vi.unstubAllEnvs();
       vi.mocked(AbortSignal.timeout).mockRestore();
     });
 
-    // CMO's first read (SOKD-126) needs most of its 15 minutes; four
-    // stopped it at about 10 of 16 Brand Brain sections on every local run.
+    // CMO's first read (SOKD-126) needs most of its 15 minutes; a 4-minute
+    // budget stopped it at about 10 of 16 Brand Brain sections on every
+    // local run.
     it("runs a local turn until its own deadline", async () => {
       vi.stubEnv("VERCEL", "");
 
@@ -584,6 +584,21 @@ describe("InProcessSokoBotRuntime", () => {
       await Promise.all(pendingTurns);
 
       expect(budgets()).toContain(240_000);
+    });
+
+    it("fails a turn whose row is gone instead of running unbounded", async () => {
+      vi.mocked(prisma.sokoBotTurn.findUniqueOrThrow).mockRejectedValueOnce(
+        new Error("No SokoBotTurn found"),
+      );
+
+      await start();
+      await Promise.all(pendingTurns);
+
+      expect(streamModelCallMock).not.toHaveBeenCalled();
+      expect(
+        recordedEvents().find((event) => event.type === "turn.failed")?.data
+          .message,
+      ).toBe("No SokoBotTurn found");
     });
   });
 
