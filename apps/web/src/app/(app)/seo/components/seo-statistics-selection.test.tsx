@@ -94,6 +94,40 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function renderWithPendingAgentRefresh() {
+  const workspace = seoTestWorkspace();
+  workspace.metrics = [
+    metric({
+      id: "search-clicks",
+      key: "clicks",
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic",
+    }),
+  ];
+  let finish: (value: { ok: true; value: null }) => void = () => {};
+  mutate.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const url = new URL(input, "https://web.test");
+      if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
+      return Response.json(
+        url.pathname.endsWith("statistics/properties")
+          ? properties(url.searchParams.get("provider") ?? "ga4")
+          : workspace,
+      );
+    }),
+  );
+  renderWorkspace(workspace);
+  await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+  return { finish: (value: { ok: true; value: null }) => finish(value) };
+}
+
 describe("statistics source and property recovery", () => {
   it("syncs the displayed source's saved property and period while generic setup keeps the newest source", async () => {
     const user = userEvent.setup();
@@ -189,36 +223,7 @@ describe("statistics source and property recovery", () => {
 
   it("keeps an open dialog while the agent refreshes stale Search Console data", async () => {
     const user = userEvent.setup();
-    const workspace = seoTestWorkspace();
-    workspace.metrics = [
-      metric({
-        id: "search-clicks",
-        key: "clicks",
-        source: "search_console",
-        propertyId: "sc-domain:example.com",
-        channel: "organic",
-      }),
-    ];
-    let finish: (value: { ok: true; value: null }) => void = () => {};
-    mutate.mockReturnValue(
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-    );
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: string) => {
-        const url = new URL(input, "https://web.test");
-        if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
-        return Response.json(
-          url.pathname.endsWith("statistics/properties")
-            ? properties(url.searchParams.get("provider") ?? "ga4")
-            : workspace,
-        );
-      }),
-    );
-    renderWorkspace(workspace);
-    await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+    const { finish } = await renderWithPendingAgentRefresh();
     await user.click(screen.getByRole("button", { name: "Sync statistics" }));
     const dialog = screen.getByRole("dialog");
     // The user's own dialog is not blocked by the background refresh.
@@ -232,6 +237,21 @@ describe("statistics source and property recovery", () => {
       ).toBeNull(),
     );
     expect(screen.getByRole("dialog")).toBe(dialog);
+  });
+
+  it("runs the user's sync after the agent refresh, so the user's result is newest", async () => {
+    const user = userEvent.setup();
+    const { finish } = await renderWithPendingAgentRefresh();
+    await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+    const dialog = screen.getByRole("dialog");
+    await within(dialog).findByRole("combobox", { name: "Property" });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Sync statistics" }),
+    );
+    expect(mutate).toHaveBeenCalledOnce();
+    finish({ ok: true, value: null });
+    await waitFor(() => expect(mutate).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("retries a temporary unavailable property result in place without replacing edited dates", async () => {

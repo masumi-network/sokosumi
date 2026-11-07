@@ -43,6 +43,7 @@ function StepRow({
             size="sm"
             variant="outline"
             loading={refreshing}
+            disabled={model.pending}
             onClick={refresh}
           >
             {t("queries.refresh")}

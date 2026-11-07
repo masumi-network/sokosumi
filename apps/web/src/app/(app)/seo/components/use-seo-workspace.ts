@@ -138,6 +138,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     useState<ProjectSeoKeyword | null>(null);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
+  const backgroundRef = useRef<Promise<boolean> | null>(null);
   // One browser request keeps its key after an uncertain acknowledgement.
   const operationKeys = useRef(new Map<string, string>());
   function operationKey(input: string) {
@@ -158,18 +159,29 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     background = false,
   ) {
     if (background) {
+      if (pendingRef.current) return false;
+      const run = (async () => {
+        try {
+          const response = await mutateSeo({ owner, command });
+          if (response.ok) await result.refetch();
+          return response.ok;
+        } catch {
+          return false;
+        }
+      })();
+      backgroundRef.current = run;
       try {
-        const response = await mutateSeo({ owner, command });
-        if (response.ok) await result.refetch();
-        return response.ok;
-      } catch {
-        return false;
+        return await run;
+      } finally {
+        if (backgroundRef.current === run) backgroundRef.current = null;
       }
     }
     if (pendingRef.current) return false;
     pendingRef.current = true;
     setPending(true);
     try {
+      // A user command lands after agent upkeep, so the user's result is the newest.
+      await backgroundRef.current;
       const response = await mutateSeo({
         owner,
         command,

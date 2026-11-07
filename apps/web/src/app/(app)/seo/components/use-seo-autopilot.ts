@@ -17,12 +17,12 @@ export function useSeoAutopilot(
   brief: SeoAgentBrief,
 ) {
   const [state, setState] = useState<"idle" | "refreshing" | "failed">("idle");
-  async function refresh() {
+  async function refresh(background = false) {
     if (!brief.refresh || state === "refreshing") return;
     setState("refreshing");
     const saved = await model.refreshSearchStatistics(
       brief.refresh.propertyId,
-      true,
+      background,
     );
     setState(saved ? "idle" : "failed");
   }
@@ -36,7 +36,7 @@ export function useSeoAutopilot(
       // Without storage the agent cannot prove it has not already refreshed; wait for the user.
       return;
     }
-    void refresh();
+    void refresh(true);
   });
   return { state, refresh };
 }
