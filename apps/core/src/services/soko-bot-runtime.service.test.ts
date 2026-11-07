@@ -9812,12 +9812,12 @@ describe("Content Studio image tools", () => {
       expect(result).toMatchObject({
         file: {
           id: "file-9",
-          name: "a-purple-robot-logo-01a0f430.png",
+          name: "a-purple-robot-logo-00000001.png",
           link: "/drive/files/file-9",
         },
       });
       expect(files.put).toHaveBeenCalledWith(
-        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
         expect.any(Buffer),
         expect.objectContaining({ access: "public", addRandomSuffix: false }),
       );

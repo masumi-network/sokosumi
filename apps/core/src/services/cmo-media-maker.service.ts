@@ -382,8 +382,9 @@ export async function advanceCmoMedia(
         references:
           action.step === "video" ? [] : references(piece, brandPictures),
       });
-      if (!started) return;
-      capacity -= 1;
+      // A refusal (credits, the hourly limit) stops starting, never
+      // attaching: finished pictures further down still go on their posts.
+      capacity = started ? capacity - 1 : 0;
     }
   }
 }

@@ -228,6 +228,50 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("keeps attaching finished pictures after the studio refuses a start", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    createImageJob.mockRejectedValue(
+      new HTTPException(429, {
+        message: "You can start at most 40 image generations per hour.",
+      }),
+    );
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-b",
+        idempotencyKey: `cmo-media:version-1:b:0:image:${cmoVisualKey(piece())}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        asset: { id: "asset-b" },
+      },
+    ]);
+    ensureDriveFile.mockResolvedValue({
+      id: "file-b",
+      name: "b.jpg",
+      pathname: "drive/b.jpg",
+      mimeType: "image/jpeg",
+      size: 10,
+    });
+    postFindUnique.mockResolvedValue({
+      id: "b",
+      provider: "x",
+      text: "Written words.",
+      media: [],
+      revision: 1,
+      status: "DRAFT",
+      scheduledAt: null,
+      planning: {},
+    });
+    updateSocialPost.mockResolvedValue({ media: [{}], revision: 2 });
+    await advanceCmoMedia(context, [
+      piece({ id: "a", socialPostId: "a" }),
+      piece({ id: "b", socialPostId: "b" }),
+    ]);
+    expect(createImageJob).toHaveBeenCalledTimes(1);
+    expect(updateSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "b" }),
+    );
+  });
+
   it("puts a finished picture on its post and schedules it on a connected network", async () => {
     jobFindMany.mockResolvedValue([
       {
