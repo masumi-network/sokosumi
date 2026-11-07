@@ -391,6 +391,91 @@ describe.skipIf(!enabled)(
       ).rejects.toMatchObject({ status: 404 });
     });
 
+    it("turns a Search Console opportunity into one Task across syncs and hides it from other users", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: SEO_TEST_PAGE,
+        relationship: "primary",
+      });
+      const searchMetrics = (observedAt: string): NativeSeoMetrics => ({
+        ...metrics([page.url]),
+        provider: "search_console",
+        propertyId: "sc-domain:example.test",
+        channel: "organic",
+        observedAt,
+        queries: {
+          rowLimit: 250,
+          truncated: false,
+          rows: [
+            {
+              query: "battery health",
+              pageUrl: page.url,
+              clicks: 0,
+              impressions: 12,
+              ctr: 0,
+              averagePosition: 3.2,
+            },
+          ],
+        },
+      });
+      await recordNativeSeoMetrics(
+        actor,
+        searchMetrics("2026-11-01T12:00:00.000Z"),
+      );
+      const first = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      const opportunity = first.actions.find(
+        (row) => row.kind === "opportunity",
+      );
+      expect(first.searchQueries?.rows).toHaveLength(1);
+      expect(opportunity).toBeDefined();
+      if (!opportunity) return;
+      await expect(
+        createProjectSeoActionTask(
+          { ...actor, userId: otherId },
+          {
+            observationId: opportunity.observationId,
+            actionId: opportunity.id,
+            idempotencyKey: "seo-opportunity-other",
+          },
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+      const link = await createProjectSeoActionTask(actor, {
+        observationId: opportunity.observationId,
+        actionId: opportunity.id,
+        idempotencyKey: "seo-opportunity-first",
+      });
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: link.taskId },
+      });
+      expect(task).toMatchObject({ status: "DRAFT", ownerId: userId });
+      expect(task.description).toContain("Measured evidence");
+      await recordNativeSeoMetrics(
+        actor,
+        searchMetrics("2026-11-02T12:00:00.000Z"),
+      );
+      const second = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      const repeated = second.actions.filter(
+        (row) => row.id === opportunity.id,
+      );
+      expect(repeated).toEqual([
+        expect.objectContaining({
+          taskId: link.taskId,
+          status: "task_created",
+        }),
+      ]);
+      const newer = second.searchQueries?.observationId;
+      expect(newer).not.toBe(opportunity.observationId);
+      if (!newer) return;
+      expect(
+        (
+          await createProjectSeoActionTask(actor, {
+            observationId: newer,
+            actionId: opportunity.id,
+            idempotencyKey: "seo-opportunity-second",
+          })
+        ).taskId,
+      ).toBe(link.taskId);
+    });
+
     it("releases distinct frozen finite monitor Runs and refuses an unapproved assignee or manual extra Run", async () => {
       const page = await addProjectSeoPage(actor, {
         url: SEO_TEST_PAGE,

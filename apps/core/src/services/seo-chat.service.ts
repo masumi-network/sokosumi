@@ -21,6 +21,7 @@ import {
   parseSeoChatReply,
   SEO_CHAT_SYSTEM,
   seoChatContext,
+  seoChatTaskActions,
 } from "@/lib/seo/chat-context";
 import { seoSharingFor, seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -280,6 +281,7 @@ export async function sendSeoChat(
     const reply = parseSeoChatReply(
       result.text,
       workspace.availableActions.canRequestAnalysis,
+      seoChatTaskActions(workspace),
     );
     return await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor);

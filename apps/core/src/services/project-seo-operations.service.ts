@@ -7,13 +7,19 @@ import {
   requireSeoAnalysisDispatch,
   requireSeoAnalysisExecutor,
 } from "@/lib/seo/analysis-dispatch";
+import { seoVisibilityFor } from "@/lib/seo/data-visibility";
+import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type {
   RequestSeoAnalysis,
   SeoActor,
 } from "@/schemas/project-seo.schema";
-import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
+import {
+  nativeSeoMetricsSchema,
+  SEO_MAX_PAGES,
+} from "@/schemas/project-seo.schema";
 
 import {
+  canReadPrivateSeoMetrics,
   commitSeoMutation,
   normalizeSeoUrl,
   requireLockedSeoOwner,
@@ -244,6 +250,47 @@ export async function requestProjectSeoAnalysisInTransaction(
   return commitSeoMutation(tx, result, hooks);
 }
 
+/**
+ * A Task source is a public report action, or an opportunity recomputed from a
+ * stored Search Console observation the actor may read. Client text is never used.
+ */
+async function resolveSeoTaskSource(
+  tx: Prisma.TransactionClient,
+  actor: SeoActor,
+  input: { observationId: string; actionId: string },
+) {
+  const observation = await tx.projectSeoObservation.findFirst({
+    where: { id: input.observationId, ...seoOwnerWhere(actor) },
+  });
+  if (observation && observation.ownerId === null) {
+    const parsed = publicSeoPayloadSchema.safeParse(observation.payload);
+    if (!parsed.success)
+      throw badRequest(
+        "The source observation is not a supported public report",
+      );
+    const action = parsed.data.actions.find((row) => row.id === input.actionId);
+    if (!action) throw notFound("SEO recommendation not found");
+    return { observation, action, evidence: [] as string[] };
+  }
+  const readable =
+    observation?.kind === "metrics" &&
+    observation.visibility === seoVisibilityFor(actor) &&
+    (actor.organizationId || observation.ownerId === actor.userId) &&
+    (await canReadPrivateSeoMetrics(actor, tx));
+  if (!observation || !readable) throw notFound("SEO observation not found");
+  const parsed = nativeSeoMetricsSchema.safeParse(observation.payload);
+  if (!parsed.success || parsed.data.provider !== "search_console")
+    throw badRequest("The source observation has no Search Console rows");
+  const action = searchOpportunities({
+    propertyId: parsed.data.propertyId,
+    from: parsed.data.from,
+    to: parsed.data.to,
+    rows: parsed.data.queries?.rows ?? [],
+  }).find((row) => row.id === input.actionId);
+  if (!action) throw notFound("SEO recommendation not found");
+  return { observation, action, evidence: action.evidence };
+}
+
 export async function createProjectSeoActionTask(
   actor: SeoActor,
   input: { observationId: string; actionId: string; idempotencyKey: string },
@@ -274,21 +321,18 @@ export async function createProjectSeoActionTask(
         }),
       }));
     if (previous) return commitSeoMutation(tx, previous, hooks);
-    const observation = await tx.projectSeoObservation.findFirst({
-      where: {
-        id: input.observationId,
-        ...seoOwnerWhere(actor),
-        ownerId: null,
-      },
-    });
-    if (!observation) throw notFound("Public SEO observation not found");
-    const parsed = publicSeoPayloadSchema.safeParse(observation.payload);
-    if (!parsed.success)
-      throw badRequest(
-        "The source observation is not a supported public report",
-      );
-    const action = parsed.data.actions.find((row) => row.id === input.actionId);
-    if (!action) throw notFound("SEO recommendation not found");
+    const { observation, action, evidence } = await resolveSeoTaskSource(
+      tx,
+      actor,
+      input,
+    );
+    // One Task per Search Console opportunity, even after later syncs store new observations.
+    const sameOpportunity = evidence.length
+      ? await tx.projectSeoActionTask.findFirst({
+          where: { ...seoOwnerWhere(actor), actionId: action.id },
+        })
+      : null;
+    if (sameOpportunity) return commitSeoMutation(tx, sameOpportunity, hooks);
     const task = await createTaskForActor(
       {
         actor: actor.sokoBotId
@@ -299,7 +343,7 @@ export async function createProjectSeoActionTask(
         workspaceId: actor.workspaceId,
         projectId: await requireSeoTaskProject(actor, tx),
         name: action.title,
-        description: `Page: ${action.pageUrl}\n\n${action.why}\n\nExpected effect (hypothesis): ${action.expectedEffect}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\nImplementation needs a fresh check before it is verified.`,
+        description: `Page: ${action.pageUrl}\n\n${action.why}\n\nExpected effect (hypothesis): ${action.expectedEffect}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
         status: "DRAFT",
         visibility: "PUBLIC",
       },

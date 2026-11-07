@@ -38,6 +38,7 @@ function workspaceFixture(): ProjectSeoWorkspace {
     findings: [],
     actions: [],
     metricsStatus: "available",
+    searchQueries: null,
     metrics: [
       {
         id: "views",
@@ -289,6 +290,7 @@ describe("native audit chat inference boundary", () => {
     expect(encoded.length).toBeLessThanOrEqual(30_000);
     expect(evidence).toMatchObject({
       metricsStatus: "available",
+      searchQueries: null,
       analysisDispatchEnabled: false,
       limited: true,
       totals: { observations: 100 },

@@ -3,6 +3,11 @@ import { z } from "@hono/zod-openapi";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
+  gscQueryArguments,
+  type NativeSearchQueries,
+  normalizeGscQueries,
+} from "@/lib/seo/native-gsc-queries";
+import {
   bindSeoToolArguments,
   GA4_PROPERTIES_TOOL,
   GA4_STATS_TOOL,
@@ -287,10 +292,21 @@ export async function syncProjectSeoStatistics(
     );
     return payload;
   };
-  // Two independent reads: native aggregate totals and the daily series. Distinct users are never summed.
-  const [period, daily] = await Promise.allSettled([
+  const collectQueries = async (): Promise<NativeSearchQueries | null> =>
+    input.provider === "search_console"
+      ? normalizeGscQueries(
+          query,
+          unwrapNativeStatistics(
+            await read(integration, tool, gscQueryArguments(query)),
+            ["rows"],
+          ),
+        )
+      : null;
+  // Independent reads: native aggregate totals, the daily series and Search Console query rows. Distinct users are never summed.
+  const [period, daily, queries] = await Promise.allSettled([
     collect(false),
     collect(true),
+    collectQueries(),
   ]);
   if (period.status === "rejected" && daily.status === "rejected") {
     await recordSeoConnectionFailure(actor, input.provider, integration);
@@ -304,6 +320,21 @@ export async function syncProjectSeoStatistics(
     daily.status === "fulfilled" ? daily.value : null,
     new Date().toISOString(),
   );
+  if (input.provider === "search_console") {
+    if (queries.status === "fulfilled" && queries.value) {
+      metrics.queries = queries.value;
+      metrics.notes.push(
+        "Query rows omit anonymized queries, so they can add up to less than the page totals.",
+      );
+      if (queries.value.truncated)
+        metrics.notes.push(
+          `Only the first ${queries.value.rowLimit} query rows by clicks were kept. More rows can exist.`,
+        );
+    } else
+      metrics.notes.push(
+        "Search Console query rows were unavailable for this sync. Totals are kept.",
+      );
+  }
   const current = await integrationFor(actor, input.provider);
   if (
     !current ||

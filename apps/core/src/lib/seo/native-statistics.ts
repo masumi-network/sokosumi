@@ -209,6 +209,19 @@ export function gscStatisticsArguments(
   query: NativeStatisticsQuery,
   daily: boolean,
 ): Record<string, unknown> {
+  return gscSearchAnalyticsArguments(
+    query,
+    daily ? ["date"] : [],
+    SEO_STATS_MAX_ROWS,
+  );
+}
+
+/** One page filter for every Search Console read, so totals, days and query rows share a scope. */
+export function gscSearchAnalyticsArguments(
+  query: NativeStatisticsQuery,
+  dimensions: string[],
+  rowLimit: number,
+): Record<string, unknown> {
   const expression = `^(?:${[...new Set(query.pageUrls)].map(escapeRegex).join("|")})$`;
   if (expression.length > 4096)
     throw new Error("Select fewer pages for this Search Console query");
@@ -216,7 +229,7 @@ export function gscStatisticsArguments(
     site_url: query.propertyId,
     start_date: query.from,
     end_date: query.to,
-    dimensions: daily ? ["date"] : [],
+    dimensions,
     search_type: "web",
     data_state: "final",
     dimension_filter_groups: [
@@ -227,7 +240,7 @@ export function gscStatisticsArguments(
         ],
       },
     ],
-    row_limit: SEO_STATS_MAX_ROWS,
+    row_limit: rowLimit,
     start_row: 0,
   };
 }

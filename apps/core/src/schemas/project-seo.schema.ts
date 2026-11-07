@@ -340,6 +340,9 @@ export const seoActionSchema = z
     ]),
     taskId: z.string().nullable(),
     status: z.enum(["recommended", "task_created", "implemented", "verified"]),
+    /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
+    kind: z.enum(["fix", "opportunity"]),
+    evidence: z.array(z.string()),
   })
   .openapi("ProjectSeoAction");
 export const seoMetricSchema = z
@@ -363,6 +366,29 @@ export const seoMetricSchema = z
     notes: z.array(z.string()),
   })
   .openapi("ProjectSeoMetric");
+export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
+/** One Search Console row grouped by query and page. Average position is not a live rank. */
+export const seoSearchQueryRowSchema = z.object({
+  query: z.string().min(1).max(2048),
+  pageUrl: seoUrlSchema,
+  clicks: z.number().finite().nonnegative(),
+  impressions: z.number().finite().nonnegative(),
+  ctr: z.number().finite().min(0).max(1),
+  averagePosition: z.number().finite().min(1),
+});
+export const seoSearchQueriesSchema = z
+  .object({
+    observationId: seoIdSchema,
+    propertyId: z.string(),
+    from: seoDateSchema,
+    to: seoDateSchema,
+    timeZone: z.string(),
+    observedAt: dateTimeSchema,
+    rowLimit: z.number().int().positive(),
+    truncated: z.boolean(),
+    rows: z.array(seoSearchQueryRowSchema.extend({ id: z.string() })),
+  })
+  .openapi("ProjectSeoSearchQueries");
 export const seoTimelineSchema = z
   .object({
     id: z.string(),
@@ -455,6 +481,7 @@ export const projectSeoWorkspaceSchema = z
       "unavailable",
     ]),
     metrics: z.array(seoMetricSchema),
+    searchQueries: seoSearchQueriesSchema.nullable(),
     timeline: z.array(seoTimelineSchema),
     analyses: z.array(seoJobSchema),
     monitors: z.array(seoMonitorSchema),
@@ -499,6 +526,15 @@ export const nativeSeoMetricsSchema = z
         }),
       )
       .max(20),
+    /** Search Console query/page rows for the same pages and period. Absent on older observations. */
+    queries: z
+      .object({
+        rowLimit: z.number().int().positive().max(SEO_SEARCH_QUERY_ROW_LIMIT),
+        truncated: z.boolean(),
+        rows: z.array(seoSearchQueryRowSchema).max(SEO_SEARCH_QUERY_ROW_LIMIT),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .refine((input) => input.from <= input.to, "Period ends before it starts")

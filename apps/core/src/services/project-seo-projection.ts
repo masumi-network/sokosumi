@@ -23,6 +23,10 @@ import {
 } from "@/schemas/project-seo.schema";
 
 import {
+  projectSearchEvidence,
+  type SearchEvidenceSource,
+} from "./project-seo-search-projection";
+import {
   canConfirmSeoCompetitor,
   matchesSeoPeriod,
   normalizeSeoUrl,
@@ -164,6 +168,7 @@ export function projectSeoProjection(
     input.tasks.map((task) => [task.id, task.status]),
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
+  const searchSources: SearchEvidenceSource[] = [];
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
     if (row.kind === "page_change") {
@@ -194,6 +199,7 @@ export function projectSeoProjection(
       )
         continue;
       if (query.channel && data.channel !== query.channel) continue;
+      if (data.provider === "search_console") searchSources.push({ row, data });
       timeline.push({
         id: `metrics:${row.id}`,
         kind: "metrics",
@@ -403,6 +409,8 @@ export function projectSeoProjection(
         ...item,
         observationId: row.id,
         findingIds: item.findingIds.map((id) => `${row.id}:${id}`),
+        kind: "fix",
+        evidence: [],
         taskId: link?.taskId ?? null,
         status: link
           ? taskStatuses.get(link.taskId) === "COMPLETED"
@@ -460,8 +468,16 @@ export function projectSeoProjection(
         canConfirm: canConfirmSeoCompetitor(choice.url),
         exclusionReason: null,
       });
+  const search = projectSearchEvidence(
+    searchSources,
+    input.actionTasks,
+    taskStatuses,
+  );
+  actions.push(...search.actions);
   for (const link of input.actionTasks) {
-    const observation = scopedPublicSources.get(link.observationId);
+    const observation =
+      scopedPublicSources.get(link.observationId) ??
+      searchSources.find((source) => source.row.id === link.observationId)?.row;
     if (!observation) continue;
     timeline.push({
       id: `action:${link.id}`,
@@ -541,6 +557,7 @@ export function projectSeoProjection(
     findings,
     actions,
     metrics,
+    searchQueries: search.searchQueries,
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")

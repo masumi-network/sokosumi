@@ -29,6 +29,13 @@ export const seoChatActionSchema = z.discriminatedUnion("kind", [
       ]),
     })
     .strict(),
+  z
+    .object({
+      kind: z.literal("task"),
+      observationId: z.uuid(),
+      actionId: z.string().min(1).max(200),
+    })
+    .strict(),
 ]);
 
 export const seoChatReplySchema = z

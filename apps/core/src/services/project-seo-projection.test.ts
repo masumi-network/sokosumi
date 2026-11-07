@@ -108,6 +108,47 @@ function metricObservation(input: Input, at: string, value: number) {
     },
   };
 }
+function searchObservation(input: Input, at: string) {
+  return {
+    ...metricObservation(input, at, 2),
+    source: "search_console",
+    payload: {
+      provider: "search_console",
+      propertyId: "sc-domain:example.test",
+      pageUrls: [SEO_TEST_PAGE],
+      channel: "organic",
+      from: "2026-10-09",
+      to: "2026-11-05",
+      timeZone: "America/Los_Angeles",
+      observedAt: at,
+      coverage: "partial",
+      notes: [],
+      metrics: [],
+      queries: {
+        rowLimit: 250,
+        truncated: false,
+        rows: [
+          {
+            query: "battery health",
+            pageUrl: SEO_TEST_PAGE,
+            clicks: 0,
+            impressions: 12,
+            ctr: 0,
+            averagePosition: 3.2,
+          },
+          {
+            query: "rare query",
+            pageUrl: SEO_TEST_PAGE,
+            clicks: 0,
+            impressions: 1,
+            ctr: 0,
+            averagePosition: 9,
+          },
+        ],
+      },
+    },
+  };
+}
 function actionFixture() {
   const input = fixture(),
     source = parsePublicSeoArtifact(legacyReport());
@@ -415,6 +456,58 @@ describe("stored SEO workspace projections", () => {
       pass.payload = { ...parsePublicSeoArtifact(focusedReport()), ...change };
       expect(projectSeoProjection(input).findings).toHaveLength(1);
     }
+  });
+
+  it("projects Search Console query rows and keeps one opportunity per Task across syncs", () => {
+    const input = fixture();
+    const older = searchObservation(input, "2026-11-02T12:00:00Z"),
+      newer = searchObservation(input, "2026-11-03T12:00:00Z");
+    input.observations = [newer, older];
+    const first = projectSeoProjection(input);
+    expect(first.searchQueries).toMatchObject({
+      observationId: newer.id,
+      from: "2026-10-09",
+      to: "2026-11-05",
+    });
+    expect(first.searchQueries?.rows.map((row) => row.query)).toEqual([
+      "battery health",
+      "rare query",
+    ]);
+    // Only the row above the impression floor becomes a review suggestion.
+    const opportunities = first.actions.filter(
+      (row) => row.kind === "opportunity",
+    );
+    expect(opportunities).toHaveLength(1);
+    expect(opportunities[0]).toMatchObject({
+      observationId: newer.id,
+      status: "recommended",
+      taskId: null,
+    });
+    const taskId = randomUUID();
+    input.actionTasks = [
+      {
+        id: randomUUID(),
+        projectId: input.project.id,
+        auditId: null,
+        observationId: older.id,
+        actionId: opportunities[0].id,
+        taskId,
+        idempotencyKey: "opportunity-test",
+        createdAt: now,
+      },
+    ];
+    input.tasks = [{ id: taskId, status: "READY", completedAt: null }];
+    const linked = projectSeoProjection(input).actions.filter(
+      (row) => row.kind === "opportunity",
+    );
+    expect(linked).toEqual([
+      expect.objectContaining({
+        id: opportunities[0].id,
+        observationId: older.id,
+        taskId,
+        status: "task_created",
+      }),
+    ]);
   });
 
   it("keeps every metric sync on the timeline while showing only the latest compatible total", () => {

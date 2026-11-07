@@ -310,3 +310,70 @@ describe("native statistics collection boundary", () => {
     expect(state.reads).toHaveLength(0);
   });
 });
+
+describe("Search Console query rows", () => {
+  const gscInput = {
+    provider: "search_console" as const,
+    propertyId: "sc-domain:example.test",
+    from: "2026-01-01",
+    to: "2026-01-02",
+    channel: "organic" as const,
+  };
+  const metric = { clicks: 1, impressions: 9, ctr: 0.11, position: 4.2 };
+  function gsc(queryRows: unknown) {
+    return (slug: string, args: Record<string, unknown>) => {
+      if (slug.endsWith("LIST_SITES"))
+        return {
+          siteEntry: [
+            { siteUrl: "sc-domain:example.test", permissionLevel: "siteOwner" },
+          ],
+        };
+      const dimensions = args.dimensions as string[];
+      if (dimensions.includes("query")) return queryRows;
+      return {
+        rows: dimensions.length
+          ? [{ keys: ["2026-01-01"], ...metric }]
+          : [{ keys: [], ...metric }],
+      };
+    };
+  }
+
+  it("stores query/page rows from the same page-filtered read", async () => {
+    state.answer = gsc({
+      rows: [{ keys: ["battery", state.pageUrl], ...metric }],
+    });
+    await syncProjectSeoStatistics(actor, gscInput);
+    const queryRead = state.reads.find((read) =>
+      ((read.args.dimensions ?? []) as string[]).includes("query"),
+    );
+    expect(queryRead?.args.dimensions).toEqual(["query", "page"]);
+    expect(state.observations[0].payload).toMatchObject({
+      queries: {
+        truncated: false,
+        rows: [
+          {
+            query: "battery",
+            pageUrl: state.pageUrl,
+            impressions: 9,
+            averagePosition: 4.2,
+          },
+        ],
+      },
+    });
+  });
+
+  it("keeps totals and says so when the query read leaves the selection", async () => {
+    state.answer = gsc({
+      rows: [{ keys: ["battery", "https://example.test/other"], ...metric }],
+    });
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      queries?: unknown;
+      notes: string[];
+      metrics: Array<{ value: number | null }>;
+    };
+    expect(payload.queries).toBeUndefined();
+    expect(payload.metrics[0].value).toBe(1);
+    expect(payload.notes.join(" ")).toContain("query rows were unavailable");
+  });
+});
