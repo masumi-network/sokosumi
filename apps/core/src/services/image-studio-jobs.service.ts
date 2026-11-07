@@ -21,10 +21,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
-import {
-  DriveFileDownloadError,
-  downloadDriveFile,
-} from "@/helpers/drive-file-download";
+import { DriveFileDownloadError } from "@/helpers/drive-file-download";
 import {
   notFound,
   tooManyRequests,
@@ -533,13 +530,26 @@ async function uploadFileReference(
   });
   if (!file?.mimeType?.startsWith("image/"))
     throw notFound("A reference image was not found in this workspace");
-  const url = (await head(file.sourceId)).url;
-  const download = () =>
-    downloadDriveFile(url, {
-      maxBytes: LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES,
-      timeoutMs: 30_000,
-      acceptsMimeType: (mime) => mime.startsWith("image/"),
+  const blob = await head(file.sourceId);
+  if (blob.size > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
+    throw new DriveFileDownloadError("too_large");
+  // The address comes from our own blob store, never from a person, so it
+  // needs no SSRF guard; and the store's bot check answered the guarded
+  // client 403 after its first request, failing every brand picture after
+  // the first.
+  const download = async () => {
+    const response = await fetch(blob.url, {
+      signal: AbortSignal.timeout(30_000),
     });
+    if (!response.ok) throw new DriveFileDownloadError("unavailable");
+    const mimeType = (response.headers.get("content-type") ?? "")
+      .split(";")[0]
+      ?.trim()
+      .toLowerCase();
+    if (!mimeType?.startsWith("image/"))
+      throw new DriveFileDownloadError("wrong_type");
+    return { bytes: new Uint8Array(await response.arrayBuffer()), mimeType };
+  };
   // One retry: a live test once got a passing error status for a stored
   // photo, and nothing is charged before the job is sent.
   const { bytes, mimeType } = await download().catch(async (error) => {

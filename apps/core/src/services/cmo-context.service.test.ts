@@ -282,4 +282,35 @@ describe("fitCmoMarketingContext", () => {
     expect(later?.detailsStored).toBe(true);
     expect(fitted.strategy.storedNotShown).toContain("weeks");
   });
+
+  it("sheds a later piece's visual with its draft, and keeps only two weeks last", () => {
+    const withVisual = (id: string, date: string) => ({
+      ...entry(id, date),
+      visual: "v".repeat(400),
+      visualFileIds: ["file-1"],
+    });
+    const big = {
+      ...context,
+      strategy: {
+        ...context.strategy,
+        calendar: [
+          withVisual("soon", "2026-11-02"),
+          withVisual("later", "2026-11-10"),
+          withVisual("far", "2026-11-25"),
+        ],
+      },
+    };
+    const shed = fitCmoMarketingContext(big, now, 2_600) as {
+      strategy: { calendar: Record<string, unknown>[] };
+    };
+    expect(shed.strategy.calendar[0]?.visual).toBeDefined();
+    expect(shed.strategy.calendar[1]?.visual).toBeUndefined();
+    const tight = fitCmoMarketingContext(big, now, 400) as {
+      strategy: { calendar: Record<string, unknown>[] };
+    };
+    expect(tight.strategy.calendar.map((piece) => piece.id)).toEqual([
+      "soon",
+      "later",
+    ]);
+  });
 });
