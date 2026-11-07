@@ -775,7 +775,7 @@ export function slackCandidate(input: {
 }
 
 // ---------------------------------------------------------------------------
-// X: direct messages, and who follows the owner back.
+// X: direct messages and followers.
 // ---------------------------------------------------------------------------
 
 export interface XUser {
