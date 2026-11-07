@@ -45,8 +45,9 @@ export const SEO_OPPORTUNITY_LIMIT = 10;
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const position = (value: number) => value.toFixed(1);
 
-function opportunityId(rule: string, row: SearchRow): string {
-  return `gsc:${rule}:${createHash("sha256")
+/** One ID per query and page: a later sync that matches another rule keeps the same Task. */
+function opportunityId(row: SearchRow): string {
+  return `gsc:query:${createHash("sha256")
     .update(JSON.stringify([row.query, row.pageUrl]))
     .digest("hex")
     .slice(0, 16)}`;
@@ -73,7 +74,7 @@ function snippetReview(
   )
     return null;
   return {
-    id: opportunityId(rule.id, row),
+    id: opportunityId(row),
     kind: "opportunity",
     pageUrl: row.pageUrl,
     findingIds: [],
@@ -99,7 +100,7 @@ function strikingDistance(
   )
     return null;
   return {
-    id: opportunityId(rule.id, row),
+    id: opportunityId(row),
     kind: "opportunity",
     pageUrl: row.pageUrl,
     findingIds: [],

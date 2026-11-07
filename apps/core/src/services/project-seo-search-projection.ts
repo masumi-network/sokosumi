@@ -24,8 +24,8 @@ function opportunitiesFor(source: SearchEvidenceSource) {
 
 /**
  * Query rows come from the newest compatible Search Console sync. Opportunity IDs
- * hash rule, query and page, so a linked Task stays attached across later syncs and
- * the same opportunity is never offered twice.
+ * hash query and page, so a linked Task stays attached across later syncs, scopes
+ * and rule changes, and the same opportunity is never offered twice.
  */
 export function projectSearchEvidence(
   sources: SearchEvidenceSource[],
@@ -60,14 +60,26 @@ export function projectSearchEvidence(
   }
   const current = sources.find((source) => source.data.queries);
   if (!current?.data.queries) return { searchQueries: null, actions };
-  for (const item of opportunitiesFor(current))
-    if (!seen.has(item.id))
-      actions.push({
-        ...item,
-        observationId: current.row.id,
-        taskId: null,
-        status: "recommended",
-      });
+  // A Task linked from an observation outside this scope still covers the same opportunity.
+  const linkByAction = new Map<string, ProjectSeoActionTask>();
+  for (const link of [...actionTasks].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  ))
+    if (!linkByAction.has(link.actionId)) linkByAction.set(link.actionId, link);
+  for (const item of opportunitiesFor(current)) {
+    if (seen.has(item.id)) continue;
+    const link = linkByAction.get(item.id);
+    actions.push({
+      ...item,
+      observationId: link?.observationId ?? current.row.id,
+      taskId: link?.taskId ?? null,
+      status: !link
+        ? "recommended"
+        : taskStatuses.get(link.taskId) === "COMPLETED"
+          ? "implemented"
+          : "task_created",
+    });
+  }
   return {
     searchQueries: {
       observationId: current.row.id,

@@ -33,7 +33,7 @@ describe("search opportunities", () => {
         },
       ]),
     );
-    expect(hit.id).toMatch(/^gsc:snippet_review:/);
+    expect(hit.evidence.at(-1)).toBe(`Heuristic: ${rule.name}`);
     expect(hit.kind).toBe("opportunity");
     expect(hit.why).toContain("not a confirmed problem");
     expect(
@@ -45,18 +45,19 @@ describe("search opportunities", () => {
             ctr: rule.maxCtr + 0.001,
           },
         ]),
-      )[0]?.id,
-    ).not.toMatch(/^gsc:snippet_review:/);
+      )[0]?.evidence.at(-1),
+    ).not.toBe(`Heuristic: ${rule.name}`);
   });
 
   it("fires striking distance only inside its average-position band", () => {
     const rule = SEO_OPPORTUNITY_RULES.strikingDistance;
     const ids = (averagePosition: number) =>
-      searchOpportunities(source([{ averagePosition, ctr: 0.5 }])).map(
-        (row) => row.id.split(":")[1],
+      searchOpportunities(source([{ averagePosition, ctr: 0.5 }])).map((row) =>
+        row.evidence.at(-1),
       );
-    expect(ids(rule.minAveragePosition)).toEqual(["striking_distance"]);
-    expect(ids(rule.maxAveragePosition)).toEqual(["striking_distance"]);
+    const hit = `Heuristic: ${rule.name}`;
+    expect(ids(rule.minAveragePosition)).toEqual([hit]);
+    expect(ids(rule.maxAveragePosition)).toEqual([hit]);
     expect(ids(rule.maxAveragePosition + 0.1)).toEqual([]);
     expect(ids(rule.minAveragePosition - 0.1)).toEqual([]);
   });
@@ -89,5 +90,16 @@ describe("search opportunities", () => {
       })),
     );
     expect(searchOpportunities(many)).toHaveLength(SEO_OPPORTUNITY_LIMIT);
+  });
+
+  it("keeps one ID when the same query and page move to another rule", () => {
+    const snippet = searchOpportunities(
+      source([{ averagePosition: 4.5, ctr: 0.01 }]),
+    )[0];
+    const striking = searchOpportunities(
+      source([{ averagePosition: 4.5, ctr: 0.03 }]),
+    )[0];
+    expect(snippet.title).not.toBe(striking.title);
+    expect(snippet.id).toBe(striking.id);
   });
 });

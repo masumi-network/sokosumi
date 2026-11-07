@@ -13,6 +13,23 @@ const SEO_CHAT_METRIC_LIMIT = 10;
 const SEO_CHAT_EVIDENCE_LIMIT = 2;
 const SEO_CHAT_DAILY_POINT_LIMIT = 7;
 const SEO_CHAT_QUERY_LIMIT = 25;
+
+/** Fixes and opportunities each keep half the slots, and either kind fills what the other leaves. */
+function chatActionSample(actions: ProjectSeoWorkspace["actions"]) {
+  const half = SEO_CHAT_COLLECTION_LIMIT / 2;
+  const fixes = actions.filter((row) => row.kind === "fix");
+  const opportunities = actions.filter((row) => row.kind === "opportunity");
+  return [
+    ...fixes.slice(
+      0,
+      Math.max(half, SEO_CHAT_COLLECTION_LIMIT - opportunities.length),
+    ),
+    ...opportunities.slice(
+      0,
+      Math.max(half, SEO_CHAT_COLLECTION_LIMIT - fixes.length),
+    ),
+  ];
+}
 const SEO_CHAT_ISSUE_PRIORITY: Readonly<Record<string, number>> = {
   critical: 0,
   major: 1,
@@ -140,17 +157,15 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
         title: clip(row.title),
         evidence: row.evidence.slice(0, SEO_CHAT_EVIDENCE_LIMIT).map(clip),
       })),
-    actions: workspace.actions
-      .slice(0, SEO_CHAT_COLLECTION_LIMIT)
-      .map((row) => ({
-        id: row.id,
-        kind: row.kind,
-        title: clip(row.title),
-        why: clip(row.why),
-        status: row.status,
-        pageUrl: row.pageUrl,
-        observationId: row.observationId,
-      })),
+    actions: chatActionSample(workspace.actions).map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      title: clip(row.title),
+      why: clip(row.why),
+      status: row.status,
+      pageUrl: row.pageUrl,
+      observationId: row.observationId,
+    })),
     searchQueries: workspace.searchQueries
       ? {
           observationId: workspace.searchQueries.observationId,

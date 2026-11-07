@@ -510,6 +510,42 @@ describe("stored SEO workspace projections", () => {
     ]);
   });
 
+  it("keeps a Task linked from an observation outside the selected scope", () => {
+    const input = fixture();
+    const current = searchObservation(input, "2026-11-03T12:00:00Z");
+    input.observations = [current];
+    const [opportunity] = projectSeoProjection(input).actions.filter(
+      (row) => row.kind === "opportunity",
+    );
+    const taskId = randomUUID();
+    const elsewhere = randomUUID();
+    input.actionTasks = [
+      {
+        id: randomUUID(),
+        projectId: input.project.id,
+        auditId: null,
+        observationId: elsewhere,
+        actionId: opportunity.id,
+        taskId,
+        idempotencyKey: "other-scope",
+        createdAt: now,
+      },
+    ];
+    input.tasks = [{ id: taskId, status: "COMPLETED", completedAt: now }];
+    expect(
+      projectSeoProjection(input).actions.filter(
+        (row) => row.kind === "opportunity",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: opportunity.id,
+        observationId: elsewhere,
+        taskId,
+        status: "implemented",
+      }),
+    ]);
+  });
+
   it("keeps every metric sync on the timeline while showing only the latest compatible total", () => {
     const input = fixture();
     input.observations = [

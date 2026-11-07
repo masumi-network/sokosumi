@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { Prisma, ProjectSeoObservation } from "@sokosumi/database";
 
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
@@ -250,6 +250,20 @@ export async function requestProjectSeoAnalysisInTransaction(
   return commitSeoMutation(tx, result, hooks);
 }
 
+/** A private observation is a Task source only for an actor who may read its metrics. */
+async function canReadSeoMetricsSource(
+  tx: Prisma.TransactionClient,
+  actor: SeoActor,
+  observation: ProjectSeoObservation | null,
+): Promise<boolean> {
+  return (
+    observation?.kind === "metrics" &&
+    observation.visibility === seoVisibilityFor(actor) &&
+    !!(actor.organizationId || observation.ownerId === actor.userId) &&
+    (await canReadPrivateSeoMetrics(actor, tx))
+  );
+}
+
 /**
  * A Task source is a public report action, or an opportunity recomputed from a
  * stored Search Console observation the actor may read. Client text is never used.
@@ -272,12 +286,8 @@ async function resolveSeoTaskSource(
     if (!action) throw notFound("SEO recommendation not found");
     return { observation, action, evidence: [] as string[] };
   }
-  const readable =
-    observation?.kind === "metrics" &&
-    observation.visibility === seoVisibilityFor(actor) &&
-    (actor.organizationId || observation.ownerId === actor.userId) &&
-    (await canReadPrivateSeoMetrics(actor, tx));
-  if (!observation || !readable) throw notFound("SEO observation not found");
+  if (!observation || !(await canReadSeoMetricsSource(tx, actor, observation)))
+    throw notFound("SEO observation not found");
   const parsed = nativeSeoMetricsSchema.safeParse(observation.payload);
   if (!parsed.success || parsed.data.provider !== "search_console")
     throw badRequest("The source observation has no Search Console rows");
@@ -320,7 +330,18 @@ export async function createProjectSeoActionTask(
           actionId: input.actionId,
         }),
       }));
-    if (previous) return commitSeoMutation(tx, previous, hooks);
+    if (previous) {
+      // A link to a private Search Console opportunity is returned only to a reader of its metrics.
+      const source = await tx.projectSeoObservation.findFirst({
+        where: { id: previous.observationId, ...seoOwnerWhere(actor) },
+      });
+      if (
+        source?.ownerId !== null &&
+        !(await canReadSeoMetricsSource(tx, actor, source ?? null))
+      )
+        throw notFound("SEO observation not found");
+      return commitSeoMutation(tx, previous, hooks);
+    }
     const { observation, action, evidence } = await resolveSeoTaskSource(
       tx,
       actor,

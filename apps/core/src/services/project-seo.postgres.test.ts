@@ -448,6 +448,17 @@ describe.skipIf(!enabled)(
       });
       expect(task).toMatchObject({ status: "DRAFT", ownerId: userId });
       expect(task.description).toContain("Measured evidence");
+      // An existing link is not a way around the private metrics read check.
+      await expect(
+        createProjectSeoActionTask(
+          { ...actor, sokoBotId: randomUUID(), privateMetricsAllowed: false },
+          {
+            observationId: opportunity.observationId,
+            actionId: opportunity.id,
+            idempotencyKey: "seo-opportunity-bot",
+          },
+        ),
+      ).rejects.toMatchObject({ status: 404 });
       await recordNativeSeoMetrics(
         actor,
         searchMetrics("2026-11-02T12:00:00.000Z"),

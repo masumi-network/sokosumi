@@ -299,6 +299,36 @@ describe("native audit chat inference boundary", () => {
     expect(evidence.observations.length).toBeLessThan(100);
   });
 
+  it("keeps review opportunities in chat evidence behind many fixes", () => {
+    const workspace = workspaceFixture();
+    const action = (kind: "fix" | "opportunity", index: number) => ({
+      id: `${kind}-${index}`,
+      observationId: randomUUID(),
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      title: `${kind} ${index}`,
+      why: "why",
+      effort: "low" as const,
+      expectedEffect: "effect",
+      edit: null,
+      taskId: null,
+      status: "recommended" as const,
+      kind,
+      evidence: [],
+    });
+    workspace.actions = [
+      ...Array.from({ length: 25 }, (_, index) => action("fix", index)),
+      ...Array.from({ length: 3 }, (_, index) => action("opportunity", index)),
+    ];
+    const kinds = JSON.parse(seoChatContext(workspace)).actions.map(
+      (row: { kind: string }) => row.kind,
+    );
+    expect(kinds).toHaveLength(20);
+    expect(kinds.filter((kind: string) => kind === "opportunity")).toHaveLength(
+      3,
+    );
+  });
+
   it("rejects unknown actions and removes only analysis suggestions while dispatch is paused", () => {
     expect(() =>
       parseSeoChatReply(
