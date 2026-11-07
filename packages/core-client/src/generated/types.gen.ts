@@ -7716,6 +7716,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -7950,6 +7952,8 @@ export type MarketingStrategyRequest = {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -9579,6 +9583,8 @@ export type SocialPost = {
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
         campaignId?: string;
+        visual?: string;
+        visualFileIds?: Array<string>;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -11072,6 +11078,8 @@ export type CmoPlan = {
         draft?: string;
         why?: string;
         socialPostId?: string;
+        visual?: string;
+        visualFileIds?: Array<string>;
         imageFileId?: string;
         slideFileIds?: Array<string>;
         fileId?: string;

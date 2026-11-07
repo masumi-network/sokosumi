@@ -1,6 +1,10 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import { CMO_CHANNELS } from "@sokosumi/utils";
 
-import { bannedCopyProblems } from "@/lib/social-post-writing";
+import {
+  bannedCopyProblems,
+  nearDuplicatePost,
+} from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
@@ -22,6 +26,18 @@ const MIN_FORMATS = 6;
 const MAX_SUMMARY_WORDS = 20;
 /** How far, in points, the calendar's shares may stray from the mix and the pillars. */
 export const CMO_SHARE_TOLERANCE = 7;
+/** Videos a month: each costs about four pictures, and a plan once asked for eight. */
+export const CMO_MAX_VIDEOS_PER_MONTH = 4;
+
+function isVideoFormat(entry: { channel: string; format: string }): boolean {
+  const channel = (
+    CMO_CHANNELS as Record<
+      string,
+      { formats: Record<string, { video?: boolean }> }
+    >
+  )[entry.channel];
+  return Boolean(channel?.formats[entry.format]?.video);
+}
 
 /**
  * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
@@ -112,6 +128,11 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
     problems.push(...cadenceProblems(strategy.channels, pieces));
+    const videos = pieces.filter(isVideoFormat).length;
+    if (videos > CMO_MAX_VIDEOS_PER_MONTH)
+      problems.push(
+        `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs about as much as four pictures: keep video for what moves.`,
+      );
   }
   return problems;
 }
@@ -192,7 +213,24 @@ export function cmoDraftProblems(
     else seen.set(start, entry.id);
   }
   problems.push(...repeatedPhrases(drafted));
+  problems.push(...nearDuplicates(drafted));
   return problems.slice(0, MAX_DRAFT_PROBLEMS);
+}
+
+/** Drafts that say nearly what an earlier draft of the month says. */
+function nearDuplicates(drafted: MarketingStrategyPlan["calendar"]): string[] {
+  const written = drafted.map((entry) => ({
+    id: entry.id,
+    text: entry.draft ?? "",
+  }));
+  return written.flatMap((entry, index) => {
+    const repeated = nearDuplicatePost(entry.text, written.slice(0, index));
+    return repeated
+      ? [
+          `${entry.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
+        ]
+      : [];
+  });
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */
