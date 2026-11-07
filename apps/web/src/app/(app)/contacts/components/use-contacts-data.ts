@@ -15,6 +15,7 @@ import {
 export const CONTACTS_KEY = ["contacts"] as const;
 export const CONTACT_LISTS_KEY = ["contact-lists"] as const;
 export const CONTACT_ORGANIZATIONS_KEY = ["contact-organizations"] as const;
+export const CONTACT_MAP_KEY = ["contact-map"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -32,6 +33,16 @@ export function useContactRows(query: ContactQuery) {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** The query's contacts by place; the order does not matter on a map. */
+export function useContactMap(query: ContactQuery) {
+  const { sort: _sort, direction: _direction, ...filters } = query;
+  return useQuery({
+    queryKey: [...CONTACT_MAP_KEY, filters],
+    queryFn: () => contactsService.map(filters),
     placeholderData: (previous) => previous,
   });
 }
@@ -113,6 +124,7 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACTS_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_ORGANIZATIONS_KEY }),
+    cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,

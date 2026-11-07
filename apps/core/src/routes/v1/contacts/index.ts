@@ -10,6 +10,7 @@ import mountPatch from "./[id]/patch.js";
 import mountExport from "./export.js";
 import mountGet from "./get.js";
 import mountImport from "./import.js";
+import mountMap from "./map.js";
 import mountMerge from "./merge.js";
 import mountOrganizations from "./organizations.js";
 import mountPost from "./post.js";
@@ -23,6 +24,7 @@ const app = new OpenAPIHonoWithAuth({
 mountGet(app);
 mountPost(app);
 mountExport(app);
+mountMap(app);
 mountMerge(app);
 mountImport(app);
 mountOrganizations(app);

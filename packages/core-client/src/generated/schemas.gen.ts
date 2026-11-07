@@ -15100,6 +15100,93 @@ export const ContactMergeSuggestionSchema = {
     ]
 } as const;
 
+export const ContactMapSchema = {
+    type: 'object',
+    properties: {
+        places: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactMapPlace'
+            }
+        },
+        unplaced: {
+            type: 'integer',
+            description: 'Contacts with a location that could not be placed, or not yet.'
+        },
+        withoutLocation: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'places',
+        'unplaced',
+        'withoutLocation'
+    ]
+} as const;
+
+export const ContactMapPlaceSchema = {
+    type: 'object',
+    properties: {
+        label: {
+            type: 'string',
+            example: 'Zurich, Switzerland'
+        },
+        latitude: {
+            type: 'number'
+        },
+        longitude: {
+            type: 'number'
+        },
+        contacts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactMapContact'
+            }
+        }
+    },
+    required: [
+        'label',
+        'latitude',
+        'longitude',
+        'contacts'
+    ]
+} as const;
+
+export const ContactMapContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        kind: {
+            $ref: '#/components/schemas/ContactKind'
+        },
+        organization: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'kind',
+        'organization',
+        'avatarUrl'
+    ]
+} as const;
+
 export const ContactDuplicateGroupSchema = {
     type: 'object',
     properties: {

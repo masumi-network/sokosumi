@@ -10162,6 +10162,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organization",
+        "location": "Location",
         "role": "Role",
         "stage": "Relationship",
         "lists": "Lists",
@@ -10267,6 +10268,8 @@
         "name": "Name",
         "organization": "Organization",
         "role": "Role",
+        "location": "Location",
+        "locationPlaceholder": "City, country",
         "channels": "Ways to reach them",
         "channelType": "Channel {index} type",
         "channelValue": "Channel {index}",
@@ -10531,6 +10534,27 @@
         "pricing": "{credits, number} credits per person found. Finding nobody is free.",
         "personLabel": "Who are you looking for?",
         "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
+      },
+      "layout": {
+        "label": "Layout",
+        "table": "Table",
+        "map": "Map"
+      },
+      "map": {
+        "label": "Places",
+        "loading": "Placing contacts on the map…",
+        "errorTitle": "The map did not load",
+        "error": "Something went wrong while loading the map.",
+        "retry": "Try again",
+        "emptyTitle": "Nobody on the map yet",
+        "empty": "Add a location to a contact, like a city, and they show up here.",
+        "emptyUnplaced": "None of these locations names a place we could find. Try a city and country.",
+        "placed": "{count, plural, one {# contact} other {# contacts}} on the map",
+        "unplaced": "{count, plural, one {# contact} other {# contacts}} not placed",
+        "withoutLocation": "{count} without a location",
+        "place": "{place}, {count, plural, one {# contact} other {# contacts}}",
+        "nearby": "{place} and {others, plural, one {# place} other {# places}} nearby",
+        "people": "{count, plural, one {# contact} other {# contacts}}"
       }
     }
   },

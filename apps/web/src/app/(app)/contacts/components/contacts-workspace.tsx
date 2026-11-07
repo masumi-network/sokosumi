@@ -10,11 +10,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   FileSpreadsheet,
+  Globe,
   ListPlus,
   MoreHorizontal,
+  Table2,
   UserPlus,
   Users,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
@@ -55,6 +58,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
@@ -84,6 +88,12 @@ import {
   useContactRows,
   useTeammates,
 } from "./use-contacts-data";
+
+// The map and its world outline load only when someone opens it.
+const ContactsMap = dynamic(
+  () => import("./contacts-map").then((module) => module.ContactsMap),
+  { ssr: false },
+);
 
 type Dialog =
   | { kind: "add" }
@@ -135,6 +145,10 @@ export function ContactsWorkspace({
     parseAsStringLiteral(["asc", "desc"] as const),
   );
   const [openId, setOpenId] = useQueryState("contact");
+  const [layout, setLayout] = useQueryState(
+    "layout",
+    parseAsStringLiteral(["map"] as const),
+  );
   const [selected, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -275,6 +289,32 @@ export function ContactsWorkspace({
             <ContactsPresetTabs view={view} onViewChange={changeView} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <ToggleGroup
+              type="single"
+              value={layout ?? "table"}
+              onValueChange={(next) => {
+                if (next === "table" || next === "map") {
+                  void setLayout(next === "map" ? "map" : null);
+                  setSelected([]);
+                }
+              }}
+              aria-label={t("layout.label")}
+            >
+              <ToggleGroupItem
+                value="table"
+                aria-label={t("layout.table")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Table2 aria-hidden className="size-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="map"
+                aria-label={t("layout.map")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Globe aria-hidden className="size-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
             <Button
               size="sm"
               variant="primary"
@@ -417,6 +457,13 @@ export function ContactsWorkspace({
                 sync={sync}
                 onAdd={() => setDialog({ kind: "add" })}
                 onImport={() => setDialog({ kind: "import" })}
+              />
+            ) : layout === "map" ? (
+              <ContactsMap
+                query={query}
+                filtered={filtered}
+                onClearFilters={clearFilters}
+                onOpen={open}
               />
             ) : contacts.length === 0 ? (
               <EmptyState

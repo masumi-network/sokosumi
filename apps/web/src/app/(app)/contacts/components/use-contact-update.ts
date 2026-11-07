@@ -7,6 +7,7 @@ import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { contactsService } from "@/lib/services/contacts.client";
 import {
   CONTACT_LISTS_KEY,
+  CONTACT_MAP_KEY,
   CONTACTS_KEY,
   contactKey,
   refreshContacts,
@@ -78,6 +79,7 @@ export function useContactUpdate() {
       // by "Updated" does not pull the row out from under the reader.
       writeContact(cache, saved);
       void cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY });
+      void cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY });
       void cache.invalidateQueries({ queryKey: contactKey(contact.id) });
       void cache.invalidateQueries({
         queryKey: ["contact-timeline", contact.id],

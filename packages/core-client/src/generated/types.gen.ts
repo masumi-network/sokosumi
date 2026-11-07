@@ -4220,6 +4220,30 @@ export type ContactMergeSuggestion = {
     contactIds: Array<string>;
 };
 
+export type ContactMap = {
+    places: Array<ContactMapPlace>;
+    /**
+     * Contacts with a location that could not be placed, or not yet.
+     */
+    unplaced: number;
+    withoutLocation: number;
+};
+
+export type ContactMapPlace = {
+    label: string;
+    latitude: number;
+    longitude: number;
+    contacts: Array<ContactMapContact>;
+};
+
+export type ContactMapContact = {
+    id: string;
+    name: string;
+    kind: ContactKind;
+    organization: string | null;
+    avatarUrl: string | null;
+};
+
 export type ContactDuplicateGroup = {
     name: string;
     contacts: Array<Contact>;
@@ -32675,6 +32699,153 @@ export type GetContactsExportCsvResponses = {
 };
 
 export type GetContactsExportCsvResponse = GetContactsExportCsvResponses[keyof GetContactsExportCsvResponses];
+
+export type GetContactsMapData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
+        stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        archived?: 'true' | 'false';
+        sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
+        direction?: 'asc' | 'desc';
+    };
+    url: '/contacts/map';
+};
+
+export type GetContactsMapErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsMapError = GetContactsMapErrors[keyof GetContactsMapErrors];
+
+export type GetContactsMapResponses = {
+    /**
+     * Contacts by place
+     */
+    200: {
+        data: ContactMap;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsMapResponse = GetContactsMapResponses[keyof GetContactsMapResponses];
 
 export type PostContactsMergeData = {
     body?: {
