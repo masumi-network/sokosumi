@@ -481,7 +481,7 @@ export const projectSeoWorkspaceSchema = z
       "unavailable",
     ]),
     metrics: z.array(seoMetricSchema),
-    searchQueries: seoSearchQueriesSchema.nullable(),
+    searchQueries: z.union([seoSearchQueriesSchema, z.null()]),
     timeline: z.array(seoTimelineSchema),
     analyses: z.array(seoJobSchema),
     monitors: z.array(seoMonitorSchema),

@@ -9898,7 +9898,7 @@ export type ProjectSeoWorkspace = {
     actions: Array<ProjectSeoAction>;
     metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
     metrics: Array<ProjectSeoMetric>;
-    searchQueries: ProjectSeoSearchQueries;
+    searchQueries: ProjectSeoSearchQueries | null;
     timeline: Array<ProjectSeoTimelineItem>;
     analyses: Array<ProjectSeoAnalysis>;
     monitors: Array<ProjectSeoMonitor>;
@@ -10062,7 +10062,7 @@ export type ProjectSeoSearchQueries = {
         averagePosition: number;
         id: string;
     }>;
-} | null;
+};
 
 export type ProjectSeoTimelineItem = {
     id: string;

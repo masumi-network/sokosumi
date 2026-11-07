@@ -36945,7 +36945,14 @@ export const ProjectSeoWorkspaceSchema = {
             }
         },
         searchQueries: {
-            $ref: '#/components/schemas/ProjectSeoSearchQueries'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoSearchQueries'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         timeline: {
             type: 'array',
@@ -37763,10 +37770,7 @@ export const ProjectSeoMetricSchema = {
 } as const;
 
 export const ProjectSeoSearchQueriesSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         observationId: {
             type: 'string',
