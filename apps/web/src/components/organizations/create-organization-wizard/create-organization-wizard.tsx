@@ -61,7 +61,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -926,19 +925,16 @@ export function CreateOrganizationWizard({
                   </Label>
                   <div className="bg-card-background has-[:focus-visible]:ring-ring flex h-14 items-center gap-3 rounded-xl border pr-2 pl-4 has-[:focus-visible]:ring-2">
                     <Link2 className="text-muted-foreground size-4 shrink-0" />
-                    {isCreatingLink ? (
-                      <Skeleton className="h-4 w-56 rounded-sm" />
-                    ) : (
-                      <Input
-                        id={`${inviteFieldsId}-link`}
-                        name="inviteLink"
-                        aria-describedby={`${inviteFieldsId}-link-hint`}
-                        readOnly
-                        value={inviteLink ?? ""}
-                        onFocus={(event) => event.currentTarget.select()}
-                        className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
-                      />
-                    )}
+                    <Input
+                      id={`${inviteFieldsId}-link`}
+                      name="inviteLink"
+                      aria-describedby={`${inviteFieldsId}-link-hint`}
+                      aria-busy={isCreatingLink}
+                      readOnly
+                      value={inviteLink ?? ""}
+                      onFocus={(event) => event.currentTarget.select()}
+                      className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
+                    />
                     {linkFailed && !inviteLink ? (
                       <Button
                         type="button"

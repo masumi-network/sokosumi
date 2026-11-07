@@ -101,6 +101,24 @@ describe("CreateOrganizationWizard", () => {
     });
   });
 
+  it("keeps the invite link labeled while it loads", async () => {
+    const user = userEvent.setup();
+    createOrganizationInviteLinkMock.mockReturnValue(new Promise(() => {}));
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(screen.getByLabelText("Details.nameLabel"), "Acme");
+    await user.type(screen.getByLabelText("Details.urlLabel"), "acme.com");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await screen.findByText("Logo.title");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+
+    const link = screen.getByRole("textbox", { name: "Invite.linkLabel" });
+    expect(link).toHaveAttribute("aria-busy", "true");
+    expect(link).toHaveAccessibleDescription("Invite.linkHint");
+    expect(screen.getByRole("button", { name: "Invite.copy" })).toBeDisabled();
+  });
+
   it("does not complete when dismissed before create", async () => {
     const user = userEvent.setup();
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
