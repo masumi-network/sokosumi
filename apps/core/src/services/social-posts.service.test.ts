@@ -2597,6 +2597,48 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a Soko Bot's post that says what another post of its month says", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      marketingStrategyId: "version-1",
+    });
+    socialPostFindManyMock.mockResolvedValue([
+      {
+        id: "fee",
+        text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+        media: [],
+        planning: { title: "Fees" },
+      },
+      // An idea still showing its plan's title is not a written post.
+      {
+        id: "idea",
+        text: "No monthly fee on a Studio account",
+        media: [],
+        planning: { title: "No monthly fee on a Studio account" },
+      },
+    ]);
+    const { updateSocialPost } = await loadService();
+
+    await expect(
+      updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        postId: POST_ID,
+        revision: 0,
+        text: "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining(
+        'it says nearly what the post "The Studio account has no monthly fee.',
+      ),
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("leaves a person's own formatting alone", async () => {
     const { createSocialPost } = await loadService();
 

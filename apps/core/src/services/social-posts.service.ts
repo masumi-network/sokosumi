@@ -62,7 +62,10 @@ import {
 } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { socialPostFormattingError } from "@/lib/social-post-writing";
+import {
+  nearDuplicatePost,
+  socialPostFormattingError,
+} from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
   type SocialPostStatistics,
@@ -582,6 +585,53 @@ function requireBotFormatting(
 ): void {
   const error = socialPostFormattingError(requireProvider(provider), post);
   if (error) throw badRequest(error);
+}
+
+/**
+ * A Soko Bot's post in a marketing month says its own thing with its own
+ * pictures: a month once repeated four messages across 45 posts, and one
+ * picture went on three of them.
+ */
+async function requireOwnInMonth(
+  tx: Prisma.TransactionClient,
+  post: { id: string; marketingStrategyId: string },
+  change: { text: string | null; media: readonly SocialPostMediaRef[] },
+): Promise<void> {
+  const siblings = await tx.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: post.id },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true, text: true, media: true, planning: true },
+  });
+  for (const item of change.media) {
+    const holder = siblings.find((sibling) =>
+      parseSocialPostMedia(sibling.media, sibling.id).some(
+        (other) => other.pathname === item.pathname,
+      ),
+    );
+    if (holder)
+      throw badRequest(
+        `Use another picture: "${item.name}" is already on the post "${firstLine(holder.text)}", and each post gets its own.`,
+      );
+  }
+  if (change.text === null) return;
+  // An idea still shows its plan's brief or title until it is written.
+  const written = siblings.filter((sibling) => {
+    const planning = sibling.planning as { brief?: unknown; title?: unknown };
+    return sibling.text !== planning?.brief && sibling.text !== planning?.title;
+  });
+  const repeated = nearDuplicatePost(change.text, written);
+  if (repeated)
+    throw badRequest(
+      `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
+    );
+}
+
+function firstLine(text: string): string {
+  const line = text.trim().split("\n")[0] ?? "";
+  return line.length > 80 ? `${line.slice(0, 77)}...` : line;
 }
 
 /** Publish and schedule refuse a post without the media the network needs. */
@@ -1204,6 +1254,19 @@ export async function updateSocialPost(
       firstComment,
       linkInPost: input.linkInPost,
     });
+  if (
+    input.sokoBotId &&
+    post.marketingStrategyId &&
+    (input.text !== undefined || input.media !== undefined)
+  )
+    await requireOwnInMonth(
+      tx,
+      { id: post.id, marketingStrategyId: post.marketingStrategyId },
+      {
+        text: input.text !== undefined ? text : null,
+        media: input.media !== undefined ? media : [],
+      },
+    );
 
   const quotedPostId =
     input.quotedPostId !== undefined ? input.quotedPostId : post.quotedPostId;

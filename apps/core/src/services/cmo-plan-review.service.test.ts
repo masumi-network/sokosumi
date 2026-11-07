@@ -418,6 +418,28 @@ describe("repeated phrases in drafts", () => {
     ]);
     expect(problems).toEqual([
       '"softsense an 11 piece collection" is in 3 drafts (a, b, c); keep it in at most 2 and say something new in the rest.',
+      "b says nearly what a says; give it its own message from its pillar.",
+      "c says nearly what b says; give it its own message from its pillar.",
+    ]);
+  });
+
+  it("names a draft that says nearly what another says in other words", () => {
+    const problems = cmoDraftProblems([
+      piece(
+        "fee",
+        "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+      ),
+      piece(
+        "fee-again",
+        "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+      ),
+      piece(
+        "book",
+        "Book.io sold 130,000 NFT books across 70 titles with Studio handling every mint.",
+      ),
+    ]);
+    expect(problems).toEqual([
+      "fee-again says nearly what fee says; give it its own message from its pillar.",
     ]);
   });
 });

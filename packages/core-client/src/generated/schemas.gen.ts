@@ -28143,6 +28143,19 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         format: 'uuid'
                                     },
+                                    visual: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    visualFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 3
+                                    },
                                     imageFileId: {
                                         type: 'string',
                                         maxLength: 100
@@ -29500,6 +29513,19 @@ export const MarketingStrategyRequestSchema = {
                             socialPostId: {
                                 type: 'string',
                                 format: 'uuid'
+                            },
+                            visual: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            visualFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 3
                             },
                             imageFileId: {
                                 type: 'string',
@@ -35585,6 +35611,19 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 64
+                },
+                visual: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                visualFileIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 100
+                    },
+                    maxItems: 3
                 }
             },
             required: [
@@ -42462,6 +42501,19 @@ export const CmoPlanSchema = {
                     socialPostId: {
                         type: 'string',
                         format: 'uuid'
+                    },
+                    visual: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 2000
+                    },
+                    visualFileIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 100
+                        },
+                        maxItems: 3
                     },
                     imageFileId: {
                         type: 'string',

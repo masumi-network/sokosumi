@@ -120,7 +120,10 @@ describe("loadCmoMarketingContext", () => {
         logoUrl: "https://blob.example/logo.png",
         designMd: '---\nname: Acme\n---\nPrimary: "#ff6a00"',
       },
-      brandPictures: [{ fileId: "f-shoe", alt: "red shoe" }],
+      brandPictures: [
+        { fileId: "f-home", alt: "Home page screenshot" },
+        { fileId: "f-shoe", alt: "red shoe" },
+      ],
       writingSkills: expect.arrayContaining([
         expect.objectContaining({ id: "brand-voice", name: "Brand voice" }),
         expect.objectContaining({ id: "linkedin", use: expect.any(String) }),

@@ -9710,7 +9710,7 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
-  it("lets Cuso's daily run make the images his approved plan lists", async () => {
+  it("leaves the month's pictures to Core in Cuso's own runs, and makes them when the owner asks in chat", async () => {
     const dailyRun = {
       ...ownerChat,
       turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
@@ -9726,7 +9726,16 @@ describe("Content Studio image tools", () => {
       id: "strategy-1",
       approvedAt: new Date(),
     });
-    await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
+    await expect(generate(dailyRun, request, "call-c2")).rejects.toThrow(
+      "Core makes the month's pictures and videos",
+    );
+    const ownerAsks = {
+      ...ownerChat,
+      turn: { ...ownerChat.turn, versionId: "cmo-v1" },
+    };
+    await expect(
+      generate(ownerAsks, request, "call-c3"),
+    ).resolves.toBeDefined();
     expect(images.create).toHaveBeenCalledTimes(1);
   });
 
