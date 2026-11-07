@@ -41,11 +41,22 @@ function pieceFilename(entry: Pick<CmoCalendarEntry, "date" | "title">) {
   return `${entry.date} ${title}.md`;
 }
 
-/** The file holds the piece as the owner uses it: its title, then its words. */
+/** A draft its writing skill already shapes: labelled fields first, or its own # title. */
+const SHAPED_DRAFT = /^(?:[A-Z][\w ()]{1,30}:|# \S)/;
+
+/**
+ * The file holds the piece as the owner uses it: its title, then its words.
+ * A draft its skill shapes (an article's Description line and # title, a
+ * page fix's fields, a newsletter's Subject) is pasted as written; a second
+ * title above it would break the paste.
+ */
 export function marketingPieceMarkdown(
   entry: Pick<CmoCalendarEntry, "title" | "draft">,
 ): string {
-  return `# ${entry.title}\n\n${(entry.draft ?? "").trim()}\n`;
+  const draft = (entry.draft ?? "").trim();
+  return SHAPED_DRAFT.test(draft)
+    ? `${draft}\n`
+    : `# ${entry.title}\n\n${draft}\n`;
 }
 
 /** The words of a piece's file, without the title line it starts with. */
