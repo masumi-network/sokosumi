@@ -140,6 +140,7 @@ beforeEach(() => {
   viewer.userId = "owner";
 });
 afterEach(() => {
+  sessionStorage.clear();
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
 });
@@ -192,7 +193,9 @@ describe("SEO workspace integration", () => {
     expect(measurement).not.toBeVisible();
     expect(measurement.closest("details")).not.toHaveAttribute("open");
     expect(
-      screen.getByText("No fixes recommended from these checks"),
+      screen.getByText(
+        "No confirmed issue in the checked rules. This covers only those rules and pages, not the whole site.",
+      ),
     ).toBeVisible();
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
@@ -1047,6 +1050,7 @@ describe("SEO workspace integration", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith("/chat")) return Response.json({ turns: [] });
         if (!url.includes("/imports?")) return Response.json(workspace);
         reads.push({
           url,
@@ -1242,8 +1246,8 @@ describe("SEO workspace integration", () => {
       Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
     );
     vi.stubGlobal("fetch", fetchMock);
-    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}`);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=keywords`);
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const panel = await screen.findByRole("dialog", { name: "SEO chat" });
     expect(within(panel).getByLabelText("Your question")).toBeVisible();
     expect(
@@ -1305,8 +1309,8 @@ describe("SEO workspace integration", () => {
         Response.json(url.endsWith("/chat") ? history : workspace),
       ),
     );
-    renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    renderWorkspace(workspace, "tab=keywords");
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const panel = await screen.findByRole("dialog", { name: "SEO chat" });
     await within(panel).findByText(history.turns[0].response);
     expect(within(panel).getByText("Alex")).toBeVisible();
@@ -1371,7 +1375,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     expect(
       await screen.findByText(
         "This conversation and your connected statistics are visible only to you.",
@@ -1394,7 +1398,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     const view = renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     await user.type(
       screen.getByLabelText("Your question"),
       "Private launch budget",
@@ -1445,7 +1449,9 @@ describe("SEO workspace integration", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
       const view = renderWorkspace(workspace);
-      await user.click(screen.getByRole("button", { name: "SEO chat" }));
+      await user.click(
+        screen.getByRole("button", { name: "Ask the SEO agent" }),
+      );
       await screen.findByText("Owner private history reply");
       await user.type(
         screen.getByLabelText("Your question"),
@@ -1496,7 +1502,7 @@ describe("SEO workspace integration", () => {
     };
     const requests = nativeChatNetwork(workspace);
     renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}`);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
     await user.click(screen.getByRole("button", { name: "Send message" }));
@@ -1517,7 +1523,7 @@ describe("SEO workspace integration", () => {
     };
     const requests = nativeChatNetwork(workspace, { uncertainFirst: true });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
     await user.click(screen.getByRole("button", { name: "Send message" }));
@@ -1537,7 +1543,7 @@ describe("SEO workspace integration", () => {
     };
     const requests = nativeChatNetwork(workspace, { failedFirst: true });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "SEO chat" }));
+    await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
     await user.click(screen.getByRole("button", { name: "Send message" }));
@@ -1563,6 +1569,8 @@ describe("SEO workspace integration", () => {
       edit: null,
       taskId: null,
       status: "recommended",
+      kind: "fix",
+      evidence: [],
     });
     vi.stubGlobal(
       "fetch",

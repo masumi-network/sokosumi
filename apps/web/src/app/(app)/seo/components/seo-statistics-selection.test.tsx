@@ -89,6 +89,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => {
+  sessionStorage.clear();
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
 });
@@ -138,7 +139,15 @@ describe("statistics source and property recovery", () => {
         );
       }),
     );
+    mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
+    // Stale Search Console data makes the agent refresh it once on open.
+    await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+    expect(mutate.mock.calls[0][0].command).toMatchObject({
+      kind: "sync_statistics",
+      body: { provider: "search_console", propertyId: "sc-domain:example.com" },
+    });
+    mutate.mockClear();
     await user.click(screen.getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Google Analytics" }));
     await user.click(screen.getByRole("button", { name: "Sync statistics" }));
@@ -205,6 +214,7 @@ describe("statistics source and property recovery", () => {
             status: "connected",
             source: "native",
           });
+        if (url.pathname.endsWith("/chat")) return Response.json({ turns: [] });
         return Response.json(workspace);
       }),
     );

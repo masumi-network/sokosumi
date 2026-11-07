@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SeoActions } from "./seo-actions";
+import { SEO_AGENT_INPUT_ID } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoCompetitors } from "./seo-competitors";
@@ -50,7 +51,7 @@ export function SeoWorkspace({
 }) {
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
-  const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}`;
+  const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}:${model.keywordDraft?.keyword ?? ""}`;
   const editDialog =
     model.dialog === "page" ||
     model.dialog === "scope" ||
@@ -107,11 +108,17 @@ export function SeoWorkspace({
               variant="outline"
               size="sm"
               onClick={() => {
-                void model.openChat();
+                const inline =
+                  model.filters.tab === "overview"
+                    ? document.getElementById(SEO_AGENT_INPUT_ID)
+                    : null;
+                if (!inline) return model.openChat();
+                inline.scrollIntoView({ block: "center" });
+                inline.focus();
               }}
             >
               <MessageSquare className="size-4" />
-              {t("chat.title")}
+              {t("agent.ask")}
             </Button>
           ) : null}
           {model.data.availableActions.canEdit &&

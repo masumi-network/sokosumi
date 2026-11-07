@@ -10647,7 +10647,7 @@
         "diagnostics": "Mediciones y notas"
       },
       "keywords": {
-        "title": "Palabras clave",
+        "title": "Palabras clave seguidas",
         "edit": "Editar palabra clave",
         "empty": "No hay palabras clave en esta selección",
         "emptyBody": "Importa una auditoría para descubrir palabras clave o guarda una en tu lista.",
@@ -10670,7 +10670,8 @@
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
         "help": "Cada observación conserva su mercado y dispositivo. Guardar una palabra no inicia seguimiento de pago.",
-        "notInRangeUnknown": "No aparece en los resultados revisados"
+        "notInRangeUnknown": "No aparece en los resultados revisados",
+        "searchPlaceholder": "Filtrar consultas y palabras clave"
       },
       "competitors": {
         "title": "Competidores",
@@ -10691,7 +10692,7 @@
       "actions": {
         "title": "Acciones",
         "empty": "No hay acciones recomendadas",
-        "emptyBody": "Las comprobaciones completadas pueden proponer trabajo con evidencia. Crea un borrador de tarea para revisarlo y asignarlo.",
+        "emptyBody": "Las acciones salen de comprobaciones fallidas y de las consultas de Search Console. Pregunta al agente SEO qué recoger a continuación.",
         "createTask": "Crear borrador de tarea",
         "why": "Por qué es importante",
         "effect": "Efecto esperado",
@@ -10709,7 +10710,16 @@
         "checksIncomplete": "Estas comprobaciones están incompletas",
         "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
         "unplannedIssues": "Todavía no hay acciones recomendadas",
-        "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o abre el chat de SEO para decidir el siguiente paso."
+        "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o abre el chat de SEO para decidir el siguiente paso.",
+        "kind": {
+          "fix": "Corrección confirmada",
+          "opportunity": "Oportunidad de revisión"
+        },
+        "fixesTitle": "Correcciones confirmadas",
+        "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, una nueva comprobación lo verifica.",
+        "opportunitiesTitle": "Oportunidades de revisión según datos de búsqueda",
+        "opportunitiesHelp": "Una heurística con nombre coincidió con filas medidas de Search Console. Son sugerencias para revisar, no fallos, y no prometen tráfico.",
+        "noOpportunitiesBody": "Las comprobaciones no encontraron correcciones y ninguna consulta cumplió una heurística de revisión. Pregunta al agente SEO qué recoger a continuación."
       },
       "pages": {
         "title": "Páginas",
@@ -10938,7 +10948,8 @@
         "member": "Miembro",
         "open": "Abrir {action}",
         "auditRequired": "Abre una auditoría para usar el chat SEO.",
-        "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana."
+        "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
+        "createTask": "Crear borrador de tarea: {title}"
       },
       "connections": {
         "connect": "Conectar {provider}",
@@ -10972,7 +10983,71 @@
       },
       "unavailableTitle": "SEO no está disponible en este Workspace",
       "unavailableBody": "Esta auditoría o selección no está disponible en el Workspace actual. Revisa el Workspace en la barra lateral o abre la lista de auditorías.",
-      "openAllPages": "Abrir todas las páginas"
+      "openAllPages": "Abrir todas las páginas",
+      "queries": {
+        "title": "Consultas de Search Console",
+        "help": "Búsquedas en las que Google mostró las páginas seleccionadas, medidas por Search Console. Las impresiones son observadas, no volumen de búsqueda. La posición media es un promedio del periodo, no una posición en vivo.",
+        "refresh": "Actualizar Search Console",
+        "lastSynced": "Última sincronización",
+        "truncated": "Solo se guardan las primeras {count} filas por clics",
+        "notLoaded": "Aún no hay consultas guardadas",
+        "notLoadedBody": "Tus estadísticas guardadas son anteriores a la recogida de consultas. Actualiza Search Console para cargarlas.",
+        "notConnected": "Search Console no está conectado",
+        "notConnectedBody": "Conecta Search Console para ver qué búsquedas muestran estas páginas.",
+        "connect": "Conectar Search Console",
+        "query": "Consulta",
+        "clicks": "Clics",
+        "impressions": "Impresiones",
+        "ctr": "Porcentaje de clics",
+        "position": "Posición media",
+        "rowActions": "Acciones de la fila",
+        "tracked": "Seguida",
+        "track": "Seguir",
+        "trackLabel": "Seguir {query} como palabra clave",
+        "noMatch": "Ninguna consulta coincide con el filtro",
+        "noMatchBody": "Borra el filtro para ver todas las consultas guardadas.",
+        "empty": "Search Console no devolvió consultas",
+        "emptyBody": "Google no mostró búsquedas atribuibles para estas páginas en este periodo. Las consultas anonimizadas nunca aparecen."
+      },
+      "agent": {
+        "ask": "Preguntar al agente SEO",
+        "title": "Agente SEO",
+        "subtitle": "Lee tus comprobaciones y estadísticas guardadas, propone los siguientes pasos y mantiene Search Console al día. Tú apruebas cada tarea.",
+        "knownTitle": "Lo que sabe el agente",
+        "lastCheck": "Última comprobación: {checked, plural, one {# regla} other {# reglas}} en {pages, plural, one {# página} other {# páginas}}.",
+        "noCheck": "Aún no se ha comprobado ninguna de estas páginas.",
+        "issues": "{count, plural, one {# problema confirmado} other {# problemas confirmados}} en las reglas comprobadas.",
+        "noIssues": "Ningún problema confirmado en las reglas comprobadas. Solo cubre esas reglas y páginas, no todo el sitio.",
+        "search": "Search Console: {clicks} clics de {impressions} impresiones.",
+        "noSearch": "Aún no hay estadísticas de búsqueda.",
+        "queries": "{count, plural, =0 {Ninguna consulta guardada} one {# consulta guardada} other {# consultas guardadas}} para el mismo periodo.",
+        "queriesMissing": "Las consultas aún no están guardadas.",
+        "suggestions": "{fixes, plural, one {# corrección} other {# correcciones}} y {opportunities, plural, one {# oportunidad de revisión} other {# oportunidades de revisión}} pendientes.",
+        "refreshing": "El agente está actualizando Search Console.",
+        "refreshFailed": "No se pudo actualizar Search Console. Inténtalo de nuevo en Siguientes pasos.",
+        "nextTitle": "Siguientes pasos",
+        "nothingNext": "No hay nada pendiente. El agente actualiza Search Console cuando abres esta auditoría y los datos tienen más de un día.",
+        "steps": {
+          "refresh": {
+            "stale": "Los datos de Search Console tienen más de un día. Actualízalos para ver las consultas actuales.",
+            "no_queries": "Carga las consultas detrás de tus totales de Search Console para que el agente encuentre oportunidades de revisión."
+          },
+          "connect": {
+            "search_console": "Conecta Search Console para medir clics, impresiones y las consultas que muestran estas páginas.",
+            "ga4": "Conecta Google Analytics para medir visitas y páginas vistas."
+          },
+          "competitors": {
+            "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
+            "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
+          }
+        },
+        "prompts": {
+          "first": "¿Qué debo hacer primero?",
+          "queries": "¿Qué búsquedas traen personas a estas páginas?",
+          "competitors": "¿Qué sabemos de los competidores?"
+        },
+        "researchCompetitors": "Investigar competidores"
+      }
     }
   },
   "Share": {

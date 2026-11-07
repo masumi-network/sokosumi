@@ -14,7 +14,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const SEO_CHAT_POLL_MS = 2_000;
 export const SEO_CHAT_QUESTION_LIMIT = 4_000;
 
-export function useSeoChat(model: SeoWorkspaceModel) {
+export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
   const t = useTranslations("App.Seo");
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -65,7 +65,7 @@ export function useSeoChat(model: SeoWorkspaceModel) {
         throw new DOMException("SEO viewer changed", "AbortError");
       return data;
     },
-    enabled: model.chatOpen && !!auditId && !!session?.user.id,
+    enabled: active && !!auditId && !!session?.user.id,
     refetchOnWindowFocus: false,
     refetchInterval: (query) =>
       query.state.data?.turns.some((turn) => turn.status === "running")
@@ -74,8 +74,8 @@ export function useSeoChat(model: SeoWorkspaceModel) {
   });
   const turns = history.data?.turns ?? [];
   const busy = sending || turns.some((turn) => turn.status === "running");
-  async function send() {
-    const text = question.trim();
+  async function send(prompt?: string) {
+    const text = (prompt ?? question).trim();
     if (
       !auditId ||
       !session?.user.id ||
@@ -131,7 +131,7 @@ export function useSeoChat(model: SeoWorkspaceModel) {
       // An acknowledged turn consumes this attempt. An uncertain response keeps it for safe replay.
       pendingAttempt.current = null;
       if (turn.status === "failed") setError(t("chat.failed"));
-      else setQuestion("");
+      else if (prompt === undefined) setQuestion("");
       await history.refetch();
     } catch {
       if (!alive.current) return;

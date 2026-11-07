@@ -10647,7 +10647,7 @@
         "diagnostics": "Messwerte und Hinweise"
       },
       "keywords": {
-        "title": "Keywords",
+        "title": "Verfolgte Keywords",
         "edit": "Keyword bearbeiten",
         "empty": "Keine Keywords in dieser Auswahl",
         "emptyBody": "Importiere ein Audit, um Keywords zu finden, oder speichere ein Keyword.",
@@ -10670,7 +10670,8 @@
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
         "help": "Markt und Gerät gehören zu jeder Beobachtung. Speichern startet kein kostenpflichtiges Tracking.",
-        "notInRangeUnknown": "In den geprüften Ergebnissen nicht gefunden"
+        "notInRangeUnknown": "In den geprüften Ergebnissen nicht gefunden",
+        "searchPlaceholder": "Suchanfragen und Keywords filtern"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -10691,7 +10692,7 @@
       "actions": {
         "title": "Aktionen",
         "empty": "Keine empfohlenen Aktionen",
-        "emptyBody": "Abgeschlossene Prüfungen können Arbeit mit Nachweisen vorschlagen. Erstelle eine Entwurfsaufgabe zur Prüfung und Zuweisung.",
+        "emptyBody": "Aktionen entstehen aus fehlgeschlagenen Prüfungen und aus Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes erhoben werden soll.",
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
@@ -10709,7 +10710,16 @@
         "checksIncomplete": "Diese Prüfungen sind unvollständig",
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
-        "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder öffne den SEO-Chat für die nächsten Schritte."
+        "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder öffne den SEO-Chat für die nächsten Schritte.",
+        "kind": {
+          "fix": "Bestätigte Korrektur",
+          "opportunity": "Prüfvorschlag"
+        },
+        "fixesTitle": "Bestätigte Korrekturen",
+        "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur bestätigt eine neue Prüfung das Ergebnis.",
+        "opportunitiesTitle": "Prüfvorschläge aus Suchdaten",
+        "opportunitiesHelp": "Eine benannte Heuristik traf auf gemessene Search-Console-Zeilen zu. Das sind Vorschläge zur Prüfung, keine Fehler, und sie versprechen keinen Traffic.",
+        "noOpportunitiesBody": "Die Prüfungen fanden keine Korrektur, und keine Suchanfrage erfüllte eine Prüfheuristik. Frag den SEO-Agenten, was als Nächstes erhoben werden soll."
       },
       "pages": {
         "title": "Seiten",
@@ -10938,7 +10948,8 @@
         "member": "Mitglied",
         "open": "{action} öffnen",
         "auditRequired": "Öffne ein Audit, um den SEO-Chat zu nutzen.",
-        "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut."
+        "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut.",
+        "createTask": "Aufgabenentwurf erstellen: {title}"
       },
       "connections": {
         "connect": "{provider} verbinden",
@@ -10972,7 +10983,71 @@
       },
       "unavailableTitle": "SEO ist in diesem Workspace nicht verfügbar",
       "unavailableBody": "Dieses Audit oder diese Auswahl ist im aktuellen Workspace nicht verfügbar. Prüfe den Workspace in der Seitenleiste oder öffne die Audit-Liste.",
-      "openAllPages": "Alle Seiten öffnen"
+      "openAllPages": "Alle Seiten öffnen",
+      "queries": {
+        "title": "Search-Console-Suchanfragen",
+        "help": "Suchen, bei denen Google die ausgewählten Seiten zeigte, gemessen von der Search Console. Impressionen sind beobachtet, kein Suchvolumen. Die durchschnittliche Position ist ein Mittelwert über den Zeitraum, kein Live-Ranking.",
+        "refresh": "Search Console aktualisieren",
+        "lastSynced": "Zuletzt synchronisiert",
+        "truncated": "Nur die ersten {count} Zeilen nach Klicks sind gespeichert",
+        "notLoaded": "Noch keine Suchanfragen gespeichert",
+        "notLoadedBody": "Deine gespeicherten Statistiken stammen aus der Zeit vor dem Abruf von Suchanfragen. Aktualisiere die Search Console, um sie zu laden.",
+        "notConnected": "Search Console ist nicht verbunden",
+        "notConnectedBody": "Verbinde die Search Console, um zu sehen, bei welchen Suchen diese Seiten erscheinen.",
+        "connect": "Search Console verbinden",
+        "query": "Suchanfrage",
+        "clicks": "Klicks",
+        "impressions": "Impressionen",
+        "ctr": "Klickrate",
+        "position": "Durchschnittliche Position",
+        "rowActions": "Zeilenaktionen",
+        "tracked": "Verfolgt",
+        "track": "Verfolgen",
+        "trackLabel": "{query} als Keyword verfolgen",
+        "noMatch": "Keine Suchanfrage passt zum Filter",
+        "noMatchBody": "Leere den Filter, um alle gespeicherten Suchanfragen zu sehen.",
+        "empty": "Die Search Console lieferte keine Suchanfragen",
+        "emptyBody": "Google zeigte in diesem Zeitraum keine zuordenbaren Suchen für diese Seiten. Anonymisierte Suchanfragen erscheinen nie."
+      },
+      "agent": {
+        "ask": "SEO-Agent fragen",
+        "title": "SEO-Agent",
+        "subtitle": "Er liest deine gespeicherten Prüfungen und Statistiken, schlägt nächste Schritte vor und hält die Search Console aktuell. Jede Aufgabe gibst du frei.",
+        "knownTitle": "Was der Agent weiß",
+        "lastCheck": "Letzte Prüfung: {checked, plural, one {# Regel} other {# Regeln}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
+        "noCheck": "Für diese Seiten lief noch keine Prüfung.",
+        "issues": "{count, plural, one {# bestätigtes Problem} other {# bestätigte Probleme}} in den geprüften Regeln.",
+        "noIssues": "Kein bestätigtes Problem in den geprüften Regeln. Das gilt nur für diese Regeln und Seiten, nicht für die ganze Website.",
+        "search": "Search Console: {clicks} Klicks aus {impressions} Impressionen.",
+        "noSearch": "Noch keine Suchstatistiken.",
+        "queries": "{count, plural, =0 {Keine Suchanfragen} one {# Suchanfrage} other {# Suchanfragen}} für denselben Zeitraum gespeichert.",
+        "queriesMissing": "Suchanfragen sind noch nicht gespeichert.",
+        "suggestions": "{fixes, plural, one {# Korrektur} other {# Korrekturen}} und {opportunities, plural, one {# Prüfvorschlag} other {# Prüfvorschläge}} warten.",
+        "refreshing": "Der Agent aktualisiert die Search Console.",
+        "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
+        "nextTitle": "Nächste Schritte",
+        "nothingNext": "Nichts wartet. Der Agent aktualisiert die Search Console, wenn du dieses Audit öffnest und die Daten älter als einen Tag sind.",
+        "steps": {
+          "refresh": {
+            "stale": "Die Search-Console-Daten sind älter als einen Tag. Aktualisiere sie, um aktuelle Suchanfragen zu sehen.",
+            "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Prüfvorschläge finden kann."
+          },
+          "connect": {
+            "search_console": "Verbinde die Search Console, um Klicks, Impressionen und Suchanfragen zu messen.",
+            "ga4": "Verbinde Google Analytics, um Besuche und Seitenaufrufe zu messen."
+          },
+          "competitors": {
+            "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
+            "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
+          }
+        },
+        "prompts": {
+          "first": "Was soll ich zuerst tun?",
+          "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
+          "competitors": "Was wissen wir über Wettbewerber?"
+        },
+        "researchCompetitors": "Wettbewerber recherchieren"
+      }
     }
   },
   "Share": {

@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { SeoActions } from "./seo-actions";
-import { SeoGettingStarted } from "./seo-getting-started";
+import { SeoAgentHome } from "./seo-agent-home";
 import { SeoMeasurements } from "./seo-measurements";
 import { SeoMonitors } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import {
   SeoDate,
-  SeoEmpty,
   SeoPageLink,
   SeoSection,
   SeoSource,
@@ -27,10 +24,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
   const overview = seoOverviewModel(data);
   return (
     <div className="space-y-5">
-      {!data.observations.length ? <SeoGettingStarted model={model} /> : null}
-      {overview.recommendedActions.length ? (
-        <SeoActions model={model} compact />
-      ) : null}
+      <SeoAgentHome model={model} />
       {overview.issues.length ? (
         <SeoSection title={t("overview.findings")}>
           {overview.issues.map((finding) => (
@@ -65,33 +59,6 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             </article>
           ))}
         </SeoSection>
-      ) : !overview.recommendedActions.length &&
-        (data.observations.length || overview.emptyState === "incomplete") ? (
-        <SeoEmpty
-          title={t(
-            overview.emptyState === "no_fixes"
-              ? "overview.noFixes"
-              : overview.emptyState === "incomplete"
-                ? "actions.checksIncomplete"
-                : "overview.noFindings",
-          )}
-          body={t(
-            overview.emptyState === "no_fixes"
-              ? "overview.noFixesBody"
-              : overview.emptyState === "incomplete"
-                ? "actions.checksIncompleteBody"
-                : "overview.noFindingsBody",
-          )}
-        >
-          {data.availableActions.canSyncMetrics ? (
-            <Button
-              variant="outline"
-              onClick={() => model.setDialog("statistics")}
-            >
-              {t("overview.manageConnections")}
-            </Button>
-          ) : null}
-        </SeoEmpty>
       ) : null}
       {overview.hasFailedChecks && overview.emptyState !== "incomplete" ? (
         <p className="text-muted-foreground px-2 text-sm">

@@ -1,0 +1,116 @@
+import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
+import { SEO_SEARCH_STALE_MS, seoAgentBrief } from "./seo-agent-model";
+import { seoTestWorkspace } from "./seo-test-fixture";
+
+const synced = new Date("2026-11-07T12:00:00Z");
+function searchMetric(
+  key: string,
+  value: number,
+): ProjectSeoWorkspace["metrics"][number] {
+  return {
+    id: `metric:${key}`,
+    key,
+    label: key,
+    unit: "count",
+    source: "search_console",
+    propertyId: "sc-domain:example.com",
+    value,
+    from: "2026-10-09",
+    to: "2026-11-05",
+    timeZone: "America/Los_Angeles",
+    channel: "organic",
+    observedAt: synced,
+    coverage: "partial",
+    points: [],
+    notes: [],
+  };
+}
+function opportunity(id: string): ProjectSeoWorkspace["actions"][number] {
+  return {
+    id,
+    kind: "opportunity",
+    evidence: ["Query: battery"],
+    observationId: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+    pageUrl: "https://example.com/",
+    findingIds: [],
+    title: id,
+    why: "heuristic",
+    effort: "low",
+    expectedEffect: "hypothesis",
+    edit: null,
+    taskId: null,
+    status: "recommended",
+  };
+}
+function connected() {
+  const workspace = seoTestWorkspace();
+  workspace.availableActions.canSyncMetrics = true;
+  workspace.metrics = [
+    searchMetric("clicks", 2),
+    searchMetric("impressions", 28),
+  ];
+  return workspace;
+}
+
+describe("SEO agent brief", () => {
+  it("reports saved search numbers and asks to load query rows when none are stored", () => {
+    const brief = seoAgentBrief(connected(), synced);
+    expect(brief.search).toMatchObject({
+      clicks: 2,
+      impressions: 28,
+      queries: null,
+    });
+    expect(brief.steps).toContainEqual({
+      kind: "refresh",
+      reason: "no_queries",
+    });
+    expect(brief.autoRefresh).toBe(false);
+  });
+
+  it("refreshes stale Search Console data automatically, but only when it may sync", () => {
+    const later = new Date(synced.getTime() + SEO_SEARCH_STALE_MS + 1);
+    expect(seoAgentBrief(connected(), later).autoRefresh).toBe(true);
+    const readOnly = connected();
+    readOnly.availableActions.canSyncMetrics = false;
+    expect(seoAgentBrief(readOnly, later).autoRefresh).toBe(false);
+    expect(
+      seoAgentBrief(
+        connected(),
+        new Date(synced.getTime() + SEO_SEARCH_STALE_MS),
+      ).autoRefresh,
+    ).toBe(false);
+  });
+
+  it("puts confirmed fixes before review opportunities and caps the list", () => {
+    const workspace = connected();
+    workspace.actions = [
+      opportunity("o1"),
+      opportunity("o2"),
+      { ...opportunity("f1"), kind: "fix", evidence: [] },
+      opportunity("o3"),
+    ];
+    const brief = seoAgentBrief(workspace, synced);
+    expect(
+      brief.steps.flatMap((step) =>
+        step.kind === "action" ? [step.action.id] : [],
+      ),
+    ).toEqual(["f1", "o1", "o2"]);
+    expect(brief).toMatchObject({ fixes: 1, opportunities: 3 });
+  });
+
+  it("offers connection and research steps instead of empty numbers", () => {
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canSyncMetrics = true;
+    workspace.availableActions.canUsePaidSearchData = false;
+    const brief = seoAgentBrief(workspace, synced);
+    expect(brief.search).toBeNull();
+    expect(brief.steps).toEqual(
+      expect.arrayContaining([
+        { kind: "connect", provider: "search_console" },
+        { kind: "connect", provider: "ga4" },
+        { kind: "competitors", available: false },
+      ]),
+    );
+  });
+});

@@ -161,7 +161,9 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                   id="seo-edit-keyword"
                   name="keyword"
                   maxLength={200}
-                  defaultValue={editingKeyword?.keyword}
+                  defaultValue={
+                    editingKeyword?.keyword ?? model.keywordDraft?.keyword
+                  }
                   readOnly={!!editingKeyword}
                   required
                 />
@@ -195,7 +197,9 @@ export function SeoEditDialog({ model }: { model: SeoWorkspaceModel }) {
                   id="seo-edit-target"
                   name="pageId"
                   defaultValue={
-                    editingKeyword?.targetPageId ?? SEO_NO_TARGET_PAGE
+                    editingKeyword?.targetPageId ??
+                    model.keywordDraft?.pageId ??
+                    SEO_NO_TARGET_PAGE
                   }
                   options={[
                     { value: SEO_NO_TARGET_PAGE, label: t("keywords.anyPage") },

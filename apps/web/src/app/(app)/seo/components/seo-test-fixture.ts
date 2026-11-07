@@ -41,6 +41,7 @@ export function seoTestWorkspace(): ProjectSeoWorkspace {
     competitors: [],
     findings: [],
     actions: [],
+    searchQueries: null,
     metricsStatus: "not_connected",
     metrics: [],
     timeline: [],

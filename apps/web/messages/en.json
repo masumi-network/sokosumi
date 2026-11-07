@@ -10647,7 +10647,7 @@
         "diagnostics": "Measurements and notes"
       },
       "keywords": {
-        "title": "Keywords",
+        "title": "Tracked keywords",
         "edit": "Edit keyword",
         "empty": "No keywords in this scope",
         "emptyBody": "Import an audit to discover keywords, or save a keyword to your list.",
@@ -10670,7 +10670,8 @@
         "target": "Target page",
         "anyPage": "No target page",
         "help": "Market and device belong to each observation. Saving a keyword does not start paid tracking.",
-        "notInRangeUnknown": "Not found in the checked results"
+        "notInRangeUnknown": "Not found in the checked results",
+        "searchPlaceholder": "Filter queries and keywords"
       },
       "competitors": {
         "title": "Competitors",
@@ -10691,7 +10692,7 @@
       "actions": {
         "title": "Actions",
         "empty": "No recommended actions",
-        "emptyBody": "Completed checks can propose work with evidence. Create a draft task to review and assign it.",
+        "emptyBody": "Actions come from failed checks and from Search Console query rows. Ask the SEO agent what to collect next.",
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
@@ -10709,7 +10710,16 @@
         "checksIncomplete": "These checks are incomplete",
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
-        "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or open SEO chat to decide what to do next."
+        "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or open SEO chat to decide what to do next.",
+        "kind": {
+          "fix": "Confirmed fix",
+          "opportunity": "Review opportunity"
+        },
+        "fixesTitle": "Confirmed fixes",
+        "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
+        "opportunitiesTitle": "Review opportunities from search data",
+        "opportunitiesHelp": "A named heuristic matched measured Search Console rows. These are suggestions to review, not failures, and they promise no traffic.",
+        "noOpportunitiesBody": "The checks found no fix, and no Search Console query met a review heuristic. Ask the SEO agent what to collect next."
       },
       "pages": {
         "title": "Pages",
@@ -10938,7 +10948,8 @@
         "member": "Member",
         "open": "Open {action}",
         "auditRequired": "Open an audit to use SEO chat.",
-        "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow."
+        "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
+        "createTask": "Create draft task: {title}"
       },
       "connections": {
         "connect": "Connect {provider}",
@@ -10972,7 +10983,71 @@
       },
       "unavailableTitle": "SEO unavailable in this Workspace",
       "unavailableBody": "This audit or selection is not available in the current Workspace. Check the Workspace in the sidebar or open the audit list.",
-      "openAllPages": "Open all pages"
+      "openAllPages": "Open all pages",
+      "queries": {
+        "title": "Search Console queries",
+        "help": "Searches that showed the selected pages on Google, measured by Search Console. Impressions are observed, not search volume. Average position is a mean over the period, not a live rank.",
+        "refresh": "Refresh Search Console",
+        "lastSynced": "Last synced",
+        "truncated": "Only the first {count} rows by clicks are kept",
+        "notLoaded": "No query rows saved yet",
+        "notLoadedBody": "Your saved statistics are from before query rows were collected. Refresh Search Console to load them.",
+        "notConnected": "Search Console is not connected",
+        "notConnectedBody": "Connect Search Console to see which searches show these pages.",
+        "connect": "Connect Search Console",
+        "query": "Query",
+        "clicks": "Clicks",
+        "impressions": "Impressions",
+        "ctr": "Click-through rate",
+        "position": "Average position",
+        "rowActions": "Row actions",
+        "tracked": "Tracked",
+        "track": "Track",
+        "trackLabel": "Track {query} as a keyword",
+        "noMatch": "No query matches this filter",
+        "noMatchBody": "Clear the filter to see every saved query row.",
+        "empty": "Search Console returned no query rows",
+        "emptyBody": "Google showed no attributable searches for these pages in this period. Anonymized queries are never listed."
+      },
+      "agent": {
+        "ask": "Ask the SEO agent",
+        "title": "SEO agent",
+        "subtitle": "It reads your saved checks and statistics, proposes next steps and keeps Search Console current. You approve every Task.",
+        "knownTitle": "What the agent knows",
+        "lastCheck": "Last check: {checked, plural, one {# rule} other {# rules}} on {pages, plural, one {# page} other {# pages}}.",
+        "noCheck": "No check has run on these pages yet.",
+        "issues": "{count, plural, one {# confirmed issue} other {# confirmed issues}} in the checked rules.",
+        "noIssues": "No confirmed issue in the checked rules. This covers only those rules and pages, not the whole site.",
+        "search": "Search Console: {clicks} clicks from {impressions} impressions.",
+        "noSearch": "No search statistics yet.",
+        "queries": "{count, plural, =0 {No query rows} one {# query row} other {# query rows}} saved for the same period.",
+        "queriesMissing": "Query rows are not saved yet.",
+        "suggestions": "{fixes, plural, one {# fix} other {# fixes}} and {opportunities, plural, one {# review opportunity} other {# review opportunities}} are waiting.",
+        "refreshing": "The agent is refreshing Search Console.",
+        "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
+        "nextTitle": "Next steps",
+        "nothingNext": "Nothing is waiting. The agent refreshes Search Console when you open this Audit and the data is older than a day.",
+        "steps": {
+          "refresh": {
+            "stale": "Search Console data is older than a day. Refresh it to see current queries.",
+            "no_queries": "Load the queries behind your Search Console totals, so the agent can find review opportunities."
+          },
+          "connect": {
+            "search_console": "Connect Search Console to measure clicks, impressions and the queries that show these pages.",
+            "ga4": "Connect Google Analytics to measure visits and page views."
+          },
+          "competitors": {
+            "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
+            "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
+          }
+        },
+        "prompts": {
+          "first": "What should I do first?",
+          "queries": "Which searches bring people to these pages?",
+          "competitors": "What do we know about competitors?"
+        },
+        "researchCompetitors": "Research competitors"
+      }
     }
   },
   "Share": {

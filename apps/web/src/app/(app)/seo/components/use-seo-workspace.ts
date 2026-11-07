@@ -26,7 +26,11 @@ import {
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
-import type { SeoStatisticsProvider } from "./seo-statistics-model";
+import {
+  SEO_DEFAULT_STATISTICS_DAYS,
+  type SeoStatisticsProvider,
+  seoStatisticsPeriod,
+} from "./seo-statistics-model";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
 
@@ -117,8 +121,13 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const [dialog, setDialogState] = useState<SeoDialog>(null);
   const [statisticsSource, setStatisticsSource] =
     useState<SeoStatisticsProvider>();
+  const [keywordDraft, setKeywordDraft] = useState<{
+    keyword: string;
+    pageId: string | null;
+  } | null>(null);
   function setDialog(value: SeoDialog) {
     setStatisticsSource(undefined);
+    setKeywordDraft(null);
     setDialogState(value);
   }
   function openStatistics(source?: SeoStatisticsProvider) {
@@ -186,6 +195,40 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const filteredKeywords = data.keywords.filter((row) =>
     row.keyword.toLocaleLowerCase().includes(keywordSearch.toLocaleLowerCase()),
   );
+  const filteredQueries = (data.searchQueries?.rows ?? []).filter((row) =>
+    row.query.toLocaleLowerCase().includes(keywordSearch.toLocaleLowerCase()),
+  );
+  /** Saving a measured query as a tracked keyword still needs a chosen Market. */
+  function trackQuery(row: { query: string; pageUrl: string }) {
+    setDialog("keyword");
+    setKeywordDraft({
+      keyword: row.query,
+      pageId: data.pages.find((page) => page.url === row.pageUrl)?.id ?? null,
+    });
+  }
+  /** Rerun the saved Search Console read for the current pages over the default rolling period. */
+  function refreshSearchStatistics(propertyId: string) {
+    const period = seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS);
+    return execute(
+      {
+        kind: "sync_statistics",
+        body: {
+          provider: "search_console",
+          propertyId,
+          from: period.from,
+          to: period.to,
+          channel: "organic",
+          ...(data.scope.id
+            ? {
+                scopeId: data.scope.id,
+                expectedScopeVersion: data.scope.version,
+              }
+            : { pageIds: data.scope.pageIds }),
+        },
+      },
+      t("statistics.synced"),
+    );
+  }
   const filteredCompetitors = data.competitors.filter((row) =>
     row.url.toLocaleLowerCase().includes(competitorSearch.toLocaleLowerCase()),
   );
@@ -240,6 +283,10 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setChatOpen,
     owner,
     filteredKeywords,
+    filteredQueries,
+    trackQuery,
+    keywordDraft,
+    refreshSearchStatistics,
     filteredCompetitors,
     toggleKeyword,
     openKeywordEdit,

@@ -98,6 +98,21 @@ export function SeoDate({
   );
 }
 
+/** A reporting period of calendar days, shown as the provider's dates without a time zone shift. */
+export function SeoPeriod({ from, to }: { from: string; to: string }) {
+  const format = useFormatter();
+  const day = (value: string) =>
+    format.dateTime(new Date(`${value}T12:00:00Z`), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    });
+  return (
+    <span>
+      {day(from)} / {day(to)}
+    </span>
+  );
+}
+
 export function SeoSource({
   observationId,
   workspace,

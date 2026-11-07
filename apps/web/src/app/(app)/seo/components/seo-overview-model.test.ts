@@ -36,6 +36,8 @@ function action(
     edit: null,
     taskId: null,
     status: "recommended",
+    kind: "fix",
+    evidence: [],
   };
 }
 function observation(

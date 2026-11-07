@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectSeoAction } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -15,102 +16,156 @@ import {
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-const SEO_OVERVIEW_ACTION_LIMIT = 3;
-
-export function SeoActions({
+export function SeoActionCard({
+  action,
   model,
-  compact = false,
 }: {
+  action: ProjectSeoAction;
   model: SeoWorkspaceModel;
-  compact?: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const overview = seoOverviewModel(model.data);
-  const actions = compact
-    ? overview.recommendedActions.slice(0, SEO_OVERVIEW_ACTION_LIMIT)
-    : overview.actions;
   return (
-    <SeoSection title={t(compact ? "overview.priority" : "actions.title")}>
+    <article className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold break-words">{action.title}</h3>
+        <div className="flex flex-wrap gap-1">
+          <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+          <SeoState>{t(`actions.${action.status}`)}</SeoState>
+        </div>
+      </div>
+      <SeoPageLink url={action.pageUrl} />
+      <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
+        {action.why}
+      </p>
+      <dl className="text-sm">
+        <dt className="font-medium">{t("actions.effect")}</dt>
+        <dd className="text-muted-foreground mt-1 whitespace-pre-wrap break-words">
+          {action.expectedEffect}
+        </dd>
+      </dl>
+      <details className="text-sm">
+        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 font-medium focus-visible:ring-2 focus-visible:outline-none">
+          {t("overview.checkDetails")}
+        </summary>
+        <div className="space-y-3 pt-3">
+          <p className="text-muted-foreground text-xs">
+            {t("actions.effort")}: {t(`priority.${action.effort}`)}
+          </p>
+          {action.evidence.length ? (
+            <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
+              {action.evidence.map((line, index) => (
+                <li key={`${index}:${line}`} className="break-words">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <SeoSource
+            observationId={action.observationId}
+            workspace={model.data}
+          />
+          {action.edit ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-muted-foreground mb-1 text-xs">
+                  {t("actions.before")}
+                </p>
+                <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                  {action.edit.before ?? t("actions.noBefore")}
+                </pre>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1 text-xs">
+                  {t("actions.after")}
+                </p>
+                <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                  {action.edit.after}
+                </pre>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </details>
+      <div className="flex flex-wrap items-center gap-3">
+        {action.taskId ? (
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
+              {t("openTask")}
+            </Link>
+          </Button>
+        ) : model.data.availableActions.canEdit ? (
+          <Button
+            size="sm"
+            variant="outline"
+            loading={model.pending}
+            onClick={() => {
+              void model.createActionTask(action);
+            }}
+          >
+            {t("actions.createTask")}
+          </Button>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function ActionGroup({
+  title,
+  help,
+  actions,
+  model,
+}: {
+  title: string;
+  help: string;
+  actions: ProjectSeoAction[];
+  model: SeoWorkspaceModel;
+}) {
+  if (!actions.length) return null;
+  return (
+    <div className="space-y-2">
+      <div className="px-2">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-muted-foreground text-sm">{help}</p>
+      </div>
+      {actions.map((action) => (
+        <SeoActionCard
+          key={`${action.observationId}:${action.id}`}
+          action={action}
+          model={model}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
+  const t = useTranslations("App.Seo");
+  const overview = seoOverviewModel(model.data);
+  const fixes = overview.actions.filter((action) => action.kind === "fix");
+  const opportunities = overview.actions.filter(
+    (action) => action.kind === "opportunity",
+  );
+  const searchLoaded = model.data.searchQueries !== null;
+  return (
+    <SeoSection title={t("actions.title")}>
       <p className="text-muted-foreground px-2 pb-2 text-sm">
         {t("actions.help")}
       </p>
-      {actions.length ? (
-        <div className={compact ? "grid gap-2 xl:grid-cols-3" : "space-y-2"}>
-          {actions.map((action) => (
-            <article
-              key={`${action.observationId}:${action.id}`}
-              className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-4 p-4")}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold">{action.title}</h3>
-                <SeoState>{t(`actions.${action.status}`)}</SeoState>
-              </div>
-              <SeoPageLink url={action.pageUrl} />
-              <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">
-                {action.why}
-              </p>
-              <dl className="text-sm">
-                <dt className="font-medium">{t("actions.effect")}</dt>
-                <dd className="text-muted-foreground mt-1 whitespace-pre-wrap break-words">
-                  {action.expectedEffect}
-                </dd>
-              </dl>
-              <details className="text-sm">
-                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 font-medium focus-visible:ring-2 focus-visible:outline-none">
-                  {t("overview.checkDetails")}
-                </summary>
-                <div className="space-y-3 pt-3">
-                  <p className="text-muted-foreground text-xs">
-                    {t("actions.effort")}: {t(`priority.${action.effort}`)}
-                  </p>
-                  <SeoSource
-                    observationId={action.observationId}
-                    workspace={model.data}
-                  />
-                  {action.edit ? (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <p className="text-muted-foreground mb-1 text-xs">
-                          {t("actions.before")}
-                        </p>
-                        <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                          {action.edit.before ?? t("actions.noBefore")}
-                        </pre>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground mb-1 text-xs">
-                          {t("actions.after")}
-                        </p>
-                        <pre className="bg-quinary overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                          {action.edit.after}
-                        </pre>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </details>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                {action.taskId ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
-                      {t("openTask")}
-                    </Link>
-                  </Button>
-                ) : model.data.availableActions.canEdit ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    loading={model.pending}
-                    onClick={() => {
-                      void model.createActionTask(action);
-                    }}
-                  >
-                    {t("actions.createTask")}
-                  </Button>
-                ) : null}
-              </div>
-            </article>
-          ))}
+      {overview.actions.length ? (
+        <div className="space-y-5">
+          <ActionGroup
+            title={t("actions.fixesTitle")}
+            help={t("actions.fixesHelp")}
+            actions={fixes}
+            model={model}
+          />
+          <ActionGroup
+            title={t("actions.opportunitiesTitle")}
+            help={t("actions.opportunitiesHelp")}
+            actions={opportunities}
+            model={model}
+          />
         </div>
       ) : (
         <SeoEmpty
@@ -124,18 +179,21 @@ export function SeoActions({
                   : "actions.empty",
           )}
           body={t(
-            overview.emptyState === "no_fixes"
-              ? "actions.noFixesBody"
-              : overview.emptyState === "incomplete"
-                ? "actions.checksIncompleteBody"
-                : overview.emptyState === "issues"
-                  ? "actions.unplannedIssuesBody"
-                  : "actions.emptyBody",
+            overview.emptyState === "incomplete"
+              ? "actions.checksIncompleteBody"
+              : overview.emptyState === "issues"
+                ? "actions.unplannedIssuesBody"
+                : searchLoaded
+                  ? "actions.noOpportunitiesBody"
+                  : overview.emptyState === "no_fixes"
+                    ? "actions.noFixesBody"
+                    : "actions.emptyBody",
           )}
         >
-          {overview.emptyState === "issues" && model.data.auditId ? (
+          {(overview.emptyState === "issues" || searchLoaded) &&
+          model.data.auditId ? (
             <Button variant="outline" onClick={model.openChat}>
-              {t("chat.title")}
+              {t("agent.ask")}
             </Button>
           ) : model.data.availableActions.canSyncMetrics &&
             overview.emptyState !== "no_checks" ? (
