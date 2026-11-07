@@ -58,6 +58,10 @@ function useWidth(): [RefCallback<HTMLElement>, number] {
   return [ref, width];
 }
 
+function contactCount(places: readonly ContactMapPlace[]): number {
+  return places.reduce((sum, place) => sum + place.contacts.length, 0);
+}
+
 /** One dot's diameter in pixels: wider for more people, never a crowd. */
 function dotSize(count: number): number {
   return count === 1 ? 10 : Math.min(36, Math.round(14 + 3 * Math.sqrt(count)));
@@ -66,12 +70,17 @@ function dotSize(count: number): number {
 /** The query's contacts on a world map, one dot per place. */
 export function ContactsMap({
   query,
+  filtered,
+  onClearFilters,
   onOpen,
 }: {
   query: ContactQuery;
+  filtered: boolean;
+  onClearFilters: () => void;
   onOpen: (id: string) => void;
 }) {
   const t = useTranslations("App.Contacts.map");
+  const tContacts = useTranslations("App.Contacts");
   const map = useContactMap(query);
   const [frame, width] = useWidth();
 
@@ -96,6 +105,19 @@ export function ContactsMap({
     );
 
   const { places, unplaced, withoutLocation } = map.data;
+  if (places.length === 0 && filtered && unplaced === 0)
+    return (
+      <EmptyState
+        icon={MapPin}
+        title={tContacts("noMatchesTitle")}
+        description={tContacts("noMatches")}
+        action={
+          <Button variant="outline" onClick={onClearFilters}>
+            {tContacts("clearFilters")}
+          </Button>
+        }
+      />
+    );
   if (places.length === 0)
     return (
       <EmptyState
@@ -105,7 +127,7 @@ export function ContactsMap({
       />
     );
 
-  const placed = places.reduce((sum, place) => sum + place.contacts.length, 0);
+  const placed = contactCount(places);
   return (
     <div className="flex flex-col">
       <div ref={frame} className="relative m-2 md:m-4" style={ASPECT}>
@@ -186,10 +208,7 @@ function PlaceDot({
 }) {
   const t = useTranslations("App.Contacts.map");
   const [first, ...others] = cluster.places;
-  const count = cluster.places.reduce(
-    (sum, place) => sum + place.contacts.length,
-    0,
-  );
+  const count = contactCount(cluster.places);
   const size = dotSize(count);
   const label =
     others.length === 0
@@ -222,7 +241,7 @@ function PlaceDot({
           <div className="max-h-80 overflow-y-auto">
             {cluster.places.map((place) => (
               <section
-                key={place.label}
+                key={`${place.latitude},${place.longitude}`}
                 className="border-border border-b last:border-b-0"
               >
                 <div className="px-3 pt-2 pb-1">

@@ -4,11 +4,12 @@
  * coordinates once, and `geocoded_place` keeps the answer for everyone.
  */
 import type { ContactKind } from "@sokosumi/database";
-import { generateText } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
-import { CONTACT_ENRICHMENT_MODEL } from "@/services/contact-enrichment.service";
+import {
+  generateWithContactModel,
+  parseJsonObject,
+} from "@/services/contact-enrichment.service";
 import {
   type ContactActor,
   contactListWhere,
@@ -27,11 +28,12 @@ export interface Coordinates {
   longitude: number;
 }
 
+/** Coordinates per place, null where it is no place; null for an unusable answer. */
 export type Geocode = (
   places: readonly string[],
-) => Promise<(Coordinates | null)[]>;
+) => Promise<(Coordinates | null)[] | null>;
 
-export function placeQuery(location: string): string {
+export function normalizeLocation(location: string): string {
   return location.trim().replace(/\s+/g, " ").toLowerCase().slice(0, 200);
 }
 
@@ -49,23 +51,17 @@ const answerSchema = z.object({
   ),
 });
 
-/** The model's coordinates in the order of `places`; null where it had none. */
+/**
+ * The model's coordinates in the order of `places`, null where it left a line
+ * out; null when the answer is not the JSON asked for.
+ */
 export function parseGeocodeAnswer(
   text: string,
   count: number,
-): (Coordinates | null)[] {
+): (Coordinates | null)[] | null {
+  const parsed = parseJsonObject(text, answerSchema);
+  if (!parsed) return null;
   const result: (Coordinates | null)[] = Array(count).fill(null);
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return result;
-  let parsed: z.infer<typeof answerSchema>;
-  try {
-    const data = answerSchema.safeParse(JSON.parse(text.slice(start, end + 1)));
-    if (!data.success) return result;
-    parsed = data.data;
-  } catch {
-    return result;
-  }
   for (const place of parsed.places) {
     if (!place || place.i < 1 || place.i > count) continue;
     result[place.i - 1] = {
@@ -88,22 +84,13 @@ Return one JSON object and nothing else:
 - label: the place as people would write it in English, city and country, e.g. "Zurich, Switzerland".`;
 
 const modelGeocode: Geocode = async (places) => {
-  const request = sokoBotModelRequest({
-    role: "agent",
-    model: CONTACT_ENRICHMENT_MODEL,
-  });
-  const result = await generateText({
-    ...request,
-    providerOptions: {
-      ...request.providerOptions,
-      google: { thinkingConfig: { thinkingLevel: "low" } },
-    },
+  const { text } = await generateWithContactModel({
     system: SYSTEM_PROMPT,
     prompt: places.map((place, index) => `${index + 1}. ${place}`).join("\n"),
     maxOutputTokens: 8_000,
-    abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+    timeoutMs: TIMEOUT_MS,
   });
-  return parseGeocodeAnswer(result.text, places.length);
+  return parseGeocodeAnswer(text, places.length);
 };
 
 /** Cached coordinates for each query, looking up and storing new ones. */
@@ -130,7 +117,7 @@ async function placeCoordinates(
     batches.push(missing.slice(start, start + BATCH_SIZE));
   await Promise.all(
     batches.map(async (batch) => {
-      let answers: (Coordinates | null)[];
+      let answers: (Coordinates | null)[] | null;
       try {
         answers = await geocode(batch);
       } catch (error) {
@@ -141,16 +128,19 @@ async function placeCoordinates(
         });
         return;
       }
+      // An unusable answer says nothing about the places; ask again later.
+      if (!answers) return;
+      const placed = answers;
       await prisma.geocodedPlace.createMany({
         data: batch.map((query, index) => ({
           query,
-          label: answers[index]?.label ?? null,
-          latitude: answers[index]?.latitude ?? null,
-          longitude: answers[index]?.longitude ?? null,
+          label: placed[index]?.label ?? null,
+          latitude: placed[index]?.latitude ?? null,
+          longitude: placed[index]?.longitude ?? null,
         })),
         skipDuplicates: true,
       });
-      batch.forEach((query, index) => known.set(query, answers[index] ?? null));
+      batch.forEach((query, index) => known.set(query, placed[index] ?? null));
     }),
   );
   return known;
@@ -173,11 +163,14 @@ export interface ContactMap {
 /** The contacts a list query matches, grouped by where they are. */
 export async function contactMap(
   actor: ContactActor,
-  options: Omit<ListContactsOptions, "cursor" | "limit" | "sort" | "direction">,
+  options: Pick<
+    ListContactsOptions,
+    "filter" | "listId" | "company" | "archived"
+  >,
   geocode: Geocode = modelGeocode,
 ): Promise<ContactMap> {
   const where = await contactListWhere(actor, options);
-  const [rows, total] = await Promise.all([
+  const [rows, withoutLocation] = await Promise.all([
     prisma.contact.findMany({
       where: { AND: [where, { location: { not: null } }] },
       select: {
@@ -191,10 +184,12 @@ export async function contactMap(
       orderBy: { name: "asc" },
       take: MAX_CONTACTS,
     }),
-    prisma.contact.count({ where }),
+    prisma.contact.count({
+      where: { AND: [where, { OR: [{ location: null }, { location: "" }] }] },
+    }),
   ]);
   const located = rows.flatMap((row) => {
-    const query = row.location ? placeQuery(row.location) : "";
+    const query = row.location ? normalizeLocation(row.location) : "";
     return query ? [{ ...row, query }] : [];
   });
   const coordinates = await placeCoordinates(
@@ -220,6 +215,6 @@ export async function contactMap(
       (a, b) => b.contacts.length - a.contacts.length,
     ),
     unplaced,
-    withoutLocation: total - located.length,
+    withoutLocation,
   };
 }

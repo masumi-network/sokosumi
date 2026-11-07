@@ -1010,6 +1010,8 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       });
       await create(asAlice, { name: "Map Dan" });
       const options = { filter: { search: "Map " }, archived: false };
+      const unusable = await contactMap(asAlice, options, async () => null);
+      expect(unusable).toMatchObject({ places: [], unplaced: 3 });
       const map = await contactMap(asAlice, options, geocode);
       expect(map.places).toEqual([
         expect.objectContaining({

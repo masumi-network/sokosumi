@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseGeocodeAnswer, placeQuery } from "./contact-map.service";
+import { normalizeLocation, parseGeocodeAnswer } from "./contact-map.service";
 
-describe("placeQuery", () => {
+describe("normalizeLocation", () => {
   it("treats case and spacing as one place", () => {
-    expect(placeQuery("  Zurich,   Switzerland ")).toBe("zurich, switzerland");
-    expect(placeQuery("   ")).toBe("");
+    expect(normalizeLocation("  Zurich,   Switzerland ")).toBe(
+      "zurich, switzerland",
+    );
+    expect(normalizeLocation("   ")).toBe("");
   });
 });
 
@@ -19,7 +21,8 @@ describe("parseGeocodeAnswer", () => {
     ]);
   });
 
-  it("gives nulls for an answer that is not JSON", () => {
-    expect(parseGeocodeAnswer("I cannot help", 2)).toEqual([null, null]);
+  it("gives null for an answer that is not the JSON asked for", () => {
+    expect(parseGeocodeAnswer("I cannot help", 2)).toBeNull();
+    expect(parseGeocodeAnswer('{"places": "none"}', 2)).toBeNull();
   });
 });

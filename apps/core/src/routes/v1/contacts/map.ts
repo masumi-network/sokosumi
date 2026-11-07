@@ -33,11 +33,7 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const actor = await contactActor(c);
-    const {
-      sort: _sort,
-      direction: _direction,
-      ...options
-    } = contactQueryOptions(c.req.valid("query"));
+    const options = contactQueryOptions(c.req.valid("query"));
     return ok(c, await contactMap(actor, options));
   });
 }

@@ -459,7 +459,12 @@ export function ContactsWorkspace({
                 onImport={() => setDialog({ kind: "import" })}
               />
             ) : layout === "map" ? (
-              <ContactsMap query={query} onOpen={open} />
+              <ContactsMap
+                query={query}
+                filtered={filtered}
+                onClearFilters={clearFilters}
+                onOpen={open}
+              />
             ) : contacts.length === 0 ? (
               <EmptyState
                 icon={Users}
