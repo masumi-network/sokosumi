@@ -10162,6 +10162,7 @@
       "columns": {
         "name": "Nombre",
         "organization": "Organización",
+        "location": "Ubicación",
         "role": "Cargo",
         "stage": "Relación",
         "lists": "Listas",
@@ -10531,6 +10532,27 @@
         "pricing": "{credits, number} créditos por persona encontrada. Si no encuentra a nadie, es gratis.",
         "personLabel": "¿A quién buscas?",
         "personPlaceholder": "p. ej. Jane Doe, socia de XYZ Ventures"
+      },
+      "layout": {
+        "label": "Vista",
+        "table": "Tabla",
+        "map": "Mapa"
+      },
+      "map": {
+        "label": "Lugares",
+        "loading": "Colocando contactos en el mapa…",
+        "errorTitle": "El mapa no se cargó",
+        "error": "Algo salió mal al cargar el mapa.",
+        "retry": "Reintentar",
+        "emptyTitle": "Aún no hay nadie en el mapa",
+        "empty": "Añade una ubicación a un contacto, como una ciudad, y aparecerá aquí.",
+        "emptyUnplaced": "No encontramos ninguno de estos lugares. Prueba con ciudad y país.",
+        "placed": "{count, plural, one {# contacto} other {# contactos}} en el mapa",
+        "unplaced": "{count, plural, one {# ubicación no encontrada} other {# ubicaciones no encontradas}}",
+        "withoutLocation": "{count} sin ubicación",
+        "place": "{place}, {count, plural, one {# contacto} other {# contactos}}",
+        "nearby": "{place} y {others, plural, one {# lugar cercano} other {# lugares cercanos}}",
+        "people": "{count, plural, one {# contacto} other {# contactos}}"
       }
     }
   },

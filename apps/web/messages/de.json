@@ -10162,6 +10162,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organisation",
+        "location": "Ort",
         "role": "Rolle",
         "stage": "Beziehung",
         "lists": "Listen",
@@ -10531,6 +10532,27 @@
         "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
         "personLabel": "Wen suchst du?",
         "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
+      },
+      "layout": {
+        "label": "Ansicht",
+        "table": "Tabelle",
+        "map": "Karte"
+      },
+      "map": {
+        "label": "Orte",
+        "loading": "Kontakte werden auf der Karte platziert…",
+        "errorTitle": "Die Karte wurde nicht geladen",
+        "error": "Beim Laden der Karte ist etwas schiefgelaufen.",
+        "retry": "Erneut versuchen",
+        "emptyTitle": "Noch niemand auf der Karte",
+        "empty": "Gib einem Kontakt einen Ort, zum Beispiel eine Stadt, dann erscheint er hier.",
+        "emptyUnplaced": "Keiner dieser Orte war auffindbar. Versuch es mit Stadt und Land.",
+        "placed": "{count, plural, one {# Kontakt} other {# Kontakte}} auf der Karte",
+        "unplaced": "{count, plural, one {# Ort} other {# Orte}} nicht gefunden",
+        "withoutLocation": "{count} ohne Ort",
+        "place": "{place}, {count, plural, one {# Kontakt} other {# Kontakte}}",
+        "nearby": "{place} und {others, plural, one {# Ort} other {# Orte}} in der Nähe",
+        "people": "{count, plural, one {# Kontakt} other {# Kontakte}}"
       }
     }
   },

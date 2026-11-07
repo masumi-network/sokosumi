@@ -14,6 +14,7 @@ import {
   updateContactList,
   updateContactListMembers,
 } from "./contact-lists.service";
+import { contactMap, type Geocode } from "./contact-map.service";
 import {
   addContactChannel,
   type ContactActor,
@@ -988,4 +989,45 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       }
     },
   );
+
+  it("groups contacts by place and looks each place up once", async () => {
+    const places = [`Lisbon ${workspaceId}`, `Lisboa ${workspaceId}`];
+    const asked: string[][] = [];
+    const geocode: Geocode = async (queries) => {
+      asked.push([...queries]);
+      return queries.map((query) =>
+        query.startsWith("lisb")
+          ? { label: "Lisbon, Portugal", latitude: 38.72, longitude: -9.14 }
+          : null,
+      );
+    };
+    try {
+      await create(asAlice, { name: "Map Ana", location: places[0] });
+      await create(asAlice, { name: "Map Bea", location: places[1] });
+      await create(asAlice, {
+        name: "Map Cid",
+        location: `Mars ${workspaceId}`,
+      });
+      await create(asAlice, { name: "Map Dan" });
+      const options = { filter: { search: "Map " }, archived: false };
+      const map = await contactMap(asAlice, options, geocode);
+      expect(map.places).toEqual([
+        expect.objectContaining({
+          label: "Lisbon, Portugal",
+          contacts: [
+            expect.objectContaining({ name: "Map Ana" }),
+            expect.objectContaining({ name: "Map Bea" }),
+          ],
+        }),
+      ]);
+      expect(map).toMatchObject({ unplaced: 1, withoutLocation: 1 });
+      expect(asked.flat()).toHaveLength(3);
+      await contactMap(asAlice, options, geocode);
+      expect(asked).toHaveLength(1);
+    } finally {
+      await prisma.geocodedPlace.deleteMany({
+        where: { query: { endsWith: workspaceId } },
+      });
+    }
+  });
 });
