@@ -23,8 +23,8 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
-  cmoPieceMinSlides,
   cmoPieceNeedsMedia,
+  cmoPieceSlides,
   listCmoMediaJobs,
 } from "@/services/cmo-media-maker.service";
 import {
@@ -91,7 +91,7 @@ export function cmoPieceReady(
   if (!piece.draft?.trim() && !piece.fileId) return false;
   if (
     cmoPieceNeedsMedia(piece) &&
-    new Set(piece.media).size < Math.max(1, cmoPieceMinSlides(piece))
+    new Set(piece.media).size < Math.max(1, cmoPieceSlides(piece))
   )
     return false;
   return !connected.has(piece.channel) || piece.status === "scheduled";
@@ -112,7 +112,7 @@ export function cmoProductionSteps(
     if (done(piece)) {
       pictured += 1;
     } else if (
-      files.length >= Math.max(1, cmoPieceMinSlides(piece)) &&
+      files.length >= Math.max(1, cmoPieceSlides(piece)) &&
       !files.some((file) => used.has(file))
     ) {
       for (const file of files) used.add(file);
@@ -227,7 +227,7 @@ export function cmoMixLedger(
 }
 
 function pieceLine(piece: CmoPiece, failed: boolean): string {
-  const slides = cmoPieceMinSlides(piece);
+  const slides = cmoPieceSlides(piece);
   return [
     `- ${piece.id}`,
     `${piece.date}${piece.time ? ` ${piece.time}` : ""}`,
@@ -238,7 +238,7 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     `"${piece.title}"`,
     piece.brief ? `brief: ${piece.brief}` : "",
     slides > 0
-      ? `carousel of ${slides} slides: one visual, Core makes each slide`
+      ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",
     cmoPieceNeedsMedia(piece) && !piece.visual
       ? "(write its visual)"

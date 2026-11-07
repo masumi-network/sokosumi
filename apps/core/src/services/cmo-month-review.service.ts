@@ -169,9 +169,18 @@ export interface CmoMadePiece {
 }
 
 function field(text: string, name: string): string | null {
-  const match = text.match(new RegExp(`^${name}:[ \\t]*(.+)$`, "im"));
-  return match?.[1]?.trim() ?? null;
+  return fields(text, name)[0] ?? null;
 }
+
+/** Every value of a labelled line, such as each card's Headline. */
+function fields(text: string, name: string): string[] {
+  return [...text.matchAll(new RegExp(`^${name}:[ \\t]*(.+)$`, "gim"))].map(
+    (match) => (match[1] ?? "").trim(),
+  );
+}
+
+/** Meta shows this much of the primary text before "more". */
+const META_VISIBLE_CHARS = 125;
 
 function lengthProblem(
   name: string,
@@ -185,9 +194,30 @@ function lengthProblem(
   return null;
 }
 
+/** A Meta ad's point fits before "more", and each headline in Meta's range. */
+function metaAdProblems(text: string): (string | null)[] {
+  const primary = field(text, "Primary text");
+  const point = primary?.split(/(?<=[.!?])\s/)[0] ?? "";
+  const headlines = fields(text, "Headline");
+  return [
+    primary === null
+      ? "it has no Primary text line"
+      : point.length > META_VISIBLE_CHARS
+        ? `its primary text's first sentence is ${point.length} characters; make its point fit in ${META_VISIBLE_CHARS}`
+        : null,
+    headlines.length === 0 ? "it has no Headline line" : null,
+    ...headlines.map((headline) =>
+      headline.length > 40
+        ? `its headline "${headline.slice(0, 30)}…" is ${headline.length} characters; make it at most 40`
+        : null,
+    ),
+  ];
+}
+
 /**
  * The counted rules of a file piece's skill, checked in code because Jev
- * cannot count. Social posts are counted when they are saved.
+ * cannot count. Social posts are counted when they are saved, and a search
+ * ad's parts when its searchAd is.
  */
 export function cmoCountedProblems(
   channel: string,
@@ -195,37 +225,68 @@ export function cmoCountedProblems(
   text: string,
 ): string[] {
   const problems =
-    channel === "seo" && format === "page_fix"
-      ? [
-          lengthProblem("Title", field(text, "Title"), [10, 60], "at most 60"),
-          lengthProblem(
-            "Description",
-            field(text, "Description"),
-            [100, 160],
-            "120 to 155",
-          ),
-        ]
-      : channel === "seo" && format === "article"
+    channel === "meta_ads"
+      ? metaAdProblems(text)
+      : channel === "google_ads" && format === "display_ad"
         ? [
+            lengthProblem(
+              "Short headline",
+              field(text, "Short headline"),
+              [5, 30],
+              "at most 30",
+            ),
+            lengthProblem(
+              "Long headline",
+              field(text, "Long headline"),
+              [10, 90],
+              "at most 90",
+            ),
             lengthProblem(
               "Description",
               field(text, "Description"),
-              [100, 160],
-              "120 to 155",
+              [10, 90],
+              "at most 90",
             ),
-            /^# \S/m.test(text) ? null : "it has no # title",
           ]
-        : channel === "newsletter"
+        : channel === "seo" && format === "page_fix"
           ? [
               lengthProblem(
-                "Subject",
-                field(text, "Subject"),
-                [15, 60],
-                "30 to 50",
+                "Title",
+                field(text, "Title"),
+                [10, 60],
+                "at most 60",
               ),
-              field(text, "Preview") ? null : "it has no Preview line",
+              lengthProblem(
+                "Description",
+                field(text, "Description"),
+                [100, 160],
+                "120 to 155",
+              ),
             ]
-          : [];
+          : channel === "seo" && format === "article"
+            ? [
+                lengthProblem(
+                  "Description",
+                  field(text, "Description"),
+                  [100, 160],
+                  "120 to 155",
+                ),
+                /^# \S/m.test(text) ? null : "it has no # title",
+                field(text, "Link from")
+                  ? null
+                  : "it has no Link from: line naming the pages that should link to it",
+              ]
+            : channel === "newsletter"
+              ? [
+                  lengthProblem(
+                    "Subject",
+                    field(text, "Subject"),
+                    [15, 60],
+                    "30 to 50",
+                  ),
+                  field(text, "Preview") ? null : "it has no Preview line",
+                ]
+              : [];
   return problems.filter((problem) => problem !== null);
 }
 

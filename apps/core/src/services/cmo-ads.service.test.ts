@@ -76,6 +76,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
 }));
 
 import {
+  cmoMaxCpc,
   finalizeCmoAds,
   launchCmoSearchAd,
   setCmoAdCampaignStatus,
@@ -151,6 +152,9 @@ describe("launching a search ad", () => {
           languageIds: ["1001"],
           finalUrl: "https://rst.de/check",
           keywords: [{ text: "fixed wireless internet", matchType: "PHRASE" }],
+          // A third of the 10 EUR day: a few clicks never spend it all.
+          maxCpc: 3.33,
+          negativeKeywords: expect.arrayContaining(["jobs", "torrent"]),
         }),
       }),
     );
@@ -162,6 +166,32 @@ describe("launching a search ad", () => {
     expect(updateCampaign).toHaveBeenCalledWith(
       expect.objectContaining({ campaignId: "campaign-1", status: "ACTIVE" }),
     );
+  });
+
+  it("refuses an ad that does not say where it runs, before spending", async () => {
+    files.mockResolvedValue(
+      new Map([
+        [
+          "ad-1",
+          {
+            fileId: "file-1",
+            media: [],
+            searchAd: { ...searchAd, location: undefined },
+            adCampaign: null,
+          },
+        ],
+      ]),
+    );
+    await expect(
+      launchCmoSearchAd({ userId: "user-1", entryId: "ad-1" }),
+    ).rejects.toThrow(/does not say where it runs/);
+    expect(createCampaign).not.toHaveBeenCalled();
+  });
+
+  it("keeps Cuso's click ceiling when it is lower than a third of the day", () => {
+    expect(cmoMaxCpc(10, 1.5)).toBe(1.5);
+    expect(cmoMaxCpc(10, 8)).toBe(3.33);
+    expect(cmoMaxCpc(10)).toBe(3.33);
   });
 
   it("refuses past the plan's daily ad budget and spends nothing", async () => {

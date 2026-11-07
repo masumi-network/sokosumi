@@ -355,14 +355,52 @@ describe("cmoCountedProblems", () => {
   it("wants an article's description line and its # title", () => {
     expect(
       cmoCountedProblems("seo", "article", "How to route leads\n\nText"),
-    ).toEqual(["it has no Description line", "it has no # title"]);
+    ).toEqual([
+      "it has no Description line",
+      "it has no # title",
+      "it has no Link from: line naming the pages that should link to it",
+    ]);
     expect(
       cmoCountedProblems(
         "seo",
         "article",
-        `Description: ${description}\n\n# How to route leads`,
+        `Description: ${description}\n\n# How to route leads\n\nLink from: /pricing, on "routing"`,
       ),
     ).toEqual([]);
+  });
+
+  it("counts a Meta ad's visible point and headline, and a display ad's fields", () => {
+    expect(
+      cmoCountedProblems(
+        "meta_ads",
+        "image_ad",
+        `Primary text: ${"Dinner in twenty minutes ".repeat(6)}. Pick 3 recipes.\nHeadline: Your first box, 3 dinners for 2, delivered free\nButton: Get offer`,
+      ),
+    ).toEqual([
+      "its primary text's first sentence is 151 characters; make its point fit in 125",
+      'its headline "Your first box, 3 dinners for …" is 47 characters; make it at most 40',
+    ]);
+    expect(
+      cmoCountedProblems(
+        "meta_ads",
+        "image_ad",
+        "Primary text: Dinner in 20 minutes. Pick 3 recipes.\nHeadline: Your first box, 3 dinners\nButton: Get offer",
+      ),
+    ).toEqual([]);
+    expect(
+      cmoCountedProblems(
+        "google_ads",
+        "display_ad",
+        "Short headline: Receipts sorted in minutes\nLong headline: Bookkeeping for freelancers\nDescription: Snap receipts and send one clean file.",
+      ),
+    ).toEqual([]);
+    expect(
+      cmoCountedProblems("google_ads", "display_ad", "Headline: Sorted"),
+    ).toEqual([
+      "it has no Short headline line",
+      "it has no Long headline line",
+      "it has no Description line",
+    ]);
   });
 
   it("wants a newsletter's subject and preview, and leaves social posts to their save", () => {

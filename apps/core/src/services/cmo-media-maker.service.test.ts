@@ -75,6 +75,7 @@ import {
   type CmoMediaPiece,
   cmoImagePrompt,
   cmoMediaState,
+  cmoPieceSlides,
   cmoSlotAction,
   cmoVisualKey,
 } from "./cmo-media-maker.service";
@@ -179,6 +180,41 @@ describe("cmoImagePrompt", () => {
     expect(prompt).toContain("Slide 2 of 3 of one Instagram carousel");
     expect(prompt).toContain("keep what they show of the brand");
     expect(prompt).toContain("Never a real, named person.");
+  });
+
+  it("makes as many slides as Cuso described, each from its own line", () => {
+    const slides = [
+      "The hook",
+      "Step 1: upload",
+      "Step 2: price",
+      "Step 3: mint",
+    ];
+    const carousel = piece({
+      channel: "instagram",
+      format: "carousel",
+      slides,
+    });
+    expect(cmoPieceSlides(carousel)).toBe(4);
+    expect(cmoPieceSlides({ ...carousel, slides: undefined })).toBe(3);
+    expect(
+      cmoImagePrompt({
+        piece: carousel,
+        slot: 2,
+        businessName: "NMKR",
+        references: 0,
+      }),
+    ).toContain("Slide 3 of 4 of one Instagram carousel");
+    expect(
+      cmoImagePrompt({
+        piece: carousel,
+        slot: 2,
+        businessName: "NMKR",
+        references: 0,
+      }),
+    ).toContain("This slide: Step 2: price");
+    expect(cmoVisualKey(carousel)).not.toBe(
+      cmoVisualKey({ ...carousel, slides: undefined }),
+    );
   });
 });
 

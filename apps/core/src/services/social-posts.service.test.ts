@@ -55,7 +55,10 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
     $queryRaw: queryRawMock,
-    project: { findFirst: projectFindFirstMock },
+    project: {
+      findFirst: projectFindFirstMock,
+      findUnique: vi.fn().mockResolvedValue({ websiteUrl: null }),
+    },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {

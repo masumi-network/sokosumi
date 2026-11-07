@@ -437,6 +437,7 @@ export function Improvements({
       {items.map((item) => (
         <li key={item.idea}>
           <span className="label">{AREAS[item.area]}</span>
+          {item.now ? <span className="note">Now: {item.now}</span> : null}
           <b>{item.idea}</b>
           <span className="note">{item.why}</span>
           {item.url ? (

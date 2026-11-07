@@ -72,11 +72,16 @@ export function cmoPieceNeedsMedia(
   return Boolean(format?.image || format?.video);
 }
 
-/** The fewest slides a carousel format needs; 0 for a single-image format. */
-export function cmoPieceMinSlides(
-  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+/**
+ * A carousel's slides: as many as Cuso described, within its format's range;
+ * 0 for a single-image format.
+ */
+export function cmoPieceSlides(
+  entry: Pick<CmoCalendarEntry, "channel" | "format" | "slides">,
 ): number {
-  return formatOf(entry)?.slides?.[0] ?? 0;
+  const range = formatOf(entry)?.slides;
+  if (!range) return 0;
+  return Math.min(range[1], Math.max(range[0], entry.slides?.length ?? 0));
 }
 
 function isVideo(entry: Pick<CmoCalendarEntry, "channel" | "format">) {
@@ -94,6 +99,7 @@ export interface CmoMediaPiece
     | "title"
     | "visual"
     | "visualFileIds"
+    | "slides"
     | "socialPostId"
   > {
   /** What is on it already: a post's file pathnames, a file piece's file ids. */
@@ -137,17 +143,19 @@ export type CmoSlotAction =
 
 /** The visual and its pictures, as one short key: a new visual starts over. */
 export function cmoVisualKey(
-  piece: Pick<CmoMediaPiece, "visual" | "visualFileIds">,
+  piece: Pick<CmoMediaPiece, "visual" | "visualFileIds" | "slides">,
 ): string {
   return createHash("sha256")
-    .update(`${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}`)
+    .update(
+      `${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}${piece.slides?.length ? `|${piece.slides.join("|")}` : ""}`,
+    )
     .digest("hex")
     .slice(0, 10);
 }
 
 /** Slots a piece shows: its slides, or one picture or video. */
 function slotsOf(piece: CmoMediaPiece): number {
-  return Math.max(1, cmoPieceMinSlides(piece));
+  return Math.max(1, cmoPieceSlides(piece));
 }
 
 /** A slot's next step, from the jobs started for it under the current visual. */
@@ -284,7 +292,8 @@ export function cmoImagePrompt(input: {
 }): string {
   const { piece, slot } = input;
   const channel = (CMO_CHANNELS as Record<string, Channel>)[piece.channel];
-  const slides = cmoPieceMinSlides(piece);
+  const slides = cmoPieceSlides(piece);
+  const slide = piece.slides?.[slot]?.trim();
   const words =
     piece.format === "quote_card" || slides > 0
       ? "Any words in the picture are short, spelled exactly as given."
@@ -292,7 +301,7 @@ export function cmoImagePrompt(input: {
   return [
     piece.visual?.trim() ?? piece.title,
     slides > 0
-      ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.`
+      ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.${slide ? ` This slide: ${slide}` : ""}`
       : "",
     isVideo(piece)
       ? "A vertical still with one clear subject and room to move: it becomes a five-second video."

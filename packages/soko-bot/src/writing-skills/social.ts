@@ -202,7 +202,7 @@ On Instagram the picture or video does the stopping; the caption makes people st
 - The last slide closes: the takeaway and one action ("Save this for your next bake.").
 - The caption repeats the hook in words and adds what the slides cannot.
 
-**reel** (short vertical video): the point in the first second; most people watch muted, so put the key words on screen. The caption is one to three lines: the hook, the keywords, one action.
+**reel** (short vertical video): Core makes it, five seconds with no words in the picture, and most people watch muted, so the caption carries the message. The caption is one to three lines: the hook in the first, the keywords, one action.
 
 ## Example shape
 

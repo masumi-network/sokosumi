@@ -65,6 +65,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import {
   nearDuplicatePost,
   socialPostFormattingError,
+  tagOwnLinks,
 } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
@@ -585,6 +586,32 @@ function requireBotFormatting(
 ): void {
   const error = socialPostFormattingError(requireProvider(provider), post);
   if (error) throw badRequest(error);
+}
+
+/**
+ * What a Soko Bot's post in a marketing month does to its links: those to
+ * the business's own site get UTM tags (network, social, cmo-YYYY-MM), so
+ * analytics can tell the visits Cuso brought. Every other text stays as is.
+ */
+async function cmoLinkTags(
+  tx: Prisma.TransactionClient,
+  input: { sokoBotId?: string | null },
+  post: {
+    projectId: string;
+    marketingStrategyId: string | null;
+    scheduledAt: Date | null;
+  },
+  provider: SocialPostProvider,
+): Promise<(text: string) => string> {
+  if (!input.sokoBotId || !post.marketingStrategyId) return (text) => text;
+  const project = await tx.project.findUnique({
+    where: { id: post.projectId },
+    select: { websiteUrl: true },
+  });
+  const siteUrl = project?.websiteUrl;
+  if (!siteUrl) return (text) => text;
+  const campaign = `cmo-${(post.scheduledAt ?? new Date()).toISOString().slice(0, 7)}`;
+  return (text) => tagOwnLinks(text, { siteUrl, source: provider, campaign });
 }
 
 /**
@@ -1189,8 +1216,9 @@ export async function updateSocialPost(
     });
     data.media = mediaJson(media);
   }
+  const tag = await cmoLinkTags(tx, input, post, provider);
   const text = requireTextWithinLimit(
-    input.text ?? post.text,
+    input.text !== undefined ? tag(input.text) : post.text,
     provider,
     media.length > 0,
     subscriptionType,
@@ -1218,7 +1246,9 @@ export async function updateSocialPost(
   }
 
   const firstComment = requireFirstCommentWithinLimit(
-    input.firstComment !== undefined ? input.firstComment : post.firstComment,
+    input.firstComment !== undefined
+      ? input.firstComment && tag(input.firstComment)
+      : post.firstComment,
     provider,
     subscriptionType,
   );

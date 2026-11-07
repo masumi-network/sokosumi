@@ -212,6 +212,11 @@ export function cmoDraftProblems(
       );
     else seen.set(start, entry.id);
   }
+  for (const entry of calendar)
+    if (entry.searchAd && !entry.searchAd.location)
+      problems.push(
+        `${entry.id}'s searchAd has no location; name the country or city the business serves, as Google names it.`,
+      );
   problems.push(...repeatedPhrases(drafted));
   problems.push(...nearDuplicates(drafted));
   return problems.slice(0, MAX_DRAFT_PROBLEMS);

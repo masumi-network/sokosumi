@@ -346,6 +346,7 @@ async function keepFileVisuals(
           ...entry,
           visual: sentEntry.visual,
           visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
+          slides: sentEntry.slides ?? entry.slides,
         }
       : entry;
   });
