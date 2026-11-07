@@ -324,6 +324,13 @@ describe("native audit chat inference boundary", () => {
       (row: { kind: string }) => row.kind,
     );
     expect(kinds).toHaveLength(20);
+    // Kinds alternate, so trimming for size drops both kinds evenly.
+    expect(kinds.slice(0, 4)).toEqual([
+      "fix",
+      "opportunity",
+      "fix",
+      "opportunity",
+    ]);
     expect(kinds.filter((kind: string) => kind === "opportunity")).toHaveLength(
       3,
     );

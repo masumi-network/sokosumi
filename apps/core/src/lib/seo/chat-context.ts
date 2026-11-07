@@ -14,21 +14,28 @@ const SEO_CHAT_EVIDENCE_LIMIT = 2;
 const SEO_CHAT_DAILY_POINT_LIMIT = 7;
 const SEO_CHAT_QUERY_LIMIT = 25;
 
-/** Fixes and opportunities each keep half the slots, and either kind fills what the other leaves. */
+/**
+ * Fixes and opportunities each keep half the slots, either kind fills what the
+ * other leaves, and the kinds alternate so size trimming drops both evenly.
+ */
 function chatActionSample(actions: ProjectSeoWorkspace["actions"]) {
   const half = SEO_CHAT_COLLECTION_LIMIT / 2;
   const fixes = actions.filter((row) => row.kind === "fix");
   const opportunities = actions.filter((row) => row.kind === "opportunity");
-  return [
-    ...fixes.slice(
-      0,
-      Math.max(half, SEO_CHAT_COLLECTION_LIMIT - opportunities.length),
-    ),
-    ...opportunities.slice(
-      0,
-      Math.max(half, SEO_CHAT_COLLECTION_LIMIT - fixes.length),
-    ),
-  ];
+  const keptFixes = fixes.slice(
+    0,
+    Math.max(half, SEO_CHAT_COLLECTION_LIMIT - opportunities.length),
+  );
+  const keptOpportunities = opportunities.slice(
+    0,
+    Math.max(half, SEO_CHAT_COLLECTION_LIMIT - fixes.length),
+  );
+  return Array.from(
+    { length: Math.max(keptFixes.length, keptOpportunities.length) },
+    (_, index) => [keptFixes[index], keptOpportunities[index]],
+  )
+    .flat()
+    .filter((row) => row !== undefined);
 }
 const SEO_CHAT_ISSUE_PRIORITY: Readonly<Record<string, number>> = {
   critical: 0,
