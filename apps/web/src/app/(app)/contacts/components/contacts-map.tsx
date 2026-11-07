@@ -1,10 +1,25 @@
 "use client";
 import type { ContactMapPlace } from "@sokosumi/core-client";
 import { geoNaturalEarth1, geoPath } from "d3-geo";
-import { MapPin } from "lucide-react";
+import { select } from "d3-selection";
+import {
+  type ZoomBehavior,
+  type ZoomTransform,
+  zoom,
+  zoomIdentity,
+  zoomTransform,
+} from "d3-zoom";
+import { MapPin, Maximize2, Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type RefCallback, useCallback, useState } from "react";
-import { feature } from "topojson-client";
+import {
+  type RefCallback,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { feature, mesh } from "topojson-client";
 import countries from "world-atlas/countries-110m.json";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
@@ -19,16 +34,23 @@ import type { ContactQuery } from "@/lib/services/contacts.client";
 import { ContactAvatar } from "./contact-visuals";
 import { useContactMap } from "./use-contacts-data";
 
+type Topology = Parameters<typeof feature>[0];
+
 const ANTARCTICA = "010";
-const atlas = countries as unknown as Parameters<typeof feature>[0];
-const all = feature(atlas, atlas.objects.countries);
-// Antarctica holds nobody's contacts and would take a third of the height.
-const land = {
-  type: "FeatureCollection" as const,
-  features: ("features" in all ? all.features : [all]).filter(
-    (country) => country.id !== ANTARCTICA,
-  ),
-};
+
+/** The world's land without Antarctica, which holds nobody's contacts. */
+function landOf(atlas: Topology) {
+  const all = feature(atlas, atlas.objects.countries);
+  return {
+    type: "FeatureCollection" as const,
+    features: ("features" in all ? all.features : [all]).filter(
+      (country) => country.id !== ANTARCTICA,
+    ),
+  };
+}
+
+const coarse = countries as unknown as Topology;
+const land = landOf(coarse);
 const WIDTH = 960;
 const projection = geoNaturalEarth1().fitWidth(WIDTH - 16, land);
 const path = geoPath(projection);
@@ -38,24 +60,114 @@ projection.translate([
   projection.translate()[0] + 8,
   projection.translate()[1] - top + 8,
 ]);
-const LAND_PATH = path(land) ?? undefined;
+
+interface Outline {
+  land: string | undefined;
+  borders: string | undefined;
+}
+
+function outlineOf(atlas: Topology): Outline {
+  return {
+    land: path(landOf(atlas)) ?? undefined,
+    borders:
+      path(
+        mesh(
+          atlas,
+          atlas.objects.countries as Parameters<typeof mesh>[1],
+          (a, b) => a !== b,
+        ),
+      ) ?? undefined,
+  };
+}
+
+const COARSE = outlineOf(coarse);
+let fine: Promise<Outline> | undefined;
+/** The sharper outline, fetched once, the first time someone zooms in. */
+function loadFine(): Promise<Outline> {
+  fine ??= import("world-atlas/countries-50m.json").then((module) =>
+    outlineOf(module.default as unknown as Topology),
+  );
+  return fine;
+}
+
 const ASPECT = { aspectRatio: `${WIDTH} / ${HEIGHT}` };
 
 /** Dots closer than this on screen merge, so each stays clickable. */
 const MIN_GAP_PX = 26;
+const MAX_ZOOM = 16;
+/** From these zoom levels on, the map shows borders, then names and detail. */
+const BORDERS_FROM = 2;
+const NAMES_FROM = 3;
+const FINE_FROM = 3;
 
-/** An element's rendered width, kept current as it resizes. */
-function useWidth(): [RefCallback<HTMLElement>, number] {
+/** Zoom and pan by wheel, pinch, drag and double-click, and the frame's width. */
+function useMapZoom() {
   const [width, setWidth] = useState(WIDTH);
-  const ref = useCallback((element: HTMLElement | null) => {
+  const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
+  const control = useRef<{
+    behavior: ZoomBehavior<HTMLDivElement, unknown>;
+    element: HTMLDivElement;
+  } | null>(null);
+  const frame: RefCallback<HTMLDivElement> = useCallback((element) => {
     if (!element) return;
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry.contentRect.width || WIDTH),
-    );
+    const behavior = zoom<HTMLDivElement, unknown>()
+      .scaleExtent([1, MAX_ZOOM])
+      .on("zoom", (event: { transform: ZoomTransform }) =>
+        setTransform(event.transform),
+      );
+    control.current = { behavior, element };
+    const selection = select(element).call(behavior);
+    let lastWidth = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width: w, height: h } = entry.contentRect;
+      if (!w || w === lastWidth) return;
+      behavior
+        .extent([
+          [0, 0],
+          [w, h],
+        ])
+        .translateExtent([
+          [0, 0],
+          [w, h],
+        ]);
+      // Keep the same view when the frame resizes.
+      const ratio = lastWidth ? w / lastWidth : 1;
+      const { k, x, y } = zoomTransform(element);
+      lastWidth = w;
+      setWidth(w);
+      behavior.transform(
+        selection,
+        zoomIdentity.translate(x * ratio, y * ratio).scale(k),
+      );
+    });
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      selection.on(".zoom", null);
+      control.current = null;
+    };
   }, []);
-  return [ref, width];
+  const zoomBy = useCallback((factor: number | null) => {
+    if (!control.current) return;
+    const { behavior, element } = control.current;
+    if (factor === null) behavior.transform(select(element), zoomIdentity);
+    else behavior.scaleBy(select(element), factor);
+  }, []);
+  return { frame, width, transform, zoomBy };
+}
+
+/** The sharper outline once the map is zoomed in far enough. */
+function useOutline(zoomedIn: boolean): Outline {
+  const [outline, setOutline] = useState(COARSE);
+  useEffect(() => {
+    if (!zoomedIn || outline !== COARSE) return;
+    let live = true;
+    void loadFine().then((loaded) => live && setOutline(loaded));
+    return () => {
+      live = false;
+    };
+  }, [zoomedIn, outline]);
+  return outline;
 }
 
 function contactCount(places: readonly ContactMapPlace[]): number {
@@ -82,7 +194,22 @@ export function ContactsMap({
   const t = useTranslations("App.Contacts.map");
   const tContacts = useTranslations("App.Contacts");
   const map = useContactMap(query);
-  const [frame, width] = useWidth();
+  const { frame, width, transform, zoomBy } = useMapZoom();
+  const { k, x, y } = transform;
+  const outline = useOutline(k >= FINE_FROM);
+  // Steps of a quarter zoom level, so clustering reruns on few zoom events.
+  const level = Math.round(Math.log2(k) * 4) / 4;
+  const clusters = useMemo(
+    () =>
+      map.data
+        ? clusterPlaces(
+            map.data.places,
+            (MIN_GAP_PX * WIDTH) / width / 2 ** level,
+            project,
+          )
+        : [],
+    [map.data, width, level],
+  );
 
   if (map.isPending)
     return (
@@ -104,8 +231,8 @@ export function ContactsMap({
       />
     );
 
-  const { places, unplaced, withoutLocation } = map.data;
-  if (places.length === 0 && filtered && unplaced === 0)
+  const { places, unplaced, pending, withoutLocation } = map.data;
+  if (places.length === 0 && filtered && unplaced === 0 && pending === 0)
     return (
       <EmptyState
         icon={MapPin}
@@ -118,7 +245,7 @@ export function ContactsMap({
         }
       />
     );
-  if (places.length === 0)
+  if (places.length === 0 && pending === 0)
     return (
       <EmptyState
         icon={MapPin}
@@ -128,31 +255,88 @@ export function ContactsMap({
     );
 
   const placed = contactCount(places);
+  const scale = width / WIDTH;
   return (
     <div className="flex flex-col">
-      <div ref={frame} className="relative m-2 md:m-4" style={ASPECT}>
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="absolute inset-0 size-full"
-          aria-hidden
+      <div className="relative m-2 overflow-hidden md:m-4" style={ASPECT}>
+        <div
+          ref={frame}
+          className="absolute inset-0 cursor-grab touch-none active:cursor-grabbing"
         >
-          <path d={LAND_PATH} className="fill-muted" />
-        </svg>
-        <ul aria-label={t("label")}>
-          {clusterPlaces(places, (MIN_GAP_PX * WIDTH) / width, project).map(
-            (cluster) => (
-              <PlaceDot
-                key={`${cluster.x},${cluster.y}`}
-                cluster={cluster}
-                onOpen={onOpen}
-              />
-            ),
-          )}
-        </ul>
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="absolute inset-0 size-full"
+            aria-hidden
+          >
+            <g transform={`translate(${x / scale} ${y / scale}) scale(${k})`}>
+              <path d={outline.land} className="fill-muted" />
+              {k >= BORDERS_FROM ? (
+                <path
+                  d={outline.borders}
+                  className="stroke-background fill-none"
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ) : null}
+            </g>
+          </svg>
+          <ul aria-label={t("label")}>
+            {clusters.map((cluster) => {
+              const left = cluster.x * k + x / scale;
+              const top = cluster.y * k + y / scale;
+              if (left < 0 || left > WIDTH || top < 0 || top > HEIGHT)
+                return null;
+              return (
+                <PlaceDot
+                  key={`${cluster.x},${cluster.y}`}
+                  cluster={cluster}
+                  left={left}
+                  top={top}
+                  named={k >= NAMES_FROM}
+                  onOpen={onOpen}
+                />
+              );
+            })}
+          </ul>
+        </div>
+        <div className="absolute end-2 bottom-2 flex flex-col gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10 md:size-8"
+            aria-label={t("zoomIn")}
+            disabled={k >= MAX_ZOOM}
+            onClick={() => zoomBy(2)}
+          >
+            <Plus />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10 md:size-8"
+            aria-label={t("zoomOut")}
+            disabled={k <= 1}
+            onClick={() => zoomBy(0.5)}
+          >
+            <Minus />
+          </Button>
+          {k > 1 ? (
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-10 md:size-8"
+              aria-label={t("resetZoom")}
+              onClick={() => zoomBy(null)}
+            >
+              <Maximize2 />
+            </Button>
+          ) : null}
+        </div>
       </div>
       <p className="text-muted-foreground border-border border-t px-3 py-2 text-xs">
         {[
           t("placed", { count: placed }),
+          pending > 0 ? t("pending", { count: pending }) : null,
           unplaced > 0 ? t("unplaced", { count: unplaced }) : null,
           withoutLocation > 0
             ? t("withoutLocation", { count: withoutLocation })
@@ -201,9 +385,17 @@ function project(place: ContactMapPlace): [number, number] {
 
 function PlaceDot({
   cluster,
+  left,
+  top,
+  named,
   onOpen,
 }: {
   cluster: Cluster;
+  /** Where the dot sits, in map units of the zoomed view. */
+  left: number;
+  top: number;
+  /** Shows the place's name beside the dot. */
+  named: boolean;
   onOpen: (id: string) => void;
 }) {
   const t = useTranslations("App.Contacts.map");
@@ -218,10 +410,16 @@ function PlaceDot({
     <li
       className="absolute -translate-x-1/2 -translate-y-1/2"
       style={{
-        left: `${(cluster.x / WIDTH) * 100}%`,
-        top: `${(cluster.y / HEIGHT) * 100}%`,
+        left: `${(left / WIDTH) * 100}%`,
+        top: `${(top / HEIGHT) * 100}%`,
       }}
     >
+      {named ? (
+        <span className="bg-background text-foreground pointer-events-none absolute start-full top-1/2 ms-1 -translate-y-1/2 rounded px-1 text-2xs whitespace-nowrap">
+          {first.label.split(",")[0]}
+          {others.length > 0 ? ` +${others.length}` : null}
+        </span>
+      ) : null}
       <Popover>
         <PopoverTrigger asChild>
           <button
