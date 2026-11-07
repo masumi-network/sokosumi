@@ -9898,6 +9898,7 @@ export type ProjectSeoWorkspace = {
     actions: Array<ProjectSeoAction>;
     metricsStatus: 'not_connected' | 'available' | 'partial' | 'unavailable';
     metrics: Array<ProjectSeoMetric>;
+    searchQueries: ProjectSeoSearchQueries;
     timeline: Array<ProjectSeoTimelineItem>;
     analyses: Array<ProjectSeoAnalysis>;
     monitors: Array<ProjectSeoMonitor>;
@@ -10018,6 +10019,8 @@ export type ProjectSeoAction = {
     } | null;
     taskId: string | null;
     status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+    kind: 'fix' | 'opportunity';
+    evidence: Array<string>;
 };
 
 export type ProjectSeoMetric = {
@@ -10040,6 +10043,26 @@ export type ProjectSeoMetric = {
     }>;
     notes: Array<string>;
 };
+
+export type ProjectSeoSearchQueries = {
+    observationId: string;
+    propertyId: string;
+    from: string;
+    to: string;
+    timeZone: string;
+    observedAt: Date;
+    rowLimit: number;
+    truncated: boolean;
+    rows: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        averagePosition: number;
+        id: string;
+    }>;
+} | null;
 
 export type ProjectSeoTimelineItem = {
     id: string;
@@ -10239,6 +10262,10 @@ export type SeoAuditChatTurn = {
     } | {
         kind: 'open';
         dialog: 'page' | 'keyword' | 'competitor' | 'import' | 'analysis' | 'statistics' | 'page_change';
+    } | {
+        kind: 'task';
+        observationId: string;
+        actionId: string;
     }>;
     status: 'running' | 'completed' | 'failed';
     scope: {

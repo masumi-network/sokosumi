@@ -36944,6 +36944,9 @@ export const ProjectSeoWorkspaceSchema = {
                 $ref: '#/components/schemas/ProjectSeoMetric'
             }
         },
+        searchQueries: {
+            $ref: '#/components/schemas/ProjectSeoSearchQueries'
+        },
         timeline: {
             type: 'array',
             items: {
@@ -37004,6 +37007,7 @@ export const ProjectSeoWorkspaceSchema = {
         'actions',
         'metricsStatus',
         'metrics',
+        'searchQueries',
         'timeline',
         'analyses',
         'monitors',
@@ -37614,6 +37618,19 @@ export const ProjectSeoActionSchema = {
                 'implemented',
                 'verified'
             ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'fix',
+                'opportunity'
+            ]
+        },
+        evidence: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
         }
     },
     required: [
@@ -37627,7 +37644,9 @@ export const ProjectSeoActionSchema = {
         'expectedEffect',
         'edit',
         'taskId',
-        'status'
+        'status',
+        'kind',
+        'evidence'
     ]
 } as const;
 
@@ -37740,6 +37759,103 @@ export const ProjectSeoMetricSchema = {
         'coverage',
         'points',
         'notes'
+    ]
+} as const;
+
+export const ProjectSeoSearchQueriesSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        propertyId: {
+            type: 'string'
+        },
+        from: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        to: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        timeZone: {
+            type: 'string'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        rowLimit: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        truncated: {
+            type: 'boolean'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 2048
+                    },
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    clicks: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    ctr: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    averagePosition: {
+                        type: 'number',
+                        minimum: 1
+                    },
+                    id: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'query',
+                    'pageUrl',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'averagePosition',
+                    'id'
+                ]
+            }
+        }
+    },
+    required: [
+        'observationId',
+        'propertyId',
+        'from',
+        'to',
+        'timeZone',
+        'observedAt',
+        'rowLimit',
+        'truncated',
+        'rows'
     ]
 } as const;
 
@@ -38744,6 +38860,32 @@ export const SeoAuditChatTurnSchema = {
                         required: [
                             'kind',
                             'dialog'
+                        ],
+                        additionalProperties: false
+                    },
+                    {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'task'
+                                ]
+                            },
+                            observationId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            actionId: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 200
+                            }
+                        },
+                        required: [
+                            'kind',
+                            'observationId',
+                            'actionId'
                         ],
                         additionalProperties: false
                     }

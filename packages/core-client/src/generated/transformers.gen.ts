@@ -4020,6 +4020,11 @@ const projectSeoMetricSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoSearchQueriesSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoTimelineItemSchemaResponseTransformer = (data: any) => {
     data.at = new Date(data.at);
     return data;
@@ -4044,6 +4049,7 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     data.competitors = data.competitors.map((item: any) => projectSeoCompetitorSchemaResponseTransformer(item));
     data.findings = data.findings.map((item: any) => projectSeoFindingSchemaResponseTransformer(item));
     data.metrics = data.metrics.map((item: any) => projectSeoMetricSchemaResponseTransformer(item));
+    data.searchQueries = projectSeoSearchQueriesSchemaResponseTransformer(data.searchQueries);
     data.timeline = data.timeline.map((item: any) => projectSeoTimelineItemSchemaResponseTransformer(item));
     data.analyses = data.analyses.map((item: any) => projectSeoAnalysisSchemaResponseTransformer(item));
     data.monitors = data.monitors.map((item: any) => projectSeoMonitorSchemaResponseTransformer(item));
