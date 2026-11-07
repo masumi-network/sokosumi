@@ -101,6 +101,24 @@ describe("CreateOrganizationWizard", () => {
     });
   });
 
+  it("keeps the invite link labeled while it loads", async () => {
+    const user = userEvent.setup();
+    createOrganizationInviteLinkMock.mockReturnValue(new Promise(() => {}));
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(screen.getByLabelText("Details.nameLabel"), "Acme");
+    await user.type(screen.getByLabelText("Details.urlLabel"), "acme.com");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await screen.findByText("Logo.title");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+
+    const link = screen.getByRole("textbox", { name: "Invite.linkLabel" });
+    expect(link).toHaveAttribute("aria-busy", "true");
+    expect(link).toHaveAccessibleDescription("Invite.linkHint");
+    expect(screen.getByRole("button", { name: "Invite.copy" })).toBeDisabled();
+  });
+
   it("does not complete when dismissed before create", async () => {
     const user = userEvent.setup();
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
@@ -114,6 +132,10 @@ describe("CreateOrganizationWizard", () => {
 
   it("creates the organization on name + URL and completes on Finish", async () => {
     const user = userEvent.setup();
+    createOrganizationInviteLinkMock.mockResolvedValue({
+      ok: true,
+      value: { url: "https://example.com/join/team" },
+    });
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
 
     await user.type(
@@ -136,6 +158,20 @@ describe("CreateOrganizationWizard", () => {
 
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+
+    const link = await screen.findByRole("textbox", {
+      name: "Invite.linkLabel",
+    });
+    expect(link).toHaveValue("https://example.com/join/team");
+    expect(link).toHaveAttribute("readonly");
+    expect(link).toHaveAccessibleDescription("Invite.linkHint");
+
+    const emails = screen.getByRole("textbox", { name: "Invite.emailsLabel" });
+    expect(emails).toHaveAccessibleDescription("Invite.emailsHint");
+    await user.type(emails, "alex@example.com");
+    expect(emails).toHaveAccessibleName("Invite.emailsLabel");
+    expect(screen.getByText("Invite.emailsLabel")).toBeVisible();
+
     await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
 
     expect(onOrganizationReadyMock).toHaveBeenCalledWith("org-1");
