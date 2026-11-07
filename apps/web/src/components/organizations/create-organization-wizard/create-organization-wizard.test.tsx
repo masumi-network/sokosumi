@@ -163,7 +163,8 @@ describe("CreateOrganizationWizard", () => {
     expect(screen.queryByText("Brand.tooltip")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Brand.title" }));
 
-    expect(await screen.findByText("Brand.tooltip")).toBeTruthy();
+    const help = await screen.findByRole("dialog", { name: "Brand.title" });
+    expect(help.textContent).toContain("Brand.tooltip");
   });
 
   it.each(["Close", "Finish"])(

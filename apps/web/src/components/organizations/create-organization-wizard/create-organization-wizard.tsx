@@ -852,7 +852,10 @@ export function CreateOrganizationWizard({
                         <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="text-sm">
+                    <PopoverContent
+                      aria-label={t("Brand.title")}
+                      className="text-sm"
+                    >
                       {t("Brand.tooltip")}
                     </PopoverContent>
                   </Popover>
