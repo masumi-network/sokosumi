@@ -237,6 +237,7 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     piece.campaignId ? `campaign ${piece.campaignId}` : "",
     `"${piece.title}"`,
     piece.brief ? `brief: ${piece.brief}` : "",
+    piece.story ? `story: ${piece.story}` : "",
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",

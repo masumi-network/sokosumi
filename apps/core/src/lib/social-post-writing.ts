@@ -120,6 +120,28 @@ function isBroetry(text: string): boolean {
   );
 }
 
+/** Phrases that qualify a fact instead of stating it. */
+const CAVEATS = [
+  /\bdepends? on\b/i,
+  /\b(can|may|might) (differ|vary|change)\b/i,
+  /\bnot every\b/i,
+  /\b(confirm|check|verify) (the |its |their |your )?(current|latest)\b/i,
+  /\bdoes not (make|mean)\b/i,
+  /\bsubject to\b/i,
+];
+/** Caveats one post may hold; a month once hedged every LinkedIn post three times. */
+const MAX_CAVEATS = 1;
+
+/** A post that stacks caveats, as a problem; null when it states its facts. */
+export function stackedCaveatsProblem(text: string): string | null {
+  const found = CAVEATS.map((pattern) => text.match(pattern)?.[0]).filter(
+    (match): match is string => Boolean(match),
+  );
+  return found.length > MAX_CAVEATS
+    ? `stacks caveats (${found.map((match) => `"${match}"`).join(", ")}): state each fact once, plainly, with at most one condition`
+    : null;
+}
+
 /** What a text breaks of the copy rules every bot's writing guide states. */
 export function bannedCopyProblems(text: string): string[] {
   const problems = BANNED_COPY.filter(({ pattern }) => pattern.test(text)).map(

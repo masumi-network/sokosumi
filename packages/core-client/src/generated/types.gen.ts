@@ -7725,6 +7725,12 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 when: string;
                 then: string;
             }>;
+            sourceOfTruth?: string;
+            experiment?: {
+                change: string;
+                expect: string;
+                judge: string;
+            };
         };
         openQuestions?: Array<string>;
         questions?: Array<{
@@ -7750,6 +7756,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             visual?: string;
             visualFileIds?: Array<string>;
             slides?: Array<string>;
+            story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -7967,6 +7974,12 @@ export type MarketingStrategyRequest = {
                 when: string;
                 then: string;
             }>;
+            sourceOfTruth?: string;
+            experiment?: {
+                change: string;
+                expect: string;
+                judge: string;
+            };
         };
         openQuestions?: Array<string>;
         questions?: Array<{
@@ -7992,6 +8005,7 @@ export type MarketingStrategyRequest = {
             visual?: string;
             visualFileIds?: Array<string>;
             slides?: Array<string>;
+            story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -9628,6 +9642,7 @@ export type SocialPost = {
         visual?: string;
         visualFileIds?: Array<string>;
         slides?: Array<string>;
+        story?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -11113,6 +11128,12 @@ export type CmoPlan = {
             when: string;
             then: string;
         }>;
+        sourceOfTruth?: string;
+        experiment?: {
+            change: string;
+            expect: string;
+            judge: string;
+        };
     };
     openQuestions?: Array<string>;
     questions?: Array<{
@@ -11138,6 +11159,7 @@ export type CmoPlan = {
         visual?: string;
         visualFileIds?: Array<string>;
         slides?: Array<string>;
+        story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
         fileId?: string;

@@ -5,6 +5,7 @@ import {
   bannedCopyProblems,
   SOCIAL_POST_WRITING_GUIDES,
   socialPostFormattingError,
+  stackedCaveatsProblem,
   tagOwnLinks,
 } from "./social-post-writing";
 
@@ -189,6 +190,21 @@ describe("the copy rules code checks", () => {
     expect(bannedCopyProblems(broetry)).toEqual([
       "puts every sentence on its own line; join related sentences into short paragraphs",
     ]);
+  });
+});
+
+describe("stackedCaveatsProblem", () => {
+  it("refuses a post that qualifies its fact twice and keeps one condition", () => {
+    expect(
+      stackedCaveatsProblem(
+        "No monthly subscription. That does not make every operation free: fees depend on the network.",
+      ),
+    ).toMatch(/stacks caveats \("depend on", "does not make"\)/);
+    expect(
+      stackedCaveatsProblem(
+        "Minting costs 2 ADA; the fee depends on the chain.",
+      ),
+    ).toBeNull();
   });
 });
 

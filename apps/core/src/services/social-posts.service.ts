@@ -65,6 +65,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import {
   nearDuplicatePost,
   socialPostFormattingError,
+  stackedCaveatsProblem,
   tagOwnLinks,
 } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
@@ -644,6 +645,8 @@ async function requireOwnInMonth(
       );
   }
   if (change.text === null) return;
+  const caveats = stackedCaveatsProblem(change.text);
+  if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };

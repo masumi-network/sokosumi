@@ -28259,6 +28259,36 @@ export const MarketingStrategySchema = {
                                     },
                                     maxItems: 4,
                                     default: []
+                                },
+                                sourceOfTruth: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                experiment: {
+                                    type: 'object',
+                                    properties: {
+                                        change: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        expect: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        judge: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'change',
+                                        'expect',
+                                        'judge'
+                                    ]
                                 }
                             },
                             required: [
@@ -28406,6 +28436,11 @@ export const MarketingStrategySchema = {
                                             maxLength: 400
                                         },
                                         maxItems: 10
+                                    },
+                                    story: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
                                     },
                                     imageFileId: {
                                         type: 'string',
@@ -29669,6 +29704,36 @@ export const MarketingStrategyRequestSchema = {
                             },
                             maxItems: 4,
                             default: []
+                        },
+                        sourceOfTruth: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        experiment: {
+                            type: 'object',
+                            properties: {
+                                change: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                expect: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                judge: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'change',
+                                'expect',
+                                'judge'
+                            ]
                         }
                     },
                     required: [
@@ -29816,6 +29881,11 @@ export const MarketingStrategyRequestSchema = {
                                     maxLength: 400
                                 },
                                 maxItems: 10
+                            },
+                            story: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
                             },
                             imageFileId: {
                                 type: 'string',
@@ -35947,6 +36017,11 @@ export const SocialPostSchema = {
                         maxLength: 400
                     },
                     maxItems: 10
+                },
+                story: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
                 }
             },
             required: [
@@ -42777,6 +42852,36 @@ export const CmoPlanSchema = {
                     },
                     maxItems: 4,
                     default: []
+                },
+                sourceOfTruth: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                experiment: {
+                    type: 'object',
+                    properties: {
+                        change: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        expect: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        judge: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        }
+                    },
+                    required: [
+                        'change',
+                        'expect',
+                        'judge'
+                    ]
                 }
             },
             required: [
@@ -42924,6 +43029,11 @@ export const CmoPlanSchema = {
                             maxLength: 400
                         },
                         maxItems: 10
+                    },
+                    story: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
                     },
                     imageFileId: {
                         type: 'string',

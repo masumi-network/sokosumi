@@ -407,6 +407,11 @@ export const cmoCalendarEntrySchema = z.object({
   visualFileIds: z.array(z.string().max(100)).max(3).optional(),
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
+  /**
+   * The one real moment the piece is built on, from the Brand Brain: a
+   * customer and what they did, a launch, a number, a decision.
+   */
+  story: shortText.optional(),
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
@@ -453,6 +458,7 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   visual: true,
   visualFileIds: true,
   slides: true,
+  story: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
@@ -766,6 +772,12 @@ const strategyPlanShape = {
         .array(z.object({ when: shortText, then: shortText }))
         .max(4)
         .default([]),
+      /** Where sales are counted: "Shopify", or "Google Analytics key events". */
+      sourceOfTruth: shortText.optional(),
+      /** The month's one test: the change, what it should move, when it is judged. */
+      experiment: z
+        .object({ change: shortText, expect: shortText, judge: shortText })
+        .optional(),
     })
     .optional(),
   /** Older plans: assumptions as open questions. New plans ask `questions`. */
