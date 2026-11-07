@@ -60,13 +60,13 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   createOrganizationWorkspaceAction,
@@ -840,8 +840,10 @@ export function CreateOrganizationWizard({
                       : brandDomain
                         ? t("Brand.generating", { domain: brandDomain })
                         : t("Brand.generatingNoDomain")}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  {/* A popover, not a tooltip: a tap has to open it, or phones
+                      never see what DESIGN.md is. */}
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <button
                         type="button"
                         aria-label={t("Brand.title")}
@@ -849,11 +851,11 @@ export function CreateOrganizationWizard({
                       >
                         <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
+                    </PopoverTrigger>
+                    <PopoverContent className="text-sm">
                       {t("Brand.tooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                    </PopoverContent>
+                  </Popover>
                 </p>
 
                 {brand.status !== "completed" && (
