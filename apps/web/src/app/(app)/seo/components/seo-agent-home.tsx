@@ -33,7 +33,7 @@ function StepRow({
   refreshing: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const canEdit = model.data.availableActions.canEdit;
+  const { canEdit, canRequestAnalysis } = model.data.availableActions;
   const [body, control] =
     step.kind === "refresh"
       ? [
@@ -63,7 +63,7 @@ function StepRow({
                 ? "agent.steps.competitors.available"
                 : "agent.steps.competitors.unavailable",
             ),
-            canEdit ? (
+            canEdit && (canRequestAnalysis || !step.available) ? (
               <Button
                 key="competitors"
                 size="sm"

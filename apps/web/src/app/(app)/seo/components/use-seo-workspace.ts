@@ -148,7 +148,24 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     }
     return value;
   }
-  async function execute(command: SeoCommand, success = t("saved")) {
+  /**
+   * A background command (agent upkeep) neither waits for nor blocks the user's
+   * own command, keeps any open dialog, and reports only through its result.
+   */
+  async function execute(
+    command: SeoCommand,
+    success = t("saved"),
+    background = false,
+  ) {
+    if (background) {
+      try {
+        const response = await mutateSeo({ owner, command });
+        if (response.ok) await result.refetch();
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
     if (pendingRef.current) return false;
     pendingRef.current = true;
     setPending(true);
@@ -207,7 +224,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     });
   }
   /** Rerun the saved Search Console read for the current pages over the default rolling period. */
-  function refreshSearchStatistics(propertyId: string) {
+  function refreshSearchStatistics(propertyId: string, background = false) {
     const period = seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS);
     return execute(
       {
@@ -227,6 +244,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
         },
       },
       t("statistics.synced"),
+      background,
     );
   }
   const filteredCompetitors = data.competitors.filter((row) =>

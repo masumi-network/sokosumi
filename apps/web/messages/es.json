@@ -10692,7 +10692,7 @@
       "actions": {
         "title": "Acciones",
         "empty": "No hay acciones recomendadas",
-        "emptyBody": "Las acciones salen de comprobaciones fallidas y de las consultas de Search Console. Pregunta al agente SEO qué recoger a continuación.",
+        "emptyBody": "Las acciones salen de los problemas que encontraron las comprobaciones y de las consultas de Search Console. Pregunta al agente SEO qué recoger a continuación.",
         "createTask": "Crear borrador de tarea",
         "why": "Por qué es importante",
         "effect": "Efecto esperado",
@@ -10712,11 +10712,11 @@
         "unplannedIssues": "Todavía no hay acciones recomendadas",
         "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o abre el chat de SEO para decidir el siguiente paso.",
         "kind": {
-          "fix": "Corrección confirmada",
+          "fix": "Problema confirmado",
           "opportunity": "Oportunidad de revisión"
         },
-        "fixesTitle": "Correcciones confirmadas",
-        "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, una nueva comprobación lo verifica.",
+        "fixesTitle": "Correcciones de problemas confirmados",
+        "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
         "opportunitiesTitle": "Oportunidades de revisión según datos de búsqueda",
         "opportunitiesHelp": "Una heurística con nombre coincidió con filas medidas de Search Console. Son sugerencias para revisar, no fallos, y no prometen tráfico.",
         "noOpportunitiesBody": "Las comprobaciones no encontraron correcciones y ninguna consulta cumplió una heurística de revisión. Pregunta al agente SEO qué recoger a continuación."
@@ -11020,7 +11020,7 @@
         "noIssues": "Ningún problema confirmado en las reglas comprobadas. Solo cubre esas reglas y páginas, no todo el sitio.",
         "search": "Search Console: {clicks} clics de {impressions} impresiones.",
         "noSearch": "Aún no hay estadísticas de búsqueda.",
-        "queries": "{count, plural, =0 {Ninguna consulta guardada} one {# consulta guardada} other {# consultas guardadas}} para el mismo periodo.",
+        "queries": "{count, plural, =0 {Ninguna consulta guardada} one {# consulta guardada} other {# consultas guardadas}} de la sincronización más reciente de Search Console.",
         "queriesMissing": "Las consultas aún no están guardadas.",
         "suggestions": "{fixes, plural, one {# corrección} other {# correcciones}} y {opportunities, plural, one {# oportunidad de revisión} other {# oportunidades de revisión}} pendientes.",
         "refreshing": "El agente está actualizando Search Console.",

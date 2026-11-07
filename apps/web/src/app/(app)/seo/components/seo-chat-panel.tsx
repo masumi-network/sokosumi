@@ -57,10 +57,12 @@ function ChatActions({
           );
         if (action.kind === "task") {
           // The reply is history; the current workspace decides whether the action still exists.
+          // Opportunity IDs stay stable across syncs; a fix belongs to one report.
           const current = model.data.actions.find(
             (row) =>
-              row.observationId === action.observationId &&
-              row.id === action.actionId,
+              row.id === action.actionId &&
+              (row.kind === "opportunity" ||
+                row.observationId === action.observationId),
           );
           if (!current) return null;
           return current.taskId ? (
@@ -79,6 +81,7 @@ function ChatActions({
               key={`${action.actionId}:${index}`}
               size="sm"
               variant="outline"
+              className="h-auto max-w-full py-1.5 text-left break-words whitespace-normal"
               loading={model.pending}
               onClick={() => {
                 void model.createActionTask(current);

@@ -20,7 +20,10 @@ export function useSeoAutopilot(
   async function refresh() {
     if (!brief.refresh || state === "refreshing") return;
     setState("refreshing");
-    const saved = await model.refreshSearchStatistics(brief.refresh.propertyId);
+    const saved = await model.refreshSearchStatistics(
+      brief.refresh.propertyId,
+      true,
+    );
     setState(saved ? "idle" : "failed");
   }
   useMountEffect(() => {

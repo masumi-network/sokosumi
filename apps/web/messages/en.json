@@ -10692,7 +10692,7 @@
       "actions": {
         "title": "Actions",
         "empty": "No recommended actions",
-        "emptyBody": "Actions come from failed checks and from Search Console query rows. Ask the SEO agent what to collect next.",
+        "emptyBody": "Actions come from issues that checks found and from Search Console query rows. Ask the SEO agent what to collect next.",
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
@@ -10712,10 +10712,10 @@
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or open SEO chat to decide what to do next.",
         "kind": {
-          "fix": "Confirmed fix",
+          "fix": "Confirmed issue",
           "opportunity": "Review opportunity"
         },
-        "fixesTitle": "Confirmed fixes",
+        "fixesTitle": "Fixes for confirmed issues",
         "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
         "opportunitiesTitle": "Review opportunities from search data",
         "opportunitiesHelp": "A named heuristic matched measured Search Console rows. These are suggestions to review, not failures, and they promise no traffic.",
@@ -11020,7 +11020,7 @@
         "noIssues": "No confirmed issue in the checked rules. This covers only those rules and pages, not the whole site.",
         "search": "Search Console: {clicks} clicks from {impressions} impressions.",
         "noSearch": "No search statistics yet.",
-        "queries": "{count, plural, =0 {No query rows} one {# query row} other {# query rows}} saved for the same period.",
+        "queries": "{count, plural, =0 {No query rows} one {# query row} other {# query rows}} saved from the newest Search Console sync.",
         "queriesMissing": "Query rows are not saved yet.",
         "suggestions": "{fixes, plural, one {# fix} other {# fixes}} and {opportunities, plural, one {# review opportunity} other {# review opportunities}} are waiting.",
         "refreshing": "The agent is refreshing Search Console.",

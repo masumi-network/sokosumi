@@ -10692,7 +10692,7 @@
       "actions": {
         "title": "Aktionen",
         "empty": "Keine empfohlenen Aktionen",
-        "emptyBody": "Aktionen entstehen aus fehlgeschlagenen Prüfungen und aus Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes erhoben werden soll.",
+        "emptyBody": "Aktionen entstehen aus Problemen, die Prüfungen fanden, und aus Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes erhoben werden soll.",
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
@@ -10712,11 +10712,11 @@
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
         "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder öffne den SEO-Chat für die nächsten Schritte.",
         "kind": {
-          "fix": "Bestätigte Korrektur",
+          "fix": "Bestätigtes Problem",
           "opportunity": "Prüfvorschlag"
         },
-        "fixesTitle": "Bestätigte Korrekturen",
-        "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur bestätigt eine neue Prüfung das Ergebnis.",
+        "fixesTitle": "Korrekturen für bestätigte Probleme",
+        "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
         "opportunitiesTitle": "Prüfvorschläge aus Suchdaten",
         "opportunitiesHelp": "Eine benannte Heuristik traf auf gemessene Search-Console-Zeilen zu. Das sind Vorschläge zur Prüfung, keine Fehler, und sie versprechen keinen Traffic.",
         "noOpportunitiesBody": "Die Prüfungen fanden keine Korrektur, und keine Suchanfrage erfüllte eine Prüfheuristik. Frag den SEO-Agenten, was als Nächstes erhoben werden soll."
@@ -11020,7 +11020,7 @@
         "noIssues": "Kein bestätigtes Problem in den geprüften Regeln. Das gilt nur für diese Regeln und Seiten, nicht für die ganze Website.",
         "search": "Search Console: {clicks} Klicks aus {impressions} Impressionen.",
         "noSearch": "Noch keine Suchstatistiken.",
-        "queries": "{count, plural, =0 {Keine Suchanfragen} one {# Suchanfrage} other {# Suchanfragen}} für denselben Zeitraum gespeichert.",
+        "queries": "{count, plural, =0 {Keine Suchanfragen} one {# Suchanfrage} other {# Suchanfragen}} aus der neuesten Search-Console-Synchronisierung gespeichert.",
         "queriesMissing": "Suchanfragen sind noch nicht gespeichert.",
         "suggestions": "{fixes, plural, one {# Korrektur} other {# Korrekturen}} und {opportunities, plural, one {# Prüfvorschlag} other {# Prüfvorschläge}} warten.",
         "refreshing": "Der Agent aktualisiert die Search Console.",

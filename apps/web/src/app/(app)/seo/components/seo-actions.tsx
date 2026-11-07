@@ -183,11 +183,11 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
               ? "actions.checksIncompleteBody"
               : overview.emptyState === "issues"
                 ? "actions.unplannedIssuesBody"
-                : searchLoaded
-                  ? "actions.noOpportunitiesBody"
-                  : overview.emptyState === "no_fixes"
-                    ? "actions.noFixesBody"
-                    : "actions.emptyBody",
+                : overview.emptyState !== "no_fixes"
+                  ? "actions.emptyBody"
+                  : searchLoaded
+                    ? "actions.noOpportunitiesBody"
+                    : "actions.noFixesBody",
           )}
         >
           {(overview.emptyState === "issues" || searchLoaded) &&

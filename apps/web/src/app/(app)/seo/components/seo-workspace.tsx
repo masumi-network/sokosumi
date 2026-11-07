@@ -188,12 +188,6 @@ export function SeoWorkspace({
                   {t("monitor.create")}
                 </DropdownMenuItem>
               ) : null}
-              {model.data.auditId ? (
-                <DropdownMenuItem onSelect={model.openChat}>
-                  <MessageSquare className="size-4" />
-                  {t("chat.title")}
-                </DropdownMenuItem>
-              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
           {model.data.availableActions.canRequestAnalysis &&

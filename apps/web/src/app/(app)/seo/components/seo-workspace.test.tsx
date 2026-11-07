@@ -1273,6 +1273,64 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
   });
 
+  it("keeps a chat-proposed opportunity Task after a later Search Console sync", async () => {
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      auditName: "Launch pages",
+    };
+    const opportunity = {
+      id: "gsc:query:0123456789abcdef",
+      observationId: crypto.randomUUID(),
+      pageUrl: workspace.pages[0].url,
+      findingIds: [],
+      title: 'Review the search snippet for "battery health"',
+      why: "This is a review suggestion, not a confirmed problem.",
+      effort: "low" as const,
+      expectedEffect: "No traffic change is promised.",
+      edit: null,
+      taskId: null,
+      status: "recommended" as const,
+      kind: "opportunity" as const,
+      evidence: ["Heuristic: snippet review"],
+    };
+    workspace.actions = [opportunity];
+    const history = {
+      sharing: "personal",
+      turns: [
+        {
+          id: crypto.randomUUID(),
+          author: { id: "owner", name: "Sandro" },
+          question: "What should I do first?",
+          response: "Review the snippet.",
+          status: "completed",
+          // Proposed from the previous sync's observation.
+          actions: [
+            {
+              kind: "task",
+              observationId: crypto.randomUUID(),
+              actionId: opportunity.id,
+            },
+          ],
+          scope: { pageIds: workspace.scope.pageIds },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/chat") ? history : workspace),
+      ),
+    );
+    renderWorkspace(workspace);
+    expect(
+      await screen.findByRole("button", {
+        name: `Create draft task: ${opportunity.title}`,
+      }),
+    ).toBeVisible();
+  });
+
   it("identifies a shared organization conversation and its member author", async () => {
     const user = userEvent.setup();
     const workspace = {
