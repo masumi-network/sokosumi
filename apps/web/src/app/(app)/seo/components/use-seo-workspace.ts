@@ -159,7 +159,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     background = false,
   ) {
     if (background) {
-      if (pendingRef.current) return false;
+      // Skipped, not failed: the user's own command is running.
+      if (pendingRef.current) return null;
       const run = (async () => {
         try {
           const response = await mutateSeo({ owner, command });

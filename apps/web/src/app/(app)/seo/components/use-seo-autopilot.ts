@@ -17,6 +17,7 @@ export function useSeoAutopilot(
   brief: SeoAgentBrief,
 ) {
   const [state, setState] = useState<"idle" | "refreshing" | "failed">("idle");
+  const key = `${SEO_AUTOREFRESH_KEY}:${model.viewerKey}:${model.data.auditId ?? model.data.projectId}:${model.data.scope.pageIds.join(",")}`;
   async function refresh(background = false) {
     if (!brief.refresh || state === "refreshing") return;
     setState("refreshing");
@@ -24,11 +25,15 @@ export function useSeoAutopilot(
       brief.refresh.propertyId,
       background,
     );
-    setState(saved ? "idle" : "failed");
+    // A skipped upkeep run may try again the next time the Audit opens.
+    if (saved === null)
+      try {
+        sessionStorage.removeItem(key);
+      } catch {}
+    setState(saved === false ? "failed" : "idle");
   }
   useMountEffect(() => {
     if (!brief.autoRefresh) return;
-    const key = `${SEO_AUTOREFRESH_KEY}:${model.viewerKey}:${model.data.auditId ?? model.data.projectId}:${model.data.scope.pageIds.join(",")}`;
     try {
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, new Date().toISOString());
