@@ -15111,7 +15111,11 @@ export const ContactMapSchema = {
         },
         unplaced: {
             type: 'integer',
-            description: 'Contacts with a location that could not be placed, or not yet.'
+            description: 'Contacts with a location that names no place.'
+        },
+        pending: {
+            type: 'integer',
+            description: 'Contacts whose place is still being looked up; ask again shortly.'
         },
         withoutLocation: {
             type: 'integer'
@@ -15120,6 +15124,7 @@ export const ContactMapSchema = {
     required: [
         'places',
         'unplaced',
+        'pending',
         'withoutLocation'
     ]
 } as const;

@@ -4223,9 +4223,13 @@ export type ContactMergeSuggestion = {
 export type ContactMap = {
     places: Array<ContactMapPlace>;
     /**
-     * Contacts with a location that could not be placed, or not yet.
+     * Contacts with a location that names no place.
      */
     unplaced: number;
+    /**
+     * Contacts whose place is still being looked up; ask again shortly.
+     */
+    pending: number;
     withoutLocation: number;
 };
 
