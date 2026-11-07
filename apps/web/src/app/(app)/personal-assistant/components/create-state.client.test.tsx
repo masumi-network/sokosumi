@@ -60,6 +60,32 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Atlas");
   });
 
+  it("moves focus into each step, since the old step hides the focused control", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    expect(
+      screen.getByRole("heading", { name: "Pick a picture for Atlas" }),
+    ).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+  });
+
+  it("locks the pictures while the bot is being created", async () => {
+    const user = userEvent.setup();
+    createMock.mockReturnValue(new Promise(() => {}));
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const pictures = screen.getByTestId("avatar-picker").closest("fieldset");
+    expect(pictures).not.toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Create Atlas" }));
+    expect(pictures).toBeDisabled();
+  });
+
   it("creates the bot with the name from the first step", async () => {
     const user = userEvent.setup();
     createMock.mockResolvedValue({
