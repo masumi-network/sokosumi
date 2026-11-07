@@ -142,6 +142,31 @@ describe("CreateOrganizationWizard", () => {
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
   });
 
+  it("opens the brand guidelines explanation on a click, so a tap works too", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    expect(screen.queryByText("Brand.tooltip")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Brand.title" }));
+
+    const help = await screen.findByRole("dialog", { name: "Brand.title" });
+    expect(help.textContent).toContain("Brand.tooltip");
+  });
+
   it.each(["Close", "Finish"])(
     "selects and closes via %s without onOrganizationReady, even while selection is pending",
     async (method) => {

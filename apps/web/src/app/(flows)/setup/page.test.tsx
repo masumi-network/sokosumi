@@ -114,6 +114,13 @@ describe("WorkspaceGatePage", () => {
     getPendingOrganizationJoinTokenMock.mockResolvedValue(null);
   });
 
+  it("names the browser tab", async () => {
+    const { generateMetadata } = await import("./page");
+
+    await expect(generateMetadata()).resolves.toEqual({ title: "title" });
+    expect(getTranslationsMock).toHaveBeenCalledWith("WorkspaceGate");
+  });
+
   it("still sends a signed-out browser to sign-in", async () => {
     readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
     // The real `redirect` throws NEXT_REDIRECT, which is what stops the page
