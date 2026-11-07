@@ -37,13 +37,21 @@ export function useContactRows(query: ContactQuery) {
   });
 }
 
+/** Polls while Core looks places up, for at most this many times. */
+const MAP_POLLS = 15;
+
 /** The query's contacts by place; the order does not matter on a map. */
-export function useContactMap(query: ContactQuery) {
+export function useContactMap(query: ContactQuery, enabled = true) {
   const { sort: _sort, direction: _direction, ...filters } = query;
   return useQuery({
+    enabled,
     queryKey: [...CONTACT_MAP_KEY, filters],
     queryFn: () => contactsService.map(filters),
     placeholderData: (previous) => previous,
+    refetchInterval: ({ state }) =>
+      (state.data?.pending ?? 0) > 0 && state.dataUpdateCount < MAP_POLLS
+        ? 2_000
+        : false,
   });
 }
 
