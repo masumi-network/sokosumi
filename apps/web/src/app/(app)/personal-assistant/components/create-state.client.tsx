@@ -4,7 +4,8 @@ import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useState, useTransition } from "react";
+import { type ReactNode, useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
@@ -52,10 +53,18 @@ export function CreateState({
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{ name: string } | null>(null);
   const [step, setStep] = useState<"name" | "picture">("name");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const pictureHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  // Each step hides the form that held focus, so move it into the new step.
+  function goToStep(next: "name" | "picture") {
+    flushSync(() => setStep(next));
+    (next === "name" ? nameInputRef : pictureHeadingRef).current?.focus();
+  }
 
   function handleContinue(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (name.trim()) setStep("picture");
+    if (name.trim()) goToStep("picture");
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -128,6 +137,7 @@ export function CreateState({
         <div className="flex flex-col gap-2">
           <Label htmlFor={nameId}>{t("nameLabel")}</Label>
           <Input
+            ref={nameInputRef}
             id={nameId}
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -162,7 +172,11 @@ export function CreateState({
             <span className="bg-muted size-24 animate-pulse rounded-full" />
           )}
           <div className="flex flex-col gap-2">
-            <h1 className="text-foreground text-3xl font-light tracking-tight text-balance">
+            <h1
+              ref={pictureHeadingRef}
+              tabIndex={-1}
+              className="text-foreground text-3xl font-light tracking-tight text-balance outline-none"
+            >
               {t("pictureTitle", { name: name.trim() })}
             </h1>
             <p className="text-muted-foreground text-sm text-pretty">
@@ -172,11 +186,12 @@ export function CreateState({
             </p>
           </div>
         </header>
-        <div className={HOLDER_CLASS}>
+        {/* Locked while creating: the bot gets the picture picked on submit. */}
+        <fieldset disabled={isPending} className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
             <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
           </div>
-        </div>
+        </fieldset>
         <div className="flex flex-col gap-2">
           <Button
             type="submit"
@@ -191,7 +206,7 @@ export function CreateState({
             variant="ghost"
             className="w-full"
             disabled={isPending}
-            onClick={() => setStep("name")}
+            onClick={() => goToStep("name")}
           >
             <ArrowLeft aria-hidden />
             {t("back")}

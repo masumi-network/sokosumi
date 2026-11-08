@@ -381,3 +381,16 @@ model ContactSuggestion {
   @@index([listId, status, createdAt])
   @@map("contact_suggestion")
 }
+
+/// Where a free-text place lies, shared by every workspace so each place is
+/// looked up once. `query` is the normalized text; null coordinates mean it
+/// could not be placed, so it is not asked again.
+model GeocodedPlace {
+  query     String   @id
+  label     String?
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime @default(now())
+
+  @@map("geocoded_place")
+}

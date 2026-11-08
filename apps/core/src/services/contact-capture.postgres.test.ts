@@ -981,6 +981,19 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       created_at: at,
       ...(participants ? { participant_ids: participants } : {}),
     });
+    const person = (
+      id: string,
+      name: string,
+      username: string,
+      description: string,
+      extra: Record<string, unknown> = {},
+    ) => ({
+      ...user(id, name, username),
+      description,
+      profile_image_url: `https://pbs.twimg.com/${username}_normal.jpg`,
+      public_metrics: { followers_count: 80, following_count: 90 },
+      ...extra,
+    });
     const ruth = user("200", "Ruth Weber", "RuthW");
     const omar = user("400", "Omar Haddad", "omarh");
     const spammer = user("300", "Crypto Deals", "deals");
@@ -1002,22 +1015,44 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
             includes: { users: [ruth, omar, spammer] },
             meta: { result_count: 5 },
           };
-        case "TWITTER_FOLLOWING_BY_USER_ID":
-          return {
-            data: [
-              user("500", "Nina Keller", "ninak"),
-              user("600", "Sam Lee", "samlee"),
-              user("700", "Solo", "solo"),
-              user("800", "Followed Only", "followedonly"),
-              ruth,
-            ],
-          };
         case "TWITTER_FOLLOWERS_BY_USER_ID":
           return {
             data: [
-              user("500", "Nina Keller", "ninak"),
-              user("600", "Sam Lee", "samlee"),
-              user("700", "Solo", "solo"),
+              person("500", "Nina Keller", "ninak", "Design lead at Acme", {
+                location: "Zurich",
+              }),
+              person("600", "Sam Lee", "samlee", "Builder"),
+              person("700", "Lena Fox", "lenafox", "Writes about cities", {
+                location: "Berlin, Germany",
+                url: "https://t.co/x",
+                entities: {
+                  url: { urls: [{ expanded_url: "https://lenafox.com" }] },
+                },
+              }),
+              person("900", "Paul Weiss", "pweiss", "Builds things", {
+                url: "https://t.co/p",
+                entities: {
+                  url: {
+                    urls: [
+                      { expanded_url: "https://linkedin.com/in/paulweiss" },
+                    ],
+                  },
+                },
+              }),
+              person("910", "Lea Muller", "leamuller", "Builds things", {
+                url: "https://t.co/l",
+                entities: {
+                  url: {
+                    urls: [
+                      { expanded_url: "https://linkedin.com/in/leamuller" },
+                    ],
+                  },
+                },
+              }),
+              person("920", "Sean O'Connor", "seanoc", "Engineer at Acme", {
+                location: "Zurich",
+              }),
+              user("800", "Crypto Deals", "deals2"),
               ruth,
             ],
           };
@@ -1026,7 +1061,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       }
     }
 
-    it("captures whom the owner writes with on X, and puts mutual follows on the one contact with that name", async () => {
+    it("captures whom the owner writes with on X, and turns followers into contacts", async () => {
       await prisma.organization.create({
         data: {
           id: xOrganizationId,
@@ -1049,6 +1084,28 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           channels: [{ type: "EMAIL", value: "nina@acme.com" }],
           upsert: false,
         });
+        for (const name of ["Sean O'Connor", "Sean Connor"])
+          await upsertContact(tx, actor, {
+            name,
+            organization: "Acme",
+            location: "Zurich",
+            channels: [],
+            upsert: false,
+          });
+        await upsertContact(tx, actor, {
+          name: "Léa Müller",
+          channels: [
+            { type: "LINKEDIN", value: "https://linkedin.com/in/leamuller" },
+          ],
+          upsert: false,
+        });
+        await upsertContact(tx, actor, {
+          name: "Paul M. Weiss",
+          channels: [
+            { type: "LINKEDIN", value: "https://linkedin.com/in/paulweiss" },
+          ],
+          upsert: false,
+        });
         for (const email of ["sam@one.com", "sam@two.com"])
           await upsertContact(tx, actor, {
             name: "Sam Lee",
@@ -1066,11 +1123,18 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
+        "Lena Fox",
+        "Léa Müller",
         "Nina Keller",
         "Omar Haddad",
+        "Paul M. Weiss",
         "Ruth Weber",
         "Sam Lee",
         "Sam Lee",
+        "Sam Lee",
+        "Sean Connor",
+        "Sean O'Connor",
+        "Sean O'Connor",
       ]);
       const ruthContact = contacts.find((c) => c.name === "Ruth Weber");
       expect(
@@ -1102,8 +1166,54 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         { type: "EMAIL", value: "nina@acme.com", source: "MANUAL" },
         { type: "X", value: "ninak", source: "X" },
       ]);
-      for (const sam of contacts.filter((c) => c.name === "Sam Lee"))
-        expect(sam.channels.map((c) => c.type)).toEqual(["EMAIL"]);
+      // Bio names her company: certain enough to join the contact.
+      expect(nina).toMatchObject({
+        location: "Zurich",
+        summary: "Design lead at Acme",
+      });
+      // The middle name differs, the LinkedIn profile agrees.
+      expect(
+        contacts
+          .find((c) => c.name === "Paul M. Weiss")
+          ?.channels.map((channel) => channel.type),
+      ).toContain("X");
+      expect(
+        contacts
+          .find((c) => c.name === "Léa Müller")
+          ?.channels.map((channel) => channel.type),
+      ).toContain("X");
+      // Two contacts qualify equally: neither is taken, a third is made.
+      expect(
+        contacts
+          .filter((c) => c.name.startsWith("Sean"))
+          .map((c) => c.channels.map((channel) => channel.type).join())
+          .sort(),
+      ).toEqual(["", "", "X"]);
+      // Two contacts share the name and nothing else agrees: a new one.
+      expect(
+        contacts
+          .filter((c) => c.name === "Sam Lee")
+          .map((c) => c.channels.map((channel) => channel.type).join())
+          .sort(),
+      ).toEqual(["EMAIL", "EMAIL", "X"]);
+      const lena = contacts.find((c) => c.name === "Lena Fox");
+      expect(lena).toMatchObject({
+        stage: "COMMUNITY",
+        location: "Berlin, Germany",
+        summary: "Writes about cities",
+        avatarUrl: "https://pbs.twimg.com/lenafox_400x400.jpg",
+      });
+      expect(lena?.enrichedAt).not.toBeNull();
+      expect(lena?.classifiedAt).not.toBeNull();
+      expect(
+        lena?.channels.map(({ type, value }) => `${type}:${value}`),
+      ).toEqual(["X:lenafox", "WEBSITE:https://lenafox.com"]);
+      const list = await prisma.contactList.findFirstOrThrow({
+        where: { workspaceId: xWorkspaceId, name: "X followers" },
+        include: { members: true },
+      });
+      expect(list.members).toHaveLength(3);
+      expect(run.capture.skipped.bot_user).toBe(1);
 
       mocks.runIntegrationTool.mockClear();
       await service().captureWorkspace(xWorkspaceId, () => true);

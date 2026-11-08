@@ -61,6 +61,7 @@ type ColumnId =
   | "name"
   | "email"
   | "organization"
+  | "location"
   | "importance"
   | "familiarity"
   | "stage"
@@ -78,6 +79,7 @@ const COLUMNS: { id: ColumnId; width: number; sort?: ContactSort }[] = [
   { id: "name", width: 220, sort: "name" },
   { id: "email", width: 240 },
   { id: "organization", width: 170, sort: "organization" },
+  { id: "location", width: 150 },
   { id: "importance", width: 128, sort: "importance" },
   { id: "familiarity", width: 128, sort: "familiarity" },
   { id: "stage", width: 128, sort: "stage" },
@@ -228,7 +230,7 @@ export function ContactsGrid({
 
   function textEdit(
     contact: Contact,
-    field: "name" | "organization" | "role",
+    field: "name" | "organization" | "role" | "location",
   ): CellEdit {
     return {
       kind: "text",
@@ -362,6 +364,7 @@ export function ContactsGrid({
           ) : null,
         };
       case "role":
+      case "location":
         return {
           text: contact[column] ?? "",
           edit: textEdit(contact, column),

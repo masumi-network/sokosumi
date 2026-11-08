@@ -10,6 +10,7 @@ import {
   getContactsByIdInteractions,
   getContactsDuplicates,
   getContactsExportCsv,
+  getContactsMap,
   getContactsOrganizations,
   getOrganizationsByIdMembers,
   type PatchContactListsByIdData,
@@ -50,6 +51,10 @@ export const contactsService = {
       nextCursor: data.meta.pagination.nextCursor,
       total: data.meta.pagination.total,
     };
+  },
+  /** The query's contacts grouped by where they are. */
+  async map(query: ContactQuery) {
+    return (await getContactsMap({ ...options(), query })).data.data;
   },
   /** The organizations contacts work at, biggest first. */
   async organizations(search?: string) {

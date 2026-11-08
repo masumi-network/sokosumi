@@ -1749,7 +1749,8 @@ export interface ContactEnrichment {
  * Fills the empty ones of `fields` and records where each value came from
  * (`sources`: the interactions it was read from, `sourceUrls` where one was
  * linked) next to the change in the contact's history. Never overwrites, and
- * marks the contact enriched either way. Returns the fields it filled.
+ * marks the contact enriched either way unless told not to. Returns the
+ * fields it filled.
  */
 export async function enrichContactFields(
   tx: Tx,
@@ -1757,16 +1758,18 @@ export async function enrichContactFields(
   id: string,
   fields: ContactEnrichment,
   provenance: { method: string; sources: string[]; sourceUrls: string[] },
+  { markEnriched = true }: { markEnriched?: boolean } = {},
 ): Promise<string[]> {
   const contact = await requireWritableContact(tx, actor, id);
   const data = fillEmpty(contact, fieldData(fields));
   const changes = changedFields(contact, data);
   const filled = Object.keys(changes);
+  if (!filled.length && !markEnriched) return filled;
   await tx.contact.update({
     where: { id },
     data: {
       ...data,
-      enrichedAt: new Date(),
+      ...(markEnriched ? { enrichedAt: new Date() } : {}),
       ...(filled.length ? { version: { increment: 1 } } : {}),
     },
   });

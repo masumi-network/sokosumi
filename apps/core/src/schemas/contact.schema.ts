@@ -252,6 +252,39 @@ export const contactOrganizationSchema = z
   })
   .openapi("ContactOrganization");
 
+export const contactMapSchema = z
+  .object({
+    places: z.array(
+      z
+        .object({
+          label: z.string().openapi({ example: "Zurich, Switzerland" }),
+          latitude: z.number(),
+          longitude: z.number(),
+          contacts: z.array(
+            z
+              .object({
+                id: z.uuid(),
+                name: z.string(),
+                kind: contactKindSchema,
+                organization: z.string().nullable(),
+                avatarUrl: z.string().nullable(),
+              })
+              .openapi("ContactMapContact"),
+          ),
+        })
+        .openapi("ContactMapPlace"),
+    ),
+    unplaced: z.int().openapi({
+      description: "Contacts with a location that names no place.",
+    }),
+    pending: z.int().openapi({
+      description:
+        "Contacts whose place is still being looked up; ask again shortly.",
+    }),
+    withoutLocation: z.int(),
+  })
+  .openapi("ContactMap");
+
 export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.uuid().optional(),
   search: z.string().trim().min(1).max(200).optional(),

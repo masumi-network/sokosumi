@@ -633,7 +633,7 @@
         },
         "Brand": {
           "title": "Brand guidelines",
-          "tooltip": "Brand Guidelines are a DESIGN.md file: your colors, fonts, tone, and style in one place. Your coworkers read it so everything they make for you looks and sounds like you.",
+          "tooltip": "Brand guidelines hold your colors, fonts, tone, and style in one place. Your coworkers read them so everything they make for you looks and sounds like you.",
           "generating": "Reading {domain} to build your brand style…",
           "generatingNoDomain": "Reading your website to build your brand style…",
           "generated": "We generated your brand style from {domain}.",
@@ -642,7 +642,12 @@
           "failedSubtitle": "No problem — you can add your brand guidelines later.",
           "retry": "Try again",
           "skipHint": "This keeps running in the background — you can continue any time.",
-          "editHint": "You can edit, replace, or remove this later in organization settings."
+          "editHint": "Your coworkers use these so their work looks and sounds like you. Change them any time in organization settings.",
+          "colors": "Colors",
+          "fonts": "Fonts",
+          "tone": "Tone",
+          "noSummary": "Your brand guidelines are saved. We couldn't pick out colors, fonts, or tone to show here.",
+          "viewFull": "View full guidelines"
         },
         "Invite": {
           "title": "{organization} is ready",
@@ -10162,6 +10167,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organization",
+        "location": "Location",
         "role": "Role",
         "stage": "Relationship",
         "lists": "Lists",
@@ -10267,6 +10273,8 @@
         "name": "Name",
         "organization": "Organization",
         "role": "Role",
+        "location": "Location",
+        "locationPlaceholder": "City, country",
         "channels": "Ways to reach them",
         "channelType": "Channel {index} type",
         "channelValue": "Channel {index}",
@@ -10531,6 +10539,31 @@
         "pricing": "{credits, number} credits per person found. Finding nobody is free.",
         "personLabel": "Who are you looking for?",
         "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
+      },
+      "layout": {
+        "label": "Layout",
+        "table": "Table",
+        "map": "Map"
+      },
+      "map": {
+        "label": "Places",
+        "loading": "Placing contacts on the map…",
+        "errorTitle": "The map did not load",
+        "error": "Something went wrong while loading the map.",
+        "retry": "Try again",
+        "emptyTitle": "Nobody on the map yet",
+        "empty": "Add a location to a contact, like a city, and they show up here.",
+        "emptyUnplaced": "None of these locations names a place we could find. Try a city and country.",
+        "placed": "{count, plural, one {# contact} other {# contacts}} on the map",
+        "unplaced": "{count, plural, one {# contact} other {# contacts}} not placed",
+        "pending": "Placing {count, plural, one {# contact} other {# contacts}}…",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "resetZoom": "Show the whole world",
+        "withoutLocation": "{count} without a location",
+        "place": "{place}, {count, plural, one {# contact} other {# contacts}}",
+        "nearby": "{place} and {others, plural, one {# place} other {# places}} nearby",
+        "people": "{count, plural, one {# contact} other {# contacts}}"
       }
     }
   },

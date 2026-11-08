@@ -8,7 +8,11 @@ import {
   type DesignMdDonePayload,
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
-import { type Session } from "@sokosumi/utils";
+import {
+  type DesignMdBrandLook,
+  designMdBrandLook,
+  type Session,
+} from "@sokosumi/utils";
 import { cache } from "react";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -42,6 +46,8 @@ export class DesignMdServiceError extends Error {
 
 export interface PersistedDesignMd {
   extractionId: string | null;
+  /** What a freshly generated DESIGN.md says about the brand. */
+  look?: DesignMdBrandLook;
   previewUrl: string | null;
   url: string;
 }
@@ -300,7 +306,7 @@ async function persistDonePayload(
     );
   }
 
-  return persisted;
+  return { ...persisted, look: designMdBrandLook(donePayload.designMd) };
 }
 
 export function getDesignMdPreviewUrl(extractionId: string | number): string {

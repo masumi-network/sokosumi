@@ -33,7 +33,9 @@ export function ContactsList({
           const email = primaryEmail(contact.channels);
           const detail =
             email ??
-            ([contact.role, contact.organization].filter(Boolean).join(" · ") ||
+            ([contact.role, contact.organization, contact.location]
+              .filter(Boolean)
+              .join(" · ") ||
               null);
           return (
             <li key={contact.id}>

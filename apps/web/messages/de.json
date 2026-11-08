@@ -617,7 +617,7 @@
         },
         "Brand": {
           "title": "Markenrichtlinien",
-          "tooltip": "Markenrichtlinien sind eine DESIGN.md-Datei: Farben, Schriften, Tonalität und Stil an einem Ort. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
+          "tooltip": "Markenrichtlinien halten Farben, Schriften, Tonalität und Stil an einem Ort fest. Deine Coworker lesen sie, damit alles, was sie für dich erstellen, nach dir aussieht und klingt.",
           "generating": "Wir lesen {domain}, um deinen Markenstil zu erstellen…",
           "generatingNoDomain": "Wir lesen deine Website, um deinen Markenstil zu erstellen…",
           "generated": "Wir haben deinen Markenstil aus {domain} erzeugt.",
@@ -626,7 +626,12 @@
           "failedSubtitle": "Kein Problem — du kannst die Markenrichtlinien später hinzufügen.",
           "retry": "Erneut versuchen",
           "skipHint": "Das läuft im Hintergrund weiter — du kannst jederzeit fortfahren.",
-          "editHint": "Später in den Organisationseinstellungen bearbeiten, ersetzen oder entfernen."
+          "editHint": "Deine Coworker nutzen sie, damit ihre Arbeit nach dir aussieht und klingt. Ändere sie jederzeit in den Organisationseinstellungen.",
+          "colors": "Farben",
+          "fonts": "Schriften",
+          "tone": "Tonalität",
+          "noSummary": "Deine Markenrichtlinien sind gespeichert. Farben, Schriften oder Tonalität konnten wir hier nicht herauslesen.",
+          "viewFull": "Vollständige Richtlinien ansehen"
         },
         "Invite": {
           "title": "{organization} ist bereit",
@@ -10162,6 +10167,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organisation",
+        "location": "Ort",
         "role": "Rolle",
         "stage": "Beziehung",
         "lists": "Listen",
@@ -10267,6 +10273,8 @@
         "name": "Name",
         "organization": "Organisation",
         "role": "Rolle",
+        "location": "Ort",
+        "locationPlaceholder": "Stadt, Land",
         "channels": "Erreichbar über",
         "channelType": "Art von Kanal {index}",
         "channelValue": "Kanal {index}",
@@ -10531,6 +10539,31 @@
         "pricing": "{credits, number} Credits pro gefundener Person. Findet die Suche niemanden, ist sie kostenlos.",
         "personLabel": "Wen suchst du?",
         "personPlaceholder": "z. B. Jane Doe, Partnerin bei XYZ Ventures"
+      },
+      "layout": {
+        "label": "Ansicht",
+        "table": "Tabelle",
+        "map": "Karte"
+      },
+      "map": {
+        "label": "Orte",
+        "loading": "Kontakte werden auf der Karte platziert…",
+        "errorTitle": "Die Karte wurde nicht geladen",
+        "error": "Beim Laden der Karte ist etwas schiefgelaufen.",
+        "retry": "Erneut versuchen",
+        "emptyTitle": "Noch niemand auf der Karte",
+        "empty": "Gib einem Kontakt einen Ort, zum Beispiel eine Stadt, dann erscheint er hier.",
+        "emptyUnplaced": "Keiner dieser Orte war auffindbar. Versuch es mit Stadt und Land.",
+        "placed": "{count, plural, one {# Kontakt} other {# Kontakte}} auf der Karte",
+        "unplaced": "{count, plural, one {# Kontakt} other {# Kontakte}} nicht platziert",
+        "pending": "{count, plural, one {# Kontakt wird} other {# Kontakte werden}} platziert…",
+        "zoomIn": "Hineinzoomen",
+        "zoomOut": "Herauszoomen",
+        "resetZoom": "Ganze Welt zeigen",
+        "withoutLocation": "{count} ohne Ort",
+        "place": "{place}, {count, plural, one {# Kontakt} other {# Kontakte}}",
+        "nearby": "{place} und {others, plural, one {# Ort} other {# Orte}} in der Nähe",
+        "people": "{count, plural, one {# Kontakt} other {# Kontakte}}"
       }
     }
   },
