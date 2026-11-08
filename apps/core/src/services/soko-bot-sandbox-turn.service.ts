@@ -204,6 +204,7 @@ export async function runSandboxTool(
     toolCallId: input.toolCallId ?? `script:${randomUUID()}`,
     toolInput: input.toolInput,
     cite: input.toolCallId !== undefined,
+    fromScript: input.toolCallId === undefined,
   });
 }
 

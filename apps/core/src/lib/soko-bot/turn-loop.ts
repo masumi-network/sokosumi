@@ -4,6 +4,7 @@ import {
   isSokoBotSilentAnswer,
   type RuntimeEvent,
   type RuntimeJsonValue,
+  SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
@@ -380,10 +381,32 @@ export async function isOwnerDirected(turnId: string): Promise<boolean> {
   );
 }
 
+/** Whether this turn, or the turn that started it, created the post. */
+async function createdThisWork(turnId: string, postId: unknown) {
+  if (typeof postId !== "string") return false;
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { parentTurnId: true },
+  });
+  const created = await prisma.sokoBotToolCall.findFirst({
+    where: {
+      turnId: {
+        in: [turnId, ...(turn?.parentTurnId ? [turn.parentTurnId] : [])],
+      },
+      capability: "create_social_post",
+      status: "COMPLETED",
+      targetId: postId,
+    },
+    select: { id: true },
+  });
+  return created !== null;
+}
+
 /** Whether a tool is refused because the turn read the web or ran a shell. */
 export async function isTaintBlocked(
   turnId: string,
   capability: SokoBotCapability,
+  call: { fromScript?: boolean; toolInput?: unknown } = {},
 ): Promise<boolean> {
   if (
     !(
@@ -392,6 +415,18 @@ export async function isTaintBlocked(
     !(await isTainted(turnId))
   )
     return false;
+  if (
+    (
+      SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly SokoBotCapability[]
+    ).includes(capability)
+  ) {
+    if (call.fromScript || !(await isOwnerDirected(turnId))) return true;
+    if (capability === "create_social_post") return false;
+    return !(await createdThisWork(
+      turnId,
+      (call.toolInput as { postId?: unknown } | null)?.postId,
+    ));
+  }
   if (
     (
       SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly SokoBotCapability[]
@@ -418,9 +453,16 @@ export async function runTurnTool(input: {
   toolInput: unknown;
   /** A read's result carries its call id for the model to cite; scripts don't cite. */
   cite?: boolean;
+  /** A script's call through SOKO_TOOLS_URL, not the model's own. */
+  fromScript?: boolean;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
-  if (await isTaintBlocked(log.turnId, capability)) {
+  if (
+    await isTaintBlocked(log.turnId, capability, {
+      fromScript: input.fromScript,
+      toolInput: input.toolInput,
+    })
+  ) {
     throw new SokoBotTaintedActionError(capability);
   }
   await log.append(

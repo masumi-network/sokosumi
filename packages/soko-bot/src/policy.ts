@@ -297,11 +297,25 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
  * The tainted tools that stay refused even on work the owner asked for: they
  * reach people or systems beyond the owner's own workspace. The rest — briefing
  * a Coworker, hiring, saving to Files — is what a chained job the owner set
- * out ("research, build the site, have it reviewed") is made of. So are the
- * owner's own Social posts: "research the launch, cut a video and schedule
- * it" is one piece of work, and every post is on the owner's own accounts and
- * calendar, where they see and can stop it.
+ * out ("research, build the site, have it reviewed") is made of. Social posts
+ * are neither: see SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES.
  */
+/**
+ * Social post tools a tainted turn may still use, but only on work the owner
+ * asked for, only as the model's own call (never a script's) and, past
+ * creating one, only on a post this turn or the turn that started it created:
+ * "research the launch, cut a video and schedule it" is one piece of work,
+ * while a post already queued is not the turn's to change after reading a
+ * page. A new post still waits for a person's approval.
+ */
+export const SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES = [
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
+
 export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "run_integration_tool",
   "post_chat",
