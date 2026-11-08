@@ -308,6 +308,28 @@ describe("advanceCmoMedia", () => {
     );
   });
 
+  it("schedules a post that went back to a draft after its picture went on", async () => {
+    const at = new Date(Date.now() + 86_400_000);
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Rewritten words after the picture.",
+      revision: 10,
+      status: "DRAFT",
+      scheduledAt: at,
+      planning: { title: "Book.io's 130,000 NFT books" },
+    });
+    await advanceCmoMedia(context, [piece({ media: ["file-1"] })]);
+    expect(scheduleSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: "post-1",
+        revision: 10,
+        scheduledAt: at,
+      }),
+    );
+    expect(createImageJob).not.toHaveBeenCalled();
+  });
+
   it("puts slides on in order and hands back a carousel whose cover failed twice", async () => {
     const carousel = piece({
       channel: "instagram",

@@ -355,9 +355,22 @@ export async function advanceCmoMedia(
       piece.visual?.trim() &&
       cmoMediaState(piece, []) !== "made",
   );
-  if (wanted.length === 0) return;
+  // A post whose words changed after its picture went on is back to a
+  // draft; nothing else schedules a post with a picture.
+  const unscheduled = pieces.filter(
+    (piece) =>
+      piece.socialPostId &&
+      piece.status === "draft" &&
+      context.connected.has(piece.channel) &&
+      cmoPieceNeedsMedia(piece) &&
+      cmoMediaState(piece, []) === "made",
+  );
+  if (wanted.length === 0 && unscheduled.length === 0) return;
   const drive = await cusoDrive(context.cuso);
   if (!drive) return;
+  for (const piece of unscheduled)
+    await scheduleWhenComplete(context, drive, piece);
+  if (wanted.length === 0) return;
   const { projectId } = context.cuso;
   const jobs = await listCmoMediaJobs(projectId, context.versionId);
   let capacity =
@@ -547,30 +560,86 @@ async function attach(
       },
     ],
   });
+  if (updated.media.length >= slotsOf(piece))
+    await schedule(context, scope, { ...post, revision: updated.revision });
+  return true;
+}
+
+/** Schedules a draft post that has all its pictures, on a connected network. */
+async function scheduleWhenComplete(
+  context: MediaContext,
+  drive: { workspaceId: string; organizationId: string | null; userId: string },
+  piece: CmoMediaPiece,
+): Promise<void> {
+  if (!piece.socialPostId) return;
+  const post = await prisma.socialPost.findUnique({
+    where: { id: piece.socialPostId },
+    select: {
+      id: true,
+      provider: true,
+      text: true,
+      revision: true,
+      status: true,
+      scheduledAt: true,
+      planning: true,
+    },
+  });
+  if (!post || post.status !== "DRAFT") return;
+  await schedule(
+    context,
+    {
+      postId: post.id,
+      projectId: context.cuso.projectId,
+      workspaceId: drive.workspaceId,
+      userId: drive.userId,
+      organizationId: drive.organizationId,
+    },
+    post,
+  );
+}
+
+/** Schedules a written post at its planned time on a connected network. */
+async function schedule(
+  context: MediaContext,
+  scope: {
+    postId: string;
+    projectId: string;
+    workspaceId: string;
+    userId: string;
+    organizationId: string | null;
+  },
+  post: {
+    id: string;
+    provider: string;
+    text: string;
+    revision: number;
+    scheduledAt: Date | null;
+    planning: unknown;
+  },
+): Promise<void> {
   const planning = post.planning as { brief?: unknown; title?: unknown };
   const written =
     post.text.trim() !== "" &&
     post.text !== planning?.brief &&
     post.text !== planning?.title;
   if (
-    updated.media.length >= slotsOf(piece) &&
-    written &&
-    context.connected.has(post.provider) &&
-    post.scheduledAt &&
-    post.scheduledAt.getTime() > Date.now()
+    !written ||
+    !context.connected.has(post.provider) ||
+    !post.scheduledAt ||
+    post.scheduledAt.getTime() <= Date.now()
   )
-    await scheduleSocialPost({
-      ...scope,
-      revision: updated.revision,
-      scheduledAt: post.scheduledAt,
-    }).catch((error: unknown) => {
-      if (!(error instanceof HTTPException)) throw error;
-      console.warn("CMO media could not schedule a post", {
-        postId: post.id,
-        error: error.message,
-      });
+    return;
+  await scheduleSocialPost({
+    ...scope,
+    revision: post.revision,
+    scheduledAt: post.scheduledAt,
+  }).catch((error: unknown) => {
+    if (!(error instanceof HTTPException)) throw error;
+    console.warn("CMO media could not schedule a post", {
+      postId: post.id,
+      error: error.message,
     });
-  return true;
+  });
 }
 
 /** A Core media job settled: the month it belongs to moves on. */
