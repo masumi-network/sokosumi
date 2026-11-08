@@ -617,6 +617,16 @@ async function onlyEventTask(
 }
 
 const SVG_MIME_TYPE = "image/svg+xml";
+/** `a/b/clip.mp4` → `a/b/clip-1f3c9a2b.mp4`: a storage address nobody can take back. */
+function withUniqueSuffix(pathname: string): string {
+  const slash = pathname.lastIndexOf("/");
+  const dot = pathname.lastIndexOf(".");
+  const suffix = randomUUID().slice(0, 8);
+  return dot > slash
+    ? `${pathname.slice(0, dot)}-${suffix}${pathname.slice(dot)}`
+    : `${pathname}-${suffix}`;
+}
+
 /** What upload_file takes from the bot's workspace: media and PDFs, never markup. */
 const WORKSPACE_UPLOAD_TYPES = new Set([
   "video/mp4",
@@ -3901,7 +3911,8 @@ export class SokoBotRuntimeService {
         "A workspace file must be a video (mp4, mov, webm), an image (png, jpg, gif, webp), a PDF or audio (mp3, wav); name it with that extension",
       );
     // Never in place: a post or newsletter keeps its media's address, so new
-    // bytes there would change what was approved. A new name is a new file.
+    // bytes there would change what was approved. Each save gets an address
+    // of its own, so moving a file away and reusing its name changes nothing.
     if (input.overwrite)
       throw new SokoBotRefusedUnsentError(
         "A workspace file is always saved as a new file; choose a new name",
@@ -3913,6 +3924,7 @@ export class SokoBotRuntimeService {
       filename: input.filename,
       folder: driveFolderFor(input.folder),
       contentType,
+      freshAddress: true,
       read: async () => bytes,
     });
   }
@@ -3925,6 +3937,8 @@ export class SokoBotRuntimeService {
       folder: string;
       overwrite?: boolean;
       contentType: string;
+      /** Store at a new, never reused address (the name shown stays the same). */
+      freshAddress?: boolean;
       read: () => Promise<Buffer>;
     },
   ) {
@@ -3932,19 +3946,22 @@ export class SokoBotRuntimeService {
       resolveUserUploadContentType(input.filename, input.contentType) ??
       input.contentType;
     const drive = await this.ownerDrive(authorized);
-    const pathname = input.folder
+    const named = input.folder
       ? drive.pathnameIn(input.folder, input.filename)
       : drive.pathname(input.filename);
-    const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
-      (blob) => blob.pathname === pathname,
-    );
+    const displayName = named.split("/").pop() ?? input.filename;
+    const pathname = input.freshAddress ? withUniqueSuffix(named) : named;
+    const existing = input.freshAddress
+      ? undefined
+      : (await list({ prefix: pathname, limit: 1 })).blobs.find(
+          (blob) => blob.pathname === pathname,
+        );
     if (existing && !input.overwrite)
       throw new SokoBotRefusedUnsentError(
         `A file named "${input.filename}" already exists. To replace it, call upload_file again with overwrite: true; to keep it, choose another name.`,
       );
     const bytes = await input.read();
     const key = { ...drive.key, pathname };
-    const displayName = pathname.split("/").pop() ?? input.filename;
     await reserveDriveUploadResource({
       key,
       displayName,

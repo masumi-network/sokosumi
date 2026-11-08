@@ -9485,11 +9485,30 @@ describe("Drive file tools", () => {
         workspaceBytesBase64: video.toString("base64"),
       });
       expect(files.put).toHaveBeenCalledWith(
-        expect.stringContaining("launch.mp4"),
+        expect.stringMatching(/\/launch-[0-9a-f]{8}\.mp4$/),
         video,
-        expect.objectContaining({ contentType: "video/mp4" }),
+        expect.objectContaining({
+          contentType: "video/mp4",
+          allowOverwrite: false,
+        }),
       );
-      expect(result).toMatchObject({ id: "file-7", size: video.byteLength });
+      expect(result).toMatchObject({
+        id: "file-7",
+        filename: "launch.mp4",
+        size: video.byteLength,
+      });
+    });
+
+    it("stores each workspace save at a new address, even under a freed name", async () => {
+      for (const _ of [1, 2])
+        await service["uploadFile"](chatAuthorized as never, {
+          filename: "launch.mp4",
+          workspacePath: "out/launch.mp4",
+          workspaceBytesBase64: Buffer.from("x").toString("base64"),
+        });
+      const [first, second] = files.put.mock.calls.map((call) => call[0]);
+      expect(first).not.toBe(second);
+      expect(files.list).not.toHaveBeenCalled();
     });
 
     it.each([
