@@ -308,6 +308,39 @@ describe("advanceCmoMedia", () => {
     );
   });
 
+  it("puts slides on in order and hands back a carousel whose cover failed twice", async () => {
+    const carousel = piece({
+      channel: "instagram",
+      format: "carousel",
+      slides: ["Cover", "Step one", "Step two"],
+    });
+    const key = cmoVisualKey(carousel);
+    const row = (slot: number, attempt: number, status: string) => ({
+      id: `job-${slot}-${attempt}`,
+      idempotencyKey: `cmo-media:version-1:post-1:${slot}:image:${key}:${attempt}`,
+      status,
+      prompt: "prompt",
+      asset: status === "SUCCEEDED" ? { id: `asset-${slot}` } : null,
+    });
+    jobFindMany.mockResolvedValue([
+      row(0, 1, "FAILED"),
+      row(1, 1, "SUCCEEDED"),
+      row(2, 1, "SUCCEEDED"),
+      row(0, 2, "FAILED"),
+    ]);
+    await advanceCmoMedia(context, [carousel]);
+    // Slides 2 and 3 wait for the cover; nothing goes on out of order.
+    expect(updateSocialPost).not.toHaveBeenCalled();
+    expect(
+      cmoMediaState(carousel, [
+        job({ visualKey: key, status: "FAILED", assetId: null }),
+        job({ visualKey: key, status: "FAILED", assetId: null }),
+        job({ visualKey: key, slot: 1 }),
+        job({ visualKey: key, slot: 2 }),
+      ]),
+    ).toBe("failed");
+  });
+
   it("puts a finished picture on its post and schedules it on a connected network", async () => {
     jobFindMany.mockResolvedValue([
       {

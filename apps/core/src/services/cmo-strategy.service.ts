@@ -145,6 +145,11 @@ export async function requestCmoStrategy(input: {
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
   const sells = `${brain.reveal?.positioning ?? brain.summary}${main ? ` Main offer: ${main.name} (${main.price}).` : ""}`;
+  // A plan for a Zurich restaurant's German site once posted in English.
+  const { detectSiteLanguage } = await import("@/lib/site-platform");
+  const siteLanguage = input.note
+    ? null
+    : await detectSiteLanguage(cuso.websiteUrl);
   return startCmoTurn(cuso, input.userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
     message: brandCorrections(brain)
@@ -160,6 +165,11 @@ export async function requestCmoStrategy(input: {
               `Write ${cuso.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
               `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
+              ...(siteLanguage
+                ? [
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another.`,
+                  ]
+                : []),
               ...ownerAnswers(brain),
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",

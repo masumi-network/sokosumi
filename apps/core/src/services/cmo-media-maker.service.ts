@@ -368,6 +368,10 @@ export async function advanceCmoMedia(
   let brandPictures: { fileId: string; alt: string }[] | null = null;
   for (const piece of wanted) {
     const key = cmoVisualKey(piece);
+    // Slides go on in order, so the next one missing is always slot
+    // media.length: a carousel once attached slides 2 and 3 while its cover
+    // failed, and the cover was never tried again or handed back to Cuso.
+    let inOrder = true;
     for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
       const action = cmoSlotAction(
         piece,
@@ -379,9 +383,10 @@ export async function advanceCmoMedia(
         ),
       );
       if (action.kind === "attach") {
-        await attach(context, drive, piece, action.job);
+        if (inOrder) inOrder = await attach(context, drive, piece, action.job);
         continue;
       }
+      inOrder = false;
       if (action.kind !== "start" || capacity <= 0) continue;
       brandPictures ??= await listCmoBrandPictures(projectId);
       const started = await start(context, drive, {
@@ -470,14 +475,17 @@ async function start(
   }
 }
 
-/** Puts a finished picture or video on its piece, then schedules a complete post. */
+/**
+ * Puts a finished picture or video on its piece, then schedules a complete
+ * post. True once the file is on the piece.
+ */
 async function attach(
   context: MediaContext,
   drive: { workspaceId: string; organizationId: string | null; userId: string },
   piece: CmoMediaPiece,
   job: CmoMediaJob,
-): Promise<void> {
-  if (!job.assetId) return;
+): Promise<boolean> {
+  if (!job.assetId) return false;
   const file = await ensureStudioAssetDriveFile({
     projectId: context.cuso.projectId,
     assetId: job.assetId,
@@ -487,7 +495,7 @@ async function attach(
     prompt: job.prompt,
     jobId: job.id,
   });
-  if (!file) return;
+  if (!file) return false;
   if (!piece.socialPostId) {
     await prisma.marketingStrategyFile.updateMany({
       where: {
@@ -497,7 +505,7 @@ async function attach(
       },
       data: { mediaFileIds: { push: file.id } },
     });
-    return;
+    return true;
   }
   const post = await prisma.socialPost.findUnique({
     where: { id: piece.socialPostId },
@@ -512,11 +520,11 @@ async function attach(
       planning: true,
     },
   });
-  if (!post || post.status !== "DRAFT") return;
+  if (!post || post.status !== "DRAFT") return false;
   const media = parseSocialPostMedia(post.media, post.id);
-  if (media.some((item) => item.pathname === file.pathname)) return;
+  if (media.some((item) => item.pathname === file.pathname)) return true;
   const kind = socialPostMediaKindForMime(file.mimeType);
-  if (!kind) return;
+  if (!kind) return false;
   const scope = {
     postId: post.id,
     projectId: context.cuso.projectId,
@@ -562,6 +570,7 @@ async function attach(
         error: error.message,
       });
     });
+  return true;
 }
 
 /** A Core media job settled: the month it belongs to moves on. */
