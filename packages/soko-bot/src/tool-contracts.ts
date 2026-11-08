@@ -498,9 +498,13 @@ const contactQuerySchema = {
   mode: z.enum(["both", "words", "meaning"]).default("both"),
 };
 
+/** People at this company by any spelling, from `search_companies`. */
+const companyNameSchema = z.string().trim().min(1).max(200).optional();
+
 export const sokoBotSearchContactsInputSchema = contactFilterSchema
   .extend({
     ...contactQuerySchema,
+    company: companyNameSchema,
     /** A manual or smart list from `list_contact_lists`. */
     listId: z.uuid().optional(),
     archived: z.boolean().optional(),
@@ -528,9 +532,42 @@ export const SOKO_BOT_CONTACT_BREAKDOWNS = [
 export const sokoBotCountContactsInputSchema = contactFilterSchema
   .extend({
     ...contactQuerySchema,
+    company: companyNameSchema,
     listId: z.uuid().optional(),
     by: z.enum(SOKO_BOT_CONTACT_BREAKDOWNS).optional(),
     top: z.int().min(1).max(100).default(20),
+  })
+  .strict();
+
+export const sokoBotSearchCompaniesInputSchema = z
+  .object({
+    /** Any spelling of the name, or part of the domain. */
+    search: z.string().trim().min(1).max(200).optional(),
+    industry: z.string().trim().min(1).max(200).optional(),
+    minPeople: z.int().min(1).max(100_000).optional(),
+    sort: z.enum(["people", "lastContact", "name"]).default("people"),
+    offset: z.int().min(0).max(1_000_000).default(0),
+    limit: z.int().min(1).max(100).default(25),
+  })
+  .strict();
+
+export const sokoBotCompanyIdInputSchema = z
+  .object({ companyId: z.uuid() })
+  .strict();
+
+export const sokoBotUpdateCompanyInputSchema = z
+  .object({
+    companyId: z.uuid(),
+    /** From the company you read last; a newer one is a conflict: read again. */
+    version: z.int().positive(),
+    name: z.string().trim().min(1).max(200).optional(),
+    website: z.string().trim().max(500).nullable().optional(),
+    description: z.string().trim().max(2_000).nullable().optional(),
+    industry: z.string().trim().max(200).nullable().optional(),
+    size: z.string().trim().max(100).nullable().optional(),
+    headquarters: z.string().trim().max(200).nullable().optional(),
+    linkedinUrl: z.string().trim().max(500).nullable().optional(),
+    whyItMatters: z.string().trim().max(1_000).nullable().optional(),
   })
   .strict();
 
@@ -1443,6 +1480,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   count_contacts: sokoBotCountContactsInputSchema,
   get_contact: sokoBotContactIdInputSchema,
   list_contact_lists: emptyInputSchema,
+  search_companies: sokoBotSearchCompaniesInputSchema,
+  get_company: sokoBotCompanyIdInputSchema,
+  update_company: sokoBotUpdateCompanyInputSchema,
   find_contact_duplicates: z
     .object({ contactId: z.uuid().optional() })
     .strict(),
@@ -1657,11 +1697,17 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_table_columns:
     "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. To delete columns and their values, name them in removeColumnIds (columns then lists the ones you keep, or is omitted). A column's width and wrap are display settings people choose; leave them out to keep them. Include taskId for task-driven work. Follow-up requests reuse the same table.",
   search_contacts:
-    'Search your team\'s shared contacts, which can be thousands. query ranks everyone by relevance across name, organization, role, location, summary, bio and every address, tolerating typos and matching meaning ("defi investors in Berlin", "people who organize events"); mode words or meaning narrows that. Combine it with filters: organization (name or email domain), location, role, stages, kind, listId (manual or smart), knownByUserId/knownByMe, lastContact dates, channelSource (X for X followers, EMAIL for mail), hasChannel, minInteractions, minFollowers (audience on X). Without query, search is a plain substring match on names, organizations and addresses, ordered by sort. Each contact comes back compact (id, name, kind, organization, role, location, stage, replyState, lastContactAt, interactionCount, version, channels with followers, list names); ask for more with fields, or get_contact for one in full. To know how many match or how they split, use count_contacts instead of paging. Use it before adding anyone, so you never create a duplicate. Each contact has a replyState: AWAITING_REPLY (the team wrote in the last 7 days and they have not answered), NO_REPLY (unanswered for 7 days or more: a follow-up candidate), IN_CONVERSATION or REPLIED; filter with replyStates. kind ORGANIZATION marks a shared inbox or company, not one person. stage CONTACT is the plain default; the others name the relationship (PROSPECT, LEAD, ACTIVE, CUSTOMER for sales; PARTNER, INVESTOR, VENDOR, ADVISOR, COMMUNITY, PRESS, FRIEND; DORMANT). Paginate with cursor.',
+    'Search your team\'s shared contacts, which can be thousands. query ranks everyone by relevance across name, organization, role, location, summary, bio and every address, tolerating typos and matching meaning ("defi investors in Berlin", "people who organize events"); mode words or meaning narrows that. Combine it with filters: company (a name from search_companies: every spelling and colleague on its domain), organization (text in the name or email domain), location, role, stages, kind, listId (manual or smart), knownByUserId/knownByMe, lastContact dates, channelSource (X for X followers, EMAIL for mail), hasChannel, minInteractions, minFollowers (audience on X). Without query, search is a plain substring match on names, organizations and addresses, ordered by sort. Each contact comes back compact (id, name, kind, organization, role, location, stage, replyState, lastContactAt, interactionCount, version, channels with followers, list names); ask for more with fields, or get_contact for one in full. To know how many match or how they split, use count_contacts instead of paging. Use it before adding anyone, so you never create a duplicate. Each contact has a replyState: AWAITING_REPLY (the team wrote in the last 7 days and they have not answered), NO_REPLY (unanswered for 7 days or more: a follow-up candidate), IN_CONVERSATION or REPLIED; filter with replyStates. kind ORGANIZATION marks a shared inbox or company, not one person. stage CONTACT is the plain default; the others name the relationship (PROSPECT, LEAD, ACTIVE, CUSTOMER for sales; PARTNER, INVESTOR, VENDOR, ADVISOR, COMMUNITY, PRESS, FRIEND; DORMANT). Paginate with cursor.',
   count_contacts:
     'Count contacts and break them down without reading them: the same filters, listId and query as search_contacts, plus by (stage, kind, organization, location, role, list, knownBy (teammate), channel, source (where they came from), lastContact (recency)) and top. Answers total, the top groups with counts, and how many groups were cut. Use it for "how many investors per city", "which companies do we know most people at" or "who on the team knows these people", then search_contacts for the people in a group.',
   get_contact:
     "Read one contact in full: channels with their sources, lists, summary, next step, who on the team knows them, the latest interactions, merge suggestions and the version you need to change it.",
+  search_companies:
+    "The companies your team's contacts work at (spellings and colleagues on one email domain count as one), each with its facts (domain, website, description, industry, size, headquarters, LinkedIn, why it matters) and the relationship: people the team knows there, teammates who know them, interactions, last contact, warmth (warm ≤30 days, cooling ≤180, cold, none) and the strongest stage. Search a name or domain, filter by industry or minPeople, sort by people, lastContact or name. Then get_company for one, or search_contacts with company for its people.",
+  get_company:
+    "One company in full: facts, relationship, its people (latest contact first, at most 200), which teammates know them and how many each, open next steps, and the latest 20 touchpoints with anyone there, plus the version you need to change it.",
+  update_company:
+    "Change a company's facts after get_company: name, website, description (two plain sentences), industry, size, headquarters, linkedinUrl, whyItMatters (why it matters to your owner, one line). Pass the version you read; on a conflict read it again and keep what people wrote. Null clears a field. Its people stay as they are: change them with update_contact.",
   list_contact_lists:
     "The team's contact lists with live counts. Smart lists are saved filters that fill themselves; manual lists hold the contacts people put there.",
   find_contact_duplicates:

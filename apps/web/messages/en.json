@@ -10565,6 +10565,46 @@
         "place": "{place}, {count, plural, one {# contact} other {# contacts}}",
         "nearby": "{place} and {others, plural, one {# place} other {# places}} nearby",
         "people": "{count, plural, one {# contact} other {# contacts}}"
+      },
+      "company": {
+        "loading": "Loading company…",
+        "edit": "Edit",
+        "whyItMatters": "Why it matters",
+        "people": "People",
+        "knownBy": "Known by",
+        "knownByLabel": "{count, plural, one {# teammate knows} other {# teammates know}} someone here",
+        "nobody": "Nobody yet",
+        "lastContact": "Last contact",
+        "never": "Never",
+        "warmth": "Relationship",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Cooling",
+          "cold": "Cold",
+          "none": "No contact yet"
+        },
+        "strongestStage": "Strongest stage",
+        "nextSteps": "Next steps",
+        "noNextSteps": "Nothing planned.",
+        "recent": "Latest touchpoints",
+        "noRecent": "No touchpoints yet.",
+        "someone": "Someone",
+        "editTitle": "Edit company",
+        "editDescription": "What the team knows about this company. Empty fields are filled from its website in the background.",
+        "nameRequired": "Give the company a name.",
+        "saveFailed": "The company could not be saved.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Industry",
+          "size": "Size",
+          "headquarters": "Headquarters",
+          "linkedinUrl": "LinkedIn",
+          "description": "About",
+          "whyItMatters": "Why it matters to us"
+        }
       }
     }
   },
