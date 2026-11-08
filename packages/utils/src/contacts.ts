@@ -361,6 +361,17 @@ export const contactFilterSchema = z
     followUpDue: z.boolean().optional(),
     hasChannel: z.enum(CONTACT_CHANNEL_TYPES).optional(),
     hasInteractions: z.boolean().optional(),
+    /** Organization or company email domain contains this, e.g. "acme". */
+    organization: z.string().trim().min(1).max(200).optional(),
+    /** Location contains this, e.g. "berlin" or "germany". */
+    location: z.string().trim().min(1).max(200).optional(),
+    /** Role contains this, e.g. "founder". */
+    role: z.string().trim().min(1).max(200).optional(),
+    /** Has a channel found here, e.g. X for X followers, EMAIL for mail. */
+    channelSource: z.enum(CONTACT_CHANNEL_SOURCES).optional(),
+    minInteractions: z.int().min(1).max(100_000).optional(),
+    /** At least this audience on one channel, e.g. X followers. */
+    minFollowers: z.int().min(1).max(1_000_000_000).optional(),
   })
   .strict();
 

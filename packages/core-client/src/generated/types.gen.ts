@@ -4000,6 +4000,12 @@ export type ContactList = {
         followUpDue?: boolean;
         hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
         hasInteractions?: boolean;
+        organization?: string;
+        location?: string;
+        role?: string;
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
     } | null;
     count: number;
     createdByUserId: string | null;
@@ -4159,6 +4165,7 @@ export type ContactChannel = {
     source: ContactChannelSource;
     sourceUrl: string | null;
     verified: boolean;
+    followers: number | null;
     createdAt: Date;
 };
 
@@ -31113,6 +31120,12 @@ export type PostContactListsData = {
             followUpDue?: boolean;
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
+            organization?: string;
+            location?: string;
+            role?: string;
+            channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+            minInteractions?: number;
+            minFollowers?: number;
         } | null;
     };
     headers?: {
@@ -31392,6 +31405,12 @@ export type PatchContactListsByIdData = {
             followUpDue?: boolean;
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
+            organization?: string;
+            location?: string;
+            role?: string;
+            channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+            minInteractions?: number;
+            minFollowers?: number;
         } | null;
     };
     headers?: {
@@ -32398,6 +32417,23 @@ export type GetContactsData = {
         followUpDue?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
         sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
@@ -32698,6 +32734,23 @@ export type GetContactsExportCsvData = {
         followUpDue?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
         sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
@@ -32838,6 +32891,23 @@ export type GetContactsMapData = {
         followUpDue?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
         sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
