@@ -83,13 +83,16 @@ export function useContactMap(query: ContactQuery, enabled = true) {
   });
 }
 
+/** The most groups Core returns at once; a full page means there are more. */
+export const DUPLICATE_GROUP_LIMIT = 200;
+
 /** Groups of contacts that look like one person, for the whole workspace. */
 export function useContactDuplicates() {
   const workspace = useWorkspace();
   return useQuery({
     enabled: workspace !== null,
     queryKey: [...CONTACT_DUPLICATES_KEY, workspace],
-    queryFn: () => contactsService.duplicates(),
+    queryFn: () => contactsService.duplicates({ limit: DUPLICATE_GROUP_LIMIT }),
   });
 }
 

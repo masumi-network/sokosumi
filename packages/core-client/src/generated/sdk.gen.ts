@@ -1755,7 +1755,7 @@ export const postContactsMerge = <ThrowOnError extends boolean = false>(options?
 });
 
 /**
- * Groups of live contacts that share a name (case and spacing ignored): likely the same person, worth a merge.
+ * Groups of live contacts that share a name (case and spacing ignored): likely the same person, worth a merge. At most `limit` groups (default 50, up to 200).
  */
 export const getContactsDuplicates = <ThrowOnError extends boolean = false>(options?: Options<GetContactsDuplicatesData, ThrowOnError>): RequestResult<GetContactsDuplicatesResponses, GetContactsDuplicatesErrors, ThrowOnError> => (options?.client ?? client).get<GetContactsDuplicatesResponses, GetContactsDuplicatesErrors, ThrowOnError>({
     responseTransformer: getContactsDuplicatesResponseTransformer,

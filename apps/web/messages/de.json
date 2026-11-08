@@ -10239,8 +10239,10 @@
       "clearFilters": "Filter entfernen",
       "merged": "Zusammengeführt in {name}",
       "duplicates": "{count, plural, =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+      "duplicatesMore": "{count}+ mögliche Duplikate",
       "duplicatesDialog": {
         "title": "{count, plural, =0 {Keine möglichen Duplikate} =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+        "titleMore": "{count}+ mögliche Duplikate",
         "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe die zusammen, die eine Person sind; öffne einen Eintrag, um ihn vorher zu prüfen.",
         "merge": "Zusammenführen",
         "mergeGroup": "Einträge für {name} zusammenführen",

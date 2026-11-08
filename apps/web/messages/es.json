@@ -10239,8 +10239,10 @@
       "clearFilters": "Quitar filtros",
       "merged": "Fusionado en {name}",
       "duplicates": "{count, plural, =1 {1 posible duplicado} other {# posibles duplicados}}",
+      "duplicatesMore": "{count}+ posibles duplicados",
       "duplicatesDialog": {
         "title": "{count, plural, =0 {Ningún posible duplicado} =1 {1 posible duplicado} other {# posibles duplicados}}",
+        "titleMore": "{count}+ posibles duplicados",
         "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Fusiona los que son una sola persona; abre un registro para revisarlo antes.",
         "merge": "Fusionar",
         "mergeGroup": "Fusionar los registros de {name}",

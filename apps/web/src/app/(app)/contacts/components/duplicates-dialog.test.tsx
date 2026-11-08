@@ -57,6 +57,19 @@ describe("DuplicatesDialog", () => {
     expect(props.onOpenContact).toHaveBeenCalledWith("c-2");
   });
 
+  it("says there are more when Core returned a full page", () => {
+    render(
+      <DuplicatesDialog
+        groups={[group]}
+        capped
+        onMerge={vi.fn()}
+        onOpenContact={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("heading")).toHaveTextContent("titleMore");
+  });
+
   it("says so when nothing is left", () => {
     renderDialog([]);
     expect(screen.getByText("empty")).toBeInTheDocument();

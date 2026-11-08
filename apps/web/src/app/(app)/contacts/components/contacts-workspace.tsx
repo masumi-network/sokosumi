@@ -89,6 +89,7 @@ import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_LISTS_KEY,
+  DUPLICATE_GROUP_LIMIT,
   refreshContacts,
   useContactDuplicates,
   useContactLists,
@@ -179,6 +180,7 @@ export function ContactsWorkspace({
   const lists = useContactLists();
   const duplicates = useContactDuplicates();
   const duplicateGroups = duplicates.data ?? [];
+  const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
   const organizations = useContactOrganizations(debouncedCompanySearch);
   const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
   const query = contactQuery({
@@ -459,7 +461,9 @@ export function ContactsWorkspace({
                 onClick={() => setDialog({ kind: "duplicates" })}
               >
                 <GitMerge aria-hidden className="size-4" />
-                {t("duplicates", { count: duplicateGroups.length })}
+                {t(duplicatesCapped ? "duplicatesMore" : "duplicates", {
+                  count: duplicateGroups.length,
+                })}
               </Button>
             ) : null}
             <span className="text-muted-foreground text-sm tabular-nums">
@@ -621,6 +625,7 @@ export function ContactsWorkspace({
       {dialog?.kind === "duplicates" ? (
         <DuplicatesDialog
           groups={duplicateGroups}
+          capped={duplicatesCapped}
           onMerge={(group) =>
             setDialog({ kind: "merge", contacts: group, fromDuplicates: true })
           }

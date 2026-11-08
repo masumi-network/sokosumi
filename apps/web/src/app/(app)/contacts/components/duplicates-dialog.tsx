@@ -16,11 +16,14 @@ import { ChannelIcon, ContactAvatar } from "./contact-visuals";
 /** Every group of contacts that looks like one person, each a merge away. */
 export function DuplicatesDialog({
   groups,
+  capped = false,
   onMerge,
   onOpenContact,
   onClose,
 }: {
   groups: ContactDuplicateGroup[];
+  /** Core has more groups than it returned; merging reveals the next ones. */
+  capped?: boolean;
   onMerge: (contacts: Contact[]) => void;
   onOpenContact: (id: string) => void;
   onClose: () => void;
@@ -30,7 +33,9 @@ export function DuplicatesDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{t("title", { count: groups.length })}</DialogTitle>
+          <DialogTitle>
+            {t(capped ? "titleMore" : "title", { count: groups.length })}
+          </DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         {groups.length ? (

@@ -760,7 +760,7 @@ function MergeBanner({
   const t = useTranslations("App.Contacts.panel");
   const duplicates = useQuery({
     queryKey: [...CONTACT_DUPLICATES_KEY, "contact", contact.id],
-    queryFn: () => contactsService.duplicates(contact.id),
+    queryFn: () => contactsService.duplicates({ contactId: contact.id }),
   });
   const group = duplicates.data?.find((item) =>
     item.contacts.some((entry) => entry.id === contact.id),

@@ -170,9 +170,8 @@ export const contactsService = {
     });
     return { items: data.data, nextCursor: data.meta.pagination.nextCursor };
   },
-  async duplicates(contactId?: string) {
-    return (await getContactsDuplicates({ ...options(), query: { contactId } }))
-      .data.data;
+  async duplicates(query: { contactId?: string; limit?: number } = {}) {
+    return (await getContactsDuplicates({ ...options(), query })).data.data;
   },
   async merge(winnerId: string, loserIds: string[]) {
     return (
