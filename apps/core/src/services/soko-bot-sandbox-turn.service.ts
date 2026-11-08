@@ -55,6 +55,7 @@ import {
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { withTurnSkills } from "@/services/chat-message-skills.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
@@ -598,7 +599,7 @@ export async function proxySandboxModelCall(
     upstream = await fetch(GATEWAY_LANGUAGE_MODEL_URL, {
       method: "POST",
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(wellFormed(payload)),
       // Answer before Vercel kills the invocation, so the runner gets a 502
       // it retries instead of a 504 after five minutes.
       signal: AbortSignal.timeout(MODEL_CALL_MAX_MS),
