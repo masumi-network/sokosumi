@@ -262,7 +262,7 @@ export function BeforeAfter({
 const PACES: { level: Pace; name: string; does: string }[] = [
   { level: "steady", name: "Steady", does: "A few strong pieces a week" },
   { level: "active", name: "Active", does: "About one a day" },
-  { level: "all_in", name: "All-in", does: "Several a day, video first" },
+  { level: "all_in", name: "All-in", does: "Several a day" },
 ];
 
 /** How hard the plan publishes: Cuso's pick, one tap to change. */

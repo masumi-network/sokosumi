@@ -21,7 +21,13 @@ const {
   listFiles,
   advanceCmoMonthReview,
   getBrandBrain,
+  listMediaJobs,
+  advanceMedia,
+  turnCount,
 } = vi.hoisted(() => ({
+  listMediaJobs: vi.fn(),
+  advanceMedia: vi.fn(),
+  turnCount: vi.fn(),
   advanceCmoMonthReview: vi.fn(),
   getBrandBrain: vi.fn(),
   approvedStrategy: vi.fn(),
@@ -41,7 +47,11 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotSchedule: { updateMany: scheduleUpdateMany },
-    sokoBotTurn: { findMany: turnFindMany, findFirst: turnFindFirst },
+    sokoBotTurn: {
+      findMany: turnFindMany,
+      findFirst: turnFindFirst,
+      count: turnCount,
+    },
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
   },
 }));
@@ -72,6 +82,13 @@ vi.mock("@/services/cmo-month-review.service", async (importOriginal) => ({
     typeof import("@/services/cmo-month-review.service")
   >()),
   advanceCmoMonthReview,
+}));
+vi.mock("@/services/cmo-media-maker.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-media-maker.service")
+  >()),
+  listCmoMediaJobs: listMediaJobs,
+  advanceCmoMedia: advanceMedia,
 }));
 vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/brand-brain.service")>()),
@@ -374,21 +391,30 @@ describe("cmoProductionMessage", () => {
     expect(message).toContain("Connected networks: none yet");
   });
 
-  it("has a carousel's slides made from its cover", () => {
+  it("asks for a visual and names the proof, and leaves the media to Core", () => {
     const message = cmoProductionMessage({
       businessName: "Acme",
       strategy: strategy([]),
       pending: [
-        piece({ channel: "instagram", format: "carousel" }, [
-          "drive/photo.png",
-        ]),
+        piece({ id: "c", channel: "instagram", format: "carousel" }),
+        piece({ id: "x", channel: "x", format: "image", visual: "A shoe" }),
       ],
       connected: new Set(),
       attempt: 1,
       topUp: true,
+      proof: ["Book.io sold 130,000+ NFTs across 70+ titles."],
+      failedMedia: new Set(["x"]),
     });
-    expect(message).toContain("carousel: at least 3 slides, 1 made");
-    expect(message).toContain("referenceFileIds");
+    expect(message).toContain(
+      "carousel of 3 slides: one visual, Core makes each slide · (write its visual)",
+    );
+    expect(message).toContain(
+      "(its picture failed twice: write a different visual)",
+    );
+    expect(message).toContain(
+      "- Book.io sold 130,000+ NFTs across 70+ titles.",
+    );
+    expect(message).toContain("never call generate_image or generate_video");
   });
 
   it("fits a full batch on every network in one background turn", () => {
@@ -466,6 +492,9 @@ describe("advanceCmoProduction", () => {
     botFindUniqueOrThrow.mockResolvedValue({ sharedRoomId: "room-1" });
     cmoRunnerUserId.mockResolvedValue("user-1");
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
+    listMediaJobs.mockResolvedValue([]);
+    advanceMedia.mockResolvedValue(undefined);
+    turnCount.mockResolvedValue(0);
   });
 
   it("waits until the plan is approved and paid for", async () => {
