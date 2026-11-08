@@ -94,6 +94,8 @@ interface GoogleCampaignSpecBase {
   /** Language constant ids; none targets all languages. */
   languageIds: string[];
   finalUrl: string;
+  /** The most one click may cost, in the account's currency; none lets Google decide. */
+  maxCpc?: number;
 }
 
 export interface GoogleSitelink {
@@ -107,6 +109,8 @@ export interface GoogleSitelink {
 export interface GoogleSearchCampaignSpec extends GoogleCampaignSpecBase {
   type: "SEARCH";
   keywords: GoogleKeyword[];
+  /** Searches the campaign never shows for, as phrase-match negatives. */
+  negativeKeywords?: string[];
   headlines: string[];
   descriptions: string[];
   path1?: string;

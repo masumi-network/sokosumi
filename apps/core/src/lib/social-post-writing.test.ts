@@ -2,8 +2,11 @@ import { SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  bannedCopyProblems,
   SOCIAL_POST_WRITING_GUIDES,
   socialPostFormattingError,
+  stackedCaveatsProblem,
+  tagOwnLinks,
 } from "./social-post-writing";
 
 describe("social post writing guides", () => {
@@ -118,7 +121,7 @@ describe("formatting a bot's post", () => {
         post("Our new plan — a game-changer for teams. Agree?"),
       ),
     ).toBe(
-      'Rewrite the post: it uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined); it ends on engagement bait ("Agree?", "Thoughts?"); it has an em dash.',
+      'Rewrite the post: it uses a stock phrase (game-changer, unlock, elevate, seamless, say goodbye to, reimagined, delve, leverage); it ends on engagement bait ("Agree?", "Thoughts?"); it has an em dash.',
     );
     expect(
       socialPostFormattingError("instagram", post("Sizes vary by style.")),
@@ -148,9 +151,94 @@ describe("formatting a bot's post", () => {
     expect(
       socialPostFormattingError(
         "linkedin",
-        post(wall.split(". ").join(".\n\n")),
+        // Two sentences a paragraph: one a line would read as broetry.
+        post(
+          wall
+            .trim()
+            .split(/(?<=\.) /)
+            .map((sentence, index) => `${sentence}${index % 2 ? "\n\n" : " "}`)
+            .join(""),
+        ),
       ),
     ).toBeNull();
     expect(socialPostFormattingError("youtube", post(wall))).toBeNull();
+  });
+});
+
+describe("the copy rules code checks", () => {
+  it("catches the AI tells the skills ban", () => {
+    expect(bannedCopyProblems("Not just a tool, but a partner.")).toEqual([
+      'uses "not just X, but Y"',
+    ]);
+    expect(bannedCopyProblems("We tried it. The result? Faster.")).toHaveLength(
+      1,
+    );
+    expect(bannedCopyProblems("Let that sink in.")).toHaveLength(1);
+    expect(bannedCopyProblems("Thread: how we price")).toHaveLength(1);
+    expect(bannedCopyProblems("Tag a friend who bakes")).toHaveLength(1);
+    expect(bannedCopyProblems("Let's delve into fees.")).toHaveLength(1);
+    expect(bannedCopyProblems("We cut our fees to 3%.")).toEqual([]);
+  });
+
+  it("refuses emoji bullets and one sentence per line", () => {
+    expect(bannedCopyProblems("Why:\n✅ Fast\n✅ Cheap\n✅ Simple")).toEqual([
+      "uses emoji as bullets; start lines with words or '-'",
+    ]);
+    const broetry = Array.from({ length: 6 }, (_, i) => `Line ${i}.`).join(
+      "\n\n",
+    );
+    expect(bannedCopyProblems(broetry)).toEqual([
+      "puts every sentence on its own line; join related sentences into short paragraphs",
+    ]);
+  });
+});
+
+describe("stackedCaveatsProblem", () => {
+  it("refuses a post that qualifies its fact twice and keeps one condition", () => {
+    expect(
+      stackedCaveatsProblem(
+        "No monthly subscription. That does not make every operation free: fees depend on the network.",
+      ),
+    ).toMatch(/stacks caveats \("depend on", "does not make"\)/);
+    expect(
+      stackedCaveatsProblem(
+        "Minting costs 2 ADA; the fee depends on the chain.",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("tagOwnLinks", () => {
+  const tags = {
+    siteUrl: "https://www.nmkr.io",
+    source: "linkedin",
+    campaign: "cmo-2026-11",
+  };
+
+  it("tags links to the business's own site and leaves others", () => {
+    expect(
+      tagOwnLinks(
+        "Start at https://studio.nmkr.io/pricing. Or https://cardano.org",
+        tags,
+      ),
+    ).toBe(
+      "Start at https://studio.nmkr.io/pricing?utm_source=linkedin&utm_medium=social&utm_campaign=cmo-2026-11. Or https://cardano.org",
+    );
+  });
+
+  it("keeps brackets and apostrophes inside a link, and drops the prose around it", () => {
+    expect(
+      tagOwnLinks(
+        "See https://nmkr.io/shirt_(blue) and (https://nmkr.io/it's).",
+        tags,
+      ),
+    ).toBe(
+      "See https://nmkr.io/shirt_(blue)?utm_source=linkedin&utm_medium=social&utm_campaign=cmo-2026-11 and (https://nmkr.io/it's?utm_source=linkedin&utm_medium=social&utm_campaign=cmo-2026-11).",
+    );
+  });
+
+  it("keeps a link that already has UTM tags", () => {
+    const text = "https://nmkr.io/?utm_source=x";
+    expect(tagOwnLinks(text, tags)).toBe(text);
   });
 });

@@ -45,9 +45,11 @@ describe("AssistantCreateStep", () => {
   it("lets the user skip to where setup was going", () => {
     renderStep();
 
-    expect(screen.getByRole("link", { name: "Later" })).toHaveAttribute(
-      "href",
-      "/tasks",
+    const later = screen.getByRole("link", { name: "Later" });
+    expect(later).toHaveAttribute("href", "/tasks");
+    // Home does not offer the bot again, so the link says where it lives.
+    expect(later).toHaveAccessibleDescription(
+      "Set it up any time from Soko Bots.",
     );
   });
 

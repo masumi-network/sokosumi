@@ -1033,6 +1033,7 @@
       },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
+      "files": "{count, plural, one {# file} other {# files}}",
       "assignee": "Assigned to",
       "project": "Project",
       "destination": "Account",
@@ -10208,7 +10209,8 @@
         "add": "Add contact",
         "more": "More actions",
         "filter": "Filter",
-        "kind": "Type"
+        "kind": "Type",
+        "source": "Source"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -10267,7 +10269,9 @@
         "failed": "The list didn't save. Try again.",
         "cancel": "Cancel",
         "save": "Save",
-        "create": "Create list"
+        "create": "Create list",
+        "smart": "Keep it filled from the current filters",
+        "smartHint": "A smart list: whoever matches these filters is on it, now and later."
       },
       "addDialog": {
         "title": "Add contact",
@@ -10566,6 +10570,59 @@
         "place": "{place}, {count, plural, one {# contact} other {# contacts}}",
         "nearby": "{place} and {others, plural, one {# place} other {# places}} nearby",
         "people": "{count, plural, one {# contact} other {# contacts}}"
+      },
+      "company": {
+        "loading": "Loading company…",
+        "edit": "Edit",
+        "whyItMatters": "Why it matters",
+        "people": "People",
+        "knownBy": "Known by",
+        "knownByLabel": "{count, plural, one {# teammate knows} other {# teammates know}} someone here",
+        "nobody": "Nobody yet",
+        "lastContact": "Last contact",
+        "never": "Never",
+        "warmth": "Relationship",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Cooling",
+          "cold": "Cold",
+          "none": "No contact yet"
+        },
+        "strongestStage": "Strongest stage",
+        "nextSteps": "Next steps",
+        "noNextSteps": "Nothing planned.",
+        "recent": "Latest touchpoints",
+        "noRecent": "No touchpoints yet.",
+        "someone": "Someone",
+        "editTitle": "Edit company",
+        "editDescription": "What the team knows about this company. Empty fields are filled from its website in the background.",
+        "nameRequired": "Give the company a name.",
+        "saveFailed": "The company could not be saved.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Industry",
+          "size": "Size",
+          "headquarters": "Headquarters",
+          "linkedinUrl": "LinkedIn",
+          "description": "About",
+          "whyItMatters": "Why it matters to us"
+        }
+      },
+      "overview": {
+        "label": "List overview",
+        "people": "{count, plural, one {# person} other {# people}}",
+        "quiet": "{count} not contacted in 90 days",
+        "map": "Show on map",
+        "stages": "Stage",
+        "companies": "Companies",
+        "places": "Places",
+        "knownBy": "Known by",
+        "none": "Not set",
+        "nobody": "Nobody yet",
+        "more": "and {count} more"
       }
     }
   },
@@ -10872,6 +10929,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
+      "laterHint": "Set it up any time from Soko Bots.",
       "skip": "Skip",
       "continue": "Continue"
     }

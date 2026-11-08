@@ -101,13 +101,16 @@ The file gives each field, ready to paste:
 
 \`\`\`
 Page: [the page's URL]
+Now: [the page's current title, as the Brand Brain or Search Console shows it, or "not read"]
+Baseline: [Search Console for the page's main search, last 28 days: clicks, impressions, position; or "not connected"]
 Title: [at most 60 characters]
 Description: [120 to 155 characters]
 Heading (H1): [the page's main heading]
 Why: [one line on what changes and why]
 \`\`\`
 
-- **Title**: at most 60 characters, the main search words first, the brand at the end after a separator ("Sourdough Bread Delivery in Zurich | Northside Bakery").
+- **Title**: at most 60 characters, the main search words first, the brand at the end after a separator ("Sourdough Bread Delivery in Zurich | Northside Bakery"). Patterns by page type: a product or service page "[What it is] for [who or where] | Brand"; a category "[Products] in [place or kind] | Brand"; an article "[The question or task]: [the answer's promise]"; a comparison "[Brand] vs [Rival]: [the difference that matters]".
+- **Baseline** is what the change is judged against in four weeks; never change the same page again sooner.
 - **Description**: 120 to 155 characters, the answer or benefit plus one reason to click. Never a list of keywords.
 - **Heading**: says what the page is about in the searcher's words; it can be longer than the title.
 
@@ -117,13 +120,16 @@ Why: [one line on what changes and why]
 - **Structure**:
   - \`# Title\` (a heading, at most about 60 characters)
   - The answer in the first paragraph, two to three sentences. Do not make people scroll for it.
-  - \`##\` sections for each part of the answer, phrased the way people ask ("How long does sourdough keep?").
-  - Short paragraphs, lists for steps and options, a table when comparing.
+  - \`##\` sections for each part of the answer, phrased the way people ask ("How long does sourdough keep?"). Open each with the answer in 40 to 60 words that make sense alone: search and AI answer tools quote those.
+  - Short paragraphs, lists for steps and options, a table when comparing (a comparison page always has one: price, who it is for, the main difference).
+  - An FAQ section of three to five short questions people ask, when the search has them.
   - A closing section with the next step and one link to the offer.
 - **Length**: as long as the answer needs, usually 800 to 1,500 words. No filler introductions or history lessons.
 - **Proof**: real details from the Brand Brain (prices, processes, examples) and a real source for every number, never invented statistics.
 - **Links**: plain Markdown links on descriptive words; link to the brand's own pages where they help.
 - Add a **meta description** line at the top of the file (Description: ...), 120 to 155 characters.
+- End the file with a **Link from:** block: two or three of the owner's existing pages that should link to this article, each with the words to link on ("Link from: /pricing, on 'how long bread keeps'"). A new page nobody links to is hard to find.
+- A comparison page ("X vs Y", "X alternative") is fair: the rival's published prices and features, what its reviewers praise and complain about, and when the rival is the better choice. Never a claim about the rival you cannot link to.
 
 ## Example shape
 
@@ -160,9 +166,17 @@ Sourdough keeps three to four days at room temperature in a paper bag, longer th
         rule: "Article: short paragraphs, lists or tables where they help, no filler introduction.",
         formats: ["article"],
       },
+      {
+        rule: "Article: each ## section opens with a short answer that makes sense on its own.",
+        formats: ["article"],
+      },
+      {
+        rule: "Page fix: a Now line with the current title and a Baseline line, then the new fields.",
+        formats: ["page_fix"],
+      },
       { rule: "No keyword stuffing and no invented statistics." },
       {
-        rule: "Page fix: a Title of at most 60 characters and a Description of 120 to 155. Article: a Description line of 120 to 155 characters, then a # title.",
+        rule: "Page fix: a Title of at most 60 characters and a Description of 120 to 155. Article: a Description line of 120 to 155 characters, then a # title, and a Link from: line.",
         counted: true,
       },
     ],

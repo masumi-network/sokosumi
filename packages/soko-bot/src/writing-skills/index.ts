@@ -59,15 +59,17 @@ export function renderWritingSkill(skill: WritingSkill): string {
 /**
  * The rules the evaluator judges one piece by: its channel's skill and the
  * foundations, for its format. Counted rules are left to Core's code, and the
- * brand voice is a question of its own.
+ * brand voice's tone is a question of its own; its facts and its "only this
+ * business could say it" are judged here.
  */
 export function judgedWritingRules(channel: string, format: string): string[] {
   return writingSkillsForChannels([channel])
-    .filter((skill) => skill.id !== "brand-voice")
     .flatMap((skill) => skill.checklist)
     .filter(
       (rule) =>
-        !rule.counted && (!rule.formats || rule.formats.includes(format)),
+        !rule.counted &&
+        !rule.voice &&
+        (!rule.formats || rule.formats.includes(format)),
     )
     .map((rule) => rule.rule);
 }
