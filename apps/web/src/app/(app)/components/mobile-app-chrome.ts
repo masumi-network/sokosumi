@@ -45,6 +45,8 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
   ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
+const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
+
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
 
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
@@ -120,6 +122,11 @@ export function resolveMobileAppBackTarget(
       return null;
     }
     return { href: CHAT_CHATS_LIST_PATH, labelKey: "backToChats" };
+  }
+  // An agent's jobs go back to that agent, not the catalog.
+  const agentJobs = AGENT_JOBS_PATH.exec(pathname);
+  if (agentJobs) {
+    return { href: `/agents/${agentJobs[1]}`, labelKey: "back" };
   }
   return { href: root, labelKey: "back" };
 }

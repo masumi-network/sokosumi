@@ -5,7 +5,11 @@ import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values?.price ? `${key}:${String(values.price)}` : key,
+    values?.price
+      ? `${key}:${String(values.price)}`
+      : values?.name
+        ? `${key}:${String(values.name)}`
+        : key,
 }));
 
 vi.mock("@/components/agents/agent-action-buttons", () => ({
@@ -42,9 +46,23 @@ describe("Header", () => {
     render(<Header agent={agent} canRate={false} existingRating={null} />);
 
     // Header still renders navigational chrome without hire/create-job/price.
-    expect(screen.getByText("back")).toBeInTheDocument();
+    expect(screen.getByText(/^backToAgent:/)).toBeInTheDocument();
     expect(screen.queryByTestId("create-job-trigger")).not.toBeInTheDocument();
     expect(screen.queryByText(/newJob/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/price:/i)).not.toBeInTheDocument();
+  });
+
+  it("points Back at this agent's page, named, not at the catalog", () => {
+    const agent = createMockCoreAgent({
+      id: "agent-1",
+      name: "Reddit Research",
+    });
+
+    render(<Header agent={agent} canRate={false} existingRating={null} />);
+
+    const back = screen.getByRole("link", {
+      name: /backToAgent:/,
+    });
+    expect(back).toHaveAttribute("href", "/agents/agent-1");
   });
 });

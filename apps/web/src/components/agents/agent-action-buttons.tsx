@@ -41,12 +41,12 @@ function AgentActionButtons({
     : undefined;
 
   const onBack = () => {
-    // Check if we're inside of jobs/<id> and if it's mobile, redirect to /agents
+    // Check if we're inside of jobs/<id> and if it's mobile, redirect to the agent
     if (typeof window !== "undefined") {
       const pathMatch = window.location.pathname.includes("/jobs/");
 
       if (isMobile && pathMatch) {
-        router.push("/agents");
+        router.push(`/agents/${agent.id}`);
       } else if (window.history.length > 1) {
         router.back();
       } else {

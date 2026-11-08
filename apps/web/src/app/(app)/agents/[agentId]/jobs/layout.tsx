@@ -11,6 +11,7 @@ import { createUnavailableCoreAgent } from "@/lib/types/core-dto";
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
+import { JobsListHeader } from "./components/jobs-list-header";
 
 export async function generateMetadata({
   params,
@@ -106,6 +107,9 @@ async function JobLayoutInner({
                 jobsNextCursor={agentJobsPage.nextCursor}
                 userId={session.user.id}
                 agentId={agentId}
+                header={
+                  <JobsListHeader agent={agent} total={agentJobsPage.total} />
+                }
               />
             </div>
 

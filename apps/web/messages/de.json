@@ -7887,7 +7887,10 @@
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+          "backToAgent": "Zurück zu {name}",
+          "yourJobs": "Deine Jobs",
+          "yourJobsCount": "Deine Jobs · {count}"
         },
         "Modal": {
           "back": "Zurück",
