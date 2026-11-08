@@ -72,10 +72,14 @@ export function brandColors(css: string, limit = 5): string[] {
     add(rgbHex(Number(match[1]), Number(match[2]), Number(match[3])));
   }
   // Custom properties named like brand colours weigh more than one-off uses.
+  // The name is read once from where it starts and then searched: matching
+  // the brand word inside the pattern backtracks for ever on long names.
   for (const match of css.matchAll(
-    /--[\w-]*(?:brand|primary|accent)[\w-]*\s*:\s*(#[0-9a-fA-F]{3,6})\b/gi,
+    /(?<![\w-])--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,6})\b/g,
   )) {
-    add(normalizeHex(match[1] ?? ""), 5);
+    if (/brand|primary|accent/i.test(match[1] ?? "")) {
+      add(normalizeHex(match[2] ?? ""), 5);
+    }
   }
   return distinctColors(
     [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([hex]) => hex),
@@ -151,7 +155,10 @@ const BRAND_COLOR_ROLES = ["primary", "secondary", "tertiary"];
  * as brand colours. Null when the file names none of them.
  */
 function designMdRoleColors(content: string): string[] | null {
-  const block = content.match(/^colors:[ \t]*\n((?:[ \t]+.*\n?)+)/m)?.[1];
+  // Each line ends at its newline (or the end), so lines split one way only.
+  const block = content.match(
+    /^colors:[ \t]*\n((?:[ \t].*(?:\n|(?![\s\S])))+)/m,
+  )?.[1];
   if (!block) return null;
   const colors = BRAND_COLOR_ROLES.map((role) => {
     const value = block.match(

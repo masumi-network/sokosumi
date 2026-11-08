@@ -128,6 +128,27 @@ Primary #5850ec drives every call to action.
     ).toEqual([]);
   });
 
+  it("still weighs custom properties named like brand colours", () => {
+    // One --*-accent-* declaration (weight 5) outranks three plain uses.
+    const css =
+      ":root{--color-accent-2: #ff6a00} a{color:#6400ff} b{color:#6400ff} i{color:#6400ff}";
+    expect(brandColors(css)).toEqual(["#ff6a00", "#6400ff"]);
+    expect(brandColors("x{--Brand:#ff6a00} a{color:#6400ff}")[0]).toBe(
+      "#ff6a00",
+    );
+  });
+
+  // CodeQL js/polynomial-redos: these took seconds before the fix.
+  it.each([
+    ["repeated --", "--".repeat(50_000)],
+    ["--brand with repeated brand", `--${"brand".repeat(50_000)}`],
+    ["indented colour block", `colors:\n${" ".repeat(100_000)}\u0000`],
+  ])("reads %s in linear time", (_, input) => {
+    const started = performance.now();
+    designMdBrandLook(input);
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
   it("states no tone rather than guess one", () => {
     expect(designMdBrandLook("The voice is a mix of styles.").tone).toBeNull();
     expect(designMdBrandLook("# Brand").tone).toBeNull();
