@@ -234,6 +234,18 @@ describe.runIf(enabled)("contact search on PostgreSQL", () => {
     ).rejects.toThrow(/run it again/);
   });
 
+  it("refuses a search with more matches than it may rank", async () => {
+    await expect(
+      rankContacts(workspaceId, "acme", { mode: "words", maxPerMethod: 1 }),
+    ).rejects.toThrow(/narrow it/);
+    expect(
+      await rankContacts(workspaceId, "acme", {
+        mode: "words",
+        maxPerMethod: 1_000,
+      }),
+    ).toHaveLength(2);
+  });
+
   it("finds archived contacts when asked for them", async () => {
     const gone = await create({ name: "Otto Archived", location: "Berlin" });
     await prisma.contact.update({
@@ -253,6 +265,24 @@ describe.runIf(enabled)("contact search on PostgreSQL", () => {
     expect(archived.items.map((contact) => contact.name)).toEqual([
       "Otto Archived",
     ]);
+    const smart = await inContactTransaction((tx) =>
+      createContactList(tx, actor, {
+        name: "Otto smart",
+        color: "blue",
+        smartFilter: { location: "Berlin" },
+      }),
+    );
+    const byList = await breakDownContacts(actor, {
+      filter: {},
+      archived: true,
+      by: "list",
+    });
+    expect(byList.groups).toContainEqual({
+      key: smart.id,
+      label: "Otto smart",
+      count: 1,
+    });
+    await prisma.contactList.delete({ where: { id: smart.id } });
     await prisma.contact.delete({ where: { id: gone.id } });
   });
 

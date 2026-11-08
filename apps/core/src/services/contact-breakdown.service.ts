@@ -62,7 +62,7 @@ export async function breakDownContacts(
   const ids = await matchingIds(actor, options);
   if (!options.by || ids.length === 0)
     return { total: ids.length, groups: [], otherGroups: 0 };
-  const groups = await groupsBy(actor, options.by, ids);
+  const groups = await groupsBy(actor, options.by, ids, options.archived);
   const top = options.top ?? 20;
   return {
     total: ids.length,
@@ -86,7 +86,9 @@ export async function breakDownContactsBy(
   const top = options.top ?? 20;
   const breakdowns = await Promise.all(
     options.by.map(async (by) => {
-      const groups = ids.length ? await groupsBy(actor, by, ids) : [];
+      const groups = ids.length
+        ? await groupsBy(actor, by, ids, options.archived)
+        : [];
       return {
         by,
         groups: groups.slice(0, top),
@@ -131,6 +133,7 @@ async function groupsBy(
   actor: ContactActor,
   by: ContactBreakdown,
   ids: string[],
+  archived?: boolean,
 ): Promise<ContactBreakdownGroup[]> {
   switch (by) {
     case "stage":
@@ -151,7 +154,7 @@ async function groupsBy(
     case "lastContact":
       return lastContactGroups(ids);
     case "list":
-      return listGroups(actor, ids);
+      return listGroups(actor, ids, archived);
     case "knownBy":
       return sorted(
         await prisma.$queryRaw<ContactBreakdownGroup[]>`
@@ -262,6 +265,7 @@ async function lastContactGroups(
 async function listGroups(
   actor: ContactActor,
   ids: string[],
+  archived?: boolean,
 ): Promise<ContactBreakdownGroup[]> {
   const lists = await prisma.contactList.findMany({
     where: { workspaceId: actor.workspaceId },
@@ -284,7 +288,11 @@ async function listGroups(
           count: manualCounts.get(list.id) ?? 0,
         };
       const members = await prisma.contact.findMany({
-        where: await contactListWhere(actor, { filter: {}, listId: list.id }),
+        where: await contactListWhere(actor, {
+          filter: {},
+          listId: list.id,
+          archived,
+        }),
         select: { id: true },
       });
       return {

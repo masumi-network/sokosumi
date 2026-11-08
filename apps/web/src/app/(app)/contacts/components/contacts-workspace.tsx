@@ -455,8 +455,11 @@ export function ContactsWorkspace({
         {viewList && layout !== "map" ? (
           <ListOverview
             query={query}
-            onShowMap={() => void setLayout("map")}
-            onCompany={(name) => void setCompany(name)}
+            onShowMap={() => {
+              void setLayout("map");
+              setSelected([]);
+            }}
+            onCompany={changeOrganization}
           />
         ) : null}
         {viewList?.kind === "manual" ? (

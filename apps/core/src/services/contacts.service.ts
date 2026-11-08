@@ -1645,7 +1645,7 @@ export async function contactCompanyMemberIds(
   // stored rows (kept when everyone is archived) and its live members.
   const archived = await prisma.$queryRaw<{ id: string }[]>`
     WITH rows AS (
-      SELECT cc.key, cc.name, cc.domain FROM contact_company cc
+      SELECT cc.key, cc.name, cc.domain, cc.aliases FROM contact_company cc
       WHERE cc."workspaceId" = ${workspaceId}::uuid
         AND (lower(cc.name) = lower(btrim(${name}))
           OR cc.key = 'n:' || regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g'))
@@ -1653,6 +1653,7 @@ export async function contactCompanyMemberIds(
       SELECT regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g') AS org
       UNION SELECT regexp_replace(lower(name), '[^[:alnum:]]+', '', 'g') FROM rows
       UNION SELECT substr(key, 3) FROM rows WHERE key LIKE 'n:%'
+      UNION SELECT unnest(aliases) FROM rows
       UNION SELECT DISTINCT regexp_replace(lower(c.organization), '[^[:alnum:]]+', '', 'g')
         FROM contact c WHERE c.id = ANY(${liveIds}::uuid[]) AND c.organization IS NOT NULL
     ), domains AS (
