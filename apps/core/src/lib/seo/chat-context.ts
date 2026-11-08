@@ -57,7 +57,16 @@ Use Search Console for measured search clicks, impressions and positions. Use Go
 searchQueries are measured Search Console rows grouped by query and page for one period. averagePosition is a period mean across impressions, not a live rank; impressions are observed, not search volume. Queries can be anonymized, so rows can add up to less than page totals.
 Actions with kind fix come from confirmed checks. Actions with kind opportunity come from a named review heuristic over searchQueries; call them review suggestions, never failures, and never promise traffic. If no action exists, say what evidence is missing instead of inventing one.
 Available actions: connect with provider ga4 or search_console; open a native dialog named page, keyword, competitor, import, analysis, statistics or page_change; task with the observationId and id of a listed action whose status is recommended, so the user can turn it into a Task. Use no other actions. Do not suggest a new analysis while analysis dispatch is paused.
-Reply in the user's language. Use short, concrete sentences and cite the supplied page URLs or observation IDs when helpful. Return JSON only: {"reply":"...","actions":[]}.`;
+Reply in the user's language. Use short, concrete sentences and cite the supplied page URLs when helpful.
+Write dates the way a person reads them, such as "Oct 10 to Nov 4", never as ISO dates. For a statistics period, name its firstDataDay and lastDataDay; points holds only the newest days. Do not use internal field names or terms such as coverage, partial, observation, observationId, scope or module in the reply text. Return JSON only: {"reply":"...","actions":[]}.`;
+
+function dataDays(points: ProjectSeoWorkspace["metrics"][number]["points"]) {
+  const days = points
+    .filter((point) => point.value !== null)
+    .map((point) => point.date)
+    .sort();
+  return { firstDataDay: days[0] ?? null, lastDataDay: days.at(-1) ?? null };
+}
 
 function clip(text: string) {
   return text.slice(0, SEO_CHAT_TEXT_MAX_CHARS);
@@ -206,6 +215,8 @@ export function seoChatContext(workspace: ProjectSeoWorkspace): string {
       channel: row.channel,
       observedAt: row.observedAt,
       coverage: row.coverage,
+      // The first and last day with data, from every point; the sample below is only the newest days.
+      ...dataDays(row.points),
       points: row.points.slice(-SEO_CHAT_DAILY_POINT_LIMIT),
       notes: row.notes.slice(0, SEO_CHAT_EVIDENCE_LIMIT).map(clip),
     })),

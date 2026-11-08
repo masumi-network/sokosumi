@@ -70,6 +70,22 @@ function workspaceFixture(): ProjectSeoWorkspace {
 }
 
 describe("native audit chat inference boundary", () => {
+  it("names the whole data span of a sync even though only the newest daily points are sent", () => {
+    const workspace = workspaceFixture();
+    const days = Array.from({ length: 28 }, (_, index) => ({
+      date: `2026-10-${String(index + 1).padStart(2, "0")}`,
+      // Google reports late: the newest two days have no data yet.
+      value: index >= 26 ? null : index,
+    }));
+    workspace.metrics[0].points = days;
+    const [metric] = JSON.parse(seoChatContext(workspace)).metrics;
+    expect(metric.points.length).toBeLessThan(days.length);
+    expect(metric).toMatchObject({
+      firstDataDay: "2026-10-01",
+      lastDataDay: "2026-10-26",
+    });
+  });
+
   it("separates rule checks from unrequested analysis modules in chat evidence", () => {
     const workspace = workspaceFixture();
     workspace.observations = [
