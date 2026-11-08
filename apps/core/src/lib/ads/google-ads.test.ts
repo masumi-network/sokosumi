@@ -878,6 +878,32 @@ describe("createGoogleCampaign", () => {
     expect(deleteSessionMock).toHaveBeenCalled();
   });
 
+  it("caps a click and adds the negative searches as campaign criteria", async () => {
+    await createGoogleCampaign({
+      ...create,
+      google: {
+        ...google,
+        maxCpc: 1.5,
+        negativeKeywords: ["Jobs", "jobs", "free"],
+      },
+    });
+    expect(operationsOf("campaign_operation")[0]?.target_spend).toEqual({
+      cpc_bid_ceiling_micros: 1_500_000,
+    });
+    expect(
+      operationsOf("campaign_criterion_operation").filter(
+        (criterion) => criterion?.negative,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        keyword: { text: "jobs", match_type: "PHRASE" },
+      }),
+      expect.objectContaining({
+        keyword: { text: "free", match_type: "PHRASE" },
+      }),
+    ]);
+  });
+
   it("sends one operation family per item, linked by temporary ids", async () => {
     await createGoogleCampaign(create);
     const ops = operations();
@@ -913,6 +939,10 @@ describe("createGoogleCampaign", () => {
           advertising_channel_type: "SEARCH",
           campaign_budget: "customers/111/campaignBudgets/-1",
           target_spend: {},
+          geo_target_type_setting: {
+            positive_geo_target_type: "PRESENCE",
+            negative_geo_target_type: "PRESENCE",
+          },
           network_settings: {
             target_google_search: true,
             target_search_network: false,
@@ -1388,6 +1418,10 @@ describe("createGoogleCampaign for Display", () => {
         advertising_channel_type: "DISPLAY",
         campaign_budget: "customers/111/campaignBudgets/-1",
         target_spend: {},
+        geo_target_type_setting: {
+          positive_geo_target_type: "PRESENCE",
+          negative_geo_target_type: "PRESENCE",
+        },
         contains_eu_political_advertising:
           "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
       },

@@ -420,6 +420,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  requireMonthPostPicture,
   scheduleSocialPost,
   updateSocialPost,
 } from "@/services/social-posts.service";
@@ -7104,6 +7105,10 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.schedule_social_post.parse(
                     input.input,
                   );
+                await requireMonthPostPicture(tx, {
+                  postId: params.postId,
+                  workspaceId,
+                });
                 return scheduleSocialPost(
                   {
                     ...params,

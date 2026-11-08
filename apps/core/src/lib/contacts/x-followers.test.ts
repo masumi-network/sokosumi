@@ -3,6 +3,7 @@ import {
   isLikelyBot,
   type MatchContact,
   matchFollower,
+  namesCompany,
   ownHost,
   parseXFollower,
   type XFollower,
@@ -162,5 +163,73 @@ describe("matchFollower", () => {
         contact({ ...acme, id: "c2" }),
       ]),
     ).toBeNull();
+  });
+
+  it("takes a first name alone only with the company in the bio and an address there", () => {
+    const gus = contact({
+      name: "Gus",
+      organization: "NEARWEEK",
+      channels: [{ type: "EMAIL", value: "gus@nearweek.com" }],
+    });
+    const bio = "The intersection between ai x crypto @NEARWEEK";
+    expect(
+      matchFollower(follower({ name: "Gus", description: bio }), [gus]),
+    ).toEqual({ contactId: "c1", score: 0.75 });
+    expect(
+      matchFollower(follower({ name: "Gus", description: "ai x crypto" }), [
+        gus,
+      ]),
+    ).toBeNull();
+    expect(
+      matchFollower(follower({ name: "Gus", description: bio }), [
+        { ...gus, channels: [] },
+      ]),
+    ).toBeNull();
+    // A name inside another company's domain is not that company.
+    expect(
+      matchFollower(follower({ name: "Alex", description: "Engineer @NEAR" }), [
+        contact({
+          name: "Alex",
+          organization: "NEAR",
+          channels: [{ type: "EMAIL", value: "alex@linear.app" }],
+        }),
+      ]),
+    ).toBeNull();
+    // An address at another company does not vouch for the bio's company.
+    expect(
+      matchFollower(follower({ name: "Gus", description: bio }), [
+        { ...gus, channels: [{ type: "EMAIL", value: "gus@unrelated.com" }] },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("namesCompany", () => {
+  it("reads initials, short forms and handles", () => {
+    expect(namesCompany("Input Output Group Technology Director", "IOG")).toBe(
+      true,
+    );
+    expect(namesCompany("Director at IOG", "Input Output Group")).toBe(true);
+    expect(namesCompany("Programs @ DraperU", "Draper University")).toBe(true);
+    expect(namesCompany("Programs @ DraperU", "draperuniversity", true)).toBe(
+      true,
+    );
+    expect(namesCompany("ai x crypto @NEARWEEK", "NEARWEEK")).toBe(true);
+  });
+
+  it("never reads ordinary words as a company", () => {
+    expect(namesCompany("Design engineer", "designagency", true)).toBe(false);
+    expect(namesCompany("I build models", "IBM")).toBe(false);
+    expect(namesCompany("who knows", "World Health Organization")).toBe(false);
+    expect(namesCompany("Policy at WHO", "World Health Organization")).toBe(
+      true,
+    );
+    expect(namesCompany("École Nationale Supérieure", "ENS")).toBe(true);
+  });
+
+  it("does not take a first word or a different company", () => {
+    expect(namesCompany("Draper fan", "Draper University")).toBe(false);
+    expect(namesCompany("Builds at Acme", "Acmera Labs")).toBe(false);
+    expect(namesCompany("Input Output", "IOG")).toBe(false);
   });
 });

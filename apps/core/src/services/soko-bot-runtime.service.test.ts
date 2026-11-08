@@ -314,6 +314,7 @@ vi.mock("@/services/social-posts.service", () => ({
   updateSocialPost: social.update,
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
+  requireMonthPostPicture: vi.fn(),
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,

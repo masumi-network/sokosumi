@@ -406,7 +406,7 @@ describe("cmoProductionMessage", () => {
       failedMedia: new Set(["x"]),
     });
     expect(message).toContain(
-      "carousel of 3 slides: one visual, Core makes each slide · (write its visual)",
+      "carousel of 3 slides: one visual and a line per slide in slides, Core makes each slide · (write its visual)",
     );
     expect(message).toContain(
       "(its picture failed twice: write a different visual)",

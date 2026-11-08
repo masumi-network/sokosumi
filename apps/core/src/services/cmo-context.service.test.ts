@@ -235,7 +235,7 @@ describe("loadCmoMarketingContext", () => {
     const context = await loadCmoMarketingContext("bot-1");
     expect(messageFindMany.mock.calls[0]?.[0]).toMatchObject({
       where: { senderSokoBotId: "bot-1" },
-      take: 3,
+      take: 60,
     });
     expect(context?.recentUpdates).toEqual([
       expect.objectContaining({ id: "message-1", headline: "Week 1" }),
