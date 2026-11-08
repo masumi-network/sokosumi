@@ -41,6 +41,7 @@ vi.mock("@/components/masumi-logos", () => ({
   ),
 }));
 
+import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import { HeaderLeadingControl } from "./header-leading-control.client";
 
 describe("HeaderLeadingControl", () => {
@@ -161,6 +162,36 @@ describe("HeaderLeadingControl", () => {
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "back" });
     expect(back).toHaveAttribute("href", "/");
+  });
+
+  it("returns from an agent's job to that agent", () => {
+    mockPathname = "/agents/a1/jobs/j1";
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/agents/a1",
+    );
+  });
+
+  it("returns from an unavailable agent's job to the catalog", () => {
+    mockPathname = "/agents/a1/jobs/j1";
+    const { unmount } = render(
+      <>
+        <HeaderLeadingControl />
+        <MarkAgentUnavailable agentId="a1" />
+      </>,
+    );
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/agents",
+    );
+    // Leaving the jobs layout clears the mark for the next visit.
+    unmount();
+    render(<HeaderLeadingControl />);
+    expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+      "href",
+      "/agents/a1",
+    );
   });
 
   it("shows back to home on studio", () => {

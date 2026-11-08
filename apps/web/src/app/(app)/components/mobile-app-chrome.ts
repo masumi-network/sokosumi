@@ -45,6 +45,8 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
   ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
+const AGENT_JOBS_PATH = /^\/agents\/([^/]+)\/jobs(?:\/|$)/;
+
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
 
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
@@ -73,6 +75,13 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
     }
   }
   return null;
+}
+
+/** Agent id when the path is one of that agent's jobs pages, else null. */
+export function getAgentJobsPathAgentId(
+  pathname: string | null | undefined,
+): string | null {
+  return (pathname && AGENT_JOBS_PATH.exec(pathname)?.[1]) || null;
 }
 
 /**
@@ -120,6 +129,12 @@ export function resolveMobileAppBackTarget(
       return null;
     }
     return { href: CHAT_CHATS_LIST_PATH, labelKey: "backToChats" };
+  }
+  // An agent's jobs go back to that agent, not the catalog. The top bar swaps
+  // in the catalog when the agent is unavailable (`useIsAgentUnavailable`).
+  const agentId = getAgentJobsPathAgentId(pathname);
+  if (agentId) {
+    return { href: `/agents/${agentId}`, labelKey: "back" };
   }
   return { href: root, labelKey: "back" };
 }

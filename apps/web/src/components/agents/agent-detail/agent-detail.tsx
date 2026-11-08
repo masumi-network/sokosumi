@@ -29,6 +29,8 @@ interface AgentDetailProps {
       }
     | null
     | undefined;
+  /** Viewer's jobs with this agent; the header links to them when above 0. */
+  myJobsCount?: number | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -44,6 +46,7 @@ export function AgentDetail({
   ratingsWithComments,
   canRate,
   existingRating,
+  myJobsCount,
   showBackButton,
   showCloseButton,
   onClose,
@@ -62,6 +65,7 @@ export function AgentDetail({
       <section className="space-y-4">
         <AgentDetailHeader
           agent={agent}
+          myJobsCount={myJobsCount}
           showBackButton={showBackButton}
           showCloseButton={showCloseButton}
           onClose={onClose}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -26,6 +26,7 @@ import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {
   agent: CoreAgentDto;
+  myJobsCount?: number | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -33,6 +34,7 @@ interface AgentDetailHeaderProps {
 
 function AgentDetailHeader({
   agent,
+  myJobsCount = 0,
   showBackButton,
   showCloseButton,
   onClose,
@@ -111,6 +113,21 @@ function AgentDetailHeader({
               </h1>
               <AgentVerifiedBadge />
             </div>
+            {myJobsCount > 0 ? (
+              <Link
+                href={`/agents/${agent.id}/jobs`}
+                className="border-border bg-card-background hover:bg-quinary focus-visible:ring-ring inline-flex w-fit items-center gap-2 rounded-md border py-1.5 pr-2 pl-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
+              >
+                <span>{tJobsHeader("yourJobs")}</span>
+                <span className="bg-muted text-muted-foreground rounded-full px-2 text-xs tabular-nums">
+                  {myJobsCount}
+                </span>
+                <ChevronRight
+                  className="text-muted-foreground size-4"
+                  aria-hidden
+                />
+              </Link>
+            ) : null}
             <div className="flex items-center gap-3">
               <div className="relative size-8">
                 <Image

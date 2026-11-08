@@ -31,11 +31,11 @@ const TWO_PANES = JOBS_TWO_PANE_MIN_WIDTH;
 let panes: ReturnType<typeof installJobsPanesRow> | null = null;
 
 /** The modal stands in for the right pane, so it shows only when that pane cannot. */
-function renderWithPanesWidth(width: number) {
+function renderWithPanesWidth(width: number, job: object = {}) {
   panes = installJobsPanesRow(width);
 
   return render(
-    <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />,
+    <JobDetailsModal agentId="agent-1" job={job as never} readOnly={false} />,
   );
 }
 
@@ -53,6 +53,14 @@ describe("JobDetailsModal", () => {
     renderWithPanesWidth(ONE_PANE);
 
     expect(await screen.findByTestId("job-details")).toBeInTheDocument();
+  });
+
+  it("names the dialog after the job", async () => {
+    renderWithPanesWidth(ONE_PANE, { name: "Quarterly report" });
+
+    expect(
+      await screen.findByRole("dialog", { name: "Quarterly report" }),
+    ).toBeInTheDocument();
   });
 
   it("does not render modal content when the right pane fits", async () => {
