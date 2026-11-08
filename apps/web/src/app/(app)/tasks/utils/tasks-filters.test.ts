@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   applyProjectIdSearchParam,
   buildTasksFiltersSearchParams,
+  clearTasksFilters,
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   hasActiveTasksFilters,
+  hasClearableTasksFilters,
   parseTasksFilters,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
@@ -506,5 +508,48 @@ describe("tasks-filters", () => {
         "org-1",
       ),
     ).toBe(true);
+  });
+});
+
+describe("hasClearableTasksFilters and clearTasksFilters", () => {
+  const defaults = parseTasksFilters({}, "org-1");
+
+  it("ignores the default scope and the project", () => {
+    expect(
+      hasClearableTasksFilters({ ...defaults, projectId: PROJECT_ID }, "org-1"),
+    ).toBe(false);
+    expect(hasClearableTasksFilters(parseTasksFilters({}, null), null)).toBe(
+      false,
+    );
+  });
+
+  it("counts a non-default scope, an assignee, a status or private visibility", () => {
+    for (const patch of [
+      { scope: "owned" as const },
+      { assigneeUserId: "user-1" },
+      { status: TaskStatus.COMPLETED },
+      { visibility: TaskVisibility.PRIVATE },
+    ]) {
+      expect(hasClearableTasksFilters({ ...defaults, ...patch }, "org-1")).toBe(
+        true,
+      );
+    }
+  });
+
+  it("clears back to the defaults and keeps the project", () => {
+    expect(
+      clearTasksFilters(
+        {
+          scope: "owned",
+          assigneeId: "coworker-1",
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+          status: TaskStatus.FAILED,
+          projectId: PROJECT_ID,
+          visibility: TaskVisibility.PRIVATE,
+        },
+        "org-1",
+      ),
+    ).toEqual({ ...defaults, projectId: PROJECT_ID });
   });
 });

@@ -16,7 +16,7 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -40,12 +40,16 @@ import {
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
 import {
+  buildTasksFiltersSearchParams,
+  clearTasksFilters,
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  hasClearableTasksFilters,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import { useRefreshWhenShown } from "@/app/tasks/utils/use-refresh-when-shown";
+import { EmptyState } from "@/components/common/empty-state";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
@@ -228,6 +232,7 @@ export function TasksView({
   labels,
 }: TasksViewProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
   const tTasks = useTranslations("App.Tasks");
@@ -803,6 +808,21 @@ export function TasksView({
     listCursor,
   ]);
 
+  // Only once the server answered for these filters, so a stale board never says "no match".
+  const showFilteredEmpty =
+    items.length === 0 &&
+    isTaskPaginationInSync &&
+    hasClearableTasksFilters(routeFilters, activeOrganizationId);
+
+  const handleClearFilters = () => {
+    const nextQuery = buildTasksFiltersSearchParams(
+      searchParams,
+      clearTasksFilters(routeFilters, activeOrganizationId),
+      activeOrganizationId,
+    ).toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
+
   const content = (
     <div
       className={cn(
@@ -810,14 +830,14 @@ export function TasksView({
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div className="flex flex-row items-center justify-end gap-2 sm:gap-3">
+      <div className="flex flex-row flex-wrap items-center justify-end gap-2 sm:gap-3">
         <TasksViewToolbarActions
           filters={{
             activeOrganizationId,
             userId,
             coworkerOptions,
             projectOptions,
-            labels: labels.filters,
+            labels: { ...labels.filters, columns: labels.columns },
           }}
           display={{
             value: viewMode,
@@ -841,7 +861,19 @@ export function TasksView({
               viewMode === "board" ? "flex min-h-0 min-w-0 flex-1" : "",
             )}
           >
-            {isMounted ? (
+            {showFilteredEmpty ? (
+              <div className="bg-card-background flex flex-1 items-center justify-center rounded-xl">
+                <EmptyState
+                  title={tTasks("Filters.noMatchesTitle")}
+                  description={tTasks("Filters.noMatchesDescription")}
+                  action={
+                    <Button variant="outline" onClick={handleClearFilters}>
+                      {tTasks("Filters.clear")}
+                    </Button>
+                  }
+                />
+              </div>
+            ) : isMounted ? (
               <DndContext
                 sensors={sensors}
                 onDragStart={handleDragStart}

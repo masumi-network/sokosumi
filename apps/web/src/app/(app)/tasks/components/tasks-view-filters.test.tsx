@@ -1,5 +1,5 @@
 import { TaskStatus } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,13 +17,19 @@ import { mockCoworkerOption } from "@/test-fixtures/coworker";
 import { TasksViewFilters } from "./tasks-view-filters";
 
 const replaceMock = vi.fn();
+let searchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tasks",
   useRouter: () => ({
     replace: replaceMock,
   }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParams,
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key}(${Object.values(values).join(", ")})` : key,
 }));
 
 const labels = {
@@ -54,6 +60,13 @@ const labels = {
     [TaskStatus.COMPLETED]: "Completed",
     [TaskStatus.FAILED]: "Failed",
     [TaskStatus.CANCELED]: "Canceled",
+  },
+  columns: {
+    backlog: "Backlog",
+    todo: "Todo",
+    "in-progress": "In progress",
+    "input-required": "Input required",
+    done: "Done",
   },
 } as const;
 
@@ -94,6 +107,7 @@ describe("TasksViewFilters", () => {
   beforeEach(() => {
     filterDropdownMenuMock.mockClear();
     replaceMock.mockClear();
+    searchParams = new URLSearchParams();
   });
 
   it("filters to the tasks assigned to the viewer in one click", async () => {
@@ -141,5 +155,55 @@ describe("TasksViewFilters", () => {
       "coworker",
       "status",
     ]);
+  });
+
+  it("groups every status under its board column, Done holding the finished ones", () => {
+    const props = renderTasksViewFilters(null);
+    const status = props.sections.find((section) => section.id === "status");
+
+    expect(status?.options.map((option) => option.value).sort()).toEqual(
+      Object.values(TaskStatus).sort(),
+    );
+    expect(
+      status?.options
+        .filter((option) => option.group === "Done")
+        .map((option) => option.label),
+    ).toEqual(["Completed", "Failed", "Canceled"]);
+  });
+
+  it("shows no chips without filters", () => {
+    renderTasksViewFilters("org-1");
+
+    expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  it("shows each active filter as a chip that removes only itself", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?status=COMPLETED&assigneeId=coworker-1&visibility=PRIVATE&scope=owned",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1");
+
+    const chips = within(
+      screen.getByRole("list", { name: "activeFilters" }),
+    ).getAllByRole("listitem");
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "chip(Scope, Created by me)",
+      "chip(Visibility, Private)",
+      "chip(Coworker, Elena)",
+      "chip(Status, Completed)",
+    ]);
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "removeFilter(chip(Status, Completed))",
+      }),
+    );
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/tasks?assigneeId=coworker-1&visibility=PRIVATE&scope=owned",
+    );
+    window.history.replaceState(null, "", "/");
   });
 });

@@ -1756,7 +1756,13 @@
           "CANCELED": "Canceled"
         },
         "visibilityLabel": "Visibility",
-        "visibilityPrivate": "Private"
+        "visibilityPrivate": "Private",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clear": "Clear filters",
+        "noMatchesTitle": "No tasks match these filters",
+        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again."
       },
       "Detail": {
         "back": "Back to tasks",

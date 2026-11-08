@@ -1756,7 +1756,13 @@
           "CANCELED": "Abgebrochen"
         },
         "visibilityLabel": "Sichtbarkeit",
-        "visibilityPrivate": "Privat"
+        "visibilityPrivate": "Privat",
+        "activeFilters": "Aktive Filter",
+        "chip": "{label}: {value}",
+        "removeFilter": "Filter {filter} entfernen",
+        "clear": "Filter zurücksetzen",
+        "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
+        "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen."
       },
       "Detail": {
         "back": "Zurück zu Tasks",
