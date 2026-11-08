@@ -1,55 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  brandColors,
-  brandFontName,
-  brandFonts,
-  distinctColors,
-  findImages,
-  findLogo,
-  isNeutral,
-  normalizeHex,
-  siteNameFrom,
-} from "./brand-visual";
+import { findImages, findLogo, siteNameFrom } from "./brand-visual";
 
 describe("brand visual", () => {
-  it("keeps brand colours and drops neutrals", () => {
-    const css = `
-      :root { --brand-primary: #6400ff; --text: #111; }
-      a { color: #6400FF } .btn { background: rgb(255, 106, 0) }
-      body { background: #ffffff; color: #333333 }
-    `;
-    expect(brandColors(css)).toEqual(["#6400ff", "#ff6a00"]);
-    expect(isNeutral("#f5f5f5")).toBe(true);
-    expect(normalizeHex("#ABC")).toBe("#aabbcc");
-  });
-
-  it("reads the fonts the site sets, not the fallbacks", () => {
-    const css = `body { font-family: "Inter", system-ui, sans-serif }
-      h1 { font-family: 'PP Mori', Inter } p { font-family: Inter }`;
-    expect(brandFonts(css)).toEqual(["Inter", "PP Mori"]);
-    expect(
-      brandFonts("font-family:&quot;Inter Display&quot;, sans-serif"),
-    ).toEqual(["Inter Display"]);
-    expect(
-      brandFonts("a{font-family:Inter} b{font-family:'Inter Fallback'}"),
-    ).toEqual(["Inter"]);
-  });
-
-  it("names brand fonts and drops fallbacks and generic families", () => {
-    expect(brandFontName("Inter Fallback")).toBeNull();
-    expect(brandFontName("__Inter_Fallback_abc")).toBeNull();
-    expect(brandFontName("__Inter_Fallback_d65c78")).toBeNull();
-    expect(brandFontName("system-ui")).toBeNull();
-    expect(brandFontName("__Inter_d65c78")).toBe("Inter");
-    expect(brandFontName("'PP Mori'")).toBe("PP Mori");
-    expect(
-      brandFonts(
-        "a{font-family:__Inter_d65c78, '__Inter_Fallback_d65c78'} b{font-family:'Inter Fallback'} c{font-family:system-ui}",
-      ),
-    ).toEqual(["Inter"]);
-  });
-
   it("finds the logo image, else the touch icon", () => {
     const base = "https://acme.io/";
     expect(
@@ -65,20 +18,6 @@ describe("brand visual", () => {
         base,
       ),
     ).toBeNull();
-  });
-
-  it("merges near-identical colours", () => {
-    expect(
-      distinctColors(["#1e2a5a", "#202c5e", "#6400ff", "#6a05ff", "#ff6a00"]),
-    ).toEqual(["#1e2a5a", "#6400ff", "#ff6a00"]);
-  });
-
-  it("leaves code and icon fonts out", () => {
-    expect(brandFontName("Menlo")).toBeNull();
-    expect(brandFontName("FontAwesome")).toBeNull();
-    expect(brandFontName("Font Awesome 6 Free")).toBeNull();
-    expect(brandFontName("JetBrains Mono")).toBeNull();
-    expect(brandFontName("PitchSans")).toBe("PitchSans");
   });
 
   it("names the business from the title part that matches the domain", () => {

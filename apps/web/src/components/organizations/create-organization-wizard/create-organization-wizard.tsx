@@ -14,7 +14,7 @@ import {
   Check,
   CloudUpload,
   Copy,
-  FileText,
+  ExternalLink,
   Info,
   Link2,
   Loader2,
@@ -79,6 +79,7 @@ import {
   ORGANIZATION_LOGO_ACCEPT,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
+import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
 import {
   cleanupOrganizationLogoBestEffort,
@@ -142,6 +143,61 @@ interface CreateOrganizationWizardProps {
    * nothing behind it shows while the app loads.
    */
   onOrganizationReady?: (organizationId: string) => void;
+}
+
+/**
+ * What the saved brand guidelines say, in plain words: colour swatches, fonts
+ * and tone. Rows the guidelines leave out are skipped; with none, one line
+ * says they are saved.
+ */
+function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
+  const t = useTranslations(
+    "Components.Organizations.CreateOrganizationWizard",
+  );
+  const rows = [
+    look?.colors.length
+      ? {
+          label: t("Brand.colors"),
+          value: (
+            <span className="flex flex-wrap gap-1.5">
+              {look.colors.map((color) => (
+                <span
+                  key={color}
+                  title={color}
+                  className="border-border size-5 rounded-md border"
+                  style={{ backgroundColor: color }}
+                >
+                  <span className="sr-only">{color}</span>
+                </span>
+              ))}
+            </span>
+          ),
+        }
+      : null,
+    look?.fonts.length
+      ? { label: t("Brand.fonts"), value: look.fonts.join(", ") }
+      : null,
+    look?.tone ? { label: t("Brand.tone"), value: look.tone } : null,
+  ].filter((row) => row !== null);
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-muted-foreground mx-auto max-w-[46ch] text-sm text-balance">
+        {t("Brand.noSummary")}
+      </p>
+    );
+  }
+
+  return (
+    <dl className="bg-card-background mx-auto w-full max-w-sm divide-y rounded-xl border text-left text-sm">
+      {rows.map((row) => (
+        <div key={row.label} className="flex items-center gap-4 px-4 py-3">
+          <dt className="text-muted-foreground w-24 shrink-0">{row.label}</dt>
+          <dd className="min-w-0 break-words">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 export function CreateOrganizationWizard({
@@ -222,7 +278,11 @@ export function CreateOrganizationWizard({
     [organizationId],
   );
 
+  const [brandResult, setBrandResult] = useState<PersistedDesignMd | null>(
+    null,
+  );
   const brand = useDesignMdGeneration({
+    onCompleted: setBrandResult,
     messages: {
       generationFailed: tDesignMd("generateError"),
       saveFailed: tDesignMd("saveError"),
@@ -256,6 +316,7 @@ export function CreateOrganizationWizard({
     savedValuesRef.current = null;
     brandForceRef.current = false;
     brand.reset();
+    setBrandResult(null);
     form.reset({ name: "", url: "" });
   }, [brand, form]);
 
@@ -366,6 +427,7 @@ export function CreateOrganizationWizard({
           brandStartedRef.current = false;
           brandForceRef.current = true;
           brand.reset();
+          setBrandResult(null);
         }
 
         return organizationId;
@@ -841,7 +903,7 @@ export function CreateOrganizationWizard({
                         ? t("Brand.generating", { domain: brandDomain })
                         : t("Brand.generatingNoDomain")}
                   {/* A popover, not a tooltip: a tap has to open it, or phones
-                      never see what DESIGN.md is. */}
+                      never see what brand guidelines are. */}
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
@@ -870,14 +932,22 @@ export function CreateOrganizationWizard({
                 )}
 
                 {brand.status === "completed" && (
-                  <div className="mt-10">
-                    <div className="bg-card-background text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
-                      <FileText className="size-4" />
-                      <span className="font-mono text-sm">DESIGN.md</span>
-                    </div>
-                    <p className="text-muted-foreground mt-4 text-sm">
+                  <div className="mt-8">
+                    <BrandLookSummary look={brandResult?.look} />
+                    <p className="text-muted-foreground mx-auto mt-4 max-w-[46ch] text-sm text-balance">
                       {t("Brand.editHint")}
                     </p>
+                    {brandResult && (
+                      <a
+                        href={brandResult.previewUrl ?? brandResult.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground focus-visible:ring-ring mt-3 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-2"
+                      >
+                        {t("Brand.viewFull")}
+                        <ExternalLink aria-hidden className="size-3.5" />
+                      </a>
+                    )}
                   </div>
                 )}
 
