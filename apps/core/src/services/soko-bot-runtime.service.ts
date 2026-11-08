@@ -44,6 +44,7 @@ import {
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES,
   type SokoBotCapability,
   type SokoBotDecisionTarget,
   type SokoBotTurnGrantClaims,
@@ -54,6 +55,7 @@ import {
   sokoBotDeleteFileInputSchema,
   sokoBotDraftEmailInputSchema,
   sokoBotEvaluateWithJevInputSchema,
+  sokoBotGenerateVoiceoverInputSchema,
   sokoBotInstallSkillInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
@@ -107,7 +109,7 @@ import {
   tableMutationSchema,
   tableQuerySchema,
 } from "@sokosumi/utils";
-import { del, head, list, put } from "@vercel/blob";
+import { copy, del, head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
@@ -160,9 +162,9 @@ import {
   type SokoBotTurnReader,
   sokoBotSharedScopeOf,
 } from "@/helpers/task-visibility";
-
 import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
 import { fitDisplayImage } from "@/lib/ads/display-image-fit";
+import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -282,6 +284,7 @@ import {
 } from "@/lib/soko-bot/turn-loop";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
+import { speakVoiceover } from "@/lib/soko-bot/voiceover";
 import {
   type SokoBotWriteTargets,
   sokoBotProjectRefusal,
@@ -617,6 +620,41 @@ async function onlyEventTask(
 }
 
 const SVG_MIME_TYPE = "image/svg+xml";
+/** `a/b/clip.mp4` → `a/b/clip-1f3c9a2b.mp4`: a storage address nobody can take back. */
+function withUniqueSuffix(pathname: string): string {
+  const slash = pathname.lastIndexOf("/");
+  const dot = pathname.lastIndexOf(".");
+  const suffix = randomUUID().slice(0, 8);
+  return dot > slash
+    ? `${pathname.slice(0, dot)}-${suffix}${pathname.slice(dot)}`
+    : `${pathname}-${suffix}`;
+}
+
+export const WORKSPACE_UPLOAD_GRANTED_EVENT = "sandbox.upload_granted";
+
+/** The type of a workspace file upload_file takes: media and PDFs, never markup. */
+function workspaceUploadType(filename: string, declared?: string): string {
+  const contentType = resolveUserUploadContentType(filename, declared ?? "");
+  if (!contentType || !WORKSPACE_UPLOAD_TYPES.has(contentType))
+    throw new SokoBotRefusedUnsentError(
+      "A workspace file must be a video (mp4, mov, webm), an image (png, jpg, gif, webp), a PDF or audio (mp3, wav); name it with that extension",
+    );
+  return contentType;
+}
+
+/** What upload_file takes from the bot's workspace: media and PDFs, never markup. */
+const WORKSPACE_UPLOAD_TYPES = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "audio/mpeg",
+  "audio/wav",
+]);
 
 /**
  * Why an SVG the bot wrote may not be stored, or null when it is plain
@@ -3283,12 +3321,15 @@ export class SokoBotRuntimeService {
       filename: string;
       content?: string;
       attachmentUrl?: string;
+      workspacePath?: string;
+      uploadedPathname?: string;
       contentType?: string;
       overwrite?: boolean;
       folder?: string;
     },
   ) {
     const folder = driveFolderFor(input.folder);
+    if (input.workspacePath) return this.saveWorkspaceFile(authorized, input);
     if (input.attachmentUrl) {
       if (input.content !== undefined)
         throw new SokoBotRefusedUnsentError(
@@ -3848,6 +3889,218 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /**
+   * A one-time address for a file the bot made in its sandbox (a video cut
+   * with ffmpeg or Remotion, a rendered image): the sandbox puts the bytes
+   * there itself, so they never pass through Core, and upload_file then adds
+   * the file to Files. The address is new every time and refuses a second
+   * write, so nothing already shared or approved can change under it.
+   */
+  async grantWorkspaceUpload(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      filename: string;
+      folder?: string;
+      contentType?: string;
+      size: number;
+    },
+  ) {
+    if (!authorized.grant.capabilities.includes("upload_file"))
+      throw new SokoBotRefusedUnsentError("upload_file is not available here");
+    const contentType = workspaceUploadType(input.filename, input.contentType);
+    if (input.size <= 0 || input.size > SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES)
+      throw new SokoBotRefusedUnsentError(
+        `A workspace file must be between 1 byte and ${SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES / 1e6} MB`,
+      );
+    const token = getEnv().BLOB_READ_WRITE_TOKEN;
+    if (!token)
+      throw new SokoBotRuntimeValidationError("File storage is not configured");
+    const drive = await this.ownerDrive(authorized);
+    const folder = driveFolderFor(input.folder);
+    const named = folder
+      ? drive.pathnameIn(folder, input.filename)
+      : drive.pathname(input.filename);
+    const extension = /\.[a-z0-9]{1,8}$/i.exec(input.filename)?.[0] ?? "";
+    // A staging address: the signed PUT stays usable for minutes, so it must
+    // never be where Files keeps the file. saveWorkspaceFile copies it out.
+    const grant = await createBlobUploadGrant({
+      pathname: `soko-bot-staging/${authorized.turn.id}/${randomUUID()}${extension}`,
+      contentType,
+      maximumSizeInBytes: input.size,
+      maxSizeBytes: SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES,
+      access: "public",
+      addRandomSuffix: false,
+      token,
+    });
+    return {
+      grant,
+      displayName: named.split("/").pop() ?? input.filename,
+      folder,
+      contentType,
+    };
+  }
+
+  /**
+   * Where the sandbox reads a file from the owner's Files for
+   * workspace_import_file: the same files read_file may open, as bytes.
+   */
+  async workspaceFileSource(
+    authorized: AuthorizedSokoBotRuntime,
+    fileId: string,
+  ) {
+    if (!authorized.grant.capabilities.includes("workspace_import_file"))
+      throw new SokoBotRefusedUnsentError(
+        "workspace_import_file is not available here",
+      );
+    const file = await this.ownerFile(authorized, fileId);
+    if (file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
+      throw new SokoBotRefusedUnsentError(
+        "Only files in Files can be copied; a Task's files stay with it",
+      );
+    if ((file.sizeBytes ?? 0) > SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES)
+      throw new SokoBotRefusedUnsentError(
+        `${file.displayName} is over ${SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES / 1e6} MB`,
+      );
+    return {
+      url: (await head(file.sourceId)).url,
+      name: file.displayName,
+      contentType: file.mimeType,
+    };
+  }
+
+  /** Speaks text as an mp3 in the owner's Files, with its timing. */
+  private async generateVoiceover(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      text: string;
+      voice?: string;
+      languageCode?: string;
+      filename: string;
+      folder?: string;
+    },
+  ) {
+    this.refuseCmoRunMedia(authorized);
+    const filename = /\.mp3$/i.test(input.filename)
+      ? input.filename
+      : `${input.filename}.mp3`;
+    let voiceover: Awaited<ReturnType<typeof speakVoiceover>>;
+    try {
+      voiceover = await speakVoiceover(input);
+    } catch (error) {
+      throw new SokoBotRuntimeValidationError(
+        error instanceof Error ? error.message : "The voice-over failed",
+      );
+    }
+    // Like Jev and routing: on the turn's total, not billed.
+    await prisma.sokoBotTurn.update({
+      where: { id: authorized.turn.id },
+      data: {
+        overheadCostUsdMicros: {
+          increment: BigInt(Math.round(voiceover.costUsd * 1_000_000)),
+        },
+      },
+    });
+    const saved = await this.saveFileBytes(authorized, {
+      filename,
+      folder: driveFolderFor(input.folder),
+      contentType: "audio/mpeg",
+      read: async () => Buffer.from(voiceover.bytes),
+    });
+    return {
+      ...saved,
+      durationSeconds: voiceover.durationSeconds,
+      sentences: voiceover.sentences,
+    };
+  }
+
+  /**
+   * Adds a file the sandbox uploaded through grantWorkspaceUpload to Files.
+   * Only an address this turn was granted counts, and only with the type it
+   * was granted for. The bytes are copied to a new address only Core writes,
+   * so replaying the upload link later changes nothing in Files.
+   */
+  private async saveWorkspaceFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      workspacePath?: string;
+      uploadedPathname?: string;
+      content?: string;
+      attachmentUrl?: string;
+      overwrite?: boolean;
+    },
+  ) {
+    if (input.content !== undefined || input.attachmentUrl)
+      throw new SokoBotRefusedUnsentError(
+        "Give one of content, attachmentUrl or workspacePath",
+      );
+    if (input.overwrite)
+      throw new SokoBotRefusedUnsentError(
+        "A workspace file is always saved as a new file; choose a new name",
+      );
+    const granted = input.uploadedPathname
+      ? await prisma.sokoBotRuntimeEvent.findFirst({
+          where: {
+            turnId: authorized.turn.id,
+            type: WORKSPACE_UPLOAD_GRANTED_EVENT,
+            data: { path: ["pathname"], equals: input.uploadedPathname },
+          },
+          select: { data: true },
+        })
+      : null;
+    if (!granted || !input.uploadedPathname)
+      throw new SokoBotRefusedUnsentError(
+        "A workspace file can only be saved from your sandbox",
+      );
+    const grant = granted.data as {
+      displayName: string;
+      folder: string;
+      contentType: string;
+    };
+    const blob = await head(input.uploadedPathname).catch(() => null);
+    if (!blob || blob.contentType !== grant.contentType)
+      throw new SokoBotRefusedUnsentError(
+        `${input.workspacePath} did not finish uploading; try again`,
+      );
+    const drive = await this.ownerDrive(authorized);
+    const pathname = withUniqueSuffix(
+      grant.folder
+        ? drive.pathnameIn(grant.folder, grant.displayName)
+        : drive.pathname(grant.displayName),
+    );
+    const key = { ...drive.key, pathname };
+    await reserveDriveUploadResource({
+      key,
+      displayName: grant.displayName,
+      mimeType: grant.contentType,
+      sizeBytes: blob.size,
+    });
+    await copy(input.uploadedPathname, pathname, {
+      access: "public",
+      contentType: grant.contentType,
+      addRandomSuffix: false,
+      allowOverwrite: false,
+    });
+    await del(input.uploadedPathname).catch(() => undefined);
+    const activated = await activateDriveUploadResource({
+      key,
+      sizeBytes: blob.size,
+      mimeType: grant.contentType,
+    });
+    nudgeFileIndexing();
+    return {
+      id: activated?.resourceId ?? null,
+      filename: grant.displayName,
+      replaced: false,
+      link: activated ? `/drive/files/${activated.resourceId}` : null,
+      size: blob.size,
+      folder: grant.folder || null,
+      savedTo:
+        drive.key.scope === "organization"
+          ? "Files in this organization's workspace, visible to its members"
+          : "Files in the owner's personal workspace",
+    };
+  }
+
   /** Saves a file's bytes into the owner's Files; `read` runs once the name is free. */
   private async saveFileBytes(
     authorized: AuthorizedSokoBotRuntime,
@@ -3866,6 +4119,7 @@ export class SokoBotRuntimeService {
     const pathname = input.folder
       ? drive.pathnameIn(input.folder, input.filename)
       : drive.pathname(input.filename);
+    const displayName = pathname.split("/").pop() ?? input.filename;
     const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
       (blob) => blob.pathname === pathname,
     );
@@ -3875,7 +4129,6 @@ export class SokoBotRuntimeService {
       );
     const bytes = await input.read();
     const key = { ...drive.key, pathname };
-    const displayName = pathname.split("/").pop() ?? input.filename;
     await reserveDriveUploadResource({
       key,
       displayName,
@@ -8229,6 +8482,11 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotUploadFileInputSchema.parse(input.input);
         return this.uploadFile(authorized, parsed);
       }
+      case "generate_voiceover":
+        return this.generateVoiceover(
+          authorized,
+          sokoBotGenerateVoiceoverInputSchema.parse(input.input),
+        );
       case "move_file":
         return this.moveFile(
           authorized,

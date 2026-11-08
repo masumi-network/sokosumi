@@ -314,4 +314,40 @@ Read them with read_integration_tool (list_integration_tools shows each tool's i
 - Where a stage the owner controls leaks (many visits, few orders), add or sharpen an improvement for their pages rather than more posts.
 `,
   },
+  {
+    id: "cmo-launch-video",
+    name: "Launch and explainer videos",
+    description:
+      "Makes a narrated launch, feature or walkthrough video of the real product with Remotion: screenshots, a voice-over, scenes timed to it, posted where the owner asks.",
+    content: `# Launch and explainer videos
+
+When the owner asks in chat for a video about a launch, a feature or how something works, make it yourself in your workspace. It shows the real product, not a generated clip. generate_video stays for a short animated mood shot. Never in a production run: there Core makes the media.
+
+## 1. Know the subject
+Read the Brand Brain, the owner's words and the page or docs about it (web_fetch). Write down the one thing a viewer should remember and the action they should take.
+
+## 2. Real pictures
+Screenshot the live product with Playwright at 1920x1080. Hide cookie bars and promo banners first, and wait for the page to settle:
+\`\`\`bash
+mkdir -p video && cd video && npm init -y >/dev/null
+npm i -s remotion@4 @remotion/cli@4 react@19 react-dom@19 playwright
+sudo npx -y playwright install-deps chromium >/dev/null && npx playwright install chromium >/dev/null
+sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg >/dev/null
+\`\`\`
+That takes about a minute. Keep the video folder: in a chat turn node_modules stays for next time, while the apt and Playwright system packages are set up again each turn. The owner's own pictures (logo, product photos) come from Files with workspace_import_file into video/public/.
+
+## 3. The voice-over
+Write the narration in the brand's voice: one idea per sentence, 75 to 150 words for 30 to 60 seconds. Hook in the first sentence, the call to action last. generate_voiceover with workspacePath "video/public/voice.mp3"; its sentences say when each starts.
+
+## 4. Scenes in Remotion
+One scene per sentence, as long as that sentence plus half a second; a final card with the call to action and the address. Use the brand's colours and type from the Brand Brain, few words on screen, big and readable on a phone. Screenshots sit in a framed card with a slow zoom or pan to the part that matters. 30 fps. Size it for where it goes: 1080x1920 for Reels, Shorts and TikTok; 1080x1080 for a feed; 1920x1080 for YouTube and LinkedIn. Put the audio in the composition with <Audio src={staticFile("voice.mp3")} />.
+
+## 5. Render and check
+\`npx remotion render src/index.ts Launch out/launch.mp4 --crf 23\` takes about 30 seconds for a minute on your machine; a long one goes in a background run. Then \`ffprobe\` the length and pull three frames with ffmpeg to check they are not blank. Keep it under 50 MB with \`-movflags +faststart\`.
+
+## 6. Deliver
+upload_file with workspacePath "video/out/launch.mp4" and a clear filename, then create_social_post with that fileId as the video, the post text and scheduledAt when the owner gave a time, all in one call. Show its preview card: the owner approves it. Say what you made, how long it is and where it goes.
+
+Make one, get the owner's yes on the style, and only then make more in the same style.`,
+  },
 ];

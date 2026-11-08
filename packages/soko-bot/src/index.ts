@@ -67,6 +67,7 @@ export {
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
+  SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
@@ -160,6 +161,8 @@ export {
   SOKO_BOT_TASK_STATUSES,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  SOKO_BOT_VOICEOVER_VOICES,
+  SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES,
   type SokoBotDecisionTarget,
   sokoBotAgentIdInputSchema,
   sokoBotArchiveTaskInputSchema,
@@ -179,6 +182,7 @@ export {
   sokoBotFindPeopleInputSchema,
   sokoBotGenerateImageInputSchema,
   sokoBotGenerateVideoInputSchema,
+  sokoBotGenerateVoiceoverInputSchema,
   sokoBotGetImageInputSchema,
   sokoBotGetVideoInputSchema,
   sokoBotHireAgentInputSchema,
@@ -220,6 +224,7 @@ export {
   sokoBotUpdateScheduleInputSchema,
   sokoBotUpdateTaskInputSchema,
   sokoBotUploadFileInputSchema,
+  sokoBotWorkspaceImportFileInputSchema,
 } from "./tool-contracts.js";
 export {
   applyVersionCapabilities,

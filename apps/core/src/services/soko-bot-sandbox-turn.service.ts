@@ -13,6 +13,7 @@ import {
   conflict,
   forbidden,
   internalServerError,
+  unprocessableEntity,
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
@@ -44,11 +45,13 @@ import {
   closeTurn,
   failTurn,
   finishTurn,
+  isTaintBlocked,
   type PreparedTurn,
   prepareTurn,
   RuntimeEventLog,
   runTurnTool,
   runtimeEvent,
+  SokoBotTaintedActionError,
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
@@ -207,13 +210,96 @@ export async function runSandboxTool(
   });
 }
 
+const MAX_UPLOADS_PER_TURN = 20;
+const UPLOAD_RESERVED_EVENT = "sandbox.upload_reserved";
+
+/** Where the runner downloads a Files file for workspace_import_file. */
+export async function sandboxFileSource(
+  claims: TurnTokenClaims,
+  fileId: string,
+) {
+  const authorized = await authorizeTurn(claims);
+  const { sokoBotRuntimeService } = await import(
+    "@/services/soko-bot-runtime.service"
+  );
+  try {
+    return await sokoBotRuntimeService.workspaceFileSource(authorized, fileId);
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "File not available",
+    );
+  }
+}
+
+/**
+ * A one-time storage address for a file the runner is about to upload from
+ * the workspace; upload_file accepts only addresses this turn was granted.
+ */
+export async function grantSandboxUpload(
+  claims: TurnTokenClaims,
+  input: {
+    filename: string;
+    folder?: string;
+    contentType?: string;
+    size: number;
+  },
+) {
+  const authorized = await authorizeTurn(claims);
+  const { sokoBotRuntimeService, WORKSPACE_UPLOAD_GRANTED_EVENT } =
+    await import("@/services/soko-bot-runtime.service");
+  // The same gates upload_file has: refused after taint where it would be,
+  // and a bounded number per turn.
+  if (await isTaintBlocked(claims.turnId, "upload_file"))
+    throw unprocessableEntity(
+      new SokoBotTaintedActionError("upload_file").message,
+    );
+  // Reserve, then count: the event log appends one at a time, so requests
+  // sent together cannot all see room for one more.
+  await logFor(claims).append(runtimeEvent(UPLOAD_RESERVED_EVENT, {}));
+  const reserved = await prisma.sokoBotRuntimeEvent.count({
+    where: { turnId: claims.turnId, type: UPLOAD_RESERVED_EVENT },
+  });
+  if (reserved > MAX_UPLOADS_PER_TURN)
+    throw unprocessableEntity(
+      `A turn can save up to ${MAX_UPLOADS_PER_TURN} workspace files`,
+    );
+  try {
+    const granted = await sokoBotRuntimeService.grantWorkspaceUpload(
+      authorized,
+      input,
+    );
+    await logFor(claims).append(
+      runtimeEvent(WORKSPACE_UPLOAD_GRANTED_EVENT, {
+        pathname: granted.grant.pathname,
+        displayName: granted.displayName,
+        folder: granted.folder,
+        contentType: granted.contentType,
+      }),
+    );
+    return {
+      uploadUrl: granted.grant.uploadUrl,
+      headers: granted.grant.headers,
+      pathname: granted.grant.pathname,
+    };
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Upload not allowed",
+    );
+  }
+}
+
 /**
  * Sandbox tools that bring nothing new into the turn: the plan, and a file
  * the bot writes from what it already has. Anything that could have come from
  * the web was tainted when it was read; writing it down adds no input. Without
  * this, "write the notes and put them in my Files" was refused halfway.
  */
-const SANDBOX_TOOLS_WITHOUT_INPUT = new Set(["update_plan", "workspace_write"]);
+const SANDBOX_TOOLS_WITHOUT_INPUT = new Set([
+  "update_plan",
+  "workspace_write",
+  // The owner's own Files, which read_file opens without taint too.
+  "workspace_import_file",
+]);
 
 async function markUntrusted(
   log: RuntimeEventLog,
