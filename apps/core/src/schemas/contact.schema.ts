@@ -275,8 +275,11 @@ export const contactMapSchema = z
         .openapi("ContactMapPlace"),
     ),
     unplaced: z.int().openapi({
+      description: "Contacts with a location that names no place.",
+    }),
+    pending: z.int().openapi({
       description:
-        "Contacts with a location that could not be placed, or not yet.",
+        "Contacts whose place is still being looked up; ask again shortly.",
     }),
     withoutLocation: z.int(),
   })

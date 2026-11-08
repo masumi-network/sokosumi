@@ -122,7 +122,10 @@ export function AvatarPicker({
           type="button"
           variant="ghost"
           size="sm"
-          loading={isPending}
+          // The first set loads behind the skeletons; only a refresh the user
+          // asked for shows (and announces) this button as busy.
+          loading={isPending && loaded}
+          disabled={!loaded}
           onClick={() => load(seen)}
         >
           <RefreshCw aria-hidden className="size-3.5" />

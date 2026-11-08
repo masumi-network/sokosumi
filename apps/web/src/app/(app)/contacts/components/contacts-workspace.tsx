@@ -84,6 +84,7 @@ import {
   CONTACT_LISTS_KEY,
   refreshContacts,
   useContactLists,
+  useContactMap,
   useContactOrganizations,
   useContactRows,
   useTeammates,
@@ -173,6 +174,8 @@ export function ContactsWorkspace({
     direction: direction ?? defaultDirection(sort),
   });
   const rows = useContactRows(query);
+  // Started here, not in the lazy map, so it runs beside the rows request.
+  useContactMap(query, layout === "map");
   const loaded = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
   const searchPending = search !== debouncedSearch || rows.isPlaceholderData;
   const contacts =

@@ -4,6 +4,7 @@
  * coordinates once, and `geocoded_place` keeps the answer for everyone.
  */
 import type { ContactKind } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import {
@@ -93,15 +94,16 @@ const modelGeocode: Geocode = async (places) => {
   return parseGeocodeAnswer(text, places.length);
 };
 
-/** Cached coordinates for each query, looking up and storing new ones. */
-async function placeCoordinates(
+/** Places a lookup is running for in this instance, so polls don't repeat it. */
+const inFlight = new Set<string>();
+
+async function cachedCoordinates(
   queries: string[],
-  geocode: Geocode,
 ): Promise<Map<string, Coordinates | null>> {
   const cached = await prisma.geocodedPlace.findMany({
     where: { query: { in: queries } },
   });
-  const known = new Map<string, Coordinates | null>(
+  return new Map(
     cached.map((row) => [
       row.query,
       row.label !== null && row.latitude !== null && row.longitude !== null
@@ -109,41 +111,38 @@ async function placeCoordinates(
         : null,
     ]),
   );
-  const missing = queries
-    .filter((query) => !known.has(query))
-    .slice(0, MAX_NEW_PLACES);
+}
+
+/** Looks places up and stores the answers; a failed batch stays uncached. */
+async function lookUpPlaces(queries: string[], geocode: Geocode) {
   const batches: string[][] = [];
-  for (let start = 0; start < missing.length; start += BATCH_SIZE)
-    batches.push(missing.slice(start, start + BATCH_SIZE));
+  for (let start = 0; start < queries.length; start += BATCH_SIZE)
+    batches.push(queries.slice(start, start + BATCH_SIZE));
   await Promise.all(
     batches.map(async (batch) => {
-      let answers: (Coordinates | null)[] | null;
       try {
-        answers = await geocode(batch);
+        const answers = await geocode(batch);
+        // An unusable answer says nothing about the places; ask again later.
+        if (!answers) return;
+        await prisma.geocodedPlace.createMany({
+          data: batch.map((query, index) => ({
+            query,
+            label: answers[index]?.label ?? null,
+            latitude: answers[index]?.latitude ?? null,
+            longitude: answers[index]?.longitude ?? null,
+          })),
+          skipDuplicates: true,
+        });
       } catch (error) {
-        // Left uncached, so the next load asks again.
         console.warn("Contact place lookup failed", {
           places: batch.length,
           error: error instanceof Error ? error.message : String(error),
         });
-        return;
+      } finally {
+        for (const query of batch) inFlight.delete(query);
       }
-      // An unusable answer says nothing about the places; ask again later.
-      if (!answers) return;
-      const placed = answers;
-      await prisma.geocodedPlace.createMany({
-        data: batch.map((query, index) => ({
-          query,
-          label: placed[index]?.label ?? null,
-          latitude: placed[index]?.latitude ?? null,
-          longitude: placed[index]?.longitude ?? null,
-        })),
-        skipDuplicates: true,
-      });
-      batch.forEach((query, index) => known.set(query, placed[index] ?? null));
     }),
   );
-  return known;
 }
 
 export interface ContactMapContact {
@@ -157,17 +156,31 @@ export interface ContactMapContact {
 export interface ContactMap {
   places: (Coordinates & { contacts: ContactMapContact[] })[];
   unplaced: number;
+  pending: number;
   withoutLocation: number;
 }
 
-/** The contacts a list query matches, grouped by where they are. */
+export interface ContactMapDeps {
+  geocode: Geocode;
+  /** Keeps the lookup running after the response. */
+  schedule: (work: Promise<unknown>) => void;
+}
+
+/**
+ * The contacts a list query matches, grouped by where they are. Places not
+ * looked up yet count as pending and are looked up after the response, so the
+ * map never waits on the model.
+ */
 export async function contactMap(
   actor: ContactActor,
   options: Pick<
     ListContactsOptions,
     "filter" | "listId" | "company" | "archived"
   >,
-  geocode: Geocode = modelGeocode,
+  { geocode, schedule }: ContactMapDeps = {
+    geocode: modelGeocode,
+    schedule: waitUntil,
+  },
 ): Promise<ContactMap> {
   const where = await contactListWhere(actor, options);
   const [rows, withoutLocation] = await Promise.all([
@@ -192,16 +205,23 @@ export async function contactMap(
     const query = row.location ? normalizeLocation(row.location) : "";
     return query ? [{ ...row, query }] : [];
   });
-  const coordinates = await placeCoordinates(
-    [...new Set(located.map((row) => row.query))],
-    geocode,
-  );
+  const queries = [...new Set(located.map((row) => row.query))];
+  const coordinates = await cachedCoordinates(queries);
+  const missing = queries
+    .filter((query) => !coordinates.has(query) && !inFlight.has(query))
+    .slice(0, MAX_NEW_PLACES);
+  if (missing.length > 0) {
+    for (const query of missing) inFlight.add(query);
+    schedule(lookUpPlaces(missing, geocode));
+  }
   const places = new Map<string, ContactMap["places"][number]>();
   let unplaced = 0;
+  let pending = 0;
   for (const { query, location: _, ...contact } of located) {
     const point = coordinates.get(query);
     if (!point) {
-      unplaced += 1;
+      if (point === undefined) pending += 1;
+      else unplaced += 1;
       continue;
     }
     // Spellings of one place ("Zürich", "Zurich, CH") land on one dot.
@@ -215,6 +235,7 @@ export async function contactMap(
       (a, b) => b.contacts.length - a.contacts.length,
     ),
     unplaced,
+    pending,
     withoutLocation,
   };
 }
