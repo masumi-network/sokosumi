@@ -17,6 +17,8 @@ import {
 import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
 import { SeoSearchQueries } from "./seo-search-queries";
 import {
+  SEO_SEARCH_MIN_ROWS,
+  SEO_STACKED_TABLE_CLASS,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -45,23 +47,31 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
     shown.intent ? null : t("keywords.intent"),
     shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
+  // Without paid search data these columns stay empty; say why once, not "yet".
+  const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
+  const manyPages = model.data.scope.pageIds.length > 1;
   return (
     <div className="space-y-5">
-      <div>
-        <Label className="sr-only" htmlFor="seo-keyword-search">
-          {t("search")}
-        </Label>
-        <Input
-          id="seo-keyword-search"
-          type="search"
-          value={model.keywordSearch}
-          onChange={(event) => model.setKeywordSearch(event.target.value)}
-          placeholder={t("keywords.searchPlaceholder")}
-        />
-      </div>
+      {model.data.keywords.length +
+        (model.data.searchQueries?.rows.length ?? 0) >=
+        SEO_SEARCH_MIN_ROWS || model.keywordSearch ? (
+        <div>
+          <Label className="sr-only" htmlFor="seo-keyword-search">
+            {t("search")}
+          </Label>
+          <Input
+            id="seo-keyword-search"
+            type="search"
+            value={model.keywordSearch}
+            onChange={(event) => model.setKeywordSearch(event.target.value)}
+            placeholder={t("keywords.searchPlaceholder")}
+          />
+        </div>
+      ) : null}
       <SeoSearchQueries model={model} />
       <SeoSection
         title={t("keywords.title")}
+        description={t("keywords.help")}
         actions={
           model.data.availableActions.canEdit ? (
             <Button size="sm" onClick={() => model.setDialog("keyword")}>
@@ -71,12 +81,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
           ) : null
         }
       >
-        <p className="text-muted-foreground px-2 pb-3 text-sm">
-          {t("keywords.help")}
-        </p>
         {rows.length ? (
           <div className={HOLDER_ITEM_CLASS}>
-            <Table>
+            <Table className={SEO_STACKED_TABLE_CLASS}>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("keywords.keyword")}</TableHead>
@@ -118,8 +125,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                         <p className="font-medium break-words">
                           <bdi>{row.keyword}</bdi>
                         </p>
+                        {/* In a one-page scope the page link only repeats; "any page" still says something. */}
                         {row.pageUrl ? (
-                          <SeoPageLink url={row.pageUrl} />
+                          manyPages ? (
+                            <SeoPageLink url={row.pageUrl} />
+                          ) : null
                         ) : (
                           <span className="text-muted-foreground text-sm">
                             {t("keywords.anyPage")}
@@ -143,7 +153,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                           </SeoState>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label={t("keywords.market")}>
                         {row.countryCode} / {row.languageCode}
                         {row.device ? (
                           <div className="text-muted-foreground text-sm">
@@ -152,13 +162,19 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                         ) : null}
                       </TableCell>
                       {shown.volume ? (
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell
+                          className="text-right tabular-nums"
+                          data-label={t("keywords.volume")}
+                        >
                           {row.volume === null
                             ? t("none")
                             : format.number(row.volume)}
                         </TableCell>
                       ) : null}
-                      <TableCell className="text-right whitespace-normal tabular-nums">
+                      <TableCell
+                        className="text-right whitespace-normal tabular-nums"
+                        data-label={t("keywords.position")}
+                      >
                         {row.positionStatus === "ranked" &&
                         row.position !== null ? (
                           format.number(row.position)
@@ -192,21 +208,39 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                                 : null}
                             </p>
                           </>
+                        ) : queries ? (
+                          // Absent from the listed rows is not zero: Google hides rare searches.
+                          <>
+                            <p>
+                              {queries.truncated
+                                ? t("keywords.notInKeptRows", {
+                                    count: queries.rowLimit,
+                                  })
+                                : t("keywords.notListed")}
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              <SeoPeriod from={queries.from} to={queries.to} />
+                            </p>
+                          </>
                         ) : (
                           t("keywords.unavailable")
                         )}
                       </TableCell>
                       {shown.intent ? (
-                        <TableCell>{row.intent ?? t("none")}</TableCell>
+                        <TableCell data-label={t("keywords.intent")}>
+                          {row.intent ?? t("none")}
+                        </TableCell>
                       ) : null}
-                      <TableCell>{t(`priority.${row.priority}`)}</TableCell>
+                      <TableCell data-label={t("keywords.priority")}>
+                        {t(`priority.${row.priority}`)}
+                      </TableCell>
                       {shown.observed ? (
-                        <TableCell>
+                        <TableCell data-label={t("observed")}>
                           <SeoDate value={row.observedAt} />
                         </TableCell>
                       ) : null}
                       {shown.source ? (
-                        <TableCell>
+                        <TableCell data-label={t("source")}>
                           <span className="text-muted-foreground text-sm">
                             {row.source}
                           </span>
@@ -255,7 +289,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
             </Table>
             {hidden.length ? (
               <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-                {t("unmeasuredColumns", { columns: format.list(hidden) })}
+                {t(paidOff ? "paidDataOff" : "unmeasuredColumns", {
+                  columns: format.list(hidden),
+                })}
               </p>
             ) : null}
           </div>

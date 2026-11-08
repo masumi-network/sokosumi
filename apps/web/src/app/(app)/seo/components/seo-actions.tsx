@@ -51,7 +51,7 @@ export function SeoActionCard({
         </dd>
       </dl>
       <details className="text-sm">
-        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 font-medium focus-visible:ring-2 focus-visible:outline-none">
+        <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 font-medium focus-visible:ring-2 focus-visible:outline-none">
           {t("overview.checkDetails")}
         </summary>
         <div className="space-y-3 pt-3">
@@ -201,10 +201,13 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
                     : "actions.noFixesBody",
           )}
         >
-          {(overview.emptyState === "issues" || searchLoaded) &&
-          model.data.auditId ? (
-            <Button variant="outline" onClick={model.openChat}>
-              {t("agent.ask")}
+          {/* The header already offers "Ask the SEO agent"; the empty state offers the next concrete step. */}
+          {overview.emptyState === "issues" ? null : overview.emptyState ===
+              "no_fixes" &&
+            searchLoaded &&
+            model.data.availableActions.canEdit ? (
+            <Button variant="outline" onClick={() => model.setDialog("page")}>
+              {t("addPage")}
             </Button>
           ) : model.data.availableActions.canSyncMetrics &&
             overview.emptyState !== "no_checks" ? (

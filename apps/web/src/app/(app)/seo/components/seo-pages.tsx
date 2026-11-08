@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { topPages } from "./seo-search-model";
 import {
+  SEO_STACKED_TABLE_CLASS,
   SeoEmpty,
   SeoPageLink,
   SeoPeriod,
@@ -22,15 +23,16 @@ import {
 } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** Saved selections only help when there are pages to choose between. */
+/** Saved selections and page rankings only help when there are pages to compare. */
 const MIN_PAGES_FOR_SELECTIONS = 2;
 
 function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const source = model.data.searchQueries;
-  if (!source?.rows.length) return null;
-  const rows = topPages(source.rows);
+  const rows = source ? topPages(source.rows) : [];
+  // One page's totals are on the Performance card; its listed-query sums would only disagree with them.
+  if (!source || rows.length < MIN_PAGES_FOR_SELECTIONS) return null;
   const rate = (value: number | null, percent = false) =>
     value === null
       ? t("none")
@@ -53,7 +55,7 @@ function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
         }
       >
         <div className={HOLDER_ITEM_CLASS}>
-          <Table>
+          <Table className={SEO_STACKED_TABLE_CLASS}>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("page")}</TableHead>
@@ -79,22 +81,40 @@ function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
                   <TableCell className="min-w-48 whitespace-normal">
                     <SeoPageLink url={row.pageUrl} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    data-label={t("queries.clicks")}
+                  >
                     {format.number(row.clicks)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    data-label={t("queries.impressions")}
+                  >
                     {format.number(row.impressions)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    data-label={t("queries.ctr")}
+                  >
                     {rate(row.ctr, true)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    data-label={t("queries.position")}
+                  >
                     {rate(row.averagePosition)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    data-label={t("pages.queryCount")}
+                  >
                     {format.number(row.queries)}
                   </TableCell>
-                  <TableCell className="min-w-40 whitespace-normal break-words">
+                  <TableCell
+                    className="min-w-40 whitespace-normal break-words"
+                    data-label={t("pages.topQuery")}
+                  >
                     <bdi>{row.topQuery}</bdi>
                   </TableCell>
                 </TableRow>

@@ -10560,7 +10560,7 @@
       "saved": "Changes saved",
       "readOnly": "You can view this audit. You do not have permission to edit it.",
       "dispatchPaused": "New checks and monitoring are unavailable here. You can still import reports and use connected statistics.",
-      "empty": "No observations yet",
+      "empty": "No checks yet",
       "emptyBody": "Import a completed report to see its findings, keywords and competitors.",
       "none": "Not available",
       "notChecked": "Not checked",
@@ -10613,7 +10613,7 @@
         "measurements": "Performance",
         "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
         "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
-        "partial": "Some statistics are missing. Check each source and coverage note.",
+        "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
         "findings": "Issues to review",
@@ -10622,7 +10622,7 @@
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
         "coverageCounts": "Rule checks: {checked} checked, {skipped} not checked, {failed} unavailable",
         "moduleCoverage": "Optional checks: {notRequested} not requested, {failed} unavailable",
-        "noFindings": "No findings in this scope",
+        "noFindings": "No findings for these pages",
         "noFindingsBody": "Run or import a check to inspect its evidence. Missing checks are not passing checks.",
         "manageConnections": "Set up statistics",
         "dailyTrend": "Daily trend",
@@ -10647,58 +10647,68 @@
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
         "dailyValues": "Daily values",
         "day": "Day",
-        "synced": "Synced",
-        "windowValue": "{days}: {value}"
+        "synced": "Last synced",
+        "window": {
+          "current": "Last 7 days: {value}",
+          "previous": "Previous 7 days: {value}"
+        },
+        "noChange": "No change",
+        "better": "Better by {amount}",
+        "worse": "Worse by {amount}",
+        "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
+        "percentPoints": "{value} pts"
       },
       "keywords": {
         "title": "Tracked keywords",
         "edit": "Edit keyword",
-        "empty": "No keywords in this scope",
-        "emptyBody": "Import an audit to discover keywords, or save a keyword to your list.",
-        "add": "Save a keyword",
+        "empty": "No tracked keywords yet",
+        "emptyBody": "Track a search from the list above, or import an audit to find keywords.",
+        "add": "Track a keyword",
         "keyword": "Keyword",
         "market": "Market",
         "volume": "Search volume",
         "position": "Observed position",
         "intent": "Intent",
         "priority": "Priority",
-        "saved": "Saved",
+        "saved": "Tracked",
         "discovered": "Discovered",
-        "save": "Save keyword",
-        "unsave": "Remove from saved",
+        "save": "Track",
+        "unsave": "Stop tracking",
         "ranked": "Position {position}",
         "notInRange": "Not in the top {count} checked",
-        "unavailable": "Position unavailable",
+        "unavailable": "Not measured",
         "country": "Country code",
         "language": "Language code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Market and device belong to each observation. Saving a keyword does not start paid tracking.",
+        "help": "Tracking a keyword is free. It does not start paid rank checks.",
         "notInRangeUnknown": "Not found in the checked results",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
-        "searchConsoleNote": "Search Console average, all countries"
+        "searchConsoleNote": "Search Console average, all countries",
+        "notListed": "Not among Google's listed searches",
+        "notInKeptRows": "Not in the first {count} rows kept"
       },
       "competitors": {
         "title": "Competitors",
-        "empty": "No competitors in this scope",
+        "empty": "No competitors yet",
         "emptyBody": "Import an audit for suggested search competitors or add a competitor to your list.",
         "add": "Add a competitor",
         "confirmed": "Confirmed competitor",
         "suggested": "Suggested competing page",
         "confirm": "Confirm competitor",
-        "unconfirm": "Remove confirmation",
-        "rank": "Observed rank",
+        "unconfirm": "Not a competitor",
+        "rank": "Rank",
         "backlinks": "Backlinks",
         "domains": "Referring domains",
         "excluded": "This candidate cannot be confirmed.",
-        "help": "Search competitors can be articles or forums. Confirm the pages relevant to this audit.",
+        "help": "Confirm the pages that compete with yours for the same searches.",
         "yourPage": "Your page"
       },
       "actions": {
         "title": "Actions",
         "empty": "No recommended actions",
-        "emptyBody": "Actions come from issues that checks found and from Search Console query rows. Ask the SEO agent what to collect next.",
+        "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
         "createTask": "Create draft task",
         "why": "Why this matters",
         "effect": "Expected effect",
@@ -10712,7 +10722,7 @@
         "verified": "Verified",
         "help": "A done Task counts as verified only after a new check of the same page.",
         "noFixes": "No fixes recommended from these checks",
-        "noFixesBody": "The recorded checks have no recommended fixes. Review their coverage or set up statistics to decide what to check next.",
+        "noFixesBody": "The last check found nothing to fix. Sync statistics or check more pages to find new work.",
         "checksIncomplete": "These checks are incomplete",
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
@@ -10721,7 +10731,7 @@
         "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
         "opportunitiesTitle": "Suggestions from search data",
         "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
-        "noOpportunitiesBody": "The checks found nothing to fix, and no Search Console query matched a suggestion. Ask the SEO agent what to collect next.",
+        "noOpportunitiesBody": "The last check found nothing to fix, and your Search Console searches gave no suggestion. Add more pages to check, or ask the SEO agent.",
         "kind": {
           "fix": "Confirmed issue",
           "opportunity": "Suggestion"
@@ -10732,7 +10742,7 @@
         "groups": "Saved page selections",
         "emptyGroups": "No saved groups",
         "relationship": "Relationship",
-        "selected": "In selected scope",
+        "selected": "Selected",
         "choose": "View page",
         "chooseSelection": "View selection",
         "version": "Version {version}",
@@ -10752,7 +10762,7 @@
           "partial": "Partial",
           "unavailable": "Unavailable"
         },
-        "empty": "No activity in this scope",
+        "empty": "No activity for these pages yet",
         "emptyBody": "Checks, statistics updates, page selections and action tasks will appear here.",
         "details": "Work details",
         "rulebook": "Rulebook {version}",
@@ -10771,7 +10781,9 @@
         "sourceDetails": "Event details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
-        "showAll": "Show all {count} events"
+        "showAll": "Show all {count} events",
+        "metricsSyncedTimes": "{count, plural, one {Statistics synced} other {Statistics synced # times}}",
+        "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}"
       },
       "analysis": {
         "title": "Run a check",
@@ -10917,7 +10929,7 @@
         "recorded": "Page change recorded",
         "invalid": "Choose a valid date and at least one page."
       },
-      "historyLimited": "Showing the latest {limit} observations for this page selection. Earlier history is not included.",
+      "historyLimited": "Showing the latest {limit} checks and syncs for these pages. Earlier history is not included.",
       "audits": {
         "create": "Create audit",
         "saved": "Saved audits",
@@ -10950,7 +10962,9 @@
         "auditRequired": "Open an audit to use SEO chat.",
         "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
         "createTask": "Create draft task: {title}",
-        "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}"
+        "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}",
+        "showMore": "Show full question",
+        "showLess": "Show less"
       },
       "connections": {
         "connect": "Connect {provider}",
@@ -10987,12 +11001,11 @@
       "openAllPages": "Open all pages",
       "queries": {
         "title": "Search Console queries",
-        "help": "Searches that showed the selected pages on Google, measured by Search Console. Impressions are observed, not search volume. Average position is a mean over the period, not a live rank.",
-        "refresh": "Refresh Search Console",
+        "help": "Google searches that showed these pages, from Search Console. Impressions count how often a page was shown, not search volume. Position is the average for the period.",
         "lastSynced": "Last synced",
         "truncated": "Only the first {count} rows by clicks are kept",
         "notLoaded": "No query rows saved yet",
-        "notLoadedBody": "Your saved statistics are from before query rows were collected. Refresh Search Console to load them.",
+        "notLoadedBody": "Your saved statistics are from before searches were collected. Sync statistics to load them.",
         "notConnected": "Search Console is not connected",
         "notConnectedBody": "Connect Search Console to see which searches show these pages.",
         "connect": "Connect Search Console",
@@ -11016,7 +11029,12 @@
           "top10": "4-10",
           "top20": "11-20",
           "rest": "21+"
-        }
+        },
+        "sortBy": "Sort by",
+        "sortHighest": "{column}, highest first",
+        "sortLowest": "{column}, lowest first",
+        "sortBest": "{column}, best first",
+        "sortWorst": "{column}, worst first"
       },
       "agent": {
         "ask": "Ask the SEO agent",
@@ -11026,11 +11044,11 @@
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
         "nextTitle": "Next steps",
-        "nothingNext": "Nothing is waiting. The agent refreshes Search Console when you open this Audit and the data is older than a day.",
+        "nothingNext": "Nothing is waiting. The agent syncs Search Console when you open this Audit and the data is older than a day.",
         "steps": {
           "refresh": {
-            "stale": "Search Console data is older than a day. Refresh it to see current queries.",
-            "no_queries": "Load the queries behind your Search Console totals, so the agent can find review opportunities."
+            "stale": "Search Console data is older than a day. Sync it to see current searches.",
+            "no_queries": "Load the searches behind your Search Console totals, so the agent can suggest work."
           },
           "connect": {
             "search_console": "Connect Search Console to measure clicks, impressions and the queries that show these pages.",
@@ -11039,12 +11057,15 @@
           "competitors": {
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
-          }
+          },
+          "keyword": "“{keyword}” is not among the searches Google listed for these pages. Ask the agent how to target it.",
+          "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {
           "first": "What should I do first?",
           "queries": "Which searches bring people to these pages?",
-          "competitors": "What do we know about competitors?"
+          "competitors": "What do we know about competitors?",
+          "keyword": "How can these pages rank for “{keyword}”? Use the saved checks and Search Console data."
         },
         "researchCompetitors": "Research competitors",
         "verdict": {
@@ -11055,10 +11076,14 @@
           "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}"
         },
         "checkScope": "This covers only those rules and pages, not the whole site.",
-        "lastCheckOn": "Last check"
+        "lastCheckOn": "Last check",
+        "askHow": "Ask the agent"
       },
       "scopeFilters": "Pages and filters",
-      "unmeasuredColumns": "Not measured for these rows yet: {columns}."
+      "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
+      "paidDataOff": "Needs paid search data, which is off in this workspace: {columns}.",
+      "filterDates": "Filter by date",
+      "syncNow": "Sync now"
     }
   },
   "Share": {

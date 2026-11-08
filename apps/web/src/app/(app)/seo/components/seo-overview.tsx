@@ -41,7 +41,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
               </div>
               <SeoPageLink url={finding.pageUrl} />
               <details className="text-muted-foreground text-sm">
-                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 focus-visible:ring-2 focus-visible:outline-none">
+                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
                   {t("overview.checkDetails")}
                 </summary>
                 <ul className="list-inside list-disc space-y-1 pt-3">
@@ -111,7 +111,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
       />
       {overview.diagnostics.length || data.observations.length ? (
         <details className={cn(HOLDER_CLASS, "text-sm")}>
-          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm px-2 py-1 focus-visible:ring-2 focus-visible:outline-none">
+          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm px-2 py-2.5 focus-visible:ring-2 focus-visible:outline-none">
             <h2 className="inline text-sm font-semibold">
               {t("overview.diagnostics")}
             </h2>

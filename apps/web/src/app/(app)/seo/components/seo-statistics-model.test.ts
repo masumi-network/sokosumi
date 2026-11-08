@@ -1,9 +1,14 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
+import {
+  SEO_STATISTICS_QUERY_FAILED_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   invalidSeoStatisticsPeriod,
   latestSeoMeasurements,
   savedSeoStatistics,
+  seoCoverageIsNews,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
 
@@ -65,5 +70,31 @@ describe("SEO statistics presentation", () => {
     expect(invalidSeoStatisticsPeriod("2026-11-05", "2026-11-04")).toBe(true);
     expect(invalidSeoStatisticsPeriod("bad-date", "2026-11-04")).toBe(true);
     expect(invalidSeoStatisticsPeriod("2026-11-04", "2026-11-04")).toBe(false);
+  });
+});
+
+describe("seoCoverageIsNews", () => {
+  // A healthy Search Console sync as Core stores it: two notes, no loss.
+  const usual = [
+    "Search Console final data can omit recent dates and privacy-filtered observations.",
+    "Query rows omit anonymized queries, so they can add up to less than the page totals.",
+  ];
+  const sync = (source: string, coverage: string, notes = usual) => ({
+    source,
+    coverage,
+    notes,
+  });
+  it("flags a lost Search Console query and any other source's gap, not Google's usual filtering", () => {
+    expect(seoCoverageIsNews(sync("search_console", "partial"))).toBe(false);
+    for (const lost of [
+      SEO_STATISTICS_QUERY_FAILED_NOTE,
+      SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+    ])
+      expect(
+        seoCoverageIsNews(sync("search_console", "partial", [usual[0], lost])),
+      ).toBe(true);
+    expect(seoCoverageIsNews(sync("ga4", "partial", []))).toBe(true);
+    expect(seoCoverageIsNews(sync("search_console", "unavailable"))).toBe(true);
+    expect(seoCoverageIsNews(sync("ga4", "complete", []))).toBe(false);
   });
 });

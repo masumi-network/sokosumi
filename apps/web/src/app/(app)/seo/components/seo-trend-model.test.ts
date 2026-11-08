@@ -14,7 +14,7 @@ describe("seoTrendModel", () => {
     expect(model.ticks[0]).toEqual({ value: 1, y: 0 });
     expect(model.points[0].y).toBe(0);
     expect(model.points[1].y).toBeGreaterThan(model.points[0].y ?? 0);
-    expect(model.area).toBe(false);
+    expect(model.bars).toBe(false);
   });
 
   it("splits a line at a missing day and keeps a lone day as a dot", () => {
@@ -61,15 +61,29 @@ describe("seoTrendModel", () => {
   it("places days by date, so a day the source left out is a gap", () => {
     const model = seoTrendModel(
       [
+        { date: "2026-10-01", value: 0.1 },
+        { date: "2026-10-02", value: 0.2 },
+        { date: "2026-10-05", value: 0.3 },
+      ],
+      "ratio",
+    );
+    expect(model.points.map((point) => point.x)).toEqual([0, 25, 100]);
+    expect(model.lines).toEqual([[0, 1]]);
+    expect(model.dots).toEqual([2]);
+  });
+
+  it("centres count bars in one band per calendar day", () => {
+    const model = seoTrendModel(
+      [
         { date: "2026-10-01", value: 1 },
         { date: "2026-10-02", value: 2 },
         { date: "2026-10-05", value: 3 },
       ],
       "count",
     );
-    expect(model.points.map((point) => point.x)).toEqual([0, 25, 100]);
-    expect(model.lines).toEqual([[0, 1]]);
-    expect(model.dots).toEqual([2]);
+    expect(model.bars).toBe(true);
+    expect(model.band).toBe(20);
+    expect(model.points.map((point) => point.x)).toEqual([10, 30, 90]);
   });
 
   it("keeps rate ticks at least one tenth of a percent apart", () => {

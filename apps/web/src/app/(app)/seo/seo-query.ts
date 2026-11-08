@@ -1,11 +1,12 @@
 import { z } from "zod";
 
+/** Tab order. Actions sits next to the Overview, so it stays in view on a phone. */
 export const SEO_TABS = [
   "overview",
-  "keywords",
-  "competitors",
-  "pages",
   "actions",
+  "keywords",
+  "pages",
+  "competitors",
 ] as const;
 export type SeoTab = (typeof SEO_TABS)[number];
 

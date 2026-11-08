@@ -3,6 +3,7 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
+import { cn } from "@/lib/utils";
 import { seoTrendModel } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
@@ -15,10 +16,14 @@ interface SeoTrendChartProps {
   unavailable: string;
 }
 
+/** Share of a day band a bar fills; the rest is the gap between bars. */
+const BAR_FILL = 0.7;
+
 /**
- * One daily metric as a line on one axis: hairline grid, a crosshair that snaps
- * to the nearest day, and the same readout from the arrow keys. Every value is
- * also in the table below it, so the hover layer never gates a number.
+ * One daily metric on one axis: bars for counts, a line for rates and positions,
+ * a hairline grid, and a readout that snaps to the nearest day from the pointer
+ * or the arrow keys. Every value is also in the table below it, so the hover
+ * layer never gates a number.
  */
 export function SeoTrendChart({
   points,
@@ -67,12 +72,17 @@ export function SeoTrendChart({
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     const box = event.currentTarget.getBoundingClientRect();
     if (!box.width) return;
-    const share = (event.clientX - box.left) / box.width;
-    setActive(Math.min(Math.max(Math.round(share * last), 0), last));
+    const at = ((event.clientX - box.left) / box.width) * 100;
+    let nearest = 0;
+    model.points.forEach((point, index) => {
+      if (Math.abs(point.x - at) < Math.abs(model.points[nearest].x - at))
+        nearest = index;
+    });
+    setActive(nearest);
   }
   const focus = active === null ? null : model.points[active];
   const labelled = [...new Set([0, Math.floor(last / 2), last])];
-  const shownAt = focus ?? model.points[last];
+  const barWidth = model.band * BAR_FILL;
   return (
     <figure className="min-w-0 space-y-3">
       <div
@@ -101,18 +111,21 @@ export function SeoTrendChart({
         <p className="sr-only" role="status">
           {readout(announced)}
         </p>
-        {shownAt ? (
-          <p
-            aria-hidden
-            data-testid="seo-trend-readout"
-            className="flex min-h-6 items-baseline gap-2 pb-2"
-          >
-            <span className="text-base font-semibold">{value(shownAt)}</span>
-            <span className="text-muted-foreground text-xs">
-              {day(shownAt.date)}
-            </span>
-          </p>
-        ) : null}
+        {/* The readout names the day it belongs to, and only while one is chosen. */}
+        <p
+          aria-hidden
+          data-testid="seo-trend-readout"
+          className="text-muted-foreground min-h-5 pb-2 text-xs"
+        >
+          {focus ? (
+            <>
+              {day(focus.date)}:{" "}
+              <span className="text-foreground font-semibold tabular-nums">
+                {value(focus)}
+              </span>
+            </>
+          ) : null}
+        </p>
         <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2">
           <div
             aria-hidden
@@ -150,16 +163,38 @@ export function SeoTrendChart({
                   y2={tick.y}
                 />
               ))}
-              {model.area
-                ? model.lines.map((run) => (
-                    <polygon
-                      key={`area:${run[0]}`}
-                      className="fill-chart-1/10"
-                      points={`${model.points[run[0]].x},100 ${path(run)} ${model.points[run.at(-1) ?? 0].x},100`}
-                    />
-                  ))
+              {model.bars
+                ? model.points.map((point, index) =>
+                    point.y === null ? null : point.value === 0 ? (
+                      // A measured zero sits on the baseline; a missing day draws nothing.
+                      <line
+                        key={point.date}
+                        data-testid="seo-trend-bar"
+                        className="stroke-chart-1/50"
+                        vectorEffect="non-scaling-stroke"
+                        strokeWidth={2}
+                        x1={point.x - barWidth / 2}
+                        x2={point.x + barWidth / 2}
+                        y1={100}
+                        y2={100}
+                      />
+                    ) : (
+                      <rect
+                        key={point.date}
+                        data-testid="seo-trend-bar"
+                        className={cn(
+                          "fill-chart-1",
+                          active !== null && active !== index && "opacity-50",
+                        )}
+                        x={point.x - barWidth / 2}
+                        width={barWidth}
+                        y={point.y}
+                        height={100 - point.y}
+                      />
+                    ),
+                  )
                 : null}
-              {model.lines.map((run) => (
+              {(model.bars ? [] : model.lines).map((run) => (
                 <polyline
                   key={`line:${run[0]}`}
                   className="stroke-chart-1"
@@ -171,7 +206,7 @@ export function SeoTrendChart({
                   vectorEffect="non-scaling-stroke"
                 />
               ))}
-              {focus ? (
+              {focus && !model.bars ? (
                 <line
                   className="stroke-muted-foreground"
                   vectorEffect="non-scaling-stroke"
@@ -183,6 +218,7 @@ export function SeoTrendChart({
               ) : null}
             </svg>
             {model.points.map((point, index) =>
+              !model.bars &&
               point.y !== null &&
               (model.dots.includes(index) || index === active) ? (
                 <span
@@ -227,7 +263,7 @@ export function SeoTrendChart({
         </figcaption>
       ) : null}
       <details className="text-sm">
-        <summary className="text-muted-foreground focus-visible:ring-ring cursor-pointer rounded-sm py-1 text-xs focus-visible:ring-2 focus-visible:outline-none">
+        <summary className="text-muted-foreground focus-visible:ring-ring cursor-pointer rounded-sm py-3 text-xs focus-visible:ring-2 focus-visible:outline-none">
           {t("dailyValues")}
         </summary>
         <div className="max-h-64 overflow-y-auto pt-2">

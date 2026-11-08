@@ -160,4 +160,30 @@ describe("SEO agent brief", () => {
       seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
     ).toContain("competitors");
   });
+
+  it("proposes a tracked keyword Google did not list before account upkeep", () => {
+    const workspace = connected();
+    workspace.keywords = [
+      { keyword: "USDC", saved: true },
+      { keyword: "MacBook  Battery", saved: true },
+      { keyword: "ignored", saved: false },
+    ] as unknown as ProjectSeoWorkspace["keywords"];
+    workspace.searchQueries = {
+      rows: [{ query: "usdc", clicks: 1, impressions: 9, averagePosition: 4 }],
+    } as unknown as ProjectSeoWorkspace["searchQueries"];
+    const steps = seoAgentBrief(workspace, synced).steps;
+    expect(steps[0]).toEqual({ kind: "keyword", keyword: "MacBook  Battery" });
+    expect(steps.findIndex((step) => step.kind === "keyword")).toBeLessThan(
+      steps.findIndex((step) => step.kind === "connect"),
+    );
+    // A cut row list or no rows at all is no evidence either way.
+    (workspace.searchQueries as { truncated: boolean }).truncated = true;
+    expect(
+      seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
+    ).not.toContain("keyword");
+    workspace.searchQueries = null;
+    expect(
+      seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
+    ).not.toContain("keyword");
+  });
 });

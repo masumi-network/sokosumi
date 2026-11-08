@@ -107,3 +107,26 @@ export function buildSeoTimeline(
         left.event.id.localeCompare(right.event.id),
     );
 }
+
+/**
+ * Newest-first nodes with each run of back-to-back statistics syncs folded into
+ * its newest sync. A sync from another source or with another status starts a
+ * new run, so a failure stays visible.
+ */
+export function foldSyncRuns(nodes: SeoTimelineNode[]) {
+  const folded: (SeoTimelineNode & { syncs: number })[] = [];
+  for (const node of nodes) {
+    const previous = folded.at(-1);
+    if (
+      previous &&
+      node.event.kind === "metrics" &&
+      previous.event.kind === "metrics" &&
+      // The title names the source, so Analytics and Search Console runs stay apart.
+      previous.event.title === node.event.title &&
+      previous.event.status === node.event.status
+    )
+      previous.syncs += 1;
+    else folded.push({ ...node, syncs: 1 });
+  }
+  return folded;
+}

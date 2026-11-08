@@ -13,6 +13,23 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
+/**
+ * Below the sm breakpoint a table's rows stack as cards, so no column scrolls
+ * out of view. The header row hides, and each cell names its column from its
+ * data-label. The first cell (the row's name) and the last (its actions) take a
+ * full line.
+ */
+export const SEO_STACKED_TABLE_CLASS = [
+  "max-sm:[&_thead]:hidden",
+  "max-sm:[&_tbody_tr]:flex max-sm:[&_tbody_tr]:flex-wrap max-sm:[&_tbody_tr]:gap-x-4 max-sm:[&_tbody_tr]:gap-y-1 max-sm:[&_tbody_tr]:px-3 max-sm:[&_tbody_tr]:py-3",
+  "max-sm:[&_td]:min-w-0 max-sm:[&_td]:p-0 max-sm:[&_td]:text-left max-sm:[&_td]:whitespace-normal",
+  "max-sm:[&_td:first-child]:basis-full max-sm:[&_td:last-child:not(:empty)]:basis-full",
+  "max-sm:[&_td[data-label]]:before:text-muted-foreground max-sm:[&_td[data-label]]:before:mr-1 max-sm:[&_td[data-label]]:before:content-[attr(data-label)]",
+].join(" ");
+
+/** A search box helps only in a list longer than about one screen. */
+export const SEO_SEARCH_MIN_ROWS = 10;
+
 /** One titled holder. Every SEO section uses it, so titles, help text and actions line up across tabs. */
 export function SeoSection({
   title,

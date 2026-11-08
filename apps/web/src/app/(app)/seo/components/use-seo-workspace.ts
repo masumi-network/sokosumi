@@ -142,6 +142,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const backgroundRef = useRef<Promise<boolean> | null>(null);
   // One browser request keeps its key after an uncertain acknowledgement.
   const operationKeys = useRef(new Map<string, string>());
+  // Chat turns already saved when this visit first loaded them, per viewer and Audit.
+  // Kept here so switching tabs does not turn this visit's answers into history.
+  const chatSeen = useRef<{ key: string; ids: Set<string> } | null>(null);
   function operationKey(input: string) {
     let value = operationKeys.current.get(input);
     if (!value) {
@@ -312,6 +315,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     });
   }
   return {
+    chatSeen,
     data,
     viewerKey: identity,
     openChat,

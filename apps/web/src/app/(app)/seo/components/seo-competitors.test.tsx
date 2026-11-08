@@ -76,12 +76,12 @@ describe("SEO competitor baselines", () => {
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
     expect(headers).toContain("Backlinks");
-    expect(headers).not.toContain("Observed rank");
+    expect(headers).not.toContain("Rank");
     expect(headers).not.toContain("Referring domains");
     expect(screen.getByRole("cell", { name: "12" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Not measured for these rows yet: Observed rank, Referring domains, and Last checked.",
+        "Not measured for these rows yet: Rank, Referring domains, and Last checked.",
       ),
     ).toBeInTheDocument();
   });

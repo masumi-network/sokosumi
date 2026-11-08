@@ -10560,7 +10560,7 @@
       "saved": "Änderungen gespeichert",
       "readOnly": "Du kannst dieses Audit ansehen. Du hast keine Berechtigung, es zu bearbeiten.",
       "dispatchPaused": "Neue Prüfungen und Monitoring sind hier nicht verfügbar. Du kannst weiterhin Berichte importieren und verbundene Statistiken nutzen.",
-      "empty": "Noch keine Beobachtungen",
+      "empty": "Noch keine Prüfungen",
       "emptyBody": "Importiere einen abgeschlossenen Bericht, um Ergebnisse, Keywords und Mitbewerber zu sehen.",
       "none": "Nicht verfügbar",
       "notChecked": "Nicht geprüft",
@@ -10613,7 +10613,7 @@
         "measurements": "Leistung",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
-        "partial": "Einige Statistiken fehlen. Prüfe die Quellen und Hinweise zur Abdeckung.",
+        "partial": "Einige Statistiken fehlen. Öffne jede Quelle, um zu sehen, welche.",
         "available": "Statistiken für die angegebenen Zeiträume sind verfügbar.",
         "priority": "Empfohlene Aktionen",
         "findings": "Probleme prüfen",
@@ -10622,7 +10622,7 @@
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
         "coverageCounts": "Regelprüfungen: {checked} geprüft, {skipped} nicht geprüft, {failed} nicht verfügbar",
         "moduleCoverage": "Optionale Prüfungen: {notRequested} nicht angefordert, {failed} nicht verfügbar",
-        "noFindings": "Keine Befunde in dieser Auswahl",
+        "noFindings": "Keine Befunde für diese Seiten",
         "noFindingsBody": "Starte oder importiere eine Prüfung, um Nachweise zu sehen. Fehlende Prüfungen gelten nicht als bestanden.",
         "manageConnections": "Statistiken einrichten",
         "dailyTrend": "Täglicher Verlauf",
@@ -10647,58 +10647,68 @@
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
         "dailyValues": "Tageswerte",
         "day": "Tag",
-        "synced": "Synchronisiert",
-        "windowValue": "{days}: {value}"
+        "synced": "Zuletzt synchronisiert",
+        "window": {
+          "current": "Letzte 7 Tage: {value}",
+          "previous": "Vorherige 7 Tage: {value}"
+        },
+        "noChange": "Keine Änderung",
+        "better": "Besser um {amount}",
+        "worse": "Schlechter um {amount}",
+        "windowDays": "Letzte 7 Tage: {current}. Vorherige 7 Tage: {previous}. Beide enden am neuesten Tag, den Google gemeldet hat.",
+        "percentPoints": "{value} Pp."
       },
       "keywords": {
         "title": "Verfolgte Keywords",
         "edit": "Keyword bearbeiten",
-        "empty": "Keine Keywords in dieser Auswahl",
-        "emptyBody": "Importiere ein Audit, um Keywords zu finden, oder speichere ein Keyword.",
-        "add": "Keyword speichern",
+        "empty": "Noch keine verfolgten Keywords",
+        "emptyBody": "Verfolge eine Suchanfrage aus der Liste oben oder importiere ein Audit, um Keywords zu finden.",
+        "add": "Keyword verfolgen",
         "keyword": "Keyword",
         "market": "Markt",
         "volume": "Suchvolumen",
         "position": "Beobachtete Position",
         "intent": "Suchabsicht",
         "priority": "Priorität",
-        "saved": "Gespeichert",
+        "saved": "Verfolgt",
         "discovered": "Entdeckt",
-        "save": "Keyword speichern",
-        "unsave": "Aus der Merkliste entfernen",
+        "save": "Verfolgen",
+        "unsave": "Nicht mehr verfolgen",
         "ranked": "Position {position}",
         "notInRange": "Nicht unter den {count} geprüften Treffern",
-        "unavailable": "Position nicht verfügbar",
+        "unavailable": "Nicht gemessen",
         "country": "Ländercode",
         "language": "Sprachcode",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Markt und Gerät gehören zu jeder Beobachtung. Speichern startet kein kostenpflichtiges Tracking.",
+        "help": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Rangprüfungen.",
         "notInRangeUnknown": "In den geprüften Ergebnissen nicht gefunden",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
-        "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder"
+        "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
+        "notListed": "Nicht unter den von Google gelisteten Suchanfragen",
+        "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen"
       },
       "competitors": {
         "title": "Mitbewerber",
-        "empty": "Keine Mitbewerber in dieser Auswahl",
+        "empty": "Noch keine Wettbewerber",
         "emptyBody": "Importiere ein Audit für Vorschläge oder füge einen Mitbewerber hinzu.",
         "add": "Mitbewerber hinzufügen",
         "confirmed": "Bestätigter Mitbewerber",
         "suggested": "Vorgeschlagene konkurrierende Seite",
         "confirm": "Mitbewerber bestätigen",
-        "unconfirm": "Bestätigung entfernen",
-        "rank": "Beobachteter Rang",
+        "unconfirm": "Kein Wettbewerber",
+        "rank": "Rang",
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
-        "help": "Suchmitbewerber können Artikel oder Foren sein. Bestätige die für dieses Audit relevanten Seiten.",
+        "help": "Bestätige die Seiten, die mit deinen um dieselben Suchanfragen konkurrieren.",
         "yourPage": "Deine Seite"
       },
       "actions": {
         "title": "Aktionen",
         "empty": "Keine empfohlenen Aktionen",
-        "emptyBody": "Aktionen entstehen aus Problemen, die Prüfungen fanden, und aus Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes erhoben werden soll.",
+        "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "createTask": "Entwurfsaufgabe erstellen",
         "why": "Warum das wichtig ist",
         "effect": "Erwartete Wirkung",
@@ -10712,7 +10722,7 @@
         "verified": "Verifiziert",
         "help": "Eine erledigte Aufgabe gilt erst nach einer neuen Prüfung derselben Seite als bestätigt.",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
-        "noFixesBody": "Die erfassten Prüfungen empfehlen keine Korrekturen. Prüfe ihre Abdeckung oder richte Statistiken ein, um den nächsten Schritt zu wählen.",
+        "noFixesBody": "Die letzte Prüfung fand nichts zu beheben. Synchronisiere Statistiken oder prüfe weitere Seiten, um neue Arbeit zu finden.",
         "checksIncomplete": "Diese Prüfungen sind unvollständig",
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
@@ -10721,7 +10731,7 @@
         "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
         "opportunitiesTitle": "Vorschläge aus Suchdaten",
         "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
-        "noOpportunitiesBody": "Die Prüfungen fanden nichts zu beheben, und keine Search-Console-Anfrage passte zu einem Vorschlag. Frag den SEO-Agenten, was als Nächstes gesammelt werden soll.",
+        "noOpportunitiesBody": "Die letzte Prüfung fand nichts zu beheben, und deine Search-Console-Suchanfragen ergaben keinen Vorschlag. Füge weitere Seiten hinzu oder frag den SEO-Agenten.",
         "kind": {
           "fix": "Bestätigtes Problem",
           "opportunity": "Vorschlag"
@@ -10732,7 +10742,7 @@
         "groups": "Gespeicherte Seitenauswahl",
         "emptyGroups": "Keine gespeicherten Gruppen",
         "relationship": "Beziehung",
-        "selected": "In der aktuellen Auswahl",
+        "selected": "Ausgewählt",
         "choose": "Seite ansehen",
         "chooseSelection": "Auswahl ansehen",
         "version": "Version {version}",
@@ -10752,7 +10762,7 @@
           "partial": "Teilweise",
           "unavailable": "Nicht verfügbar"
         },
-        "empty": "Keine Aktivität in dieser Auswahl",
+        "empty": "Noch keine Aktivität für diese Seiten",
         "emptyBody": "Prüfungen, Statistikaktualisierungen, Seitenauswahl und Aufgaben erscheinen hier.",
         "details": "Arbeitsdetails",
         "rulebook": "Regelwerk {version}",
@@ -10771,7 +10781,9 @@
         "sourceDetails": "Ereignisdetails",
         "resultsSaved": "Ergebnisse gespeichert",
         "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden.",
-        "showAll": "Alle {count} Ereignisse anzeigen"
+        "showAll": "Alle {count} Ereignisse anzeigen",
+        "metricsSyncedTimes": "{count, plural, one {Statistiken synchronisiert} other {Statistiken # Mal synchronisiert}}",
+        "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}"
       },
       "analysis": {
         "title": "Prüfung starten",
@@ -10917,7 +10929,7 @@
         "recorded": "Seitenänderung vermerkt",
         "invalid": "Wähle ein gültiges Datum und mindestens eine Seite."
       },
-      "historyLimited": "Es werden die neuesten {limit} Beobachtungen für diese Seitenauswahl angezeigt. Frühere Einträge sind nicht enthalten.",
+      "historyLimited": "Es werden die neuesten {limit} Prüfungen und Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
       "audits": {
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",
@@ -10950,7 +10962,9 @@
         "auditRequired": "Öffne ein Audit, um den SEO-Chat zu nutzen.",
         "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut.",
         "createTask": "Aufgabenentwurf erstellen: {title}",
-        "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}"
+        "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}",
+        "showMore": "Ganze Frage zeigen",
+        "showLess": "Weniger zeigen"
       },
       "connections": {
         "connect": "{provider} verbinden",
@@ -10987,12 +11001,11 @@
       "openAllPages": "Alle Seiten öffnen",
       "queries": {
         "title": "Search-Console-Suchanfragen",
-        "help": "Suchen, bei denen Google die ausgewählten Seiten zeigte, gemessen von der Search Console. Impressionen sind beobachtet, kein Suchvolumen. Die durchschnittliche Position ist ein Mittelwert über den Zeitraum, kein Live-Ranking.",
-        "refresh": "Search Console aktualisieren",
+        "help": "Google-Suchanfragen, bei denen diese Seiten erschienen, aus der Search Console. Impressionen zählen, wie oft eine Seite gezeigt wurde, nicht das Suchvolumen. Die Position ist der Durchschnitt des Zeitraums.",
         "lastSynced": "Zuletzt synchronisiert",
         "truncated": "Nur die ersten {count} Zeilen nach Klicks sind gespeichert",
         "notLoaded": "Noch keine Suchanfragen gespeichert",
-        "notLoadedBody": "Deine gespeicherten Statistiken stammen aus der Zeit vor dem Abruf von Suchanfragen. Aktualisiere die Search Console, um sie zu laden.",
+        "notLoadedBody": "Deine gespeicherten Statistiken stammen aus der Zeit vor dem Abruf von Suchanfragen. Synchronisiere die Statistiken, um sie zu laden.",
         "notConnected": "Search Console ist nicht verbunden",
         "notConnectedBody": "Verbinde die Search Console, um zu sehen, bei welchen Suchen diese Seiten erscheinen.",
         "connect": "Search Console verbinden",
@@ -11016,7 +11029,12 @@
           "top10": "4-10",
           "top20": "11-20",
           "rest": "21+"
-        }
+        },
+        "sortBy": "Sortieren nach",
+        "sortHighest": "{column}, höchste zuerst",
+        "sortLowest": "{column}, niedrigste zuerst",
+        "sortBest": "{column}, beste zuerst",
+        "sortWorst": "{column}, schlechteste zuerst"
       },
       "agent": {
         "ask": "SEO-Agent fragen",
@@ -11026,11 +11044,11 @@
         "refreshing": "Der Agent aktualisiert die Search Console.",
         "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
         "nextTitle": "Nächste Schritte",
-        "nothingNext": "Nichts wartet. Der Agent aktualisiert die Search Console, wenn du dieses Audit öffnest und die Daten älter als einen Tag sind.",
+        "nothingNext": "Nichts wartet. Der Agent synchronisiert die Search Console, wenn du dieses Audit öffnest und die Daten älter als einen Tag sind.",
         "steps": {
           "refresh": {
-            "stale": "Die Search-Console-Daten sind älter als einen Tag. Aktualisiere sie, um aktuelle Suchanfragen zu sehen.",
-            "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Prüfvorschläge finden kann."
+            "stale": "Die Search-Console-Daten sind älter als einen Tag. Synchronisiere sie, um aktuelle Suchanfragen zu sehen.",
+            "no_queries": "Lade die Suchanfragen hinter deinen Search-Console-Summen, damit der Agent Arbeit vorschlagen kann."
           },
           "connect": {
             "search_console": "Verbinde die Search Console, um Klicks, Impressionen und Suchanfragen zu messen.",
@@ -11039,12 +11057,15 @@
           "competitors": {
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
-          }
+          },
+          "keyword": "„{keyword}“ ist nicht unter den Suchanfragen, die Google für diese Seiten listet. Frag den Agenten, wie du darauf zielst.",
+          "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {
           "first": "Was soll ich zuerst tun?",
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
-          "competitors": "Was wissen wir über Wettbewerber?"
+          "competitors": "Was wissen wir über Wettbewerber?",
+          "keyword": "Wie können diese Seiten für „{keyword}“ ranken? Nutze die gespeicherten Prüfungen und Search-Console-Daten."
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
@@ -11055,10 +11076,14 @@
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
         },
         "checkScope": "Das gilt nur für diese Regeln und Seiten, nicht für die ganze Website.",
-        "lastCheckOn": "Letzte Prüfung"
+        "lastCheckOn": "Letzte Prüfung",
+        "askHow": "Agent fragen"
       },
       "scopeFilters": "Seiten und Filter",
-      "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}."
+      "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
+      "paidDataOff": "Braucht bezahlte Suchdaten, die in diesem Workspace aus sind: {columns}.",
+      "filterDates": "Nach Datum filtern",
+      "syncNow": "Jetzt synchronisieren"
     }
   },
   "Share": {

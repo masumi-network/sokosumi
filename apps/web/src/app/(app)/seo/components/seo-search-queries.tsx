@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   hiddenImpressions,
   nextQuerySort,
@@ -25,6 +26,7 @@ import {
   sortQueryRows,
 } from "./seo-search-model";
 import {
+  SEO_STACKED_TABLE_CLASS,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -83,6 +85,8 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   const rows = sortQueryRows(model.filteredQueries, sort);
   const buckets = positionBuckets(rows);
   const hidden = hiddenImpressions(model.data);
+  // With one page selected, every row is about that page; the URL only repeats.
+  const manyPages = model.data.scope.pageIds.length > 1;
   const tracked = new Set(
     model.data.keywords
       .filter((keyword) => keyword.saved)
@@ -101,7 +105,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
               void model.refreshSearchStatistics(saved);
             }}
           >
-            {t("queries.refresh")}
+            {t("syncNow")}
           </Button>
         ) : null
       }
@@ -131,7 +135,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
                 void model.refreshSearchStatistics(saved);
               }}
             >
-              {t("queries.refresh")}
+              {t("syncNow")}
             </Button>
           ) : canSync ? (
             <Button
@@ -159,8 +163,40 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
               </div>
             ))}
           </dl>
+          {/* Stacked rows hide the sortable header on a phone; sort from here instead. */}
+          <div className="px-2 pb-3 sm:hidden">
+            <SeoField id="seo-query-sort" label={t("queries.sortBy")}>
+              <SeoSelect
+                id="seo-query-sort"
+                value={`${sort.key}:${sort.ascending ? "asc" : "desc"}`}
+                onValueChange={(value) => {
+                  const [key, direction] = value.split(":");
+                  setSort({
+                    key: key as SeoQuerySortKey,
+                    ascending: direction === "asc",
+                  });
+                }}
+                options={SORT_COLUMNS.flatMap((column) =>
+                  (["desc", "asc"] as const).map((direction) => ({
+                    value: `${column.key}:${direction}`,
+                    // A lower position is better, so say best and worst, not high and low.
+                    label: t(
+                      column.key === "averagePosition"
+                        ? direction === "asc"
+                          ? "queries.sortBest"
+                          : "queries.sortWorst"
+                        : direction === "desc"
+                          ? "queries.sortHighest"
+                          : "queries.sortLowest",
+                      { column: t(column.label) },
+                    ),
+                  })),
+                )}
+              />
+            </SeoField>
+          </div>
           <div className={HOLDER_ITEM_CLASS}>
-            <Table>
+            <Table className={SEO_STACKED_TABLE_CLASS}>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("queries.query")}</TableHead>
@@ -184,22 +220,35 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
                       <p className="font-medium break-words">
                         <bdi>{row.query}</bdi>
                       </p>
-                      <SeoPageLink url={row.pageUrl} />
+                      {manyPages ? <SeoPageLink url={row.pageUrl} /> : null}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("queries.clicks")}
+                    >
                       {format.number(row.clicks)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("queries.impressions")}
+                    >
                       {format.number(row.impressions)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("queries.ctr")}
+                    >
                       {format.number(row.ctr, {
                         style: "percent",
                         maximumFractionDigits: 1,
                       })}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("queries.position")}
+                    >
                       {format.number(row.averagePosition, {
+                        minimumFractionDigits: 1,
                         maximumFractionDigits: 1,
                       })}
                     </TableCell>

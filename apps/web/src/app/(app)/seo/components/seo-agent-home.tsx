@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoActionCard } from "./seo-actions";
-import { type SeoAgentStep, seoAgentBrief } from "./seo-agent-model";
+import {
+  type SeoAgentBrief,
+  type SeoAgentStep,
+  seoAgentBrief,
+} from "./seo-agent-model";
 import { SeoChatThread, useSeoChatIdentity } from "./seo-chat-panel";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGettingStarted } from "./seo-getting-started";
@@ -21,66 +25,107 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export const SEO_AGENT_INPUT_ID = "seo-agent-question";
 
+type Chat = ReturnType<typeof useSeoChat>;
+
 function StepRow({
   step,
   model,
+  chat,
   refresh,
   refreshing,
+  first,
 }: {
   step: Exclude<SeoAgentStep, { kind: "action" }>;
   model: SeoWorkspaceModel;
+  chat: Chat;
   refresh: () => void;
   refreshing: boolean;
+  /** The agent's top proposal carries the one primary button. */
+  first: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const { canEdit, canRequestAnalysis } = model.data.availableActions;
+  const variant = first ? "primary" : "outline";
   const [body, control] =
-    step.kind === "refresh"
+    step.kind === "keyword"
       ? [
-          t(`agent.steps.refresh.${step.reason}`),
-          <Button
-            key="refresh"
-            size="sm"
-            variant="outline"
-            loading={refreshing}
-            disabled={model.pending}
-            onClick={refresh}
-          >
-            {t("queries.refresh")}
-          </Button>,
+          t("agent.steps.keyword", { keyword: step.keyword }),
+          model.data.auditId ? (
+            <Button
+              key="keyword"
+              size="sm"
+              variant={variant}
+              disabled={chat.busy}
+              onClick={() => {
+                void chat.send(
+                  t("agent.prompts.keyword", { keyword: step.keyword }),
+                );
+              }}
+            >
+              {t("agent.askHow")}
+            </Button>
+          ) : null,
         ]
-      : step.kind === "connect"
+      : step.kind === "pages"
         ? [
-            t(`agent.steps.connect.${step.provider}`),
-            <SeoConnectionButton
-              key="connect"
-              provider={step.provider}
-              onConnected={() => model.openStatistics(step.provider)}
-            />,
+            t("agent.steps.pages"),
+            <Button
+              key="pages"
+              size="sm"
+              variant={variant}
+              onClick={() => model.setDialog("page")}
+            >
+              {t("addPage")}
+            </Button>,
           ]
-        : [
-            t(
-              step.available
-                ? "agent.steps.competitors.available"
-                : "agent.steps.competitors.unavailable",
-            ),
-            canEdit && (canRequestAnalysis || !step.available) ? (
+        : step.kind === "refresh"
+          ? [
+              t(`agent.steps.refresh.${step.reason}`),
               <Button
-                key="competitors"
+                key="refresh"
                 size="sm"
-                variant="outline"
-                onClick={() =>
-                  model.setDialog(step.available ? "analysis" : "competitor")
-                }
+                variant={variant}
+                loading={refreshing}
+                disabled={model.pending}
+                onClick={refresh}
               >
-                {t(
+                {t("syncNow")}
+              </Button>,
+            ]
+          : step.kind === "connect"
+            ? [
+                t(`agent.steps.connect.${step.provider}`),
+                <SeoConnectionButton
+                  key="connect"
+                  provider={step.provider}
+                  onConnected={() => model.openStatistics(step.provider)}
+                />,
+              ]
+            : [
+                t(
                   step.available
-                    ? "agent.researchCompetitors"
-                    : "competitors.add",
-                )}
-              </Button>
-            ) : null,
-          ];
+                    ? "agent.steps.competitors.available"
+                    : "agent.steps.competitors.unavailable",
+                ),
+                canEdit && (canRequestAnalysis || !step.available) ? (
+                  <Button
+                    key="competitors"
+                    size="sm"
+                    variant={variant}
+                    onClick={() =>
+                      model.setDialog(
+                        step.available ? "analysis" : "competitor",
+                      )
+                    }
+                  >
+                    {t(
+                      step.available
+                        ? "agent.researchCompetitors"
+                        : "competitors.add",
+                    )}
+                  </Button>
+                ) : null,
+              ];
   return (
     <li
       className={cn(
@@ -94,13 +139,14 @@ function StepRow({
   );
 }
 
-function AgentConversation({ model }: { model: SeoWorkspaceModel }) {
+function AgentConversation({
+  model,
+  chat,
+}: {
+  model: SeoWorkspaceModel;
+  chat: Chat;
+}) {
   const t = useTranslations("App.Seo");
-  // History waits for a fresh Audit read, so a revoked or missing Audit is never read again.
-  const chat = useSeoChat(
-    model,
-    model.result.isFetchedAfterMount && model.result.isSuccess,
-  );
   return (
     <div className={cn(HOLDER_ITEM_CLASS, "flex min-h-96 min-w-0 flex-col")}>
       <div className="border-b px-4 py-3">
@@ -120,13 +166,49 @@ function AgentConversation({ model }: { model: SeoWorkspaceModel }) {
 
 /** The SEO agent is the first thing on an Audit: what it knows, what it proposes, and the conversation. */
 export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
-  const t = useTranslations("App.Seo");
   const [now] = useState(() => new Date());
   const brief = seoAgentBrief(model.data, now);
+  // Upkeep lives outside the keyed panel, so a session that finishes loading does not restart it.
+  const autopilot = useSeoAutopilot(model, brief);
+  // Keyed by viewer and Audit, so a changed account never shows a stale conversation.
+  const identity = useSeoChatIdentity(model);
+  return (
+    <SeoAgentPanel
+      key={identity}
+      model={model}
+      brief={brief}
+      autopilot={autopilot}
+    />
+  );
+}
+
+function SeoAgentPanel({
+  model,
+  brief,
+  autopilot,
+}: {
+  model: SeoWorkspaceModel;
+  brief: SeoAgentBrief;
+  autopilot: ReturnType<typeof useSeoAutopilot>;
+}) {
+  const t = useTranslations("App.Seo");
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
-  const autopilot = useSeoAutopilot(model, brief);
-  const identity = useSeoChatIdentity(model);
+  // The first proposal with its own button carries the one primary action.
+  // Action cards and connection buttons keep their own style.
+  const { canEdit, canRequestAnalysis } = model.data.availableActions;
+  const primary = brief.steps.findIndex((step) =>
+    step.kind === "keyword"
+      ? Boolean(model.data.auditId)
+      : step.kind === "competitors"
+        ? canEdit && (canRequestAnalysis || !step.available)
+        : step.kind !== "action" && step.kind !== "connect",
+  );
+  // History waits for a fresh Audit read, so a revoked or missing Audit is never read again.
+  const chat = useSeoChat(
+    model,
+    model.result.isFetchedAfterMount && model.result.isSuccess,
+  );
   return (
     <section
       aria-labelledby="seo-agent-title"
@@ -191,7 +273,7 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
           ) : null}
           {brief.steps.length ? (
             <ul className="space-y-2">
-              {brief.steps.map((step) =>
+              {brief.steps.map((step, index) =>
                 step.kind === "action" ? (
                   <li key={`${step.action.observationId}:${step.action.id}`}>
                     <SeoActionCard
@@ -205,6 +287,8 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
                     key={`${step.kind}:${"provider" in step ? step.provider : ""}`}
                     step={step}
                     model={model}
+                    chat={chat}
+                    first={index === primary}
                     refresh={() => {
                       void autopilot.refresh();
                     }}
@@ -221,7 +305,7 @@ export function SeoAgentHome({ model }: { model: SeoWorkspaceModel }) {
         </div>
       </div>
       {model.data.auditId ? (
-        <AgentConversation key={identity} model={model} />
+        <AgentConversation model={model} chat={chat} />
       ) : null}
     </section>
   );

@@ -1,4 +1,5 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
+import { seoStatisticsLostData } from "@sokosumi/utils";
 
 export const SEO_STATISTICS_PERIODS = [7, 28, 90] as const;
 export const SEO_DEFAULT_STATISTICS_DAYS = 28;
@@ -65,5 +66,22 @@ export function invalidSeoStatisticsPeriod(from: string, to: string) {
     !Number.isFinite(days) ||
     days < 0 ||
     days >= MAX_STATISTICS_DAYS
+  );
+}
+
+/**
+ * Whether a sync's coverage is worth a badge. Search Console is always partial,
+ * because Google hides rare searches; that alone is not news. A Search Console
+ * sync is flagged only when it stored a note about lost data.
+ */
+export function seoCoverageIsNews(metric: {
+  source: string;
+  coverage: string;
+  notes: string[];
+}) {
+  if (metric.coverage === "unavailable") return true;
+  if (metric.coverage !== "partial") return false;
+  return (
+    metric.source !== "search_console" || seoStatisticsLostData(metric.notes)
   );
 }

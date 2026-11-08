@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { seoOverviewModel } from "./seo-overview-model";
+import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
 
 /** Saved Search Console data older than this is refreshed once when the Audit opens. */
@@ -11,6 +12,8 @@ export const SEO_AGENT_ACTION_LIMIT = 3;
 type Action = ProjectSeoWorkspace["actions"][number];
 export type SeoAgentStep =
   | { kind: "action"; action: Action }
+  | { kind: "keyword"; keyword: string }
+  | { kind: "pages" }
   | { kind: "refresh"; reason: "stale" | "no_queries" }
   | { kind: "connect"; provider: "ga4" | "search_console" }
   | { kind: "competitors"; available: boolean };
@@ -54,6 +57,20 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const steps: SeoAgentStep[] = [...fixes, ...opportunities]
     .slice(0, SEO_AGENT_ACTION_LIMIT)
     .map((action) => ({ kind: "action", action }));
+  // SEO work from free saved data comes before account upkeep.
+  // A cut list cannot prove Google left a keyword out.
+  const listed =
+    workspace.searchQueries && !workspace.searchQueries.truncated
+      ? searchConsoleIndex(workspace.searchQueries.rows)
+      : null;
+  const unseen = listed
+    ? workspace.keywords.find(
+        (row) => row.saved && !listed.has(normalizeQuery(row.keyword)),
+      )
+    : undefined;
+  if (unseen) steps.push({ kind: "keyword", keyword: unseen.keyword });
+  if (workspace.availableActions.canEdit && workspace.pages.length === 1)
+    steps.push({ kind: "pages" });
   if (refresh && (staleSearch || !workspace.searchQueries))
     steps.push({
       kind: "refresh",

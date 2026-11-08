@@ -125,7 +125,7 @@ describe("Saved keyword edits", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Remove from saved" }));
+    await user.click(screen.getByRole("button", { name: "Stop tracking" }));
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({
         command: {
@@ -291,6 +291,9 @@ describe("Search Console queries", () => {
     const row = within(table!).getByText("Stablecoins").closest("tr");
     expect(within(row!).getByText("3.0 avg. · 12 impressions")).toBeVisible();
     expect(within(row!).getByText(/Search Console average/)).toBeVisible();
-    expect(within(row!).queryByText("Position unavailable")).toBeNull();
+    expect(within(row!).queryByText("Not measured")).toBeNull();
+    expect(
+      within(row!).queryByText("Not among Google's listed searches"),
+    ).toBeNull();
   });
 });

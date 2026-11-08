@@ -15,6 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  SEO_SEARCH_MIN_ROWS,
+  SEO_STACKED_TABLE_CLASS,
   SeoDate,
   SeoEmpty,
   SeoPageLink,
@@ -47,6 +49,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("competitors.title")}
+      description={t("competitors.help")}
       actions={
         model.data.availableActions.canEdit ? (
           <Button size="sm" onClick={() => model.setDialog("competitor")}>
@@ -56,24 +59,24 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
-      <p className="text-muted-foreground px-2 pb-3 text-sm">
-        {t("competitors.help")}
-      </p>
-      <div className="px-2 pb-3">
-        <Label htmlFor="seo-competitor-search" className="sr-only">
-          {t("search")}
-        </Label>
-        <Input
-          id="seo-competitor-search"
-          type="search"
-          value={model.competitorSearch}
-          onChange={(event) => model.setCompetitorSearch(event.target.value)}
-          placeholder={t("search")}
-        />
-      </div>
+      {model.data.competitors.length >= SEO_SEARCH_MIN_ROWS ||
+      model.competitorSearch ? (
+        <div className="px-2 pb-3">
+          <Label htmlFor="seo-competitor-search" className="sr-only">
+            {t("search")}
+          </Label>
+          <Input
+            id="seo-competitor-search"
+            type="search"
+            value={model.competitorSearch}
+            onChange={(event) => model.setCompetitorSearch(event.target.value)}
+            placeholder={t("search")}
+          />
+        </div>
+      ) : null}
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>
-          <Table>
+          <Table className={SEO_STACKED_TABLE_CLASS}>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("url")}</TableHead>
@@ -122,27 +125,36 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     ) : null}
                   </TableCell>
                   {shown.rank ? (
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("competitors.rank")}
+                    >
                       {number(row.rank)}
                     </TableCell>
                   ) : null}
                   {shown.backlinks ? (
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("competitors.backlinks")}
+                    >
                       {number(row.backlinks)}
                     </TableCell>
                   ) : null}
                   {shown.domains ? (
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell
+                      className="text-right tabular-nums"
+                      data-label={t("competitors.domains")}
+                    >
                       {number(row.referringDomains)}
                     </TableCell>
                   ) : null}
                   {shown.observed ? (
-                    <TableCell>
+                    <TableCell data-label={t("observed")}>
                       <SeoDate value={row.observedAt} />
                     </TableCell>
                   ) : null}
                   {shown.source ? (
-                    <TableCell>
+                    <TableCell data-label={t("source")}>
                       <span className="text-muted-foreground text-sm">
                         {row.source}
                       </span>
@@ -182,7 +194,12 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           </Table>
           {hidden.length ? (
             <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-              {t("unmeasuredColumns", { columns: format.list(hidden) })}
+              {t(
+                model.data.availableActions.canUsePaidSearchData === true
+                  ? "unmeasuredColumns"
+                  : "paidDataOff",
+                { columns: format.list(hidden) },
+              )}
             </p>
           ) : null}
         </div>

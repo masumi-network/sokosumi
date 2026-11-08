@@ -191,7 +191,8 @@ export function SeoWorkspace({
           </DropdownMenu>
           {model.data.availableActions.canRequestAnalysis && !startCard ? (
             <Button
-              variant="primary"
+              // On the Overview the agent's first proposal is the primary action.
+              variant={model.filters.tab === "overview" ? "outline" : "primary"}
               size="sm"
               disabled={unavailable || !model.data.scope.pageIds.length}
               onClick={() => model.setDialog("analysis")}

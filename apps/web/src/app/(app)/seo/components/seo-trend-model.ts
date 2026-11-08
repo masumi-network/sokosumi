@@ -24,9 +24,9 @@ function dayNumber(date: string) {
 }
 
 /**
- * Scale and shape of one daily metric for a single-axis line chart.
- * x and y are percentages of the plot; x follows the calendar, so a day the
- * source left out is a gap, never a zero. Position runs top-down (1 at the
+ * Scale and shape of one daily metric for a single-axis chart: bars for counts,
+ * a line for rates and positions. x and y are percentages of the plot; x follows
+ * the calendar, so a day the source left out is a gap, never a zero. Position runs top-down (1 at the
  * top), because a lower position is better.
  */
 export function seoTrendModel(points: Point[], unit: ProjectSeoMetric["unit"]) {
@@ -55,10 +55,17 @@ export function seoTrendModel(points: Point[], unit: ProjectSeoMetric["unit"]) {
   const days = points.map((point) => dayNumber(point.date));
   const first = days[0] ?? 0;
   const span = (days.at(-1) ?? first) - first;
+  // Counts are whole events per day, so they draw as bars in equal day bands.
+  const bars = unit === "count";
+  const band = 100 / (span + 1);
   const plotted = points.map((point, index) => ({
     date: point.date,
     value: values[index],
-    x: span > 0 ? ((days[index] - first) / span) * 100 : 50,
+    x: bars
+      ? (days[index] - first + 0.5) * band
+      : span > 0
+        ? ((days[index] - first) / span) * 100
+        : 50,
     y: values[index] === null ? null : y(values[index] as number),
   }));
   const runs: number[][] = [];
@@ -78,8 +85,8 @@ export function seoTrendModel(points: Point[], unit: ProjectSeoMetric["unit"]) {
     lines: runs.filter((run) => run.length > 1),
     dots: runs.filter((run) => run.length === 1).map(([index]) => index),
     ticks: ticks.map((value) => ({ value, y: y(value) })),
-    // A wash under the line reads as volume; positions are not volume.
-    area: !inverted,
+    bars,
+    band,
     inverted,
   };
 }

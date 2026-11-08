@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,10 @@ import { cn } from "@/lib/utils";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import { seoWeekOverWeek } from "./seo-performance-model";
 import { SeoDate, SeoPeriod, SeoSection, SeoState } from "./seo-shared";
-import { latestSeoMeasurements } from "./seo-statistics-model";
+import {
+  latestSeoMeasurements,
+  seoCoverageIsNews,
+} from "./seo-statistics-model";
 import { SeoTrendChart } from "./seo-trend-chart";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -29,18 +33,62 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const active =
     visible.find((metric) => metric.id === chosenMetric) ?? visible[0];
   const compared = seoWeekOverWeek(visible);
+  // Google reports a few days late; the period names the days that have data, for every shown metric.
+  const reported = visible
+    .flatMap((metric) => metric.points)
+    .filter((point) => point.value !== null)
+    .map((point) => point.date)
+    .sort();
   const canSync = workspace.availableActions.canSyncMetrics;
   function label(metric: ProjectSeoMetric) {
     return t.has(`metrics.${metric.key}`)
       ? t(`metrics.${metric.key}`)
       : metric.label;
   }
-  function measuredValue(value: number, unit: ProjectSeoMetric["unit"]) {
+  function measuredValue(
+    value: number,
+    unit: ProjectSeoMetric["unit"],
+    signDisplay: "auto" | "exceptZero" = "auto",
+  ) {
     return unit === "ratio"
       ? format.number(value, { style: "percent", maximumFractionDigits: 1 })
       : format.number(value, {
+          // Position always shows one decimal, so 1.0 and 3.8 read alike.
+          minimumFractionDigits: unit === "position" ? 1 : 0,
           maximumFractionDigits: unit === "count" ? 0 : 1,
+          signDisplay,
         });
+  }
+  /** Change from the previous 7 days. A lower position is better. */
+  function change(
+    week: { current: number | null; previous: number | null },
+    unit: ProjectSeoMetric["unit"],
+  ) {
+    if (week.current === null || week.previous === null) return null;
+    // Judge the change between the values as shown: equal shown values are no change.
+    const scale = 10 ** (unit === "count" ? 0 : unit === "ratio" ? 3 : 1);
+    const shown = (value: number) => Math.round(value * scale) / scale;
+    const delta = shown(shown(week.current) - shown(week.previous));
+    if (delta === 0) return { text: t("overview.noChange"), Icon: null };
+    const Icon = delta > 0 ? ArrowUp : ArrowDown;
+    // A rate changes by percentage points, not by a percent of itself.
+    if (unit === "ratio")
+      return {
+        text: t("overview.percentPoints", {
+          value: format.number(delta * 100, {
+            maximumFractionDigits: 1,
+            signDisplay: "exceptZero",
+          }),
+        }),
+        Icon,
+      };
+    if (unit !== "position")
+      return { text: measuredValue(delta, unit, "exceptZero"), Icon };
+    const amount = measuredValue(Math.abs(delta), unit);
+    return {
+      text: t(delta < 0 ? "overview.better" : "overview.worse", { amount }),
+      Icon,
+    };
   }
   function value(metric: ProjectSeoMetric) {
     return metric.value === null || metric.coverage === "unavailable"
@@ -64,7 +112,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
         active ? (
           <>
             {t(`statistics.${active.source}`)} ·{" "}
-            <SeoPeriod from={active.from} to={active.to} /> ·{" "}
+            <SeoPeriod
+              from={reported[0] ?? active.from}
+              to={reported.at(-1) ?? active.to}
+            />{" "}
+            ·{" "}
             {t(
               active.channel === "organic"
                 ? "statistics.channelOrganic"
@@ -97,6 +149,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {visible.map((metric) => {
               const week = compared?.values[metric.key] ?? null;
+              const moved = week ? change(week, metric.unit) : null;
               return (
                 <Button
                   key={metric.id}
@@ -124,16 +177,23 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {value(metric)}
                   </span>
-                  {week && compared ? (
+                  {week ? (
                     <span className="text-muted-foreground space-y-0.5 text-xs font-normal">
                       {(["current", "previous"] as const).map((side) => (
                         <span key={side} className="block">
-                          {t("overview.windowValue", {
-                            days: windowLabel(compared[side]),
+                          {t(`overview.window.${side}`, {
                             value: weekValue(week[side], metric.unit),
                           })}
                         </span>
                       ))}
+                      {moved ? (
+                        <span className="text-foreground flex items-center gap-1 font-medium">
+                          {moved.Icon ? (
+                            <moved.Icon className="size-3" aria-hidden />
+                          ) : null}
+                          {moved.text}
+                        </span>
+                      ) : null}
                     </span>
                   ) : null}
                 </Button>
@@ -164,10 +224,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               <span>
                 {t("overview.synced")} <SeoDate value={active.observedAt} />
               </span>
-              {/* Search Console always reports partial data; flag partial only where that is news. */}
-              {active.coverage === "unavailable" ||
-              (active.coverage === "partial" &&
-                active.source !== "search_console") ? (
+              {seoCoverageIsNews(active) ? (
                 <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
               ) : null}
             </p>
@@ -189,10 +246,18 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
             ) : null}
           </div>
           <details className="text-muted-foreground text-xs">
-            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 focus-visible:ring-2 focus-visible:outline-none">
+            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-3 focus-visible:ring-2 focus-visible:outline-none">
               {t("overview.measurementDetails")}
             </summary>
             <div className="space-y-2 pt-2">
+              {compared ? (
+                <p>
+                  {t("overview.windowDays", {
+                    current: windowLabel(compared.current),
+                    previous: windowLabel(compared.previous),
+                  })}
+                </p>
+              ) : null}
               <p>
                 {t("statistics.property")}: <bdi>{active.propertyId}</bdi>
               </p>

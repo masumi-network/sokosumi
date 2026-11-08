@@ -1,7 +1,11 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import { seoTestWorkspace } from "./seo-test-fixture";
-import { buildSeoTimeline } from "./seo-timeline-model";
+import {
+  buildSeoTimeline,
+  foldSyncRuns,
+  type SeoTimelineNode,
+} from "./seo-timeline-model";
 
 type Observation = ProjectSeoWorkspace["observations"][number];
 
@@ -120,5 +124,39 @@ describe("SEO activity graph model", () => {
     expect(event.label).toBe("resultsSaved");
     expect(event.at).toBe(workspace.timeline[0].at);
     expect(event.isRecheck).toBe(false);
+  });
+});
+
+describe("foldSyncRuns", () => {
+  const node = (
+    id: string,
+    kind: "metrics" | "check",
+    status = "completed",
+    title = "Search Console statistics synced",
+  ) =>
+    ({
+      event: { id, kind, status, title },
+      observation: undefined,
+      at: "2026-11-06T12:00:00Z",
+      isRecheck: false,
+      label: kind === "metrics" ? "metricsSynced" : "checkRun",
+    }) as unknown as SeoTimelineNode;
+
+  it("folds back-to-back syncs and keeps an unavailable sync, another source and a check apart", () => {
+    const folded = foldSyncRuns([
+      node("s3", "metrics"),
+      node("s2", "metrics"),
+      node("s1", "metrics", "unavailable"),
+      node("a1", "metrics", "unavailable", "Analytics statistics synced"),
+      node("c1", "check"),
+      node("s0", "metrics"),
+    ]);
+    expect(folded.map((row) => [row.event.id, row.syncs])).toEqual([
+      ["s3", 2],
+      ["s1", 1],
+      ["a1", 1],
+      ["c1", 1],
+      ["s0", 1],
+    ]);
   });
 });

@@ -32,6 +32,37 @@ const ACTION_LABELS = {
   page_change: "pageChange.title",
 } as const;
 export const SEO_AGENT_PROMPTS = ["first", "queries", "competitors"] as const;
+/** A question longer than this folds to three lines until the reader opens it. */
+const QUESTION_PREVIEW_CHARS = 200;
+
+function TurnQuestion({ text }: { text: string }) {
+  const t = useTranslations("App.Seo.chat");
+  const [open, setOpen] = useState(false);
+  const long = text.length > QUESTION_PREVIEW_CHARS;
+  return (
+    <>
+      <p
+        className={cn(
+          "text-sm whitespace-pre-wrap break-words",
+          long && !open && "line-clamp-3",
+        )}
+      >
+        {text}
+      </p>
+      {long ? (
+        <Button
+          variant="link"
+          size="sm"
+          className="h-auto px-0 py-1 text-xs"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {t(open ? "showLess" : "showMore")}
+        </Button>
+      ) : null}
+    </>
+  );
+}
 
 type Chat = ReturnType<typeof useSeoChat>;
 
@@ -128,18 +159,28 @@ export function SeoChatThread({
   chat: Chat;
   inputId: string;
   className?: string;
-  /** Show only the newest exchange until the reader asks for the rest. */
+  /** Show only this visit's exchanges until the reader asks for earlier ones. */
   latestOnly?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const [showAll, setShowAll] = useState(!latestOnly);
+  const seen = chat.seen;
   // The button unmounts on click; move focus to the earliest question it revealed.
   const revealed = useRef(false);
   const firstTurn = useRef<HTMLElement>(null);
   useEffect(() => {
     if (showAll && revealed.current) firstTurn.current?.focus();
   }, [showAll]);
-  const earlier = showAll ? 0 : Math.max(0, chat.turns.length - 1);
+  // Turns are oldest first. An earlier visit's answer is history, not today's brief.
+  const firstThisVisit = seen
+    ? chat.turns.findIndex((turn) => !seen.has(turn.id))
+    : 0;
+  const earlier =
+    showAll || !seen
+      ? 0
+      : firstThisVisit === -1
+        ? chat.turns.length
+        : firstThisVisit;
   const turns = chat.turns.slice(earlier);
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
@@ -193,7 +234,7 @@ export function SeoChatThread({
                   ? t("chat.you")
                   : turn.author?.name || t("chat.member")}
               </p>
-              <p className="text-sm whitespace-pre-wrap">{turn.question}</p>
+              <TurnQuestion text={turn.question} />
             </div>
             <p className="text-muted-foreground text-xs">
               {t("chat.pages", { count: turn.scope.pageIds.length })} ·{" "}
@@ -235,6 +276,8 @@ export function SeoChatThread({
               type="button"
               size="sm"
               variant="outline"
+              // A long prompt wraps inside the panel instead of running past it on a phone.
+              className="h-auto max-w-full py-1.5 text-start whitespace-normal"
               disabled={chat.busy}
               onClick={() => {
                 void chat.send(t(`agent.prompts.${prompt}`));

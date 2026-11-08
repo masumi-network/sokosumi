@@ -73,6 +73,25 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
         : false,
   });
   const turns = history.data?.turns ?? [];
+  // The first successful read in any panel fixes which turns came before this visit.
+  // Kept on the workspace model, so tabs and the sheet agree.
+  const identity = JSON.stringify(key);
+  function remember(saved: SeoAuditChatTurn[]) {
+    if (model.chatSeen.current?.key === identity) return;
+    model.chatSeen.current = {
+      key: identity,
+      ids: new Set(
+        saved
+          .filter((turn) => turn.status !== "running")
+          .map((turn) => turn.id),
+      ),
+    };
+  }
+  if (history.isSuccess) remember(turns);
+  const seen =
+    model.chatSeen.current?.key === identity
+      ? model.chatSeen.current.ids
+      : null;
   const busy = sending || turns.some((turn) => turn.status === "running");
   async function send(prompt?: string) {
     const text = (prompt ?? question).trim();
@@ -121,6 +140,8 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
       if (!response.ok) throw new Error("Audit reply unavailable");
       const turn: SeoAuditChatTurn = await response.json();
       if (!alive.current) return;
+      // Before the new turn enters the cache: a send ahead of the first read keeps its answer in view.
+      remember(queryClient.getQueryData<SeoAuditChatHistory>(key)?.turns ?? []);
       queryClient.setQueryData<SeoAuditChatHistory>(key, (previous) => ({
         sharing: previous?.sharing ?? model.data.sharing ?? "personal",
         turns: [
@@ -152,6 +173,8 @@ export function useSeoChat(model: SeoWorkspaceModel, active = model.chatOpen) {
     history,
     turns,
     send,
+    /** Turns saved before this visit, or null until history first loads. */
+    seen,
     sharing: history.data?.sharing ?? model.data.sharing ?? "personal",
     viewerId: session?.user.id,
   };
