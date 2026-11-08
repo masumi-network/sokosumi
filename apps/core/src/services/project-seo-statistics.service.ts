@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE } from "@sokosumi/utils";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -330,10 +331,7 @@ export async function syncProjectSeoStatistics(
         metrics.notes.push(
           `Only the first ${queries.value.rowLimit} query rows by clicks were kept. More rows can exist.`,
         );
-    } else
-      metrics.notes.push(
-        "Search Console query rows were unavailable for this sync. Totals are kept.",
-      );
+    } else metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
   }
   const current = await integrationFor(actor, input.provider);
   if (

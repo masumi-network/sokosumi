@@ -1,4 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import {
+  SEO_STATISTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_QUERY_FAILED_NOTE,
+} from "@sokosumi/utils";
 
 import type { NativeSeoMetrics } from "@/schemas/project-seo.schema";
 
@@ -313,9 +317,7 @@ export function normalizeGa4Statistics(
     throw new Error("Analytics returned incompatible time zones");
   const notes: string[] = [];
   if (periodInput === null || dailyInput === null)
-    notes.push(
-      "One native query failed. Successful totals or daily observations are retained without filling gaps.",
-    );
+    notes.push(SEO_STATISTICS_QUERY_FAILED_NOTE);
   if (!zones.length)
     notes.push(
       "The Analytics property time zone was not returned; period comparisons are limited.",
@@ -394,13 +396,8 @@ export function normalizeGscStatistics(
     "Search Console final data can omit recent dates and privacy-filtered observations.",
   ];
   if (periodInput === null || dailyInput === null)
-    notes.push(
-      "One native query failed. Successful totals or daily observations are retained without filling gaps.",
-    );
-  if (!period.rows.length)
-    notes.push(
-      "Search Console returned no aggregate row. Missing measurements are unavailable, not zero.",
-    );
+    notes.push(SEO_STATISTICS_QUERY_FAILED_NOTE);
+  if (!period.rows.length) notes.push(SEO_STATISTICS_NO_AGGREGATE_NOTE);
   return {
     provider: "search_console",
     propertyId: query.propertyId,

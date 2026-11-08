@@ -433,6 +433,12 @@ export {
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
 export {
+  SEO_STATISTICS_NO_AGGREGATE_NOTE,
+  SEO_STATISTICS_QUERY_FAILED_NOTE,
+  SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
+  seoStatisticsLostData,
+} from "./seo-statistics-notes.js";
+export {
   buildSocialAccountAvatarPathname,
   isOwnedSocialAccountAvatarUrl,
   isSocialAccountAvatarAllowedContentType,
