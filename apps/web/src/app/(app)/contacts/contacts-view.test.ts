@@ -108,6 +108,7 @@ describe("email and reply", () => {
     source: "EMAIL" as const,
     sourceUrl: null,
     verified: false,
+    followers: null,
     createdAt: new Date(),
   });
 

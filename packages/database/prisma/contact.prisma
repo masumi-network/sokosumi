@@ -136,6 +136,7 @@ model Contact {
   activities            ContactActivity[]
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
+  search                ContactSearch?
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
@@ -162,6 +163,8 @@ model ContactChannel {
   source      ContactChannelSource @default(MANUAL)
   sourceUrl   String?
   verified    Boolean              @default(false)
+  /// Audience on this channel when known, e.g. X followers.
+  followers   Int?
   createdAt   DateTime             @default(now())
 
   @@unique([workspaceId, type, value])
@@ -393,4 +396,25 @@ model GeocodedPlace {
   createdAt DateTime @default(now())
 
   @@map("geocoded_place")
+}
+
+/// What Soko Bots and the Contacts search look a contact up by. SQL-only
+/// `contact_search_refresh` triggers on `contact` and `contact_channel` keep
+/// `document` (lowercased, unaccented name, organization, role, location,
+/// stage, about texts and channels) and `searchVector` current; Core only
+/// writes the embedding, for the document whose md5 is `embeddedHash`.
+model ContactSearch {
+  contactId    String                   @id @db.Uuid
+  contact      Contact                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  workspaceId  String                   @db.Uuid
+  document     String
+  searchVector Unsupported("tsvector")? @map("search_vector")
+  embedding    Unsupported("vector(768)")?
+  embeddedHash String?
+  updatedAt    DateTime                 @default(now())
+
+  @@index([workspaceId])
+  @@index([searchVector], type: Gin, map: "contact_search_search_vector_idx")
+  @@index([document(ops: raw("gin_trgm_ops"))], type: Gin, map: "contact_search_document_trgm_idx")
+  @@map("contact_search")
 }
