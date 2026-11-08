@@ -78,15 +78,14 @@ export const SOKO_BOT_SLACK_CAPTURE_TOOLS = {
 } as const;
 
 /**
- * X the same way: whom the owner writes with in direct messages, and which
- * people they follow who follow them back.
+ * X the same way: whom the owner writes with in direct messages, and who
+ * follows them.
  */
 export const SOKO_BOT_X_CAPTURE_TOOLS = {
   provider: "twitter",
   me: "TWITTER_USER_LOOKUP_ME",
   dmEvents: "TWITTER_GET_RECENT_DM_EVENTS",
   followers: "TWITTER_FOLLOWERS_BY_USER_ID",
-  following: "TWITTER_FOLLOWING_BY_USER_ID",
 } as const;
 
 /** Toolkits whose mail is ingested and read through the dedicated inbox tools only. */
