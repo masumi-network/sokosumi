@@ -301,25 +301,26 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
  * are neither: see SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES.
  */
 /**
- * Social post tools a tainted turn may still use, but only on work the owner
- * asked for, only as the model's own call (never a script's) and, past
- * creating one, only on a post this turn or the turn that started it created:
- * "research the launch, cut a video and schedule it" is one piece of work,
- * while a post already queued is not the turn's to change after reading a
- * page. A new post still waits for a person's approval.
+ * Social post tools a tainted turn may still use on work the owner asked for:
+ * "research the launch, cut a video and schedule it" is one piece of work.
+ * A new post waits for a person's approval, and past creating one only a
+ * post this turn or the turn that started it created can be scheduled or
+ * cancelled. Changing a post's words or media and publishing now stay
+ * refused (see the outward list): a script in the turn can call these tools
+ * too, and an approved post must not change under it.
  */
 export const SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES = [
   "create_social_post",
-  "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
-  "publish_social_post",
 ] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
 
 export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "run_integration_tool",
   "post_chat",
   "open_direct_chat",
+  "update_social_post",
+  "publish_social_post",
   // Other people's newsletter subscriptions, and the emails that confirm them.
   "add_newsletter_subscriber",
   "import_newsletter_subscribers",

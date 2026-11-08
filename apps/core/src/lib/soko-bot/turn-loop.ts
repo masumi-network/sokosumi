@@ -406,7 +406,7 @@ async function createdThisWork(turnId: string, postId: unknown) {
 export async function isTaintBlocked(
   turnId: string,
   capability: SokoBotCapability,
-  call: { fromScript?: boolean; toolInput?: unknown } = {},
+  toolInput?: unknown,
 ): Promise<boolean> {
   if (
     !(
@@ -420,11 +420,11 @@ export async function isTaintBlocked(
       SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly SokoBotCapability[]
     ).includes(capability)
   ) {
-    if (call.fromScript || !(await isOwnerDirected(turnId))) return true;
+    if (!(await isOwnerDirected(turnId))) return true;
     if (capability === "create_social_post") return false;
     return !(await createdThisWork(
       turnId,
-      (call.toolInput as { postId?: unknown } | null)?.postId,
+      (toolInput as { postId?: unknown } | null)?.postId,
     ));
   }
   if (
@@ -453,16 +453,9 @@ export async function runTurnTool(input: {
   toolInput: unknown;
   /** A read's result carries its call id for the model to cite; scripts don't cite. */
   cite?: boolean;
-  /** A script's call through SOKO_TOOLS_URL, not the model's own. */
-  fromScript?: boolean;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
-  if (
-    await isTaintBlocked(log.turnId, capability, {
-      fromScript: input.fromScript,
-      toolInput: input.toolInput,
-    })
-  ) {
+  if (await isTaintBlocked(log.turnId, capability, input.toolInput)) {
     throw new SokoBotTaintedActionError(capability);
   }
   await log.append(
