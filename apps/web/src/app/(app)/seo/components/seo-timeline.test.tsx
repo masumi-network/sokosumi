@@ -53,7 +53,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText(/12 checks recorded/)).toBeVisible();
+    expect(screen.getByText(/12 checks run/)).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();
@@ -126,7 +126,7 @@ describe("SEO timeline recovery", () => {
       kind: "check",
       title: "SEO check results imported",
       status: "completed",
-      detail: "12 checks recorded. 2 skipped. 0 failed.",
+      detail: "12 checks run. 2 skipped. 0 failed.",
       at: new Date(
         observation.id === "first"
           ? "2026-11-04T12:00:00Z"
@@ -248,5 +248,64 @@ describe("SEO timeline recovery", () => {
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(6);
     expect(items[5]).toHaveFocus();
+  });
+
+  it("leaves routine syncs out and keeps open failures as one row", () => {
+    const workspace = seoTestWorkspace();
+    const sync = (id: string, status: string, day: number) => ({
+      id,
+      kind: "metrics" as const,
+      title: "Search Console statistics synced",
+      status,
+      detail: "",
+      at: new Date(Date.UTC(2026, 10, day)),
+      pageIds: workspace.scope.pageIds,
+      taskId: null,
+      observationId: id,
+    });
+    // Search Console always reports "partial"; its usual filtering notes make it routine.
+    workspace.metrics = [
+      {
+        id: "ok:clicks",
+        key: "clicks",
+        label: "Search clicks",
+        unit: "count",
+        source: "search_console",
+        propertyId: "sc-domain:example.com",
+        channel: "organic",
+        value: 2,
+        from: "2026-10-01",
+        to: "2026-10-28",
+        timeZone: "UTC",
+        observedAt: new Date(Date.UTC(2026, 10, 2)),
+        coverage: "partial",
+        points: [],
+        notes: [
+          "Search Console final data can omit recent dates and privacy-filtered observations.",
+        ],
+      },
+    ];
+    workspace.timeline = [
+      sync("old-failure", "unavailable", 1),
+      sync("ok", "partial", 2),
+      sync("failed-1", "unavailable", 3),
+      sync("failed-2", "unavailable", 4),
+    ];
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    const list = screen.getByRole("list", {
+      name: "SEO activity, newest first",
+    });
+    // The success on day 2 recovered the failure before it, and is itself routine.
+    expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Statistics sync failed 2 times")).toBeVisible();
   });
 });

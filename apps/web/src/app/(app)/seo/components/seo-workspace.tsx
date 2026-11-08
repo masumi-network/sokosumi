@@ -124,7 +124,11 @@ export function SeoWorkspace({
         </div>
         <div className="flex flex-wrap gap-2">
           {model.data.auditId && model.filters.tab !== "overview" ? (
-            <Button variant="outline" size="sm" onClick={model.openChat}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => model.openChat()}
+            >
               <MessageSquare className="size-4" />
               {t("agent.ask")}
             </Button>
@@ -191,8 +195,8 @@ export function SeoWorkspace({
           </DropdownMenu>
           {model.data.availableActions.canRequestAnalysis && !startCard ? (
             <Button
-              // On the Overview the agent's first proposal is the primary action.
-              variant={model.filters.tab === "overview" ? "outline" : "primary"}
+              // The agent's next step is the one primary action, so this stays outline on every tab.
+              variant="outline"
               size="sm"
               disabled={unavailable || !model.data.scope.pageIds.length}
               onClick={() => model.setDialog("analysis")}

@@ -57,8 +57,6 @@ export function SeoTimeline({
   useEffect(() => {
     if (showAll) firstRevealed.current?.focus();
   }, [showAll]);
-  // Syncs repeat every day; one row per run of them keeps checks and changes in view.
-  const nodes = foldSyncRuns(buildSeoTimeline(workspace).reverse());
   // Metric ids are "<sync id>:<metric key>"; a sync event carries the sync id.
   const syncs = new Map(
     workspace.metrics.map((metric) => [metric.id.split(":")[0], metric]),
@@ -71,6 +69,44 @@ export function SeoTimeline({
         ? [[event.title, sync.source] as const]
         : [];
     }),
+  );
+  /**
+   * A routine sync is housekeeping; "Last synced" on the Performance card already says when.
+   * Only a sync that failed or lost data is history worth a row. Search Console's usual
+   * filtering is not news (seoCoverageIsNews); an older Search Console sync without saved
+   * metrics is judged by the notes in its detail.
+   */
+  function syncIsNews(event: ProjectSeoWorkspace["timeline"][number]) {
+    const status = event.status.toLowerCase();
+    if (status === "failed" || status === "unavailable") return true;
+    if (status !== "partial") return false;
+    const sync = syncs.get(event.observationId ?? "");
+    return sync
+      ? seoCoverageIsNews(sync)
+      : titleSources.get(event.title) !== "search_console" ||
+          seoStatisticsLostData(event.detail);
+  }
+  // A later routine sync of the same source recovered any older failure; the title names the source.
+  const lastRoutine = new Map<string, number>();
+  for (const event of workspace.timeline)
+    if (event.kind === "metrics" && !syncIsNews(event))
+      lastRoutine.set(
+        event.title,
+        Math.max(
+          lastRoutine.get(event.title) ?? 0,
+          new Date(event.at).getTime(),
+        ),
+      );
+  // Open failures fold into one row.
+  const nodes = foldSyncRuns(
+    buildSeoTimeline(workspace)
+      .reverse()
+      .filter(
+        ({ event }) =>
+          event.kind !== "metrics" ||
+          (syncIsNews(event) &&
+            new Date(event.at).getTime() > (lastRoutine.get(event.title) ?? 0)),
+      ),
   );
   const visible = showAll ? nodes : nodes.slice(0, SEO_TIMELINE_VISIBLE);
   return (
@@ -90,17 +126,7 @@ export function SeoTimeline({
                 const failed =
                   status === "failed" ||
                   (event.kind === "metrics" && status === "unavailable");
-                const sync = syncs.get(event.observationId ?? "");
-                // Search Console's usual filtering is not news (seoCoverageIsNews). An older
-                // Search Console sync without saved metrics is judged by the notes in its detail.
-                const quietSync =
-                  event.kind === "metrics" &&
-                  status === "partial" &&
-                  (sync
-                    ? !seoCoverageIsNews(sync)
-                    : titleSources.get(event.title) === "search_console" &&
-                      !seoStatisticsLostData(event.detail));
-                const flagged = FLAGGED_STATUSES.has(status) && !quietSync;
+                const flagged = FLAGGED_STATUSES.has(status);
                 const Icon = failed ? CircleAlert : icons[event.kind];
                 const hasSaveTime =
                   observation &&
@@ -205,7 +231,7 @@ export function SeoTimeline({
                         {event.taskId ? (
                           <Link
                             href={`/tasks/${encodeURIComponent(event.taskId)}`}
-                            className="underline underline-offset-4"
+                            className="inline-block py-3 underline underline-offset-4"
                           >
                             {t("openTask")}
                           </Link>

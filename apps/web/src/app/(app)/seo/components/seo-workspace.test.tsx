@@ -254,7 +254,7 @@ describe("SEO workspace integration", () => {
       "No issues found in the last check",
     );
     expect(
-      screen.getByText(/This covers only those rules and pages/),
+      screen.getByText(/This covers only those checks and pages/),
     ).toBeVisible();
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
@@ -357,6 +357,95 @@ describe("SEO workspace integration", () => {
     },
   );
 
+  it("shows search totals on a page only while the saved statistics cover that page alone", () => {
+    const workspace = seoTestWorkspace();
+    const clicks = {
+      id: "sync:clicks",
+      key: "clicks",
+      label: "Clicks",
+      unit: "count" as const,
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic" as const,
+      value: 7,
+      from: "2026-01-01",
+      to: "2026-01-28",
+      timeZone: "UTC",
+      observedAt: new Date(),
+      coverage: "complete" as const,
+      points: [],
+      notes: [],
+    };
+    workspace.metrics = [clicks];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    const { unmount } = renderWorkspace(workspace, "tab=pages");
+    const row = screen.getByRole("heading", { name: "Home" }).closest("li");
+    if (!row) throw new Error("Page row missing");
+    expect(within(row).getByText("Search clicks")).toBeVisible();
+    expect(within(row).getByText("7")).toBeVisible();
+    expect(within(row).getByText("Not checked yet")).toBeVisible();
+    // One page has nothing to switch to.
+    expect(within(row).queryByRole("button", { name: "View page" })).toBeNull();
+    unmount();
+
+    const two = seoTestWorkspace();
+    two.metrics = [clicks];
+    two.pages.push({ ...two.pages[0], id: crypto.randomUUID(), label: "Blog" });
+    two.scope.pageIds = two.pages.map((page) => page.id);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(two)),
+    );
+    renderWorkspace(two, "tab=pages");
+    // Totals for two pages belong to neither page.
+    expect(screen.queryByText("Search clicks")).toBeNull();
+  });
+
+  it("opens the chat with a comparison question for a competitor and sends nothing", async () => {
+    const user = userEvent.setup();
+    const workspace = {
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+      competitors: [
+        {
+          id: "rival",
+          url: "https://rival.example/",
+          role: "competitor" as const,
+          confirmed: true,
+          source: "saved",
+          rank: null,
+          backlinks: null,
+          referringDomains: null,
+          observedAt: null,
+          observationId: null,
+          version: 1,
+          canConfirm: true,
+          exclusionReason: null,
+        },
+      ],
+    };
+    const fetch = vi.fn(async (url: string, _init?: RequestInit) =>
+      Response.json(
+        url.endsWith("/chat") ? { sharing: "personal", turns: [] } : workspace,
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    renderWorkspace(workspace, "tab=competitors");
+    await user.click(
+      screen.getByRole("button", { name: "Compare with my page" }),
+    );
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByLabelText("Your question")).toHaveValue(
+      "Compare my page with https://rival.example/. What does it do better for the same searches, and what should I change first?",
+    );
+    expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+      false,
+    );
+  });
+
   it("labels a saved page group's navigation as a selection", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -386,6 +475,53 @@ describe("SEO workspace integration", () => {
         expect.any(Object),
       ),
     );
+  });
+
+  it("points the position arrow up when the position improves", () => {
+    const workspace = seoTestWorkspace();
+    const days = Array.from({ length: 14 }, (_, day) =>
+      new Date(Date.UTC(2026, 9, day + 1)).toISOString().slice(0, 10),
+    );
+    const base = {
+      label: "",
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic" as const,
+      from: days[0],
+      to: days[13],
+      timeZone: "UTC",
+      observedAt: new Date(),
+      coverage: "complete" as const,
+      notes: [],
+    };
+    workspace.metrics = [
+      {
+        ...base,
+        id: "sync:impressions",
+        key: "impressions",
+        unit: "count",
+        value: 140,
+        points: days.map((date) => ({ date, value: 10 })),
+      },
+      {
+        ...base,
+        id: "sync:position",
+        key: "position",
+        unit: "position",
+        value: 4.5,
+        // Position falls from 5 to 4: that is better.
+        points: days.map((date, day) => ({ date, value: day < 7 ? 5 : 4 })),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    const change = screen.getByText("Better by 1.0");
+    expect(
+      change.closest("span")?.querySelector(".lucide-arrow-up"),
+    ).not.toBeNull();
   });
 
   it("renders source measurements without replacing missing values with zero", async () => {
@@ -504,7 +640,7 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+      await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
       expect(
         within(dialog).getByRole("combobox", { name: "Source" }),

@@ -12,15 +12,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { seoPageSummaries } from "./seo-overview-model";
 import { topPages } from "./seo-search-model";
 import {
   SEO_STACKED_TABLE_CLASS,
+  SeoDate,
   SeoEmpty,
   SeoPageLink,
   SeoPeriod,
   SeoSection,
   SeoState,
 } from "./seo-shared";
+import {
+  latestSeoMeasurements,
+  seoQueryPeriod,
+  seoReportedPeriod,
+} from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** Saved selections and page rankings only help when there are pages to compare. */
@@ -47,7 +55,7 @@ function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
         description={
           <>
             {t("pages.topPagesHelp")} ·{" "}
-            <SeoPeriod from={source.from} to={source.to} />
+            <SeoPeriod {...seoQueryPeriod(source, model.data.metrics)} />
             {source.truncated
               ? ` · ${t("queries.truncated", { count: source.rowLimit })}`
               : null}
@@ -127,10 +135,28 @@ function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   );
 }
 
+/** Search totals that belong to one page: only when the saved statistics cover that page alone. */
+const PAGE_TOTALS = ["clicks", "impressions", "position"] as const;
+
 export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
+  const summaries = seoPageSummaries(model.data);
+  const scopePages = model.data.scope.pageIds;
+  const search = latestSeoMeasurements(model.data.metrics).filter(
+    (metric) => metric.source === "search_console",
+  );
+  const choosable = model.data.pages.length >= MIN_PAGES_FOR_SELECTIONS;
+  const datesFiltered = Boolean(model.data.scope.from || model.data.scope.to);
+  const totalsPeriod = search[0]
+    ? // The same rule as the query rows: only the end moves to the last reported day.
+      {
+        from: search[0].from,
+        to: seoReportedPeriod(search)?.to ?? search[0].to,
+      }
+    : null;
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className={cn("grid gap-6", choosable && "xl:grid-cols-2")}>
       <SeoTopPages model={model} />
       <SeoSection
         title={t("pages.title")}
@@ -149,6 +175,19 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
               const parent = model.data.pages.find(
                 (candidate) => candidate.id === page.relatedToPageId,
               );
+              const summary = summaries.get(page.id);
+              const totals =
+                scopePages.length === 1 && scopePages[0] === page.id
+                  ? PAGE_TOTALS.flatMap((key) => {
+                      const metric = search.find((item) => item.key === key);
+                      // An unavailable read is not a measurement, as on the Performance card.
+                      return metric &&
+                        metric.value !== null &&
+                        metric.coverage !== "unavailable"
+                        ? [{ key, value: metric.value }]
+                        : [];
+                    })
+                  : [];
               return (
                 <li
                   key={page.id}
@@ -171,18 +210,77 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                       {parent?.label || parent?.url || t("page")}
                     </p>
                   ) : null}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      void model.setFilters({ pageId: page.id, scopeId: null });
-                    }}
-                  >
-                    {model.filters.pageId === page.id ? (
-                      <Check className="size-4" />
-                    ) : null}
-                    {t("pages.choose")}
-                  </Button>
+                  {totals.length || summary ? (
+                    <dl className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                      {totals.map(({ key, value }) => (
+                        <div key={key}>
+                          <dt className="text-muted-foreground text-xs">
+                            {t(`metrics.${key}`)}
+                          </dt>
+                          <dd className="font-medium tabular-nums">
+                            {format.number(value, {
+                              minimumFractionDigits: key === "position" ? 1 : 0,
+                              maximumFractionDigits: key === "position" ? 1 : 0,
+                            })}
+                          </dd>
+                        </div>
+                      ))}
+                      {summary ? (
+                        <div>
+                          <dt className="text-muted-foreground text-xs">
+                            {t("pages.lastCheck")}
+                          </dt>
+                          <dd className="font-medium">
+                            {summary.checkedAt ? (
+                              <>
+                                <SeoDate value={summary.checkedAt} /> ·{" "}
+                                {/* Known issues stay visible; an incomplete check adds its note. */}
+                                {summary.incomplete && !summary.issues
+                                  ? t("pages.checkIncomplete")
+                                  : t("pages.issues", {
+                                      count: summary.issues,
+                                    })}
+                                {summary.incomplete && summary.issues
+                                  ? ` · ${t("pages.checkIncomplete")}`
+                                  : null}
+                              </>
+                            ) : (
+                              // Checks outside the date filter are not in view.
+                              t(
+                                datesFiltered
+                                  ? "pages.notCheckedInDates"
+                                  : "pages.notChecked",
+                              )
+                            )}
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  ) : null}
+                  {totals.length && totalsPeriod ? (
+                    <p className="text-muted-foreground text-xs">
+                      {t("statistics.search_console")} ·{" "}
+                      <SeoPeriod {...totalsPeriod} />
+                    </p>
+                  ) : null}
+                  {choosable ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-pressed={model.filters.pageId === page.id}
+                      onClick={() => {
+                        void model.setFilters({
+                          pageId: page.id,
+                          scopeId: null,
+                        });
+                      }}
+                    >
+                      {model.filters.pageId === page.id ? (
+                        <Check className="size-4" />
+                      ) : null}
+                      {t("pages.choose")}
+                    </Button>
+                  ) : null}
                 </li>
               );
             })}

@@ -184,6 +184,7 @@ describe("statistics source and property recovery", () => {
     mutate.mockClear();
     await user.click(screen.getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Google Analytics" }));
+    // Analytics has no one-click sync; its button opens the dialog for the displayed source.
     await user.click(screen.getByRole("button", { name: "Sync statistics" }));
     const dialog = screen.getByRole("dialog");
     expect(
@@ -222,7 +223,7 @@ describe("statistics source and property recovery", () => {
   it("keeps an open dialog while the agent refreshes stale Search Console data", async () => {
     const user = userEvent.setup();
     const { finish } = await renderWithPendingAgentRefresh();
-    await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+    await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     // The user's own dialog is not blocked by the background refresh.
     expect(
@@ -240,7 +241,7 @@ describe("statistics source and property recovery", () => {
   it("runs the user's sync after the agent refresh, so the user's result is newest", async () => {
     const user = userEvent.setup();
     const { finish } = await renderWithPendingAgentRefresh();
-    await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+    await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByRole("combobox", { name: "Property" });
     await user.click(

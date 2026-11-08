@@ -33,7 +33,7 @@ import {
   SeoPeriod,
   SeoSection,
 } from "./seo-shared";
-import { savedSeoStatistics } from "./seo-statistics-model";
+import { savedSeoStatistics, seoQueryPeriod } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const SORT_COLUMNS: { key: SeoQuerySortKey; label: string }[] = [
@@ -93,29 +93,13 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
       .map((keyword) => normalizeQuery(keyword.keyword)),
   );
   return (
-    <SeoSection
-      title={t("queries.title")}
-      actions={
-        canSync && saved ? (
-          <Button
-            size="sm"
-            variant="outline"
-            loading={model.pending}
-            onClick={() => {
-              void model.refreshSearchStatistics(saved);
-            }}
-          >
-            {t("syncNow")}
-          </Button>
-        ) : null
-      }
-    >
+    <SeoSection title={t("queries.title")}>
       <p className="text-muted-foreground px-2 pb-1 text-sm">
         {t("queries.help")}
       </p>
       {source ? (
         <p className="text-muted-foreground px-2 pb-3 text-xs">
-          <SeoPeriod from={source.from} to={source.to} /> ·{" "}
+          <SeoPeriod {...seoQueryPeriod(source, model.data.metrics)} /> ·{" "}
           {t("queries.lastSynced")}: <SeoDate value={source.observedAt} />
           {source.truncated
             ? ` · ${t("queries.truncated", { count: source.rowLimit })}`
@@ -150,8 +134,11 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
         <>
           <dl
             aria-label={t("queries.buckets.label")}
-            className="flex flex-wrap gap-x-4 gap-y-1 px-2 pb-3 text-xs"
+            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-2 pb-3 text-xs"
           >
+            <span aria-hidden className="text-muted-foreground">
+              {t("queries.buckets.label")}:
+            </span>
             {SEO_POSITION_BUCKETS.map((bucket) => (
               <div key={bucket} className="flex items-baseline gap-1">
                 <dt className="text-muted-foreground">

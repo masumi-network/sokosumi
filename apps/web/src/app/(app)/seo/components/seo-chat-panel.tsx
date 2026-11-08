@@ -336,6 +336,17 @@ export function SeoChatPanel({ model }: { model: SeoWorkspaceModel }) {
 function SeoChatSheet({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const chat = useSeoChat(model);
+  const { chatDraft, setChatDraft } = model;
+  const { setQuestion, sending } = chat;
+  // A send in flight clears the input when it lands; the draft waits for it and keeps
+  // any unsent text the user typed.
+  useEffect(() => {
+    if (!chatDraft || sending) return;
+    setQuestion((typed) =>
+      typed.trim() ? `${typed.trimEnd()}\n\n${chatDraft}` : chatDraft,
+    );
+    setChatDraft(null);
+  }, [chatDraft, sending, setChatDraft, setQuestion]);
   return (
     <Sheet open={model.chatOpen} onOpenChange={model.setChatOpen}>
       <SheetContent className="w-full gap-0 sm:max-w-xl">

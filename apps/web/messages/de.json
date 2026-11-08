@@ -10686,7 +10686,7 @@
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
-        "notListed": "Nicht unter den von Google gelisteten Suchanfragen",
+        "notListed": "Nicht in den von Google gemeldeten Suchanfragen",
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen"
       },
       "competitors": {
@@ -10703,7 +10703,9 @@
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
         "help": "Bestätige die Seiten, die mit deinen um dieselben Suchanfragen konkurrieren.",
-        "yourPage": "Deine Seite"
+        "yourPage": "Deine Seite",
+        "compare": "Mit meiner Seite vergleichen",
+        "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?"
       },
       "actions": {
         "title": "Aktionen",
@@ -10750,7 +10752,12 @@
         "topPages": "Top-Seiten",
         "topPagesHelp": "Klicks und Impressionen pro Seite aus den genannten Search-Console-Suchanfragen. Von Google ausgeblendete Suchanfragen fehlen.",
         "queryCount": "Suchanfragen",
-        "topQuery": "Top-Suchanfrage"
+        "topQuery": "Top-Suchanfrage",
+        "lastCheck": "Letzte Prüfung",
+        "issues": "{count, plural, =0 {keine Probleme} one {# Problem} other {# Probleme}}",
+        "notChecked": "Noch nicht geprüft",
+        "notCheckedInDates": "Keine Prüfung in diesem Zeitraum",
+        "checkIncomplete": "Prüfung unvollständig"
       },
       "timeline": {
         "title": "Verlauf",
@@ -10762,8 +10769,8 @@
           "partial": "Teilweise",
           "unavailable": "Nicht verfügbar"
         },
-        "empty": "Noch keine Aktivität für diese Seiten",
-        "emptyBody": "Prüfungen, Statistikaktualisierungen, Seitenauswahl und Aufgaben erscheinen hier.",
+        "empty": "Noch keine Prüfungen oder Änderungen für diese Seiten",
+        "emptyBody": "Prüfungen, Seitenauswahl, Aufgaben und fehlgeschlagene Synchronisierungen erscheinen hier.",
         "details": "Arbeitsdetails",
         "rulebook": "Regelwerk {version}",
         "graphLabel": "SEO-Aktivität, neueste zuerst",
@@ -10776,7 +10783,7 @@
         "scopeChanged": "Seitenauswahl geändert",
         "pageChanged": "Seitenänderung erfasst",
         "savedAt": "Gespeichert",
-        "checkSummary": "{checked} Prüfungen erfasst",
+        "checkSummary": "{checked} Prüfungen ausgeführt",
         "previousCheck": "Wiederholung einer früheren Prüfung",
         "sourceDetails": "Ereignisdetails",
         "resultsSaved": "Ergebnisse gespeichert",
@@ -10876,7 +10883,8 @@
         "clicks": "Suchklicks",
         "impressions": "Suchimpressionen",
         "ctr": "Klickrate",
-        "average_position": "Durchschnittliche Position"
+        "average_position": "Durchschnittliche Position",
+        "position": "Durchschnittliche Position"
       },
       "severity": {
         "critical": "Kritisch",
@@ -11040,7 +11048,7 @@
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
         "subtitle": "Er liest deine gespeicherten Prüfungen und Statistiken, schlägt nächste Schritte vor und hält die Search Console aktuell. Jede Aufgabe gibst du frei.",
-        "lastCheck": "{checked, plural, one {# Regel} other {# Regeln}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
+        "lastCheck": "{checked, plural, one {# Prüfung} other {# Prüfungen}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
         "refreshing": "Der Agent aktualisiert die Search Console.",
         "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
         "nextTitle": "Nächste Schritte",
@@ -11058,7 +11066,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "„{keyword}“ ist nicht unter den Suchanfragen, die Google für diese Seiten listet. Frag den Agenten, wie du darauf zielst.",
+          "keyword": "„{keyword}“ ist nicht in den Suchanfragen, die Google für diese Seiten meldet. Frag den Agenten, wie du darauf zielst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {
@@ -11075,7 +11083,7 @@
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
         },
-        "checkScope": "Das gilt nur für diese Regeln und Seiten, nicht für die ganze Website.",
+        "checkScope": "Das gilt nur für diese Prüfungen und Seiten, nicht für die ganze Website.",
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Agent fragen"
       },

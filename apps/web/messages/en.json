@@ -10686,7 +10686,7 @@
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
-        "notListed": "Not among Google's listed searches",
+        "notListed": "Not in the queries Google reported",
         "notInKeptRows": "Not in the first {count} rows kept"
       },
       "competitors": {
@@ -10703,7 +10703,9 @@
         "domains": "Referring domains",
         "excluded": "This candidate cannot be confirmed.",
         "help": "Confirm the pages that compete with yours for the same searches.",
-        "yourPage": "Your page"
+        "yourPage": "Your page",
+        "compare": "Compare with my page",
+        "compareDraft": "Compare my page with {url}. What does it do better for the same searches, and what should I change first?"
       },
       "actions": {
         "title": "Actions",
@@ -10750,7 +10752,12 @@
         "topPages": "Top pages",
         "topPagesHelp": "Clicks and impressions per page from the listed Search Console queries. Queries Google hides are not counted.",
         "queryCount": "Queries",
-        "topQuery": "Top query"
+        "topQuery": "Top query",
+        "lastCheck": "Last check",
+        "issues": "{count, plural, =0 {no issues} one {# issue} other {# issues}}",
+        "notChecked": "Not checked yet",
+        "notCheckedInDates": "No check in these dates",
+        "checkIncomplete": "check incomplete"
       },
       "timeline": {
         "title": "Timeline",
@@ -10762,8 +10769,8 @@
           "partial": "Partial",
           "unavailable": "Unavailable"
         },
-        "empty": "No activity for these pages yet",
-        "emptyBody": "Checks, statistics updates, page selections and action tasks will appear here.",
+        "empty": "No checks or changes for these pages yet",
+        "emptyBody": "Checks, page selections, tasks and failed syncs will appear here.",
         "details": "Work details",
         "rulebook": "Rulebook {version}",
         "graphLabel": "SEO activity, newest first",
@@ -10776,7 +10783,7 @@
         "scopeChanged": "Page selection changed",
         "pageChanged": "Page change recorded",
         "savedAt": "Saved",
-        "checkSummary": "{checked} checks recorded",
+        "checkSummary": "{checked} checks run",
         "previousCheck": "Repeat of an earlier check",
         "sourceDetails": "Event details",
         "resultsSaved": "Results saved",
@@ -10876,7 +10883,8 @@
         "clicks": "Search clicks",
         "impressions": "Search impressions",
         "ctr": "Click-through rate",
-        "average_position": "Average position"
+        "average_position": "Average position",
+        "position": "Average position"
       },
       "severity": {
         "critical": "Critical",
@@ -11040,7 +11048,7 @@
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
         "subtitle": "It reads your saved checks and statistics, proposes next steps and keeps Search Console current. You approve every Task.",
-        "lastCheck": "{checked, plural, one {# rule} other {# rules}} on {pages, plural, one {# page} other {# pages}}.",
+        "lastCheck": "{checked, plural, one {# check} other {# checks}} on {pages, plural, one {# page} other {# pages}}.",
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
         "nextTitle": "Next steps",
@@ -11058,7 +11066,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "“{keyword}” is not among the searches Google listed for these pages. Ask the agent how to target it.",
+          "keyword": "“{keyword}” is not in the queries Google reported for these pages. Ask the agent how to target it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {
@@ -11075,7 +11083,7 @@
           "noCheck": "No check yet. Run one to find issues.",
           "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}"
         },
-        "checkScope": "This covers only those rules and pages, not the whole site.",
+        "checkScope": "This covers only those checks and pages, not the whole site.",
         "lastCheckOn": "Last check",
         "askHow": "Ask the agent"
       },

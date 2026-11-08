@@ -169,24 +169,39 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     </TableCell>
                   ) : null}
                   <TableCell className="text-right">
-                    {model.data.availableActions.canEdit &&
-                    row.role === "competitor" &&
-                    (row.canConfirm || row.confirmed) ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={model.pending}
-                        onClick={() => {
-                          void model.toggleCompetitor(row);
-                        }}
-                      >
-                        {t(
-                          row.confirmed
-                            ? "competitors.unconfirm"
-                            : "competitors.confirm",
-                        )}
-                      </Button>
-                    ) : null}
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {row.role === "competitor" && model.data.auditId ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            model.openChat(
+                              t("competitors.compareDraft", { url: row.url }),
+                            )
+                          }
+                        >
+                          {t("competitors.compare")}
+                        </Button>
+                      ) : null}
+                      {model.data.availableActions.canEdit &&
+                      row.role === "competitor" &&
+                      (row.canConfirm || row.confirmed) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={model.pending}
+                          onClick={() => {
+                            void model.toggleCompetitor(row);
+                          }}
+                        >
+                          {t(
+                            row.confirmed
+                              ? "competitors.unconfirm"
+                              : "competitors.confirm",
+                          )}
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -54,6 +54,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   const { data: session } = useSession();
   const owner = seoWorkspaceOwner(initialData);
   const [chatOpen, setChatOpen] = useState(false);
+  // A question another tab prepared; the chat shows it for the user to review and send.
+  const [chatDraft, setChatDraft] = useState<string | null>(null);
   const [filters, setFilters] = useQueryStates({
     tab: parseAsStringLiteral(SEO_TABS).withDefault("overview"),
     pageId: parseAsString,
@@ -222,7 +224,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       setPending(false);
     }
   }
-  function openChat() {
+  function openChat(draft?: string) {
+    if (draft) setChatDraft(draft);
     setChatOpen(true);
   }
   const data = result.data ?? initialData;
@@ -319,6 +322,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     data,
     viewerKey: identity,
     openChat,
+    chatDraft,
+    setChatDraft,
     chatOpen,
     setChatOpen,
     owner,

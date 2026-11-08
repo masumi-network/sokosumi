@@ -27,6 +27,7 @@ import {
   SeoSource,
   SeoState,
 } from "./seo-shared";
+import { seoQueryPeriod } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
@@ -202,7 +203,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                             </p>
                             <p className="text-muted-foreground text-xs">
                               {t("keywords.searchConsoleNote")} ·{" "}
-                              <SeoPeriod from={queries.from} to={queries.to} />
+                              <SeoPeriod
+                                {...seoQueryPeriod(queries, model.data.metrics)}
+                              />
                               {queries.truncated
                                 ? ` · ${t("queries.truncated", { count: queries.rowLimit })}`
                                 : null}
@@ -219,7 +222,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                                 : t("keywords.notListed")}
                             </p>
                             <p className="text-muted-foreground text-xs">
-                              <SeoPeriod from={queries.from} to={queries.to} />
+                              <SeoPeriod
+                                {...seoQueryPeriod(queries, model.data.metrics)}
+                              />
                             </p>
                           </>
                         ) : (

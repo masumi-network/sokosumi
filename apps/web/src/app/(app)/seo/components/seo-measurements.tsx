@@ -13,6 +13,8 @@ import { SeoDate, SeoPeriod, SeoSection, SeoState } from "./seo-shared";
 import {
   latestSeoMeasurements,
   seoCoverageIsNews,
+  seoDefaultMetric,
+  seoReportedPeriod,
 } from "./seo-statistics-model";
 import { SeoTrendChart } from "./seo-trend-chart";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -31,14 +33,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     : providers[0];
   const visible = metrics.filter((metric) => metric.source === provider);
   const active =
-    visible.find((metric) => metric.id === chosenMetric) ?? visible[0];
+    visible.find((metric) => metric.id === chosenMetric) ??
+    seoDefaultMetric(visible);
   const compared = seoWeekOverWeek(visible);
   // Google reports a few days late; the period names the days that have data, for every shown metric.
-  const reported = visible
-    .flatMap((metric) => metric.points)
-    .filter((point) => point.value !== null)
-    .map((point) => point.date)
-    .sort();
+  const reported = seoReportedPeriod(visible);
   const canSync = workspace.availableActions.canSyncMetrics;
   function label(metric: ProjectSeoMetric) {
     return t.has(`metrics.${metric.key}`)
@@ -70,7 +69,10 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     const shown = (value: number) => Math.round(value * scale) / scale;
     const delta = shown(shown(week.current) - shown(week.previous));
     if (delta === 0) return { text: t("overview.noChange"), Icon: null };
-    const Icon = delta > 0 ? ArrowUp : ArrowDown;
+    // The arrow points up for good news; a position improves as it falls.
+    const Icon = (unit === "position" ? delta < 0 : delta > 0)
+      ? ArrowUp
+      : ArrowDown;
     // A rate changes by percentage points, not by a percent of itself.
     if (unit === "ratio")
       return {
@@ -113,8 +115,8 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           <>
             {t(`statistics.${active.source}`)} ·{" "}
             <SeoPeriod
-              from={reported[0] ?? active.from}
-              to={reported.at(-1) ?? active.to}
+              from={reported?.from ?? active.from}
+              to={reported?.to ?? active.to}
             />{" "}
             ·{" "}
             {t(
@@ -228,9 +230,20 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                 <SeoState>{t(`coverageStatus.${active.coverage}`)}</SeoState>
               ) : null}
             </p>
-            {canSync ? (
+            {canSync && active.source === "search_console" ? (
               <Button
-                variant="ghost"
+                variant="outline"
+                size="sm"
+                loading={model.pending}
+                onClick={() => {
+                  void model.refreshSearchStatistics(active);
+                }}
+              >
+                {t("syncNow")}
+              </Button>
+            ) : canSync ? (
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() =>
                   model.openStatistics(

@@ -45,7 +45,8 @@ export function SeoSection({
   return (
     <section className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
       <div className="flex flex-wrap items-start justify-between gap-2 px-2 pt-1">
-        <div className="min-w-0 flex-1 space-y-0.5">
+        {/* Below 14rem beside the actions, the title and its text take their own row. */}
+        <div className="min-w-0 flex-1 basis-56 space-y-0.5">
           <h2 className="text-sm font-semibold">{title}</h2>
           {description ? (
             <p className="text-muted-foreground text-sm">{description}</p>
