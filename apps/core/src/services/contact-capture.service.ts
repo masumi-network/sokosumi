@@ -48,12 +48,13 @@ import {
   MIN_PERSON_PROBABILITY,
 } from "@/lib/contacts/capture-judge";
 import {
+  contactNameKeys,
+  followerNameKey,
   isLikelyBot,
   type MatchContact,
   matchFollower,
   ownHost,
   parseXFollower,
-  personNameKey,
   X_FOLLOWER_FIELDS,
   type XFollower,
 } from "@/lib/contacts/x-followers";
@@ -1495,22 +1496,28 @@ export class ContactCaptureService {
     });
     if (open.length === 0) return true;
     const index = await names();
-    const ids = open.flatMap(
-      (follower) => index.get(personNameKey(follower.name ?? "") ?? "") ?? [],
-    );
-    const contacts: MatchContact[] =
-      ids.length === 0
-        ? []
-        : await prisma.contact.findMany({
-            where: { id: { in: ids }, channels: { none: { type: "X" } } },
-            select: {
-              id: true,
-              name: true,
-              organization: true,
-              location: true,
-              channels: { select: { type: true, value: true } },
-            },
-          });
+    const bucketOf = (follower: XFollower) =>
+      index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
+    const ids = [...new Set(open.flatMap(bucketOf))];
+    const byId = new Map<string, MatchContact>();
+    for (let start = 0; start < ids.length; start += 2_000)
+      for (const contact of await prisma.contact.findMany({
+        where: {
+          id: { in: ids.slice(start, start + 2_000) },
+          channels: { none: { type: "X" } },
+        },
+        select: {
+          id: true,
+          name: true,
+          organization: true,
+          location: true,
+          channels: { select: { type: true, value: true } },
+        },
+      }))
+        byId.set(contact.id, contact);
+    // Each follower against everyone sharing their name key, and no one else.
+    const candidates = (follower: XFollower) =>
+      bucketOf(follower).flatMap((id) => byId.get(id) ?? []);
     const list = await inContactTransaction((tx) =>
       ensureManualContactList(tx, actor, "X followers", CONTACT_LIST_COLORS[6]),
     );
@@ -1523,7 +1530,7 @@ export class ContactCaptureService {
         location: follower.location.slice(0, 200) || undefined,
         summary: follower.description || undefined,
       };
-      const match = matchFollower(follower, contacts);
+      const match = matchFollower(follower, candidates(follower));
       try {
         if (match) {
           await inContactTransaction(async (tx) => {
@@ -1611,10 +1618,12 @@ async function personNameIndex(
     select: { id: true, name: true },
   });
   const index = new Map<string, string[]>();
-  for (const person of people) {
-    const key = personNameKey(person.name);
-    if (key) index.set(key, [...(index.get(key) ?? []), person.id]);
-  }
+  for (const person of people)
+    for (const key of contactNameKeys(person.name)) {
+      const ids = index.get(key);
+      if (ids) ids.push(person.id);
+      else index.set(key, [person.id]);
+    }
   return index;
 }
 

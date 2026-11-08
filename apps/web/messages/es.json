@@ -1031,6 +1031,7 @@
       },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
+      "files": "{count, plural, one {# archivo} other {# archivos}}",
       "assignee": "Asignado a",
       "project": "Proyecto",
       "destination": "Cuenta",

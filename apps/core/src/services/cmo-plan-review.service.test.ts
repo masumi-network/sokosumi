@@ -128,6 +128,53 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
     expect(problems.join("\n")).toMatch(/holds drafts/);
   });
+
+  it("asks for a story on every LinkedIn piece", () => {
+    const problems = cmoPlanProblems(
+      plan({
+        calendar: [
+          entry("a", "linkedin", "post"),
+          { ...entry("b", "linkedin", "image"), story: "A shop sold out" },
+        ],
+      }),
+    ).join("\n");
+    expect(problems).toMatch(/1 LinkedIn pieces have no story \(a\)/);
+  });
+
+  it("asks for a source of truth and the month's experiment", () => {
+    const problems = cmoPlanProblems(
+      plan({
+        measurement: {
+          primary: "Intro calls",
+          supporting: [],
+          tracking: [],
+          rules: [],
+        },
+      }),
+    ).join("\n");
+    expect(problems).toMatch(/sourceOfTruth is missing/);
+    expect(problems).toMatch(/experiment is missing/);
+  });
+
+  it("asks for a comparison page among the seo articles", () => {
+    const articles = [
+      { ...entry("a", "seo", "article"), title: "How to mint an NFT" },
+      { ...entry("b", "seo", "article"), title: "NFT fees explained" },
+    ];
+    expect(cmoPlanProblems(plan({ calendar: articles })).join("\n")).toMatch(
+      /none of the 2 seo articles is a comparison page/,
+    );
+    expect(
+      cmoPlanProblems(
+        plan({
+          calendar: [
+            ...articles,
+            { ...entry("c", "seo", "article"), title: "NMKR vs Mintable" },
+          ],
+        }),
+      ).join("\n"),
+    ).not.toMatch(/comparison page/);
+  });
 });
 
 describe("the funnel strategy", () => {
