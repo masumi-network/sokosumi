@@ -96,6 +96,10 @@ const HIRE = {
 const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
+vi.mock("@/lib/site-platform", () => ({
+  detectSiteLanguage: async () => "German",
+}));
+
 describe("requestCmoStrategy", () => {
   const brandBrain = {
     summary: "Acme sells rockets.",
@@ -166,6 +170,17 @@ describe("requestCmoStrategy", () => {
       expect(message).toContain("say the opposite plainly");
       expect(message.match(/- \w+: you wrote/g)).toHaveLength(2);
     }
+  });
+
+  it("posts in the language the website is written in", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ userId: "user-1" });
+
+    expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
+      "The website is written in German: set contentLanguage to German",
+    );
   });
 
   it("asks for no correction once every no is in the Brand Brain", async () => {

@@ -617,7 +617,7 @@
         },
         "Brand": {
           "title": "Directrices de marca",
-          "tooltip": "Las directrices de marca son un archivo DESIGN.md: colores, tipografías, tono y estilo en un solo lugar. Tus coworkers lo leen para que todo lo que creen para ti se vea y suene como tú.",
+          "tooltip": "Las directrices de marca reúnen tus colores, tipografías, tono y estilo en un solo lugar. Tus coworkers las leen para que todo lo que creen para ti se vea y suene como tú.",
           "generating": "Leyendo {domain} para crear tu estilo de marca…",
           "generatingNoDomain": "Leyendo tu sitio web para crear tu estilo de marca…",
           "generated": "Generamos tu estilo de marca a partir de {domain}.",
@@ -626,16 +626,23 @@
           "failedSubtitle": "No pasa nada: puedes añadir las directrices de marca más tarde.",
           "retry": "Reintentar",
           "skipHint": "Esto sigue en segundo plano: puedes continuar en cualquier momento.",
-          "editHint": "Puedes editarlo, reemplazarlo o eliminarlo más tarde en la configuración de la organización."
+          "editHint": "Tus coworkers las usan para que su trabajo se vea y suene como tú. Cámbialas cuando quieras en la configuración de la organización.",
+          "colors": "Colores",
+          "fonts": "Tipografías",
+          "tone": "Tono",
+          "noSummary": "Tus directrices de marca están guardadas. No pudimos extraer colores, tipografías ni tono para mostrarlos aquí.",
+          "viewFull": "Ver directrices completas"
         },
         "Invite": {
           "title": "{organization} está lista",
           "titleFallback": "Todo listo",
           "subtitle": "Tu organización está configurada. Invita a tu equipo, o hazlo más tarde.",
+          "linkLabel": "Enlace de invitación",
           "linkHint": "Cualquiera con este enlace puede unirse como miembro.",
           "copy": "Copiar",
           "copied": "Copiado",
           "regenerate": "Restablecer enlace",
+          "emailsLabel": "Invitar por correo (opcional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Comas, puntos y coma o saltos de línea.",
           "sendInvites": "Enviar invitaciones",
@@ -1026,6 +1033,7 @@
       },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
+      "files": "{count, plural, one {# archivo} other {# archivos}}",
       "assignee": "Asignado a",
       "project": "Proyecto",
       "destination": "Cuenta",
@@ -3233,7 +3241,6 @@
       },
       "Newsletter": {
         "title": "Boletín",
-        "description": "Configura el remitente, la marca y el correo de bienvenida del boletín de este proyecto.",
         "navigation": "Secciones del boletín",
         "settings": "Ajustes",
         "emptyTitle": "Configura tu boletín",
@@ -3283,7 +3290,6 @@
         },
         "Subscribers": {
           "title": "Suscriptores",
-          "description": "Gestiona las personas que reciben el boletín de este proyecto.",
           "add": "Añadir suscriptor",
           "import": "Importar CSV",
           "cancel": "Cancelar",
@@ -3348,6 +3354,10 @@
             "error": "No se pudo eliminar el suscriptor. Inténtalo de nuevo.",
             "success": "Suscriptor eliminado"
           },
+          "Unsubscribe": {
+            "title": "¿Dar de baja al suscriptor?",
+            "description": "Este boletín dejará de enviarse a {email}. Solo esta persona puede volver a suscribirse."
+          },
           "Import": {
             "description": "Importa un CSV con una columna de correo electrónico y otra opcional de nombre. Los suscriptores existentes conservan su estado actual.",
             "file": "Archivo CSV",
@@ -3369,11 +3379,10 @@
               "skippedBounced": "Omitidos por correos devueltos",
               "pendingConfirmation": "En espera de confirmación"
             },
-            "invalidHint": "Corrige estas filas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas no válidas.",
+            "invalidHint": "Estas filas necesitan un correo electrónico válido. Corrígelas e impórtalas de nuevo. Los números de fila incluyen la cabecera. Se notifican hasta 100 filas.",
             "invalidRow": "Fila {row}: {value}",
-            "moreInvalid": "{count, plural, one {# fila no válida más notificada} other {# filas no válidas más notificadas}}"
+            "blankEmail": "sin correo electrónico"
           },
-          "dismiss": "Cerrar",
           "fromContacts": "Añadir desde Contactos",
           "openContactList": "Abrir lista en Contactos",
           "Consent": {
@@ -3381,7 +3390,7 @@
             "CONFIRMED": "Ya dieron su consentimiento (añadir ahora)",
             "ASK": "Preguntar primero (enviar un correo de confirmación)",
             "confirm": "Confirmo que estas personas aceptaron recibir este boletín",
-            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». Las personas que se dieron de baja nunca se vuelven a añadir."
+            "note": "Las personas que añadas también se guardan en Contactos, en la lista «{newsletterName} subscribers». No puedes volver a añadir a las personas que se dieron de baja, pero ellas pueden suscribirse de nuevo por su cuenta."
           },
           "FromContacts": {
             "description": "Elige personas y listas de los Contactos de tu espacio de trabajo.",
@@ -3420,7 +3429,6 @@
         },
         "Issues": {
           "title": "Ediciones",
-          "description": "Escribe ediciones del boletín y comprueba cómo se ven en la bandeja de entrada.",
           "newIssue": "Nueva edición",
           "Ai": {
             "action": "Escríbelo por mí",
@@ -3682,7 +3690,8 @@
         "SignupForm": {
           "title": "Formulario de suscripción",
           "pageDescription": "Amplía la audiencia de tu boletín con una página de suscripción alojada o un formulario insertado en tu sitio web.",
-          "description": "Comparte la página de suscripción o pega el código del iframe en tu sitio web. Los suscriptores confirman su correo antes de recibir ediciones.",
+          "shareTitle": "Compartir",
+          "description": "Los suscriptores confirman su correo antes de recibir ediciones.",
           "previewTitle": "Vista previa del formulario de suscripción",
           "previewDescription": "Los cambios aparecen aquí al instante. Guarda el diseño para actualizar la página pública y el formulario integrado.",
           "hostedPage": "Página de suscripción alojada",
@@ -3706,7 +3715,6 @@
         },
         "Analytics": {
           "title": "Estadísticas",
-          "description": "Consulta el crecimiento de suscriptores y las interacciones con tu boletín.",
           "keyMetrics": "Métricas del boletín",
           "rangeLabel": "Intervalo de fechas",
           "rangeSelected": "Intervalo de fechas: {range}",
@@ -3803,34 +3811,31 @@
           "noFallback": "Los boletines no se pueden enviar hasta que este dominio esté verificado.",
           "status": {
             "PENDING": "Pendiente",
+            "PARTIAL": "Verificado en parte",
             "VERIFIED": "Verificado",
             "FAILED": "Fallido"
           },
+          "statusDetail": {
+            "FAILED": "La verificación ha fallado. Compara tus registros DNS con los de abajo y vuelve a comprobar."
+          },
+          "recordsFound": "{found} de {total} registros DNS encontrados",
           "lastChecked": "Última comprobación: {time}",
-          "verifiedDescription": "El boletín de este proyecto se envía ahora desde esta dirección.",
           "verifiedToast": "Dominio verificado. Los boletines se envían ahora desde tu dirección.",
-          "checked": "Comprobado. Algunos registros DNS aún faltan o no se pudieron verificar. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
+          "checked": "{found} de {total} registros DNS encontrados. Revisa su estado abajo; los cambios de DNS pueden tardar unas horas.",
           "verifyRecords": "Verificar registros",
           "checkAgain": "Comprobar de nuevo",
-          "connectTitle": "Elige cómo configurar el DNS",
           "dmarc": {
             "title": "No se encontró ninguna política DMARC",
             "description": "DMARC indica a los buzones qué hacer con el correo que no supera estas comprobaciones. Añade abajo el registro DMARC sugerido. Empieza con p=none, que solo supervisa y nunca bloquea correo."
           },
           "oneClick": {
-            "title": "Configuración con un clic",
-            "description": "Inicia sesión en tu proveedor de DNS y confirma. Sokosumi añade los registros por ti.",
             "checking": "Comprobando la configuración con un clic…",
-            "lookup": "Volver a buscar el proveedor",
-            "found": "Tu dominio usa {provider}.",
+            "lookup": "Reintentar",
             "connect": "Conectar con {provider}",
-            "unavailable": "La configuración con un clic aún no está disponible para tu proveedor de DNS. Elige la configuración manual para añadir los registros con cualquier proveedor de DNS."
+            "unavailable": "La configuración con un clic no está disponible para tu proveedor de DNS."
           },
           "manual": {
-            "title": "Configurar los registros DNS manualmente",
-            "description": "Añade los registros tú mismo con cualquier proveedor de DNS.",
-            "action": "Ver registros DNS",
-            "saved": "Puedes salir y volver más tarde — guardaremos estos registros aquí hasta que estén verificados."
+            "action": "Configurar manualmente"
           },
           "cloudflare": {
             "title": "Token de la API de Cloudflare",
@@ -3841,15 +3846,10 @@
           },
           "records": {
             "title": "Registros DNS",
-            "description": "Añade todos los registros que aparecen aquí en los ajustes de tu proveedor de DNS. Usa el formato de host que espere tu proveedor.",
-            "type": "Tipo",
-            "host": "Host / Nombre",
             "relativeName": "Host relativo",
             "fullName": "Nombre completo (FQDN)",
             "value": "Valor",
             "priority": "Prioridad",
-            "ttl": "TTL",
-            "status": "Estado",
             "found": "Encontrado",
             "missing": "Falta",
             "wrongValue": "Valor incorrecto",
@@ -3864,7 +3864,7 @@
                 "explanation": "Permite que Sokosumi envíe en tu nombre."
               },
               "bounce": {
-                "label": "Ruta de retorno (MX)",
+                "label": "Ruta de retorno",
                 "explanation": "Recibe los rebotes, para que Sokosumi deje de escribir a direcciones que fallan."
               },
               "dmarc": {
@@ -3960,7 +3960,7 @@
             "resumeUnavailable": "Verifica este dominio de envío antes de reanudar. Comprueba sus registros DNS e inténtalo de nuevo."
           },
           "warmup": {
-            "title": "Calentamiento del dominio",
+            "chip": "Calentamiento · {used} / {cap} hoy",
             "progress": "Día {day} · {used} de {cap} enviados hoy (UTC)",
             "unlimited": "Día {day} · {used} enviados hoy (UTC) · Sin límite",
             "description": "Los destinatarios que superan el límite de hoy siguen en cola y reciben el boletín automáticamente cuando vuelve a haber capacidad. El límite diario se restablece a las 00:00 UTC.",
@@ -4813,8 +4813,7 @@
           "subject": "Nueva temporada, nuevos colores",
           "body": "Arena, arcilla y un azul mar profundo: la paleta detrás de la colección de verano."
         }
-      },
-      "projectTitle": "Boletín de {project}"
+      }
     },
     "Social": {
       "title": "Publicaciones sociales",
@@ -10171,6 +10170,7 @@
       "columns": {
         "name": "Nombre",
         "organization": "Organización",
+        "location": "Ubicación",
         "role": "Cargo",
         "stage": "Relación",
         "lists": "Listas",
@@ -10209,7 +10209,8 @@
         "add": "Añadir contacto",
         "more": "Más acciones",
         "filter": "Filtrar",
-        "kind": "Tipo"
+        "kind": "Tipo",
+        "source": "Origen"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -10268,7 +10269,9 @@
         "failed": "La lista no se guardó. Inténtalo de nuevo.",
         "cancel": "Cancelar",
         "save": "Guardar",
-        "create": "Crear lista"
+        "create": "Crear lista",
+        "smart": "Llenarla con los filtros actuales",
+        "smartHint": "Una lista inteligente: quien coincida con estos filtros está en ella, ahora y más adelante."
       },
       "addDialog": {
         "title": "Añadir contacto",
@@ -10276,6 +10279,8 @@
         "name": "Nombre",
         "organization": "Organización",
         "role": "Cargo",
+        "location": "Ubicación",
+        "locationPlaceholder": "Ciudad, país",
         "channels": "Formas de contacto",
         "channelType": "Tipo del canal {index}",
         "channelValue": "Canal {index}",
@@ -10540,6 +10545,84 @@
         "pricing": "{credits, number} créditos por persona encontrada. Si no encuentra a nadie, es gratis.",
         "personLabel": "¿A quién buscas?",
         "personPlaceholder": "p. ej. Jane Doe, socia de XYZ Ventures"
+      },
+      "layout": {
+        "label": "Vista",
+        "table": "Tabla",
+        "map": "Mapa"
+      },
+      "map": {
+        "label": "Lugares",
+        "loading": "Colocando contactos en el mapa…",
+        "errorTitle": "El mapa no se cargó",
+        "error": "Algo salió mal al cargar el mapa.",
+        "retry": "Reintentar",
+        "emptyTitle": "Aún no hay nadie en el mapa",
+        "empty": "Añade una ubicación a un contacto, como una ciudad, y aparecerá aquí.",
+        "emptyUnplaced": "No encontramos ninguno de estos lugares. Prueba con ciudad y país.",
+        "placed": "{count, plural, one {# contacto} other {# contactos}} en el mapa",
+        "unplaced": "{count, plural, one {# contacto} other {# contactos}} sin colocar",
+        "pending": "Ubicando {count, plural, one {# contacto} other {# contactos}}…",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "resetZoom": "Ver el mundo entero",
+        "withoutLocation": "{count} sin ubicación",
+        "place": "{place}, {count, plural, one {# contacto} other {# contactos}}",
+        "nearby": "{place} y {others, plural, one {# lugar cercano} other {# lugares cercanos}}",
+        "people": "{count, plural, one {# contacto} other {# contactos}}"
+      },
+      "company": {
+        "loading": "Cargando empresa…",
+        "edit": "Editar",
+        "whyItMatters": "Por qué importa",
+        "people": "Personas",
+        "knownBy": "Conocida por",
+        "knownByLabel": "{count, plural, one {# compañero conoce} other {# compañeros conocen}} a alguien aquí",
+        "nobody": "Nadie todavía",
+        "lastContact": "Último contacto",
+        "never": "Nunca",
+        "warmth": "Relación",
+        "warmthLevels": {
+          "warm": "Cálida",
+          "cooling": "Enfriándose",
+          "cold": "Fría",
+          "none": "Sin contacto aún"
+        },
+        "strongestStage": "Etapa más fuerte",
+        "nextSteps": "Próximos pasos",
+        "noNextSteps": "Nada planificado.",
+        "recent": "Últimos contactos",
+        "noRecent": "Aún no hay contactos.",
+        "someone": "Alguien",
+        "editTitle": "Editar empresa",
+        "editDescription": "Lo que el equipo sabe de esta empresa. Los campos vacíos se completan desde su sitio web en segundo plano.",
+        "nameRequired": "Ponle un nombre a la empresa.",
+        "saveFailed": "No se pudo guardar la empresa.",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "fields": {
+          "name": "Nombre",
+          "website": "Sitio web",
+          "industry": "Sector",
+          "size": "Tamaño",
+          "headquarters": "Sede",
+          "linkedinUrl": "LinkedIn",
+          "description": "Acerca de",
+          "whyItMatters": "Por qué nos importa"
+        }
+      },
+      "overview": {
+        "label": "Resumen de la lista",
+        "people": "{count, plural, one {# persona} other {# personas}}",
+        "quiet": "{count} sin contacto en 90 días",
+        "map": "Ver en el mapa",
+        "stages": "Etapa",
+        "companies": "Empresas",
+        "places": "Lugares",
+        "knownBy": "Conocido por",
+        "none": "Sin indicar",
+        "nobody": "Nadie todavía",
+        "more": "y {count} más"
       }
     }
   },
@@ -10846,6 +10929,7 @@
     "Assistant": {
       "metadataTitle": "Configura tu asistente",
       "later": "Más tarde",
+      "laterHint": "Puedes configurarlo en cualquier momento desde Soko Bots.",
       "skip": "Omitir",
       "continue": "Continuar"
     }

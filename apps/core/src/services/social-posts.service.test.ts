@@ -55,7 +55,10 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
     $queryRaw: queryRawMock,
-    project: { findFirst: projectFindFirstMock },
+    project: {
+      findFirst: projectFindFirstMock,
+      findUnique: vi.fn().mockResolvedValue({ websiteUrl: null }),
+    },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
@@ -1766,6 +1769,7 @@ describe("social posts service", () => {
 
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
+    queryRawMock.mockResolvedValue([]);
     const { getSocialPost } = await loadService();
 
     await expect(
@@ -1775,6 +1779,48 @@ describe("social posts service", () => {
         postId: POST_ID,
       }),
     ).rejects.toMatchObject({ status: 404, message: "Social post not found" });
+  });
+
+  it("keeps a bot from scheduling a month post before Core put its picture on", async () => {
+    const { requireMonthPostPicture } = await loadService();
+    const tx = {
+      socialPost: { findFirst: socialPostFindFirstMock },
+    } as unknown as Parameters<typeof requireMonthPostPicture>[0];
+    const scope = { postId: POST_ID, workspaceId: WORKSPACE_ID };
+    socialPostFindFirstMock.mockResolvedValue({
+      marketingStrategyId: "version-1",
+      planning: { visual: "A close-up of the Tree Runner" },
+      media: [],
+    });
+    await expect(requireMonthPostPicture(tx, scope)).rejects.toMatchObject({
+      status: 400,
+    });
+    socialPostFindFirstMock.mockResolvedValue({
+      marketingStrategyId: "version-1",
+      planning: {},
+      media: [],
+    });
+    await expect(requireMonthPostPicture(tx, scope)).resolves.toBeUndefined();
+  });
+
+  it("names the one post whose id ends the same when an id is miscopied", async () => {
+    socialPostFindFirstMock.mockResolvedValue(null);
+    queryRawMock.mockResolvedValue([
+      { id: "01a1b939-a4fb-778f-b3d9-5a9e5424f7b0" },
+    ]);
+    const { getSocialPost } = await loadService();
+
+    await expect(
+      getSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        postId: "01a1b939-a4fb-778f-b3d8-5a9e5424f7b0",
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      message:
+        "Social post not found. Did you mean 01a1b939-a4fb-778f-b3d9-5a9e5424f7b0?",
+    });
   });
 
   describe.each([null, "other", "utxo"])(
@@ -2595,6 +2641,48 @@ describe("social posts service", () => {
         "Rewrite the post: it uses Markdown (**bold**), which x shows as raw symbols; write plain text; it has 3 hashtags; use at most 2 on x.",
     });
     expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a Soko Bot's post that says what another post of its month says", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      marketingStrategyId: "version-1",
+    });
+    socialPostFindManyMock.mockResolvedValue([
+      {
+        id: "fee",
+        text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+        media: [],
+        planning: { title: "Fees" },
+      },
+      // An idea still showing its plan's title is not a written post.
+      {
+        id: "idea",
+        text: "No monthly fee on a Studio account",
+        media: [],
+        planning: { title: "No monthly fee on a Studio account" },
+      },
+    ]);
+    const { updateSocialPost } = await loadService();
+
+    await expect(
+      updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        postId: POST_ID,
+        revision: 0,
+        text: "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining(
+        'it says nearly what the post "The Studio account has no monthly fee.',
+      ),
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("leaves a person's own formatting alone", async () => {

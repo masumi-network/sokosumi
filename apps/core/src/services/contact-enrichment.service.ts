@@ -136,7 +136,10 @@ const enrichmentAnswerSchema = z.object({
 export type EnrichmentAnswer = z.infer<typeof enrichmentAnswerSchema>;
 
 /** The JSON object in a model answer, or null. */
-function parseJsonObject<T>(text: string, schema: z.ZodType<T>): T | null {
+export function parseJsonObject<T>(
+  text: string,
+  schema: z.ZodType<T>,
+): T | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
@@ -269,28 +272,36 @@ export interface EnrichmentDeps {
   ) => Promise<Map<string, number> | null>;
 }
 
+/** One call to the cheap contact model, with what it cost. */
+export async function generateWithContactModel(input: {
+  system: string;
+  prompt: string;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
+}): Promise<{ text: string; costUsd: number }> {
+  const request = sokoBotModelRequest({
+    role: "agent",
+    model: CONTACT_ENRICHMENT_MODEL,
+  });
+  const result = await generateText({
+    ...request,
+    providerOptions: {
+      ...request.providerOptions,
+      google: { thinkingConfig: { thinkingLevel: "low" } },
+    },
+    system: input.system,
+    prompt: input.prompt,
+    maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+    abortSignal: AbortSignal.timeout(input.timeoutMs ?? TIMEOUT_MS),
+  });
+  return {
+    text: result.text,
+    costUsd: gatewayCostUsd(result.providerMetadata),
+  };
+}
+
 const defaultDeps: EnrichmentDeps = {
-  async generate({ system, prompt }) {
-    const request = sokoBotModelRequest({
-      role: "agent",
-      model: CONTACT_ENRICHMENT_MODEL,
-    });
-    const result = await generateText({
-      ...request,
-      providerOptions: {
-        ...request.providerOptions,
-        google: { thinkingConfig: { thinkingLevel: "low" } },
-      },
-      system,
-      prompt,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    return {
-      text: result.text,
-      costUsd: gatewayCostUsd(result.providerMetadata),
-    };
-  },
+  generate: generateWithContactModel,
   judgeLists: judgeListMemberships,
 };
 

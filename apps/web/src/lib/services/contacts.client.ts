@@ -5,21 +5,27 @@ import {
   getContactLists,
   getContactListsByIdSuggestions,
   getContacts,
+  getContactsBreakdown,
   getContactsById,
   getContactsByIdActivity,
   getContactsByIdInteractions,
+  getContactsCompanies,
+  getContactsCompaniesByCompanyId,
   getContactsDuplicates,
   getContactsExportCsv,
+  getContactsMap,
   getContactsOrganizations,
   getOrganizationsByIdMembers,
   type PatchContactListsByIdData,
   type PatchContactsByIdData,
+  type PatchContactsCompaniesByCompanyIdData,
   type PostContactListsData,
   type PostContactsByIdChannelsData,
   type PostContactsData,
   type PostContactsImportData,
   patchContactListsById,
   patchContactsById,
+  patchContactsCompaniesByCompanyId,
   postContactLists,
   postContactListsByIdFind,
   postContactListsByIdMembers,
@@ -51,12 +57,62 @@ export const contactsService = {
       total: data.meta.pagination.total,
     };
   },
+  /** The query's contacts grouped by where they are. */
+  async map(query: ContactQuery) {
+    return (await getContactsMap({ ...options(), query })).data.data;
+  },
   /** The organizations contacts work at, biggest first. */
   async organizations(search?: string) {
     return (
       await getContactsOrganizations({
         ...options(),
         query: { limit: 50, ...(search ? { search } : {}) },
+      })
+    ).data.data;
+  },
+  /** How many contacts match, split by each of `by`. */
+  async breakdown(query: ContactQuery, by: string[]) {
+    const {
+      sort: _sort,
+      direction: _direction,
+      cursor: _cursor,
+      limit: _limit,
+      ...filters
+    } = query;
+    return (
+      await getContactsBreakdown({
+        ...options(),
+        query: { ...filters, by: by.join(","), top: 5 },
+      })
+    ).data.data;
+  },
+  /** Exactly the company this name belongs to, as the `company` filter reads it. */
+  async companyNamed(name: string) {
+    const companies = (
+      await getContactsCompanies({
+        ...options(),
+        query: { name, limit: 2 },
+      })
+    ).data.data;
+    return companies.length === 1 ? (companies[0] ?? null) : null;
+  },
+  async company(companyId: string) {
+    return (
+      await getContactsCompaniesByCompanyId({
+        ...options(),
+        path: { companyId },
+      })
+    ).data.data;
+  },
+  async updateCompany(
+    companyId: string,
+    body: NonNullable<PatchContactsCompaniesByCompanyIdData["body"]>,
+  ) {
+    return (
+      await patchContactsCompaniesByCompanyId({
+        ...options(),
+        path: { companyId },
+        body,
       })
     ).data.data;
   },

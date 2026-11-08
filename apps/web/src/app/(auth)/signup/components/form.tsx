@@ -184,7 +184,7 @@ export default function SignUpForm({
       <FirstAndLastNameFields
         control={form.control}
         testIdPrefix="auth-field"
-        namesInside
+        centered
       />
       {withPassword ? (
         <FormFields

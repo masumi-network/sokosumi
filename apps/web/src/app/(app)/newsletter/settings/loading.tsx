@@ -12,10 +12,7 @@ export default async function NewsletterSettingsLoading() {
   return (
     <WorkspacePageShell title={t("title")}>
       <div className="min-w-0 space-y-6" aria-busy="true">
-        <div className="space-y-2" aria-hidden>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </div>
+        <Skeleton className="h-9 w-96 max-w-full rounded-lg" aria-hidden />
         <div
           className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]"
           aria-hidden

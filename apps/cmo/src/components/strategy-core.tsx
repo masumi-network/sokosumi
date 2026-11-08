@@ -262,7 +262,7 @@ export function BeforeAfter({
 const PACES: { level: Pace; name: string; does: string }[] = [
   { level: "steady", name: "Steady", does: "A few strong pieces a week" },
   { level: "active", name: "Active", does: "About one a day" },
-  { level: "all_in", name: "All-in", does: "Several a day, video first" },
+  { level: "all_in", name: "All-in", does: "Several a day" },
 ];
 
 /** How hard the plan publishes: Cuso's pick, one tap to change. */
@@ -437,6 +437,7 @@ export function Improvements({
       {items.map((item) => (
         <li key={item.idea}>
           <span className="label">{AREAS[item.area]}</span>
+          {item.now ? <span className="note">Now: {item.now}</span> : null}
           <b>{item.idea}</b>
           <span className="note">{item.why}</span>
           {item.url ? (

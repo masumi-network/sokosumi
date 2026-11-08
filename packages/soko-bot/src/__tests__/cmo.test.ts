@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   cmoMayExecute,
   cmoRoutineSkipReason,
+  cmoSaveBrandBrainInputSchema,
   cmoSaveStrategyInputSchema,
   isCmoScheduleKey,
   parseCmoStrategySave,
@@ -102,14 +103,23 @@ describe("CMO version", () => {
         "submit_newsletter_issue",
       ]),
     );
-    // A person starts and changes ads; contacts stay out.
+    // A person starts and changes ads, and changes contacts; Cuso reads
+    // them and keeps audience lists.
     for (const outside of [
       "create_ad_campaign",
       "update_ad_campaign",
-      "add_newsletter_subscribers_from_contacts",
-      "search_contacts",
+      "upsert_contact",
+      "update_contact",
+      "merge_contacts",
     ])
       expect(cmo.capabilities).not.toContain(outside);
+    for (const inside of [
+      "search_contacts",
+      "count_contacts",
+      "manage_contact_lists",
+      "add_newsletter_subscribers_from_contacts",
+    ])
+      expect(cmo.capabilities).toContain(inside);
   });
 
   it("dreams at night like every Soko Bot, pointing to his daily run", () => {
@@ -125,6 +135,40 @@ describe("CMO version", () => {
     for (const capability of SOKO_BOT_CMO_CAPABILITIES) {
       expect(SOKO_BOT_TOOL_DESCRIPTIONS[capability]).toBeTruthy();
     }
+  });
+});
+
+describe("cmoSaveBrandBrainInputSchema", () => {
+  const question = {
+    id: "q1",
+    question: "Do customers come from Google?",
+    statement: "Customers come from Google",
+    section: "marketing" as const,
+  };
+
+  it("accepts reveal, marketingToday or questions on their own", () => {
+    const reveal = { positioning: "Rockets", insights: [], buyers: [] };
+    expect(cmoSaveBrandBrainInputSchema.safeParse({ reveal }).success).toBe(
+      true,
+    );
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({
+        marketingToday: { summary: "Weekly posts" },
+      }).success,
+    ).toBe(true);
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [question] }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty questions list so it cannot wipe stored ones", () => {
+    expect(
+      cmoSaveBrandBrainInputSchema.safeParse({ questions: [] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a save that sends nothing", () => {
+    expect(cmoSaveBrandBrainInputSchema.safeParse({}).success).toBe(false);
   });
 });
 

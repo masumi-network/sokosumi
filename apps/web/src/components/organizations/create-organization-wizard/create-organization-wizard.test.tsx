@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,12 +29,22 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+const brandGeneration: {
+  status: string;
+  onCompleted?: (designMd: unknown) => void;
+} = { status: "idle" };
+
 vi.mock("@/components/design-md/use-design-md-generation", () => ({
-  useDesignMdGeneration: () => ({
-    status: "idle",
-    generate: vi.fn(),
-    reset: vi.fn(),
-  }),
+  useDesignMdGeneration: (options: {
+    onCompleted?: (designMd: unknown) => void;
+  }) => {
+    brandGeneration.onCompleted = options.onCompleted;
+    return {
+      status: brandGeneration.status,
+      generate: vi.fn(),
+      reset: vi.fn(),
+    };
+  },
 }));
 
 vi.mock("@/lib/actions/organization/action", () => ({
@@ -88,6 +98,7 @@ function WizardHarness({
 describe("CreateOrganizationWizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    brandGeneration.status = "idle";
     createOrganizationWorkspaceActionMock.mockResolvedValue({
       ok: true,
       value: { organizationId: "org-1" },
@@ -99,6 +110,24 @@ describe("CreateOrganizationWizard", () => {
     createOrganizationInviteLinkMock.mockResolvedValue({
       ok: false,
     });
+  });
+
+  it("keeps the invite link labeled while it loads", async () => {
+    const user = userEvent.setup();
+    createOrganizationInviteLinkMock.mockReturnValue(new Promise(() => {}));
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(screen.getByLabelText("Details.nameLabel"), "Acme");
+    await user.type(screen.getByLabelText("Details.urlLabel"), "acme.com");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await screen.findByText("Logo.title");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+
+    const link = screen.getByRole("textbox", { name: "Invite.linkLabel" });
+    expect(link).toHaveAttribute("aria-busy", "true");
+    expect(link).toHaveAccessibleDescription("Invite.linkHint");
+    expect(screen.getByRole("button", { name: "Invite.copy" })).toBeDisabled();
   });
 
   it("does not complete when dismissed before create", async () => {
@@ -114,6 +143,10 @@ describe("CreateOrganizationWizard", () => {
 
   it("creates the organization on name + URL and completes on Finish", async () => {
     const user = userEvent.setup();
+    createOrganizationInviteLinkMock.mockResolvedValue({
+      ok: true,
+      value: { url: "https://example.com/join/team" },
+    });
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
 
     await user.type(
@@ -136,10 +169,98 @@ describe("CreateOrganizationWizard", () => {
 
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+
+    const link = await screen.findByRole("textbox", {
+      name: "Invite.linkLabel",
+    });
+    expect(link).toHaveValue("https://example.com/join/team");
+    expect(link).toHaveAttribute("readonly");
+    expect(link).toHaveAccessibleDescription("Invite.linkHint");
+
+    const emails = screen.getByRole("textbox", { name: "Invite.emailsLabel" });
+    expect(emails).toHaveAccessibleDescription("Invite.emailsHint");
+    await user.type(emails, "alex@example.com");
+    expect(emails).toHaveAccessibleName("Invite.emailsLabel");
+    expect(screen.getByText("Invite.emailsLabel")).toBeVisible();
+
     await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
 
     expect(onOrganizationReadyMock).toHaveBeenCalledWith("org-1");
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
+  });
+
+  it("opens the brand guidelines explanation on a click, so a tap works too", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    expect(screen.queryByText("Brand.tooltip")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Brand.title" }));
+
+    const help = await screen.findByRole("dialog", { name: "Brand.title" });
+    expect(help.textContent).toContain("Brand.tooltip");
+  });
+
+  it.each([
+    [
+      "shows the saved colours, fonts and tone in plain words",
+      { colors: ["#5850ec"], fonts: ["Inter"], tone: "plain and confident" },
+      ["#5850ec", "Inter", "plain and confident"],
+    ],
+    [
+      "says the guidelines are saved when none of it can be shown",
+      { colors: [], fonts: [], tone: null },
+      ["Brand.noSummary"],
+    ],
+  ])("%s", async (_, look, texts) => {
+    const user = userEvent.setup();
+    render(<WizardHarness />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    brandGeneration.status = "completed";
+    act(() => {
+      brandGeneration.onCompleted?.({
+        extractionId: "1",
+        look,
+        previewUrl: "https://www.masumi.network/tools/design-md?cached=1",
+        url: "https://blob.example/design-md/acme.md",
+      });
+    });
+
+    for (const text of texts) expect(screen.getByText(text)).toBeTruthy();
+    expect(screen.queryByText("DESIGN.md")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Brand.viewFull" }),
+    ).toHaveAttribute(
+      "href",
+      "https://www.masumi.network/tools/design-md?cached=1",
+    );
   });
 
   it.each(["Close", "Finish"])(

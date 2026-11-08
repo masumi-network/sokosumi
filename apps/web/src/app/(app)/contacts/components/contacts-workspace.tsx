@@ -1,6 +1,7 @@
 "use client";
 import type {
   Contact,
+  ContactChannelSource,
   ContactKind,
   ContactList,
   ContactReplyState,
@@ -10,17 +11,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   FileSpreadsheet,
+  Globe,
   ListPlus,
   MoreHorizontal,
+  Table2,
   UserPlus,
   Users,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
+  CONTACT_CHANNEL_SOURCES,
   CONTACT_KINDS,
   CONTACT_REPLY_STATES,
   CONTACT_SORTS,
@@ -31,6 +36,7 @@ import {
   defaultDirection,
   isContactPreset,
   matchesContactSearch,
+  smartFilterOf,
 } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -55,11 +61,13 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
 import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
 import { cn } from "@/lib/utils";
 import { AddContactDialog } from "./add-contact-dialog";
+import { CompanyHeader } from "./company-header";
 import { ContactListDialog } from "./contact-list-dialog";
 import { ContactPanel } from "./contact-panel";
 import { ContactsEmptyState } from "./contacts-empty-state";
@@ -73,6 +81,7 @@ import {
 } from "./contacts-toolbar";
 import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
@@ -80,10 +89,17 @@ import {
   CONTACT_LISTS_KEY,
   refreshContacts,
   useContactLists,
+  useContactMap,
   useContactOrganizations,
   useContactRows,
   useTeammates,
 } from "./use-contacts-data";
+
+// The map and its world outline load only when someone opens it.
+const ContactsMap = dynamic(
+  () => import("./contacts-map").then((module) => module.ContactsMap),
+  { ssr: false },
+);
 
 type Dialog =
   | { kind: "add" }
@@ -126,6 +142,10 @@ export function ContactsWorkspace({
     parseAsStringLiteral(CONTACT_KINDS),
   );
   const [knownBy, setKnownBy] = useQueryState("knownBy");
+  const [source, setSource] = useQueryState(
+    "source",
+    parseAsStringLiteral(CONTACT_CHANNEL_SOURCES),
+  );
   const [sort, setSort] = useQueryState(
     "sort",
     parseAsStringLiteral(CONTACT_SORTS).withDefault("lastContactAt"),
@@ -135,6 +155,10 @@ export function ContactsWorkspace({
     parseAsStringLiteral(["asc", "desc"] as const),
   );
   const [openId, setOpenId] = useQueryState("contact");
+  const [layout, setLayout] = useQueryState(
+    "layout",
+    parseAsStringLiteral(["map"] as const),
+  );
   const [selected, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -149,7 +173,7 @@ export function ContactsWorkspace({
   const { teammates } = useTeammates();
   const lists = useContactLists();
   const organizations = useContactOrganizations(debouncedCompanySearch);
-  const filters: ContactFilters = { stage, replyState, kind, knownBy };
+  const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
   const query = contactQuery({
     view,
     company,
@@ -159,6 +183,19 @@ export function ContactsWorkspace({
     direction: direction ?? defaultDirection(sort),
   });
   const rows = useContactRows(query);
+  const smartFilter = smartFilterOf(
+    {
+      view,
+      company,
+      search: debouncedSearch,
+      ...filters,
+      sort,
+      direction: direction ?? defaultDirection(sort),
+    },
+    lists.data?.find((list) => list.id === view)?.kind,
+  );
+  // Started here, not in the lazy map, so it runs beside the rows request.
+  useContactMap(query, layout === "map");
   const loaded = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
   const searchPending = search !== debouncedSearch || rows.isPlaceholderData;
   const contacts =
@@ -177,6 +214,7 @@ export function ContactsWorkspace({
     replyState: (value) => setReplyState(value as ContactReplyState | null),
     kind: (value) => setKind(value as ContactKind | null),
     knownBy: setKnownBy,
+    source: (value) => setSource(value as ContactChannelSource | null),
   };
   function clearFilters() {
     void setSearch(null);
@@ -275,6 +313,32 @@ export function ContactsWorkspace({
             <ContactsPresetTabs view={view} onViewChange={changeView} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <ToggleGroup
+              type="single"
+              value={layout ?? "table"}
+              onValueChange={(next) => {
+                if (next === "table" || next === "map") {
+                  void setLayout(next === "map" ? "map" : null);
+                  setSelected([]);
+                }
+              }}
+              aria-label={t("layout.label")}
+            >
+              <ToggleGroupItem
+                value="table"
+                aria-label={t("layout.table")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Table2 aria-hidden className="size-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="map"
+                aria-label={t("layout.map")}
+                className="size-10 px-0 md:size-8"
+              >
+                <Globe aria-hidden className="size-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
             <Button
               size="sm"
               variant="primary"
@@ -388,8 +452,25 @@ export function ContactsWorkspace({
             {viewList.description}
           </p>
         ) : null}
+        {viewList && layout !== "map" ? (
+          <ListOverview
+            query={query}
+            onShowMap={() => {
+              void setLayout("map");
+              setSelected([]);
+            }}
+            onCompany={changeOrganization}
+          />
+        ) : null}
         {viewList?.kind === "manual" ? (
           <ListSuggestions key={viewList.id} list={viewList} />
+        ) : null}
+        {company ? (
+          <CompanyHeader
+            key={company}
+            name={company}
+            onOpenContact={(id) => void setOpenId(id)}
+          />
         ) : null}
         <div className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>
@@ -417,6 +498,13 @@ export function ContactsWorkspace({
                 sync={sync}
                 onAdd={() => setDialog({ kind: "add" })}
                 onImport={() => setDialog({ kind: "import" })}
+              />
+            ) : layout === "map" ? (
+              <ContactsMap
+                query={query}
+                filtered={filtered}
+                onClearFilters={clearFilters}
+                onOpen={open}
               />
             ) : contacts.length === 0 ? (
               <EmptyState
@@ -501,6 +589,7 @@ export function ContactsWorkspace({
       {dialog?.kind === "list" ? (
         <ContactListDialog
           list={dialog.list}
+          smartFilter={smartFilter}
           onClose={() => setDialog(null)}
           onSaved={(list) => {
             setDialog(null);

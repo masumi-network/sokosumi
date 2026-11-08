@@ -4,7 +4,7 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
 import { type Ref, type RefObject, useEffect, useId, useRef } from "react";
 import * as z from "zod";
-
+import { FormErrorText } from "@/components/ui/form";
 import {
   InputOTP,
   InputOTPGroup,
@@ -267,9 +267,7 @@ export function EmailCodeField({
         </p>
       )}
       {shownError ? (
-        <p id={errorId} className="text-destructive text-sm">
-          {shownError}
-        </p>
+        <FormErrorText id={errorId}>{shownError}</FormErrorText>
       ) : null}
     </div>
   );

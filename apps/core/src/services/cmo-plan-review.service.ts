@@ -1,6 +1,10 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import { CMO_CHANNELS } from "@sokosumi/utils";
 
-import { bannedCopyProblems } from "@/lib/social-post-writing";
+import {
+  bannedCopyProblems,
+  nearDuplicatePost,
+} from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
@@ -22,6 +26,18 @@ const MIN_FORMATS = 6;
 const MAX_SUMMARY_WORDS = 20;
 /** How far, in points, the calendar's shares may stray from the mix and the pillars. */
 export const CMO_SHARE_TOLERANCE = 7;
+/** Videos a month: each costs about four pictures, and a plan once asked for eight. */
+export const CMO_MAX_VIDEOS_PER_MONTH = 4;
+
+function isVideoFormat(entry: { channel: string; format: string }): boolean {
+  const channel = (
+    CMO_CHANNELS as Record<
+      string,
+      { formats: Record<string, { video?: boolean }> }
+    >
+  )[entry.channel];
+  return Boolean(channel?.formats[entry.format]?.video);
+}
 
 /**
  * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
@@ -62,6 +78,14 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
   if (!strategy.pace)
     problems.push(
       "pace is missing: steady, active or all_in, why, and pieces a week.",
+    );
+  if (strategy.measurement && !strategy.measurement.sourceOfTruth)
+    problems.push(
+      "measurement.sourceOfTruth is missing: the one place sales are counted (Shopify when connected, otherwise Google Analytics key events).",
+    );
+  if (strategy.measurement && !strategy.measurement.experiment)
+    problems.push(
+      "measurement.experiment is missing: the month's one test, with change, expect and judge.",
     );
   const conversion = strategy.funnel.find(
     (stage) => stage.stage === "conversion",
@@ -112,8 +136,42 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
     problems.push(...cadenceProblems(strategy.channels, pieces));
+    problems.push(...storyProblems(pieces));
+    const articles = pieces.filter(
+      (entry) => entry.channel === "seo" && entry.format === "article",
+    );
+    if (
+      articles.length >= 2 &&
+      !articles.some((entry) => COMPARISON_TITLE.test(entry.title))
+    )
+      problems.push(
+        `none of the ${articles.length} seo articles is a comparison page; make one "X vs Y" or "X alternative", with a competitor's name in the title.`,
+      );
+    const videos = pieces.filter(isVideoFormat).length;
+    if (videos > CMO_MAX_VIDEOS_PER_MONTH)
+      problems.push(
+        `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs about as much as four pictures: keep video for what moves.`,
+      );
   }
   return problems;
+}
+
+const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
+
+/** LinkedIn rewards one real story; a month without them read as generic tips. */
+function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const missing = pieces.filter(
+    (entry) => entry.channel === "linkedin" && !entry.story,
+  );
+  if (missing.length === 0) return [];
+  return [
+    `${missing.length} LinkedIn pieces have no story (${missing
+      .slice(0, 3)
+      .map((entry) => entry.id)
+      .join(
+        ", ",
+      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells.`,
+  ];
 }
 
 /** "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
@@ -191,8 +249,30 @@ export function cmoDraftProblems(
       );
     else seen.set(start, entry.id);
   }
+  for (const entry of calendar)
+    if (entry.searchAd && !entry.searchAd.location)
+      problems.push(
+        `${entry.id}'s searchAd has no location; name the country or city the business serves, as Google names it.`,
+      );
   problems.push(...repeatedPhrases(drafted));
+  problems.push(...nearDuplicates(drafted));
   return problems.slice(0, MAX_DRAFT_PROBLEMS);
+}
+
+/** Drafts that say nearly what an earlier draft of the month says. */
+function nearDuplicates(drafted: MarketingStrategyPlan["calendar"]): string[] {
+  const written = drafted.map((entry) => ({
+    id: entry.id,
+    text: entry.draft ?? "",
+  }));
+  return written.flatMap((entry, index) => {
+    const repeated = nearDuplicatePost(entry.text, written.slice(0, index));
+    return repeated
+      ? [
+          `${entry.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
+        ]
+      : [];
+  });
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */

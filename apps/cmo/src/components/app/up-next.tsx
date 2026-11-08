@@ -3,6 +3,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { useTransition } from "react";
 
 import { channelLabel, relativeDay } from "../../lib/calendar";
+import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
 
@@ -27,12 +28,13 @@ function MonthProduction({
 }: {
   production: CmoOverview["production"];
 }) {
-  if (production.state !== "running" && production.state !== "stuck")
+  if (
+    production.state !== "running" &&
+    production.state !== "starting" &&
+    production.state !== "stuck"
+  )
     return null;
-  const share =
-    production.total > 0
-      ? Math.round((production.ready / production.total) * 100)
-      : 0;
+  const share = productionShare(production);
   return (
     <section className="ugroup">
       <span className="label">Your month</span>
@@ -47,17 +49,20 @@ function MonthProduction({
           </span>
         </div>
         <span className="utitle">
-          {production.state === "running"
-            ? "Making every post, picture and ad for the month"
-            : "A few pieces didn't finish. Cuso tries again later."}
+          {production.state === "running" ||
+          (production.state === "starting" && production.written > 0)
+            ? productionSteps(production)
+            : production.state === "starting"
+              ? "Starting on every post, picture and ad for the month"
+              : "A few pieces didn't finish. Cuso tries again later."}
         </span>
         <span
           className="uprogress"
           role="progressbar"
           aria-valuemin={0}
-          aria-valuemax={production.total}
-          aria-valuenow={production.ready}
-          aria-label="Pieces made"
+          aria-valuemax={100}
+          aria-valuenow={share}
+          aria-label="Month made"
         >
           <span style={{ width: `${share}%` }} />
         </span>
@@ -80,6 +85,7 @@ export function UpNext({
   const comingUp = overview.upNext.filter((item) => item.date !== today);
   const making =
     overview.production.state === "running" ||
+    overview.production.state === "starting" ||
     overview.production.state === "stuck";
   const empty = !working && !making && overview.upNext.length === 0;
   return (

@@ -163,6 +163,7 @@ import {
 
 import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
 import { fitDisplayImage } from "@/lib/ads/display-image-fit";
+import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { tryUseLogger } from "@/lib/evlog";
@@ -317,7 +318,11 @@ import {
 } from "@/services/chat-result-preview.service";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
-import { CmoNotFoundError, findCusoForBot } from "@/services/cmo-cuso.service";
+import {
+  CmoNotFoundError,
+  findCusoForBot,
+  startCmoProduction,
+} from "@/services/cmo-cuso.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -336,6 +341,7 @@ import {
   enrichContactFromWeb,
   findPeopleForList,
 } from "@/services/contact-suggestions.service";
+import { listContacts } from "@/services/contacts.service";
 import { cusoDrive } from "@/services/cuso-project-files.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
@@ -416,6 +422,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  requireMonthPostPicture,
   scheduleSocialPost,
   updateSocialPost,
 } from "@/services/social-posts.service";
@@ -607,6 +614,26 @@ async function onlyEventTask(
       ? `Set triggeringTaskId to the event's Task this follows up: one of ${entries.map((entry) => entry.entityId).join(", ")}.`
       : "This event turn has no Task to follow up, so it cannot create one.",
   );
+}
+
+const SVG_MIME_TYPE = "image/svg+xml";
+
+/**
+ * Why an SVG the bot wrote may not be stored, or null when it is plain
+ * markup: no scripts, event handlers, embedded HTML or outside resources.
+ */
+export function unsafeSvgReason(content: string): string | null {
+  if (!/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(content))
+    return "An SVG must start with an <svg> element";
+  if (/<\s*(script|foreignObject|iframe|object|embed)\b/i.test(content))
+    return "An SVG may not contain scripts or embedded HTML";
+  if (/\son[a-z]+\s*=/i.test(content))
+    return "An SVG may not contain event handlers";
+  if (/(href|src)\s*=\s*["']?\s*(javascript:|https?:|\/\/)/i.test(content))
+    return "An SVG may not link outside resources; draw everything inline";
+  if (/url\(\s*["']?\s*(javascript:|https?:|\/\/)/i.test(content))
+    return "An SVG may not load outside resources; draw everything inline";
+  return null;
 }
 
 function isTextMimeType(mimeType: string | null): boolean {
@@ -2395,6 +2422,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
+    this.refuseCmoRunMedia(authorized);
     const started = await prisma.sokoBotToolCall.count({
       where: {
         turnId: authorized.turn.id,
@@ -2575,6 +2603,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeAuthorizationError(
         "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
       );
+    this.refuseCmoRunMedia(authorized);
     const started = await prisma.sokoBotToolCall.count({
       where: {
         turnId: authorized.turn.id,
@@ -2704,6 +2733,22 @@ export class SokoBotRuntimeService {
           ? "The provider did not confirm this request. Do not start it again; tell the owner."
           : "Started. A video takes a few minutes; check it with get_video.",
     };
+  }
+
+  /**
+   * Cuso's own runs describe each piece's visual and Core makes the media:
+   * runs that started their own made 25 files for 14 pieces, three at a time
+   * against the studio's limit, and put one picture on three posts.
+   */
+  private refuseCmoRunMedia(authorized: AuthorizedSokoBotRuntime): void {
+    const { turn } = authorized;
+    if (
+      turn.source !== "CHAT" &&
+      getSokoBotVersion(turn.versionId).profile === "cmo"
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Core makes the month's pictures and videos. Save the piece's visual (what it shows) and visualFileIds with save_strategy part pieces instead.",
+      );
   }
 
   /** A project bot makes and reads images in its own Project only. */
@@ -3265,10 +3310,14 @@ export class SokoBotRuntimeService {
       ? drive.pathnameIn(folder, input.filename)
       : drive.pathname(input.filename);
     const contentType = input.contentType ?? "text/markdown";
-    // Text only: this tool writes what the model composed, never binary.
-    if (!isTextMimeType(contentType)) {
+    // Text only: this tool writes what the model composed, never binary. An
+    // SVG is text too: a graphic the bot drew, checked to be markup only.
+    if (contentType === SVG_MIME_TYPE) {
+      const unsafe = unsafeSvgReason(input.content);
+      if (unsafe) throw new SokoBotRefusedUnsentError(unsafe);
+    } else if (!isTextMimeType(contentType)) {
       throw new SokoBotRefusedUnsentError(
-        "Only text files can be written with upload_file",
+        "Only text files and SVG graphics can be written with upload_file",
       );
     }
     // A reused name must not silently replace an owner's file: replacing one
@@ -3281,7 +3330,14 @@ export class SokoBotRuntimeService {
         `A file named "${input.filename}" already exists. To replace its content, call upload_file again with overwrite: true; to keep it, choose another name.`,
       );
     }
-    if (existing && !isTextMimeType((await head(existing.url)).contentType)) {
+    const existingType = existing
+      ? (await head(existing.url)).contentType
+      : null;
+    if (
+      existing &&
+      !isTextMimeType(existingType) &&
+      !(existingType === SVG_MIME_TYPE && contentType === SVG_MIME_TYPE)
+    ) {
       throw new SokoBotRefusedUnsentError(
         `"${input.filename}" is not a text file, so upload_file cannot replace it; choose another name`,
       );
@@ -5443,7 +5499,7 @@ export class SokoBotRuntimeService {
               ...(missing.length > 0
                 ? {
                     missing,
-                    next: `Save brandBrain again with ${missing.join(" and ")}: the owner opens on the reveal and answers the yes/no questions next.`,
+                    next: `Send ${missing.join(" and ")} with save_brand_brain, on their own (no brandBrain): they add to the essentials you saved.`,
                   }
                 : {}),
             },
@@ -5472,6 +5528,9 @@ export class SokoBotRuntimeService {
             pieces && approved
               ? await this.writeCmoPieceFiles(authorized, saved, sent)
               : 0;
+          // Visuals saved in a run: Core starts their pictures now.
+          if (pieces && approved && executing)
+            await startCmoProduction(authorized.turn.sokoBotId);
           // A running plan's social pieces are its Social posts.
           const stored = await readMarketingPlan(saved);
           const calendar = stored?.calendar ?? [];
@@ -5563,7 +5622,10 @@ export class SokoBotRuntimeService {
       }
     };
     const { targetId, result } = await run().catch((error: unknown) => {
-      if (error instanceof CmoNotFoundError) {
+      if (
+        error instanceof CmoNotFoundError ||
+        (error instanceof HTTPException && error.status === 422)
+      ) {
         throw new SokoBotRuntimeValidationError(error.message);
       }
       throw error;
@@ -6239,6 +6301,99 @@ export class SokoBotRuntimeService {
           result: persistedToolResult(result),
         }),
     });
+  }
+
+  /**
+   * The contacts a filter matches as a new Files table: created with its
+   * first rows under this call's receipt, then filled in batches.
+   */
+  private async exportContactsToTable(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const {
+      title,
+      limit,
+      taskId: _taskId,
+      query,
+      mode,
+      company,
+      listId,
+      archived,
+      ...filter
+    } = SOKO_BOT_TOOL_INPUT_SCHEMAS.export_contacts_to_table.parse(input.input);
+    const userId = actingMemberOf(authorized);
+    await requireSokoBotWorkspaceAccess(
+      prisma,
+      userId,
+      authorized.turn.workspaceId,
+    );
+    const contactActor = {
+      workspaceId: authorized.turn.workspaceId,
+      userId,
+      sokoBotId: authorized.turn.sokoBotId,
+    };
+    const contacts = [];
+    let cursor: string | undefined;
+    while (contacts.length < limit) {
+      const page = await listContacts(contactActor, {
+        filter,
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+        sort: "lastContactAt",
+        cursor,
+        limit: Math.min(100, limit - contacts.length),
+      });
+      contacts.push(...page.items);
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+    const key = `contacts-export:${input.turnId}:${input.toolCallId}`;
+    const table = contactExportTable(contacts, key);
+    const actor = await this.tableActor(authorized, input.input);
+    // One transaction: the table, every row, the authority check and the
+    // receipt happen together or not at all, so a retry starts clean.
+    const created = await createDataTable(
+      actor,
+      {
+        key,
+        title,
+        description: `${contacts.length} contacts from the team's Contacts.`,
+        columns: table.columns,
+        rows: table.rows,
+      },
+      async (tx, operation) => {
+        await this.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
+          { taskIds: actor.taskId ? [actor.taskId] : [] },
+        );
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId: input.toolCallId,
+          actorBotId: actor.actorId,
+          targetId: operation.tableId,
+          disposition: operation.replayed ? "ALREADY_SATISFIED" : "APPLIED",
+          result: persistedToolResult({
+            table: { id: operation.tableId, title },
+            url: `/drive/tables/${operation.tableId}`,
+            rows: table.rows.length,
+          }),
+        });
+      },
+      { manyRows: true },
+    );
+    return {
+      table: { id: created.id, title: created.title },
+      url: `/drive/tables/${created.id}`,
+      rows: table.rows.length,
+      instruction: "Table created. Present this link now.",
+    };
   }
 
   /** AI Coworkers this bot may hand Task work to. */
@@ -7076,6 +7231,10 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.schedule_social_post.parse(
                     input.input,
                   );
+                await requireMonthPostPicture(tx, {
+                  postId: params.postId,
+                  workspaceId,
+                });
                 return scheduleSocialPost(
                   {
                     ...params,
@@ -7556,6 +7715,11 @@ export class SokoBotRuntimeService {
         );
       }
       case "search_contacts":
+      case "count_contacts":
+      case "search_companies":
+      case "get_company":
+      case "update_company":
+      case "bulk_update_contacts":
       case "get_contact":
       case "list_contact_lists":
       case "find_contact_duplicates":
@@ -7568,6 +7732,8 @@ export class SokoBotRuntimeService {
       case "find_people":
       case "enrich_contact":
         return this.executeContactResearch(input, authorized);
+      case "export_contacts_to_table":
+        return this.exportContactsToTable(input, authorized);
       case "create_project":
       case "update_project":
         return this.executeProjectTool(input, authorized);

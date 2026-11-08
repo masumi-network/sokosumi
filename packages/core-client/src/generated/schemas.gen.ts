@@ -14364,6 +14364,49 @@ export const ContactListSchema = {
                         },
                         hasInteractions: {
                             type: 'boolean'
+                        },
+                        organization: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        company: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        location: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        role: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        channelSource: {
+                            type: 'string',
+                            enum: [
+                                'MANUAL',
+                                'EMAIL',
+                                'CALENDAR',
+                                'SLACK',
+                                'WEB_RESEARCH',
+                                'IMPORT',
+                                'OTHER',
+                                'X'
+                            ]
+                        },
+                        minInteractions: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 100000
+                        },
+                        minFollowers: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 1000000000
                         }
                     },
                     additionalProperties: false
@@ -14920,6 +14963,12 @@ export const ContactChannelSchema = {
         verified: {
             type: 'boolean'
         },
+        followers: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -14935,6 +14984,7 @@ export const ContactChannelSchema = {
         'source',
         'sourceUrl',
         'verified',
+        'followers',
         'createdAt'
     ]
 } as const;
@@ -15100,6 +15150,98 @@ export const ContactMergeSuggestionSchema = {
     ]
 } as const;
 
+export const ContactMapSchema = {
+    type: 'object',
+    properties: {
+        places: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactMapPlace'
+            }
+        },
+        unplaced: {
+            type: 'integer',
+            description: 'Contacts with a location that names no place.'
+        },
+        pending: {
+            type: 'integer',
+            description: 'Contacts whose place is still being looked up; ask again shortly.'
+        },
+        withoutLocation: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'places',
+        'unplaced',
+        'pending',
+        'withoutLocation'
+    ]
+} as const;
+
+export const ContactMapPlaceSchema = {
+    type: 'object',
+    properties: {
+        label: {
+            type: 'string',
+            example: 'Zurich, Switzerland'
+        },
+        latitude: {
+            type: 'number'
+        },
+        longitude: {
+            type: 'number'
+        },
+        contacts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ContactMapContact'
+            }
+        }
+    },
+    required: [
+        'label',
+        'latitude',
+        'longitude',
+        'contacts'
+    ]
+} as const;
+
+export const ContactMapContactSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        kind: {
+            $ref: '#/components/schemas/ContactKind'
+        },
+        organization: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'kind',
+        'organization',
+        'avatarUrl'
+    ]
+} as const;
+
 export const ContactDuplicateGroupSchema = {
     type: 'object',
     properties: {
@@ -15174,6 +15316,356 @@ export const ContactOrganizationSchema = {
     required: [
         'name',
         'count'
+    ]
+} as const;
+
+export const ContactCompanySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        domain: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        website: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        industry: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        size: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        headquarters: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        linkedinUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        whyItMatters: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        enrichedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        version: {
+            type: 'integer'
+        },
+        people: {
+            type: 'integer'
+        },
+        teammates: {
+            type: 'integer',
+            description: 'Teammates who know someone there.'
+        },
+        interactions: {
+            type: 'integer'
+        },
+        lastContactAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        warmth: {
+            type: 'string',
+            enum: [
+                'warm',
+                'cooling',
+                'cold',
+                'none'
+            ],
+            description: 'warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.'
+        },
+        strongestStage: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactStage'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'domain',
+        'website',
+        'description',
+        'industry',
+        'size',
+        'headquarters',
+        'linkedinUrl',
+        'whyItMatters',
+        'enrichedAt',
+        'version',
+        'people',
+        'teammates',
+        'interactions',
+        'lastContactAt',
+        'warmth',
+        'strongestStage'
+    ]
+} as const;
+
+export const ContactCompanyDetailSchema = {
+    type: 'object',
+    properties: {
+        company: {
+            $ref: '#/components/schemas/ContactCompany'
+        },
+        people: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Contact'
+            }
+        },
+        morePeople: {
+            type: 'integer'
+        },
+        teammates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    people: {
+                        type: 'integer'
+                    },
+                    lastInteractionAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'people',
+                    'lastInteractionAt'
+                ]
+            }
+        },
+        nextSteps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    contactId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    nextStep: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    followUpAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'contactId',
+                    'name',
+                    'nextStep',
+                    'followUpAt'
+                ]
+            }
+        },
+        recentInteractions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    contactId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    occurredAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    channel: {
+                        type: 'string'
+                    },
+                    direction: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    summary: {
+                        type: 'string'
+                    },
+                    user: {
+                        anyOf: [
+                            {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string'
+                                    },
+                                    name: {
+                                        type: 'string'
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'name'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'contactId',
+                    'occurredAt',
+                    'channel',
+                    'direction',
+                    'summary',
+                    'user'
+                ]
+            }
+        }
+    },
+    required: [
+        'company',
+        'people',
+        'morePeople',
+        'teammates',
+        'nextSteps',
+        'recentInteractions'
+    ]
+} as const;
+
+export const ContactBreakdownSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer'
+        },
+        breakdowns: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    by: {
+                        type: 'string',
+                        enum: [
+                            'stage',
+                            'kind',
+                            'organization',
+                            'location',
+                            'role',
+                            'list',
+                            'knownBy',
+                            'channel',
+                            'source',
+                            'lastContact'
+                        ]
+                    },
+                    groups: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                key: {
+                                    type: [
+                                        'string',
+                                        'null'
+                                    ]
+                                },
+                                label: {
+                                    type: 'string'
+                                },
+                                count: {
+                                    type: 'integer'
+                                }
+                            },
+                            required: [
+                                'key',
+                                'label',
+                                'count'
+                            ]
+                        }
+                    },
+                    otherGroups: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'by',
+                    'groups',
+                    'otherGroups'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'breakdowns'
     ]
 } as const;
 
@@ -23344,6 +23836,26 @@ export const BrandBrainSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    promise: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    strength: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    weakness: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
                                     }
                                 },
                                 required: [
@@ -23351,6 +23863,38 @@ export const BrandBrainSchema = {
                                 ]
                             },
                             maxItems: 10
+                        },
+                        voiceOfCustomer: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    quote: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'pain',
+                                            'trigger',
+                                            'outcome',
+                                            'objection'
+                                        ]
+                                    },
+                                    sourceUrl: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'quote',
+                                    'kind'
+                                ]
+                            },
+                            maxItems: 12
                         },
                         alternatives: {
                             type: 'array',
@@ -23368,6 +23912,26 @@ export const BrandBrainSchema = {
                                         format: 'uri'
                                     },
                                     note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    promise: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    strength: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    weakness: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -25208,6 +25772,26 @@ export const BrandBrainRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            promise: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            price: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            strength: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            weakness: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
                             }
                         },
                         required: [
@@ -25215,6 +25799,38 @@ export const BrandBrainRequestSchema = {
                         ]
                     },
                     maxItems: 10
+                },
+                voiceOfCustomer: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            quote: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'pain',
+                                    'trigger',
+                                    'outcome',
+                                    'objection'
+                                ]
+                            },
+                            sourceUrl: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            }
+                        },
+                        required: [
+                            'quote',
+                            'kind'
+                        ]
+                    },
+                    maxItems: 12
                 },
                 alternatives: {
                     type: 'array',
@@ -25232,6 +25848,26 @@ export const BrandBrainRequestSchema = {
                                 format: 'uri'
                             },
                             note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            promise: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            price: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            strength: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            weakness: {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
@@ -27325,6 +27961,11 @@ export const MarketingStrategySchema = {
                                             'product'
                                         ]
                                     },
+                                    now: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
                                     idea: {
                                         type: 'string',
                                         minLength: 1,
@@ -27478,7 +28119,8 @@ export const MarketingStrategySchema = {
                                     enum: [
                                         'awareness',
                                         'understanding',
-                                        'trust'
+                                        'trust',
+                                        'switching'
                                     ]
                                 },
                                 text: {
@@ -28017,6 +28659,36 @@ export const MarketingStrategySchema = {
                                     },
                                     maxItems: 4,
                                     default: []
+                                },
+                                sourceOfTruth: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                experiment: {
+                                    type: 'object',
+                                    properties: {
+                                        change: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        expect: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        judge: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        }
+                                    },
+                                    required: [
+                                        'change',
+                                        'expect',
+                                        'judge'
+                                    ]
                                 }
                             },
                             required: [
@@ -28143,6 +28815,33 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         format: 'uuid'
                                     },
+                                    visual: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    visualFileIds: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 100
+                                        },
+                                        maxItems: 3
+                                    },
+                                    slides: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    },
+                                    story: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
                                     imageFileId: {
                                         type: 'string',
                                         maxLength: 100
@@ -28192,10 +28891,34 @@ export const MarketingStrategySchema = {
                                                 minItems: 2,
                                                 maxItems: 4
                                             },
+                                            negativeKeywords: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 80
+                                                },
+                                                maxItems: 30
+                                            },
+                                            maxCpc: {
+                                                type: 'number',
+                                                exclusiveMinimum: 0,
+                                                maximum: 1000
+                                            },
                                             finalUrl: {
                                                 type: 'string',
                                                 maxLength: 2048,
                                                 format: 'uri'
+                                            },
+                                            path1: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 15
+                                            },
+                                            path2: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 15
                                             },
                                             location: {
                                                 type: 'string',
@@ -28683,6 +29406,11 @@ export const MarketingStrategyRequestSchema = {
                                     'product'
                                 ]
                             },
+                            now: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
                             idea: {
                                 type: 'string',
                                 minLength: 1,
@@ -28836,7 +29564,8 @@ export const MarketingStrategyRequestSchema = {
                             enum: [
                                 'awareness',
                                 'understanding',
-                                'trust'
+                                'trust',
+                                'switching'
                             ]
                         },
                         text: {
@@ -29375,6 +30104,36 @@ export const MarketingStrategyRequestSchema = {
                             },
                             maxItems: 4,
                             default: []
+                        },
+                        sourceOfTruth: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        experiment: {
+                            type: 'object',
+                            properties: {
+                                change: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                expect: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                judge: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                }
+                            },
+                            required: [
+                                'change',
+                                'expect',
+                                'judge'
+                            ]
                         }
                     },
                     required: [
@@ -29501,6 +30260,33 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 format: 'uuid'
                             },
+                            visual: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            visualFileIds: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 100
+                                },
+                                maxItems: 3
+                            },
+                            slides: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                maxItems: 10
+                            },
+                            story: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
                             imageFileId: {
                                 type: 'string',
                                 maxLength: 100
@@ -29550,10 +30336,34 @@ export const MarketingStrategyRequestSchema = {
                                         minItems: 2,
                                         maxItems: 4
                                     },
+                                    negativeKeywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 80
+                                        },
+                                        maxItems: 30
+                                    },
+                                    maxCpc: {
+                                        type: 'number',
+                                        exclusiveMinimum: 0,
+                                        maximum: 1000
+                                    },
                                     finalUrl: {
                                         type: 'string',
                                         maxLength: 2048,
                                         format: 'uri'
+                                    },
+                                    path1: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 15
+                                    },
+                                    path2: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 15
                                     },
                                     location: {
                                         type: 'string',
@@ -35585,6 +36395,33 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 64
+                },
+                visual: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                visualFileIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 100
+                    },
+                    maxItems: 3
+                },
+                slides: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 10
+                },
+                story: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
                 }
             },
             required: [
@@ -38995,6 +39832,26 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    promise: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    strength: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    weakness: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
                                     }
                                 },
                                 required: [
@@ -39002,6 +39859,38 @@ export const CmoOverviewSchema = {
                                 ]
                             },
                             maxItems: 10
+                        },
+                        voiceOfCustomer: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    quote: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'pain',
+                                            'trigger',
+                                            'outcome',
+                                            'objection'
+                                        ]
+                                    },
+                                    sourceUrl: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    }
+                                },
+                                required: [
+                                    'quote',
+                                    'kind'
+                                ]
+                            },
+                            maxItems: 12
                         },
                         alternatives: {
                             type: 'array',
@@ -39019,6 +39908,26 @@ export const CmoOverviewSchema = {
                                         format: 'uri'
                                     },
                                     note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    promise: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    price: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    strength: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    weakness: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -40970,6 +41879,44 @@ export const CmoWorkSchema = {
                 $ref: '#/components/schemas/CmoWorkStep'
             }
         },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string',
+                        enum: [
+                            'company',
+                            'offer',
+                            'problems',
+                            'customers',
+                            'buyers',
+                            'value',
+                            'pricing',
+                            'positioning',
+                            'competition',
+                            'sales',
+                            'marketing',
+                            'content',
+                            'proof',
+                            'reputation',
+                            'momentum',
+                            'opportunities'
+                        ]
+                    },
+                    headline: {
+                        type: 'string',
+                        description: 'The section\'s answer at a glance.'
+                    }
+                },
+                required: [
+                    'key',
+                    'headline'
+                ]
+            },
+            description: 'Brand Brain sections Cuso has saved, in profile order.'
+        },
         sectionsSaved: {
             type: 'integer',
             minimum: 0
@@ -40984,6 +41931,7 @@ export const CmoWorkSchema = {
         'status',
         'startedAt',
         'steps',
+        'sections',
         'sectionsSaved',
         'sectionsTotal'
     ]
@@ -41606,6 +42554,11 @@ export const CmoPlanSchema = {
                             'product'
                         ]
                     },
+                    now: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
                     idea: {
                         type: 'string',
                         minLength: 1,
@@ -41759,7 +42712,8 @@ export const CmoPlanSchema = {
                     enum: [
                         'awareness',
                         'understanding',
-                        'trust'
+                        'trust',
+                        'switching'
                     ]
                 },
                 text: {
@@ -42298,6 +43252,36 @@ export const CmoPlanSchema = {
                     },
                     maxItems: 4,
                     default: []
+                },
+                sourceOfTruth: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 400
+                },
+                experiment: {
+                    type: 'object',
+                    properties: {
+                        change: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        expect: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        judge: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        }
+                    },
+                    required: [
+                        'change',
+                        'expect',
+                        'judge'
+                    ]
                 }
             },
             required: [
@@ -42424,6 +43408,33 @@ export const CmoPlanSchema = {
                         type: 'string',
                         format: 'uuid'
                     },
+                    visual: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 2000
+                    },
+                    visualFileIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 100
+                        },
+                        maxItems: 3
+                    },
+                    slides: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        maxItems: 10
+                    },
+                    story: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
                     imageFileId: {
                         type: 'string',
                         maxLength: 100
@@ -42473,10 +43484,34 @@ export const CmoPlanSchema = {
                                 minItems: 2,
                                 maxItems: 4
                             },
+                            negativeKeywords: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 80
+                                },
+                                maxItems: 30
+                            },
+                            maxCpc: {
+                                type: 'number',
+                                exclusiveMinimum: 0,
+                                maximum: 1000
+                            },
                             finalUrl: {
                                 type: 'string',
                                 maxLength: 2048,
                                 format: 'uri'
+                            },
+                            path1: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 15
+                            },
+                            path2: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 15
                             },
                             location: {
                                 type: 'string',
@@ -42677,6 +43712,24 @@ export const CmoUpdateSchema = {
             minLength: 1,
             maxLength: 2000
         },
+        verdict: {
+            type: 'string',
+            enum: [
+                'hold',
+                'fix',
+                'test',
+                'investigate'
+            ]
+        },
+        learnings: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 3
+        },
         id: {
             type: 'string'
         },
@@ -42822,15 +43875,28 @@ export const CmoProductionSchema = {
             type: 'string',
             enum: [
                 'waiting',
+                'starting',
                 'running',
                 'ready',
                 'stuck'
-            ]
+            ],
+            description: 'starting: approved, but no run is working yet; the next sync starts one.'
         },
         ready: {
             type: 'integer'
         },
         total: {
+            type: 'integer'
+        },
+        written: {
+            type: 'integer',
+            description: 'Pieces whose words are written.'
+        },
+        pictured: {
+            type: 'integer',
+            description: 'Pieces with every picture they need, of needPictures.'
+        },
+        needPictures: {
             type: 'integer'
         },
         finishedAt: {
@@ -42894,6 +43960,9 @@ export const CmoProductionSchema = {
         'state',
         'ready',
         'total',
+        'written',
+        'pictured',
+        'needPictures',
         'finishedAt',
         'pillars'
     ],

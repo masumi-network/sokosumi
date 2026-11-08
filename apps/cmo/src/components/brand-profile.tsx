@@ -175,6 +175,12 @@ export function BrandReveal({
         )}
       </Section>
 
+      {(brain.voiceOfCustomer ?? []).length > 0 ? (
+        <Section title="In your customers' words" beat={beat(3)}>
+          <CustomerWords quotes={brain.voiceOfCustomer ?? []} />
+        </Section>
+      ) : null}
+
       <Section title="Tone of voice" beat={beat(4)}>
         <Voice brain={brain} />
       </Section>
@@ -218,6 +224,7 @@ export function BrandReveal({
               ))}
             </ul>
           )}
+          <RivalFacts competitors={brain.competitors} />
           {(brain.alternatives ?? []).length > 0 ? (
             <p className="bb-alternatives">
               <span className="label">Also compared with</span>
@@ -517,6 +524,76 @@ function firstSentence(text: string): string {
 }
 
 type Reveal = NonNullable<BrandBrain["reveal"]>;
+type CustomerQuote = NonNullable<BrandBrain["voiceOfCustomer"]>[number];
+
+const QUOTE_KINDS: Record<CustomerQuote["kind"], string> = {
+  pain: "What hurts",
+  trigger: "Why they looked",
+  outcome: "What they got",
+  objection: "What held them back",
+};
+
+/** Customers' exact words, the source of Cuso's hooks and ad headlines. */
+function CustomerWords({ quotes }: { quotes: readonly CustomerQuote[] }) {
+  return (
+    <ul className="bb-words">
+      {quotes.map((quote) => (
+        <li key={quote.quote}>
+          <span className="label">{QUOTE_KINDS[quote.kind]}</span>
+          <blockquote className="bb-quote">“{quote.quote}”</blockquote>
+          {quote.sourceUrl ? (
+            <a
+              className="note"
+              href={quote.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {sourceHost(quote.sourceUrl)}
+            </a>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const RIVAL_FACTS = [
+  ["promise", "Promises"],
+  ["price", "Starts at"],
+  ["strength", "Loved for"],
+  ["weakness", "Complaints"],
+] as const;
+
+/** The closest competitors as Cuso read them: their promise, price and reviews. */
+function RivalFacts({
+  competitors,
+}: {
+  competitors: BrandBrain["competitors"];
+}) {
+  const read = competitors.filter((competitor) =>
+    RIVAL_FACTS.some(([key]) => competitor[key]),
+  );
+  if (read.length === 0) return null;
+  return (
+    <ul className="bb-rival-facts">
+      {read.map((competitor) => (
+        <li key={competitor.name}>
+          <b>{competitor.name}</b>
+          <dl>
+            {RIVAL_FACTS.map(([key, label]) =>
+              competitor[key] ? (
+                <div key={key}>
+                  <dt>{label}</dt>
+                  <dd>{competitor[key]}</dd>
+                </div>
+              ) : null,
+            )}
+          </dl>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function MarketMap({
   map,

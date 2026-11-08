@@ -39,6 +39,19 @@ const ADMIN_OPTIONS = new Set([
   "email",
 ]);
 
+interface AdminMembersCommand {
+  subcommand: "members";
+  slug: string;
+}
+
+interface AdminEmailCommand {
+  subcommand: Exclude<(typeof ADMIN_COMMANDS)[number], "members">;
+  slug: string;
+  email: string;
+}
+
+type ValidatedAdminCommand = AdminMembersCommand | AdminEmailCommand;
+
 export function validateAdminCommand({
   target,
   subcommand,
@@ -47,11 +60,12 @@ export function validateAdminCommand({
 }: Pick<
   AdminCommandContext,
   "target" | "subcommand" | "positionalId" | "options"
->): { slug: string; email?: string } {
+>): ValidatedAdminCommand {
   if (target !== "preprod") {
     throw new Error("Admin onboarding is Preprod only. Select --preprod.");
   }
-  if (!ADMIN_COMMANDS.some((command) => command === subcommand)) {
+  const command = ADMIN_COMMANDS.find((entry) => entry === subcommand);
+  if (!command) {
     throw new Error(
       "Usage: sokosumi admin members|add-member|assign-seat WORKSPACE_SLUG [--email EMAIL]",
     );
@@ -63,16 +77,16 @@ export function validateAdminCommand({
   }
   const slug = validateAdminPathSegment(positionalId ?? "", "Workspace slug");
   const emailInput = optionString(options, "email");
-  if (subcommand === "members") {
+  if (command === "members") {
     if (emailInput !== undefined) {
       throw new Error("admin members does not accept --email");
     }
-    return { slug };
+    return { subcommand: "members", slug };
   }
   if (emailInput === undefined) {
-    throw new Error(`--email is required for admin ${subcommand}`);
+    throw new Error(`--email is required for admin ${command}`);
   }
-  return { slug, email: normalizeAdminEmail(emailInput) };
+  return { subcommand: command, slug, email: normalizeAdminEmail(emailInput) };
 }
 
 function eligible(
@@ -100,8 +114,9 @@ function selectMember(
 export async function runAdminCommand(
   context: AdminCommandContext,
 ): Promise<void> {
-  const { client, stdout, json = false, subcommand } = context;
-  const { slug, email } = validateAdminCommand(context);
+  const { client, stdout, json = false } = context;
+  const validated = validateAdminCommand(context);
+  const { slug } = validated;
   const timeout = AbortSignal.timeout(30_000);
   const signal = context.signal
     ? AbortSignal.any([context.signal, timeout])
@@ -121,7 +136,7 @@ export async function runAdminCommand(
     );
   }
 
-  if (subcommand === "members") {
+  if (validated.subcommand === "members") {
     const result = {
       workspace,
       members: members.map((member) => ({
@@ -148,12 +163,15 @@ export async function runAdminCommand(
     return;
   }
 
-  if (!email) throw new Error("--email is required");
-  let member = selectMember(members, email);
-  if (subcommand === "add-member") {
+  let member = selectMember(members, validated.email);
+  if (validated.subcommand === "add-member") {
     const created = member === undefined;
     if (!member) {
-      const developer = await findAdminUserByEmail(client, email, signal);
+      const developer = await findAdminUserByEmail(
+        client,
+        validated.email,
+        signal,
+      );
       signal.throwIfAborted();
       member = await addAdminWorkspaceMember(
         client,
