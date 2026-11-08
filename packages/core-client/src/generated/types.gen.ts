@@ -33238,6 +33238,7 @@ export type GetContactsDuplicatesData = {
     path?: never;
     query?: {
         contactId?: string;
+        limit?: number;
     };
     url: '/contacts/duplicates';
 };

@@ -3,7 +3,11 @@ import type { Contact } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
-import { coreErrorOf, primaryEmail } from "@/app/contacts/contacts-view";
+import {
+  contactReach,
+  coreErrorOf,
+  primaryEmail,
+} from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -101,7 +105,11 @@ export function MergeContactsDialog({
                     {contact.name}
                   </span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {[contact.role, contact.organization]
+                    {[
+                      contactReach(contact.channels),
+                      contact.role,
+                      contact.organization,
+                    ]
                       .filter(Boolean)
                       .join(" · ") || t("noDetails")}
                   </span>

@@ -279,6 +279,12 @@ export function channelLabel(
   }
 }
 
+/** How to reach someone, in one line: their email, else their first channel. */
+export function contactReach(channels: ContactChannel[]): string | null {
+  const first = channels[0];
+  return primaryEmail(channels) ?? (first ? channelLabel(first) : null);
+}
+
 /** One or two letters for an avatar. */
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);

@@ -10238,6 +10238,17 @@
       "noMatches": "Keine Kontakte passen zu diesen Filtern.",
       "clearFilters": "Filter entfernen",
       "merged": "Zusammengeführt in {name}",
+      "duplicates": "{count, plural, =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+      "duplicatesMore": "{count}+ mögliche Duplikate",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {Keine möglichen Duplikate} =1 {1 mögliches Duplikat} other {# mögliche Duplikate}}",
+        "titleMore": "{count}+ mögliche Duplikate",
+        "description": "Diese Einträge haben denselben Namen oder denselben Nachnamen und Anfangsbuchstaben bei derselben Firma. Führe die zusammen, die eine Person sind; öffne einen Eintrag, um ihn vorher zu prüfen.",
+        "merge": "Zusammenführen",
+        "mergeGroup": "Einträge für {name} zusammenführen",
+        "noDetails": "Keine E-Mail oder Firma",
+        "empty": "Nichts mehr zusammenzuführen."
+      },
       "deleteList": {
         "title": "{name} löschen?",
         "description": "Die Liste verschwindet für das ganze Team. Die Menschen darauf bleiben in den Kontakten.",
@@ -10313,7 +10324,7 @@
         "title": "{count, plural, =2 {2 Kontakte zusammenführen} other {# Kontakte zusammenführen}}",
         "description": "Wähle den Kontakt, der bleibt. Alles von den anderen wandert dorthin: Kanäle, Verlauf und Listen. Leere Felder werden aus ihnen ergänzt.",
         "keep": "Behalten",
-        "noDetails": "Keine Rolle oder Organisation",
+        "noDetails": "Keine E-Mail, Rolle oder Organisation",
         "interactions": "{count, plural, =0 {Keine Interaktionen} =1 {1 Interaktion} other {# Interaktionen}}",
         "failed": "Das Zusammenführen wurde nicht abgeschlossen. Nichts wurde geändert.",
         "cancel": "Abbrechen",

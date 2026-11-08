@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   FileSpreadsheet,
+  GitMerge,
   Globe,
   ListPlus,
   MoreHorizontal,
@@ -80,6 +81,7 @@ import {
   ContactsFilterBar,
 } from "./contacts-toolbar";
 import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
+import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
@@ -87,7 +89,9 @@ import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_LISTS_KEY,
+  DUPLICATE_GROUP_LIMIT,
   refreshContacts,
+  useContactDuplicates,
   useContactLists,
   useContactMap,
   useContactOrganizations,
@@ -106,7 +110,9 @@ type Dialog =
   | { kind: "import" }
   | { kind: "list"; list?: ContactList }
   | { kind: "deleteList"; list: ContactList }
-  | { kind: "merge"; contacts: Contact[] };
+  | { kind: "duplicates" }
+  /** `fromDuplicates` returns to the duplicates list when the merge ends. */
+  | { kind: "merge"; contacts: Contact[]; fromDuplicates?: boolean };
 
 /** The Contacts tab: views and companies on top, the grid, and the person panel. */
 export function ContactsWorkspace({
@@ -172,6 +178,9 @@ export function ContactsWorkspace({
 
   const { teammates } = useTeammates();
   const lists = useContactLists();
+  const duplicates = useContactDuplicates();
+  const duplicateGroups = duplicates.data ?? [];
+  const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
   const organizations = useContactOrganizations(debouncedCompanySearch);
   const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
   const query = contactQuery({
@@ -443,8 +452,23 @@ export function ContactsWorkspace({
               }
             />
           )}
-          <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
-            {rows.isPending ? null : t("count", { count: total })}
+          <span className="ms-auto flex shrink-0 items-center gap-2">
+            {duplicateGroups.length ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-10 md:h-8"
+                onClick={() => setDialog({ kind: "duplicates" })}
+              >
+                <GitMerge aria-hidden className="size-4" />
+                {t(duplicatesCapped ? "duplicatesMore" : "duplicates", {
+                  count: duplicateGroups.length,
+                })}
+              </Button>
+            ) : null}
+            <span className="text-muted-foreground text-sm tabular-nums">
+              {rows.isPending ? null : t("count", { count: total })}
+            </span>
           </span>
         </div>
         {viewList?.description ? (
@@ -598,14 +622,34 @@ export function ContactsWorkspace({
           }}
         />
       ) : null}
+      {dialog?.kind === "duplicates" ? (
+        <DuplicatesDialog
+          groups={duplicateGroups}
+          capped={duplicatesCapped}
+          onMerge={(group) =>
+            setDialog({ kind: "merge", contacts: group, fromDuplicates: true })
+          }
+          onOpenContact={(id) => {
+            setDialog(null);
+            open(id);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
       {dialog?.kind === "merge" ? (
         <MergeContactsDialog
           contacts={dialog.contacts}
-          onClose={() => setDialog(null)}
+          onClose={() =>
+            setDialog(dialog.fromDuplicates ? { kind: "duplicates" } : null)
+          }
           onMerged={(winner) => {
-            setDialog(null);
-            setSelected([]);
             toast.success(t("merged", { name: winner.name }));
+            setSelected([]);
+            if (dialog.fromDuplicates) {
+              setDialog({ kind: "duplicates" });
+              return;
+            }
+            setDialog(null);
             open(winner.id);
           }}
         />

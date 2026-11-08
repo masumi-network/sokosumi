@@ -10238,6 +10238,17 @@
       "noMatches": "No contacts match these filters.",
       "clearFilters": "Clear filters",
       "merged": "Merged into {name}",
+      "duplicates": "{count, plural, =1 {1 possible duplicate} other {# possible duplicates}}",
+      "duplicatesMore": "{count}+ possible duplicates",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {No possible duplicates} =1 {1 possible duplicate} other {# possible duplicates}}",
+        "titleMore": "{count}+ possible duplicates",
+        "description": "These records share a name, or a surname and initial at the same company. Merge the ones that are one person; open a record to check first.",
+        "merge": "Merge",
+        "mergeGroup": "Merge the records for {name}",
+        "noDetails": "No email or company",
+        "empty": "Nothing left to merge."
+      },
       "deleteList": {
         "title": "Delete {name}?",
         "description": "The list goes away for the whole team. The people on it stay in Contacts.",
@@ -10313,7 +10324,7 @@
         "title": "{count, plural, =2 {Merge 2 contacts} other {Merge # contacts}}",
         "description": "Pick the one to keep. Everything from the others moves onto it: channels, timeline and lists. Empty fields are filled from them.",
         "keep": "Keep",
-        "noDetails": "No role or organization",
+        "noDetails": "No email, role or organization",
         "interactions": "{count, plural, =0 {No interactions} =1 {1 interaction} other {# interactions}}",
         "failed": "The merge didn't finish. Nothing changed.",
         "cancel": "Cancel",

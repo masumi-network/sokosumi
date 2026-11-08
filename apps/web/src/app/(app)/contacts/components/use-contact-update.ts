@@ -8,6 +8,7 @@ import { contactsService } from "@/lib/services/contacts.client";
 import {
   CONTACT_BREAKDOWN_KEY,
   CONTACT_COMPANY_KEY,
+  CONTACT_DUPLICATES_KEY,
   CONTACT_LISTS_KEY,
   CONTACT_MAP_KEY,
   CONTACTS_KEY,
@@ -84,6 +85,8 @@ export function useContactUpdate() {
       void cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY });
       void cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY });
       void cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY });
+      // A new name or organization can make or end a duplicate group.
+      void cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY });
       void cache.invalidateQueries({ queryKey: contactKey(contact.id) });
       void cache.invalidateQueries({
         queryKey: ["contact-timeline", contact.id],
