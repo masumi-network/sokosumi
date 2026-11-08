@@ -155,9 +155,10 @@ const BRAND_COLOR_ROLES = ["primary", "secondary", "tertiary"];
  * as brand colours. Null when the file names none of them.
  */
 function designMdRoleColors(content: string): string[] | null {
-  // Each line ends at its newline (or the end), so lines split one way only.
+  // Each line runs to its LF (or the end), so lines split one way only; a CR
+  // before the LF is part of the line, so CRLF lines still count.
   const block = content.match(
-    /^colors:[ \t]*\n((?:[ \t].*(?:\n|(?![\s\S])))+)/m,
+    /^colors:[ \t]*\r?\n((?:[ \t][^\n]*(?:\n|(?![\s\S])))+)/m,
   )?.[1];
   if (!block) return null;
   const colors = BRAND_COLOR_ROLES.map((role) => {

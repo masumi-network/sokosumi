@@ -118,6 +118,14 @@ Primary #5850ec drives every call to action.
     });
   });
 
+  it("keeps the declared roles when role lines end in CRLF", () => {
+    // Without the roles, the repeated error red would lead the palette.
+    const body =
+      "  primary: '#6400ff'\r\n  error: '#b3261e'\r\n#b3261e #b3261e";
+    expect(designMdBrandLook(`colors:\n${body}`).colors).toEqual(["#6400ff"]);
+    expect(designMdBrandLook(`colors:\r\n${body}`).colors).toEqual(["#6400ff"]);
+  });
+
   it("falls back to the most used colours without colour roles", () => {
     expect(
       designMdBrandLook("colors:\n  brand: '#6400ff'\n# Brand #6400ff").colors,
