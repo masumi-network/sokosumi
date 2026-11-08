@@ -14,6 +14,7 @@ const {
   executeToolMock,
   grantUploadMock,
   findFirstEventMock,
+  countEventMock,
   fetchMock,
   toolCallUpsertMock,
   toolCallUpdateManyMock,
@@ -27,6 +28,7 @@ const {
   executeToolMock: vi.fn(),
   grantUploadMock: vi.fn(),
   findFirstEventMock: vi.fn(),
+  countEventMock: vi.fn(),
   fetchMock: vi.fn(),
 }));
 
@@ -38,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => {
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
+      count: countEventMock,
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBotToolCall: {
@@ -806,7 +809,49 @@ describe("sandbox turn service", () => {
     expect(executeToolMock).toHaveBeenCalledOnce();
   });
 
+  it("grants no upload where upload_file would be refused, nor past the cap", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "SCHEDULE",
+      parentTurnId: null,
+      askedByUserId: null,
+      requestedByUserId: "owner",
+      chainDepth: 0,
+      chatMentionId: null,
+    });
+    await expect(
+      grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
+    ).rejects.toThrow("ask the owner in chat");
+    findFirstEventMock.mockResolvedValue(null);
+    countEventMock.mockResolvedValue(20);
+    await expect(
+      grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
+    ).rejects.toThrow("up to 20");
+    expect(grantUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a member's own request to a shared bot make posts after a command", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: "member",
+      requestedByUserId: "member",
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "create_social_post",
+      toolCallId: "c20",
+      toolInput: {},
+    });
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
   it("records the address it grants, so upload_file can check it", async () => {
+    countEventMock.mockResolvedValue(0);
+    findFirstEventMock.mockResolvedValue(null);
     grantUploadMock.mockResolvedValue({
       grant: {
         uploadUrl: "https://blob.example/put",

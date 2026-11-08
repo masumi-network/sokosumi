@@ -45,11 +45,13 @@ import {
   closeTurn,
   failTurn,
   finishTurn,
+  isTaintBlocked,
   type PreparedTurn,
   prepareTurn,
   RuntimeEventLog,
   runTurnTool,
   runtimeEvent,
+  SokoBotTaintedActionError,
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
@@ -208,6 +210,8 @@ export async function runSandboxTool(
   });
 }
 
+const MAX_UPLOADS_PER_TURN = 20;
+
 /** Where the runner downloads a Files file for workspace_import_file. */
 export async function sandboxFileSource(
   claims: TurnTokenClaims,
@@ -242,6 +246,19 @@ export async function grantSandboxUpload(
   const authorized = await authorizeTurn(claims);
   const { sokoBotRuntimeService, WORKSPACE_UPLOAD_GRANTED_EVENT } =
     await import("@/services/soko-bot-runtime.service");
+  // The same gates upload_file has: refused after taint where it would be,
+  // and a bounded number per turn.
+  if (await isTaintBlocked(claims.turnId, "upload_file"))
+    throw unprocessableEntity(
+      new SokoBotTaintedActionError("upload_file").message,
+    );
+  const granted = await prisma.sokoBotRuntimeEvent.count({
+    where: { turnId: claims.turnId, type: WORKSPACE_UPLOAD_GRANTED_EVENT },
+  });
+  if (granted >= MAX_UPLOADS_PER_TURN)
+    throw unprocessableEntity(
+      `A turn can save up to ${MAX_UPLOADS_PER_TURN} workspace files`,
+    );
   try {
     const granted = await sokoBotRuntimeService.grantWorkspaceUpload(
       authorized,

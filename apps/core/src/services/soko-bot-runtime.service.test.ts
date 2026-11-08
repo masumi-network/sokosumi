@@ -168,6 +168,7 @@ const {
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
+    copy: vi.fn(),
     search: vi.fn(),
     loadLive: vi.fn(),
     adopt: vi.fn(),
@@ -337,6 +338,7 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@vercel/blob", () => ({
+  copy: files.copy,
   del: files.del,
   head: files.head,
   list: files.list,
@@ -9489,7 +9491,7 @@ describe("Drive file tools", () => {
     });
 
     describe("a file from the workspace", () => {
-      const pathname = "users/u/files/launch-1f3c9a2b.mp4";
+      const pathname = `soko-bot-staging/${SCOPE.turnId}/0f8e2b7c-1a2b-4c3d-8e9f-0a1b2c3d4e5f.mp4`;
       const granted = {
         data: {
           pathname,
@@ -9511,6 +9513,8 @@ describe("Drive file tools", () => {
           headers: { "Content-Type": grant.contentType },
         }));
         runtimeEventFindFirstMock.mockReset().mockResolvedValue(granted);
+        files.copy.mockReset().mockResolvedValue({});
+        files.del.mockReset().mockResolvedValue(undefined);
         files.head.mockResolvedValue({
           size: 12_000_000,
           contentType: "video/mp4",
@@ -9526,7 +9530,9 @@ describe("Drive file tools", () => {
           authorizedWithUpload as never,
           { filename: "launch.mp4", size: 12_000_000 },
         );
-        expect(first.grant.pathname).toMatch(/\/launch-[0-9a-f]{8}\.mp4$/);
+        expect(first.grant.pathname).toMatch(
+          new RegExp(`^soko-bot-staging/${SCOPE.turnId}/[0-9a-f-]{36}\\.mp4$`),
+        );
         expect(first.grant.pathname).not.toBe(second.grant.pathname);
         expect(uploadGrantMock).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -9581,12 +9587,24 @@ describe("Drive file tools", () => {
         );
         expect(files.reserve).toHaveBeenCalledWith(
           expect.objectContaining({
-            key: expect.objectContaining({ pathname }),
             displayName: "launch.mp4",
             mimeType: "video/mp4",
             sizeBytes: 12_000_000,
           }),
         );
+        expect(files.copy).toHaveBeenCalledWith(
+          pathname,
+          expect.stringMatching(/\/launch-[0-9a-f]{8}\.mp4$/),
+          expect.objectContaining({ allowOverwrite: false }),
+        );
+        expect(files.reserve).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: expect.objectContaining({
+              pathname: files.copy.mock.calls[0][1],
+            }),
+          }),
+        );
+        expect(files.del).toHaveBeenCalledWith(pathname);
         expect(files.put).not.toHaveBeenCalled();
         expect(result).toMatchObject({ id: "file-7", filename: "launch.mp4" });
       });

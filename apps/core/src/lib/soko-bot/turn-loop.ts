@@ -368,12 +368,18 @@ export async function isOwnerDirected(turnId: string): Promise<boolean> {
       source: true,
       parentTurnId: true,
       askedByUserId: true,
+      requestedByUserId: true,
       chainDepth: true,
       chatMentionId: true,
     },
   });
   if (!turn) return false;
-  const ownerAsked = turn.askedByUserId === null && turn.chainDepth === 0;
+  // A shared bot runs as the member who asked, so their own request counts
+  // as the owner's; a teammate asking someone's personal bot does not.
+  const ownerAsked =
+    turn.chainDepth === 0 &&
+    (turn.askedByUserId === null ||
+      turn.askedByUserId === turn.requestedByUserId);
   return (
     ownerAsked &&
     (turn.parentTurnId !== null ||

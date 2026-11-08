@@ -109,7 +109,7 @@ import {
   tableMutationSchema,
   tableQuerySchema,
 } from "@sokosumi/utils";
-import { del, head, list, put } from "@vercel/blob";
+import { copy, del, head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
@@ -3920,8 +3920,11 @@ export class SokoBotRuntimeService {
     const named = folder
       ? drive.pathnameIn(folder, input.filename)
       : drive.pathname(input.filename);
+    const extension = /\.[a-z0-9]{1,8}$/i.exec(input.filename)?.[0] ?? "";
+    // A staging address: the signed PUT stays usable for minutes, so it must
+    // never be where Files keeps the file. saveWorkspaceFile copies it out.
     const grant = await createBlobUploadGrant({
-      pathname: withUniqueSuffix(named),
+      pathname: `soko-bot-staging/${authorized.turn.id}/${randomUUID()}${extension}`,
       contentType,
       maximumSizeInBytes: input.size,
       maxSizeBytes: SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES,
@@ -4013,7 +4016,8 @@ export class SokoBotRuntimeService {
   /**
    * Adds a file the sandbox uploaded through grantWorkspaceUpload to Files.
    * Only an address this turn was granted counts, and only with the type it
-   * was granted for.
+   * was granted for. The bytes are copied to a new address only Core writes,
+   * so replaying the upload link later changes nothing in Files.
    */
   private async saveWorkspaceFile(
     authorized: AuthorizedSokoBotRuntime,
@@ -4058,13 +4062,25 @@ export class SokoBotRuntimeService {
         `${input.workspacePath} did not finish uploading; try again`,
       );
     const drive = await this.ownerDrive(authorized);
-    const key = { ...drive.key, pathname: input.uploadedPathname };
+    const pathname = withUniqueSuffix(
+      grant.folder
+        ? drive.pathnameIn(grant.folder, grant.displayName)
+        : drive.pathname(grant.displayName),
+    );
+    const key = { ...drive.key, pathname };
     await reserveDriveUploadResource({
       key,
       displayName: grant.displayName,
       mimeType: grant.contentType,
       sizeBytes: blob.size,
     });
+    await copy(input.uploadedPathname, pathname, {
+      access: "public",
+      contentType: grant.contentType,
+      addRandomSuffix: false,
+      allowOverwrite: false,
+    });
+    await del(input.uploadedPathname).catch(() => undefined);
     const activated = await activateDriveUploadResource({
       key,
       sizeBytes: blob.size,
