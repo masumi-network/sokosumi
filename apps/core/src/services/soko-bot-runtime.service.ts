@@ -3987,7 +3987,8 @@ export class SokoBotRuntimeService {
     try {
       voiceover = await speakVoiceover(input);
     } catch (error) {
-      throw new SokoBotRuntimeValidationError(
+      // Nothing was saved, so the attempt failed rather than went missing.
+      throw new SokoBotRefusedUnsentError(
         error instanceof Error ? error.message : "The voice-over failed",
       );
     }
