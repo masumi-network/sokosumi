@@ -364,6 +364,14 @@ export function normalizeGa4Statistics(
   };
 }
 
+type GscRow = z.infer<typeof gscReportSchema>["rows"][number];
+/** A day or period with no impressions has no CTR or position; Search Console reports 0 there. */
+function gscValue(row: GscRow, name: (typeof GSC_METRICS)[number]["name"]) {
+  return (name === "ctr" || name === "position") && row.impressions === 0
+    ? null
+    : row[name];
+}
+
 export function normalizeGscStatistics(
   query: NativeStatisticsQuery,
   periodInput: unknown,
@@ -409,10 +417,13 @@ export function normalizeGscStatistics(
       key: metric.name,
       label: metric.label,
       unit: metric.unit,
-      value: period.rows[0]?.[metric.name] ?? null,
+      value: period.rows[0] ? gscValue(period.rows[0], metric.name) : null,
       points: [...daily.rows]
         .sort((a, b) => a.keys[0].localeCompare(b.keys[0]))
-        .map((row) => ({ date: row.keys[0], value: row[metric.name] })),
+        .map((row) => ({
+          date: row.keys[0],
+          value: gscValue(row, metric.name),
+        })),
     })),
   };
 }

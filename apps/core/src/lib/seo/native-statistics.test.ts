@@ -217,6 +217,49 @@ describe("native SEO statistics", () => {
     expect(result.timeZone).toBe("America/Los_Angeles");
   });
 
+  it("leaves CTR and position unmeasured on a Search Console day without impressions", () => {
+    const daily = {
+      rows: [
+        {
+          keys: ["2026-01-01"],
+          clicks: 0,
+          impressions: 0,
+          ctr: 0,
+          position: 0,
+        },
+        {
+          keys: ["2026-01-02"],
+          clicks: 1,
+          impressions: 4,
+          ctr: 0.25,
+          position: 2,
+        },
+      ],
+    };
+    const result = normalizeGscStatistics(
+      { ...query, provider: "search_console" },
+      { rows: [{ clicks: 0, impressions: 0, ctr: 0, position: 0 }] },
+      daily,
+      "2026-01-03T00:00:00.000Z",
+    );
+    const metric = (key: string) =>
+      result.metrics.find((row) => row.key === key);
+    expect(metric("position")?.value).toBeNull();
+    expect(metric("ctr")?.value).toBeNull();
+    expect(metric("impressions")?.value).toBe(0);
+    expect(metric("position")?.points.map((point) => point.value)).toEqual([
+      null,
+      2,
+    ]);
+    expect(metric("ctr")?.points.map((point) => point.value)).toEqual([
+      null,
+      0.25,
+    ]);
+    expect(metric("clicks")?.points.map((point) => point.value)).toEqual([
+      0, 1,
+    ]);
+  });
+
   it("pins exact page filters and organic channel before a native query", () => {
     const args = ga4StatisticsArguments(
       { ...query, channel: "organic" },
