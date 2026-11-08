@@ -10644,7 +10644,12 @@
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
         "checkDetails": "Prüfdetails",
-        "diagnostics": "Messwerte und Hinweise"
+        "diagnostics": "Messwerte und Hinweise",
+        "perDay": "{metric} pro Tag",
+        "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
+        "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
+        "dailyValues": "Tageswerte",
+        "day": "Tag"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -11048,7 +11053,8 @@
         },
         "researchCompetitors": "Wettbewerber recherchieren"
       },
-      "scopeFilters": "Seiten und Filter"
+      "scopeFilters": "Seiten und Filter",
+      "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}."
     }
   },
   "Share": {

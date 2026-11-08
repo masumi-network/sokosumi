@@ -10644,7 +10644,12 @@
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
         "checkDetails": "Detalles de las comprobaciones",
-        "diagnostics": "Mediciones y notas"
+        "diagnostics": "Mediciones y notas",
+        "perDay": "{metric} por día",
+        "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
+        "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
+        "dailyValues": "Valores diarios",
+        "day": "Día"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11048,7 +11053,8 @@
         },
         "researchCompetitors": "Investigar competidores"
       },
-      "scopeFilters": "Páginas y filtros"
+      "scopeFilters": "Páginas y filtros",
+      "unmeasuredColumns": "Aún no medido para estas filas: {columns}."
     }
   },
   "Share": {

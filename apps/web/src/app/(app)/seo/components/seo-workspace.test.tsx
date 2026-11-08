@@ -394,9 +394,10 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-metric-engagement_rate")).toHaveTextContent(
       "25%",
     );
-    const trend = screen.getByRole("figure", { name: "Engagement rate" });
-    expect(within(trend).getByTitle("Jan 1: 25%")).toBeInTheDocument();
-    expect(within(trend).getByText("Jan 1: 25%")).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: "Jan 1 25%" })).toBeInTheDocument();
+    const trend = screen.getByRole("group", { name: "Engagement rate" });
+    act(() => trend.focus());
+    expect(within(trend).getByRole("status")).toHaveTextContent("Jan 1 · 25%");
   });
 
   it("reopens statistics with the saved source and property instead of restarting setup", async () => {

@@ -10644,7 +10644,12 @@
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
         "checkDetails": "Check details",
-        "diagnostics": "Measurements and notes"
+        "diagnostics": "Measurements and notes",
+        "perDay": "{metric} per day",
+        "chartHint": "Use the left and right arrow keys to move between days.",
+        "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
+        "dailyValues": "Daily values",
+        "day": "Day"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -11048,7 +11053,8 @@
         },
         "researchCompetitors": "Research competitors"
       },
-      "scopeFilters": "Pages and filters"
+      "scopeFilters": "Pages and filters",
+      "unmeasuredColumns": "Not measured for these rows yet: {columns}."
     }
   },
   "Share": {

@@ -6,7 +6,6 @@ import type {
 } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-import { DailyBarChart } from "@/components/performance/daily-bar-chart";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -17,6 +16,7 @@ import {
   latestSeoMeasurements,
   type SeoStatisticsProvider,
 } from "./seo-statistics-model";
+import { SeoTrendChart } from "./seo-trend-chart";
 
 export function SeoMeasurements({
   workspace,
@@ -130,11 +130,17 @@ export function SeoMeasurements({
                 )}
                 onClick={() => setMetric(metric.id)}
               >
-                <span className="text-muted-foreground text-xs font-normal">
+                <span className="text-muted-foreground flex items-center gap-2 text-xs font-normal">
+                  {active.id === metric.id ? (
+                    <span
+                      aria-hidden
+                      className="bg-chart-1 h-0.5 w-3 shrink-0 rounded-full"
+                    />
+                  ) : null}
                   {label(metric)}
                 </span>
                 <span
-                  className="text-2xl font-semibold tabular-nums"
+                  className="text-2xl font-semibold"
                   data-testid={`seo-metric-${metric.key}`}
                 >
                   {value(metric)}
@@ -143,11 +149,15 @@ export function SeoMeasurements({
             ))}
           </div>
           <div className="space-y-3">
-            <p className="text-sm font-medium">{t("overview.dailyTrend")}</p>
+            <p className="text-sm font-medium">
+              {t("overview.perDay", { metric: label(active) })}
+            </p>
             {active.points.length ? (
-              <DailyBarChart
+              <SeoTrendChart
+                key={active.id}
                 label={label(active)}
                 points={active.points}
+                unit={active.unit}
                 unavailable={t("none")}
                 formatValue={(point) => measuredValue(point, active.unit)}
               />
