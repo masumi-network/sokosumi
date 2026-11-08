@@ -1,6 +1,14 @@
 import { spawn } from "node:child_process";
-import { appendFile, glob, mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  glob,
+  mkdir,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
+import { SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { urlsIn } from "../lib/soko-bot/citations";
 
@@ -127,6 +135,34 @@ export async function readWorkspaceFile(input: {
     content: text.slice(offset, offset + limit),
     totalChars: text.length,
   };
+}
+
+/** A workspace file's bytes for upload_file, refused when too big to save. */
+export async function readWorkspaceUpload(relative: string): Promise<Buffer> {
+  const file = workspacePath(relative);
+  const { size } = await stat(file);
+  if (size > SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES)
+    throw new Error(
+      `${relative} is ${(size / 1e6).toFixed(1)} MB; upload_file takes up to ${SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES / 1e6} MB. Re-encode it smaller (lower resolution, -crf 28) and try again.`,
+    );
+  if (size === 0) throw new Error(`${relative} is empty`);
+  return readFile(file);
+}
+
+/** Writes downloaded bytes into the workspace, refusing more than the limit. */
+export async function saveDownloadToWorkspace(
+  relative: string,
+  response: Response,
+): Promise<{ path: string; bytes: number }> {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.byteLength > SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES)
+    throw new Error(
+      `The file is over ${SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES / 1e6} MB`,
+    );
+  const target = workspacePath(relative);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, bytes);
+  return { path: relative, bytes: bytes.byteLength };
 }
 
 export async function writeWorkspaceFile(input: {

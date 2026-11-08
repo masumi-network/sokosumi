@@ -54,6 +54,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "get_image",
   "generate_video",
   "get_video",
+  "generate_voiceover",
   "list_skills",
   "install_skill",
   "remove_skill",
@@ -61,14 +62,20 @@ export const SOKO_BOT_CAPABILITIES = [
   "write_table_rows",
   "update_table_columns",
   "search_contacts",
+  "count_contacts",
   "get_contact",
   "list_contact_lists",
+  "search_companies",
+  "get_company",
   "find_contact_duplicates",
   "upsert_contact",
   "update_contact",
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "update_company",
+  "bulk_update_contacts",
+  "export_contacts_to_table",
   "find_people",
   "enrich_contact",
   "create_project",
@@ -143,6 +150,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_background_runs",
   "stop_background_run",
   "wait_for",
+  "workspace_import_file",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -220,6 +228,7 @@ export const SOKO_BOT_SANDBOX_CAPABILITIES = [
   "workspace_search",
   "update_plan",
   "run_subagent",
+  "workspace_import_file",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotSandboxCapability(
@@ -263,6 +272,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "update_newsletter_subscriber",
   "remove_newsletter_subscriber",
   "generate_video",
+  // Spends the owner's money on words a page could have written.
+  "generate_voiceover",
   "post_chat",
   "open_direct_chat",
   // The question is a prompt for a Coworker; a page must not write it.
@@ -291,13 +302,26 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
  * The tainted tools that stay refused even on work the owner asked for: they
  * reach people or systems beyond the owner's own workspace. The rest — briefing
  * a Coworker, hiring, saving to Files — is what a chained job the owner set
- * out ("research, build the site, have it reviewed") is made of.
+ * out ("research, build the site, have it reviewed") is made of. Social posts
+ * are neither: see SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES.
  */
+/**
+ * The one Social tool a tainted turn may still use on work the owner asked
+ * for: "research the launch, cut a video and schedule it" is one piece of
+ * work, done as one new post carrying its words, media and time. The post
+ * waits for a person's approval. Changing, rescheduling, cancelling or
+ * publishing a post stay refused (see the outward list): a script in the
+ * turn can call these tools too, and an approved post must not change
+ * under it.
+ */
+export const SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES = [
+  "create_social_post",
+] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
+
 export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "run_integration_tool",
   "post_chat",
   "open_direct_chat",
-  "create_social_post",
   "update_social_post",
   "schedule_social_post",
   "cancel_social_post",
@@ -332,8 +356,11 @@ const DIRECT_READ_CAPABILITIES = [
   "list_tables",
   "read_table",
   "search_contacts",
+  "count_contacts",
   "get_contact",
   "list_contact_lists",
+  "search_companies",
+  "get_company",
   "find_contact_duplicates",
   "list_integrations",
   "find_integrations",
@@ -426,6 +453,9 @@ const CONTACT_WRITE_CAPABILITIES = [
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "update_company",
+  "bulk_update_contacts",
+  "export_contacts_to_table",
   "find_people",
   "enrich_contact",
 ] as const satisfies readonly SokoBotCapability[];
@@ -463,6 +493,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "save_email_attachment",
   "generate_image",
   "generate_video",
+  "generate_voiceover",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -637,6 +668,7 @@ export function capabilitiesForClassification(
       "save_email_attachment",
       "generate_image",
       "generate_video",
+      "generate_voiceover",
       "wait_for",
       "create_table",
       "write_table_rows",

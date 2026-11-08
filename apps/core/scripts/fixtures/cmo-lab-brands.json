@@ -84,9 +84,8 @@
     "name": "Blue Bottle Coffee",
     "url": "https://bluebottlecoffee.com/",
     "goal": "Launch something: our new holiday blend, online and in cafes from 20 November",
-    "main": "holiday blend",
-    "brain": "coffee",
-    "why": "a named launch wins",
+    "main": "coffee",
+    "why": "owners no longer state a goal: the plan sells the coffee, not a launch it was never told about",
     "contentLanguage": "english"
   },
   {
@@ -124,9 +123,8 @@
     "url": "https://hiltl.ch/",
     "goal": "Mehr Gäste",
     "main": "vegetar|vegan|restaurant|hiltl",
-    "why": "local restaurant, German goal: German plan and German posts",
-    "contentLanguage": "german|deutsch",
-    "planLanguage": "\\b(und|mit|für|der|die|das|mehr|gäste)\\b"
+    "why": "local restaurant with a German site: German posts, whatever language the owner plans in",
+    "contentLanguage": "german|deutsch"
   },
   {
     "name": "Apple",

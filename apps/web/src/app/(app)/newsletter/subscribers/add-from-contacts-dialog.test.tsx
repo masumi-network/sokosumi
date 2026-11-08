@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: { list: mocks.list, lists: mocks.lists },
 }));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: { session: { activeOrganizationId: "org-1" }, user: { id: "u-1" } },
+  }),
+}));
 vi.mock("@/lib/actions/newsletter/subscribers", () => ({
   addNewsletterSubscribersFromContacts: mocks.add,
 }));
@@ -71,6 +76,7 @@ const ADA: Contact = {
       source: "MANUAL",
       sourceUrl: null,
       verified: false,
+      followers: null,
       createdAt: new Date(),
     },
   ],

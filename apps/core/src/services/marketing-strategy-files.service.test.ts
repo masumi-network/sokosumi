@@ -196,6 +196,27 @@ describe("reading a written piece", () => {
     expect(marketingPieceText("No title here")).toBe("No title here");
   });
 
+  it("writes an article or page fix as its skill shapes it, with no second title", () => {
+    const article =
+      "Description: How long bread keeps.\n\n# How Long Does Bread Keep?\n\nThree days.";
+    expect(marketingPieceMarkdown({ title: "Bread", draft: article })).toBe(
+      `${article}\n`,
+    );
+    expect(
+      marketingPieceMarkdown({
+        title: "Fix",
+        draft: "Page: https://a.io/\nTitle: A",
+      }),
+    ).toBe("Page: https://a.io/\nTitle: A\n");
+  });
+
+  it("reads back a draft that starts with its own # title, title included", () => {
+    const draft = "# How Long Does Bread Keep?\n\nThree days.";
+    expect(
+      marketingPieceText(marketingPieceMarkdown({ title: "Bread", draft })),
+    ).toBe(draft);
+  });
+
   it("is null for a piece with no file, or a deleted one", async () => {
     findUnique.mockResolvedValueOnce(null);
     await expect(readMarketingPieceText(version, "seo-1")).resolves.toBeNull();

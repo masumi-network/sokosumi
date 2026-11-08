@@ -15,12 +15,16 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, useTransition } from "react";
 
+import { channelInfo } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
+import { outcomeLine } from "../strategy-reveal";
 import { CusoCursor } from "./cuso-cursor";
 import { Refusal } from "./refusal";
 
 type Work = NonNullable<CmoOverview["work"]>;
 type Step = Work["steps"][number];
+type Strategy = NonNullable<CmoOverview["strategy"]>;
+type Row = Omit<Step, "at">;
 
 const STEP_ICONS = {
   search: Search,
@@ -60,9 +64,78 @@ const RESEARCH_PHASES = [
 ] as const;
 
 const PLANNING_PHASES = [
-  { kinds: ["other"], label: "Your channels" },
-  { kinds: ["strategy"], label: "Four weeks, day by day" },
+  { kinds: [], label: "Your idea, channels and pillars" },
+  { kinds: [], label: "Four weeks, day by day" },
 ] as const;
+
+/**
+ * Planning as the founder can follow it: the plan's first save brings the
+ * idea, channels and pillars, then the calendar fills in. Cuso writes each
+ * save in one go, so the running row says what he is on.
+ */
+export function planningRows(
+  steps: Step[],
+  strategy: Strategy | null,
+  running: boolean,
+): Row[] {
+  const rows: Row[] = steps.filter((step) => step.kind !== "strategy");
+  if (strategy) {
+    const done = { status: "done", url: null } as const;
+    const idea = strategy.idea?.sentence ?? strategy.summary;
+    if (idea) rows.push({ ...done, id: "idea", kind: "strategy", label: idea });
+    const goal = outcomeLine(strategy);
+    if (goal) {
+      rows.push({
+        ...done,
+        id: "goal",
+        kind: "strategy",
+        label: `Goal: ${goal}`,
+      });
+    }
+    for (const channel of strategy.channels) {
+      rows.push({
+        ...done,
+        id: `channel:${channel.channel}`,
+        kind: "other",
+        label: `${channelInfo(channel.channel)?.name ?? channel.channel}, ${channel.cadence}`,
+      });
+    }
+    for (const pillar of strategy.pillars) {
+      rows.push({
+        ...done,
+        id: `pillar:${pillar.name}`,
+        kind: "brain",
+        label: `${pillar.name}: ${pillar.share}% of pieces`,
+      });
+    }
+  }
+  if (running) {
+    const pieces = strategy?.calendar.length ?? 0;
+    // On top, so what Cuso is on stays in view above the plan so far.
+    rows.unshift({
+      id: strategy ? "calendar" : "plan",
+      kind: "strategy",
+      label: !strategy
+        ? "Choosing your idea, channels and pillars"
+        : pieces > 0
+          ? `Writing four weeks, day by day: ${pieces} pieces so far`
+          : "Writing four weeks, day by day",
+      url: null,
+      status: "running",
+    });
+  }
+  return rows;
+}
+
+function planningPhase(
+  index: number,
+  planned: boolean,
+  running: boolean,
+): "done" | "now" | "next" {
+  if (index > 0 && !planned) return "next";
+  if (index === 0 && planned) return "done";
+  return running ? "now" : "done";
+}
 
 /**
  * A phase is done once a later one has started, even when Cuso skipped it
@@ -125,6 +198,9 @@ export function ResearchStep({
   const running = status === "running";
   const elapsed = useElapsed(work?.startedAt, running);
   const steps = work?.steps ?? [];
+  const rows: Row[] = planning
+    ? planningRows(steps, overview.strategy ?? null, running)
+    : steps;
   const site = host(overview.websiteUrl);
   const phases = planning ? PLANNING_PHASES : RESEARCH_PHASES;
   const sections =
@@ -164,14 +240,15 @@ export function ResearchStep({
               : asked
                 ? "Answer below and he finishes."
                 : planning
-                  ? "Your next four weeks: every post, ad, email and website change Cuso will make, and when. Ready in about a minute."
+                  ? "Your next four weeks: every post, ad, email and website change Cuso will make, and when. About two minutes."
                   : finished
                     ? "Your Brand Brain is ready. Check it, fix anything that's off, then he plans your month."
                     : "He reads your site, your reviews and your competitors. About three minutes."}
           </p>
         )}
         {running ? (
-          <p className="ob-elapsed">
+          // The server renders a second earlier than the browser hydrates.
+          <p className="ob-elapsed" suppressHydrationWarning>
             <Loader2 size={14} className="ob-spin" aria-hidden="true" />
             {elapsed < 60
               ? `${elapsed}s`
@@ -182,7 +259,9 @@ export function ResearchStep({
           {phases.map((phase, index) => {
             const state = finished
               ? "done"
-              : phaseState(steps, phases, index, running);
+              : planning
+                ? planningPhase(index, Boolean(overview.strategy), running)
+                : phaseState(steps, phases, index, running);
             return (
               <li key={phase.label} className={`ob-phase ${state}`}>
                 <span className="ob-phase-dot" aria-hidden="true">
@@ -221,14 +300,15 @@ export function ResearchStep({
           <span className={running ? "ob-live on" : "ob-live"} />
           {running ? "Live" : "What Cuso did"}
         </p>
-        {steps.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="ob-feed-empty">
             {running ? "Getting started…" : "Nothing yet."}
           </p>
         ) : (
           <ul className="ob-feed-list">
             <AnimatePresence initial={false}>
-              {[...steps].reverse().map((step) => {
+              {/* The plan reads top down, the idea first; research shows the newest step first. */}
+              {(planning ? rows : [...rows].reverse()).map((step, index) => {
                 const Icon = STEP_ICONS[step.kind];
                 return (
                   <motion.li
@@ -239,8 +319,10 @@ export function ResearchStep({
                     transition={{
                       duration: 0.25,
                       ease: [0.25, 1, 0.5, 1] as const,
+                      // A save brings several rows at once: they land in reading order.
+                      delay: planning ? Math.min(index, 12) * 0.12 : 0,
                     }}
-                    className={`ob-feed-item ${step.status}`}
+                    className={`ob-feed-item ${step.status}${step.id === "idea" ? " wrap" : ""}`}
                   >
                     <span className="ob-feed-icon" aria-hidden="true">
                       {step.url ? (

@@ -103,14 +103,23 @@ describe("CMO version", () => {
         "submit_newsletter_issue",
       ]),
     );
-    // A person starts and changes ads; contacts stay out.
+    // A person starts and changes ads, and changes contacts; Cuso reads
+    // them and keeps audience lists.
     for (const outside of [
       "create_ad_campaign",
       "update_ad_campaign",
-      "add_newsletter_subscribers_from_contacts",
-      "search_contacts",
+      "upsert_contact",
+      "update_contact",
+      "merge_contacts",
     ])
       expect(cmo.capabilities).not.toContain(outside);
+    for (const inside of [
+      "search_contacts",
+      "count_contacts",
+      "manage_contact_lists",
+      "add_newsletter_subscribers_from_contacts",
+    ])
+      expect(cmo.capabilities).toContain(inside);
   });
 
   it("dreams at night like every Soko Bot, pointing to his daily run", () => {

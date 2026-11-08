@@ -136,6 +136,7 @@ model Contact {
   activities            ContactActivity[]
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
+  search                ContactSearch?
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
@@ -162,6 +163,8 @@ model ContactChannel {
   source      ContactChannelSource @default(MANUAL)
   sourceUrl   String?
   verified    Boolean              @default(false)
+  /// Audience on this channel when known, e.g. X followers.
+  followers   Int?
   createdAt   DateTime             @default(now())
 
   @@unique([workspaceId, type, value])
@@ -393,4 +396,61 @@ model GeocodedPlace {
   createdAt DateTime @default(now())
 
   @@map("geocoded_place")
+}
+
+/// What Soko Bots and the Contacts search look a contact up by. SQL-only
+/// `contact_search_refresh` triggers on `contact` and `contact_channel` keep
+/// `document` (lowercased, unaccented name, organization, role, location,
+/// stage, about texts and channels) and `searchVector` current; Core only
+/// writes the embedding, for the document whose md5 is `embeddedHash`.
+model ContactSearch {
+  contactId    String                      @id @db.Uuid
+  contact      Contact                     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  workspaceId  String                      @db.Uuid
+  document     String
+  searchVector Unsupported("tsvector")?    @map("search_vector")
+  embedding    Unsupported("vector(768)")?
+  embeddedHash String?
+  updatedAt    DateTime                    @default(now())
+
+  @@index([workspaceId])
+  @@index([searchVector], type: Gin, map: "contact_search_search_vector_idx")
+  @@index([document(ops: raw("gin_trgm_ops"))], type: Gin, map: "contact_search_document_trgm_idx")
+  @@map("contact_search")
+}
+
+/// What the team knows about a company its contacts work at. Which contacts
+/// belong to it is worked out on read (email domain, then name, see
+/// `contactCompaniesCte`), so `key` names that group: `d:acme.com` or
+/// `n:acmerobotics`. The row holds facts people, bots and the background
+/// lookup add: one lookup per company domain, never per person.
+model ContactCompany {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  workspaceId   String    @db.Uuid
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  key           String
+  name          String
+  domain        String?
+  website       String?
+  description   String?
+  industry      String?
+  /// Headcount as written: "11-50", "about 200".
+  size          String?
+  headquarters  String?
+  linkedinUrl   String?
+  whyItMatters  String?
+  /// Every spelling its people have written (lowercase letters and digits),
+  /// kept after a rename so archived people are still found.
+  aliases       String[]  @default([])
+  /// When the background lookup last read the company's site; null queues it.
+  enrichedAt    DateTime?
+  /// Since when no live contact belongs to it: its lookup waits until one does.
+  inactiveSince DateTime?
+  version       Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, enrichedAt])
+  @@map("contact_company")
 }

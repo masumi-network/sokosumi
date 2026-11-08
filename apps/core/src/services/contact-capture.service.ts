@@ -48,17 +48,22 @@ import {
   MIN_PERSON_PROBABILITY,
 } from "@/lib/contacts/capture-judge";
 import {
+  contactNameKeys,
+  followerNameKey,
   isLikelyBot,
   type MatchContact,
   matchFollower,
   ownHost,
   parseXFollower,
-  personNameKey,
   X_FOLLOWER_FIELDS,
   type XFollower,
 } from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import {
+  enrichCompanies,
+  workspacesWithPendingCompanies,
+} from "@/services/contact-companies.service";
 import {
   type EnrichmentStats,
   emptyEnrichmentStats,
@@ -71,6 +76,10 @@ import {
   judgeWorkspaceImportance,
   refreshContactFamiliarity,
 } from "@/services/contact-scores.service";
+import {
+  embedStaleContacts,
+  workspacesWithStaleEmbeddings,
+} from "@/services/contact-search.service";
 import {
   addContactChannel,
   type ContactActor,
@@ -135,6 +144,11 @@ export interface CaptureLimits {
   importanceJudgmentsPerWorkspace: number;
   /** Workspaces whose queued contacts are enriched per run. */
   enrichmentWorkspaces: number;
+  /** Search documents embedded per workspace per run. */
+  embeddingsPerWorkspace: number;
+  /** Company websites read per workspace per run, and their model spend. */
+  companiesPerWorkspace: number;
+  companyUsdPerWorkspace: number;
   slackCallsPerRun: number;
   slackHistoryPagesPerConversation: number;
   /** A channel with more members is not a conversation. */
@@ -168,6 +182,9 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   enrichmentUsdPerWorkspace: 0.1,
   importanceJudgmentsPerWorkspace: 40,
   enrichmentWorkspaces: 10,
+  embeddingsPerWorkspace: 1_000,
+  companiesPerWorkspace: 15,
+  companyUsdPerWorkspace: 0.03,
   slackCallsPerRun: 60,
   slackHistoryPagesPerConversation: 5,
   slackSmallChannel: 8,
@@ -409,7 +426,18 @@ export class ContactCaptureService {
       this.limits.enrichmentWorkspaces,
     );
     const workspaceIds = [
-      ...new Set([...byWorkspace.keys(), ...pendingEnrichment]),
+      ...new Set([
+        ...byWorkspace.keys(),
+        ...pendingEnrichment,
+        ...(await workspacesWithStaleEmbeddings(
+          this.limits.enrichmentWorkspaces,
+        )),
+        ...(this.limits.companiesPerWorkspace > 0
+          ? await workspacesWithPendingCompanies(
+              this.limits.enrichmentWorkspaces,
+            )
+          : []),
+      ]),
     ];
     for (const workspaceId of workspaceIds) {
       if (!input.shouldContinue()) break;
@@ -451,6 +479,8 @@ export class ContactCaptureService {
     const stats = emptyStats();
     const enrichment = emptyEnrichmentStats();
     const importance: ImportanceStats = { judged: 0, failed: 0 };
+    const search = { embedded: 0, costUsd: 0, failed: false };
+    const companies = { looked: 0, filled: 0, costUsd: 0 };
     const budget: WorkspaceBudget = {
       captures: this.limits.capturesPerWorkspace,
       judgeCalls: this.limits.judgeCallsPerWorkspace,
@@ -486,6 +516,36 @@ export class ContactCaptureService {
         stats: importance,
         shouldContinue,
       });
+      // Last, and on their own: catching up never holds capture back.
+      if (shouldContinue())
+        Object.assign(
+          companies,
+          await enrichCompanies(workspaceId, {
+            limit: this.limits.companiesPerWorkspace,
+            usd: this.limits.companyUsdPerWorkspace,
+            shouldContinue,
+          }).catch((error: unknown) => {
+            console.error("Company lookup failed", {
+              workspaceId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return companies;
+          }),
+        );
+      if (shouldContinue())
+        Object.assign(
+          search,
+          await embedStaleContacts(workspaceId, {
+            limit: this.limits.embeddingsPerWorkspace,
+            shouldContinue,
+          }).catch((error: unknown) => {
+            console.error("Contact search embedding failed", {
+              workspaceId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return { embedded: 0, costUsd: 0, failed: true };
+          }),
+        );
     } catch (error) {
       stats.errors.push(error instanceof Error ? error.message : "unknown");
       console.error("Contact capture failed", {
@@ -517,6 +577,16 @@ export class ContactCaptureService {
           },
         },
         contactImportance: importance,
+        contactCompanies: {
+          looked: companies.looked,
+          filled: companies.filled,
+          costUsd: Math.round(companies.costUsd * 1e6) / 1e6,
+        },
+        contactSearch: {
+          embedded: search.embedded,
+          failed: search.failed,
+          costUsd: Math.round(search.costUsd * 1e6) / 1e6,
+        },
         contactEnrichment: {
           ...enrichment,
           costUsd: Math.round(enrichment.costUsd * 1e6) / 1e6,
@@ -1451,7 +1521,9 @@ export class ContactCaptureService {
       const followers = result.items.flatMap(
         (raw) => parseXFollower(raw) ?? [],
       );
-      if (!(await this.addXFollowers(context, followers, names))) return;
+      const done = await this.addXFollowers(context, followers, names);
+      await recordXFollowerCounts(context.actor.workspaceId, followers);
+      if (!done) return;
       cursor.followersToken = result.nextToken;
       // Only a finished walk waits a day; an unfinished one goes on next run.
       if (!result.nextToken) cursor.followsAt = context.now.toISOString();
@@ -1495,22 +1567,28 @@ export class ContactCaptureService {
     });
     if (open.length === 0) return true;
     const index = await names();
-    const ids = open.flatMap(
-      (follower) => index.get(personNameKey(follower.name ?? "") ?? "") ?? [],
-    );
-    const contacts: MatchContact[] =
-      ids.length === 0
-        ? []
-        : await prisma.contact.findMany({
-            where: { id: { in: ids }, channels: { none: { type: "X" } } },
-            select: {
-              id: true,
-              name: true,
-              organization: true,
-              location: true,
-              channels: { select: { type: true, value: true } },
-            },
-          });
+    const bucketOf = (follower: XFollower) =>
+      index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
+    const ids = [...new Set(open.flatMap(bucketOf))];
+    const byId = new Map<string, MatchContact>();
+    for (let start = 0; start < ids.length; start += 2_000)
+      for (const contact of await prisma.contact.findMany({
+        where: {
+          id: { in: ids.slice(start, start + 2_000) },
+          channels: { none: { type: "X" } },
+        },
+        select: {
+          id: true,
+          name: true,
+          organization: true,
+          location: true,
+          channels: { select: { type: true, value: true } },
+        },
+      }))
+        byId.set(contact.id, contact);
+    // Each follower against everyone sharing their name key, and no one else.
+    const candidates = (follower: XFollower) =>
+      bucketOf(follower).flatMap((id) => byId.get(id) ?? []);
     const list = await inContactTransaction((tx) =>
       ensureManualContactList(tx, actor, "X followers", CONTACT_LIST_COLORS[6]),
     );
@@ -1523,7 +1601,7 @@ export class ContactCaptureService {
         location: follower.location.slice(0, 200) || undefined,
         summary: follower.description || undefined,
       };
-      const match = matchFollower(follower, contacts);
+      const match = matchFollower(follower, candidates(follower));
       try {
         if (match) {
           await inContactTransaction(async (tx) => {
@@ -1594,6 +1672,29 @@ export class ContactCaptureService {
   }
 }
 
+/** Each follower's own audience on their X channel, whoever they are on. */
+async function recordXFollowerCounts(
+  workspaceId: string,
+  followers: readonly XFollower[],
+): Promise<void> {
+  const counted = followers.flatMap((follower) => {
+    const handle = normalizeContactChannelValue("X", follower.username);
+    return handle && follower.followers !== null
+      ? [{ handle, count: follower.followers }]
+      : [];
+  });
+  if (counted.length === 0) return;
+  await prisma.$executeRaw`
+    UPDATE "contact_channel" ch
+    SET "followers" = v.count
+    FROM unnest(${counted.map((c) => c.handle)}::text[], ${counted.map((c) => c.count)}::int[]) AS v(handle, count)
+    WHERE ch."workspaceId" = ${workspaceId}::uuid
+      AND ch."type" = 'X'
+      AND ch."value" = v.handle
+      AND ch."followers" IS DISTINCT FROM v.count
+  `;
+}
+
 /**
  * The workspace's people by first and last name, built with the same
  * normalization `matchFollower` uses, so every candidate and tie is seen.
@@ -1611,10 +1712,12 @@ async function personNameIndex(
     select: { id: true, name: true },
   });
   const index = new Map<string, string[]>();
-  for (const person of people) {
-    const key = personNameKey(person.name);
-    if (key) index.set(key, [...(index.get(key) ?? []), person.id]);
-  }
+  for (const person of people)
+    for (const key of contactNameKeys(person.name)) {
+      const ids = index.get(key);
+      if (ids) ids.push(person.id);
+      else index.set(key, [person.id]);
+    }
   return index;
 }
 

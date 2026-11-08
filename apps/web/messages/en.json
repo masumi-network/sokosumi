@@ -654,10 +654,12 @@
           "title": "{organization} is ready",
           "titleFallback": "You're all set",
           "subtitle": "Your organization is set up. Invite your team, or do it later.",
+          "linkLabel": "Invite link",
           "linkHint": "Anyone with this link can join as a member.",
           "copy": "Copy",
           "copied": "Copied",
           "regenerate": "Reset link",
+          "emailsLabel": "Invite by email (optional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
@@ -1032,6 +1034,7 @@
       },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
+      "files": "{count, plural, one {# file} other {# files}}",
       "assignee": "Assigned to",
       "project": "Project",
       "destination": "Account",
@@ -1757,7 +1760,13 @@
           "CANCELED": "Canceled"
         },
         "visibilityLabel": "Visibility",
-        "visibilityPrivate": "Private"
+        "visibilityPrivate": "Private",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clear": "Clear filters",
+        "noMatchesTitle": "No tasks match these filters",
+        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again."
       },
       "Detail": {
         "back": "Back to tasks",
@@ -10211,7 +10220,8 @@
         "add": "Add contact",
         "more": "More actions",
         "filter": "Filter",
-        "kind": "Type"
+        "kind": "Type",
+        "source": "Source"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -10239,6 +10249,17 @@
       "noMatches": "No contacts match these filters.",
       "clearFilters": "Clear filters",
       "merged": "Merged into {name}",
+      "duplicates": "{count, plural, =1 {1 possible duplicate} other {# possible duplicates}}",
+      "duplicatesMore": "{count}+ possible duplicates",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {No possible duplicates} =1 {1 possible duplicate} other {# possible duplicates}}",
+        "titleMore": "{count}+ possible duplicates",
+        "description": "These records share a name, or a surname and initial at the same company. Merge the ones that are one person; open a record to check first.",
+        "merge": "Merge",
+        "mergeGroup": "Merge the records for {name}",
+        "noDetails": "No email or company",
+        "empty": "Nothing left to merge."
+      },
       "deleteList": {
         "title": "Delete {name}?",
         "description": "The list goes away for the whole team. The people on it stay in Contacts.",
@@ -10270,7 +10291,9 @@
         "failed": "The list didn't save. Try again.",
         "cancel": "Cancel",
         "save": "Save",
-        "create": "Create list"
+        "create": "Create list",
+        "smart": "Keep it filled from the current filters",
+        "smartHint": "A smart list: whoever matches these filters is on it, now and later."
       },
       "addDialog": {
         "title": "Add contact",
@@ -10312,7 +10335,7 @@
         "title": "{count, plural, =2 {Merge 2 contacts} other {Merge # contacts}}",
         "description": "Pick the one to keep. Everything from the others moves onto it: channels, timeline and lists. Empty fields are filled from them.",
         "keep": "Keep",
-        "noDetails": "No role or organization",
+        "noDetails": "No email, role or organization",
         "interactions": "{count, plural, =0 {No interactions} =1 {1 interaction} other {# interactions}}",
         "failed": "The merge didn't finish. Nothing changed.",
         "cancel": "Cancel",
@@ -10569,6 +10592,59 @@
         "place": "{place}, {count, plural, one {# contact} other {# contacts}}",
         "nearby": "{place} and {others, plural, one {# place} other {# places}} nearby",
         "people": "{count, plural, one {# contact} other {# contacts}}"
+      },
+      "company": {
+        "loading": "Loading company…",
+        "edit": "Edit",
+        "whyItMatters": "Why it matters",
+        "people": "People",
+        "knownBy": "Known by",
+        "knownByLabel": "{count, plural, one {# teammate knows} other {# teammates know}} someone here",
+        "nobody": "Nobody yet",
+        "lastContact": "Last contact",
+        "never": "Never",
+        "warmth": "Relationship",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Cooling",
+          "cold": "Cold",
+          "none": "No contact yet"
+        },
+        "strongestStage": "Strongest stage",
+        "nextSteps": "Next steps",
+        "noNextSteps": "Nothing planned.",
+        "recent": "Latest touchpoints",
+        "noRecent": "No touchpoints yet.",
+        "someone": "Someone",
+        "editTitle": "Edit company",
+        "editDescription": "What the team knows about this company. Empty fields are filled from its website in the background.",
+        "nameRequired": "Give the company a name.",
+        "saveFailed": "The company could not be saved.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Industry",
+          "size": "Size",
+          "headquarters": "Headquarters",
+          "linkedinUrl": "LinkedIn",
+          "description": "About",
+          "whyItMatters": "Why it matters to us"
+        }
+      },
+      "overview": {
+        "label": "List overview",
+        "people": "{count, plural, one {# person} other {# people}}",
+        "quiet": "{count} not contacted in 90 days",
+        "map": "Show on map",
+        "stages": "Stage",
+        "companies": "Companies",
+        "places": "Places",
+        "knownBy": "Known by",
+        "none": "Not set",
+        "nobody": "Nobody yet",
+        "more": "and {count} more"
       }
     }
   },
@@ -10875,6 +10951,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
+      "laterHint": "Set it up any time from Soko Bots.",
       "skip": "Skip",
       "continue": "Continue"
     }
