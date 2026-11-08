@@ -35,6 +35,13 @@ function renderCreate() {
 }
 
 describe("CreateState", () => {
+  it("hides the mobile tab bar while the flow is open", () => {
+    const { unmount } = renderCreate();
+    expect(document.body.dataset.sokoBotCreating).toBe("true");
+    unmount();
+    expect(document.body.dataset.sokoBotCreating).toBeUndefined();
+  });
+
   it("asks for the name first, then the picture, with the steps shown", async () => {
     const user = userEvent.setup();
     renderCreate();
