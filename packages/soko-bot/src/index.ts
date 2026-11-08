@@ -153,6 +153,8 @@ export {
 } from "./scenarios.js";
 export {
   isSokoBotDecisionTarget,
+  SOKO_BOT_CONTACT_BREAKDOWNS,
+  SOKO_BOT_CONTACT_EXTRA_FIELDS,
   SOKO_BOT_EXA_CATEGORIES,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_TASK_STATUSES,
@@ -164,6 +166,7 @@ export {
   sokoBotAskCoworkerInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotContactIdInputSchema,
+  sokoBotCountContactsInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
   sokoBotDeleteFileInputSchema,

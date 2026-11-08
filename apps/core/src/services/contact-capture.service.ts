@@ -73,6 +73,10 @@ import {
   refreshContactFamiliarity,
 } from "@/services/contact-scores.service";
 import {
+  embedStaleContacts,
+  workspacesWithStaleEmbeddings,
+} from "@/services/contact-search.service";
+import {
   addContactChannel,
   type ContactActor,
   captureContactInteraction,
@@ -136,6 +140,8 @@ export interface CaptureLimits {
   importanceJudgmentsPerWorkspace: number;
   /** Workspaces whose queued contacts are enriched per run. */
   enrichmentWorkspaces: number;
+  /** Search documents embedded per workspace per run. */
+  embeddingsPerWorkspace: number;
   slackCallsPerRun: number;
   slackHistoryPagesPerConversation: number;
   /** A channel with more members is not a conversation. */
@@ -169,6 +175,7 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   enrichmentUsdPerWorkspace: 0.1,
   importanceJudgmentsPerWorkspace: 40,
   enrichmentWorkspaces: 10,
+  embeddingsPerWorkspace: 1_000,
   slackCallsPerRun: 60,
   slackHistoryPagesPerConversation: 5,
   slackSmallChannel: 8,
@@ -410,7 +417,13 @@ export class ContactCaptureService {
       this.limits.enrichmentWorkspaces,
     );
     const workspaceIds = [
-      ...new Set([...byWorkspace.keys(), ...pendingEnrichment]),
+      ...new Set([
+        ...byWorkspace.keys(),
+        ...pendingEnrichment,
+        ...(await workspacesWithStaleEmbeddings(
+          this.limits.enrichmentWorkspaces,
+        )),
+      ]),
     ];
     for (const workspaceId of workspaceIds) {
       if (!input.shouldContinue()) break;
@@ -452,6 +465,7 @@ export class ContactCaptureService {
     const stats = emptyStats();
     const enrichment = emptyEnrichmentStats();
     const importance: ImportanceStats = { judged: 0, failed: 0 };
+    const search = { embedded: 0, costUsd: 0, failed: false };
     const budget: WorkspaceBudget = {
       captures: this.limits.capturesPerWorkspace,
       judgeCalls: this.limits.judgeCallsPerWorkspace,
@@ -487,6 +501,21 @@ export class ContactCaptureService {
         stats: importance,
         shouldContinue,
       });
+      // Last, and on its own: search catching up never holds capture back.
+      if (shouldContinue())
+        Object.assign(
+          search,
+          await embedStaleContacts(workspaceId, {
+            limit: this.limits.embeddingsPerWorkspace,
+            shouldContinue,
+          }).catch((error: unknown) => {
+            console.error("Contact search embedding failed", {
+              workspaceId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return { embedded: 0, costUsd: 0, failed: true };
+          }),
+        );
     } catch (error) {
       stats.errors.push(error instanceof Error ? error.message : "unknown");
       console.error("Contact capture failed", {
@@ -518,6 +547,11 @@ export class ContactCaptureService {
           },
         },
         contactImportance: importance,
+        contactSearch: {
+          embedded: search.embedded,
+          failed: search.failed,
+          costUsd: Math.round(search.costUsd * 1e6) / 1e6,
+        },
         contactEnrichment: {
           ...enrichment,
           costUsd: Math.round(enrichment.costUsd * 1e6) / 1e6,
@@ -1452,7 +1486,9 @@ export class ContactCaptureService {
       const followers = result.items.flatMap(
         (raw) => parseXFollower(raw) ?? [],
       );
-      if (!(await this.addXFollowers(context, followers, names))) return;
+      const done = await this.addXFollowers(context, followers, names);
+      await recordXFollowerCounts(context.actor.workspaceId, followers);
+      if (!done) return;
       cursor.followersToken = result.nextToken;
       // Only a finished walk waits a day; an unfinished one goes on next run.
       if (!result.nextToken) cursor.followsAt = context.now.toISOString();
@@ -1599,6 +1635,29 @@ export class ContactCaptureService {
     }
     return true;
   }
+}
+
+/** Each follower's own audience on their X channel, whoever they are on. */
+async function recordXFollowerCounts(
+  workspaceId: string,
+  followers: readonly XFollower[],
+): Promise<void> {
+  const counted = followers.flatMap((follower) => {
+    const handle = normalizeContactChannelValue("X", follower.username);
+    return handle && follower.followers !== null
+      ? [{ handle, count: follower.followers }]
+      : [];
+  });
+  if (counted.length === 0) return;
+  await prisma.$executeRaw`
+    UPDATE "contact_channel" ch
+    SET "followers" = v.count
+    FROM unnest(${counted.map((c) => c.handle)}::text[], ${counted.map((c) => c.count)}::int[]) AS v(handle, count)
+    WHERE ch."workspaceId" = ${workspaceId}::uuid
+      AND ch."type" = 'X'
+      AND ch."value" = v.handle
+      AND ch."followers" IS DISTINCT FROM v.count
+  `;
 }
 
 /**

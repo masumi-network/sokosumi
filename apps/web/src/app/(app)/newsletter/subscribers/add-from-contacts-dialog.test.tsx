@@ -71,6 +71,7 @@ const ADA: Contact = {
       source: "MANUAL",
       sourceUrl: null,
       verified: false,
+      followers: null,
       createdAt: new Date(),
     },
   ],

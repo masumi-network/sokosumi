@@ -41,6 +41,10 @@ import {
   refreshContactFamiliarity,
   setContactImportance,
 } from "@/services/contact-scores.service";
+import {
+  type ContactSearchMode,
+  rankContacts,
+} from "@/services/contact-search.service";
 
 type Tx = Prisma.TransactionClient;
 type ContactDto = z.input<typeof contactSchema>;
@@ -187,6 +191,7 @@ function toContactDto(
       source: channel.source,
       sourceUrl: channel.sourceUrl,
       verified: channel.verified,
+      followers: channel.followers,
       createdAt: channel.createdAt,
     })),
     lists: row.listMemberships.map((membership) => ({
@@ -1218,6 +1223,37 @@ export function contactFilterWhere(
         ? { interactionCount: { gt: 0 } }
         : { interactionCount: 0 },
     );
+  if (filter.organization) {
+    const organization = filter.organization;
+    and.push({
+      OR: [
+        { organization: { contains: organization, mode: "insensitive" } },
+        {
+          channels: {
+            some: {
+              type: "EMAIL",
+              value: {
+                contains: `@${organization.replace(/^@/, "")}`,
+                mode: "insensitive",
+              },
+            },
+          },
+        },
+      ],
+    });
+  }
+  if (filter.location)
+    and.push({ location: { contains: filter.location, mode: "insensitive" } });
+  if (filter.role)
+    and.push({ role: { contains: filter.role, mode: "insensitive" } });
+  if (filter.channelSource)
+    and.push({ channels: { some: { source: filter.channelSource } } });
+  if (filter.minInteractions)
+    and.push({ interactionCount: { gte: filter.minInteractions } });
+  if (filter.minFollowers)
+    and.push({
+      channels: { some: { followers: { gte: filter.minFollowers } } },
+    });
   return and;
 }
 
@@ -1233,6 +1269,9 @@ type ContactSortField = (typeof CONTACT_SORT_FIELDS)[number];
 
 export interface ListContactsOptions {
   filter: ContactFilter;
+  /** Ranked search by words, typos and meaning; orders by relevance. */
+  query?: string;
+  mode?: ContactSearchMode;
   listId?: string;
   /** People at the company this name belongs to, by any spelling. */
   company?: string;
@@ -1304,6 +1343,7 @@ export async function listContacts(
   options: ListContactsOptions,
 ): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
   const where = await contactListWhere(actor, options);
+  if (options.query) return listContactsByQuery(actor, options, where);
   if (options.sort === "familiarity" || options.sort === "importance")
     return listContactsByScore(actor, options, where);
   const [rows, total] = await prisma.$transaction([
@@ -1321,6 +1361,66 @@ export async function listContacts(
     items: await contactDtos(page, prisma, actor.userId),
     total,
     nextCursor: rows.length > options.limit ? (page.at(-1)?.id ?? null) : null,
+  };
+}
+
+/**
+ * The ids `where` admits, or undefined when it admits every live contact of
+ * the workspace, so a search need not carry them.
+ */
+export async function contactIdsWhere(
+  options: Pick<
+    ListContactsOptions,
+    "filter" | "listId" | "company" | "archived"
+  >,
+  where: Prisma.ContactWhereInput,
+): Promise<string[] | undefined> {
+  const narrowed =
+    Object.values(options.filter).some((value) => value !== undefined) ||
+    !!options.listId ||
+    !!options.company ||
+    !!options.archived;
+  if (!narrowed) return undefined;
+  const rows = await prisma.contact.findMany({ where, select: { id: true } });
+  return rows.map((row) => row.id);
+}
+
+/** A page of the contacts that best match `options.query`, best first. */
+async function listContactsByQuery(
+  actor: ContactActor,
+  options: ListContactsOptions,
+  where: Prisma.ContactWhereInput,
+): Promise<{ items: ContactDto[]; total: number; nextCursor: string | null }> {
+  const ranked = await rankContacts(actor.workspaceId, options.query ?? "", {
+    ids: await contactIdsWhere(options, where),
+    mode: options.mode,
+    archived: options.archived,
+  });
+  const at = options.cursor
+    ? ranked.findIndex((entry) => entry.id === options.cursor)
+    : -1;
+  // The ranking moved under the cursor (a contact changed meanwhile):
+  // starting over would repeat the first pages.
+  if (options.cursor && at < 0)
+    throw unprocessableEntity(
+      "The search changed; run it again from the start",
+    );
+  const start = at + 1;
+  const ids = ranked
+    .slice(start, start + options.limit)
+    .map((entry) => entry.id);
+  const order = new Map(ids.map((id, index) => [id, index]));
+  const rows = (
+    await prisma.contact.findMany({
+      where: { id: { in: ids } },
+      include: CONTACT_INCLUDE,
+    })
+  ).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return {
+    items: await contactDtos(rows, prisma, actor.userId),
+    total: ranked.length,
+    nextCursor:
+      start + options.limit < ranked.length ? (ids.at(-1) ?? null) : null,
   };
 }
 

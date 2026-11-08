@@ -14364,6 +14364,44 @@ export const ContactListSchema = {
                         },
                         hasInteractions: {
                             type: 'boolean'
+                        },
+                        organization: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        location: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        role: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        channelSource: {
+                            type: 'string',
+                            enum: [
+                                'MANUAL',
+                                'EMAIL',
+                                'CALENDAR',
+                                'SLACK',
+                                'WEB_RESEARCH',
+                                'IMPORT',
+                                'OTHER',
+                                'X'
+                            ]
+                        },
+                        minInteractions: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 100000
+                        },
+                        minFollowers: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 1000000000
                         }
                     },
                     additionalProperties: false
@@ -14920,6 +14958,12 @@ export const ContactChannelSchema = {
         verified: {
             type: 'boolean'
         },
+        followers: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -14935,6 +14979,7 @@ export const ContactChannelSchema = {
         'source',
         'sourceUrl',
         'verified',
+        'followers',
         'createdAt'
     ]
 } as const;

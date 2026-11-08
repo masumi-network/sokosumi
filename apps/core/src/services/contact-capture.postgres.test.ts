@@ -98,6 +98,7 @@ function service(limits: Record<string, number> = {}) {
       backfillDays: 30,
       pagesPerIntegration: 20,
       enrichmentWorkspaces: 0,
+      embeddingsPerWorkspace: 0,
       ...limits,
     },
   });
@@ -1217,6 +1218,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       });
       expect(lena?.enrichedAt).not.toBeNull();
       expect(lena?.classifiedAt).not.toBeNull();
+      // Every follower's audience lands on their X channel, joined or new.
+      for (const person of [lena, nina])
+        expect(
+          person?.channels.find((channel) => channel.type === "X")?.followers,
+        ).toBe(80);
       expect(
         lena?.channels.map(({ type, value }) => `${type}:${value}`),
       ).toEqual(["X:lenafox", "WEBSITE:https://lenafox.com"]);
