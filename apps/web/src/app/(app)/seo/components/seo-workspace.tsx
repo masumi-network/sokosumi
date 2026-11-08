@@ -105,6 +105,13 @@ export function SeoWorkspace({
     !model.filters.from &&
     !model.filters.to &&
     model.data.availableActions.canEdit;
+  // Next steps on the Overview cover an Audit without actions; an empty Actions tab only disagreed with them.
+  const tabs = SEO_TABS.filter(
+    (tab) =>
+      tab !== "actions" ||
+      model.data.actions.length > 0 ||
+      model.filters.tab === "actions",
+  );
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -289,7 +296,7 @@ export function SeoWorkspace({
       >
         <div className="app-scrollbar w-fit max-w-full overflow-x-auto">
           <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-max")}>
-            {SEO_TABS.map((tab) => (
+            {tabs.map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}

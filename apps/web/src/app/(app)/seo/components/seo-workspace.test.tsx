@@ -1747,6 +1747,19 @@ describe("SEO workspace integration", () => {
     expect(within(panel).queryByText(/visible only to you/)).toBeNull();
   });
 
+  it("shows the Actions tab only once the Audit has actions", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.actions = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    expect(await screen.findByRole("tab", { name: "Overview" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Keywords" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "Actions" })).toBeNull();
+  });
+
   it("hides labels, notes and filters that cannot change anything without paid data", async () => {
     const workspace = seoTestWorkspace();
     workspace.availableActions.canUsePaidSearchData = false;

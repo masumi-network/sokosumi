@@ -10733,7 +10733,7 @@
         "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
         "opportunitiesTitle": "Sugerencias de los datos de búsqueda",
         "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
-        "noOpportunitiesBody": "La última comprobación no encontró nada que corregir y tus búsquedas de Search Console no dieron ninguna sugerencia. Añade más páginas o pregunta al agente SEO.",
+        "noOpportunitiesBody": "La última comprobación no encontró nada que corregir. El resumen muestra lo que el agente SEO sugiere a continuación.",
         "kind": {
           "fix": "Problema confirmado",
           "opportunity": "Sugerencia"

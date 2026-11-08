@@ -10733,7 +10733,7 @@
         "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
         "opportunitiesTitle": "Suggestions from search data",
         "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
-        "noOpportunitiesBody": "The last check found nothing to fix, and your Search Console searches gave no suggestion. Add more pages to check, or ask the SEO agent.",
+        "noOpportunitiesBody": "The last check found nothing to fix. The Overview lists what the SEO agent suggests next.",
         "kind": {
           "fix": "Confirmed issue",
           "opportunity": "Suggestion"

@@ -10733,7 +10733,7 @@
         "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
         "opportunitiesTitle": "Vorschläge aus Suchdaten",
         "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
-        "noOpportunitiesBody": "Die letzte Prüfung fand nichts zu beheben, und deine Search-Console-Suchanfragen ergaben keinen Vorschlag. Füge weitere Seiten hinzu oder frag den SEO-Agenten.",
+        "noOpportunitiesBody": "Die letzte Prüfung fand nichts zu beheben. Die Übersicht zeigt, was der SEO-Agent als Nächstes vorschlägt.",
         "kind": {
           "fix": "Bestätigtes Problem",
           "opportunity": "Vorschlag"
