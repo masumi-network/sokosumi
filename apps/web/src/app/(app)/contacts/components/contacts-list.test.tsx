@@ -47,6 +47,7 @@ const contact = (overrides: Partial<Contact>): Contact => ({
       source: "EMAIL",
       sourceUrl: null,
       verified: false,
+      followers: null,
       createdAt: new Date(),
     },
   ],

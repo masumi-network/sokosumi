@@ -4,6 +4,7 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { unprocessableEntity } from "@/helpers/error";
+import { breakDownContacts } from "@/services/contact-breakdown.service";
 import {
   createContactList,
   deleteContactList,
@@ -28,9 +29,11 @@ import {
 } from "@/services/contacts.service";
 
 type Tx = Prisma.TransactionClient;
+type ContactDto = Awaited<ReturnType<typeof listContacts>>["items"][number];
 
 export const CONTACT_READ_CAPABILITIES = [
   "search_contacts",
+  "count_contacts",
   "get_contact",
   "list_contact_lists",
   "find_contact_duplicates",
@@ -89,10 +92,22 @@ export async function runContactTool(
 
   switch (capability) {
     case "search_contacts": {
-      const { listId, archived, sort, direction, cursor, limit, ...filter } =
-        SOKO_BOT_TOOL_INPUT_SCHEMAS.search_contacts.parse(rawInput);
+      const {
+        query,
+        mode,
+        listId,
+        archived,
+        sort,
+        direction,
+        cursor,
+        limit,
+        fields,
+        ...filter
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.search_contacts.parse(rawInput);
       const page = await listContacts(actor, {
         filter,
+        query,
+        mode,
         listId,
         archived,
         sort,
@@ -100,11 +115,24 @@ export async function runContactTool(
         cursor,
         limit,
       });
+      const extra = new Set<string>(fields ?? []);
       return {
-        contacts: page.items,
+        contacts: page.items.map((contact) => compactContact(contact, extra)),
         total: page.total,
         nextCursor: page.nextCursor,
       };
+    }
+    case "count_contacts": {
+      const { query, mode, listId, by, top, ...filter } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.count_contacts.parse(rawInput);
+      return breakDownContacts(actor, {
+        filter,
+        query,
+        mode,
+        listId,
+        by,
+        top,
+      });
     }
     case "get_contact":
       return getContactDetail(
@@ -237,4 +265,43 @@ async function manageContactLists(
         (list) => list.id,
       );
   }
+}
+
+/**
+ * A contact as a search answers it: what tells people apart and reaches
+ * them, plus the `extra` fields asked for. Thousands of full contacts would
+ * flood a turn; get_contact reads one in full.
+ */
+function compactContact(contact: ContactDto, extra: ReadonlySet<string>) {
+  const pick = <K extends keyof ContactDto>(key: K) =>
+    extra.has(key) ? { [key]: contact[key] } : {};
+  return {
+    id: contact.id,
+    name: contact.name,
+    kind: contact.kind,
+    organization: contact.organization,
+    role: contact.role,
+    location: contact.location,
+    stage: contact.stage,
+    replyState: contact.replyState,
+    lastContactAt: contact.lastContactAt,
+    interactionCount: contact.interactionCount,
+    version: contact.version,
+    channels: extra.has("channelDetails")
+      ? contact.channels
+      : contact.channels.map(({ type, value, followers }) =>
+          followers === null ? { type, value } : { type, value, followers },
+        ),
+    lists: contact.lists.map((list) => list.name),
+    ...pick("summary"),
+    ...pick("whyInteresting"),
+    ...pick("nextStep"),
+    ...pick("followUpAt"),
+    ...pick("knownBy"),
+    ...pick("score"),
+    ...pick("customFields"),
+    ...pick("avatarUrl"),
+    ...pick("firstContactAt"),
+    ...pick("createdAt"),
+  };
 }

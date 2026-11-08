@@ -43,6 +43,8 @@ export const contactChannelSchema = z
     source: z.enum(CONTACT_CHANNEL_SOURCES).openapi("ContactChannelSource"),
     sourceUrl: z.string().nullable(),
     verified: z.boolean(),
+    /** Audience on this channel when known, e.g. X followers. */
+    followers: z.int().nullable(),
     createdAt: dateTimeSchema,
   })
   .openapi("ContactChannel");
@@ -307,6 +309,22 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   followUpDue: booleanQuery,
   hasChannel: contactChannelTypeSchema.optional(),
   hasInteractions: booleanQuery,
+  organization: z.string().trim().min(1).max(200).optional().openapi({
+    description: "Organization or company email domain contains this.",
+  }),
+  location: z.string().trim().min(1).max(200).optional(),
+  role: z.string().trim().min(1).max(200).optional(),
+  channelSource: z
+    .enum(CONTACT_CHANNEL_SOURCES)
+    .optional()
+    .openapi({ description: "Has a channel found there, e.g. X followers." }),
+  minInteractions: z.coerce.number().int().min(1).max(100_000).optional(),
+  minFollowers: z.coerce.number().int().min(1).max(1_000_000_000).optional(),
+  query: z.string().trim().min(1).max(300).optional().openapi({
+    description:
+      "Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.",
+  }),
+  mode: z.enum(["both", "words", "meaning"]).optional(),
   archived: booleanQuery,
   sort: z.enum(CONTACT_SORT_FIELDS).default("updatedAt"),
   direction: z.enum(["asc", "desc"]).optional(),

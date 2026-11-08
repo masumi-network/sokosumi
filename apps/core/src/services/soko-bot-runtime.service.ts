@@ -7589,6 +7589,7 @@ export class SokoBotRuntimeService {
         );
       }
       case "search_contacts":
+      case "count_contacts":
       case "get_contact":
       case "list_contact_lists":
       case "find_contact_duplicates":
