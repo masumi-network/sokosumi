@@ -45,22 +45,24 @@ export interface ContactBreakdownResult {
   otherGroups: number;
 }
 
+/** Which contacts: the same filter, list, company and query as a search. */
+export interface ContactSet {
+  filter: ContactFilter;
+  listId?: string;
+  company?: string;
+  archived?: boolean;
+  query?: string;
+  mode?: ContactSearchMode;
+}
+
 export async function breakDownContacts(
   actor: ContactActor,
-  options: {
-    filter: ContactFilter;
-    listId?: string;
-    company?: string;
-    query?: string;
-    mode?: ContactSearchMode;
-    by?: ContactBreakdown;
-    top?: number;
-  },
+  options: ContactSet & { by?: ContactBreakdown; top?: number },
 ): Promise<ContactBreakdownResult> {
   const ids = await matchingIds(actor, options);
   if (!options.by || ids.length === 0)
     return { total: ids.length, groups: [], otherGroups: 0 };
-  const groups = await groupsBy(actor, options.by, ids);
+  const groups = await groupsBy(actor, options.by, ids, options.archived);
   const top = options.top ?? 20;
   return {
     total: ids.length,
@@ -69,13 +71,41 @@ export async function breakDownContacts(
   };
 }
 
+/** Several breakdowns of one set, read once: a list overview. */
+export async function breakDownContactsBy(
+  actor: ContactActor,
+  options: ContactSet & { by: readonly ContactBreakdown[]; top?: number },
+): Promise<{
+  total: number;
+  breakdowns: ({ by: ContactBreakdown } & Omit<
+    ContactBreakdownResult,
+    "total"
+  >)[];
+}> {
+  const ids = await matchingIds(actor, options);
+  const top = options.top ?? 20;
+  const breakdowns = await Promise.all(
+    options.by.map(async (by) => {
+      const groups = ids.length
+        ? await groupsBy(actor, by, ids, options.archived)
+        : [];
+      return {
+        by,
+        groups: groups.slice(0, top),
+        otherGroups: Math.max(0, groups.length - top),
+      };
+    }),
+  );
+  return { total: ids.length, breakdowns };
+}
+
 /**
  * Every contact the filter, list and query admit: a query counts all its
  * matches, not just the best page of them.
  */
-async function matchingIds(
+export async function matchingIds(
   actor: ContactActor,
-  options: Parameters<typeof breakDownContacts>[1],
+  options: ContactSet,
 ): Promise<string[]> {
   const where = await contactListWhere(actor, options);
   if (!options.query)
@@ -85,6 +115,7 @@ async function matchingIds(
   const ranked = await rankContacts(actor.workspaceId, options.query, {
     ids: await contactIdsWhere(options, where),
     mode: options.mode,
+    archived: options.archived,
   });
   return ranked.map((entry) => entry.id);
 }
@@ -102,6 +133,7 @@ async function groupsBy(
   actor: ContactActor,
   by: ContactBreakdown,
   ids: string[],
+  archived?: boolean,
 ): Promise<ContactBreakdownGroup[]> {
   switch (by) {
     case "stage":
@@ -122,7 +154,7 @@ async function groupsBy(
     case "lastContact":
       return lastContactGroups(ids);
     case "list":
-      return listGroups(actor, ids);
+      return listGroups(actor, ids, archived);
     case "knownBy":
       return sorted(
         await prisma.$queryRaw<ContactBreakdownGroup[]>`
@@ -233,6 +265,7 @@ async function lastContactGroups(
 async function listGroups(
   actor: ContactActor,
   ids: string[],
+  archived?: boolean,
 ): Promise<ContactBreakdownGroup[]> {
   const lists = await prisma.contactList.findMany({
     where: { workspaceId: actor.workspaceId },
@@ -255,7 +288,11 @@ async function listGroups(
           count: manualCounts.get(list.id) ?? 0,
         };
       const members = await prisma.contact.findMany({
-        where: await contactListWhere(actor, { filter: {}, listId: list.id }),
+        where: await contactListWhere(actor, {
+          filter: {},
+          listId: list.id,
+          archived,
+        }),
         select: { id: true },
       });
       return {

@@ -4001,6 +4001,7 @@ export type ContactList = {
         hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
         hasInteractions?: boolean;
         organization?: string;
+        company?: string;
         location?: string;
         role?: string;
         channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
@@ -4332,6 +4333,19 @@ export type ContactCompanyDetail = {
             id: string;
             name: string;
         } | null;
+    }>;
+};
+
+export type ContactBreakdown = {
+    total: number;
+    breakdowns: Array<{
+        by: 'stage' | 'kind' | 'organization' | 'location' | 'role' | 'list' | 'knownBy' | 'channel' | 'source' | 'lastContact';
+        groups: Array<{
+            key: string | null;
+            label: string;
+            count: number;
+        }>;
+        otherGroups: number;
     }>;
 };
 
@@ -31178,6 +31192,7 @@ export type PostContactListsData = {
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
             organization?: string;
+            company?: string;
             location?: string;
             role?: string;
             channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
@@ -31463,6 +31478,7 @@ export type PatchContactListsByIdData = {
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
             organization?: string;
+            company?: string;
             location?: string;
             role?: string;
             channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
@@ -33924,6 +33940,165 @@ export type PatchContactsCompaniesByCompanyIdResponses = {
 };
 
 export type PatchContactsCompaniesByCompanyIdResponse = PatchContactsCompaniesByCompanyIdResponses[keyof PatchContactsCompaniesByCompanyIdResponses];
+
+export type GetContactsBreakdownData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
+        stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
+        archived?: 'true' | 'false';
+        by?: string;
+        top?: number;
+    };
+    url: '/contacts/breakdown';
+};
+
+export type GetContactsBreakdownErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsBreakdownError = GetContactsBreakdownErrors[keyof GetContactsBreakdownErrors];
+
+export type GetContactsBreakdownResponses = {
+    /**
+     * Breakdown
+     */
+    200: {
+        data: ContactBreakdown;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsBreakdownResponse = GetContactsBreakdownResponses[keyof GetContactsBreakdownResponses];
 
 export type GetContactsByIdData = {
     body?: never;

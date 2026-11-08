@@ -363,6 +363,11 @@ export const contactFilterSchema = z
     hasInteractions: z.boolean().optional(),
     /** Organization or company email domain contains this, e.g. "acme". */
     organization: z.string().trim().min(1).max(200).optional(),
+    /**
+     * People at the company this name belongs to: any spelling and the
+     * colleagues on its email domain, as the Companies filter shows them.
+     */
+    company: z.string().trim().min(1).max(200).optional(),
     /** Location contains this, e.g. "berlin" or "germany". */
     location: z.string().trim().min(1).max(200).optional(),
     /** Role contains this, e.g. "founder". */

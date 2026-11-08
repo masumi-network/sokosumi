@@ -1,6 +1,7 @@
 "use client";
 import type {
   Contact,
+  ContactChannelSource,
   ContactKind,
   ContactList,
   ContactReplyState,
@@ -24,6 +25,7 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
+  CONTACT_CHANNEL_SOURCES,
   CONTACT_KINDS,
   CONTACT_REPLY_STATES,
   CONTACT_SORTS,
@@ -34,6 +36,7 @@ import {
   defaultDirection,
   isContactPreset,
   matchesContactSearch,
+  smartFilterOf,
 } from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -78,6 +81,7 @@ import {
 } from "./contacts-toolbar";
 import { ContactsPresetTabs, ContactsViewMenus } from "./contacts-views-bar";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
@@ -138,6 +142,10 @@ export function ContactsWorkspace({
     parseAsStringLiteral(CONTACT_KINDS),
   );
   const [knownBy, setKnownBy] = useQueryState("knownBy");
+  const [source, setSource] = useQueryState(
+    "source",
+    parseAsStringLiteral(CONTACT_CHANNEL_SOURCES),
+  );
   const [sort, setSort] = useQueryState(
     "sort",
     parseAsStringLiteral(CONTACT_SORTS).withDefault("lastContactAt"),
@@ -165,7 +173,7 @@ export function ContactsWorkspace({
   const { teammates } = useTeammates();
   const lists = useContactLists();
   const organizations = useContactOrganizations(debouncedCompanySearch);
-  const filters: ContactFilters = { stage, replyState, kind, knownBy };
+  const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
   const query = contactQuery({
     view,
     company,
@@ -175,6 +183,17 @@ export function ContactsWorkspace({
     direction: direction ?? defaultDirection(sort),
   });
   const rows = useContactRows(query);
+  const smartFilter = smartFilterOf(
+    {
+      view,
+      company,
+      search: debouncedSearch,
+      ...filters,
+      sort,
+      direction: direction ?? defaultDirection(sort),
+    },
+    lists.data?.find((list) => list.id === view)?.kind,
+  );
   // Started here, not in the lazy map, so it runs beside the rows request.
   useContactMap(query, layout === "map");
   const loaded = rows.data?.pages.flatMap((page) => page.contacts) ?? [];
@@ -195,6 +214,7 @@ export function ContactsWorkspace({
     replyState: (value) => setReplyState(value as ContactReplyState | null),
     kind: (value) => setKind(value as ContactKind | null),
     knownBy: setKnownBy,
+    source: (value) => setSource(value as ContactChannelSource | null),
   };
   function clearFilters() {
     void setSearch(null);
@@ -432,6 +452,16 @@ export function ContactsWorkspace({
             {viewList.description}
           </p>
         ) : null}
+        {viewList && layout !== "map" ? (
+          <ListOverview
+            query={query}
+            onShowMap={() => {
+              void setLayout("map");
+              setSelected([]);
+            }}
+            onCompany={changeOrganization}
+          />
+        ) : null}
         {viewList?.kind === "manual" ? (
           <ListSuggestions key={viewList.id} list={viewList} />
         ) : null}
@@ -559,6 +589,7 @@ export function ContactsWorkspace({
       {dialog?.kind === "list" ? (
         <ContactListDialog
           list={dialog.list}
+          smartFilter={smartFilter}
           onClose={() => setDialog(null)}
           onSaved={(list) => {
             setDialog(null);

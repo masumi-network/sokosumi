@@ -101,6 +101,7 @@ describe("ContactsFilterBar", () => {
           replyState: "NO_REPLY",
           kind: null,
           knownBy: null,
+          source: null,
         }}
         onFilter={onFilter}
         teammates={[]}
