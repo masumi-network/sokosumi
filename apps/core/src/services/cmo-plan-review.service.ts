@@ -79,6 +79,14 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
     problems.push(
       "pace is missing: steady, active or all_in, why, and pieces a week.",
     );
+  if (strategy.measurement && !strategy.measurement.sourceOfTruth)
+    problems.push(
+      "measurement.sourceOfTruth is missing: the one place sales are counted (Shopify when connected, otherwise Google Analytics key events).",
+    );
+  if (strategy.measurement && !strategy.measurement.experiment)
+    problems.push(
+      "measurement.experiment is missing: the month's one test, with change, expect and judge.",
+    );
   const conversion = strategy.funnel.find(
     (stage) => stage.stage === "conversion",
   );
@@ -128,6 +136,17 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
     problems.push(...cadenceProblems(strategy.channels, pieces));
+    problems.push(...storyProblems(pieces));
+    const articles = pieces.filter(
+      (entry) => entry.channel === "seo" && entry.format === "article",
+    );
+    if (
+      articles.length >= 2 &&
+      !articles.some((entry) => COMPARISON_TITLE.test(entry.title))
+    )
+      problems.push(
+        `none of the ${articles.length} seo articles is a comparison page; make one "X vs Y" or "X alternative", with a competitor's name in the title.`,
+      );
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
@@ -135,6 +154,24 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       );
   }
   return problems;
+}
+
+const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
+
+/** LinkedIn rewards one real story; a month without them read as generic tips. */
+function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const missing = pieces.filter(
+    (entry) => entry.channel === "linkedin" && !entry.story,
+  );
+  if (missing.length === 0) return [];
+  return [
+    `${missing.length} LinkedIn pieces have no story (${missing
+      .slice(0, 3)
+      .map((entry) => entry.id)
+      .join(
+        ", ",
+      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells.`,
+  ];
 }
 
 /** "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
@@ -212,6 +249,11 @@ export function cmoDraftProblems(
       );
     else seen.set(start, entry.id);
   }
+  for (const entry of calendar)
+    if (entry.searchAd && !entry.searchAd.location)
+      problems.push(
+        `${entry.id}'s searchAd has no location; name the country or city the business serves, as Google names it.`,
+      );
   problems.push(...repeatedPhrases(drafted));
   problems.push(...nearDuplicates(drafted));
   return problems.slice(0, MAX_DRAFT_PROBLEMS);

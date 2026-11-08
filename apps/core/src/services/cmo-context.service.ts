@@ -64,6 +64,8 @@ export async function loadCmoMarketingContext(
     listCmoBrandPictures(cuso.projectId),
   ]);
   const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
+  // A month of reports covers the last four weekly reviews.
+  const reports = await listCmoReports(sokoBotId, REPORTS_READ);
   const context: MarketingContext = {
     business: {
       name: cuso.businessName,
@@ -125,6 +127,7 @@ export async function loadCmoMarketingContext(
                   hook: undefined,
                   visual: undefined,
                   visualFileIds: undefined,
+                  slides: undefined,
                   detailsStored: true,
                 }
               : {}),
@@ -132,13 +135,29 @@ export async function loadCmoMarketingContext(
           calendarTotal: strategy.calendar.length,
         }
       : null,
-    recentUpdates: (await listCmoReports(sokoBotId, 3)).map(
-      ({ previousVersionId: _previous, versionId: _version, ...update }) =>
-        update,
-    ),
+    recentUpdates: reports
+      .slice(0, 3)
+      .map(
+        ({ previousVersionId: _previous, versionId: _version, ...update }) =>
+          update,
+      ),
+    /** The last weekly reviews' calls and lessons, newest first: the next plan builds on them. */
+    weeklyLearnings: reports
+      .filter((report) => report.kind === "weekly")
+      .slice(0, WEEKLY_LEARNINGS)
+      .map((report) => ({
+        at: report.at.slice(0, 10),
+        verdict: report.verdict ?? null,
+        learnings: report.learnings ?? [],
+      })),
   };
   return fitCmoMarketingContext(context, now);
 }
+
+/** Weekly reviews whose learnings Cuso sees: about a month. */
+const WEEKLY_LEARNINGS = 4;
+/** Reports read to find them among the daily and production ones. */
+const REPORTS_READ = 60;
 
 /** Enough DESIGN.md for colours, fonts and type, as Image Studio reads it. */
 const CMO_DESIGN_MD_CHARS = 1_600;
@@ -214,6 +233,7 @@ export function fitCmoMarketingContext(
           draft: _draft,
           visual: _visual,
           visualFileIds: _files,
+          slides: _slides,
           ...entry
         }) => ({
           ...entry,

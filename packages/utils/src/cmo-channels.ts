@@ -28,7 +28,7 @@ export const CMO_CHANNELS = {
       },
       video: {
         name: "Short video",
-        what: "A vertical 10 to 15 second video Cuso makes, with a caption",
+        what: "A five-second vertical video made from a brand picture, with a caption",
         image: false,
         video: true,
       },
@@ -75,7 +75,7 @@ export const CMO_CHANNELS = {
       },
       reel: {
         name: "Reel",
-        what: "A vertical 10 to 15 second video Cuso makes",
+        what: "A five-second vertical video made from a brand picture",
         image: false,
         video: true,
       },
@@ -105,7 +105,7 @@ export const CMO_CHANNELS = {
       },
       reel: {
         name: "Reel",
-        what: "A vertical 10 to 15 second video Cuso makes",
+        what: "A five-second vertical video made from a brand picture",
         image: false,
         video: true,
       },
@@ -119,7 +119,7 @@ export const CMO_CHANNELS = {
     formats: {
       short: {
         name: "YouTube Short",
-        what: "A vertical 10 to 15 second video Cuso makes, with a title",
+        what: "A five-second vertical video made from a brand picture, with a title",
         image: false,
         video: true,
       },
