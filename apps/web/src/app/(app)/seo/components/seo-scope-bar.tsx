@@ -30,6 +30,11 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
   const [opened, setDatesOpen] = useState(Boolean(filters.from || filters.to));
   // An active date filter always shows, also when a link or Back sets it later.
   const datesOpen = opened || Boolean(filters.from || filters.to);
+  // Search Console is organic only; the traffic choice matters once Google Analytics data exists.
+  // A chosen channel always shows, so it can be cleared.
+  const channelMatters =
+    Boolean(filters.channel) ||
+    data.metrics.some((metric) => metric.source === "ga4");
   return (
     <div className="flex flex-wrap items-end gap-3">
       {canChoose || selected !== "all" ? (
@@ -64,23 +69,25 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
           </Select>
         </div>
       ) : null}
-      <div className="min-w-48 space-y-2">
-        <Label htmlFor="seo-channel">{t("statistics.channel")}</Label>
-        <SeoSelect
-          id="seo-channel"
-          value={filters.channel ?? "any"}
-          onValueChange={(value) => {
-            void setFilters({
-              channel: value === "all" || value === "organic" ? value : null,
-            });
-          }}
-          options={[
-            { value: "any", label: t("statistics.channelAny") },
-            { value: "all", label: t("statistics.channelAll") },
-            { value: "organic", label: t("statistics.channelOrganic") },
-          ]}
-        />
-      </div>
+      {channelMatters ? (
+        <div className="min-w-48 space-y-2">
+          <Label htmlFor="seo-channel">{t("statistics.channel")}</Label>
+          <SeoSelect
+            id="seo-channel"
+            value={filters.channel ?? "any"}
+            onValueChange={(value) => {
+              void setFilters({
+                channel: value === "all" || value === "organic" ? value : null,
+              });
+            }}
+            options={[
+              { value: "any", label: t("statistics.channelAny") },
+              { value: "all", label: t("statistics.channelAll") },
+              { value: "organic", label: t("statistics.channelOrganic") },
+            ]}
+          />
+        </div>
+      ) : null}
       {datesOpen ? (
         <PerformanceDateRange
           idPrefix="seo-period"

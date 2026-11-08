@@ -48,8 +48,10 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
     shown.intent ? null : t("keywords.intent"),
     shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
-  // Without paid search data these columns stay empty; say why once, not "yet".
+  // Without paid search data these columns can never fill, so nothing names them.
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
+  // A state label only helps when the list mixes tracked and found keywords.
+  const mixed = new Set(rows.map((row) => row.saved)).size > 1;
   const manyPages = model.data.scope.pageIds.length > 1;
   return (
     <div className="space-y-5">
@@ -72,7 +74,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
       <SeoSearchQueries model={model} />
       <SeoSection
         title={t("keywords.title")}
-        description={t("keywords.help")}
+        description={paidOff ? undefined : t("keywords.help")}
         actions={
           model.data.availableActions.canEdit ? (
             <Button size="sm" onClick={() => model.setDialog("keyword")}>
@@ -144,15 +146,17 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                               t("keywords.anyPage")}
                           </p>
                         ) : null}
-                        <div className="mt-1">
-                          <SeoState>
-                            {t(
-                              row.saved
-                                ? "keywords.saved"
-                                : "keywords.discovered",
-                            )}
-                          </SeoState>
-                        </div>
+                        {mixed ? (
+                          <div className="mt-1">
+                            <SeoState>
+                              {t(
+                                row.saved
+                                  ? "keywords.saved"
+                                  : "keywords.discovered",
+                              )}
+                            </SeoState>
+                          </div>
+                        ) : null}
                       </TableCell>
                       <TableCell data-label={t("keywords.market")}>
                         {row.countryCode} / {row.languageCode}
@@ -292,9 +296,9 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                 })}
               </TableBody>
             </Table>
-            {hidden.length ? (
+            {hidden.length && !paidOff ? (
               <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-                {t(paidOff ? "paidDataOff" : "unmeasuredColumns", {
+                {t("unmeasuredColumns", {
                   columns: format.list(hidden),
                 })}
               </p>

@@ -36,6 +36,9 @@ import {
 import { savedSeoStatistics, seoQueryPeriod } from "./seo-statistics-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
+/** Fewer queries than this read faster as rows than as position buckets. */
+export const SEO_BUCKET_MIN_QUERIES = 5;
+
 const SORT_COLUMNS: { key: SeoQuerySortKey; label: string }[] = [
   { key: "clicks", label: "queries.clicks" },
   { key: "impressions", label: "queries.impressions" },
@@ -132,56 +135,60 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
         </SeoEmpty>
       ) : rows.length ? (
         <>
-          <dl
-            aria-label={t("queries.buckets.label")}
-            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-2 pb-3 text-xs"
-          >
-            <span aria-hidden className="text-muted-foreground">
-              {t("queries.buckets.label")}:
-            </span>
-            {SEO_POSITION_BUCKETS.map((bucket) => (
-              <div key={bucket} className="flex items-baseline gap-1">
-                <dt className="text-muted-foreground">
-                  {t(`queries.buckets.${bucket}`)}
-                </dt>
-                <dd className="font-medium tabular-nums">
-                  {format.number(buckets[bucket])}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {rows.length >= SEO_BUCKET_MIN_QUERIES ? (
+            <dl
+              aria-label={t("queries.buckets.label")}
+              className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-2 pb-3 text-xs"
+            >
+              <span aria-hidden className="text-muted-foreground">
+                {t("queries.buckets.label")}:
+              </span>
+              {SEO_POSITION_BUCKETS.map((bucket) => (
+                <div key={bucket} className="flex items-baseline gap-1">
+                  <dt className="text-muted-foreground">
+                    {t(`queries.buckets.${bucket}`)}
+                  </dt>
+                  <dd className="font-medium tabular-nums">
+                    {format.number(buckets[bucket])}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
           {/* Stacked rows hide the sortable header on a phone; sort from here instead. */}
-          <div className="px-2 pb-3 sm:hidden">
-            <SeoField id="seo-query-sort" label={t("queries.sortBy")}>
-              <SeoSelect
-                id="seo-query-sort"
-                value={`${sort.key}:${sort.ascending ? "asc" : "desc"}`}
-                onValueChange={(value) => {
-                  const [key, direction] = value.split(":");
-                  setSort({
-                    key: key as SeoQuerySortKey,
-                    ascending: direction === "asc",
-                  });
-                }}
-                options={SORT_COLUMNS.flatMap((column) =>
-                  (["desc", "asc"] as const).map((direction) => ({
-                    value: `${column.key}:${direction}`,
-                    // A lower position is better, so say best and worst, not high and low.
-                    label: t(
-                      column.key === "averagePosition"
-                        ? direction === "asc"
-                          ? "queries.sortBest"
-                          : "queries.sortWorst"
-                        : direction === "desc"
-                          ? "queries.sortHighest"
-                          : "queries.sortLowest",
-                      { column: t(column.label) },
-                    ),
-                  })),
-                )}
-              />
-            </SeoField>
-          </div>
+          {rows.length > 1 ? (
+            <div className="px-2 pb-3 sm:hidden">
+              <SeoField id="seo-query-sort" label={t("queries.sortBy")}>
+                <SeoSelect
+                  id="seo-query-sort"
+                  value={`${sort.key}:${sort.ascending ? "asc" : "desc"}`}
+                  onValueChange={(value) => {
+                    const [key, direction] = value.split(":");
+                    setSort({
+                      key: key as SeoQuerySortKey,
+                      ascending: direction === "asc",
+                    });
+                  }}
+                  options={SORT_COLUMNS.flatMap((column) =>
+                    (["desc", "asc"] as const).map((direction) => ({
+                      value: `${column.key}:${direction}`,
+                      // A lower position is better, so say best and worst, not high and low.
+                      label: t(
+                        column.key === "averagePosition"
+                          ? direction === "asc"
+                            ? "queries.sortBest"
+                            : "queries.sortWorst"
+                          : direction === "desc"
+                            ? "queries.sortHighest"
+                            : "queries.sortLowest",
+                        { column: t(column.label) },
+                      ),
+                    })),
+                  )}
+                />
+              </SeoField>
+            </div>
+          ) : null}
           <div className={HOLDER_ITEM_CLASS}>
             <Table className={SEO_STACKED_TABLE_CLASS}>
               <TableHeader>

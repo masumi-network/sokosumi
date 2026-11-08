@@ -11087,7 +11087,6 @@
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
-      "paidDataOff": "Braucht bezahlte Suchdaten, die in diesem Workspace aus sind: {columns}.",
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren"
     }

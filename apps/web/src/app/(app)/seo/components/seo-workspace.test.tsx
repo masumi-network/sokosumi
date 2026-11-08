@@ -1747,6 +1747,42 @@ describe("SEO workspace integration", () => {
     expect(within(panel).queryByText(/visible only to you/)).toBeNull();
   });
 
+  it("hides labels, notes and filters that cannot change anything without paid data", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.keywords.push({
+      id: "saved-keyword",
+      keyword: "Stablecoins",
+      countryCode: "DE",
+      languageCode: "de",
+      pageUrl: workspace.pages[0].url,
+      targetPageId: workspace.pages[0].id,
+      saved: true,
+      priority: "medium",
+      version: 1,
+      source: "saved",
+      volume: null,
+      intent: null,
+      device: null,
+      position: null,
+      positionStatus: "unavailable",
+      checkedResults: null,
+      observedAt: null,
+      observationId: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=keywords");
+    expect(await screen.findByText("Stablecoins")).toBeVisible();
+    // Every row is tracked, paid columns can never fill, and no Analytics data exists.
+    expect(screen.queryByText("Tracked")).toBeNull();
+    expect(screen.queryByText(/Search volume/)).toBeNull();
+    expect(screen.queryByText(/Tracking a keyword is free/)).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
+  });
+
   it("explains organization statistics sharing before a sync", async () => {
     const workspace = {
       ...seoTestWorkspace(),

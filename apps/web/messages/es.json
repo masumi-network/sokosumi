@@ -11087,7 +11087,6 @@
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
-      "paidDataOff": "Necesita datos de búsqueda de pago, desactivados en este espacio de trabajo: {columns}.",
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora"
     }

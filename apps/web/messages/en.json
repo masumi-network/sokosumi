@@ -11087,7 +11087,6 @@
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",
-      "paidDataOff": "Needs paid search data, which is off in this workspace: {columns}.",
       "filterDates": "Filter by date",
       "syncNow": "Sync now"
     }

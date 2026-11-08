@@ -46,6 +46,15 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
     shown.domains ? null : t("competitors.domains"),
     shown.observed ? null : t("observed"),
   ].filter((label): label is string => label !== null);
+  const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
+  const state = (row: (typeof rows)[number]) =>
+    row.role === "page"
+      ? "competitors.yourPage"
+      : row.confirmed
+        ? "competitors.confirmed"
+        : "competitors.suggested";
+  // The section title already says "Competitors"; a label only helps when rows differ.
+  const mixed = new Set(rows.map(state)).size > 1;
   return (
     <SeoSection
       title={t("competitors.title")}
@@ -107,17 +116,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                 <TableRow key={row.id}>
                   <TableCell className="min-w-56 whitespace-normal">
                     <SeoPageLink url={row.url} />
-                    <div className="mt-1">
-                      <SeoState>
-                        {t(
-                          row.role === "page"
-                            ? "competitors.yourPage"
-                            : row.confirmed
-                              ? "competitors.confirmed"
-                              : "competitors.suggested",
-                        )}
-                      </SeoState>
-                    </div>
+                    {mixed ? (
+                      <div className="mt-1">
+                        <SeoState>{t(state(row))}</SeoState>
+                      </div>
+                    ) : null}
                     {row.exclusionReason ? (
                       <p className="text-muted-foreground mt-2 text-sm">
                         {row.exclusionReason}
@@ -207,14 +210,9 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               ))}
             </TableBody>
           </Table>
-          {hidden.length ? (
+          {hidden.length && !paidOff ? (
             <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-              {t(
-                model.data.availableActions.canUsePaidSearchData === true
-                  ? "unmeasuredColumns"
-                  : "paidDataOff",
-                { columns: format.list(hidden) },
-              )}
+              {t("unmeasuredColumns", { columns: format.list(hidden) })}
             </p>
           ) : null}
         </div>
