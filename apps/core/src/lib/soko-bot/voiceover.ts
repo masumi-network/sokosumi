@@ -41,6 +41,9 @@ function readTiming(
   return { text: text ?? word ?? character ?? "", start: begins, end: ends };
 }
 
+/** Answers fal gives before any model runs, so nothing is charged. */
+const UNBILLED_STATUSES = new Set([401, 403, 429]);
+
 /** The voice service said no, so nothing was made or charged. */
 export class VoiceoverRefusedError extends Error {}
 
@@ -78,9 +81,11 @@ export async function speakVoiceover(input: {
   if (!response.ok) {
     // fal's error says what was wrong with the request (a voice, the text).
     const detail = (await response.text().catch(() => "")).slice(0, 300);
-    throw new VoiceoverRefusedError(
-      `The voice service answered ${response.status}${detail ? `: ${detail}` : ""}`,
-    );
+    const message = `The voice service answered ${response.status}${detail ? `: ${detail}` : ""}`;
+    // A 422 may still be billed; server errors and turned-away calls are not.
+    throw UNBILLED_STATUSES.has(response.status) || response.status >= 500
+      ? new VoiceoverRefusedError(message)
+      : new Error(message);
   }
   const parsed = responseSchema.safeParse(await response.json());
   if (!parsed.success) throw new Error("The voice service sent no audio");

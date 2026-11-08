@@ -73,13 +73,22 @@ describe("speakVoiceover", () => {
     ]);
   });
 
-  it("says what the voice service refused", async () => {
+  it("says what the voice service refused, and that nothing was billed", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('{"detail":"busy"}', { status: 503 }),
+    );
+    const refused = speakVoiceover({ text: "Hi." });
+    await expect(refused).rejects.toThrow('503: {"detail":"busy"}');
+    await expect(refused).rejects.toBeInstanceOf(VoiceoverRefusedError);
+  });
+
+  it("does not call a 422 unbilled, since fal may charge it", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response('{"detail":"voice not found"}', { status: 422 }),
     );
-    const refused = speakVoiceover({ text: "Hi." });
-    await expect(refused).rejects.toThrow('422: {"detail":"voice not found"}');
-    await expect(refused).rejects.toBeInstanceOf(VoiceoverRefusedError);
+    const failed = speakVoiceover({ text: "Hi." });
+    await expect(failed).rejects.toThrow('422: {"detail":"voice not found"}');
+    await expect(failed).rejects.not.toBeInstanceOf(VoiceoverRefusedError);
   });
 
   it("does not call a failure after the voice was made a refusal", async () => {
