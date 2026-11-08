@@ -389,6 +389,7 @@ const baseLabels = {
   uploadingFiles: "Uploading {count} files",
   privateLabel: "Private",
   privateDescription: "Only you can see this.",
+  privateOtherPeopleHint: "Private tasks cannot go to other people.",
 };
 
 const coworkerOptions = [
@@ -705,13 +706,20 @@ describe("TaskForm", () => {
   });
 
   describe("copy of a Task", () => {
+    const bob = mockCoworkerOption({
+      id: "user-2",
+      slug: "bob@example.com",
+      name: "Bob",
+      kind: "user",
+    });
+
     function renderCopy(initialValues: Record<string, unknown>) {
       render(
         <TaskForm
           mode="create"
           showCancel={false}
           labels={baseLabels}
-          coworkerOptions={coworkerOptions}
+          coworkerOptions={[...coworkerOptions, bob]}
           projectOptions={projectOptions}
           initialValues={{
             copyOfTaskId: "source-task",
@@ -859,6 +867,63 @@ describe("TaskForm", () => {
       );
       expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
         "visibility",
+      );
+    });
+
+    it("never publishes a private copy by picking another person", async () => {
+      const user = userEvent.setup();
+      renderCopy({ assigneeId: "coworker-2", visibility: "PRIVATE" });
+
+      expect(
+        screen.getByText("Private tasks cannot go to other people."),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      expect(screen.getByRole("option", { name: "Bob" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      await user.click(screen.getByRole("option", { name: "Bob" }));
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeId: "coworker-2",
+          assigneeUserId: null,
+          visibility: "PRIVATE",
+        }),
+      );
+    });
+
+    it("assigns another person only after Private is turned off", async () => {
+      const user = userEvent.setup();
+      renderCopy({ assigneeId: "coworker-2", visibility: "PRIVATE" });
+
+      await user.click(screen.getByLabelText("Private"));
+      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      await user.click(screen.getByRole("option", { name: "Bob" }));
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ assigneeUserId: "user-2" }),
+      );
+      expect(vi.mocked(createTask).mock.calls[0]?.[0]).not.toHaveProperty(
+        "visibility",
+      );
+    });
+
+    it("still asks for Private when a private copy starts with another person", async () => {
+      const user = userEvent.setup();
+      renderCopy({ assigneeUserId: "user-2", visibility: "PRIVATE" });
+
+      await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+      // Core refuses a private Task for a teammate; it is never sent public.
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeUserId: "user-2",
+          visibility: "PRIVATE",
+        }),
       );
     });
 

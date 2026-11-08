@@ -437,6 +437,7 @@ export function CreateTaskModal({
             createAnother: t("createAnother"),
             privateLabel: t("privateLabel"),
             privateDescription: t("privateDescription"),
+            privateOtherPeopleHint: t("privateOtherPeopleHint"),
           }}
           coworkerOptions={coworkerOptions}
           projectOptions={resolvedProjectOptions}

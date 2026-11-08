@@ -66,7 +66,7 @@ export const createTaskRequestSchema = z
     tagSuggestionReceipt: z.string().max(4096).optional(),
     copyOfTaskId: z.uuid().optional().openapi({
       description:
-        "A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified.",
+        "A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.",
     }),
     name: z
       .string()
@@ -203,10 +203,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
-    const resolvedName = await resolveTaskName({
-      name: body.name,
-      description: body.description,
-    });
+    // A copy reads its source first: an unreadable source fails before any
+    // work, and a readable one gives the copy its name and tags, so a copy
+    // calls no model.
+    const copySource = body.copyOfTaskId
+      ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId)
+      : null;
+
+    const resolvedName = copySource
+      ? (body.name ?? copySource.name)
+      : await resolveTaskName({
+          name: body.name,
+          description: body.description,
+        });
 
     const shouldEnforceCreateGrant =
       isCoworkerAuthContext(authContext) && Boolean(authContext.context);
@@ -219,11 +228,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
 
-    // A copy takes the tags of a Task the caller can read, so it needs no
-    // classification of its own.
-    const copiedTags = body.copyOfTaskId
-      ? mapTaskTags(await requireTaskReadForRouteVars(c.var, body.copyOfTaskId))
-      : null;
+    const copiedTags = copySource ? mapTaskTags(copySource) : null;
 
     // Read after normal preparation so an in-flight composer evaluation can finish.
     // Only exact authored input is eligible; generated title/context are derived.

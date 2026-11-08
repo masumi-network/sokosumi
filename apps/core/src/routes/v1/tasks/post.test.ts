@@ -2467,5 +2467,80 @@ describe("POST /tasks inline tag classification failure modes", () => {
       expect(taskCreateMock).not.toHaveBeenCalled();
       expect(fetch).not.toHaveBeenCalled();
     });
+
+    it("names a copy without a name after its source, with no model call", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(jevAnswers(0.97))),
+      );
+      requireTaskReadForRouteVarsMock.mockResolvedValue({
+        id: sourceId,
+        name: "Weekly report",
+        automaticTags: ["research"],
+        manualTags: [],
+        rejectedTags: [],
+      });
+
+      const response = await createAppForMethod("api_key").request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, copyOfTaskId: sourceId }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      expect(generateTaskNameMock).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+      expect(taskCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: "Weekly report" }),
+        }),
+      );
+    });
+
+    it("refuses an unreadable source before naming anything", async () => {
+      vi.stubGlobal("fetch", vi.fn());
+      requireTaskReadForRouteVarsMock.mockRejectedValue(
+        notFound("Task not found"),
+      );
+
+      const response = await createAppForMethod("api_key").request(
+        "http://localhost/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, copyOfTaskId: sourceId }),
+        },
+      );
+
+      expect(response.status).toBe(404);
+      expect(generateTaskNameMock).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+      expect(taskCreateMock).not.toHaveBeenCalled();
+    });
+
+    it.each(["", "   "])(
+      "rejects a blank copy name %j before any work",
+      async (name) => {
+        vi.stubGlobal("fetch", vi.fn());
+
+        const response = await createAppForMethod("session").request(
+          "http://localhost/",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...body, name, copyOfTaskId: sourceId }),
+          },
+        );
+
+        expect(response.status).toBe(422);
+        expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+        expect(generateTaskNameMock).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+        expect(taskCreateMock).not.toHaveBeenCalled();
+      },
+    );
   });
 });

@@ -79941,7 +79941,7 @@ export type PostTasksData = {
     body?: {
         tagSuggestionReceipt?: string;
         /**
-         * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified.
+         * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
          */
         copyOfTaskId?: string;
         name?: string;

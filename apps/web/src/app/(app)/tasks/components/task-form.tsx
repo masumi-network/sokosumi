@@ -156,6 +156,8 @@ export interface TaskFormLabels {
   saveError: string;
   privateLabel?: string;
   privateDescription?: string;
+  /** Under the assignee picker of a Private copy. */
+  privateOtherPeopleHint?: string;
 }
 
 interface TaskFormInitialValues {
@@ -745,13 +747,14 @@ export function TaskForm({
           status === TaskStatus.QUEUED)
       ) {
         const createTaskHandler = onCreateTask ?? createTask;
-        const createPrivateUnassigned =
-          canCreatePrivateTask &&
-          isPrivate &&
-          !isOtherHumanAssignee(
-            assigneeFields.assigneeUserId,
-            session?.user.id,
-          );
+        const isOtherHuman = isOtherHumanAssignee(
+          assigneeFields.assigneeUserId,
+          session?.user.id,
+        );
+        // A copy never turns public on its own: with another person assigned
+        // it still asks for Private, and Core refuses instead of publishing.
+        const sendsPrivate =
+          canCreatePrivateTask && isPrivate && (!isOtherHuman || isCopy);
         const result = await createTaskHandler({
           ...(draftTags.tagSuggestionReceipt
             ? { tagSuggestionReceipt: draftTags.tagSuggestionReceipt }
@@ -760,10 +763,10 @@ export function TaskForm({
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
-          ...(createPrivateUnassigned
+          ...(sendsPrivate
             ? {
                 visibility: "PRIVATE" as const,
-                assigneeUserId: null,
+                ...(isOtherHuman ? {} : { assigneeUserId: null }),
               }
             : {}),
           context,
@@ -838,6 +841,7 @@ export function TaskForm({
   }, [
     draftTags.tagSuggestionReceipt,
     copyOfTaskId,
+    isCopy,
     description,
     isSaveDisabled,
     mode,
@@ -985,6 +989,9 @@ export function TaskForm({
       isQueuedSelectable,
     ],
   );
+  // While a copy is Private, other people cannot be picked: picking one must
+  // not publish it. Turning Private off first is the explicit choice.
+  const blocksOtherPeople = isCopy && canCreatePrivateTask && isPrivate;
   const showPrivateControl =
     mode === "create" &&
     canCreatePrivateTask &&
@@ -1158,9 +1165,18 @@ export function TaskForm({
                 }}
                 onSelect={handleCoworkerSelect}
                 isOptionDisabled={(option) =>
-                  isAssigneeLockedToAgent && option === "unassigned"
+                  option === "unassigned"
+                    ? isAssigneeLockedToAgent
+                    : blocksOtherPeople &&
+                      option.kind === "user" &&
+                      isOtherHumanAssignee(option.id, session?.user.id)
                 }
               />
+              {blocksOtherPeople && labels.privateOtherPeopleHint ? (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  {labels.privateOtherPeopleHint}
+                </p>
+              ) : null}
             </div>
           ) : showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">

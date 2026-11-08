@@ -2038,7 +2038,8 @@
         "createAnother": "Create another task",
         "close": "Close",
         "privateLabel": "Private",
-        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
       },
       "EditTask": {
         "title": "Edit task",
