@@ -216,6 +216,122 @@ export function nearDuplicatePost<T extends { text: string }>(
   return (closest as { other: T } | null)?.other ?? null;
 }
 
+/**
+ * A number with what makes it a claim: a currency before it, and after it a
+ * currency ("7,89 €"), a percent, a plus, a multiple or a size word. Digits
+ * inside a word ("Web3", "B2B") are not numbers.
+ */
+const STATED_NUMBER =
+  /(?<![\p{L}\p{N}.,'’])([$€£]\s?)?(\d+(?:[.,'’]\d+)*)(\s?%|\s(?:percent|prozent)\b|\s?[$€£]|\s(?:EUR|USD|CHF|GBP)\b|\+|[x×](?![\p{L}\p{N}])|(?:k|m|bn)(?![\p{L}\p{N}])|\s(?:thousand|million|billion|mio|mrd)\b)?/giu;
+const PERCENT = /%|percent|prozent/i;
+const MONEY = /[$€£]|EUR|USD|CHF|GBP/i;
+const TIMES = /[x×]/i;
+/**
+ * What a number counts. A claim matches a fact of its own kind, so "34%"
+ * does not pass for a Brand Brain's 34 titles; a price may also match a
+ * plain number, since a Brand Brain can give one without its currency.
+ */
+type NumberKind = "percent" | "money" | "times" | "count";
+const MATCHES: Record<NumberKind, readonly NumberKind[]> = {
+  percent: ["percent"],
+  money: ["money", "count"],
+  times: ["times"],
+  count: ["count"],
+};
+const SIZES: Record<string, number> = {
+  k: 1e3,
+  thousand: 1e3,
+  m: 1e6,
+  million: 1e6,
+  mio: 1e6,
+  bn: 1e9,
+  billion: 1e9,
+  mrd: 1e9,
+};
+const YEAR = /^(?:19|20)\d\d$/;
+/**
+ * A rounded large number still matches: "130,000" for a source's 130,412.
+ * A smaller one must match exactly, or "5x" would pass for a 4.8 rating.
+ */
+const ROUNDING = 0.05;
+const ROUNDED_FROM = 100;
+
+interface StatedNumber {
+  said: string;
+  value: number;
+  kind: NumberKind;
+  atLeast: boolean;
+  claim: boolean;
+}
+
+function numberKind(currency: string | undefined, unit: string): NumberKind {
+  if (PERCENT.test(unit)) return "percent";
+  if (currency || MONEY.test(unit)) return "money";
+  if (TIMES.test(unit)) return "times";
+  return "count";
+}
+
+function statedNumbers(text: string): StatedNumber[] {
+  return [...text.replace(LINK, " ").matchAll(STATED_NUMBER)].map((match) => {
+    const [said, currency, digits = "", unit = ""] = match;
+    const grouped = /^\d{1,3}(?:[.,'’]\d{3})+$/.test(digits);
+    const base = grouped
+      ? Number(digits.replaceAll(/[.,'’]/g, ""))
+      : Number.parseFloat(digits.replace(",", "."));
+    const size = SIZES[unit.trim().toLowerCase()] ?? 1;
+    const value = base * size;
+    return {
+      said: said.trim(),
+      value,
+      kind: numberKind(currency, unit),
+      atLeast: unit === "+",
+      claim: Boolean(currency || unit) || (value >= 100 && !YEAR.test(digits)),
+    };
+  });
+}
+
+function supports(stated: StatedNumber, claim: StatedNumber): boolean {
+  if (!MATCHES[claim.kind].includes(stated.kind)) return false;
+  const fact = stated.value;
+  if (claim.atLeast && fact >= claim.value && fact <= claim.value * 2)
+    return true;
+  if (claim.value < ROUNDED_FROM) return fact === claim.value;
+  return (
+    Math.abs(fact - claim.value) <=
+    ROUNDING * Math.max(Math.abs(fact), Math.abs(claim.value))
+  );
+}
+
+/**
+ * What a marketing month's pieces may state as fact: the Brand Brain and the
+ * plan's own words, but not its calendar, which the bot drafted itself. Null
+ * without a Brand Brain, when there is nothing to check against.
+ */
+export function marketingMonthFacts(
+  brandBrain: unknown,
+  plan: unknown,
+): string | null {
+  if (!brandBrain) return null;
+  const { calendar: _calendar, ...words } = (plan ?? {}) as Record<
+    string,
+    unknown
+  >;
+  return JSON.stringify([brandBrain, words]);
+}
+
+/**
+ * The first number a text states as fact (a price, a percent, a count of
+ * customers) that the facts do not give, or null. Small plain numbers ("3
+ * steps") and years are not claims; links are not read.
+ */
+export function unsupportedNumber(text: string, facts: string): string | null {
+  const known = statedNumbers(facts);
+  const claim = statedNumbers(text).find(
+    (stated) => stated.claim && !known.some((fact) => supports(fact, stated)),
+  );
+  return claim?.said ?? null;
+}
+
 /** Bold or italic look-alike letters: screen readers spell them, search misses them. */
 const FAKE_STYLED_LETTERS = /[\u{1D400}-\u{1D7FF}]/u;
 /** A paragraph longer than this is a wall of text on a phone. */

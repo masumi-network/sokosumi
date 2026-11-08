@@ -197,7 +197,10 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
-import { SOCIAL_POST_WRITING_GUIDES } from "@/lib/social-post-writing";
+import {
+  marketingMonthFacts,
+  SOCIAL_POST_WRITING_GUIDES,
+} from "@/lib/social-post-writing";
 import { readSocialProfile } from "@/lib/social-profile";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
@@ -5797,13 +5800,19 @@ export class SokoBotRuntimeService {
           // Once the plan runs, the drafts are checked against the copy rules,
           // a filed piece's words as sent (the calendar holds only its file).
           const draftProblems = approved
-            ? cmoDraftProblems([
-                ...calendar,
-                ...(sent.calendar ?? []).filter(
-                  (entry) =>
-                    isMarketingFilePiece(entry) && Boolean(entry.draft),
+            ? cmoDraftProblems(
+                [
+                  ...calendar,
+                  ...(sent.calendar ?? []).filter(
+                    (entry) =>
+                      isMarketingFilePiece(entry) && Boolean(entry.draft),
+                  ),
+                ],
+                marketingMonthFacts(
+                  (await getBrandBrain(saved.projectId))?.body,
+                  stored,
                 ),
-              ])
+              )
             : [];
           const written = (entry: (typeof calendar)[number]) =>
             Boolean(entry.draft || entry.fileId);

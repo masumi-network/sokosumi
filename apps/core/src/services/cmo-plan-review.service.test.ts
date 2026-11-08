@@ -440,6 +440,30 @@ describe("cmoDraftProblems", () => {
       "d uses \"it's not X, it's Y\".",
     ]);
   });
+
+  it("names a draft whose number the facts do not give", () => {
+    const facts = JSON.stringify([
+      { offers: [{ name: "Tree Runner", price: "$98" }] },
+      { summary: "Sell the Tree Runner" },
+    ]);
+    expect(
+      cmoDraftProblems(
+        [
+          piece("a", "The Tree Runner is $98 and breathes in July heat."),
+          piece("b", "Loved by 40,000 commuters who walk to work in rain."),
+        ],
+        facts,
+      ),
+    ).toEqual([
+      'b says "40,000", a number the Brand Brain and the plan do not give; use one they give or leave it out.',
+    ]);
+    // Without a Brand Brain there is nothing to check against.
+    expect(
+      cmoDraftProblems([
+        piece("b", "Loved by 40,000 commuters who walk to work in rain."),
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("repeated phrases in drafts", () => {

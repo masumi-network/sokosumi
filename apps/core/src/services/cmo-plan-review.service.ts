@@ -4,6 +4,7 @@ import { CMO_CHANNELS } from "@sokosumi/utils";
 import {
   bannedCopyProblems,
   nearDuplicatePost,
+  unsupportedNumber,
 } from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
@@ -226,11 +227,13 @@ function opening(draft: string): string {
 
 /**
  * The made month's drafts against the production skill's copy rules: no two
- * open the same way, and none uses a banned line. Cuso rewrites what it
- * names; a handful at a time, so one save never floods him.
+ * open the same way, none uses a banned line, and none states a number the
+ * `facts` (`marketingMonthFacts`) do not give. Cuso rewrites what it names;
+ * a handful at a time, so one save never floods him.
  */
 export function cmoDraftProblems(
   calendar: MarketingStrategyPlan["calendar"],
+  facts: string | null = null,
 ): string[] {
   const drafted = calendar.filter(
     (entry) => entry.draft && entry.status !== "skipped",
@@ -241,6 +244,11 @@ export function cmoDraftProblems(
     const draft = entry.draft ?? "";
     for (const problem of bannedCopyProblems(draft))
       problems.push(`${entry.id} ${problem}.`);
+    const invented = facts && unsupportedNumber(draft, facts);
+    if (invented)
+      problems.push(
+        `${entry.id} says "${invented}", a number the Brand Brain and the plan do not give; use one they give or leave it out.`,
+      );
     const start = opening(draft);
     const first = seen.get(start);
     if (start.split(" ").length === 4 && first)

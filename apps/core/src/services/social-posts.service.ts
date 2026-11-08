@@ -63,10 +63,12 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
+  marketingMonthFacts,
   nearDuplicatePost,
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
+  unsupportedNumber,
 } from "@/lib/social-post-writing";
 import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 import {
@@ -640,10 +642,26 @@ async function cmoLinkTags(
   return (text) => tagOwnLinks(text, { siteUrl, source: provider, campaign });
 }
 
+async function monthFacts(
+  tx: Prisma.TransactionClient,
+  marketingStrategyId: string,
+): Promise<string | null> {
+  const strategy = await tx.marketingStrategy.findUnique({
+    where: { id: marketingStrategyId },
+    select: { plan: true, project: { select: { brandBrain: true } } },
+  });
+  return marketingMonthFacts(
+    strategy?.project.brandBrain?.body,
+    strategy?.plan,
+  );
+}
+
 /**
  * A Soko Bot's post in a marketing month says its own thing with its own
  * pictures: a month once repeated four messages across 45 posts, and one
- * picture went on three of them.
+ * picture went on three of them. A number it states is one the Brand Brain
+ * or the plan gives: Cuso was told never to invent a customer number, and
+ * a prompt alone does not stop a model from doing so.
  */
 async function requireOwnInMonth(
   tx: Prisma.TransactionClient,
@@ -672,6 +690,12 @@ async function requireOwnInMonth(
   if (change.text === null) return;
   const caveats = stackedCaveatsProblem(change.text);
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
+  const facts = await monthFacts(tx, post.marketingStrategyId);
+  const invented = facts && unsupportedNumber(change.text, facts);
+  if (invented)
+    throw badRequest(
+      `Rewrite the post: "${invented}" is not a number the Brand Brain or the plan gives. Use one they give, or leave the number out. A number the owner told you goes into the Brand Brain with save_brand_brain first.`,
+    );
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };

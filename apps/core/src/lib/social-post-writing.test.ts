@@ -7,7 +7,47 @@ import {
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
+  unsupportedNumber,
 } from "./social-post-writing";
+
+describe("unsupportedNumber", () => {
+  const facts = JSON.stringify({
+    proof: ["Book.io sold 130,412 NFTs across 70+ titles."],
+    offers: [{ name: "Pro", price: "€9 a month" }],
+    reviews: ["Rated 4.8 by 1.2k shops", "Cut minting costs by 40%"],
+  });
+
+  it.each([
+    "Book.io sold 130,000+ NFTs.",
+    "Over 70+ titles live.",
+    "Pro is €9 a month.",
+    "Pro kostet 9 € im Monat.",
+    "1,200 shops rate us 4.8.",
+    "Minting costs dropped 40 %.",
+    "Minting costs dropped 40 percent.",
+    "3 steps to mint your first collection.",
+    "Since 2019 we build for creators. Web3 for B2B teams.",
+    "Read more: https://nmkr.io/blog/2025/500-collections",
+  ])("lets a number the facts give through: %s", (text) => {
+    expect(unsupportedNumber(text, facts)).toBeNull();
+  });
+
+  it.each([
+    ["Our customers save 63% on fees.", "63%"],
+    ["Join 10,000+ creators.", "10,000+"],
+    ["Pro is now $19.", "$19"],
+    ["Basic kostet 7,89 € pro Monat.", "7,89 €"],
+    ["Pro costs 12 CHF a month.", "12 CHF"],
+    ["Mint 5x faster.", "5x"],
+    // The facts hold 70 titles and 40%, not 70% or 40x.
+    ["70% of titles sell out.", "70%"],
+    ["Mint 40x cheaper.", "40x"],
+    ["We minted 2.5 million NFTs.", "2.5 million"],
+    ["We handled 850 launches.", "850"],
+  ])("names the number nothing backs: %s", (text, said) => {
+    expect(unsupportedNumber(text, facts)).toBe(said);
+  });
+});
 
 describe("social post writing guides", () => {
   it("covers every network and tells the bot to write plain text", () => {

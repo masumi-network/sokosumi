@@ -30,7 +30,9 @@ const {
   transactionMock,
   queryRawMock,
   resolveXSubscriptionTypeMock,
+  marketingStrategyFindUniqueMock,
 } = vi.hoisted(() => ({
+  marketingStrategyFindUniqueMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
   socialAccountPostFindFirstMock: vi.fn(),
@@ -60,6 +62,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: vi.fn().mockResolvedValue({ websiteUrl: null }),
     },
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
+    marketingStrategy: { findUnique: marketingStrategyFindUniqueMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
       create: socialPostCreateMock,
@@ -2683,6 +2686,71 @@ describe("social posts service", () => {
       ),
     });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  describe("numbers in a month post", () => {
+    const update = (text: string) =>
+      loadService().then(({ updateSocialPost }) =>
+        updateSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          sokoBotId: "55555555-5555-4555-8555-555555555555",
+          postId: POST_ID,
+          revision: 0,
+          text,
+        }),
+      );
+
+    beforeEach(() => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        marketingStrategyId: "version-1",
+      });
+      socialPostFindManyMock.mockResolvedValue([]);
+      marketingStrategyFindUniqueMock.mockResolvedValue({
+        plan: {
+          summary: "Win 25 new studios a month",
+          calendar: [{ id: "x-1", draft: "Join 9,000 creators" }],
+        },
+        project: {
+          brandBrain: {
+            body: { summary: "Book.io sold 130,412 NFTs across 70+ titles." },
+          },
+        },
+      });
+    });
+
+    it("refuses a number neither the Brand Brain nor the plan gives", async () => {
+      await expect(
+        update("Over 9,000 creators mint with us every week."),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining(
+          '"9,000" is not a number the Brand Brain or the plan gives',
+        ),
+      });
+      expect(marketingStrategyFindUniqueMock).toHaveBeenCalledWith({
+        where: { id: "version-1" },
+        select: { plan: true, project: { select: { brandBrain: true } } },
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("saves a post whose numbers come from the Brand Brain", async () => {
+      await update("Book.io sold 130,000+ NFTs across 70+ titles.");
+      expect(socialPostUpdateManyMock).toHaveBeenCalled();
+    });
+
+    it("does not check a Project without a Brand Brain", async () => {
+      marketingStrategyFindUniqueMock.mockResolvedValue({
+        plan: {},
+        project: { brandBrain: null },
+      });
+      await update("Over 9,000 creators mint with us.");
+      expect(socialPostUpdateManyMock).toHaveBeenCalled();
+    });
   });
 
   it("leaves a person's own formatting alone", async () => {
