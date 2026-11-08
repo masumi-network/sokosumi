@@ -16,10 +16,8 @@ const {
   fetchMock,
   toolCallUpsertMock,
   toolCallUpdateManyMock,
-  toolCallFindFirstMock,
   turnFindUniqueMock,
 } = vi.hoisted(() => ({
-  toolCallFindFirstMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
   toolCallUpsertMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
@@ -43,7 +41,6 @@ vi.mock("@/lib/db/prisma", () => {
     sokoBotToolCall: {
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
-      findFirst: toolCallFindFirstMock,
     },
   };
   return {
@@ -817,7 +814,6 @@ describe("sandbox turn service", () => {
       findFirstEventMock.mockResolvedValue({ id: "taint" });
       turnFindUniqueMock.mockResolvedValue(ownerTurn);
       executeToolMock.mockResolvedValue({ ok: true });
-      toolCallFindFirstMock.mockReset().mockResolvedValue(null);
     });
 
     it("lets the owner's request create a post", async () => {
@@ -829,50 +825,21 @@ describe("sandbox turn service", () => {
       expect(executeToolMock).toHaveBeenCalledOnce();
     });
 
-    it("lets it schedule a post this turn created", async () => {
-      toolCallFindFirstMock.mockResolvedValue({ id: "receipt" });
-      await runSandboxTool(claims, {
-        capability: "schedule_social_post",
-        toolCallId: "c11",
-        toolInput: { postId },
-      });
-      expect(toolCallFindFirstMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            capability: "create_social_post",
-            status: "COMPLETED",
-            targetId: postId,
-          }),
-        }),
-      );
-      expect(executeToolMock).toHaveBeenCalledOnce();
-    });
-
-    it("refuses scheduling a post already queued before the turn", async () => {
+    it.each([
+      "update_social_post",
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+    ])("refuses %s, so an approved post never changes", async (capability) => {
       await expect(
         runSandboxTool(claims, {
-          capability: "schedule_social_post",
+          capability,
           toolCallId: "c12",
           toolInput: { postId },
         }),
       ).rejects.toThrow("ask the owner in chat");
       expect(executeToolMock).not.toHaveBeenCalled();
     });
-
-    it.each(["update_social_post", "publish_social_post"])(
-      "refuses %s even on a post this turn created",
-      async (capability) => {
-        toolCallFindFirstMock.mockResolvedValue({ id: "receipt" });
-        await expect(
-          runSandboxTool(claims, {
-            capability,
-            toolCallId: "forged-or-not",
-            toolInput: { postId },
-          }),
-        ).rejects.toThrow("ask the owner in chat");
-        expect(executeToolMock).not.toHaveBeenCalled();
-      },
-    );
 
     it("keeps a scheduled run from creating posts", async () => {
       turnFindUniqueMock.mockResolvedValue({

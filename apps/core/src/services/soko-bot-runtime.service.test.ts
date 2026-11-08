@@ -9507,6 +9507,18 @@ describe("Drive file tools", () => {
       expect(files.put).not.toHaveBeenCalled();
     });
 
+    it("never overwrites a file from the workspace", async () => {
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "launch.mp4",
+          workspacePath: "out/launch.mp4",
+          workspaceBytesBase64: Buffer.from("x").toString("base64"),
+          overwrite: true,
+        }),
+      ).rejects.toThrow("always saved as a new file");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
     it("saves a workspace file only with the bytes the sandbox sent", async () => {
       await expect(
         service["uploadFile"](chatAuthorized as never, {

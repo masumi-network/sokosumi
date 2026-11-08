@@ -3900,13 +3900,18 @@ export class SokoBotRuntimeService {
       throw new SokoBotRefusedUnsentError(
         "A workspace file must be a video (mp4, mov, webm), an image (png, jpg, gif, webp), a PDF or audio (mp3, wav); name it with that extension",
       );
+    // Never in place: a post or newsletter keeps its media's address, so new
+    // bytes there would change what was approved. A new name is a new file.
+    if (input.overwrite)
+      throw new SokoBotRefusedUnsentError(
+        "A workspace file is always saved as a new file; choose a new name",
+      );
     const bytes = Buffer.from(bytesBase64, "base64");
     if (bytes.byteLength === 0)
       throw new SokoBotRefusedUnsentError(`${input.workspacePath} is empty`);
     return this.saveFileBytes(authorized, {
       filename: input.filename,
       folder: driveFolderFor(input.folder),
-      overwrite: input.overwrite,
       contentType,
       read: async () => bytes,
     });

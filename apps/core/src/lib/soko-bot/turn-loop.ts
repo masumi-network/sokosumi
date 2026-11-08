@@ -381,32 +381,10 @@ export async function isOwnerDirected(turnId: string): Promise<boolean> {
   );
 }
 
-/** Whether this turn, or the turn that started it, created the post. */
-async function createdThisWork(turnId: string, postId: unknown) {
-  if (typeof postId !== "string") return false;
-  const turn = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: { parentTurnId: true },
-  });
-  const created = await prisma.sokoBotToolCall.findFirst({
-    where: {
-      turnId: {
-        in: [turnId, ...(turn?.parentTurnId ? [turn.parentTurnId] : [])],
-      },
-      capability: "create_social_post",
-      status: "COMPLETED",
-      targetId: postId,
-    },
-    select: { id: true },
-  });
-  return created !== null;
-}
-
 /** Whether a tool is refused because the turn read the web or ran a shell. */
 export async function isTaintBlocked(
   turnId: string,
   capability: SokoBotCapability,
-  toolInput?: unknown,
 ): Promise<boolean> {
   if (
     !(
@@ -419,14 +397,8 @@ export async function isTaintBlocked(
     (
       SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES as readonly SokoBotCapability[]
     ).includes(capability)
-  ) {
-    if (!(await isOwnerDirected(turnId))) return true;
-    if (capability === "create_social_post") return false;
-    return !(await createdThisWork(
-      turnId,
-      (toolInput as { postId?: unknown } | null)?.postId,
-    ));
-  }
+  )
+    return !(await isOwnerDirected(turnId));
   if (
     (
       SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES as readonly SokoBotCapability[]
@@ -455,7 +427,7 @@ export async function runTurnTool(input: {
   cite?: boolean;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
-  if (await isTaintBlocked(log.turnId, capability, input.toolInput)) {
+  if (await isTaintBlocked(log.turnId, capability)) {
     throw new SokoBotTaintedActionError(capability);
   }
   await log.append(
