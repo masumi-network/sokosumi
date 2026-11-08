@@ -15,13 +15,6 @@ export type SeoAgentStep =
   | { kind: "connect"; provider: "ga4" | "search_console" }
   | { kind: "competitors"; available: boolean };
 
-function metricValue(
-  metrics: ProjectSeoWorkspace["metrics"],
-  key: string,
-): number | null {
-  return metrics.find((metric) => metric.key === key)?.value ?? null;
-}
-
 /**
  * What the SEO agent can say from saved evidence, and the next steps it offers.
  * Every number comes from a stored observation; missing evidence becomes a step.
@@ -32,7 +25,14 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const search = latest.filter((metric) => metric.source === "search_console");
   const analytics = latest.filter((metric) => metric.source === "ga4");
   const searchSaved = search[0] ?? null;
-  const lastCheck = workspace.observations[0] ?? null;
+  // Observations come newest first. Rankings and links reads carry no rule rows,
+  // so the last check is the newest observation that asked for rule checks.
+  const lastCheck =
+    workspace.observations.find(
+      ({ coverage }) =>
+        coverage.checked + coverage.skipped + coverage.failed > 0 ||
+        (coverage.modules?.failed ?? 0) > 0,
+    ) ?? null;
   const fixes = overview.recommendedActions.filter(
     (action) => action.kind === "fix",
   );
@@ -61,11 +61,17 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
     });
   if (canSync && !searchSaved)
     steps.push({ kind: "connect", provider: "search_console" });
-  if (!workspace.competitors.some((row) => row.observationId))
-    steps.push({
-      kind: "competitors",
-      available: workspace.availableActions.canUsePaidSearchData === true,
-    });
+  const paidSearch = workspace.availableActions.canUsePaidSearchData === true;
+  const competitors = workspace.competitors.filter(
+    (row) => row.role === "competitor",
+  );
+  // Without paid data the only step is adding known competitors; once one is saved, it is done.
+  if (
+    paidSearch
+      ? !competitors.some((row) => row.observationId)
+      : !competitors.length
+  )
+    steps.push({ kind: "competitors", available: paidSearch });
   if (canSync && !analytics.length)
     steps.push({ kind: "connect", provider: "ga4" });
   return {
@@ -77,19 +83,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
         }
       : null,
     issues: overview.issues.length,
-    search: searchSaved
-      ? {
-          from: searchSaved.from,
-          to: searchSaved.to,
-          observedAt: searchSaved.observedAt,
-          clicks: metricValue(search, "clicks"),
-          impressions: metricValue(search, "impressions"),
-          ctr: metricValue(search, "ctr"),
-          position: metricValue(search, "position"),
-          queries: workspace.searchQueries?.rows.length ?? null,
-          queriesTruncated: workspace.searchQueries?.truncated ?? false,
-        }
-      : null,
+    emptyState: overview.emptyState,
     fixes: fixes.length,
     opportunities: opportunities.length,
     openTasks,

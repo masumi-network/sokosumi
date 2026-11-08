@@ -19,7 +19,11 @@ import { createFormats } from "@/i18n/time-format";
 import { SEO_VIEWER_HEADER } from "@/lib/seo/owner";
 import messages from "../../../../../messages/en.json";
 import { SeoMonitors } from "./seo-monitors";
-import { SEO_TEST_AUDIT, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  openStatisticsSetup,
+  SEO_TEST_AUDIT,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
@@ -146,6 +150,60 @@ afterEach(() => {
 });
 
 describe("SEO workspace integration", () => {
+  it.each([
+    [
+      "a newer check that measured nothing",
+      "page_check",
+      "These checks are incomplete",
+    ],
+    ["a newer rankings read", "rankings", "No issues found in the last check"],
+  ] as const)(
+    "judges the verdict by the newest rule check after %s",
+    (_, kind, verdict) => {
+      const workspace = seoTestWorkspace();
+      const base = {
+        source: "seo_coworker",
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        sourceTaskId: null,
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop" as const],
+        rulebookVersion: "html-v1",
+      };
+      workspace.observations = [
+        {
+          ...base,
+          id: "8b0f8f0e-31d5-4d1e-9a52-5d7c1c3a1f10",
+          kind,
+          observedAt: new Date("2026-01-03T12:00:00Z"),
+          artifactHash: "newer",
+          coverage: {
+            checked: 0,
+            skipped: kind === "page_check" ? 30 : 0,
+            failed: 0,
+          },
+        },
+        {
+          ...base,
+          id: "1d0e0b6a-0c43-4c55-9d2f-6a6f2f1b7b11",
+          kind: "page_check",
+          observedAt: new Date("2026-01-01T12:00:00Z"),
+          artifactHash: "older",
+          coverage: { checked: 20, skipped: 0, failed: 0 },
+        },
+      ];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+        verdict,
+      );
+    },
+  );
+
   it("keeps passing measurements behind closed check details and offers statistics after limited checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
@@ -192,10 +250,11 @@ describe("SEO workspace integration", () => {
     const measurement = screen.getByText("Title length measured");
     expect(measurement).not.toBeVisible();
     expect(measurement.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
+      "No issues found in the last check",
+    );
     expect(
-      screen.getByText(
-        "No confirmed issue in the checked rules. This covers only those rules and pages, not the whole site.",
-      ),
+      screen.getByText(/This covers only those rules and pages/),
     ).toBeVisible();
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
@@ -302,6 +361,12 @@ describe("SEO workspace integration", () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.scopes[0].name = "Website and blog";
+    // Saved selections show only once there is more than one page to choose from.
+    workspace.pages.push({
+      ...workspace.pages[0],
+      id: crypto.randomUUID(),
+      url: `${workspace.pages[0].url}blog`,
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(workspace)),
@@ -361,7 +426,7 @@ describe("SEO workspace integration", () => {
     expect(screen.getByText("0")).toBeVisible();
     expect(screen.getByText("Active users")).toBeVisible();
     expect(screen.getAllByText("Not available").length).toBeGreaterThan(0);
-    await user.click(screen.getByText("Measurement details"));
+    await user.click(screen.getByText("About this data"));
     expect(screen.getByText(/Europe\/Berlin/)).toBeVisible();
     await waitFor(() => expect(fetch).toHaveBeenCalled());
   });
@@ -486,7 +551,7 @@ describe("SEO workspace integration", () => {
       );
       mutate.mockResolvedValue({ ok: true, value: null });
       renderWorkspace(workspace, query);
-      await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+      await openStatisticsSetup(user);
       const dialog = screen.getByRole("dialog");
       await waitFor(() =>
         expect(
@@ -1168,7 +1233,7 @@ describe("SEO workspace integration", () => {
     );
     mutate.mockResolvedValue({ ok: true, value: null });
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+    await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("combobox", { name: "Source" }));
     await user.click(screen.getByRole("option", { name: "Search Console" }));
@@ -1223,9 +1288,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Sync statistics" }),
-    );
+    await openStatisticsSetup(userEvent);
     expect(
       await screen.findByRole("combobox", { name: "Property" }),
     ).toBeVisible();
@@ -1403,9 +1466,7 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Sync statistics" }),
-    );
+    await openStatisticsSetup(userEvent);
     const dialog = await screen.findByRole("dialog", {
       name: "Sync statistics",
     });
@@ -1433,7 +1494,7 @@ describe("SEO workspace integration", () => {
         ),
       ),
     );
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=keywords");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     expect(
       await screen.findByText(
@@ -1456,7 +1517,7 @@ describe("SEO workspace integration", () => {
         Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
       ),
     );
-    const view = renderWorkspace(workspace);
+    const view = renderWorkspace(workspace, "?tab=keywords");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     await user.type(
       screen.getByLabelText("Your question"),
@@ -1507,7 +1568,7 @@ describe("SEO workspace integration", () => {
         );
       });
       vi.stubGlobal("fetch", fetchMock);
-      const view = renderWorkspace(workspace);
+      const view = renderWorkspace(workspace, "?tab=keywords");
       await user.click(
         screen.getByRole("button", { name: "Ask the SEO agent" }),
       );
@@ -1560,7 +1621,7 @@ describe("SEO workspace integration", () => {
       auditName: "Launch pages",
     };
     const requests = nativeChatNetwork(workspace);
-    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}`);
+    renderWorkspace(workspace, `?pageId=${workspace.pages[0].id}&tab=keywords`);
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
@@ -1581,7 +1642,7 @@ describe("SEO workspace integration", () => {
       auditName: "Launch pages",
     };
     const requests = nativeChatNetwork(workspace, { uncertainFirst: true });
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=keywords");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");
@@ -1601,7 +1662,7 @@ describe("SEO workspace integration", () => {
       auditName: "Launch pages",
     };
     const requests = nativeChatNetwork(workspace, { failedFirst: true });
-    renderWorkspace(workspace);
+    renderWorkspace(workspace, "?tab=keywords");
     await user.click(screen.getByRole("button", { name: "Ask the SEO agent" }));
     const question = screen.getByLabelText("Your question");
     await user.type(question, "What should I fix first?");

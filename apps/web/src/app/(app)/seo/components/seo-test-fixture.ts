@@ -1,4 +1,15 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { screen } from "@testing-library/react";
+
+/** Opens the generic statistics setup from the header's Manage menu. */
+export async function openStatisticsSetup(user: {
+  click: (element: Element) => Promise<void>;
+}) {
+  await user.click(screen.getByRole("button", { name: "Manage SEO" }));
+  await user.click(
+    await screen.findByRole("menuitem", { name: "Set up statistics" }),
+  );
+}
 
 export const SEO_TEST_PROJECT = "39d1c2a6-aade-4322-aed5-3f139a34b127";
 export const SEO_TEST_AUDIT = "687d2470-7c63-4779-b10c-462d24ac1e1b";

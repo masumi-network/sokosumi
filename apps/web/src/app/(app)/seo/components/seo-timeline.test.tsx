@@ -53,10 +53,7 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText("12 checks recorded")).toBeVisible();
-    expect(
-      screen.getByText("Analysis types: 2 not requested, 0 unavailable"),
-    ).toBeVisible();
+    expect(screen.getByText(/12 checks recorded/)).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();
@@ -98,7 +95,7 @@ describe("SEO timeline recovery", () => {
     },
   );
 
-  it("graphs check times in order and distinguishes a compatible recheck from its save date", () => {
+  it("lists check times newest first and distinguishes a compatible recheck from its save date", () => {
     const workspace = seoTestWorkspace();
     const first = {
       id: "first",
@@ -149,26 +146,25 @@ describe("SEO timeline recovery", () => {
         <SeoTimeline workspace={workspace} />
       </NextIntlClientProvider>,
     );
-    const graph = screen.getByRole("list", { name: "SEO activity graph" });
-    const events = within(graph).getAllByRole("listitem");
-    expect(within(events[0]).getByText("Check results")).toBeVisible();
-    expect(within(events[1]).getByText("Recheck results")).toBeVisible();
-    expect(events[0].querySelector("time")).toHaveAttribute(
-      "datetime",
-      "2026-11-01T10:00:00.000Z",
-    );
-    expect(events[1].querySelector("time")).toHaveAttribute(
+    const graph = screen.getByRole("list", {
+      name: "SEO activity, newest first",
+    });
+    const [recheck, check] = within(graph).getAllByRole("listitem");
+    expect(within(recheck).getByText("Recheck results")).toBeVisible();
+    expect(within(check).getByText("Check results")).toBeVisible();
+    expect(recheck.querySelector("time")).toHaveAttribute(
       "datetime",
       "2026-11-02T10:00:00.000Z",
     );
+    expect(check.querySelector("time")).toHaveAttribute(
+      "datetime",
+      "2026-11-01T10:00:00.000Z",
+    );
     expect(
-      within(events[1])
-        .getByText("Saved")
-        .closest("div")
-        ?.querySelector("time"),
+      within(recheck).getByText("Saved").closest("div")?.querySelector("time"),
     ).toHaveAttribute("datetime", "2026-11-03T12:00:00.000Z");
     expect(
-      within(events[1]).getByRole("link", { name: "Open task" }),
+      within(recheck).getByRole("link", { name: "Open task" }),
     ).toHaveAttribute("href", "/tasks/second-task");
   });
 
@@ -219,5 +215,38 @@ describe("SEO timeline recovery", () => {
     expect(
       screen.queryByRole("button", { name: "Run a new check" }),
     ).toBeNull();
+  });
+
+  it("moves focus to the first revealed event when showing all", () => {
+    const workspace = seoTestWorkspace();
+    workspace.timeline = Array.from({ length: 6 }, (_, index) => ({
+      id: `scope-${index}`,
+      kind: "scope",
+      title: "Page selection changed",
+      status: "recorded",
+      detail: "",
+      at: new Date(Date.UTC(2026, 10, index + 1)),
+      pageIds: workspace.scope.pageIds,
+      taskId: null,
+      observationId: null,
+    }));
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoTimeline workspace={workspace} />
+      </NextIntlClientProvider>,
+    );
+    const list = screen.getByRole("list", {
+      name: "SEO activity, newest first",
+    });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(5);
+    fireEvent.click(screen.getByRole("button", { name: "Show all 6 events" }));
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(6);
+    expect(items[5]).toHaveFocus();
   });
 });

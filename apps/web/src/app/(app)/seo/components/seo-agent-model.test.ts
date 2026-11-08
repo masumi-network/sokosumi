@@ -60,11 +60,6 @@ function connected() {
 describe("SEO agent brief", () => {
   it("loads missing query rows after a retry delay, not right after a sync", () => {
     const brief = seoAgentBrief(connected(), synced);
-    expect(brief.search).toMatchObject({
-      clicks: 2,
-      impressions: 28,
-      queries: null,
-    });
     expect(brief.steps).toContainEqual({
       kind: "refresh",
       reason: "no_queries",
@@ -127,7 +122,6 @@ describe("SEO agent brief", () => {
     workspace.availableActions.canSyncMetrics = true;
     workspace.availableActions.canUsePaidSearchData = false;
     const brief = seoAgentBrief(workspace, synced);
-    expect(brief.search).toBeNull();
     expect(brief.steps).toEqual(
       expect.arrayContaining([
         { kind: "connect", provider: "search_console" },
@@ -135,5 +129,35 @@ describe("SEO agent brief", () => {
         { kind: "competitors", available: false },
       ]),
     );
+  });
+
+  it("drops the add-competitor step once a competitor is saved without paid data", () => {
+    const workspace = seoTestWorkspace();
+    workspace.availableActions.canUsePaidSearchData = false;
+    workspace.competitors = [
+      {
+        id: "saved",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: true,
+        source: "saved",
+        rank: null,
+        backlinks: null,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: 1,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
+    const kinds = seoAgentBrief(workspace, synced).steps.map(
+      (step) => step.kind,
+    );
+    expect(kinds).not.toContain("competitors");
+    workspace.availableActions.canUsePaidSearchData = true;
+    expect(
+      seoAgentBrief(workspace, synced).steps.map((step) => step.kind),
+    ).toContain("competitors");
   });
 });

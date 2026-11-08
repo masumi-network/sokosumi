@@ -13,6 +13,7 @@ export function SeoMonitors({ model }: { model: SeoWorkspaceModel }) {
   return (
     <SeoSection
       title={t("monitor.title")}
+      description={t("monitor.help")}
       actions={
         model.data.availableActions.canCreateMonitor === true ? (
           <Button
@@ -26,9 +27,6 @@ export function SeoMonitors({ model }: { model: SeoWorkspaceModel }) {
         ) : null
       }
     >
-      <p className="text-muted-foreground px-2 pb-2 text-sm">
-        {t("monitor.help")}
-      </p>
       {model.data.monitors.length ? (
         <ul className="grid gap-2 md:grid-cols-2">
           {model.data.monitors.map((monitor) => (

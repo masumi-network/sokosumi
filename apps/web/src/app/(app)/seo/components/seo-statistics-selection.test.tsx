@@ -16,7 +16,7 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { openStatisticsSetup, seoTestWorkspace } from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -205,9 +205,7 @@ describe("statistics source and property recovery", () => {
       target: { value: "2026-09-02" },
     });
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await user.click(
-      screen.getAllByRole("button", { name: "Set up statistics" })[0],
-    );
+    await openStatisticsSetup(user);
     const generic = screen.getByRole("dialog");
     expect(
       within(generic).getByRole("combobox", { name: "Source" }),
@@ -286,7 +284,7 @@ describe("statistics source and property recovery", () => {
       }),
     );
     renderWorkspace(workspace);
-    await user.click(screen.getByRole("button", { name: "Sync statistics" }));
+    await openStatisticsSetup(user);
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByText("Temporary native property read failure");
     fireEvent.change(within(dialog).getByLabelText("Start date"), {

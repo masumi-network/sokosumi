@@ -4,6 +4,7 @@ import type { SeoAuditChatTurn } from "@sokosumi/core-client";
 import { Send } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -121,13 +122,25 @@ export function SeoChatThread({
   chat,
   inputId,
   className,
+  latestOnly = false,
 }: {
   model: SeoWorkspaceModel;
   chat: Chat;
   inputId: string;
   className?: string;
+  /** Show only the newest exchange until the reader asks for the rest. */
+  latestOnly?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const [showAll, setShowAll] = useState(!latestOnly);
+  // The button unmounts on click; move focus to the earliest question it revealed.
+  const revealed = useRef(false);
+  const firstTurn = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (showAll && revealed.current) firstTurn.current?.focus();
+  }, [showAll]);
+  const earlier = showAll ? 0 : Math.max(0, chat.turns.length - 1);
+  const turns = chat.turns.slice(earlier);
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       <div
@@ -154,8 +167,25 @@ export function SeoChatThread({
         ) : !chat.turns.length ? (
           <SeoEmpty title={t("chat.empty")} body={t("chat.emptyBody")} />
         ) : null}
-        {chat.turns.map((turn) => (
-          <article key={turn.id} className="space-y-3 border-b pb-5">
+        {earlier ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              revealed.current = true;
+              setShowAll(true);
+            }}
+          >
+            {t("chat.showEarlier", { count: earlier })}
+          </Button>
+        ) : null}
+        {turns.map((turn, index) => (
+          <article
+            key={turn.id}
+            ref={index === 0 ? firstTurn : undefined}
+            tabIndex={index === 0 && revealed.current ? -1 : undefined}
+            className="focus-visible:outline-ring space-y-3 border-b pb-5 focus-visible:outline-2"
+          >
             <div className="bg-muted ml-6 rounded-lg px-3 py-2">
               <p className="mb-1 text-xs font-medium">
                 {turn.author?.id === chat.viewerId ||

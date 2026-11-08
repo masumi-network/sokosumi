@@ -10554,7 +10554,6 @@
       "errorBody": "Refresh this audit or return to the audit list.",
       "retry": "Try again",
       "loading": "Loading SEO results",
-      "refresh": "Refresh results",
       "refreshFailed": "Failed to refresh results. Try again.",
       "saveFailed": "Failed to save. Check the fields and try again.",
       "conflict": "The data changed. Refresh results before trying again.",
@@ -10612,7 +10611,6 @@
       },
       "overview": {
         "measurements": "Performance",
-        "measurementsBody": "Measured traffic and search performance for the selected pages and period.",
         "not_connected": "No traffic statistics are saved for these pages yet. Choose an account to load them.",
         "unavailable": "Statistics are unavailable. Check the connection here, then try again.",
         "partial": "Some statistics are missing. Check each source and coverage note.",
@@ -10623,17 +10621,16 @@
         "findingsCount": "{count, plural, one {# finding} other {# findings}}",
         "auditsCount": "{count, plural, one {# captured result} other {# captured results}}",
         "coverageCounts": "Rule checks: {checked} checked, {skipped} not checked, {failed} unavailable",
-        "moduleCoverage": "Analysis types: {notRequested} not requested, {failed} unavailable",
+        "moduleCoverage": "Optional checks: {notRequested} not requested, {failed} unavailable",
         "noFindings": "No findings in this scope",
         "noFindingsBody": "Run or import a check to inspect its evidence. Missing checks are not passing checks.",
         "manageConnections": "Set up statistics",
         "dailyTrend": "Daily trend",
         "noDailyTrend": "This source did not include daily measurements for the selected period.",
-        "measurementDetails": "Measurement details",
+        "measurementDetails": "About this data",
         "timeZone": "Reporting time zone: {timeZone}",
         "trafficSetup": "See how these pages perform",
         "trafficSetupBody": "Connect Google Analytics for visits and page views, or Search Console for search clicks, impressions and rankings.",
-        "googleConnections": "Your Google connections",
         "recentChecks": "Recent checks",
         "getStarted": "Get the first results for these pages",
         "getStartedBody": "Run a page check or import a completed report. Add related pages to compare them in one audit.",
@@ -10644,12 +10641,14 @@
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
         "checkDetails": "Check details",
-        "diagnostics": "Measurements and notes",
+        "diagnostics": "Check details",
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
         "dailyValues": "Daily values",
-        "day": "Day"
+        "day": "Day",
+        "synced": "Synced",
+        "windowValue": "{days}: {value}"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10711,22 +10710,22 @@
         "task_created": "Draft task created",
         "implemented": "Implemented",
         "verified": "Verified",
-        "help": "An implemented task needs a compatible recheck before the SEO result is verified.",
+        "help": "A done Task counts as verified only after a new check of the same page.",
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "The recorded checks have no recommended fixes. Review their coverage or set up statistics to decide what to check next.",
         "checksIncomplete": "These checks are incomplete",
         "checksIncompleteBody": "Some requested checks could not be completed. Review Check details before deciding what to do next.",
         "unplannedIssues": "No recommended actions yet",
         "unplannedIssuesBody": "These checks found issues but did not include recommended actions. Review the findings or open SEO chat to decide what to do next.",
-        "kind": {
-          "fix": "Confirmed issue",
-          "opportunity": "Review opportunity"
-        },
         "fixesTitle": "Fixes for confirmed issues",
         "fixesHelp": "A check found an issue on the page. Fixing it needs a recheck to verify.",
-        "opportunitiesTitle": "Review opportunities from search data",
-        "opportunitiesHelp": "A named heuristic matched measured Search Console rows. These are suggestions to review, not failures, and they promise no traffic.",
-        "noOpportunitiesBody": "The checks found no fix, and no Search Console query met a review heuristic. Ask the SEO agent what to collect next."
+        "opportunitiesTitle": "Suggestions from search data",
+        "opportunitiesHelp": "Search Console data points to these. They are not errors and promise no traffic.",
+        "noOpportunitiesBody": "The checks found nothing to fix, and no Search Console query matched a suggestion. Ask the SEO agent what to collect next.",
+        "kind": {
+          "fix": "Confirmed issue",
+          "opportunity": "Suggestion"
+        }
       },
       "pages": {
         "title": "Pages",
@@ -10749,24 +10748,15 @@
         "statuses": {
           "requested": "Requested",
           "running": "Running",
-          "completed": "Completed",
           "failed": "Failed",
           "partial": "Partial",
-          "recorded": "Recorded",
           "unavailable": "Unavailable"
         },
         "empty": "No activity in this scope",
         "emptyBody": "Checks, statistics updates, page selections and action tasks will appear here.",
-        "audit": "Audit",
-        "check": "Check",
-        "metrics": "Statistics",
-        "action": "Action",
-        "scope": "Page selection",
         "details": "Work details",
-        "page_change": "Page change",
         "rulebook": "Rulebook {version}",
-        "graphDescription": "Checks, changes and action Tasks, from oldest to newest. Spacing does not show elapsed time.",
-        "graphLabel": "SEO activity graph",
+        "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
         "checkRun": "Check results",
         "recheckRun": "Recheck results",
@@ -10775,14 +10765,13 @@
         "actionLinked": "Action Task linked",
         "scopeChanged": "Page selection changed",
         "pageChanged": "Page change recorded",
-        "checkedAt": "Checked",
         "savedAt": "Saved",
-        "currentTaskStatus": "Current Task status",
         "checkSummary": "{checked} checks recorded",
-        "previousCheck": "Repeats an earlier check of the same pages, market, devices and rulebook.",
+        "previousCheck": "Repeat of an earlier check",
         "sourceDetails": "Event details",
         "resultsSaved": "Results saved",
-        "incomplete": "Some requested work could not be completed."
+        "incomplete": "Some requested work could not be completed.",
+        "showAll": "Show all {count} events"
       },
       "analysis": {
         "title": "Run a check",
@@ -10892,7 +10881,7 @@
       },
       "coverageStatus": {
         "complete": "Complete",
-        "partial": "Partial",
+        "partial": "Partial data",
         "unavailable": "Unavailable"
       },
       "invalidFilters": "These page or date filters are invalid. Clear them to choose a new scope.",
@@ -10960,7 +10949,8 @@
         "open": "Open {action}",
         "auditRequired": "Open an audit to use SEO chat.",
         "dailyLimit": "You have reached today’s SEO chat limit. Try again tomorrow.",
-        "createTask": "Create draft task: {title}"
+        "createTask": "Create draft task: {title}",
+        "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}"
       },
       "connections": {
         "connect": "Connect {provider}",
@@ -11032,16 +11022,7 @@
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
         "subtitle": "It reads your saved checks and statistics, proposes next steps and keeps Search Console current. You approve every Task.",
-        "knownTitle": "What the agent knows",
-        "lastCheck": "Last check: {checked, plural, one {# rule} other {# rules}} on {pages, plural, one {# page} other {# pages}}.",
-        "noCheck": "No check has run on these pages yet.",
-        "issues": "{count, plural, one {# confirmed issue} other {# confirmed issues}} in the checked rules.",
-        "noIssues": "No confirmed issue in the checked rules. This covers only those rules and pages, not the whole site.",
-        "search": "Search Console: {clicks} clicks from {impressions} impressions.",
-        "noSearch": "No search statistics yet.",
-        "queries": "{count, plural, =0 {No query rows} one {# query row} other {# query rows}} saved from the newest Search Console sync.",
-        "queriesMissing": "Query rows are not saved yet.",
-        "suggestions": "{fixes, plural, one {# fix} other {# fixes}} and {opportunities, plural, one {# review opportunity} other {# review opportunities}} are waiting.",
+        "lastCheck": "{checked, plural, one {# rule} other {# rules}} on {pages, plural, one {# page} other {# pages}}.",
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
         "nextTitle": "Next steps",
@@ -11065,7 +11046,16 @@
           "queries": "Which searches bring people to these pages?",
           "competitors": "What do we know about competitors?"
         },
-        "researchCompetitors": "Research competitors"
+        "researchCompetitors": "Research competitors",
+        "verdict": {
+          "issues": "{count, plural, one {# issue to fix} other {# issues to fix}}",
+          "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
+          "clear": "No issues found in the last check",
+          "noCheck": "No check yet. Run one to find issues.",
+          "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}"
+        },
+        "checkScope": "This covers only those rules and pages, not the whole site.",
+        "lastCheckOn": "Last check"
       },
       "scopeFilters": "Pages and filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}."

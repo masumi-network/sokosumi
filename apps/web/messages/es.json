@@ -10554,7 +10554,6 @@
       "errorBody": "Actualiza esta auditoría o vuelve a la lista de auditorías.",
       "retry": "Intentar de nuevo",
       "loading": "Cargando resultados de SEO",
-      "refresh": "Actualizar resultados",
       "refreshFailed": "No se pudieron actualizar los resultados. Inténtalo de nuevo.",
       "saveFailed": "No se pudo guardar. Revisa los campos e inténtalo de nuevo.",
       "conflict": "Los datos han cambiado. Actualiza los resultados antes de volver a intentarlo.",
@@ -10612,7 +10611,6 @@
       },
       "overview": {
         "measurements": "Rendimiento",
-        "measurementsBody": "Tráfico medido y rendimiento de búsqueda para las páginas y el periodo seleccionados.",
         "not_connected": "Todavía no hay estadísticas de tráfico guardadas para estas páginas. Elige una cuenta para cargarlas.",
         "unavailable": "Las estadísticas no están disponibles. Revisa aquí la conexión e inténtalo de nuevo.",
         "partial": "Faltan algunas estadísticas. Revisa cada fuente y las notas de cobertura.",
@@ -10623,17 +10621,16 @@
         "findingsCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
         "auditsCount": "{count, plural, one {# resultado capturado} other {# resultados capturados}}",
         "coverageCounts": "Comprobaciones de reglas: {checked} realizadas, {skipped} sin realizar, {failed} no disponibles",
-        "moduleCoverage": "Tipos de análisis: {notRequested} no solicitados, {failed} no disponibles",
+        "moduleCoverage": "Comprobaciones opcionales: {notRequested} no solicitadas, {failed} no disponibles",
         "noFindings": "No hay hallazgos en esta selección",
         "noFindingsBody": "Inicia o importa una comprobación para consultar la evidencia. Una comprobación ausente no equivale a una comprobación superada.",
         "manageConnections": "Configurar estadísticas",
         "dailyTrend": "Evolución diaria",
         "noDailyTrend": "Esta fuente no incluye mediciones diarias del período seleccionado.",
-        "measurementDetails": "Detalles de la medición",
+        "measurementDetails": "Sobre estos datos",
         "timeZone": "Zona horaria del informe: {timeZone}",
         "trafficSetup": "Consulta el rendimiento de estas páginas",
         "trafficSetupBody": "Conecta Google Analytics para ver visitas y páginas vistas, o Search Console para ver clics de búsqueda, impresiones y posiciones.",
-        "googleConnections": "Tus conexiones de Google",
         "recentChecks": "Comprobaciones recientes",
         "getStarted": "Obtén los primeros resultados de estas páginas",
         "getStartedBody": "Ejecuta una comprobación de página o importa un informe terminado. Añade páginas relacionadas para compararlas en una auditoría.",
@@ -10644,12 +10641,14 @@
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
         "checkDetails": "Detalles de las comprobaciones",
-        "diagnostics": "Mediciones y notas",
+        "diagnostics": "Detalles de la comprobación",
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
         "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
         "dailyValues": "Valores diarios",
-        "day": "Día"
+        "day": "Día",
+        "synced": "Sincronizado",
+        "windowValue": "{days}: {value}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10711,22 +10710,22 @@
         "task_created": "Borrador de tarea creado",
         "implemented": "Implementada",
         "verified": "Verificada",
-        "help": "Una tarea implementada necesita una nueva comprobación compatible para verificar el resultado de SEO.",
+        "help": "Una tarea terminada cuenta como verificada solo tras una nueva comprobación de la misma página.",
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "Las comprobaciones registradas no recomiendan correcciones. Revisa su cobertura o configura estadísticas para decidir qué comprobar después.",
         "checksIncomplete": "Estas comprobaciones están incompletas",
         "checksIncompleteBody": "No se pudieron completar algunas comprobaciones solicitadas. Revisa los detalles de las comprobaciones antes de decidir el siguiente paso.",
         "unplannedIssues": "Todavía no hay acciones recomendadas",
         "unplannedIssuesBody": "Estas comprobaciones encontraron problemas, pero no incluyeron acciones recomendadas. Revisa los hallazgos o abre el chat de SEO para decidir el siguiente paso.",
-        "kind": {
-          "fix": "Problema confirmado",
-          "opportunity": "Oportunidad de revisión"
-        },
         "fixesTitle": "Correcciones de problemas confirmados",
         "fixesHelp": "Una comprobación encontró un problema en la página. Tras corregirlo, hace falta una nueva comprobación para verificarlo.",
-        "opportunitiesTitle": "Oportunidades de revisión según datos de búsqueda",
-        "opportunitiesHelp": "Una heurística con nombre coincidió con filas medidas de Search Console. Son sugerencias para revisar, no fallos, y no prometen tráfico.",
-        "noOpportunitiesBody": "Las comprobaciones no encontraron correcciones y ninguna consulta cumplió una heurística de revisión. Pregunta al agente SEO qué recoger a continuación."
+        "opportunitiesTitle": "Sugerencias de los datos de búsqueda",
+        "opportunitiesHelp": "Los datos de Search Console apuntan a esto. No son errores y no prometen tráfico.",
+        "noOpportunitiesBody": "Las comprobaciones no encontraron nada que corregir y ninguna consulta de Search Console coincidió con una sugerencia. Pregunta al agente SEO qué recopilar después.",
+        "kind": {
+          "fix": "Problema confirmado",
+          "opportunity": "Sugerencia"
+        }
       },
       "pages": {
         "title": "Páginas",
@@ -10749,24 +10748,15 @@
         "statuses": {
           "requested": "Solicitada",
           "running": "En curso",
-          "completed": "Completada",
           "failed": "Fallida",
           "partial": "Parcial",
-          "recorded": "Registrada",
           "unavailable": "No disponible"
         },
         "empty": "No hay actividad en esta selección",
         "emptyBody": "Aquí aparecerán las comprobaciones, actualizaciones de estadísticas, selecciones de páginas y tareas.",
-        "audit": "Auditoría",
-        "check": "Comprobación",
-        "metrics": "Estadísticas",
-        "action": "Acción",
-        "scope": "Selección de páginas",
         "details": "Detalles del trabajo",
-        "page_change": "Cambio de página",
         "rulebook": "Reglas {version}",
-        "graphDescription": "Comprobaciones, cambios y tareas de acciones, del más antiguo al más reciente. Las distancias no indican el tiempo transcurrido.",
-        "graphLabel": "Gráfico de actividad SEO",
+        "graphLabel": "Actividad SEO, lo más reciente primero",
         "auditRun": "Resultados de la auditoría",
         "checkRun": "Resultados de la comprobación",
         "recheckRun": "Resultados de la nueva comprobación",
@@ -10775,14 +10765,13 @@
         "actionLinked": "Tarea de acción vinculada",
         "scopeChanged": "Selección de páginas cambiada",
         "pageChanged": "Cambio de página registrado",
-        "checkedAt": "Comprobado",
         "savedAt": "Guardado",
-        "currentTaskStatus": "Estado actual de la tarea",
         "checkSummary": "{checked} comprobaciones registradas",
-        "previousCheck": "Repite una comprobación anterior de las mismas páginas, mercado, dispositivos y reglas.",
+        "previousCheck": "Repite una comprobación anterior",
         "sourceDetails": "Detalles del evento",
         "resultsSaved": "Resultados guardados",
-        "incomplete": "No se pudo completar parte del trabajo solicitado."
+        "incomplete": "No se pudo completar parte del trabajo solicitado.",
+        "showAll": "Mostrar los {count} eventos"
       },
       "analysis": {
         "title": "Iniciar comprobación",
@@ -10892,7 +10881,7 @@
       },
       "coverageStatus": {
         "complete": "Completa",
-        "partial": "Parcial",
+        "partial": "Datos parciales",
         "unavailable": "No disponible"
       },
       "invalidFilters": "Los filtros de páginas o fechas no son válidos. Bórralos para elegir otro ámbito.",
@@ -10960,7 +10949,8 @@
         "open": "Abrir {action}",
         "auditRequired": "Abre una auditoría para usar el chat SEO.",
         "dailyLimit": "Has alcanzado el límite diario del chat SEO. Inténtalo de nuevo mañana.",
-        "createTask": "Crear borrador de tarea: {title}"
+        "createTask": "Crear borrador de tarea: {title}",
+        "showEarlier": "{count, plural, one {Mostrar # pregunta anterior} other {Mostrar # preguntas anteriores}}"
       },
       "connections": {
         "connect": "Conectar {provider}",
@@ -11032,16 +11022,7 @@
         "ask": "Preguntar al agente SEO",
         "title": "Agente SEO",
         "subtitle": "Lee tus comprobaciones y estadísticas guardadas, propone los siguientes pasos y mantiene Search Console al día. Tú apruebas cada tarea.",
-        "knownTitle": "Lo que sabe el agente",
-        "lastCheck": "Última comprobación: {checked, plural, one {# regla} other {# reglas}} en {pages, plural, one {# página} other {# páginas}}.",
-        "noCheck": "Aún no se ha comprobado ninguna de estas páginas.",
-        "issues": "{count, plural, one {# problema confirmado} other {# problemas confirmados}} en las reglas comprobadas.",
-        "noIssues": "Ningún problema confirmado en las reglas comprobadas. Solo cubre esas reglas y páginas, no todo el sitio.",
-        "search": "Search Console: {clicks} clics de {impressions} impresiones.",
-        "noSearch": "Aún no hay estadísticas de búsqueda.",
-        "queries": "{count, plural, =0 {Ninguna consulta guardada} one {# consulta guardada} other {# consultas guardadas}} de la sincronización más reciente de Search Console.",
-        "queriesMissing": "Las consultas aún no están guardadas.",
-        "suggestions": "{fixes, plural, one {# corrección} other {# correcciones}} y {opportunities, plural, one {# oportunidad de revisión} other {# oportunidades de revisión}} pendientes.",
+        "lastCheck": "{checked, plural, one {# regla} other {# reglas}} en {pages, plural, one {# página} other {# páginas}}.",
         "refreshing": "El agente está actualizando Search Console.",
         "refreshFailed": "No se pudo actualizar Search Console. Inténtalo de nuevo en Siguientes pasos.",
         "nextTitle": "Siguientes pasos",
@@ -11065,7 +11046,16 @@
           "queries": "¿Qué búsquedas traen personas a estas páginas?",
           "competitors": "¿Qué sabemos de los competidores?"
         },
-        "researchCompetitors": "Investigar competidores"
+        "researchCompetitors": "Investigar competidores",
+        "verdict": {
+          "issues": "{count, plural, one {# problema por corregir} other {# problemas por corregir}}",
+          "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
+          "clear": "Sin problemas en la última comprobación",
+          "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
+          "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}"
+        },
+        "checkScope": "Esto cubre solo esas reglas y páginas, no todo el sitio.",
+        "lastCheckOn": "Última comprobación"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}."

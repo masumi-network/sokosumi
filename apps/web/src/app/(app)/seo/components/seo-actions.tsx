@@ -19,9 +19,12 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoActionCard({
   action,
   model,
+  showKind = false,
 }: {
   action: ProjectSeoAction;
   model: SeoWorkspaceModel;
+  /** Outside the Actions tab's groups, the card itself says whether it is a fix or a suggestion. */
+  showKind?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   return (
@@ -29,8 +32,12 @@ export function SeoActionCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-sm font-semibold break-words">{action.title}</h3>
         <div className="flex flex-wrap gap-1">
-          <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
-          <SeoState>{t(`actions.${action.status}`)}</SeoState>
+          {showKind ? (
+            <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+          ) : null}
+          {action.status !== "recommended" ? (
+            <SeoState>{t(`actions.${action.status}`)}</SeoState>
+          ) : null}
         </div>
       </div>
       <SeoPageLink url={action.pageUrl} />
@@ -147,11 +154,15 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     (action) => action.kind === "opportunity",
   );
   const searchLoaded = model.data.searchQueries !== null;
+  // The recheck rule matters only once a Task exists for an action.
+  const tracked = overview.actions.some(
+    (action) => action.status !== "recommended",
+  );
   return (
-    <SeoSection title={t("actions.title")}>
-      <p className="text-muted-foreground px-2 pb-2 text-sm">
-        {t("actions.help")}
-      </p>
+    <SeoSection
+      title={t("actions.title")}
+      description={tracked ? t("actions.help") : undefined}
+    >
       {overview.actions.length ? (
         <div className="space-y-5">
           <ActionGroup

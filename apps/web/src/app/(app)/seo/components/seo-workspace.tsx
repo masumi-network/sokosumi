@@ -2,6 +2,7 @@
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
+  BarChart3,
   CalendarClock,
   ChevronDown,
   Download,
@@ -10,7 +11,6 @@ import {
   PencilLine,
   Play,
   Plus,
-  RefreshCw,
   Settings2,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,10 +28,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { SeoActions } from "./seo-actions";
-import { SEO_AGENT_INPUT_ID } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
 import { SeoChatPanel } from "./seo-chat-panel";
 import { SeoCompetitors } from "./seo-competitors";
@@ -92,67 +98,37 @@ export function SeoWorkspace({
         {t("loading")}
       </p>
     );
+  // Before the first check the Overview's start card carries "Run a check"; one copy is enough.
+  const startCard =
+    model.filters.tab === "overview" &&
+    !model.data.observations.length &&
+    !model.filters.from &&
+    !model.filters.to &&
+    model.data.availableActions.canEdit;
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Link
-          href="/seo"
-          className="text-muted-foreground text-sm underline underline-offset-4"
-        >
-          {t("audits.all")}
-        </Link>
-        {model.data.auditName ? (
-          <h2 className="text-xl font-semibold">{model.data.auditName}</h2>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
-          {t("pages.count", { count: model.data.scope.pageIds.length })}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <Link
+            href="/seo"
+            className="text-muted-foreground text-sm underline underline-offset-4"
+          >
+            {t("audits.all")}
+          </Link>
+          {model.data.auditName ? (
+            <h2 className="text-xl font-semibold">{model.data.auditName}</h2>
+          ) : null}
+          <p className="text-muted-foreground text-sm">
+            {t("pages.count", { count: model.data.scope.pageIds.length })}
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
-          {model.data.auditId ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const inline =
-                  model.filters.tab === "overview"
-                    ? document.getElementById(SEO_AGENT_INPUT_ID)
-                    : null;
-                if (!inline) return model.openChat();
-                inline.scrollIntoView({ block: "center" });
-                inline.focus();
-              }}
-            >
+          {model.data.auditId && model.filters.tab !== "overview" ? (
+            <Button variant="outline" size="sm" onClick={model.openChat}>
               <MessageSquare className="size-4" />
               {t("agent.ask")}
             </Button>
           ) : null}
-          {model.data.availableActions.canEdit &&
-          (model.data.observations.length > 0 ||
-            model.filters.tab !== "overview") ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={unavailable}
-              onClick={() => model.setDialog("import")}
-            >
-              <Download className="size-4" />
-              {t("importAudit")}
-            </Button>
-          ) : null}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={t("refresh")}
-            title={t("refresh")}
-            disabled={model.result.isFetching || model.invalidDates}
-            onClick={() => {
-              void model.result.refetch();
-            }}
-          >
-            <RefreshCw className="size-4" />
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -161,8 +137,24 @@ export function SeoWorkspace({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {model.data.availableActions.canSyncMetrics ? (
+                <DropdownMenuItem
+                  disabled={unavailable}
+                  onSelect={() => model.setDialog("statistics")}
+                >
+                  <BarChart3 className="size-4" />
+                  {t("overview.manageConnections")}
+                </DropdownMenuItem>
+              ) : null}
               {model.data.availableActions.canEdit ? (
                 <>
+                  <DropdownMenuItem
+                    disabled={unavailable}
+                    onSelect={() => model.setDialog("import")}
+                  >
+                    <Download className="size-4" />
+                    {t("importAudit")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={unavailable}
                     onSelect={() => model.setDialog("page")}
@@ -197,10 +189,9 @@ export function SeoWorkspace({
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
-          {model.data.availableActions.canRequestAnalysis &&
-          (model.data.observations.length > 0 ||
-            model.filters.tab !== "overview") ? (
+          {model.data.availableActions.canRequestAnalysis && !startCard ? (
             <Button
+              variant="primary"
               size="sm"
               disabled={unavailable || !model.data.scope.pageIds.length}
               onClick={() => model.setDialog("analysis")}
@@ -291,10 +282,14 @@ export function SeoWorkspace({
         }}
         className="gap-4"
       >
-        <div className="overflow-x-auto">
-          <TabsList>
+        <div className="app-scrollbar w-fit max-w-full overflow-x-auto">
+          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-max")}>
             {SEO_TABS.map((tab) => (
-              <TabsTrigger key={tab} value={tab}>
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+              >
                 {t(`tabs.${tab}`)}
               </TabsTrigger>
             ))}

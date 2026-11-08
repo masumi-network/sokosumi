@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoAgentHome } from "./seo-agent-home";
 import { SeoMeasurements } from "./seo-measurements";
@@ -65,7 +68,7 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
           {t("actions.checksIncompleteBody")}
         </p>
       ) : null}
-      <SeoMeasurements workspace={data} onSync={model.openStatistics} />
+      <SeoMeasurements model={model} />
       {overview.recentChecks.length ? (
         <SeoSection title={t("overview.recentChecks")}>
           {overview.recentChecks.map((item) => (
@@ -98,69 +101,6 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
       data.availableActions.canCreateMonitor === true ? (
         <SeoMonitors model={model} />
       ) : null}
-      {overview.diagnostics.length || data.observations.length ? (
-        <SeoSection title={t("overview.diagnostics")}>
-          <details className={cn(HOLDER_ITEM_CLASS, "p-4 text-sm")}>
-            <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-1 font-medium focus-visible:ring-2 focus-visible:outline-none">
-              {t("overview.checkDetails")}
-            </summary>
-            <div className="space-y-4 pt-4">
-              {data.observations.map((observation) => (
-                <div
-                  key={observation.id}
-                  className="text-muted-foreground space-y-2"
-                >
-                  <p>
-                    {t("overview.coverageCounts", {
-                      checked: observation.coverage.checked,
-                      skipped: observation.coverage.skipped,
-                      failed: observation.coverage.failed,
-                    })}
-                  </p>
-                  {observation.coverage.modules ? (
-                    <p>
-                      {t("overview.moduleCoverage", {
-                        notRequested: observation.coverage.modules.notRequested,
-                        failed: observation.coverage.modules.failed,
-                      })}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-3 text-xs">
-                    <SeoDate value={observation.observedAt} />
-                    <SeoSource
-                      observationId={observation.id}
-                      workspace={data}
-                    />
-                  </div>
-                </div>
-              ))}
-              {overview.diagnostics.map((finding) => (
-                <article key={finding.id} className="space-y-3">
-                  <div className="flex flex-wrap items-start gap-2">
-                    <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
-                    <h3 className="text-sm font-medium">{finding.title}</h3>
-                  </div>
-                  <SeoPageLink url={finding.pageUrl} />
-                  <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
-                    {finding.evidence.map((evidence, index) => (
-                      <li key={`${index}:${evidence}`} className="break-words">
-                        {evidence}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
-                    <SeoDate value={finding.observedAt} />
-                    <SeoSource
-                      observationId={finding.observationId}
-                      workspace={data}
-                    />
-                  </div>
-                </article>
-              ))}
-            </div>
-          </details>
-        </SeoSection>
-      ) : null}
       <SeoTimeline
         workspace={data}
         onRetry={
@@ -169,6 +109,66 @@ export function SeoOverview({ model }: { model: SeoWorkspaceModel }) {
             : undefined
         }
       />
+      {overview.diagnostics.length || data.observations.length ? (
+        <details className={cn(HOLDER_CLASS, "text-sm")}>
+          <summary className="focus-visible:ring-ring cursor-pointer rounded-sm px-2 py-1 focus-visible:ring-2 focus-visible:outline-none">
+            <h2 className="inline text-sm font-semibold">
+              {t("overview.diagnostics")}
+            </h2>
+          </summary>
+          <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
+            {data.observations.map((observation) => (
+              <div
+                key={observation.id}
+                className="text-muted-foreground space-y-2"
+              >
+                <p>
+                  {t("overview.coverageCounts", {
+                    checked: observation.coverage.checked,
+                    skipped: observation.coverage.skipped,
+                    failed: observation.coverage.failed,
+                  })}
+                </p>
+                {observation.coverage.modules ? (
+                  <p>
+                    {t("overview.moduleCoverage", {
+                      notRequested: observation.coverage.modules.notRequested,
+                      failed: observation.coverage.modules.failed,
+                    })}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <SeoDate value={observation.observedAt} />
+                  <SeoSource observationId={observation.id} workspace={data} />
+                </div>
+              </div>
+            ))}
+            {overview.diagnostics.map((finding) => (
+              <article key={finding.id} className="space-y-3">
+                <div className="flex flex-wrap items-start gap-2">
+                  <SeoState>{t(`severity.${finding.severity}`)}</SeoState>
+                  <h3 className="text-sm font-medium">{finding.title}</h3>
+                </div>
+                <SeoPageLink url={finding.pageUrl} />
+                <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
+                  {finding.evidence.map((evidence, index) => (
+                    <li key={`${index}:${evidence}`} className="break-words">
+                      {evidence}
+                    </li>
+                  ))}
+                </ul>
+                <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
+                  <SeoDate value={finding.observedAt} />
+                  <SeoSource
+                    observationId={finding.observationId}
+                    workspace={data}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

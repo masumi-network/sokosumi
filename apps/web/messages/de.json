@@ -10554,7 +10554,6 @@
       "errorBody": "Lade dieses Audit neu oder kehre zur Audit-Liste zurück.",
       "retry": "Erneut versuchen",
       "loading": "SEO-Ergebnisse werden geladen",
-      "refresh": "Ergebnisse aktualisieren",
       "refreshFailed": "Ergebnisse konnten nicht aktualisiert werden. Versuche es erneut.",
       "saveFailed": "Speichern fehlgeschlagen. Prüfe die Felder und versuche es erneut.",
       "conflict": "Die Daten wurden geändert. Aktualisiere die Ergebnisse vor einem neuen Versuch.",
@@ -10612,7 +10611,6 @@
       },
       "overview": {
         "measurements": "Leistung",
-        "measurementsBody": "Gemessener Traffic und Suchleistung für die ausgewählten Seiten und den Zeitraum.",
         "not_connected": "Für diese Seiten sind noch keine Zugriffsstatistiken gespeichert. Wähle ein Konto, um sie zu laden.",
         "unavailable": "Statistiken sind nicht verfügbar. Prüfe hier die Verbindung und versuche es erneut.",
         "partial": "Einige Statistiken fehlen. Prüfe die Quellen und Hinweise zur Abdeckung.",
@@ -10623,17 +10621,16 @@
         "findingsCount": "{count, plural, one {# Befund} other {# Befunde}}",
         "auditsCount": "{count, plural, one {# erfasstes Ergebnis} other {# erfasste Ergebnisse}}",
         "coverageCounts": "Regelprüfungen: {checked} geprüft, {skipped} nicht geprüft, {failed} nicht verfügbar",
-        "moduleCoverage": "Analysetypen: {notRequested} nicht angefordert, {failed} nicht verfügbar",
+        "moduleCoverage": "Optionale Prüfungen: {notRequested} nicht angefordert, {failed} nicht verfügbar",
         "noFindings": "Keine Befunde in dieser Auswahl",
         "noFindingsBody": "Starte oder importiere eine Prüfung, um Nachweise zu sehen. Fehlende Prüfungen gelten nicht als bestanden.",
         "manageConnections": "Statistiken einrichten",
         "dailyTrend": "Täglicher Verlauf",
         "noDailyTrend": "Diese Quelle enthält keine täglichen Messwerte für den gewählten Zeitraum.",
-        "measurementDetails": "Details zur Messung",
+        "measurementDetails": "Über diese Daten",
         "timeZone": "Zeitzone des Berichts: {timeZone}",
         "trafficSetup": "So entwickeln sich diese Seiten",
         "trafficSetupBody": "Verbinde Google Analytics für Besuche und Seitenaufrufe oder Search Console für Suchklicks, Impressionen und Rankings.",
-        "googleConnections": "Deine Google-Verbindungen",
         "recentChecks": "Letzte Prüfungen",
         "getStarted": "Erste Ergebnisse für diese Seiten",
         "getStartedBody": "Starte eine Seitenprüfung oder importiere einen fertigen Bericht. Füge verwandte Seiten hinzu, um sie in einem Audit zu vergleichen.",
@@ -10644,12 +10641,14 @@
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
         "checkDetails": "Prüfdetails",
-        "diagnostics": "Messwerte und Hinweise",
+        "diagnostics": "Prüfdetails",
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
         "dailyValues": "Tageswerte",
-        "day": "Tag"
+        "day": "Tag",
+        "synced": "Synchronisiert",
+        "windowValue": "{days}: {value}"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10711,22 +10710,22 @@
         "task_created": "Entwurfsaufgabe erstellt",
         "implemented": "Umgesetzt",
         "verified": "Verifiziert",
-        "help": "Eine umgesetzte Aufgabe braucht eine passende Nachprüfung, bevor das SEO-Ergebnis verifiziert ist.",
+        "help": "Eine erledigte Aufgabe gilt erst nach einer neuen Prüfung derselben Seite als bestätigt.",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Die erfassten Prüfungen empfehlen keine Korrekturen. Prüfe ihre Abdeckung oder richte Statistiken ein, um den nächsten Schritt zu wählen.",
         "checksIncomplete": "Diese Prüfungen sind unvollständig",
         "checksIncompleteBody": "Einige angeforderte Prüfungen konnten nicht abgeschlossen werden. Prüfe die Prüfdetails, bevor du den nächsten Schritt wählst.",
         "unplannedIssues": "Noch keine empfohlenen Aktionen",
         "unplannedIssuesBody": "Diese Prüfungen haben Probleme gefunden, enthalten aber keine empfohlenen Aktionen. Prüfe die Befunde oder öffne den SEO-Chat für die nächsten Schritte.",
-        "kind": {
-          "fix": "Bestätigtes Problem",
-          "opportunity": "Prüfvorschlag"
-        },
         "fixesTitle": "Korrekturen für bestätigte Probleme",
         "fixesHelp": "Eine Prüfung fand ein Problem auf der Seite. Nach der Korrektur braucht es eine neue Prüfung zur Bestätigung.",
-        "opportunitiesTitle": "Prüfvorschläge aus Suchdaten",
-        "opportunitiesHelp": "Eine benannte Heuristik traf auf gemessene Search-Console-Zeilen zu. Das sind Vorschläge zur Prüfung, keine Fehler, und sie versprechen keinen Traffic.",
-        "noOpportunitiesBody": "Die Prüfungen fanden keine Korrektur, und keine Suchanfrage erfüllte eine Prüfheuristik. Frag den SEO-Agenten, was als Nächstes erhoben werden soll."
+        "opportunitiesTitle": "Vorschläge aus Suchdaten",
+        "opportunitiesHelp": "Search-Console-Daten weisen darauf hin. Es sind keine Fehler, und sie versprechen keinen Traffic.",
+        "noOpportunitiesBody": "Die Prüfungen fanden nichts zu beheben, und keine Search-Console-Anfrage passte zu einem Vorschlag. Frag den SEO-Agenten, was als Nächstes gesammelt werden soll.",
+        "kind": {
+          "fix": "Bestätigtes Problem",
+          "opportunity": "Vorschlag"
+        }
       },
       "pages": {
         "title": "Seiten",
@@ -10749,24 +10748,15 @@
         "statuses": {
           "requested": "Angefordert",
           "running": "Läuft",
-          "completed": "Abgeschlossen",
           "failed": "Fehlgeschlagen",
           "partial": "Teilweise",
-          "recorded": "Erfasst",
           "unavailable": "Nicht verfügbar"
         },
         "empty": "Keine Aktivität in dieser Auswahl",
         "emptyBody": "Prüfungen, Statistikaktualisierungen, Seitenauswahl und Aufgaben erscheinen hier.",
-        "audit": "Audit",
-        "check": "Prüfung",
-        "metrics": "Statistiken",
-        "action": "Aktion",
-        "scope": "Seitenauswahl",
         "details": "Arbeitsdetails",
-        "page_change": "Seitenänderung",
         "rulebook": "Regelwerk {version}",
-        "graphDescription": "Prüfungen, Änderungen und Aktionsaufgaben, von alt nach neu. Die Abstände zeigen keine Zeitdauer.",
-        "graphLabel": "SEO-Aktivitätsdiagramm",
+        "graphLabel": "SEO-Aktivität, neueste zuerst",
         "auditRun": "Audit-Ergebnisse",
         "checkRun": "Prüfergebnisse",
         "recheckRun": "Ergebnisse der Nachprüfung",
@@ -10775,14 +10765,13 @@
         "actionLinked": "Aktionsaufgabe verknüpft",
         "scopeChanged": "Seitenauswahl geändert",
         "pageChanged": "Seitenänderung erfasst",
-        "checkedAt": "Geprüft",
         "savedAt": "Gespeichert",
-        "currentTaskStatus": "Aktueller Aufgabenstatus",
         "checkSummary": "{checked} Prüfungen erfasst",
-        "previousCheck": "Wiederholt eine frühere Prüfung derselben Seiten, Märkte, Geräte und Regeln.",
+        "previousCheck": "Wiederholung einer früheren Prüfung",
         "sourceDetails": "Ereignisdetails",
         "resultsSaved": "Ergebnisse gespeichert",
-        "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden."
+        "incomplete": "Einige angeforderte Arbeiten konnten nicht abgeschlossen werden.",
+        "showAll": "Alle {count} Ereignisse anzeigen"
       },
       "analysis": {
         "title": "Prüfung starten",
@@ -10892,7 +10881,7 @@
       },
       "coverageStatus": {
         "complete": "Vollständig",
-        "partial": "Teilweise",
+        "partial": "Teildaten",
         "unavailable": "Nicht verfügbar"
       },
       "invalidFilters": "Diese Seiten- oder Datumsfilter sind ungültig. Lösche sie und wähle einen neuen Bereich.",
@@ -10960,7 +10949,8 @@
         "open": "{action} öffnen",
         "auditRequired": "Öffne ein Audit, um den SEO-Chat zu nutzen.",
         "dailyLimit": "Du hast das heutige Limit für den SEO-Chat erreicht. Versuche es morgen erneut.",
-        "createTask": "Aufgabenentwurf erstellen: {title}"
+        "createTask": "Aufgabenentwurf erstellen: {title}",
+        "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}"
       },
       "connections": {
         "connect": "{provider} verbinden",
@@ -11032,16 +11022,7 @@
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
         "subtitle": "Er liest deine gespeicherten Prüfungen und Statistiken, schlägt nächste Schritte vor und hält die Search Console aktuell. Jede Aufgabe gibst du frei.",
-        "knownTitle": "Was der Agent weiß",
-        "lastCheck": "Letzte Prüfung: {checked, plural, one {# Regel} other {# Regeln}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
-        "noCheck": "Für diese Seiten lief noch keine Prüfung.",
-        "issues": "{count, plural, one {# bestätigtes Problem} other {# bestätigte Probleme}} in den geprüften Regeln.",
-        "noIssues": "Kein bestätigtes Problem in den geprüften Regeln. Das gilt nur für diese Regeln und Seiten, nicht für die ganze Website.",
-        "search": "Search Console: {clicks} Klicks aus {impressions} Impressionen.",
-        "noSearch": "Noch keine Suchstatistiken.",
-        "queries": "{count, plural, =0 {Keine Suchanfragen} one {# Suchanfrage} other {# Suchanfragen}} aus der neuesten Search-Console-Synchronisierung gespeichert.",
-        "queriesMissing": "Suchanfragen sind noch nicht gespeichert.",
-        "suggestions": "{fixes, plural, one {# Korrektur} other {# Korrekturen}} und {opportunities, plural, one {# Prüfvorschlag} other {# Prüfvorschläge}} warten.",
+        "lastCheck": "{checked, plural, one {# Regel} other {# Regeln}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
         "refreshing": "Der Agent aktualisiert die Search Console.",
         "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
         "nextTitle": "Nächste Schritte",
@@ -11065,7 +11046,16 @@
           "queries": "Über welche Suchen kommen Menschen auf diese Seiten?",
           "competitors": "Was wissen wir über Wettbewerber?"
         },
-        "researchCompetitors": "Wettbewerber recherchieren"
+        "researchCompetitors": "Wettbewerber recherchieren",
+        "verdict": {
+          "issues": "{count, plural, one {# Problem zu beheben} other {# Probleme zu beheben}}",
+          "waiting": "{count, plural, one {# Vorschlag zu prüfen} other {# Vorschläge zu prüfen}}",
+          "clear": "Keine Probleme in der letzten Prüfung",
+          "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
+          "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
+        },
+        "checkScope": "Das gilt nur für diese Regeln und Seiten, nicht für die ganze Website.",
+        "lastCheckOn": "Letzte Prüfung"
       },
       "scopeFilters": "Seiten und Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}."
