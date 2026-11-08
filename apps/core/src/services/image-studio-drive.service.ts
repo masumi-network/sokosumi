@@ -40,7 +40,10 @@ export function studioAssetFileName(
     .replace(/-+$/g, "");
   const video = contentType.startsWith("video/");
   const extension = EXTENSIONS[contentType] ?? (video ? "mp4" : "png");
-  return `${slug || (video ? "video" : "image")}-${jobId.slice(0, 8)}.${extension}`;
+  // The id's random end: its start is a time-ordered UUID's clock, the same
+  // for every job made within a minute, so two slides of one carousel (same
+  // prompt start) became one file and the second never reached its post.
+  return `${slug || (video ? "video" : "image")}-${jobId.replace(/-/g, "").slice(-8)}.${extension}`;
 }
 
 export interface StudioAssetDriveFile {

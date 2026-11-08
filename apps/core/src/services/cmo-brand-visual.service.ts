@@ -1,10 +1,7 @@
+import { brandColors, designMdBrandLook } from "@sokosumi/utils";
+
 import { getEnv } from "@/config/env";
-import {
-  type BrandVisual,
-  brandColors,
-  brandFontName,
-  readBrandVisual,
-} from "@/lib/brand-visual";
+import { type BrandVisual, readBrandVisual } from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
 import {
   readDesignMdContent,
@@ -36,14 +33,9 @@ export function brandLookFromDesignMd(
     .match(/^---\n[\s\S]*?^name:\s*(.+)$/m)?.[1]
     ?.trim()
     .replace(/^["']|["']$/g, "");
-  const fonts = [
-    ...content.matchAll(/font-?family["']?\s*:\s*["']?([^"',;\n]+)/gi),
-  ]
-    .map((match) => brandFontName(match[1] ?? ""))
-    .filter((font): font is string => font !== null);
   return {
     colors: brandColors(content, 5),
-    fonts: [...new Set(fonts)].slice(0, 4),
+    fonts: designMdBrandLook(content).fonts,
     siteName: name ? decodeEntities(name).slice(0, 120) : null,
   };
 }

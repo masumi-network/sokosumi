@@ -617,7 +617,7 @@
         },
         "Brand": {
           "title": "Directrices de marca",
-          "tooltip": "Las directrices de marca son un archivo DESIGN.md: colores, tipografías, tono y estilo en un solo lugar. Tus coworkers lo leen para que todo lo que creen para ti se vea y suene como tú.",
+          "tooltip": "Las directrices de marca reúnen tus colores, tipografías, tono y estilo en un solo lugar. Tus coworkers las leen para que todo lo que creen para ti se vea y suene como tú.",
           "generating": "Leyendo {domain} para crear tu estilo de marca…",
           "generatingNoDomain": "Leyendo tu sitio web para crear tu estilo de marca…",
           "generated": "Generamos tu estilo de marca a partir de {domain}.",
@@ -626,7 +626,12 @@
           "failedSubtitle": "No pasa nada: puedes añadir las directrices de marca más tarde.",
           "retry": "Reintentar",
           "skipHint": "Esto sigue en segundo plano: puedes continuar en cualquier momento.",
-          "editHint": "Puedes editarlo, reemplazarlo o eliminarlo más tarde en la configuración de la organización."
+          "editHint": "Tus coworkers las usan para que su trabajo se vea y suene como tú. Cámbialas cuando quieras en la configuración de la organización.",
+          "colors": "Colores",
+          "fonts": "Tipografías",
+          "tone": "Tono",
+          "noSummary": "Tus directrices de marca están guardadas. No pudimos extraer colores, tipografías ni tono para mostrarlos aquí.",
+          "viewFull": "Ver directrices completas"
         },
         "Invite": {
           "title": "{organization} está lista",
@@ -10164,6 +10169,7 @@
       "columns": {
         "name": "Nombre",
         "organization": "Organización",
+        "location": "Ubicación",
         "role": "Cargo",
         "stage": "Relación",
         "lists": "Listas",
@@ -10269,6 +10275,8 @@
         "name": "Nombre",
         "organization": "Organización",
         "role": "Cargo",
+        "location": "Ubicación",
+        "locationPlaceholder": "Ciudad, país",
         "channels": "Formas de contacto",
         "channelType": "Tipo del canal {index}",
         "channelValue": "Canal {index}",
@@ -10533,6 +10541,31 @@
         "pricing": "{credits, number} créditos por persona encontrada. Si no encuentra a nadie, es gratis.",
         "personLabel": "¿A quién buscas?",
         "personPlaceholder": "p. ej. Jane Doe, socia de XYZ Ventures"
+      },
+      "layout": {
+        "label": "Vista",
+        "table": "Tabla",
+        "map": "Mapa"
+      },
+      "map": {
+        "label": "Lugares",
+        "loading": "Colocando contactos en el mapa…",
+        "errorTitle": "El mapa no se cargó",
+        "error": "Algo salió mal al cargar el mapa.",
+        "retry": "Reintentar",
+        "emptyTitle": "Aún no hay nadie en el mapa",
+        "empty": "Añade una ubicación a un contacto, como una ciudad, y aparecerá aquí.",
+        "emptyUnplaced": "No encontramos ninguno de estos lugares. Prueba con ciudad y país.",
+        "placed": "{count, plural, one {# contacto} other {# contactos}} en el mapa",
+        "unplaced": "{count, plural, one {# contacto} other {# contactos}} sin colocar",
+        "pending": "Ubicando {count, plural, one {# contacto} other {# contactos}}…",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "resetZoom": "Ver el mundo entero",
+        "withoutLocation": "{count} sin ubicación",
+        "place": "{place}, {count, plural, one {# contacto} other {# contactos}}",
+        "nearby": "{place} y {others, plural, one {# lugar cercano} other {# lugares cercanos}}",
+        "people": "{count, plural, one {# contacto} other {# contactos}}"
       }
     }
   },

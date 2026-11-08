@@ -24,6 +24,7 @@ import {
 } from "@/services/cmo-cuso.service";
 import {
   approvedMarketingStrategy,
+  isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
   planMarketingStrategyPosts,
@@ -322,6 +323,39 @@ export function withoutDashes<T>(value: T): T {
 }
 
 /**
+ * A piece that is a Project file (an image ad) keeps its visual on the
+ * approved plan's entry, where Core's media maker reads it; a Social post
+ * keeps it on the post.
+ */
+async function keepFileVisuals(
+  db: Prisma.TransactionClient,
+  approved: MarketingStrategy,
+  sent: CmoCalendarEntry[],
+): Promise<MarketingStrategy> {
+  const visuals = new Map(
+    sent
+      .filter((entry) => isMarketingFilePiece(entry) && entry.visual)
+      .map((entry) => [entry.id, entry]),
+  );
+  const plan = parseMarketingPlan(approved.plan);
+  if (visuals.size === 0 || !plan) return approved;
+  const calendar = plan.calendar.map((entry) => {
+    const sentEntry = visuals.get(entry.id);
+    return sentEntry
+      ? {
+          ...entry,
+          visual: sentEntry.visual,
+          visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
+        }
+      : entry;
+  });
+  return db.marketingStrategy.update({
+    where: { id: approved.id },
+    data: { plan: { ...plan, calendar } },
+  });
+}
+
+/**
  * Saves the strategy as a version of the Project's Marketing strategy. A
  * turn's first save adds a version and its later saves complete it (a plan
  * goes in two calls) until it is approved; no save changes another version.
@@ -359,7 +393,11 @@ export async function saveCmoStrategy(
           ? { sokoBotId: cuso.sokoBotId }
           : { userId: where.userId },
     });
-    return approved;
+    return keepFileVisuals(
+      db,
+      approved,
+      (strategy.calendar ?? []) as CmoCalendarEntry[],
+    );
   }
   const own = options.turnId
     ? await db.marketingStrategy.findFirst({

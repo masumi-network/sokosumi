@@ -357,6 +357,13 @@ export const cmoCalendarEntrySchema = z.object({
   /** Why this piece, on this day and channel, tied to the Brand Brain. */
   why: shortText.optional(),
   socialPostId: z.string().uuid().optional(),
+  /**
+   * What the piece's picture or video shows, for a format that has one. Core
+   * makes it from this, attaches it and makes each carousel slide.
+   */
+  visual: longText.optional(),
+  /** Brand pictures (brandPictures fileIds) the visual is made from. */
+  visualFileIds: z.array(z.string().max(100)).max(3).optional(),
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
@@ -400,6 +407,8 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   approach: true,
   pillar: true,
   campaignId: true,
+  visual: true,
+  visualFileIds: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
