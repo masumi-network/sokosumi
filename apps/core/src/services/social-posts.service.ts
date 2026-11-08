@@ -684,6 +684,31 @@ async function requireOwnInMonth(
     );
 }
 
+/**
+ * A bot schedules a month post with a picture only once Core put the
+ * picture on it: Core attaches pictures to drafts alone, so an X post Cuso
+ * scheduled early would have gone out without its image.
+ */
+export async function requireMonthPostPicture(
+  tx: Prisma.TransactionClient,
+  input: { postId: string; workspaceId: string },
+): Promise<void> {
+  const post = await tx.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true, planning: true, media: true },
+  });
+  const visual = (post?.planning as { visual?: unknown } | null)?.visual;
+  if (
+    post?.marketingStrategyId &&
+    typeof visual === "string" &&
+    visual.trim() &&
+    parseSocialPostMedia(post.media, input.postId).length === 0
+  )
+    throw badRequest(
+      "Leave this post as a draft: Core is making its picture and schedules it once the picture is on it.",
+    );
+}
+
 function firstLine(text: string): string {
   const line = text.trim().split("\n")[0] ?? "";
   return line.length > 80 ? `${line.slice(0, 77)}...` : line;
