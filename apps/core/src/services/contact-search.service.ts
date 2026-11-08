@@ -5,6 +5,7 @@
  * the background and ranks queries against them.
  */
 import { PrismaRaw } from "@sokosumi/database/client";
+import { unprocessableEntity } from "@/helpers/error";
 import {
   type EmbedTexts,
   embedContactTexts,
@@ -17,7 +18,8 @@ export type ContactSearchMode = (typeof CONTACT_SEARCH_MODES)[number];
 
 /**
  * Matches each method may contribute: every match, in practice, so totals
- * and paging cover all of them; a bound only against a runaway workspace.
+ * and paging cover all of them. A query with more is refused, never cut
+ * short, so a total is always exact.
  */
 const MAX_PER_METHOD = 100_000;
 /** Reciprocal rank fusion constant: damps the weight of the very top ranks. */
@@ -48,10 +50,13 @@ export async function rankContacts(
     /** Archived contacts instead of live ones. */
     archived?: boolean;
     embed?: EmbedTexts;
+    maxPerMethod?: number;
   } = {},
 ): Promise<RankedContact[]> {
   const mode = options.mode ?? "both";
-  const perMethod = MAX_PER_METHOD;
+  const max = options.maxPerMethod ?? MAX_PER_METHOD;
+  // One more than allowed, to tell a full result from a cut one.
+  const perMethod = max + 1;
   if (options.ids?.length === 0) return [];
   const only = options.ids
     ? PrismaRaw.sql`AND cs."contactId" = ANY(${options.ids}::uuid[])`
@@ -129,6 +134,13 @@ export async function rankContacts(
         `,
       );
   }
+  const counts = new Map<string, number>();
+  for (const { method } of ranked)
+    counts.set(method, (counts.get(method) ?? 0) + 1);
+  if ([...counts.values()].some((count) => count > max))
+    throw unprocessableEntity(
+      `The search matches more than ${max.toLocaleString("en")} contacts; narrow it with a filter or more words`,
+    );
   const scores = new Map<string, number>();
   for (const { contactId, rank } of ranked)
     scores.set(contactId, (scores.get(contactId) ?? 0) + 1 / (RRF_K + rank));

@@ -10207,7 +10207,8 @@
         "add": "Add contact",
         "more": "More actions",
         "filter": "Filter",
-        "kind": "Type"
+        "kind": "Type",
+        "source": "Source"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -10266,7 +10267,9 @@
         "failed": "The list didn't save. Try again.",
         "cancel": "Cancel",
         "save": "Save",
-        "create": "Create list"
+        "create": "Create list",
+        "smart": "Keep it filled from the current filters",
+        "smartHint": "A smart list: whoever matches these filters is on it, now and later."
       },
       "addDialog": {
         "title": "Add contact",
@@ -10605,6 +10608,19 @@
           "description": "About",
           "whyItMatters": "Why it matters to us"
         }
+      },
+      "overview": {
+        "label": "List overview",
+        "people": "{count, plural, one {# person} other {# people}}",
+        "quiet": "{count} not contacted in 90 days",
+        "map": "Show on map",
+        "stages": "Stage",
+        "companies": "Companies",
+        "places": "Places",
+        "knownBy": "Known by",
+        "none": "Not set",
+        "nobody": "Nobody yet",
+        "more": "and {count} more"
       }
     }
   },

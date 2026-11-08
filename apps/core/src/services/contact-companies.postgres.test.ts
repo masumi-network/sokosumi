@@ -18,8 +18,10 @@ import {
 } from "./contact-companies.service";
 import {
   type ContactActor,
+  contactCompanyMemberIds,
   inContactTransaction,
   logContactInteraction,
+  setContactArchived,
   upsertContact,
 } from "./contacts.service";
 
@@ -441,6 +443,74 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         where: { id: ostwerk?.id },
       }),
     ).toMatchObject({ description: null, enrichedAt: null });
+  });
+
+  it("reads a company by id after its people moved to a new key", async () => {
+    const kai = await create({ name: "Kai Moss", organization: "Mossworks" });
+    const [moss] = (await listCompanies(actor, { name: "Mossworks", limit: 5 }))
+      .items;
+    await prisma.contactChannel.create({
+      data: {
+        workspaceId,
+        contactId: kai.id,
+        type: "EMAIL",
+        value: "kai@mossworks.io",
+      },
+    });
+    const company = await getCompany(actor, moss?.id ?? "");
+    expect(company).toMatchObject({
+      company: { id: moss?.id, domain: "mossworks.io", people: 1 },
+      people: [{ id: kai.id }],
+    });
+  });
+
+  it("restores a renamed company's archived people by what they wrote", async () => {
+    const ivo = await create({
+      name: "Ivo Reed",
+      organization: "Reedcraft",
+      channels: [{ type: "EMAIL", value: "ivo@reedcraft.io" }],
+    });
+    const [reed] = (await listCompanies(actor, { name: "Reedcraft", limit: 5 }))
+      .items;
+    await updateCompany(actor, reed?.id ?? "", {
+      version: reed?.version ?? 1,
+      name: "Reed Studio",
+    });
+    await prisma.contact.update({
+      where: { id: ivo.id },
+      data: { archivedAt: new Date() },
+    });
+    expect(
+      await contactCompanyMemberIds(workspaceId, "Reed Studio", {
+        includeArchived: true,
+      }),
+    ).toEqual([ivo.id]);
+  });
+
+  it("remembers a spelling written after the company was listed", async () => {
+    const ada = await create({
+      name: "Ada Vale",
+      organization: "Valeworks",
+      channels: [{ type: "EMAIL", value: "ada@valeworks.io" }],
+    });
+    const [vale] = (await listCompanies(actor, { name: "Valeworks", limit: 5 }))
+      .items;
+    await prisma.contact.update({
+      where: { id: ada.id },
+      data: { organization: "Vale Labs" },
+    });
+    await updateCompany(actor, vale?.id ?? "", {
+      version: vale?.version ?? 1,
+      name: "Vale Group",
+    });
+    await inContactTransaction((tx) =>
+      setContactArchived(tx, actor, ada.id, true),
+    );
+    expect(
+      await contactCompanyMemberIds(workspaceId, "Vale Group", {
+        includeArchived: true,
+      }),
+    ).toEqual([ada.id]);
   });
 
   it("stops waiting on a company nobody works at any more", async () => {

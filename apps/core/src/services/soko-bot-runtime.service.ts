@@ -163,6 +163,7 @@ import {
 
 import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
 import { fitDisplayImage } from "@/lib/ads/display-image-fit";
+import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { tryUseLogger } from "@/lib/evlog";
@@ -340,6 +341,7 @@ import {
   enrichContactFromWeb,
   findPeopleForList,
 } from "@/services/contact-suggestions.service";
+import { listContacts } from "@/services/contacts.service";
 import { cusoDrive } from "@/services/cuso-project-files.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
@@ -6301,6 +6303,99 @@ export class SokoBotRuntimeService {
     });
   }
 
+  /**
+   * The contacts a filter matches as a new Files table: created with its
+   * first rows under this call's receipt, then filled in batches.
+   */
+  private async exportContactsToTable(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const {
+      title,
+      limit,
+      taskId: _taskId,
+      query,
+      mode,
+      company,
+      listId,
+      archived,
+      ...filter
+    } = SOKO_BOT_TOOL_INPUT_SCHEMAS.export_contacts_to_table.parse(input.input);
+    const userId = actingMemberOf(authorized);
+    await requireSokoBotWorkspaceAccess(
+      prisma,
+      userId,
+      authorized.turn.workspaceId,
+    );
+    const contactActor = {
+      workspaceId: authorized.turn.workspaceId,
+      userId,
+      sokoBotId: authorized.turn.sokoBotId,
+    };
+    const contacts = [];
+    let cursor: string | undefined;
+    while (contacts.length < limit) {
+      const page = await listContacts(contactActor, {
+        filter,
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+        sort: "lastContactAt",
+        cursor,
+        limit: Math.min(100, limit - contacts.length),
+      });
+      contacts.push(...page.items);
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+    const key = `contacts-export:${input.turnId}:${input.toolCallId}`;
+    const table = contactExportTable(contacts, key);
+    const actor = await this.tableActor(authorized, input.input);
+    // One transaction: the table, every row, the authority check and the
+    // receipt happen together or not at all, so a retry starts clean.
+    const created = await createDataTable(
+      actor,
+      {
+        key,
+        title,
+        description: `${contacts.length} contacts from the team's Contacts.`,
+        columns: table.columns,
+        rows: table.rows,
+      },
+      async (tx, operation) => {
+        await this.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          input.capability,
+          { taskIds: actor.taskId ? [actor.taskId] : [] },
+        );
+        await commitActionReceipt(tx, {
+          turnId: authorized.turn.id,
+          toolCallId: input.toolCallId,
+          actorBotId: actor.actorId,
+          targetId: operation.tableId,
+          disposition: operation.replayed ? "ALREADY_SATISFIED" : "APPLIED",
+          result: persistedToolResult({
+            table: { id: operation.tableId, title },
+            url: `/drive/tables/${operation.tableId}`,
+            rows: table.rows.length,
+          }),
+        });
+      },
+      { manyRows: true },
+    );
+    return {
+      table: { id: created.id, title: created.title },
+      url: `/drive/tables/${created.id}`,
+      rows: table.rows.length,
+      instruction: "Table created. Present this link now.",
+    };
+  }
+
   /** AI Coworkers this bot may hand Task work to. */
   private findCoworkers(
     authorized: AuthorizedSokoBotRuntime,
@@ -7624,6 +7719,7 @@ export class SokoBotRuntimeService {
       case "search_companies":
       case "get_company":
       case "update_company":
+      case "bulk_update_contacts":
       case "get_contact":
       case "list_contact_lists":
       case "find_contact_duplicates":
@@ -7636,6 +7732,8 @@ export class SokoBotRuntimeService {
       case "find_people":
       case "enrich_contact":
         return this.executeContactResearch(input, authorized);
+      case "export_contacts_to_table":
+        return this.exportContactsToTable(input, authorized);
       case "create_project":
       case "update_project":
         return this.executeProjectTool(input, authorized);

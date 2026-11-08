@@ -5,6 +5,7 @@ import {
   getContactLists,
   getContactListsByIdSuggestions,
   getContacts,
+  getContactsBreakdown,
   getContactsById,
   getContactsByIdActivity,
   getContactsByIdInteractions,
@@ -66,6 +67,22 @@ export const contactsService = {
       await getContactsOrganizations({
         ...options(),
         query: { limit: 50, ...(search ? { search } : {}) },
+      })
+    ).data.data;
+  },
+  /** How many contacts match, split by each of `by`. */
+  async breakdown(query: ContactQuery, by: string[]) {
+    const {
+      sort: _sort,
+      direction: _direction,
+      cursor: _cursor,
+      limit: _limit,
+      ...filters
+    } = query;
+    return (
+      await getContactsBreakdown({
+        ...options(),
+        query: { ...filters, by: by.join(","), top: 5 },
       })
     ).data.data;
   },

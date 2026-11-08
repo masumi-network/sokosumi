@@ -4,7 +4,12 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { unprocessableEntity } from "@/helpers/error";
-import { breakDownContacts } from "@/services/contact-breakdown.service";
+import prisma from "@/lib/db/prisma";
+import {
+  breakDownContacts,
+  matchingIds,
+} from "@/services/contact-breakdown.service";
+import { bulkUpdateContacts } from "@/services/contact-bulk.service";
 import {
   getCompany,
   listCompanies,
@@ -53,6 +58,7 @@ export const CONTACT_WRITE_CAPABILITIES = [
   "merge_contacts",
   "manage_contact_lists",
   "update_company",
+  "bulk_update_contacts",
 ] as const satisfies readonly SokoBotCapability[];
 
 type ContactCapability =
@@ -99,6 +105,44 @@ export async function runContactTool(
     });
 
   switch (capability) {
+    case "bulk_update_contacts": {
+      const {
+        change,
+        confirm,
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+        ...filter
+      } = SOKO_BOT_TOOL_INPUT_SCHEMAS.bulk_update_contacts.parse(rawInput);
+      const ids = await matchingIds(actor, {
+        filter,
+        query,
+        mode,
+        company,
+        listId,
+        archived,
+      });
+      if (!confirm) {
+        const sample = await prisma.contact.findMany({
+          where: { id: { in: ids.slice(0, 10) } },
+          select: { name: true, organization: true },
+        });
+        return {
+          matching: ids.length,
+          sample,
+          change,
+          confirmed: false,
+          instruction:
+            "Nothing changed. Check the count and sample against what your owner asked, then call again with confirm true.",
+        };
+      }
+      return write(
+        (tx) => bulkUpdateContacts(tx, actor, ids, change),
+        () => listId ?? actor.workspaceId,
+      );
+    }
     case "search_companies": {
       const page = await listCompanies(
         actor,

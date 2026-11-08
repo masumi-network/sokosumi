@@ -1,5 +1,6 @@
 "use client";
 import type {
+  ContactChannelSource,
   ContactKind,
   ContactList,
   ContactReplyState,
@@ -17,6 +18,7 @@ import {
 import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
 import {
+  CONTACT_CHANNEL_SOURCES,
   CONTACT_KINDS,
   CONTACT_REPLY_STATES,
   LIST_COLOR_DOT,
@@ -52,6 +54,7 @@ export interface ContactFilters {
   kind: ContactKind | null;
   /** `me` or a member's user id. */
   knownBy: string | null;
+  source: ContactChannelSource | null;
 }
 
 export type ContactFilterKey = keyof ContactFilters;
@@ -154,6 +157,14 @@ export function ContactsFilterBar({
       })),
     },
     { key: "knownBy", label: t("columns.knownBy"), options: people },
+    {
+      key: "source",
+      label: t("toolbar.source"),
+      options: CONTACT_CHANNEL_SOURCES.map((source) => ({
+        value: source,
+        label: t(`sources.${source}`),
+      })),
+    },
   ];
   const active = menus.filter((menu) => filters[menu.key]);
   return (
