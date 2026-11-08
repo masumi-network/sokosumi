@@ -30,6 +30,20 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
   const rows = model.filteredCompetitors;
   const number = (value: number | null) =>
     value === null ? t("none") : format.number(value);
+  // A column no row has measured only repeats "Not available"; name it once instead.
+  const shown = {
+    rank: rows.some((row) => row.rank !== null),
+    backlinks: rows.some((row) => row.backlinks !== null),
+    domains: rows.some((row) => row.referringDomains !== null),
+    observed: rows.some((row) => row.observedAt !== null),
+    source: rows.some((row) => row.observationId || row.source !== "saved"),
+  };
+  const hidden = [
+    shown.rank ? null : t("competitors.rank"),
+    shown.backlinks ? null : t("competitors.backlinks"),
+    shown.domains ? null : t("competitors.domains"),
+    shown.observed ? null : t("observed"),
+  ].filter((label): label is string => label !== null);
   return (
     <SeoSection
       title={t("competitors.title")}
@@ -63,11 +77,17 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("url")}</TableHead>
-                <TableHead>{t("competitors.rank")}</TableHead>
-                <TableHead>{t("competitors.backlinks")}</TableHead>
-                <TableHead>{t("competitors.domains")}</TableHead>
-                <TableHead>{t("observed")}</TableHead>
-                <TableHead>{t("source")}</TableHead>
+                {shown.rank ? (
+                  <TableHead>{t("competitors.rank")}</TableHead>
+                ) : null}
+                {shown.backlinks ? (
+                  <TableHead>{t("competitors.backlinks")}</TableHead>
+                ) : null}
+                {shown.domains ? (
+                  <TableHead>{t("competitors.domains")}</TableHead>
+                ) : null}
+                {shown.observed ? <TableHead>{t("observed")}</TableHead> : null}
+                {shown.source ? <TableHead>{t("source")}</TableHead> : null}
                 <TableHead>
                   <span className="sr-only">{t("manage")}</span>
                 </TableHead>
@@ -95,32 +115,42 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                       </p>
                     ) : null}
                   </TableCell>
-                  <TableCell className="tabular-nums">
-                    {number(row.rank)}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {number(row.backlinks)}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {number(row.referringDomains)}
-                  </TableCell>
-                  <TableCell>
-                    <SeoDate value={row.observedAt} />
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground text-sm">
-                      {row.source}
-                    </span>
-                    {row.observationId ? (
-                      <div>
-                        <SeoSource
-                          workspace={model.data}
-                          observationId={row.observationId}
-                        />
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
+                  {shown.rank ? (
+                    <TableCell className="tabular-nums">
+                      {number(row.rank)}
+                    </TableCell>
+                  ) : null}
+                  {shown.backlinks ? (
+                    <TableCell className="tabular-nums">
+                      {number(row.backlinks)}
+                    </TableCell>
+                  ) : null}
+                  {shown.domains ? (
+                    <TableCell className="tabular-nums">
+                      {number(row.referringDomains)}
+                    </TableCell>
+                  ) : null}
+                  {shown.observed ? (
+                    <TableCell>
+                      <SeoDate value={row.observedAt} />
+                    </TableCell>
+                  ) : null}
+                  {shown.source ? (
+                    <TableCell>
+                      <span className="text-muted-foreground text-sm">
+                        {row.source}
+                      </span>
+                      {row.observationId ? (
+                        <div>
+                          <SeoSource
+                            workspace={model.data}
+                            observationId={row.observationId}
+                          />
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  ) : null}
+                  <TableCell className="text-right">
                     {model.data.availableActions.canEdit &&
                     row.role === "competitor" &&
                     (row.canConfirm || row.confirmed) ? (
@@ -144,6 +174,11 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               ))}
             </TableBody>
           </Table>
+          {hidden.length ? (
+            <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+              {t("unmeasuredColumns", { columns: format.list(hidden) })}
+            </p>
+          ) : null}
         </div>
       ) : (
         <SeoEmpty

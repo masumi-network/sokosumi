@@ -52,6 +52,40 @@ function renderWorkspace(workspace: ProjectSeoWorkspace) {
 }
 
 describe("SEO competitor baselines", () => {
+  it("hides a column no row measured and names it, but keeps a measured column", () => {
+    const workspace = seoTestWorkspace();
+    workspace.competitors = [
+      {
+        id: "saved-competitor",
+        url: "https://competitor.example/",
+        role: "competitor",
+        confirmed: true,
+        source: "saved",
+        rank: null,
+        backlinks: 12,
+        referringDomains: null,
+        observedAt: null,
+        observationId: null,
+        version: 1,
+        canConfirm: true,
+        exclusionReason: null,
+      },
+    ];
+    renderWorkspace(workspace);
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent);
+    expect(headers).toContain("Backlinks");
+    expect(headers).not.toContain("Observed rank");
+    expect(headers).not.toContain("Referring domains");
+    expect(screen.getByRole("cell", { name: "12" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Not measured for these rows yet: Observed rank, Referring domains, and Last checked.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it.each([false, true])(
     "labels the audited page truthfully and keeps its backlink baseline without competitor controls (confirmed=%s)",
     async (confirmed) => {

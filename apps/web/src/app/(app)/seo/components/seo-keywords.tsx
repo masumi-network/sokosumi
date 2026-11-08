@@ -29,6 +29,18 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const rows = model.filteredKeywords;
+  // A column no row has measured only repeats "Not available"; name it once instead.
+  const shown = {
+    volume: rows.some((row) => row.volume !== null),
+    intent: rows.some((row) => row.intent !== null),
+    observed: rows.some((row) => row.observedAt !== null),
+    source: rows.some((row) => row.observationId || row.source !== "saved"),
+  };
+  const hidden = [
+    shown.volume ? null : t("keywords.volume"),
+    shown.intent ? null : t("keywords.intent"),
+    shown.observed ? null : t("observed"),
+  ].filter((label): label is string => label !== null);
   return (
     <div className="space-y-5">
       <div>
@@ -65,12 +77,18 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                 <TableRow>
                   <TableHead>{t("keywords.keyword")}</TableHead>
                   <TableHead>{t("keywords.market")}</TableHead>
-                  <TableHead>{t("keywords.volume")}</TableHead>
+                  {shown.volume ? (
+                    <TableHead>{t("keywords.volume")}</TableHead>
+                  ) : null}
                   <TableHead>{t("keywords.position")}</TableHead>
-                  <TableHead>{t("keywords.intent")}</TableHead>
+                  {shown.intent ? (
+                    <TableHead>{t("keywords.intent")}</TableHead>
+                  ) : null}
                   <TableHead>{t("keywords.priority")}</TableHead>
-                  <TableHead>{t("observed")}</TableHead>
-                  <TableHead>{t("source")}</TableHead>
+                  {shown.observed ? (
+                    <TableHead>{t("observed")}</TableHead>
+                  ) : null}
+                  {shown.source ? <TableHead>{t("source")}</TableHead> : null}
                   <TableHead>
                     <span className="sr-only">{t("queries.rowActions")}</span>
                   </TableHead>
@@ -120,11 +138,13 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                           </div>
                         ) : null}
                       </TableCell>
-                      <TableCell className="tabular-nums">
-                        {row.volume === null
-                          ? t("none")
-                          : format.number(row.volume)}
-                      </TableCell>
+                      {shown.volume ? (
+                        <TableCell className="tabular-nums">
+                          {row.volume === null
+                            ? t("none")
+                            : format.number(row.volume)}
+                        </TableCell>
+                      ) : null}
                       <TableCell className="whitespace-normal tabular-nums">
                         {row.positionStatus === "ranked" &&
                         row.position !== null
@@ -137,27 +157,33 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                                 })
                             : t("keywords.unavailable")}
                       </TableCell>
-                      <TableCell>{row.intent ?? t("none")}</TableCell>
+                      {shown.intent ? (
+                        <TableCell>{row.intent ?? t("none")}</TableCell>
+                      ) : null}
                       <TableCell>{t(`priority.${row.priority}`)}</TableCell>
-                      <TableCell>
-                        <SeoDate value={row.observedAt} />
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-muted-foreground text-sm">
-                          {row.source}
-                        </span>
-                        {row.observationId ? (
-                          <div>
-                            <SeoSource
-                              workspace={model.data}
-                              observationId={row.observationId}
-                            />
-                          </div>
-                        ) : null}
-                      </TableCell>
+                      {shown.observed ? (
+                        <TableCell>
+                          <SeoDate value={row.observedAt} />
+                        </TableCell>
+                      ) : null}
+                      {shown.source ? (
+                        <TableCell>
+                          <span className="text-muted-foreground text-sm">
+                            {row.source}
+                          </span>
+                          {row.observationId ? (
+                            <div>
+                              <SeoSource
+                                workspace={model.data}
+                                observationId={row.observationId}
+                              />
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      ) : null}
                       <TableCell>
                         {model.data.availableActions.canEdit ? (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap justify-end gap-2">
                             {row.version > 0 ? (
                               <Button
                                 variant="outline"
@@ -188,6 +214,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                 })}
               </TableBody>
             </Table>
+            {hidden.length ? (
+              <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+                {t("unmeasuredColumns", { columns: format.list(hidden) })}
+              </p>
+            ) : null}
           </div>
         ) : (
           <SeoEmpty
