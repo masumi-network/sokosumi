@@ -427,11 +427,12 @@ jobs:
 
       # Biome is one binary with no workspace dependencies: nested
       # biome.json files extend the root and the Grit plugin is a repo
-      # file. So no Setup and no install. setup-biome takes the exact
-      # version from package.json: it cannot parse pnpm 12's
-      # two-document pnpm-lock.yaml.
+      # file. So no Setup and no workspace install: npm installs the exact
+      # version from package.json, its binary from the npm registry.
+      # setup-biome downloaded it from GitHub Releases, which answered 504
+      # for over an hour (2026-11-08) and failed this job.
       - name: Install Biome
-        uses: biomejs/setup-biome@v2
+        run: npm install --global --no-fund --no-audit "@biomejs/biome@$(node -p "require('./package.json').devDependencies['@biomejs/biome']")"
 
       - name: Run Biome checks
         run: biome check .
