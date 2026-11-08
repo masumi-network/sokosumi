@@ -14370,6 +14370,11 @@ export const ContactListSchema = {
                             minLength: 1,
                             maxLength: 200
                         },
+                        company: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
                         location: {
                             type: 'string',
                             minLength: 1,
@@ -15592,6 +15597,75 @@ export const ContactCompanyDetailSchema = {
         'teammates',
         'nextSteps',
         'recentInteractions'
+    ]
+} as const;
+
+export const ContactBreakdownSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer'
+        },
+        breakdowns: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    by: {
+                        type: 'string',
+                        enum: [
+                            'stage',
+                            'kind',
+                            'organization',
+                            'location',
+                            'role',
+                            'list',
+                            'knownBy',
+                            'channel',
+                            'source',
+                            'lastContact'
+                        ]
+                    },
+                    groups: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                key: {
+                                    type: [
+                                        'string',
+                                        'null'
+                                    ]
+                                },
+                                label: {
+                                    type: 'string'
+                                },
+                                count: {
+                                    type: 'integer'
+                                }
+                            },
+                            required: [
+                                'key',
+                                'label',
+                                'count'
+                            ]
+                        }
+                    },
+                    otherGroups: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'by',
+                    'groups',
+                    'otherGroups'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'breakdowns'
     ]
 } as const;
 

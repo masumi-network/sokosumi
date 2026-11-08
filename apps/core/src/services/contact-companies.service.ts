@@ -91,6 +91,8 @@ interface CompanyStats {
   org: string | null;
   spelling: string | null;
   domain: string | null;
+  /** Every spelling its people write, as lowercase letters and digits. */
+  orgs: string[];
   people: number;
   teammates: number;
   interactions: number;
@@ -131,6 +133,7 @@ async function companyStats(
     SELECT a.key, min(a.cluster_org) AS org,
       mode() WITHIN GROUP (ORDER BY a.raw) FILTER (WHERE a.org = a.cluster_org) AS spelling,
       CASE WHEN a.key LIKE 'd:%' THEN substr(a.key, 3) END AS domain,
+      coalesce(array_agg(DISTINCT a.org) FILTER (WHERE a.org <> ''), '{}') AS orgs,
       count(*)::int AS people,
       (SELECT count(DISTINCT i."userId")::int FROM contact_interaction i
         WHERE i."contactId" = ANY(array_agg(a.id)) AND i."userId" IS NOT NULL) AS teammates,
@@ -192,6 +195,7 @@ async function reconcileCompanies(
       AND key = ANY(${[...live]}::text[])
       AND "inactiveSince" IS NOT NULL
   `;
+  await rememberAliases(workspaceId, stats);
   const missing = stats.filter((stat) => !held.has(stat.key));
   for (let start = 0; start < missing.length; start += 2_000)
     await prisma.contactCompany.createMany({
@@ -201,9 +205,33 @@ async function reconcileCompanies(
         name: stat.spelling ?? stat.domain ?? stat.key.slice(2),
         domain: stat.domain,
         website: stat.domain ? `https://${stat.domain}` : null,
+        aliases: stat.orgs,
       })),
       skipDuplicates: true,
     });
+}
+
+/**
+ * Adds each group's spellings to its row's aliases, never dropping one: a
+ * renamed company whose people are all archived is still found by what they
+ * wrote. One statement, the groups as one JSON parameter.
+ */
+async function rememberAliases(
+  workspaceId: string,
+  stats: readonly CompanyStats[],
+): Promise<void> {
+  const groups = stats
+    .filter((stat) => stat.orgs.length > 0)
+    .map((stat) => ({ key: stat.key, orgs: stat.orgs }));
+  if (groups.length === 0) return;
+  await prisma.$executeRaw`
+    UPDATE contact_company cc
+    SET aliases = ARRAY(SELECT DISTINCT unnest(cc.aliases || g.orgs) ORDER BY 1)
+    FROM jsonb_to_recordset(${JSON.stringify(groups)}::jsonb) AS g(key text, orgs text[])
+    WHERE cc."workspaceId" = ${workspaceId}::uuid
+      AND cc.key = g.key
+      AND NOT (g.orgs <@ cc.aliases)
+  `;
 }
 
 /**
@@ -384,8 +412,18 @@ const MAX_PEOPLE = 200;
  * latest touchpoints with anyone there.
  */
 export async function getCompany(actor: ContactActor, id: string) {
-  const row = await requireCompany(actor, id);
-  const ids = await companyMemberIds(actor.workspaceId, row.key);
+  let row = await requireCompany(actor, id);
+  let ids = await companyMemberIds(actor.workspaceId, row.key);
+  if (ids.length === 0) {
+    // Its people may have moved to a new key (a first company address
+    // arrived): bring the rows in line, then read this one again.
+    await reconcileCompanies(
+      actor.workspaceId,
+      await companyStats(actor.workspaceId),
+    );
+    row = await requireCompany(actor, id);
+    ids = await companyMemberIds(actor.workspaceId, row.key);
+  }
   const [stats] = ids.length
     ? await companyStats(actor.workspaceId, { keys: [row.key] })
     : [];
@@ -441,6 +479,7 @@ export async function getCompany(actor: ContactActor, id: string) {
     org: null,
     spelling: null,
     domain: row.domain,
+    orgs: [],
     people: 0,
     teammates: 0,
     interactions: 0,

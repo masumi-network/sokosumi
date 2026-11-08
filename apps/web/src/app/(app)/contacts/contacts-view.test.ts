@@ -15,6 +15,7 @@ import {
   matchesContactSearch,
   primaryEmail,
   STAGE_DOT,
+  smartFilterOf,
   sortChannels,
 } from "./contacts-view";
 
@@ -26,6 +27,7 @@ const base: ContactView = {
   replyState: null,
   kind: null,
   knownBy: null,
+  source: null,
   sort: "updatedAt",
   direction: "desc",
 };
@@ -245,5 +247,32 @@ describe("matchesContactSearch", () => {
     expect(matchesContactSearch(ada, " engines ")).toBe(true);
     expect(matchesContactSearch(ada, "ada@")).toBe(true);
     expect(matchesContactSearch(ada, "babbage")).toBe(false);
+  });
+});
+
+describe("source filter", () => {
+  it("asks Core for contacts with a channel found there", () => {
+    expect(contactQuery({ ...base, source: "X" }).channelSource).toBe("X");
+  });
+});
+
+describe("smartFilterOf", () => {
+  it("keeps the preset, the open list and the company as shown", () => {
+    expect(
+      smartFilterOf({
+        ...base,
+        view: "recent",
+        stage: "LEAD",
+        company: "Acme",
+      }),
+    ).toEqual({ createdWithinDays: 14, stages: ["LEAD"], company: "Acme" });
+    const listId = "01a1b9dc-58b8-72c8-8cd2-10fb69d48fc4";
+    expect(
+      smartFilterOf({ ...base, view: listId, kind: "PERSON" }, "manual"),
+    ).toEqual({ listIds: [listId], kind: "PERSON" });
+    expect(smartFilterOf({ ...base, view: listId }, "manual")).toBeNull();
+    expect(
+      smartFilterOf({ ...base, view: listId, kind: "PERSON" }, "smart"),
+    ).toBeNull();
   });
 });

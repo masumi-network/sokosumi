@@ -439,6 +439,9 @@ model ContactCompany {
   headquarters  String?
   linkedinUrl   String?
   whyItMatters  String?
+  /// Every spelling its people have written (lowercase letters and digits),
+  /// kept after a rename so archived people are still found.
+  aliases       String[]  @default([])
   /// When the background lookup last read the company's site; null queues it.
   enrichedAt    DateTime?
   /// Since when no live contact belongs to it: its lookup waits until one does.

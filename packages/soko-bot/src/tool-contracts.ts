@@ -2,6 +2,7 @@ import {
   AD_CAMPAIGN_SETTABLE_STATUSES,
   CONTACT_LIST_COLORS,
   CONTACT_SORT_FIELDS,
+  CONTACT_STAGES,
   contactChannelInputSchema,
   contactFieldsSchema,
   contactFilterSchema,
@@ -536,6 +537,43 @@ export const sokoBotCountContactsInputSchema = contactFilterSchema
     listId: z.uuid().optional(),
     by: z.enum(SOKO_BOT_CONTACT_BREAKDOWNS).optional(),
     top: z.int().min(1).max(100).default(20),
+  })
+  .strict();
+
+/** Which contacts a bulk change or export covers: the search's own filters. */
+const contactSetSchema = contactFilterSchema.extend({
+  ...contactQuerySchema,
+  company: companyNameSchema,
+  listId: z.uuid().optional(),
+  /** Archived contacts instead of live ones, e.g. to restore them. */
+  archived: z.boolean().optional(),
+});
+
+export const sokoBotBulkUpdateContactsInputSchema = contactSetSchema
+  .extend({
+    change: z
+      .object({
+        stage: z.enum(CONTACT_STAGES).optional(),
+        nextStep: z.string().trim().max(500).nullable().optional(),
+        /** YYYY-MM-DD; null clears it. */
+        followUpAt: z.iso.date().nullable().optional(),
+        /** A manual list from `list_contact_lists`. */
+        addToListId: z.uuid().optional(),
+        removeFromListId: z.uuid().optional(),
+        archived: z.boolean().optional(),
+      })
+      .strict(),
+    /** Without it, nothing changes: you get the count and a sample to check. */
+    confirm: z.boolean().default(false),
+  })
+  .strict();
+
+export const sokoBotExportContactsInputSchema = contactSetSchema
+  .extend({
+    title: z.string().trim().min(1).max(160),
+    /** Rows to write, best matches or most recent contact first. */
+    limit: z.int().min(1).max(1_000).default(500),
+    taskId: z.string().max(200).optional(),
   })
   .strict();
 
@@ -1483,6 +1521,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   search_companies: sokoBotSearchCompaniesInputSchema,
   get_company: sokoBotCompanyIdInputSchema,
   update_company: sokoBotUpdateCompanyInputSchema,
+  bulk_update_contacts: sokoBotBulkUpdateContactsInputSchema,
+  export_contacts_to_table: sokoBotExportContactsInputSchema,
   find_contact_duplicates: z
     .object({ contactId: z.uuid().optional() })
     .strict(),
@@ -1708,6 +1748,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "One company in full: facts, relationship, its people (latest contact first, at most 200), which teammates know them and how many each, open next steps, and the latest 20 touchpoints with anyone there, plus the version you need to change it.",
   update_company:
     "Change a company's facts after get_company: name, website, description (two plain sentences), industry, size, headquarters, linkedinUrl, whyItMatters (why it matters to your owner, one line). Pass the version you read; on a conflict read it again and keep what people wrote. Null clears a field. Its people stay as they are: change them with update_contact.",
+  bulk_update_contacts:
+    "Change every contact a filter matches in one call, instead of one update_contact per person: the same filters, query, company and listId as search_contacts, and change: stage, nextStep, followUpAt, addToListId or removeFromListId (manual lists only), or archived. First call it without confirm: nothing changes, and you get how many match and a sample of names; check them, then call again with confirm true. At most 5000 contacts; narrow the filter for more. To restore archived people, select them with archived true and set change.archived false. Answers matched and how many changed per kind (fields, addedToList, removedFromList); each person's history records the change. Only what your owner asked for: never archive or restage people on a guess.",
+  export_contacts_to_table:
+    "Write the contacts a filter matches into a new Files table (name, organization, role, location, stage, email, phone, LinkedIn, X and its followers, last contact, lists): the same filters, query, company and listId as search_contacts, a title, and limit (up to 1000 rows; best matches first with query, else most recent contact). For task-driven work include the assigned taskId. Answers with the table link; present it. Use it when your owner wants the people as a sheet to work through or share.",
   list_contact_lists:
     "The team's contact lists with live counts. Smart lists are saved filters that fill themselves; manual lists hold the contacts people put there.",
   find_contact_duplicates:

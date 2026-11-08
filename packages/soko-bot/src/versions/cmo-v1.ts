@@ -108,6 +108,7 @@ export const cmoV1: SokoBotVersion = {
     "manage_contact_lists",
     "search_companies",
     "get_company",
+    "export_contacts_to_table",
     ...SOKO_BOT_NEWSLETTER_CAPABILITIES,
     "evaluate_with_jev",
     "web_search",
