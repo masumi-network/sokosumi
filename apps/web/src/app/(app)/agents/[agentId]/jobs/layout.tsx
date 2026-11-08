@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-
+import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
@@ -108,7 +108,11 @@ async function JobLayoutInner({
                 userId={session.user.id}
                 agentId={agentId}
                 header={
-                  <JobsListHeader agent={agent} total={agentJobsPage.total} />
+                  <JobsListHeader
+                    agent={agent}
+                    total={agentJobsPage.total}
+                    disabled={disabled}
+                  />
                 }
               />
             </div>
@@ -123,6 +127,7 @@ async function JobLayoutInner({
           </div>
         </div>
         {modal}
+        {disabled && <MarkAgentUnavailable agentId={agentId} />}
       </div>
     </JobsHeaderContext>
   );

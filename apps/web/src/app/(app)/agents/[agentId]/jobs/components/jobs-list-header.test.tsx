@@ -32,4 +32,12 @@ describe("JobsListHeader", () => {
     const back = screen.getByRole("link", { name: `backToAgent:${name}` });
     expect(back).toHaveAttribute("href", "/agents/agent-1");
   });
+
+  it("falls back to the catalog when the agent is unavailable", () => {
+    render(<JobsListHeader agent={agent} total={3} disabled />);
+
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/agents");
+    expect(screen.getByText("yourJobsCount:3")).toBeInTheDocument();
+  });
 });

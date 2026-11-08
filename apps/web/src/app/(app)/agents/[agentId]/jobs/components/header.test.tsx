@@ -65,4 +65,15 @@ describe("Header", () => {
     });
     expect(back).toHaveAttribute("href", "/agents/agent-1");
   });
+
+  it("falls back to the catalog when the agent is unavailable (historical job)", () => {
+    const agent = createMockCoreAgent({ id: "gone-agent" });
+
+    render(
+      <Header agent={agent} canRate={false} existingRating={null} disabled />,
+    );
+
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/agents");
+  });
 });

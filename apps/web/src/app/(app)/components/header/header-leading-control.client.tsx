@@ -11,9 +11,11 @@ import {
   classifyChatChromeSurface,
 } from "@/app/chat/utils/chat-route-base";
 import {
+  getAgentJobsPathAgentId,
   resolveMobileAppBackTarget,
   shouldShowMobileBrandLeading,
 } from "@/app/components/mobile-app-chrome";
+import { useIsAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import { getStoredTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
 import { SokosumiIcon } from "@/components/masumi-logos";
@@ -35,6 +37,9 @@ export function HeaderLeadingControl(): React.ReactElement {
   const surface = classifyChatChromeSurface(pathname, searchParams);
   const appBack = resolveMobileAppBackTarget(pathname, searchParams);
   const tasksReturnPath = useTasksReturnPath();
+  const agentUnavailable = useIsAgentUnavailable(
+    getAgentJobsPathAgentId(pathname),
+  );
 
   if (shouldShowMobileBrandLeading(pathname, searchParams)) {
     return (
@@ -62,7 +67,11 @@ export function HeaderLeadingControl(): React.ReactElement {
 
   if (appBack) {
     const isTasksBack = appBack.href === "/tasks";
-    const href = isTasksBack ? tasksReturnPath : appBack.href;
+    const href = isTasksBack
+      ? tasksReturnPath
+      : agentUnavailable
+        ? "/agents"
+        : appBack.href;
 
     function handleTasksBackClick(event: MouseEvent<HTMLAnchorElement>) {
       // Read storage at click time: header stays mounted across list→detail,

@@ -37,18 +37,21 @@ export default function Header({
           showBackButton={true}
           showShareButton={false}
           showCloseButton={false}
+          agentUnavailable={disabled}
           trailingActions={detailActions}
         />
       </div>
       <div className="hidden w-full md:block">
         <div className="flex w-full items-center justify-between py-4">
           <Link
-            href={`/agents/${agent.id}`}
+            href={disabled ? "/agents" : `/agents/${agent.id}`}
             className="text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 text-sm transition-colors"
           >
             <ArrowLeft className="size-4 shrink-0" aria-hidden />
             <span className="truncate">
-              {t("backToAgent", { name: getAgentName(agent) })}
+              {disabled
+                ? t("back")
+                : t("backToAgent", { name: getAgentName(agent) })}
             </span>
           </Link>
           <div className="flex items-center gap-1.5">

@@ -77,6 +77,13 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
   return null;
 }
 
+/** Agent id when the path is one of that agent's jobs pages, else null. */
+export function getAgentJobsPathAgentId(
+  pathname: string | null | undefined,
+): string | null {
+  return (pathname && AGENT_JOBS_PATH.exec(pathname)?.[1]) || null;
+}
+
 /**
  * Back target for main list routes and their nested pages.
  * Tab list roots → null; Agents root → home; non-tab hub roots → Chats; nested → list root.
@@ -123,10 +130,11 @@ export function resolveMobileAppBackTarget(
     }
     return { href: CHAT_CHATS_LIST_PATH, labelKey: "backToChats" };
   }
-  // An agent's jobs go back to that agent, not the catalog.
-  const agentJobs = AGENT_JOBS_PATH.exec(pathname);
-  if (agentJobs) {
-    return { href: `/agents/${agentJobs[1]}`, labelKey: "back" };
+  // An agent's jobs go back to that agent, not the catalog. The top bar swaps
+  // in the catalog when the agent is unavailable (`useIsAgentUnavailable`).
+  const agentId = getAgentJobsPathAgentId(pathname);
+  if (agentId) {
+    return { href: `/agents/${agentId}`, labelKey: "back" };
   }
   return { href: root, labelKey: "back" };
 }
