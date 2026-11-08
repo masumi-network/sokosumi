@@ -1029,6 +1029,29 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
                   url: { urls: [{ expanded_url: "https://lenafox.com" }] },
                 },
               }),
+              person("900", "Paul Weiss", "pweiss", "Builds things", {
+                url: "https://t.co/p",
+                entities: {
+                  url: {
+                    urls: [
+                      { expanded_url: "https://linkedin.com/in/paulweiss" },
+                    ],
+                  },
+                },
+              }),
+              person("910", "Lea Muller", "leamuller", "Builds things", {
+                url: "https://t.co/l",
+                entities: {
+                  url: {
+                    urls: [
+                      { expanded_url: "https://linkedin.com/in/leamuller" },
+                    ],
+                  },
+                },
+              }),
+              person("920", "Sean O'Connor", "seanoc", "Engineer at Acme", {
+                location: "Zurich",
+              }),
               user("800", "Crypto Deals", "deals2"),
               ruth,
             ],
@@ -1061,6 +1084,28 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
           channels: [{ type: "EMAIL", value: "nina@acme.com" }],
           upsert: false,
         });
+        for (const name of ["Sean O'Connor", "Sean Connor"])
+          await upsertContact(tx, actor, {
+            name,
+            organization: "Acme",
+            location: "Zurich",
+            channels: [],
+            upsert: false,
+          });
+        await upsertContact(tx, actor, {
+          name: "Léa Müller",
+          channels: [
+            { type: "LINKEDIN", value: "https://linkedin.com/in/leamuller" },
+          ],
+          upsert: false,
+        });
+        await upsertContact(tx, actor, {
+          name: "Paul M. Weiss",
+          channels: [
+            { type: "LINKEDIN", value: "https://linkedin.com/in/paulweiss" },
+          ],
+          upsert: false,
+        });
         for (const email of ["sam@one.com", "sam@two.com"])
           await upsertContact(tx, actor, {
             name: "Sam Lee",
@@ -1079,12 +1124,17 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
         "Lena Fox",
+        "Léa Müller",
         "Nina Keller",
         "Omar Haddad",
+        "Paul M. Weiss",
         "Ruth Weber",
         "Sam Lee",
         "Sam Lee",
         "Sam Lee",
+        "Sean Connor",
+        "Sean O'Connor",
+        "Sean O'Connor",
       ]);
       const ruthContact = contacts.find((c) => c.name === "Ruth Weber");
       expect(
@@ -1121,6 +1171,24 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         location: "Zurich",
         summary: "Design lead at Acme",
       });
+      // The middle name differs, the LinkedIn profile agrees.
+      expect(
+        contacts
+          .find((c) => c.name === "Paul M. Weiss")
+          ?.channels.map((channel) => channel.type),
+      ).toContain("X");
+      expect(
+        contacts
+          .find((c) => c.name === "Léa Müller")
+          ?.channels.map((channel) => channel.type),
+      ).toContain("X");
+      // Two contacts qualify equally: neither is taken, a third is made.
+      expect(
+        contacts
+          .filter((c) => c.name.startsWith("Sean"))
+          .map((c) => c.channels.map((channel) => channel.type).join())
+          .sort(),
+      ).toEqual(["", "", "X"]);
       // Two contacts share the name and nothing else agrees: a new one.
       expect(
         contacts
@@ -1136,6 +1204,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         avatarUrl: "https://pbs.twimg.com/lenafox_400x400.jpg",
       });
       expect(lena?.enrichedAt).not.toBeNull();
+      expect(lena?.classifiedAt).not.toBeNull();
       expect(
         lena?.channels.map(({ type, value }) => `${type}:${value}`),
       ).toEqual(["X:lenafox", "WEBSITE:https://lenafox.com"]);
@@ -1143,7 +1212,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         where: { workspaceId: xWorkspaceId, name: "X followers" },
         include: { members: true },
       });
-      expect(list.members).toHaveLength(2);
+      expect(list.members).toHaveLength(3);
       expect(run.capture.skipped.bot_user).toBe(1);
 
       mocks.runIntegrationTool.mockClear();

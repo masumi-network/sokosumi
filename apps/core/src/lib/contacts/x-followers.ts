@@ -125,7 +125,11 @@ export function ownHost(url: string | null): string | null {
   if (!url) return null;
   const site = normalizeContactChannelValue("WEBSITE", url);
   const host = site ? new URL(site).hostname.replace(/^www\./, "") : null;
-  return host?.includes(".") && !SHARED_HOSTS.has(host) ? host : null;
+  if (!host?.includes(".")) return null;
+  const shared = [...SHARED_HOSTS].some(
+    (service) => host === service || host.endsWith(`.${service}`),
+  );
+  return shared ? null : host;
 }
 
 function linkedInSlug(value: string): string | null {
@@ -146,13 +150,19 @@ function words(value: string): string[] {
   return normalizePersonName(value).split(" ").filter(Boolean);
 }
 
+/** "Nina M. Keller" → "nina keller": who can be the same person at all. */
+export function personNameKey(name: string): string | null {
+  const parts = words(name);
+  return parts.length < 2 ? null : `${parts[0]} ${parts.at(-1)}`;
+}
+
 /** 0.5 for the same full name, 0.4 for the same first and last name. */
 function nameScore(follower: XFollower, contact: MatchContact): number {
-  const a = words(follower.name ?? "");
-  const b = words(contact.name);
-  if (a.length < 2 || b.length < 2) return 0;
-  if (a.join(" ") === b.join(" ")) return 0.5;
-  return a[0] === b[0] && a.at(-1) === b.at(-1) ? 0.4 : 0;
+  const key = personNameKey(follower.name ?? "");
+  if (!key || key !== personNameKey(contact.name)) return 0;
+  return words(follower.name ?? "").join(" ") === words(contact.name).join(" ")
+    ? 0.5
+    : 0.4;
 }
 
 function mentions(haystack: string, needle: string): boolean {

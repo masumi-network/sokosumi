@@ -53,6 +53,7 @@ import {
   matchFollower,
   ownHost,
   parseXFollower,
+  personNameKey,
   X_FOLLOWER_FIELDS,
   type XFollower,
 } from "@/lib/contacts/x-followers";
@@ -1358,7 +1359,6 @@ export class ContactCaptureService {
       await save();
     }
     if (followsDue && budget.calls > 0 && this.canRead(context)) {
-      if (!cursor.followersToken) cursor.followsAt = now.toISOString();
       await this.readXFollowers(context, budget, me, cursor, save);
     }
   }
@@ -1431,6 +1431,12 @@ export class ContactCaptureService {
     cursor: SourceCursor,
     save: () => Promise<unknown>,
   ): Promise<void> {
+    let index: Promise<Map<string, string[]>> | null = null;
+    // Read on first need, then shared by every page of this run.
+    const names = () => {
+      index ??= personNameIndex(context.actor.workspaceId);
+      return index;
+    };
     for (let page = 0; page < this.limits.xFollowPages; page += 1) {
       if (budget.calls <= 0 || !this.canRead(context)) return;
       const token = cursor.followersToken ?? null;
@@ -1445,8 +1451,10 @@ export class ContactCaptureService {
       const followers = result.items.flatMap(
         (raw) => parseXFollower(raw) ?? [],
       );
-      if (!(await this.addXFollowers(context, followers))) return;
+      if (!(await this.addXFollowers(context, followers, names))) return;
       cursor.followersToken = result.nextToken;
+      // Only a finished walk waits a day; an unfinished one goes on next run.
+      if (!result.nextToken) cursor.followsAt = context.now.toISOString();
       await save();
       if (!result.nextToken) return;
     }
@@ -1461,6 +1469,7 @@ export class ContactCaptureService {
   private async addXFollowers(
     context: RunContext,
     followers: readonly XFollower[],
+    names: () => Promise<Map<string, string[]>>,
   ): Promise<boolean> {
     const { actor } = context;
     const handleOf = (follower: XFollower) =>
@@ -1485,31 +1494,29 @@ export class ContactCaptureService {
       return false;
     });
     if (open.length === 0) return true;
-    const contacts: MatchContact[] = await prisma.contact.findMany({
-      where: {
-        workspaceId: actor.workspaceId,
-        kind: "PERSON",
-        archivedAt: null,
-        mergedIntoId: null,
-        name: {
-          in: open.flatMap((follower) => follower.name ?? []),
-          mode: "insensitive",
-        },
-        channels: { none: { type: "X" } },
-      },
-      select: {
-        id: true,
-        name: true,
-        organization: true,
-        location: true,
-        channels: { select: { type: true, value: true } },
-      },
-    });
+    const index = await names();
+    const ids = open.flatMap(
+      (follower) => index.get(personNameKey(follower.name ?? "") ?? "") ?? [],
+    );
+    const contacts: MatchContact[] =
+      ids.length === 0
+        ? []
+        : await prisma.contact.findMany({
+            where: { id: { in: ids }, channels: { none: { type: "X" } } },
+            select: {
+              id: true,
+              name: true,
+              organization: true,
+              location: true,
+              channels: { select: { type: true, value: true } },
+            },
+          });
     const list = await inContactTransaction((tx) =>
       ensureManualContactList(tx, actor, "X followers", CONTACT_LIST_COLORS[6]),
     );
     for (const follower of open) {
-      if (context.budget.captures <= 0) return false;
+      if (context.budget.captures <= 0 || !context.shouldContinue())
+        return false;
       context.budget.captures -= 1;
       const profile = `https://x.com/${follower.username}`;
       const fields = {
@@ -1561,7 +1568,7 @@ export class ContactCaptureService {
             );
             await tx.contact.update({
               where: { id: contact.id },
-              data: { enrichedAt: new Date() },
+              data: { enrichedAt: new Date(), classifiedAt: new Date() },
             });
             await tx.contactListMember.create({
               data: {
@@ -1585,6 +1592,30 @@ export class ContactCaptureService {
     }
     return true;
   }
+}
+
+/**
+ * The workspace's people by first and last name, built with the same
+ * normalization `matchFollower` uses, so every candidate and tie is seen.
+ */
+async function personNameIndex(
+  workspaceId: string,
+): Promise<Map<string, string[]>> {
+  const people = await prisma.contact.findMany({
+    where: {
+      workspaceId,
+      kind: "PERSON",
+      archivedAt: null,
+      mergedIntoId: null,
+    },
+    select: { id: true, name: true },
+  });
+  const index = new Map<string, string[]>();
+  for (const person of people) {
+    const key = personNameKey(person.name);
+    if (key) index.set(key, [...(index.get(key) ?? []), person.id]);
+  }
+  return index;
 }
 
 function field(value: unknown, key: string): unknown {

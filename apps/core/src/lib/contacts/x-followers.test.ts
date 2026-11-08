@@ -85,6 +85,8 @@ describe("ownHost", () => {
   it("names a personal or company site, not a link service", () => {
     expect(ownHost("https://www.Acme.com/team")).toBe("acme.com");
     expect(ownHost("https://linktr.ee/nina")).toBeNull();
+    expect(ownHost("https://uk.linkedin.com/in/nina")).toBeNull();
+    expect(ownHost("https://m.facebook.com/nina")).toBeNull();
     expect(ownHost(null)).toBeNull();
   });
 });
@@ -130,6 +132,16 @@ describe("matchFollower", () => {
         ],
       ),
     ).toMatchObject({ contactId: "c1" });
+  });
+
+  it("counts a middle-name contact as a tie", () => {
+    const acme = { organization: "Acme", location: "Zurich" };
+    expect(
+      matchFollower(
+        follower({ description: "Engineer at Acme", location: "Zurich" }),
+        [contact(acme), contact({ ...acme, id: "c2", name: "Nina M. Keller" })],
+      ),
+    ).toBeNull();
   });
 
   it("does not use a freemail domain, a different name, or a tie", () => {
