@@ -823,10 +823,16 @@ describe("sandbox turn service", () => {
       grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
     ).rejects.toThrow("ask the owner in chat");
     findFirstEventMock.mockResolvedValue(null);
-    countEventMock.mockResolvedValue(20);
+    countEventMock.mockResolvedValue(21);
     await expect(
       grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
     ).rejects.toThrow("up to 20");
+    expect(countEventMock).toHaveBeenCalledWith({
+      where: { turnId: claims.turnId, type: "sandbox.upload_reserved" },
+    });
+    expect(createEventMock.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      countEventMock.mock.invocationCallOrder.at(-1) ?? 0,
+    );
     expect(grantUploadMock).not.toHaveBeenCalled();
   });
 
@@ -850,7 +856,7 @@ describe("sandbox turn service", () => {
   });
 
   it("records the address it grants, so upload_file can check it", async () => {
-    countEventMock.mockResolvedValue(0);
+    countEventMock.mockResolvedValue(1);
     findFirstEventMock.mockResolvedValue(null);
     grantUploadMock.mockResolvedValue({
       grant: {

@@ -211,6 +211,7 @@ export async function runSandboxTool(
 }
 
 const MAX_UPLOADS_PER_TURN = 20;
+const UPLOAD_RESERVED_EVENT = "sandbox.upload_reserved";
 
 /** Where the runner downloads a Files file for workspace_import_file. */
 export async function sandboxFileSource(
@@ -252,10 +253,13 @@ export async function grantSandboxUpload(
     throw unprocessableEntity(
       new SokoBotTaintedActionError("upload_file").message,
     );
-  const granted = await prisma.sokoBotRuntimeEvent.count({
-    where: { turnId: claims.turnId, type: WORKSPACE_UPLOAD_GRANTED_EVENT },
+  // Reserve, then count: the event log appends one at a time, so requests
+  // sent together cannot all see room for one more.
+  await logFor(claims).append(runtimeEvent(UPLOAD_RESERVED_EVENT, {}));
+  const reserved = await prisma.sokoBotRuntimeEvent.count({
+    where: { turnId: claims.turnId, type: UPLOAD_RESERVED_EVENT },
   });
-  if (granted >= MAX_UPLOADS_PER_TURN)
+  if (reserved > MAX_UPLOADS_PER_TURN)
     throw unprocessableEntity(
       `A turn can save up to ${MAX_UPLOADS_PER_TURN} workspace files`,
     );
