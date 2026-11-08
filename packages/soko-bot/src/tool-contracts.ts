@@ -1909,7 +1909,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Send the input an Agent Job is waiting for; applied right away.",
   read_memory: "Read canonical short-term Soko Bot memory.",
   update_memory:
-    "Replace bounded canonical memory file with durable working context.",
+    "Replace bounded canonical memory file with durable working context. Decisions and preferences end in (since YYYY-MM-DD), the day each was first saved: keep it when you reword or merge an entry; write a new one without a day and Core dates it. An entry you drop moves to Replaced with the days it held, so you can say what changed and when; Core keeps Replaced, so leave it out. When two entries contradict, the later day wins.",
   list_schedules:
     "List your follow-up schedules: recurring (cron) ones and one-time ones (`runOnce`), with when each runs next.",
   create_schedule:

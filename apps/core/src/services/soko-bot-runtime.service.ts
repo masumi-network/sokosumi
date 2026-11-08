@@ -21,6 +21,7 @@ import {
   cmoStrategySavePart,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
+  datedSokoBotMemoryWrite,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
@@ -47,6 +48,7 @@ import {
   SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES,
   type SokoBotCapability,
   type SokoBotDecisionTarget,
+  type SokoBotMemory,
   type SokoBotTurnGrantClaims,
   sanitizeSokoBotMemoryMarkdown,
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
@@ -5921,20 +5923,19 @@ export class SokoBotRuntimeService {
     toolCallId: string,
   ) {
     const input = memoryUpdateInputSchema.parse(rawInput);
-    let markdown: string;
-    try {
-      markdown = renderSokoBotMemory(
-        parseSokoBotMemory(input.markdown, {
-          secretHandling: "reject",
-          unknownSections: "reject",
-        }),
-      );
-    } catch (error) {
-      throw new SokoBotRuntimeValidationError(
+    const invalid = (error: unknown) =>
+      new SokoBotRuntimeValidationError(
         error instanceof Error ? error.message : "Soko Bot memory is invalid",
       );
+    let written: SokoBotMemory;
+    try {
+      written = parseSokoBotMemory(input.markdown, {
+        secretHandling: "reject",
+        unknownSections: "reject",
+      });
+    } catch (error) {
+      throw invalid(error);
     }
-    const hash = hashMemory(markdown);
     return serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(
         tx,
@@ -5963,6 +5964,28 @@ export class SokoBotRuntimeService {
           throw new SokoBotRuntimeConflictError("Memory changed during turn");
         }
       }
+      const current = await tx.sokoBotMemoryRevision.findUnique({
+        where: {
+          sokoBotId_version: {
+            sokoBotId: authorized.turn.sokoBotId,
+            version: bot.memoryVersion,
+          },
+        },
+        select: { markdown: true },
+      });
+      let markdown: string;
+      try {
+        markdown = renderSokoBotMemory(
+          datedSokoBotMemoryWrite(
+            parseSokoBotMemory(current?.markdown ?? ""),
+            written,
+            new Date().toISOString().slice(0, 10),
+          ),
+        );
+      } catch (error) {
+        throw invalid(error);
+      }
+      const hash = hashMemory(markdown);
       const version = bot.memoryVersion + 1;
       const revision = await tx.sokoBotMemoryRevision.create({
         data: {

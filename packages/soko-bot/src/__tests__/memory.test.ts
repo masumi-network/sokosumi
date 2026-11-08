@@ -3,11 +3,150 @@ import { describe, expect, it } from "vitest";
 import {
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
+  datedSokoBotMemoryWrite,
   parseSokoBotMemory,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  type SokoBotMemory,
   SokoBotMemorySecretError,
 } from "../memory.js";
+
+function memoryWith(entries: Partial<SokoBotMemory>): SokoBotMemory {
+  return { ...createEmptySokoBotMemory(), ...entries };
+}
+
+describe("dated memory writes", () => {
+  const today = "2026-11-08";
+
+  it("dates new decisions and preferences, and keeps the first day across writes", () => {
+    const first = datedSokoBotMemoryWrite(
+      createEmptySokoBotMemory(),
+      memoryWith({
+        decisions: ["Post twice a week"],
+        preferences: ["Short replies"],
+        activeGoals: ["Launch in March"],
+      }),
+      "2026-10-01",
+    );
+    expect(first.decisions).toEqual(["Post twice a week (since 2026-10-01)"]);
+    expect(first.preferences).toEqual(["Short replies (since 2026-10-01)"]);
+    expect(first.activeGoals).toEqual(["Launch in March"]);
+
+    // The bot drops the suffix or invents another day: Core keeps the first.
+    const second = datedSokoBotMemoryWrite(
+      first,
+      memoryWith({
+        decisions: ["Post twice a week"],
+        preferences: ["Short replies (since 2020-01-01)"],
+      }),
+      today,
+    );
+    expect(second.decisions).toEqual(["Post twice a week (since 2026-10-01)"]);
+    expect(second.preferences).toEqual(["Short replies (since 2026-10-01)"]);
+    expect(second.replaced).toEqual([]);
+  });
+
+  it("moves a dropped decision to Replaced with the days it held", () => {
+    const before = memoryWith({
+      decisions: ["Post daily (since 2026-10-01)"],
+    });
+    const after = datedSokoBotMemoryWrite(
+      before,
+      memoryWith({ decisions: ["Post twice a week"] }),
+      today,
+    );
+    expect(after.decisions).toEqual(["Post twice a week (since 2026-11-08)"]);
+    expect(after.replaced).toEqual(["Post daily (2026-10-01 to 2026-11-08)"]);
+    const markdown = renderSokoBotMemory(after);
+    expect(markdown).toContain(
+      "## Replaced\n- Post daily (2026-10-01 to 2026-11-08)",
+    );
+    expect(parseSokoBotMemory(markdown)).toEqual(after);
+  });
+
+  it("treats a reworded entry that keeps its day as the same entry", () => {
+    const after = datedSokoBotMemoryWrite(
+      memoryWith({ decisions: ["Post daily on X (since 2026-10-01)"] }),
+      memoryWith({
+        decisions: ["When posting on X, post once a day (since 2026-10-01)"],
+      }),
+      today,
+    );
+    expect(after.decisions).toEqual([
+      "When posting on X, post once a day (since 2026-10-01)",
+    ]);
+    expect(after.replaced).toEqual([]);
+  });
+
+  it("never dates a write in the future", () => {
+    const after = datedSokoBotMemoryWrite(
+      createEmptySokoBotMemory(),
+      memoryWith({ decisions: ["Ship on Fridays (since 2027-01-01)"] }),
+      today,
+    );
+    expect(after.decisions).toEqual(["Ship on Fridays (since 2026-11-08)"]);
+  });
+
+  it("keeps entries saved before dating undated, and dates their end", () => {
+    const before = memoryWith({ preferences: ["Mute LinkedIn", "Use German"] });
+    const after = datedSokoBotMemoryWrite(
+      before,
+      memoryWith({ preferences: ["Use German"] }),
+      today,
+    );
+    expect(after.preferences).toEqual(["Use German"]);
+    expect(after.replaced).toEqual(["Mute LinkedIn (until 2026-11-08)"]);
+  });
+
+  it("ignores what a write puts in Replaced and keeps the newest first", () => {
+    const before = memoryWith({
+      decisions: ["B (since 2026-10-02)"],
+      replaced: ["A (2026-09-01 to 2026-10-02)"],
+    });
+    const after = datedSokoBotMemoryWrite(
+      before,
+      memoryWith({ replaced: ["Forged history"] }),
+      today,
+    );
+    expect(after.replaced).toEqual([
+      "B (2026-10-02 to 2026-11-08)",
+      "A (2026-09-01 to 2026-10-02)",
+    ]);
+  });
+
+  it("lets the oldest replacements give way to the limits", () => {
+    const replaced = Array.from(
+      { length: 12 },
+      (_, index) => `${"x".repeat(400)} ${index} (2026-01-01 to 2026-02-01)`,
+    );
+    const decisions = Array.from(
+      { length: 12 },
+      (_, index) => `${"d".repeat(400)} ${index} (since 2026-03-01)`,
+    );
+    const after = datedSokoBotMemoryWrite(
+      memoryWith({ decisions, replaced }),
+      memoryWith({ decisions: decisions.slice(1) }),
+      today,
+    );
+    expect(after.replaced[0]).toContain("(2026-03-01 to 2026-11-08)");
+    expect(after.replaced.at(-1)).not.toBe(replaced.at(-1));
+    expect(() => renderSokoBotMemory(after)).not.toThrow();
+  });
+
+  it("keeps the date when a long entry is cut to the entry limit", () => {
+    const after = datedSokoBotMemoryWrite(
+      createEmptySokoBotMemory(),
+      memoryWith({ decisions: ["y".repeat(500)] }),
+      today,
+    );
+    const entry = after.decisions[0] ?? "";
+    expect(entry).toHaveLength(500);
+    expect(entry.endsWith(" (since 2026-11-08)")).toBe(true);
+    expect(parseSokoBotMemory(renderSokoBotMemory(after)).decisions[0]).toBe(
+      entry,
+    );
+  });
+});
 
 describe("Soko Bot memory", () => {
   it("round-trips canonical sections", () => {

@@ -53,8 +53,9 @@ describe.skipIf(!enabled)("preference capture", () => {
     expect(
       await capturePreference({ sokoBotId: BOT, message }, answering(MUTE)),
     ).toBe(MUTE);
+    const today = new Date().toISOString().slice(0, 10);
     expect(await preferences()).toEqual({
-      lines: [MUTE],
+      lines: [`${MUTE} (since ${today})`],
       version: 1,
       botVersion: 1,
       source: "preference_capture",

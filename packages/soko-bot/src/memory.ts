@@ -6,6 +6,7 @@ const SECTION_KEYS = [
   "preferences",
   "followUps",
   "blockers",
+  "replaced",
 ] as const;
 
 const SECTION_TITLES: Record<(typeof SECTION_KEYS)[number], string> = {
@@ -14,6 +15,7 @@ const SECTION_TITLES: Record<(typeof SECTION_KEYS)[number], string> = {
   preferences: "Preferences",
   followUps: "Follow-ups",
   blockers: "Blockers",
+  replaced: "Replaced",
 };
 
 export const SOKO_BOT_SENSITIVE_VALUE_PLACEHOLDER = "[Sensitive value removed]";
@@ -97,6 +99,11 @@ export interface SokoBotMemory {
   preferences: string[];
   followUps: string[];
   blockers: string[];
+  /**
+   * Decisions and preferences a later write dropped, newest first, with the
+   * days they held. Core keeps this section; a write cannot change it.
+   */
+  replaced: string[];
 }
 
 export interface ParseSokoBotMemoryOptions {
@@ -123,6 +130,7 @@ export function createEmptySokoBotMemory(): SokoBotMemory {
     preferences: [],
     followUps: [],
     blockers: [],
+    replaced: [],
   };
 }
 
@@ -442,8 +450,10 @@ function normalizeEntries(
 }
 
 export function renderSokoBotMemory(memory: SokoBotMemory): string {
-  const sections = SECTION_KEYS.map((key) => {
+  const sections = SECTION_KEYS.flatMap((key) => {
     const entries = normalizeEntries(memory[key], "redact");
+    // Shown once something was replaced, so a memory without history reads as before.
+    if (key === "replaced" && entries.length === 0) return [];
     const body =
       entries.length > 0 ? entries.map((entry) => `- ${entry}`) : ["- None"];
     return [`## ${SECTION_TITLES[key]}`, ...body].join("\n");
@@ -504,4 +514,99 @@ export function sanitizeSokoBotMemoryMarkdown(markdown: string): string {
   } catch {
     return renderSokoBotMemory(createEmptySokoBotMemory());
   }
+}
+
+/** Sections whose entries carry the day they were first saved. */
+const DATED_SECTIONS = ["decisions", "preferences"] as const;
+const SINCE_SUFFIX = / \(since (\d{4}-\d{2}-\d{2})\)$/;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+interface DatedEntry {
+  text: string;
+  since: string | null;
+}
+
+/** An entry's words, and the day it was first saved when it carries one. */
+export function splitSokoBotMemoryEntry(entry: string): DatedEntry {
+  const match = SINCE_SUFFIX.exec(entry);
+  return match
+    ? { text: entry.slice(0, match.index), since: match[1] ?? null }
+    : { text: entry, since: null };
+}
+
+function entryKey(text: string): string {
+  return text.toLowerCase().replaceAll(/\s+/g, " ").trim();
+}
+
+/** The suffix always fits: the words give way, not the date. */
+function withSuffix(text: string, suffix: string): string {
+  return `${text.slice(0, SOKO_BOT_MEMORY_LIMITS.maxEntryLength - suffix.length)}${suffix}`;
+}
+
+function fitsByteLimit(memory: SokoBotMemory): boolean {
+  try {
+    renderSokoBotMemory(memory);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A memory write as Core saves it. Decisions and preferences keep the day
+ * they were first saved, which the write cannot change, and the ones the
+ * write drops move to Replaced with the days they held, so the bot can say
+ * what it decided before and when that changed instead of the old rule
+ * vanishing. An entry the write rewords and dates with a dropped entry's day
+ * is that entry reworded, not a replacement. Entries saved before dating
+ * began stay undated. Replaced is Core's: what the write puts there is
+ * ignored, and the oldest replacements give way to the size limits.
+ */
+export function datedSokoBotMemoryWrite(
+  previous: SokoBotMemory,
+  next: SokoBotMemory,
+  today: string,
+): SokoBotMemory {
+  if (!ISO_DAY.test(today)) throw new Error("today must be YYYY-MM-DD");
+  const before = new Map<string, DatedEntry>();
+  for (const key of DATED_SECTIONS)
+    for (const entry of previous[key]) {
+      const dated = splitSokoBotMemoryEntry(entry);
+      before.set(entryKey(dated.text), dated);
+    }
+  const kept = new Set<string>();
+  const rewordedDays = new Set<string>();
+  const result: SokoBotMemory = { ...next };
+  for (const key of DATED_SECTIONS)
+    result[key] = next[key].map((entry) => {
+      const { text, since } = splitSokoBotMemoryEntry(entry);
+      const id = entryKey(text);
+      kept.add(id);
+      const earlier = before.get(id);
+      if (earlier)
+        return earlier.since
+          ? withSuffix(text, ` (since ${earlier.since})`)
+          : text;
+      const copied = since !== null && since <= today ? since : null;
+      if (copied) rewordedDays.add(copied);
+      return withSuffix(text, ` (since ${copied ?? today})`);
+    });
+  const dropped = [...before]
+    .filter(
+      ([id, entry]) =>
+        !kept.has(id) && !(entry.since && rewordedDays.has(entry.since)),
+    )
+    .map(([, entry]) =>
+      withSuffix(
+        entry.text,
+        entry.since ? ` (${entry.since} to ${today})` : ` (until ${today})`,
+      ),
+    );
+  result.replaced = [
+    ...dropped,
+    ...previous.replaced.filter((entry) => !dropped.includes(entry)),
+  ].slice(0, SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection);
+  while (result.replaced.length > 0 && !fitsByteLimit(result))
+    result.replaced = result.replaced.slice(0, -1);
+  return result;
 }

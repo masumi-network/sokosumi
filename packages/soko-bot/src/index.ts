@@ -41,10 +41,13 @@ export {
 export {
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
+  datedSokoBotMemoryWrite,
   parseSokoBotMemory,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  type SokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
+  splitSokoBotMemoryEntry,
 } from "./memory.js";
 export {
   composeSokoBotIntroduction,

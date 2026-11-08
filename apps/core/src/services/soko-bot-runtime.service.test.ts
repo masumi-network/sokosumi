@@ -3652,6 +3652,51 @@ describe("SokoBotRuntimeService memory updates", () => {
     );
   });
 
+  it("dates new decisions and keeps the one a write drops under Replaced", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-08T10:00:00Z"));
+    try {
+      transactionBotFindUniqueOrThrowMock.mockResolvedValue({
+        memoryVersion: 1,
+      });
+      transactionMemoryRevisionFindUniqueMock.mockResolvedValue({
+        markdown:
+          "# Soko Bot memory\n\n## Decisions\n- Post daily (since 2026-10-01)\n\n## Preferences\n- Short replies\n",
+      });
+      transactionMemoryRevisionCreateMock.mockImplementation(
+        async ({ data }: { data: { markdown: string } }) => ({
+          id: "01960001-0001-7001-8001-000000000023",
+          version: 2,
+          hash: "hash_2",
+          markdown: data.markdown,
+        }),
+      );
+
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_dated",
+        input: {
+          markdown:
+            "## Decisions\n- Post twice a week\n\n## Preferences\n- Short replies\n\n## Replaced\n- Forged history\n",
+        },
+      });
+
+      const saved = transactionMemoryRevisionCreateMock.mock.calls[0]?.[0].data
+        .markdown as string;
+      expect(saved).toContain(
+        "## Decisions\n- Post twice a week (since 2026-11-08)\n",
+      );
+      expect(saved).toContain("## Preferences\n- Short replies\n");
+      expect(saved).toContain(
+        "## Replaced\n- Post daily (2026-10-01 to 2026-11-08)\n",
+      );
+      expect(saved).not.toContain("Forged history");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps optimistic conflict when another turn changed memory", async () => {
     transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 2 });
     transactionMemoryRevisionFindUniqueMock.mockResolvedValue({

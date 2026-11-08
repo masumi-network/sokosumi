@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import {
+  datedSokoBotMemoryWrite,
   parseSokoBotMemory,
   renderSokoBotMemory,
   SOKO_BOT_MEMORY_LIMITS,
+  splitSokoBotMemoryEntry,
 } from "@sokosumi/soko-bot";
 import { generateText } from "ai";
 import prisma from "@/lib/db/prisma";
@@ -91,8 +93,10 @@ export async function capturePreference(
     });
     const line = text.trim().split("\n")[0]?.trim() ?? "";
     log.set({ preferenceCapture: { costUsd, saved: false } });
-    if (!line || line === NONE || memory.preferences.includes(line))
-      return null;
+    const known = memory.preferences.map(
+      (entry) => splitSokoBotMemoryEntry(entry).text,
+    );
+    if (!line || line === NONE || known.includes(line)) return null;
     const saved = line.slice(0, SOKO_BOT_MEMORY_LIMITS.maxEntryLength);
     await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findUniqueOrThrow({
@@ -104,14 +108,20 @@ export async function capturePreference(
         orderBy: { version: "desc" },
         select: { markdown: true },
       });
-      const next = parseSokoBotMemory(latest?.markdown ?? "", {
+      const previous = parseSokoBotMemory(latest?.markdown ?? "", {
         secretHandling: "redact",
       });
       // The oldest preference gives way when the section is full.
-      next.preferences = [...next.preferences, saved].slice(
+      const preferences = [...previous.preferences, saved].slice(
         -SOKO_BOT_MEMORY_LIMITS.maxEntriesPerSection,
       );
-      const markdown = renderSokoBotMemory(next);
+      const markdown = renderSokoBotMemory(
+        datedSokoBotMemoryWrite(
+          previous,
+          { ...previous, preferences },
+          new Date().toISOString().slice(0, 10),
+        ),
+      );
       const hash = createHash("sha256").update(markdown).digest("hex");
       const version = bot.memoryVersion + 1;
       await tx.sokoBotMemoryRevision.create({
