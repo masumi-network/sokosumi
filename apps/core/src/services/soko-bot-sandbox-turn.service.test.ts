@@ -12,6 +12,7 @@ const {
   authorizeMock,
   createEventMock,
   executeToolMock,
+  grantUploadMock,
   findFirstEventMock,
   fetchMock,
   toolCallUpsertMock,
@@ -24,6 +25,7 @@ const {
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
+  grantUploadMock: vi.fn(),
   findFirstEventMock: vi.fn(),
   fetchMock: vi.fn(),
 }));
@@ -56,7 +58,9 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
     executeTool: executeToolMock,
+    grantWorkspaceUpload: grantUploadMock,
   },
+  WORKSPACE_UPLOAD_GRANTED_EVENT: "sandbox.upload_granted",
 }));
 vi.mock("@/services/soko-bot-version.service", () => ({
   resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
@@ -69,6 +73,7 @@ vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
 }));
 
 import {
+  grantSandboxUpload,
   proxySandboxModelCall,
   recordSandboxAction,
   recordSandboxActionResult,
@@ -799,6 +804,39 @@ describe("sandbox turn service", () => {
       }),
     ).rejects.toThrow("ask the owner in chat");
     expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("records the address it grants, so upload_file can check it", async () => {
+    grantUploadMock.mockResolvedValue({
+      grant: {
+        uploadUrl: "https://blob.example/put",
+        headers: { "Content-Type": "video/mp4" },
+        pathname: "users/u/files/launch-1f3c9a2b.mp4",
+      },
+      displayName: "launch.mp4",
+      folder: "",
+      contentType: "video/mp4",
+    });
+    const result = await grantSandboxUpload(claims, {
+      filename: "launch.mp4",
+      size: 12_000_000,
+    });
+    expect(result).toEqual({
+      uploadUrl: "https://blob.example/put",
+      headers: { "Content-Type": "video/mp4" },
+      pathname: "users/u/files/launch-1f3c9a2b.mp4",
+    });
+    expect(createEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "sandbox.upload_granted",
+          data: expect.objectContaining({
+            pathname: "users/u/files/launch-1f3c9a2b.mp4",
+            contentType: "video/mp4",
+          }),
+        }),
+      }),
+    );
   });
 
   describe("Social posts after running a command", () => {

@@ -22,9 +22,10 @@ import {
   citableSources,
   fetchWebPage,
   listWorkspace,
-  readWorkspaceBytesBase64,
   readWorkspaceFile,
+  readWorkspaceUpload,
   runCommand,
+  saveDownloadToWorkspace,
   searchWorkspace,
   writeWorkspaceFile,
 } from "./local-tools";
@@ -161,6 +162,8 @@ function buildTools(
     workspace_write: writeWorkspaceFile,
     workspace_list: listWorkspace,
     workspace_search: searchWorkspace,
+    workspace_import_file: (input: { fileId: string; path: string }) =>
+      importFile(input.fileId, input.path),
     update_plan: async (input: { steps: typeof plan }) => {
       plan.splice(0, plan.length, ...input.steps);
       return { plan };
@@ -194,10 +197,10 @@ function buildTools(
             `/tools/${capability}`,
             {
               toolCallId: callOptions.toolCallId,
-              input: await withWorkspaceBytes(capability, input),
+              input: await withWorkspaceUpload(capability, input),
             },
           );
-          return result;
+          return await withWorkspaceCopy(capability, input, result);
         } catch (error) {
           throw new Error(
             error instanceof Error ? error.message : "Tool failed",
@@ -209,20 +212,85 @@ function buildTools(
   return tools;
 }
 
-/** upload_file of a workspace file carries the file's bytes to Core. */
-async function withWorkspaceBytes(
+/**
+ * upload_file of a workspace file: the runner puts the bytes in storage at a
+ * one-time address Core grants, then hands Core that address, so a large
+ * video never passes through Core.
+ */
+async function withWorkspaceUpload(
   capability: SokoBotCapability,
   input: unknown,
 ): Promise<unknown> {
-  const workspaceFile =
-    capability === "upload_file"
-      ? (input as { workspacePath?: string }).workspacePath
-      : undefined;
-  if (!workspaceFile) return input;
-  return {
-    ...(input as object),
-    workspaceBytesBase64: await readWorkspaceBytesBase64(workspaceFile),
+  const file = input as {
+    workspacePath?: string;
+    filename?: string;
+    folder?: string;
+    contentType?: string;
   };
+  if (capability !== "upload_file" || !file.workspacePath) return input;
+  const bytes = await readWorkspaceUpload(file.workspacePath);
+  const grant = await callCore<{
+    uploadUrl: string;
+    headers: Record<string, string>;
+    pathname: string;
+  }>("/uploads", {
+    filename: file.filename,
+    folder: file.folder,
+    contentType: file.contentType,
+    size: bytes.byteLength,
+  });
+  const response = await fetch(grant.uploadUrl, {
+    method: "PUT",
+    headers: grant.headers,
+    body: new Uint8Array(bytes),
+    signal: AbortSignal.timeout(300_000),
+  });
+  if (!response.ok)
+    throw new Error(
+      `Uploading ${file.workspacePath} failed (${response.status})`,
+    );
+  return { ...file, uploadedPathname: grant.pathname };
+}
+
+/** Copies a file from the owner's Files into the workspace. */
+async function importFile(fileId: string, relative: string) {
+  const source = await callCore<{ url: string; name: string }>("/files", {
+    fileId,
+  });
+  const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(300_000),
+  });
+  if (!response.ok)
+    throw new Error(`Downloading ${source.name} failed (${response.status})`);
+  return {
+    ...(await saveDownloadToWorkspace(relative, response)),
+    name: source.name,
+  };
+}
+
+/** generate_voiceover with workspacePath also lands the mp3 in the workspace. */
+async function withWorkspaceCopy(
+  capability: SokoBotCapability,
+  input: unknown,
+  result: unknown,
+): Promise<unknown> {
+  const target = (input as { workspacePath?: string }).workspacePath;
+  const fileId = (result as { id?: unknown } | null)?.id;
+  if (
+    capability !== "generate_voiceover" ||
+    !target ||
+    typeof fileId !== "string"
+  )
+    return result;
+  try {
+    await importFile(fileId, target);
+    return { ...(result as object), workspacePath: target };
+  } catch (error) {
+    return {
+      ...(result as object),
+      workspaceCopyFailed: `${error instanceof Error ? error.message : "failed"}; copy it with workspace_import_file`,
+    };
+  }
 }
 
 async function runSubagent(

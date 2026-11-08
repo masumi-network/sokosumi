@@ -322,6 +322,9 @@ export const sokoBotReadFileInputSchema = z
   })
   .strict();
 
+/** Largest workspace file upload_file saves; the sandbox sends it to storage directly. */
+export const SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES = 50_000_000;
+
 export const sokoBotUploadFileInputSchema = z.object({
   /** File name including extension, e.g. "launch-brief.md". */
   filename: z.string().min(1).max(200),
@@ -331,8 +334,8 @@ export const sokoBotUploadFileInputSchema = z.object({
   attachmentUrl: z.string().url().max(2_000).optional(),
   /** A file in your sandbox workspace to save as is, e.g. "out/launch.mp4". */
   workspacePath: z.string().trim().min(1).max(500).optional(),
-  /** Filled in by the sandbox from workspacePath; never write it yourself. */
-  workspaceBytesBase64: z.string().max(4_500_000).optional(),
+  /** Filled in by the sandbox once it uploaded workspacePath; never write it yourself. */
+  uploadedPathname: z.string().min(1).max(1_000).optional(),
   /** MIME type; defaults to text/markdown. */
   contentType: z.string().max(120).optional(),
   /** Replace an existing text file of the same name with this content. */
@@ -464,6 +467,52 @@ export const sokoBotGenerateVideoInputSchema = z
   .strict();
 
 export const sokoBotGetVideoInputSchema = sokoBotGetImageInputSchema;
+
+/** Voices a voice-over can use: ElevenLabs' stock voices. */
+export const SOKO_BOT_VOICEOVER_VOICES = [
+  "Aria",
+  "Roger",
+  "Sarah",
+  "Laura",
+  "Charlie",
+  "George",
+  "Callum",
+  "River",
+  "Liam",
+  "Charlotte",
+  "Alice",
+  "Matilda",
+  "Will",
+  "Jessica",
+  "Eric",
+  "Chris",
+  "Brian",
+  "Daniel",
+  "Lily",
+  "Bill",
+] as const;
+
+export const sokoBotGenerateVoiceoverInputSchema = z.object({
+  /** The words to speak. Audio tags such as [excited] or [whispering] steer delivery. */
+  text: z.string().trim().min(1).max(5_000),
+  /** One of the stock voices; Brian by default. */
+  voice: z.enum(SOKO_BOT_VOICEOVER_VOICES).optional(),
+  /** ISO 639-1 language of the text, e.g. "de"; detected when left out. */
+  languageCode: z.string().trim().length(2).optional(),
+  /** File name with .mp3, e.g. "launch-voiceover.mp3". */
+  filename: z.string().trim().min(1).max(200),
+  /** Folder in Files to save into; created if missing. */
+  folder: z.string().trim().min(1).max(200).optional(),
+  /** Also put the mp3 at this path in your workspace, to cut it into a video. */
+  workspacePath: z.string().trim().min(1).max(500).optional(),
+});
+
+export const sokoBotWorkspaceImportFileInputSchema = z.object({
+  /** Files id from list_files, upload_file, get_image, get_video or generate_voiceover. */
+  fileId: z.uuid(),
+  /** Where to put it in your workspace, e.g. "assets/logo.png". */
+  path: z.string().trim().min(1).max(500),
+});
 
 export const sokoBotOpenDirectChatInputSchema = z.object({
   /** Who to reach: their name or email address, as your owner said it. Must be someone in your owner's organization. */
@@ -1556,6 +1605,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   get_image: sokoBotGetImageInputSchema,
   generate_video: sokoBotGenerateVideoInputSchema,
   get_video: sokoBotGetVideoInputSchema,
+  generate_voiceover: sokoBotGenerateVoiceoverInputSchema,
+  workspace_import_file: sokoBotWorkspaceImportFileInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
   move_file: sokoBotMoveFileInputSchema,
   delete_file: sokoBotDeleteFileInputSchema,
@@ -1690,6 +1741,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "List files in your workspace, optionally under a path or matching a glob pattern such as **/*.csv.",
   workspace_search:
     "Search file contents in your workspace with a regular expression and get matching lines with file and line number.",
+  workspace_import_file:
+    "Copy a file from the owner's Files into your workspace by its fileId (a brand picture, a logo, a screenshot, a voice-over), to use in a video or document you build with bash. Up to 50 MB.",
+  generate_voiceover:
+    "Speak text as an mp3 voice-over with an ElevenLabs voice and save it to the owner's Files; pass workspacePath to also get it in your workspace for a video. Write it as it should be heard: short sentences, numbers as words when they should be read that way; audio tags such as [excited] or [calm] steer delivery. The result gives the fileId, its length in seconds and when each sentence starts, so you can time scenes to it. Only for a request the owner made in this chat.",
   update_plan:
     "Write down or update your step-by-step plan for this turn. Use it for work with several steps, keep exactly one step in_progress, and mark steps done as you finish them.",
   run_subagent:
@@ -1791,7 +1846,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
-    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. Pass folder to save it into a folder (created if missing), e.g. when the owner names one. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. To make a graphic yourself (a chart, a summary card, a diagram), write it as SVG markup with contentType image/svg+xml and a .svg filename: no scripts, event handlers or outside links. Attach it with a `file` result reference and it shows as an image in chat. A file you made in your workspace with bash (a video you cut with ffmpeg, a rendered PNG, a PDF) is saved by passing its workspace path as workspacePath, with no content: mp4, mov, webm, png, jpg, gif, webp, pdf, mp3 or wav, up to 3 MB and always as a new file, so render social videos at 720p or 1080p with -crf 28 and -movflags +faststart. Its id then works as media in create_social_post or update_social_post. The result says where it was saved: tell the owner that, not more.",
+    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. Pass folder to save it into a folder (created if missing), e.g. when the owner names one. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. To make a graphic yourself (a chart, a summary card, a diagram), write it as SVG markup with contentType image/svg+xml and a .svg filename: no scripts, event handlers or outside links. Attach it with a `file` result reference and it shows as an image in chat. A file you made in your workspace with bash (a video you cut with ffmpeg, a rendered PNG, a PDF) is saved by passing its workspace path as workspacePath, with no content: mp4, mov, webm, png, jpg, gif, webp, pdf, mp3 or wav, up to 50 MB and always as a new file; render social videos with -movflags +faststart. Its id then works as media in create_social_post or update_social_post. The result says where it was saved: tell the owner that, not more.",
   update_emails:
     "Mark mail in the owner\u2019s mailbox read or unread, or archive it (out of the inbox, not deleted), by message ids from search_inbox. Use it when the owner asks you to clean up or handle mail. It never sends or deletes anything.",
   draft_email:

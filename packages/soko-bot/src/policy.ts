@@ -54,6 +54,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "get_image",
   "generate_video",
   "get_video",
+  "generate_voiceover",
   "list_skills",
   "install_skill",
   "remove_skill",
@@ -149,6 +150,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_background_runs",
   "stop_background_run",
   "wait_for",
+  "workspace_import_file",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -226,6 +228,7 @@ export const SOKO_BOT_SANDBOX_CAPABILITIES = [
   "workspace_search",
   "update_plan",
   "run_subagent",
+  "workspace_import_file",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotSandboxCapability(
@@ -269,6 +272,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "update_newsletter_subscriber",
   "remove_newsletter_subscriber",
   "generate_video",
+  // Spends the owner's money on words a page could have written.
+  "generate_voiceover",
   "post_chat",
   "open_direct_chat",
   // The question is a prompt for a Coworker; a page must not write it.
@@ -488,6 +493,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "save_email_attachment",
   "generate_image",
   "generate_video",
+  "generate_voiceover",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -662,6 +668,7 @@ export function capabilitiesForClassification(
       "save_email_attachment",
       "generate_image",
       "generate_video",
+      "generate_voiceover",
       "wait_for",
       "create_table",
       "write_table_rows",

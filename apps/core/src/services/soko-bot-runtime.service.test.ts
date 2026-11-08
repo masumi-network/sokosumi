@@ -17,6 +17,9 @@ const {
   chatRoomUserMemberFindFirstMock,
   chatRoomUserMemberFindManyMock,
   workspaceFindUniqueMock,
+  runtimeEventFindFirstMock,
+  uploadGrantMock,
+  speakMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
   botUpdateManyMock,
@@ -116,6 +119,9 @@ const {
   chatRoomUserMemberFindFirstMock: vi.fn(),
   chatRoomUserMemberFindManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  runtimeEventFindFirstMock: vi.fn(),
+  uploadGrantMock: vi.fn(),
+  speakMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
   botUpdateManyMock: vi.fn(),
@@ -235,6 +241,10 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/lib/soko-bot/voiceover", () => ({ speakVoiceover: speakMock }));
+vi.mock("@/lib/blob-upload-grant", () => ({
+  createBlobUploadGrant: uploadGrantMock,
+}));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
@@ -476,6 +486,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: jobInputFindManyMock,
       findUnique: jobInputFindUniqueMock,
     },
+    sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
     workspace: {
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
@@ -9477,75 +9488,251 @@ describe("Drive file tools", () => {
       ).rejects.toThrow("attachmentUrl");
     });
 
-    it("saves a video the bot rendered in its workspace", async () => {
-      const video = Buffer.from("fake mp4 bytes");
-      const result = await service["uploadFile"](chatAuthorized as never, {
-        filename: "launch.mp4",
-        workspacePath: "out/launch.mp4",
-        workspaceBytesBase64: video.toString("base64"),
-      });
-      expect(files.put).toHaveBeenCalledWith(
-        expect.stringMatching(/\/launch-[0-9a-f]{8}\.mp4$/),
-        video,
-        expect.objectContaining({
+    describe("a file from the workspace", () => {
+      const pathname = "users/u/files/launch-1f3c9a2b.mp4";
+      const granted = {
+        data: {
+          pathname,
+          displayName: "launch.mp4",
+          folder: "",
           contentType: "video/mp4",
-          allowOverwrite: false,
-        }),
-      );
-      expect(result).toMatchObject({
-        id: "file-7",
-        filename: "launch.mp4",
-        size: video.byteLength,
+        },
+      };
+      const authorizedWithUpload = {
+        ...chatAuthorized,
+        turn: { ...chatAuthorized.turn, id: SCOPE.turnId },
+        grant: { capabilities: ["upload_file"] },
+      };
+      beforeEach(() => {
+        getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+        uploadGrantMock.mockReset().mockImplementation(async (grant) => ({
+          uploadUrl: "https://blob.example/put",
+          pathname: grant.pathname,
+          headers: { "Content-Type": grant.contentType },
+        }));
+        runtimeEventFindFirstMock.mockReset().mockResolvedValue(granted);
+        files.head.mockResolvedValue({
+          size: 12_000_000,
+          contentType: "video/mp4",
+        });
+      });
+
+      it("grants a new one-time address for each upload, never reusing a name", async () => {
+        const first = await service.grantWorkspaceUpload(
+          authorizedWithUpload as never,
+          { filename: "launch.mp4", size: 12_000_000 },
+        );
+        const second = await service.grantWorkspaceUpload(
+          authorizedWithUpload as never,
+          { filename: "launch.mp4", size: 12_000_000 },
+        );
+        expect(first.grant.pathname).toMatch(/\/launch-[0-9a-f]{8}\.mp4$/);
+        expect(first.grant.pathname).not.toBe(second.grant.pathname);
+        expect(uploadGrantMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            contentType: "video/mp4",
+            maximumSizeInBytes: 12_000_000,
+            addRandomSuffix: false,
+          }),
+        );
+        expect(first.displayName).toBe("launch.mp4");
+      });
+
+      it.each([
+        ["markup", "page.html", 10],
+        ["an svg, which goes through content", "card.svg", 10],
+        ["over 50 MB", "long.mp4", 50_000_001],
+      ])("refuses to grant %s", async (_label, filename, size) => {
+        await expect(
+          service.grantWorkspaceUpload(authorizedWithUpload as never, {
+            filename,
+            size,
+          }),
+        ).rejects.toThrow();
+        expect(uploadGrantMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a bot without upload_file", async () => {
+        await expect(
+          service.grantWorkspaceUpload(
+            { ...chatAuthorized, grant: { capabilities: [] } } as never,
+            { filename: "launch.mp4", size: 10 },
+          ),
+        ).rejects.toThrow("not available");
+      });
+
+      it("adds the uploaded video to Files under its own name", async () => {
+        const result = await service["uploadFile"](
+          authorizedWithUpload as never,
+          {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: pathname,
+          },
+        );
+        expect(runtimeEventFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              turnId: SCOPE.turnId,
+              type: "sandbox.upload_granted",
+              data: { path: ["pathname"], equals: pathname },
+            }),
+          }),
+        );
+        expect(files.reserve).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: expect.objectContaining({ pathname }),
+            displayName: "launch.mp4",
+            mimeType: "video/mp4",
+            sizeBytes: 12_000_000,
+          }),
+        );
+        expect(files.put).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ id: "file-7", filename: "launch.mp4" });
+      });
+
+      it("refuses an address this turn was not granted", async () => {
+        runtimeEventFindFirstMock.mockResolvedValue(null);
+        await expect(
+          service["uploadFile"](authorizedWithUpload as never, {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: "users/u/files/someone-elses.mp4",
+          }),
+        ).rejects.toThrow("only be saved from your sandbox");
+        expect(files.reserve).not.toHaveBeenCalled();
+      });
+
+      it("refuses a file stored with another type than granted", async () => {
+        files.head.mockResolvedValue({ size: 10, contentType: "text/html" });
+        await expect(
+          service["uploadFile"](authorizedWithUpload as never, {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: pathname,
+          }),
+        ).rejects.toThrow("did not finish uploading");
+        expect(files.reserve).not.toHaveBeenCalled();
+      });
+
+      it("never overwrites", async () => {
+        await expect(
+          service["uploadFile"](authorizedWithUpload as never, {
+            filename: "launch.mp4",
+            workspacePath: "out/launch.mp4",
+            uploadedPathname: pathname,
+            overwrite: true,
+          }),
+        ).rejects.toThrow("always saved as a new file");
       });
     });
 
-    it("stores each workspace save at a new address, even under a freed name", async () => {
-      for (const _ of [1, 2])
-        await service["uploadFile"](chatAuthorized as never, {
-          filename: "launch.mp4",
-          workspacePath: "out/launch.mp4",
-          workspaceBytesBase64: Buffer.from("x").toString("base64"),
+    describe("voice-overs", () => {
+      const voiced = {
+        ...chatAuthorized,
+        turn: { ...chatAuthorized.turn, id: SCOPE.turnId, source: "CHAT" },
+      };
+      beforeEach(() => {
+        speakMock.mockReset().mockResolvedValue({
+          bytes: new Uint8Array([73, 68, 51]),
+          costUsd: 0.004,
+          durationSeconds: 3.2,
+          sentences: [{ start: 0.1, text: "New in Sokosumi." }],
         });
-      const [first, second] = files.put.mock.calls.map((call) => call[0]);
-      expect(first).not.toBe(second);
-      expect(files.list).not.toHaveBeenCalled();
+      });
+
+      it("saves the mp3 to Files with its timing and records the cost", async () => {
+        const result = await service["generateVoiceover"](voiced as never, {
+          text: "New in Sokosumi.",
+          voice: "Brian",
+          filename: "launch-voiceover",
+        });
+        expect(speakMock).toHaveBeenCalledWith(
+          expect.objectContaining({ text: "New in Sokosumi.", voice: "Brian" }),
+        );
+        expect(files.put).toHaveBeenCalledWith(
+          expect.stringContaining("launch-voiceover.mp3"),
+          Buffer.from([73, 68, 51]),
+          expect.objectContaining({ contentType: "audio/mpeg" }),
+        );
+        expect(turnUpdateMock).toHaveBeenCalledWith({
+          where: { id: SCOPE.turnId },
+          data: { overheadCostUsdMicros: { increment: 4000n } },
+        });
+        expect(result).toMatchObject({
+          id: "file-7",
+          filename: "launch-voiceover.mp3",
+          durationSeconds: 3.2,
+          sentences: [{ start: 0.1, text: "New in Sokosumi." }],
+        });
+      });
+
+      it("says plainly when the voice service fails", async () => {
+        speakMock.mockRejectedValue(
+          new Error("The voice service answered 500"),
+        );
+        await expect(
+          service["generateVoiceover"](voiced as never, {
+            text: "Hi.",
+            filename: "a.mp3",
+          }),
+        ).rejects.toThrow("answered 500");
+        expect(files.put).not.toHaveBeenCalled();
+      });
     });
 
-    it.each([
-      ["markup", "page.html"],
-      ["an svg, which goes through content", "card.svg"],
-      ["an unknown type", "tool.exe"],
-    ])("refuses a workspace file that is %s", async (_label, filename) => {
-      await expect(
-        service["uploadFile"](chatAuthorized as never, {
-          filename,
-          workspacePath: filename,
-          workspaceBytesBase64: Buffer.from("x").toString("base64"),
-        }),
-      ).rejects.toThrow("must be a video");
-      expect(files.put).not.toHaveBeenCalled();
-    });
+    describe("copying a file into the workspace", () => {
+      const importing = {
+        ...chatAuthorized,
+        grant: { capabilities: ["workspace_import_file"] },
+      };
+      it("gives the runner the file's address", async () => {
+        files.loadLive.mockResolvedValue([
+          {
+            id: "01a0f700-0000-7000-8000-000000000001",
+            displayName: "logo.png",
+            mimeType: "image/png",
+            sizeBytes: 2_000,
+            sourceKind: "DRIVE_UPLOAD",
+            sourceId: "users/u/files/logo.png",
+          },
+        ]);
+        files.head.mockResolvedValue({ url: "https://blob.example/logo.png" });
+        await expect(
+          service.workspaceFileSource(
+            importing as never,
+            "01a0f700-0000-7000-8000-000000000001",
+          ),
+        ).resolves.toEqual({
+          url: "https://blob.example/logo.png",
+          name: "logo.png",
+          contentType: "image/png",
+        });
+      });
 
-    it("never overwrites a file from the workspace", async () => {
-      await expect(
-        service["uploadFile"](chatAuthorized as never, {
-          filename: "launch.mp4",
-          workspacePath: "out/launch.mp4",
-          workspaceBytesBase64: Buffer.from("x").toString("base64"),
-          overwrite: true,
-        }),
-      ).rejects.toThrow("always saved as a new file");
-      expect(files.put).not.toHaveBeenCalled();
-    });
-
-    it("saves a workspace file only with the bytes the sandbox sent", async () => {
-      await expect(
-        service["uploadFile"](chatAuthorized as never, {
-          filename: "launch.mp4",
-          workspacePath: "out/launch.mp4",
-        }),
-      ).rejects.toThrow("only be saved from your sandbox");
-      expect(files.put).not.toHaveBeenCalled();
+      it("refuses a Task's file and a bot without the tool", async () => {
+        files.loadLive.mockResolvedValue([
+          {
+            id: "01a0f700-0000-7000-8000-000000000002",
+            displayName: "out.pdf",
+            sizeBytes: 10,
+            sourceKind: "TASK_FILE",
+            sourceId: "x",
+          },
+        ]);
+        await expect(
+          service.workspaceFileSource(
+            importing as never,
+            "01a0f700-0000-7000-8000-000000000002",
+          ),
+        ).rejects.toThrow("Task's files stay with it");
+        await expect(
+          service.workspaceFileSource(
+            { ...chatAuthorized, grant: { capabilities: [] } } as never,
+            "01a0f700-0000-7000-8000-000000000002",
+          ),
+        ).rejects.toThrow("not available");
+      });
     });
 
     it("gives a saved chat image to a Social post as media", async () => {

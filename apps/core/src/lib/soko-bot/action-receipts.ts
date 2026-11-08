@@ -20,6 +20,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   // A paid provider call: never repeated after an unclear failure.
   "generate_image",
   "generate_video",
+  "generate_voiceover",
   "draft_email",
   "send_email_draft",
   "save_email_attachment",
@@ -329,7 +330,10 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.jobId;
-  } else if (capability === "upload_file") {
+  } else if (
+    capability === "upload_file" ||
+    capability === "generate_voiceover"
+  ) {
     const acknowledged = z
       .object({
         id: z.uuid(),
