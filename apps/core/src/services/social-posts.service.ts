@@ -503,9 +503,34 @@ async function requireScopedPost(
     include: socialPostInclude,
   });
   if (!post) {
-    throw notFound("Social post not found");
+    const near = await nearPostId(input, tx);
+    throw notFound(
+      near
+        ? `Social post not found. Did you mean ${near}?`
+        : "Social post not found",
+    );
   }
   return post;
+}
+
+/**
+ * The one post in the scope whose id ends like the one asked for: a bot
+ * once copied "b3d8" for "b3d9" in a month of near-identical ids and
+ * retried the wrong id until its runs ran out.
+ */
+async function nearPostId(
+  input: GetSocialPostInput,
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const tail = input.postId.match(/-([0-9a-f]{12})$/i)?.[1]?.toLowerCase();
+  if (!tail) return null;
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id::text AS id FROM social_post
+    WHERE "projectId" = ${input.projectId}::uuid
+      AND "workspaceId" = ${input.workspaceId}::uuid
+      AND id::text LIKE ${`%-${tail}`}
+    LIMIT 2`;
+  return rows.length === 1 ? (rows[0]?.id ?? null) : null;
 }
 
 function isSocialPostProvider(value: string): value is SocialPostProvider {

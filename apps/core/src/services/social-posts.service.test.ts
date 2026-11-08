@@ -1769,6 +1769,7 @@ describe("social posts service", () => {
 
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
+    queryRawMock.mockResolvedValue([]);
     const { getSocialPost } = await loadService();
 
     await expect(
@@ -1778,6 +1779,26 @@ describe("social posts service", () => {
         postId: POST_ID,
       }),
     ).rejects.toMatchObject({ status: 404, message: "Social post not found" });
+  });
+
+  it("names the one post whose id ends the same when an id is miscopied", async () => {
+    socialPostFindFirstMock.mockResolvedValue(null);
+    queryRawMock.mockResolvedValue([
+      { id: "01a1b939-a4fb-778f-b3d9-5a9e5424f7b0" },
+    ]);
+    const { getSocialPost } = await loadService();
+
+    await expect(
+      getSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        postId: "01a1b939-a4fb-778f-b3d8-5a9e5424f7b0",
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      message:
+        "Social post not found. Did you mean 01a1b939-a4fb-778f-b3d9-5a9e5424f7b0?",
+    });
   });
 
   describe.each([null, "other", "utxo"])(

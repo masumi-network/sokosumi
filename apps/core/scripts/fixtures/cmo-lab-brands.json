@@ -123,9 +123,8 @@
     "url": "https://hiltl.ch/",
     "goal": "Mehr Gäste",
     "main": "vegetar|vegan|restaurant|hiltl",
-    "why": "local restaurant, German goal: German plan and German posts",
-    "contentLanguage": "german|deutsch",
-    "planLanguage": "\\b(und|mit|für|der|die|das|mehr|gäste)\\b"
+    "why": "local restaurant with a German site: German posts, whatever language the owner plans in",
+    "contentLanguage": "german|deutsch"
   },
   {
     "name": "Apple",
