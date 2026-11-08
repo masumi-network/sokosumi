@@ -88,6 +88,7 @@ import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
 import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
+  CONTACT_DUPLICATES_KEY,
   contactKey,
   refreshContacts,
   type Teammate,
@@ -758,7 +759,7 @@ function MergeBanner({
 }) {
   const t = useTranslations("App.Contacts.panel");
   const duplicates = useQuery({
-    queryKey: ["contact-duplicates", contact.id],
+    queryKey: [...CONTACT_DUPLICATES_KEY, "contact", contact.id],
     queryFn: () => contactsService.duplicates(contact.id),
   });
   const group = duplicates.data?.find((item) =>

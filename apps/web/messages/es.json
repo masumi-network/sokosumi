@@ -10238,6 +10238,15 @@
       "noMatches": "Ningún contacto coincide con estos filtros.",
       "clearFilters": "Quitar filtros",
       "merged": "Fusionado en {name}",
+      "duplicates": "{count, plural, =1 {1 posible duplicado} other {# posibles duplicados}}",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {Ningún posible duplicado} =1 {1 posible duplicado} other {# posibles duplicados}}",
+        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Fusiona los que son una sola persona; abre un registro para revisarlo antes.",
+        "merge": "Fusionar",
+        "mergeGroup": "Fusionar los registros de {name}",
+        "noDetails": "Sin email ni empresa",
+        "empty": "No queda nada por fusionar."
+      },
       "deleteList": {
         "title": "¿Eliminar {name}?",
         "description": "La lista desaparece para todo el equipo. Las personas que contiene siguen en Contactos.",
@@ -10313,7 +10322,7 @@
         "title": "{count, plural, =2 {Fusionar 2 contactos} other {Fusionar # contactos}}",
         "description": "Elige el contacto que se queda. Todo lo de los demás pasa a él: canales, historial y listas. Los campos vacíos se completan con los suyos.",
         "keep": "Conservar",
-        "noDetails": "Sin cargo ni organización",
+        "noDetails": "Sin email, cargo ni organización",
         "interactions": "{count, plural, =0 {Sin interacciones} =1 {1 interacción} other {# interacciones}}",
         "failed": "La fusión no terminó. No cambió nada.",
         "cancel": "Cancelar",

@@ -18,6 +18,7 @@ export const CONTACT_ORGANIZATIONS_KEY = ["contact-organizations"] as const;
 export const CONTACT_MAP_KEY = ["contact-map"] as const;
 export const CONTACT_COMPANY_KEY = ["contact-company"] as const;
 export const CONTACT_BREAKDOWN_KEY = ["contact-breakdown"] as const;
+export const CONTACT_DUPLICATES_KEY = ["contact-duplicates"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -79,6 +80,16 @@ export function useContactMap(query: ContactQuery, enabled = true) {
       (state.data?.pending ?? 0) > 0 && state.dataUpdateCount < MAP_POLLS
         ? 2_000
         : false,
+  });
+}
+
+/** Groups of contacts that look like one person, for the whole workspace. */
+export function useContactDuplicates() {
+  const workspace = useWorkspace();
+  return useQuery({
+    enabled: workspace !== null,
+    queryKey: [...CONTACT_DUPLICATES_KEY, workspace],
+    queryFn: () => contactsService.duplicates(),
   });
 }
 
@@ -201,6 +212,7 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY }),
+    cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,
