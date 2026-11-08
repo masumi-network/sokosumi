@@ -297,6 +297,25 @@ describe("readCmoMonth", () => {
     expect(instructions("rule0_")).not.toMatch(/1,500|voice examples/);
   });
 
+  it("gives Jev the brand facts a piece's numbers and quotes are checked against", async () => {
+    jevReads({ skill: 0.9 });
+    const facts = {
+      summary: "Acme routes leads.",
+      products: ["Router"],
+      offers: [{ name: "Pro", what: "Routing", price: "$49 a month" }],
+      customerQuotes: ["Set up in ten minutes"],
+      proof: undefined,
+    };
+    await readCmoMonth({
+      pillars: [],
+      voice: null,
+      facts,
+      pieces: [made("a")],
+    });
+    const [call] = evaluateWithJev.mock.calls[0] ?? [];
+    expect(call.state.brandFacts).toEqual(facts);
+  });
+
   it("asks no voice question without a Brand Brain voice, and no pillar without pillars", async () => {
     jevReads({ skill: 0.9 });
     const read = await readCmoMonth({

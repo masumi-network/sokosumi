@@ -308,8 +308,23 @@ export function socialPostFormattingError(
   }`;
 }
 
-const LINK = /https?:\/\/[^\s<>"')]+/g;
-const TRAILING_PUNCTUATION = /[.,!?;:]+$/;
+const LINK = /https?:\/\/[^\s<>"]+/g;
+const TRAILING_PUNCTUATION = /[.,!?;:'"]$/;
+
+/** How much of a matched link is prose punctuation after it: a stop, a quote, or a ")" it never opened. */
+function trailingLength(raw: string): number {
+  let end = raw.length;
+  for (;;) {
+    const last = raw[end - 1] ?? "";
+    const link = raw.slice(0, end);
+    const unopened =
+      last === ")" &&
+      (link.match(/\)/g) ?? []).length > (link.match(/\(/g) ?? []).length;
+    if (!TRAILING_PUNCTUATION.test(last) && !unopened) break;
+    end -= 1;
+  }
+  return raw.length - end;
+}
 
 /**
  * Adds UTM tags to the links in a text that point at the business's own
@@ -327,8 +342,8 @@ export function tagOwnLinks(
     return text;
   }
   return text.replace(LINK, (raw) => {
-    const trailing = raw.match(TRAILING_PUNCTUATION)?.[0] ?? "";
-    const link = raw.slice(0, raw.length - trailing.length);
+    const link = raw.slice(0, raw.length - trailingLength(raw));
+    const trailing = raw.slice(link.length);
     let url: URL;
     try {
       url = new globalThis.URL(link);

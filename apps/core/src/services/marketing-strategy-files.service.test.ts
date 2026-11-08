@@ -210,6 +210,13 @@ describe("reading a written piece", () => {
     ).toBe("Page: https://a.io/\nTitle: A\n");
   });
 
+  it("reads back a draft that starts with its own # title, title included", () => {
+    const draft = "# How Long Does Bread Keep?\n\nThree days.";
+    expect(
+      marketingPieceText(marketingPieceMarkdown({ title: "Bread", draft })),
+    ).toBe(draft);
+  });
+
   it("is null for a piece with no file, or a deleted one", async () => {
     findUnique.mockResolvedValueOnce(null);
     await expect(readMarketingPieceText(version, "seo-1")).resolves.toBeNull();

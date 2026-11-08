@@ -226,6 +226,17 @@ describe("tagOwnLinks", () => {
     );
   });
 
+  it("keeps brackets and apostrophes inside a link, and drops the prose around it", () => {
+    expect(
+      tagOwnLinks(
+        "See https://nmkr.io/shirt_(blue) and (https://nmkr.io/it's).",
+        tags,
+      ),
+    ).toBe(
+      "See https://nmkr.io/shirt_(blue)?utm_source=linkedin&utm_medium=social&utm_campaign=cmo-2026-11 and (https://nmkr.io/it's?utm_source=linkedin&utm_medium=social&utm_campaign=cmo-2026-11).",
+    );
+  });
+
   it("keeps a link that already has UTM tags", () => {
     const text = "https://nmkr.io/?utm_source=x";
     expect(tagOwnLinks(text, tags)).toBe(text);

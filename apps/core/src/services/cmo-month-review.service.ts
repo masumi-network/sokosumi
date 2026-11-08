@@ -332,6 +332,25 @@ function passes(
     : null;
 }
 
+/** What the pieces' facts are checked against: what the business sells and has proven. */
+export type CmoBrandFacts = Pick<
+  BrandBrain,
+  "summary" | "products" | "offers"
+> & {
+  customerQuotes: string[];
+  proof: NonNullable<BrandBrain["profile"]>["proof"];
+};
+
+export function cmoBrandFacts(brain: BrandBrain): CmoBrandFacts {
+  return {
+    summary: brain.summary,
+    products: brain.products,
+    offers: brain.offers,
+    customerQuotes: (brain.voiceOfCustomer ?? []).map((quote) => quote.quote),
+    proof: brain.profile?.proof,
+  };
+}
+
 /**
  * Jev's reading of each piece, a few pieces per question set: its pillar, and
  * whether it follows its skill and the brand voice. A batch Jev fails leaves
@@ -340,9 +359,10 @@ function passes(
 export async function readCmoMonth(input: {
   pillars: readonly CmoPillar[];
   voice: BrandBrain["voice"] | null;
+  facts?: CmoBrandFacts | null;
   pieces: readonly CmoMadePiece[];
 }): Promise<Pick<CmoMonthReview, "pieces" | "writing"> & { costUsd: number }> {
-  const { pillars, voice } = input;
+  const { pillars, voice, facts } = input;
   const criteria = Object.fromEntries([
     ...pillars.map((pillar, index) => [
       `p${index}`,
@@ -398,6 +418,7 @@ export async function readCmoMonth(input: {
           state: {
             pillars: pillars.map((pillar) => pillar.name),
             ...(voice ? { brandVoice: voice } : {}),
+            ...(facts ? { brandFacts: facts } : {}),
             pieces: batch.map((piece, index) => ({
               piece: index,
               network: piece.channel,
@@ -516,6 +537,7 @@ export async function advanceCmoMonthReview(input: {
   version: { id: string; monthReview: unknown };
   strategy: Pick<MarketingStrategyPlan, "pillars" | "calendar">;
   voice: BrandBrain["voice"] | null;
+  facts?: CmoBrandFacts | null;
   runs: readonly { clientTurnId: string; status: string }[];
   runIdPrefix: string;
   ready: number;
@@ -541,6 +563,7 @@ export async function advanceCmoMonthReview(input: {
   const read = await readCmoMonth({
     pillars: strategy.pillars,
     voice: input.voice,
+    facts: input.facts,
     pieces: made,
   });
   console.info("CMO month review", {

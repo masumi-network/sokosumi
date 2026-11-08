@@ -30,6 +30,7 @@ import {
 import {
   advanceCmoMonthReview,
   type CmoPillarShare,
+  cmoBrandFacts,
   cmoPillarShares,
   parseCmoMonthReview,
 } from "@/services/cmo-month-review.service";
@@ -685,6 +686,7 @@ export async function advanceCmoProduction(
       version,
       strategy,
       voice: brain?.voice ?? null,
+      facts: brain ? cmoBrandFacts(brain) : null,
       runs,
       runIdPrefix: approvalRunPrefix(cuso.sokoBotId, approvedAt),
       ready: current.ready,

@@ -41,8 +41,12 @@ function pieceFilename(entry: Pick<CmoCalendarEntry, "date" | "title">) {
   return `${entry.date} ${title}.md`;
 }
 
-/** A draft its writing skill already shapes: labelled fields first, or its own # title. */
-const SHAPED_DRAFT = /^(?:[A-Z][\w ()]{1,30}:|# \S)/;
+/**
+ * A draft its writing skill already shapes: labelled fields first. A draft
+ * that starts with its own # title still gets the file's title above it, so
+ * reading the file back can always drop the first # line.
+ */
+const SHAPED_DRAFT = /^[A-Z][\w ()]{1,30}:/;
 
 /**
  * The file holds the piece as the owner uses it: its title, then its words.
