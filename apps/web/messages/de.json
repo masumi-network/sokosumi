@@ -10927,6 +10927,7 @@
     "Assistant": {
       "metadataTitle": "Assistenten einrichten",
       "later": "Später",
+      "laterHint": "Du kannst ihn jederzeit unter Soko Bots einrichten.",
       "skip": "Überspringen",
       "continue": "Weiter"
     }
