@@ -55,6 +55,16 @@ export {
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
 } from "./billing-notification-message-keys.js";
 export {
+  brandColors,
+  brandFontName,
+  brandFonts,
+  type DesignMdBrandLook,
+  designMdBrandLook,
+  distinctColors,
+  isNeutral,
+  normalizeHex,
+} from "./brand-look.js";
+export {
   CALENDAR_CLIENT_VERSION,
   CALENDAR_CLIENT_VERSION_HEADER,
 } from "./calendar-client-version.js";

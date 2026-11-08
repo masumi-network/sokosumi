@@ -65,7 +65,13 @@ export function AvatarPicker({
         : result.value;
       setAvatars(next);
       // A new bot starts with a picture; picking another stays one click.
-      if (value === null && !currentImageUrl && next[0]) onChange(next[0]);
+      // The pick must stay on screen: after "show others" a pick from the
+      // old set is gone, so fall back to the current picture or the first.
+      const pickOnScreen =
+        value === null
+          ? Boolean(currentImageUrl)
+          : next.some((avatar) => avatar.id === value);
+      if (!pickOnScreen) onChange(currentImageUrl ? null : (next[0] ?? null));
       setSeen((prev) =>
         nextSeenAvatarIds(
           prev,
