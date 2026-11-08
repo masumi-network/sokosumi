@@ -263,7 +263,7 @@ export function JobsList({
             ))
           ) : (
             <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
-              {t("emptyJobs")}
+              {localJobs.length > 0 ? t("noMatches") : t("emptyJobs")}
             </div>
           )}
           {nextCursor ? (

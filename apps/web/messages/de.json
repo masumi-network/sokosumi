@@ -509,6 +509,7 @@
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
+        "noMatches": "Keine Jobs passen zu deiner Suche.",
         "loadMore": "Mehr laden",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
@@ -7889,7 +7890,8 @@
           "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
         },
         "Modal": {
-          "back": "Zurück"
+          "back": "Zurück",
+          "title": "Job-Details"
         },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",

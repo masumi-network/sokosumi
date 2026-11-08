@@ -525,6 +525,7 @@
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
         "emptyJobs": "No jobs yet. Hire this coworker to start one.",
+        "noMatches": "No jobs match your search.",
         "loadMore": "Load more",
         "loadMoreError": "Failed to load more jobs"
       }
@@ -7925,7 +7926,8 @@
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },
         "Modal": {
-          "back": "Back"
+          "back": "Back",
+          "title": "Job details"
         },
         "Footer": {
           "termsAndConditions": "Terms and Conditions",

@@ -3,12 +3,15 @@ import { JobType, SokosumiJobStatus } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
+import {
+  JobRow,
+  JobsList,
+} from "@/app/agents/[agentId]/jobs/components/jobs-list";
 
 vi.mock("next-intl", () => ({
   useTimeZone: () => "UTC",
   useLocale: () => "en",
-  useTranslations: () => (_key: string) => "",
+  useTranslations: () => (key: string) => key,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -104,5 +107,30 @@ describe("JobRow", () => {
     render(<JobRow job={job} selected={false} onClick={vi.fn()} />);
 
     expect(screen.queryByTestId("shared-job-avatar")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobsList empty state", () => {
+  function renderList(jobs: JobSummary[]) {
+    render(
+      <JobsList
+        jobs={jobs}
+        jobsNextCursor={null}
+        userId="user-1"
+        agentId="agent-1"
+      />,
+    );
+  }
+
+  it("says no jobs exist when the agent has none", () => {
+    renderList([]);
+
+    expect(screen.getByText("emptyJobs")).toBeInTheDocument();
+  });
+
+  it("says nothing matches when jobs exist but none are listed", () => {
+    renderList([createJob()]);
+
+    expect(screen.getByText("noMatches")).toBeInTheDocument();
   });
 });
