@@ -27,6 +27,17 @@ import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
+/**
+ * Focuses the first visible toolbar button outside the chip list. A removed
+ * chip or a cleared empty state unmounts the focused button, which would
+ * otherwise drop keyboard focus to the page.
+ */
+export function focusToolbarControl(toolbar: Element | null | undefined) {
+  Array.from(toolbar?.querySelectorAll("button") ?? [])
+    .find((button) => !button.closest("ul") && button.offsetParent !== null)
+    ?.focus();
+}
+
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
   /** The viewer, for the My tasks toggle; hidden when they are not an option. */
@@ -297,7 +308,12 @@ export function TasksViewFilters({
                 <span className="truncate">{name}</span>
                 <ChipRemoveButton
                   aria-label={t("removeFilter", { filter: name })}
-                  onClick={() => handleFilterChange(chip.clear)}
+                  onClick={(event) => {
+                    const toolbar =
+                      event.currentTarget.closest("ul")?.parentElement;
+                    handleFilterChange(chip.clear);
+                    focusToolbarControl(toolbar);
+                  }}
                 />
               </li>
             );

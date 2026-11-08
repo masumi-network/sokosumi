@@ -85,6 +85,7 @@ import {
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
+import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 
 interface PendingBoardReopen {
@@ -814,6 +815,7 @@ export function TasksView({
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
     const nextQuery = buildTasksFiltersSearchParams(
       searchParams,
@@ -821,6 +823,7 @@ export function TasksView({
       activeOrganizationId,
     ).toString();
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    focusToolbarControl(toolbarRef.current);
   };
 
   const content = (
@@ -830,7 +833,10 @@ export function TasksView({
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div className="flex flex-row flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <div
+        ref={toolbarRef}
+        className="flex flex-row flex-wrap items-center justify-end gap-2 sm:gap-3"
+      >
         <TasksViewToolbarActions
           filters={{
             activeOrganizationId,
