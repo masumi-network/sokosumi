@@ -40,9 +40,10 @@ Optional, per network:
   deployed instance fetches the ffmpeg that encodes avatar loops: a gzip of a
   static linux-x64 build and its sha256. The function does not ship ffmpeg (80 MB
   unzipped); each instance unpacks it into `/tmp` on first use and refuses a
-  download that does not match the hash. Unset, it uses the pinned ffmpeg-static
-  release on GitHub; point it at our own Blob store so runtime does not depend
-  on GitHub.
+  download that does not match the hash. Unset, it uses `DEFAULT_FFMPEG_BUILD`
+  in `apps/core/src/lib/soko-bot-avatar/media.ts`: our copy of the pinned
+  ffmpeg-static release in the public mainnet Blob store, so runtime does not
+  depend on GitHub.
 - `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set

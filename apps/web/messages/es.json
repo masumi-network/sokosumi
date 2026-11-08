@@ -637,10 +637,12 @@
           "title": "{organization} está lista",
           "titleFallback": "Todo listo",
           "subtitle": "Tu organización está configurada. Invita a tu equipo, o hazlo más tarde.",
+          "linkLabel": "Enlace de invitación",
           "linkHint": "Cualquiera con este enlace puede unirse como miembro.",
           "copy": "Copiar",
           "copied": "Copiado",
           "regenerate": "Restablecer enlace",
+          "emailsLabel": "Invitar por correo (opcional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Comas, puntos y coma o saltos de línea.",
           "sendInvites": "Enviar invitaciones",
@@ -1031,6 +1033,7 @@
       },
       "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
+      "files": "{count, plural, one {# archivo} other {# archivos}}",
       "assignee": "Asignado a",
       "project": "Proyecto",
       "destination": "Cuenta",
@@ -10212,7 +10215,8 @@
         "add": "Añadir contacto",
         "more": "Más acciones",
         "filter": "Filtrar",
-        "kind": "Tipo"
+        "kind": "Tipo",
+        "source": "Origen"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -10240,6 +10244,17 @@
       "noMatches": "Ningún contacto coincide con estos filtros.",
       "clearFilters": "Quitar filtros",
       "merged": "Fusionado en {name}",
+      "duplicates": "{count, plural, =1 {1 posible duplicado} other {# posibles duplicados}}",
+      "duplicatesMore": "{count}+ posibles duplicados",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {Ningún posible duplicado} =1 {1 posible duplicado} other {# posibles duplicados}}",
+        "titleMore": "{count}+ posibles duplicados",
+        "description": "Estos registros comparten nombre, o apellido e inicial en la misma empresa. Fusiona los que son una sola persona; abre un registro para revisarlo antes.",
+        "merge": "Fusionar",
+        "mergeGroup": "Fusionar los registros de {name}",
+        "noDetails": "Sin email ni empresa",
+        "empty": "No queda nada por fusionar."
+      },
       "deleteList": {
         "title": "¿Eliminar {name}?",
         "description": "La lista desaparece para todo el equipo. Las personas que contiene siguen en Contactos.",
@@ -10271,7 +10286,9 @@
         "failed": "La lista no se guardó. Inténtalo de nuevo.",
         "cancel": "Cancelar",
         "save": "Guardar",
-        "create": "Crear lista"
+        "create": "Crear lista",
+        "smart": "Llenarla con los filtros actuales",
+        "smartHint": "Una lista inteligente: quien coincida con estos filtros está en ella, ahora y más adelante."
       },
       "addDialog": {
         "title": "Añadir contacto",
@@ -10313,7 +10330,7 @@
         "title": "{count, plural, =2 {Fusionar 2 contactos} other {Fusionar # contactos}}",
         "description": "Elige el contacto que se queda. Todo lo de los demás pasa a él: canales, historial y listas. Los campos vacíos se completan con los suyos.",
         "keep": "Conservar",
-        "noDetails": "Sin cargo ni organización",
+        "noDetails": "Sin email, cargo ni organización",
         "interactions": "{count, plural, =0 {Sin interacciones} =1 {1 interacción} other {# interacciones}}",
         "failed": "La fusión no terminó. No cambió nada.",
         "cancel": "Cancelar",
@@ -10570,6 +10587,59 @@
         "place": "{place}, {count, plural, one {# contacto} other {# contactos}}",
         "nearby": "{place} y {others, plural, one {# lugar cercano} other {# lugares cercanos}}",
         "people": "{count, plural, one {# contacto} other {# contactos}}"
+      },
+      "company": {
+        "loading": "Cargando empresa…",
+        "edit": "Editar",
+        "whyItMatters": "Por qué importa",
+        "people": "Personas",
+        "knownBy": "Conocida por",
+        "knownByLabel": "{count, plural, one {# compañero conoce} other {# compañeros conocen}} a alguien aquí",
+        "nobody": "Nadie todavía",
+        "lastContact": "Último contacto",
+        "never": "Nunca",
+        "warmth": "Relación",
+        "warmthLevels": {
+          "warm": "Cálida",
+          "cooling": "Enfriándose",
+          "cold": "Fría",
+          "none": "Sin contacto aún"
+        },
+        "strongestStage": "Etapa más fuerte",
+        "nextSteps": "Próximos pasos",
+        "noNextSteps": "Nada planificado.",
+        "recent": "Últimos contactos",
+        "noRecent": "Aún no hay contactos.",
+        "someone": "Alguien",
+        "editTitle": "Editar empresa",
+        "editDescription": "Lo que el equipo sabe de esta empresa. Los campos vacíos se completan desde su sitio web en segundo plano.",
+        "nameRequired": "Ponle un nombre a la empresa.",
+        "saveFailed": "No se pudo guardar la empresa.",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "fields": {
+          "name": "Nombre",
+          "website": "Sitio web",
+          "industry": "Sector",
+          "size": "Tamaño",
+          "headquarters": "Sede",
+          "linkedinUrl": "LinkedIn",
+          "description": "Acerca de",
+          "whyItMatters": "Por qué nos importa"
+        }
+      },
+      "overview": {
+        "label": "Resumen de la lista",
+        "people": "{count, plural, one {# persona} other {# personas}}",
+        "quiet": "{count} sin contacto en 90 días",
+        "map": "Ver en el mapa",
+        "stages": "Etapa",
+        "companies": "Empresas",
+        "places": "Lugares",
+        "knownBy": "Conocido por",
+        "none": "Sin indicar",
+        "nobody": "Nadie todavía",
+        "more": "y {count} más"
       }
     }
   },
@@ -10876,6 +10946,7 @@
     "Assistant": {
       "metadataTitle": "Configura tu asistente",
       "later": "Más tarde",
+      "laterHint": "Puedes configurarlo en cualquier momento desde Soko Bots.",
       "skip": "Omitir",
       "continue": "Continuar"
     }

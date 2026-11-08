@@ -312,6 +312,37 @@ function roundBudget(amount: number): number {
 }
 
 /**
+ * Searches no small business wants to pay for, whatever it sells: people
+ * looking for a job there or for a pirated copy.
+ */
+export const CMO_NEGATIVE_KEYWORDS = [
+  "jobs",
+  "job",
+  "career",
+  "careers",
+  "salary",
+  "hiring",
+  "internship",
+  "torrent",
+  "crack",
+] as const;
+
+/** A day's budget buys at least this many clicks, whatever one costs. */
+const MIN_CLICKS_PER_DAY = 3;
+
+/**
+ * The most one click may cost: Cuso's ceiling from the keyword prices, and
+ * never so much that a few clicks spend the whole day.
+ */
+export function cmoMaxCpc(dailyBudget: number, cusoMaxCpc?: number): number {
+  const ceiling = roundBudget(dailyBudget / MIN_CLICKS_PER_DAY);
+  return Math.max(
+    0.01,
+    cusoMaxCpc ? Math.min(roundBudget(cusoMaxCpc), ceiling) : ceiling,
+  );
+}
+
+/**
  * Launches a search ad Cuso wrote: Core builds the Google campaign from its
  * parts in the Project's Google Ads account, with an equal share of the
  * plan's daily ad budget, then starts it. A piece launched before is started
@@ -352,6 +383,18 @@ export async function launchCmoSearchAd(input: {
   }
   await requireAdBudgetRoom({ cuso, account, dailyBudget });
   const ad = piece.searchAd;
+  const targeting = await googleTargeting(
+    { ...scope, accountId: account.id },
+    ad,
+  );
+  // An ad without a place runs worldwide, which a local budget cannot afford.
+  if (targeting.locationIds.length === 0) {
+    throw new CmoConflictError(
+      ad.location
+        ? `Google does not know the place "${ad.location}". Ask Cuso to name the country or city as Google names it.`
+        : "This ad does not say where it runs yet. Ask Cuso to add the country or city you serve.",
+    );
+  }
   const { id: campaignId } = await createProjectAdCampaign({
     ...scope,
     accountId: account.id,
@@ -361,11 +404,18 @@ export async function launchCmoSearchAd(input: {
     dailyBudget,
     google: {
       type: "SEARCH",
-      ...(await googleTargeting({ ...scope, accountId: account.id }, ad)),
+      ...targeting,
       finalUrl: ad.finalUrl,
+      maxCpc: cmoMaxCpc(dailyBudget, ad.maxCpc),
       keywords: ad.keywords.map((text) => ({ text, matchType: "PHRASE" })),
+      negativeKeywords: [
+        ...CMO_NEGATIVE_KEYWORDS,
+        ...(ad.negativeKeywords ?? []),
+      ],
       headlines: ad.headlines,
       descriptions: ad.descriptions,
+      ...(ad.path1 ? { path1: ad.path1 } : {}),
+      ...(ad.path2 ? { path2: ad.path2 } : {}),
       ...(ad.callouts?.length ? { callouts: ad.callouts } : {}),
     },
   });

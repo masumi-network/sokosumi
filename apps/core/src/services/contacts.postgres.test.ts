@@ -716,10 +716,20 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
   it("finds same-name duplicates and captures an interaction idempotently", async () => {
     await create(asAlice, { name: "Jon Duplicate" });
     await create(asBob, { name: " jon duplicate" });
+    // A first name alone is a duplicate only at the same organization.
+    await create(asAlice, { name: "Steven", organization: "Auda" });
+    await create(asAlice, { name: "Steven", organization: "Toto" });
+    await create(asAlice, { name: "Steven" });
+    await create(asAlice, { name: "Gus", organization: "Nearweek" });
+    await create(asAlice, { name: "gus", organization: "NEARWEEK" });
     const groups = await findDuplicateContacts(asAlice);
     expect(
       groups.find((group) => group.name === "Jon Duplicate")?.contacts,
     ).toHaveLength(2);
+    expect(groups.some((group) => group.name === "Steven")).toBe(false);
+    expect(groups.find((group) => group.name === "Gus")?.contacts).toHaveLength(
+      2,
+    );
 
     const capture = () =>
       inContactTransaction((tx) =>

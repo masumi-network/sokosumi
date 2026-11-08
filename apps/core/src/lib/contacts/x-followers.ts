@@ -156,19 +156,124 @@ export function personNameKey(name: string): string | null {
   return parts.length < 2 ? null : `${parts[0]} ${parts.at(-1)}`;
 }
 
-/** 0.5 for the same full name, 0.4 for the same first and last name. */
+/** The keys a follower is looked up by: first and last name, or a first name alone. */
+export function followerNameKey(name: string): string | null {
+  const parts = words(name);
+  if (parts.length === 1) return `first:${parts[0]}`;
+  return personNameKey(name);
+}
+
+/** The keys a contact can be found under by `followerNameKey`. */
+export function contactNameKeys(name: string): string[] {
+  const first = words(name)[0];
+  return [personNameKey(name), first ? `first:${first}` : null].filter(
+    (key): key is string => key !== null,
+  );
+}
+
+/**
+ * 0.5 for the same full name, 0.4 for the same first and last name, 0.3
+ * for a follower who gives only a first name and that is the contact's.
+ */
 function nameScore(follower: XFollower, contact: MatchContact): number {
+  const own = words(follower.name ?? "");
+  const theirs = words(contact.name);
+  if (own.length === 1) return own[0] === theirs[0] ? 0.3 : 0;
   const key = personNameKey(follower.name ?? "");
   if (!key || key !== personNameKey(contact.name)) return 0;
-  return words(follower.name ?? "").join(" ") === words(contact.name).join(" ")
-    ? 0.5
-    : 0.4;
+  return own.join(" ") === theirs.join(" ") ? 0.5 : 0.4;
 }
 
 function mentions(haystack: string, needle: string): boolean {
   const target = normalizePersonName(needle);
   if (target.length < 3) return false;
   return ` ${normalizePersonName(haystack)} `.includes(` ${target} `);
+}
+
+function initials(parts: readonly string[]): string {
+  return parts.map((part) => part[0] ?? "").join("");
+}
+
+/**
+ * The bio's tokens as written, with whether each stands out as a name: an
+ * @handle, ALL CAPS, or CamelCase ("DraperU"), not an ordinary word.
+ */
+function bioTokens(
+  bio: string,
+): { word: string; marked: boolean; capital: boolean }[] {
+  const plain = bio.normalize("NFKD").replace(/\p{M}/gu, "");
+  return [...plain.matchAll(/(@?)([\p{L}\p{N}]+)/gu)].map(
+    ([, at, raw = ""]) => ({
+      word: raw.toLowerCase(),
+      marked:
+        at === "@" ||
+        (raw.length > 1 && raw === raw.toUpperCase() && /\p{L}/u.test(raw)) ||
+        /\p{Ll}\p{Lu}/u.test(raw),
+      capital: /^\p{Lu}/u.test(raw),
+    }),
+  );
+}
+
+/**
+ * Whether the bio names this company: its name as written (an @handle
+ * counts), its initials written as a name ("IOG" for Input Output Group, or
+ * "Input Output Group" spelled out for IOG), or a short form written as a
+ * name ("DraperU" for Draper University or draperuniversity.com). Ordinary
+ * words never stand in for a company: "I build models" is not IBM.
+ */
+export function namesCompany(
+  bio: string,
+  company: string,
+  fromDomain = false,
+): boolean {
+  if (mentions(bio, company)) return true;
+  const tokens = bioTokens(bio);
+  const parts = words(company);
+  const squashed = parts.join("").replace(/-/g, "");
+  if (squashed.length < 3) return false;
+  const shortForm = (token: { word: string; marked: boolean }) =>
+    token.marked &&
+    token.word.length >= 5 &&
+    token.word.length < squashed.length &&
+    squashed.startsWith(token.word) &&
+    token.word.length >= (fromDomain ? 6 : (parts[0]?.length ?? 0) + 1);
+  if (tokens.some(shortForm)) return true;
+  if (fromDomain) return false;
+  // "IOG" in the company, its words capitalized in a row in the bio.
+  if (parts.length === 1 && squashed.length <= 6)
+    return tokens.some((_, start) => {
+      const run = tokens.slice(start, start + squashed.length);
+      return (
+        run.length === squashed.length &&
+        run.every((token) => token.capital) &&
+        initials(run.map((token) => token.word)) === squashed
+      );
+    });
+  // "Input Output Group" in the company, "IOG" written as a name in the bio.
+  return (
+    parts.length >= 3 &&
+    tokens.some(
+      (token) =>
+        token.marked &&
+        token.word === initials(parts) &&
+        token.word.length >= 3,
+    )
+  );
+}
+
+/**
+ * Whether an organization is the company of an email domain: the same name,
+ * or the domain is the name plus a company word ("acme" and "acmeinc").
+ */
+function sameCompany(organization: string, stem: string): boolean {
+  if (organization.length < 3) return false;
+  if (organization === stem) return true;
+  return (
+    stem.startsWith(organization) &&
+    /^(inc|ltd|llc|gmbh|ag|hq|co|corp|group|labs|io|app|team)$/.test(
+      stem.slice(organization.length),
+    )
+  );
 }
 
 /**
@@ -186,15 +291,14 @@ export function followerMatchScore(
     `${follower.website ?? ""} ${follower.description}`,
   );
   let evidence = 0;
-  const companyNames = new Set<string>();
-  if (contact.organization) companyNames.add(contact.organization);
+  const domains = new Set<string>();
   for (const channel of contact.channels) {
     if (channel.type === "WEBSITE" && host && ownHost(channel.value) === host)
       evidence = Math.max(evidence, 0.5);
     if (channel.type === "EMAIL") {
       const domain = companyDomain(channel.value);
       if (domain && host === domain) evidence = Math.max(evidence, 0.3);
-      if (domain) companyNames.add(domain.split(".")[0] ?? "");
+      if (domain) domains.add(domain.split(".")[0] ?? "");
     }
     if (
       channel.type === "LINKEDIN" &&
@@ -203,11 +307,27 @@ export function followerMatchScore(
     )
       evidence = Math.max(evidence, 0.6);
   }
+  const bio = follower.description;
+  const companyNamed =
+    (!!contact.organization && namesCompany(bio, contact.organization)) ||
+    [...domains].some((stem) => namesCompany(bio, stem, true));
+  // A first name alone needs the bio to name the company their address is
+  // at: the domain itself, or an organization that is that domain's.
+  if (name === 0.3) {
+    const organization = contact.organization
+      ? words(contact.organization).join("")
+      : "";
+    const atNamedCompany = [...domains].some(
+      (stem) =>
+        namesCompany(bio, stem, true) ||
+        (!!contact.organization &&
+          sameCompany(organization, stem) &&
+          namesCompany(bio, contact.organization)),
+    );
+    return atNamedCompany ? AUTO_MERGE_SCORE : 0;
+  }
   let score = name + evidence;
-  if (
-    [...companyNames].some((company) => mentions(follower.description, company))
-  )
-    score += 0.25;
+  if (companyNamed) score += 0.25;
   const city = (contact.location ?? "").split(/[,/(]/)[0] ?? "";
   if (follower.location && mentions(follower.location, city)) score += 0.15;
   return score;

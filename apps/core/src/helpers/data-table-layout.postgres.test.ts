@@ -149,4 +149,52 @@ describe.runIf(enabled)("table column layout on PostgreSQL", () => {
         }),
       ).toThrow();
   });
+
+  it("creates a Core-built table with many rows in one write, in order", async () => {
+    const nameId = randomUUID();
+    const columns = [
+      {
+        id: nameId,
+        name: "Name",
+        type: "text" as const,
+        description: "",
+        options: [],
+      },
+    ];
+    const rows = Array.from({ length: 250 }, (_, index) => ({
+      values: { [nameId]: `Person ${index}` },
+      evidence: {},
+    }));
+    await expect(
+      createDataTable(actor, {
+        key: randomUUID(),
+        title: "Too many",
+        description: "",
+        columns,
+        rows,
+      }),
+    ).rejects.toThrow();
+    const table = await createDataTable(
+      actor,
+      { key: randomUUID(), title: "Export", description: "", columns, rows },
+      undefined,
+      { manyRows: true },
+    );
+    const stored = await prisma.tableRow.findMany({
+      where: { tableId: table.id },
+      orderBy: [{ position: "asc" }, { id: "asc" }],
+    });
+    expect(stored).toHaveLength(250);
+    expect((stored[0]?.values as Record<string, string>)[nameId]).toBe(
+      "Person 0",
+    );
+    expect((stored[249]?.values as Record<string, string>)[nameId]).toBe(
+      "Person 249",
+    );
+    expect(
+      await prisma.tableChange.count({
+        where: { tableId: table.id, rowId: { not: null } },
+      }),
+    ).toBe(250);
+  });
 });

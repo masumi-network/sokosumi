@@ -72,11 +72,16 @@ export function cmoPieceNeedsMedia(
   return Boolean(format?.image || format?.video);
 }
 
-/** The fewest slides a carousel format needs; 0 for a single-image format. */
-export function cmoPieceMinSlides(
-  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+/**
+ * A carousel's slides: as many as Cuso described, within its format's range;
+ * 0 for a single-image format.
+ */
+export function cmoPieceSlides(
+  entry: Pick<CmoCalendarEntry, "channel" | "format" | "slides">,
 ): number {
-  return formatOf(entry)?.slides?.[0] ?? 0;
+  const range = formatOf(entry)?.slides;
+  if (!range) return 0;
+  return Math.min(range[1], Math.max(range[0], entry.slides?.length ?? 0));
 }
 
 function isVideo(entry: Pick<CmoCalendarEntry, "channel" | "format">) {
@@ -94,6 +99,7 @@ export interface CmoMediaPiece
     | "title"
     | "visual"
     | "visualFileIds"
+    | "slides"
     | "socialPostId"
   > {
   /** What is on it already: a post's file pathnames, a file piece's file ids. */
@@ -137,17 +143,19 @@ export type CmoSlotAction =
 
 /** The visual and its pictures, as one short key: a new visual starts over. */
 export function cmoVisualKey(
-  piece: Pick<CmoMediaPiece, "visual" | "visualFileIds">,
+  piece: Pick<CmoMediaPiece, "visual" | "visualFileIds" | "slides">,
 ): string {
   return createHash("sha256")
-    .update(`${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}`)
+    .update(
+      `${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}${piece.slides?.length ? `|${piece.slides.join("|")}` : ""}`,
+    )
     .digest("hex")
     .slice(0, 10);
 }
 
 /** Slots a piece shows: its slides, or one picture or video. */
 function slotsOf(piece: CmoMediaPiece): number {
-  return Math.max(1, cmoPieceMinSlides(piece));
+  return Math.max(1, cmoPieceSlides(piece));
 }
 
 /** A slot's next step, from the jobs started for it under the current visual. */
@@ -284,7 +292,8 @@ export function cmoImagePrompt(input: {
 }): string {
   const { piece, slot } = input;
   const channel = (CMO_CHANNELS as Record<string, Channel>)[piece.channel];
-  const slides = cmoPieceMinSlides(piece);
+  const slides = cmoPieceSlides(piece);
+  const slide = piece.slides?.[slot]?.trim();
   const words =
     piece.format === "quote_card" || slides > 0
       ? "Any words in the picture are short, spelled exactly as given."
@@ -292,7 +301,7 @@ export function cmoImagePrompt(input: {
   return [
     piece.visual?.trim() ?? piece.title,
     slides > 0
-      ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.`
+      ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.${slide ? ` This slide: ${slide}` : ""}`
       : "",
     isVideo(piece)
       ? "A vertical still with one clear subject and room to move: it becomes a five-second video."
@@ -346,9 +355,22 @@ export async function advanceCmoMedia(
       piece.visual?.trim() &&
       cmoMediaState(piece, []) !== "made",
   );
-  if (wanted.length === 0) return;
+  // A post whose words changed after its picture went on is back to a
+  // draft; nothing else schedules a post with a picture.
+  const unscheduled = pieces.filter(
+    (piece) =>
+      piece.socialPostId &&
+      piece.status === "draft" &&
+      context.connected.has(piece.channel) &&
+      cmoPieceNeedsMedia(piece) &&
+      cmoMediaState(piece, []) === "made",
+  );
+  if (wanted.length === 0 && unscheduled.length === 0) return;
   const drive = await cusoDrive(context.cuso);
   if (!drive) return;
+  for (const piece of unscheduled)
+    await scheduleWhenComplete(context, drive, piece);
+  if (wanted.length === 0) return;
   const { projectId } = context.cuso;
   const jobs = await listCmoMediaJobs(projectId, context.versionId);
   let capacity =
@@ -359,6 +381,10 @@ export async function advanceCmoMedia(
   let brandPictures: { fileId: string; alt: string }[] | null = null;
   for (const piece of wanted) {
     const key = cmoVisualKey(piece);
+    // Slides go on in order, so the next one missing is always slot
+    // media.length: a carousel once attached slides 2 and 3 while its cover
+    // failed, and the cover was never tried again or handed back to Cuso.
+    let inOrder = true;
     for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
       const action = cmoSlotAction(
         piece,
@@ -370,9 +396,10 @@ export async function advanceCmoMedia(
         ),
       );
       if (action.kind === "attach") {
-        await attach(context, drive, piece, action.job);
+        if (inOrder) inOrder = await attach(context, drive, piece, action.job);
         continue;
       }
+      inOrder = false;
       if (action.kind !== "start" || capacity <= 0) continue;
       brandPictures ??= await listCmoBrandPictures(projectId);
       const started = await start(context, drive, {
@@ -461,14 +488,17 @@ async function start(
   }
 }
 
-/** Puts a finished picture or video on its piece, then schedules a complete post. */
+/**
+ * Puts a finished picture or video on its piece, then schedules a complete
+ * post. True once the file is on the piece.
+ */
 async function attach(
   context: MediaContext,
   drive: { workspaceId: string; organizationId: string | null; userId: string },
   piece: CmoMediaPiece,
   job: CmoMediaJob,
-): Promise<void> {
-  if (!job.assetId) return;
+): Promise<boolean> {
+  if (!job.assetId) return false;
   const file = await ensureStudioAssetDriveFile({
     projectId: context.cuso.projectId,
     assetId: job.assetId,
@@ -478,7 +508,7 @@ async function attach(
     prompt: job.prompt,
     jobId: job.id,
   });
-  if (!file) return;
+  if (!file) return false;
   if (!piece.socialPostId) {
     await prisma.marketingStrategyFile.updateMany({
       where: {
@@ -488,7 +518,7 @@ async function attach(
       },
       data: { mediaFileIds: { push: file.id } },
     });
-    return;
+    return true;
   }
   const post = await prisma.socialPost.findUnique({
     where: { id: piece.socialPostId },
@@ -503,11 +533,11 @@ async function attach(
       planning: true,
     },
   });
-  if (!post || post.status !== "DRAFT") return;
+  if (!post || post.status !== "DRAFT") return false;
   const media = parseSocialPostMedia(post.media, post.id);
-  if (media.some((item) => item.pathname === file.pathname)) return;
+  if (media.some((item) => item.pathname === file.pathname)) return true;
   const kind = socialPostMediaKindForMime(file.mimeType);
-  if (!kind) return;
+  if (!kind) return false;
   const scope = {
     postId: post.id,
     projectId: context.cuso.projectId,
@@ -530,29 +560,86 @@ async function attach(
       },
     ],
   });
+  if (updated.media.length >= slotsOf(piece))
+    await schedule(context, scope, { ...post, revision: updated.revision });
+  return true;
+}
+
+/** Schedules a draft post that has all its pictures, on a connected network. */
+async function scheduleWhenComplete(
+  context: MediaContext,
+  drive: { workspaceId: string; organizationId: string | null; userId: string },
+  piece: CmoMediaPiece,
+): Promise<void> {
+  if (!piece.socialPostId) return;
+  const post = await prisma.socialPost.findUnique({
+    where: { id: piece.socialPostId },
+    select: {
+      id: true,
+      provider: true,
+      text: true,
+      revision: true,
+      status: true,
+      scheduledAt: true,
+      planning: true,
+    },
+  });
+  if (!post || post.status !== "DRAFT") return;
+  await schedule(
+    context,
+    {
+      postId: post.id,
+      projectId: context.cuso.projectId,
+      workspaceId: drive.workspaceId,
+      userId: drive.userId,
+      organizationId: drive.organizationId,
+    },
+    post,
+  );
+}
+
+/** Schedules a written post at its planned time on a connected network. */
+async function schedule(
+  context: MediaContext,
+  scope: {
+    postId: string;
+    projectId: string;
+    workspaceId: string;
+    userId: string;
+    organizationId: string | null;
+  },
+  post: {
+    id: string;
+    provider: string;
+    text: string;
+    revision: number;
+    scheduledAt: Date | null;
+    planning: unknown;
+  },
+): Promise<void> {
   const planning = post.planning as { brief?: unknown; title?: unknown };
   const written =
     post.text.trim() !== "" &&
     post.text !== planning?.brief &&
     post.text !== planning?.title;
   if (
-    updated.media.length >= slotsOf(piece) &&
-    written &&
-    context.connected.has(post.provider) &&
-    post.scheduledAt &&
-    post.scheduledAt.getTime() > Date.now()
+    !written ||
+    !context.connected.has(post.provider) ||
+    !post.scheduledAt ||
+    post.scheduledAt.getTime() <= Date.now()
   )
-    await scheduleSocialPost({
-      ...scope,
-      revision: updated.revision,
-      scheduledAt: post.scheduledAt,
-    }).catch((error: unknown) => {
-      if (!(error instanceof HTTPException)) throw error;
-      console.warn("CMO media could not schedule a post", {
-        postId: post.id,
-        error: error.message,
-      });
+    return;
+  await scheduleSocialPost({
+    ...scope,
+    revision: post.revision,
+    scheduledAt: post.scheduledAt,
+  }).catch((error: unknown) => {
+    if (!(error instanceof HTTPException)) throw error;
+    console.warn("CMO media could not schedule a post", {
+      postId: post.id,
+      error: error.message,
     });
+  });
 }
 
 /** A Core media job settled: the month it belongs to moves on. */
