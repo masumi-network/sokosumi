@@ -79,8 +79,9 @@ export function CreateState({
         toast.error(result.error.message ?? t("error"));
         return;
       }
+      // Both paths end in the bot's room, so it says hello before either.
+      await openNewSokoBotRoom(result.value.id);
       if (onCreated) {
-        await openNewSokoBotRoom(result.value.id);
         onCreated();
         return;
       }

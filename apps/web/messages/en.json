@@ -10870,6 +10870,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
+      "laterHint": "Set it up any time from Soko Bots.",
       "skip": "Skip",
       "continue": "Continue"
     }
