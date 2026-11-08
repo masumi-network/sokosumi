@@ -1748,7 +1748,6 @@ const INSTANT_WORKLIST = new Set([
   "(app)/projects/[projectId]/edit/page.tsx",
   "(app)/projects/[projectId]/layout.tsx",
   "(app)/projects/[projectId]/page.tsx",
-  "(app)/tasks/[taskId]/@modal/(.)edit/page.tsx",
   "(app)/tasks/[taskId]/edit/page.tsx",
   "(app)/tasks/[taskId]/page.tsx",
 ]);
