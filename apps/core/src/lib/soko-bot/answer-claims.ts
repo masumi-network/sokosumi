@@ -7,7 +7,7 @@ const MAX_TEXT_LENGTH = 8_000;
 const MAX_CLAIM_PROBABILITY = 0.5;
 
 const CLAIMS_ACTION =
-  "The text is an assistant's reply to its owner. confirmedChanges lists the changes its tools confirmed in this turn. Does the reply say the assistant has already changed something in Sokosumi or for other people that is not in confirmedChanges: created, assigned, updated or archived a Task, sent or posted a message or email, scheduled a check-in or reminder, changed a calendar, uploaded to Drive, hired an Agent, generated an image, or changed its memory? Reporting a change that is in confirmedChanges is fine. Offers, plans, questions, research findings, calculations, files in the assistant's own private workspace, and what other people did do not count.";
+  "The text is an assistant's reply to its owner. confirmedChanges lists the changes its tools confirmed in this turn. Does the reply say the assistant has already changed something in Sokosumi or for other people that is not in confirmedChanges: created, assigned, updated or archived a Task, sent or posted a message or email, scheduled a check-in or reminder, changed a calendar, uploaded to Drive, hired an Agent, generated an image, or changed its memory? Reporting a change that is in confirmedChanges is fine. Offers, plans, questions, research findings, calculations, files in the assistant's own private workspace, what other people did, and recalling what was decided or changed before this turn (a rule that replaced an older one on a past date, from its memory or history) do not count.";
 
 /**
  * Whether the bot's own words claim an action its receipts do not show.
