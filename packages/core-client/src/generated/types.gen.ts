@@ -4000,6 +4000,13 @@ export type ContactList = {
         followUpDue?: boolean;
         hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
         hasInteractions?: boolean;
+        organization?: string;
+        company?: string;
+        location?: string;
+        role?: string;
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
     } | null;
     count: number;
     createdByUserId: string | null;
@@ -4159,6 +4166,7 @@ export type ContactChannel = {
     source: ContactChannelSource;
     sourceUrl: string | null;
     verified: boolean;
+    followers: number | null;
     createdAt: Date;
 };
 
@@ -4269,6 +4277,76 @@ export type ContactOrganization = {
      * Live contacts
      */
     count: number;
+};
+
+export type ContactCompany = {
+    id: string;
+    name: string;
+    domain: string | null;
+    website: string | null;
+    description: string | null;
+    industry: string | null;
+    size: string | null;
+    headquarters: string | null;
+    linkedinUrl: string | null;
+    whyItMatters: string | null;
+    enrichedAt: Date | null;
+    version: number;
+    people: number;
+    /**
+     * Teammates who know someone there.
+     */
+    teammates: number;
+    interactions: number;
+    lastContactAt: Date | null;
+    /**
+     * warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.
+     */
+    warmth: 'warm' | 'cooling' | 'cold' | 'none';
+    strongestStage: ContactStage | null;
+};
+
+export type ContactCompanyDetail = {
+    company: ContactCompany;
+    people: Array<Contact>;
+    morePeople: number;
+    teammates: Array<{
+        id: string;
+        name: string;
+        people: number;
+        lastInteractionAt: Date;
+    }>;
+    nextSteps: Array<{
+        contactId: string;
+        name: string;
+        nextStep: string | null;
+        followUpAt: string | null;
+    }>;
+    recentInteractions: Array<{
+        id: string;
+        contactId: string;
+        occurredAt: Date;
+        channel: string;
+        direction: string | null;
+        summary: string;
+        user: {
+            id: string;
+            name: string;
+        } | null;
+    }>;
+};
+
+export type ContactBreakdown = {
+    total: number;
+    breakdowns: Array<{
+        by: 'stage' | 'kind' | 'organization' | 'location' | 'role' | 'list' | 'knownBy' | 'channel' | 'source' | 'lastContact';
+        groups: Array<{
+            key: string | null;
+            label: string;
+            count: number;
+        }>;
+        otherGroups: number;
+    }>;
 };
 
 export type ContactDetail = Contact & {
@@ -6892,11 +6970,24 @@ export type BrandBrain = {
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
+        }>;
+        voiceOfCustomer?: Array<{
+            quote: string;
+            kind: 'pain' | 'trigger' | 'outcome' | 'objection';
+            sourceUrl?: string;
         }>;
         alternatives?: Array<{
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
         }>;
         channels: Array<{
             name: string;
@@ -7210,11 +7301,24 @@ export type BrandBrainRequest = {
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
+        }>;
+        voiceOfCustomer?: Array<{
+            quote: string;
+            kind: 'pain' | 'trigger' | 'outcome' | 'objection';
+            sourceUrl?: string;
         }>;
         alternatives?: Array<{
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
         }>;
         channels: Array<{
             name: string;
@@ -7583,6 +7687,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         }>;
         improvements?: Array<{
             area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            now?: string;
             idea: string;
             why: string;
             url?: string;
@@ -7610,7 +7715,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             why?: string;
         };
         barrier?: {
-            kind: 'awareness' | 'understanding' | 'trust';
+            kind: 'awareness' | 'understanding' | 'trust' | 'switching';
             text: string;
         };
         mix?: Array<{
@@ -7698,6 +7803,12 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 when: string;
                 then: string;
             }>;
+            sourceOfTruth?: string;
+            experiment?: {
+                change: string;
+                expect: string;
+                judge: string;
+            };
         };
         openQuestions?: Array<string>;
         questions?: Array<{
@@ -7722,6 +7833,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            slides?: Array<string>;
+            story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -7729,7 +7842,11 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 keywords: Array<string>;
                 headlines: Array<string>;
                 descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
                 finalUrl: string;
+                path1?: string;
+                path2?: string;
                 location?: string;
                 language?: string;
                 callouts?: Array<string>;
@@ -7819,6 +7936,7 @@ export type MarketingStrategyRequest = {
         }>;
         improvements?: Array<{
             area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            now?: string;
             idea: string;
             why: string;
             url?: string;
@@ -7846,7 +7964,7 @@ export type MarketingStrategyRequest = {
             why?: string;
         };
         barrier?: {
-            kind: 'awareness' | 'understanding' | 'trust';
+            kind: 'awareness' | 'understanding' | 'trust' | 'switching';
             text: string;
         };
         mix?: Array<{
@@ -7934,6 +8052,12 @@ export type MarketingStrategyRequest = {
                 when: string;
                 then: string;
             }>;
+            sourceOfTruth?: string;
+            experiment?: {
+                change: string;
+                expect: string;
+                judge: string;
+            };
         };
         openQuestions?: Array<string>;
         questions?: Array<{
@@ -7958,6 +8082,8 @@ export type MarketingStrategyRequest = {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            slides?: Array<string>;
+            story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -7965,7 +8091,11 @@ export type MarketingStrategyRequest = {
                 keywords: Array<string>;
                 headlines: Array<string>;
                 descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
                 finalUrl: string;
+                path1?: string;
+                path2?: string;
                 location?: string;
                 language?: string;
                 callouts?: Array<string>;
@@ -9589,6 +9719,8 @@ export type SocialPost = {
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        slides?: Array<string>;
+        story?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -10462,11 +10594,24 @@ export type CmoOverview = {
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
+        }>;
+        voiceOfCustomer?: Array<{
+            quote: string;
+            kind: 'pain' | 'trigger' | 'outcome' | 'objection';
+            sourceUrl?: string;
         }>;
         alternatives?: Array<{
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
         }>;
         channels: Array<{
             name: string;
@@ -10945,6 +11090,7 @@ export type CmoPlan = {
     }>;
     improvements?: Array<{
         area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+        now?: string;
         idea: string;
         why: string;
         url?: string;
@@ -10972,7 +11118,7 @@ export type CmoPlan = {
         why?: string;
     };
     barrier?: {
-        kind: 'awareness' | 'understanding' | 'trust';
+        kind: 'awareness' | 'understanding' | 'trust' | 'switching';
         text: string;
     };
     mix?: Array<{
@@ -11060,6 +11206,12 @@ export type CmoPlan = {
             when: string;
             then: string;
         }>;
+        sourceOfTruth?: string;
+        experiment?: {
+            change: string;
+            expect: string;
+            judge: string;
+        };
     };
     openQuestions?: Array<string>;
     questions?: Array<{
@@ -11084,6 +11236,8 @@ export type CmoPlan = {
         socialPostId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        slides?: Array<string>;
+        story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
         fileId?: string;
@@ -11091,7 +11245,11 @@ export type CmoPlan = {
             keywords: Array<string>;
             headlines: Array<string>;
             descriptions: Array<string>;
+            negativeKeywords?: Array<string>;
+            maxCpc?: number;
             finalUrl: string;
+            path1?: string;
+            path2?: string;
             location?: string;
             language?: string;
             callouts?: Array<string>;
@@ -11121,6 +11279,8 @@ export type CmoUpdate = {
     upNext?: Array<string>;
     changes?: Array<string>;
     results?: string;
+    verdict?: 'hold' | 'fix' | 'test' | 'investigate';
+    learnings?: Array<string>;
     id: string;
     at: Date;
     revertible: boolean;
@@ -31031,6 +31191,13 @@ export type PostContactListsData = {
             followUpDue?: boolean;
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
+            organization?: string;
+            company?: string;
+            location?: string;
+            role?: string;
+            channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+            minInteractions?: number;
+            minFollowers?: number;
         } | null;
     };
     headers?: {
@@ -31310,6 +31477,13 @@ export type PatchContactListsByIdData = {
             followUpDue?: boolean;
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
+            organization?: string;
+            company?: string;
+            location?: string;
+            role?: string;
+            channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+            minInteractions?: number;
+            minFollowers?: number;
         } | null;
     };
     headers?: {
@@ -32316,6 +32490,23 @@ export type GetContactsData = {
         followUpDue?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
         sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
@@ -32616,6 +32807,23 @@ export type GetContactsExportCsvData = {
         followUpDue?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
         sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
@@ -32756,6 +32964,23 @@ export type GetContactsMapData = {
         followUpDue?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
         archived?: 'true' | 'false';
         sort?: 'name' | 'organization' | 'stage' | 'lastContactAt' | 'firstContactAt' | 'createdAt' | 'updatedAt' | 'familiarity' | 'importance';
         direction?: 'asc' | 'desc';
@@ -33354,6 +33579,526 @@ export type GetContactsOrganizationsResponses = {
 };
 
 export type GetContactsOrganizationsResponse = GetContactsOrganizationsResponses[keyof GetContactsOrganizationsResponses];
+
+export type GetContactsCompaniesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        /**
+         * Exactly the company this name belongs to, as the contact list's `company` filter reads it.
+         */
+        name?: string;
+        industry?: string;
+        minPeople?: number;
+        sort?: 'people' | 'lastContact' | 'name';
+        offset?: number | null;
+        limit?: number;
+    };
+    url: '/contacts/companies';
+};
+
+export type GetContactsCompaniesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsCompaniesError = GetContactsCompaniesErrors[keyof GetContactsCompaniesErrors];
+
+export type GetContactsCompaniesResponses = {
+    /**
+     * Companies
+     */
+    200: {
+        data: Array<ContactCompany>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsCompaniesResponse = GetContactsCompaniesResponses[keyof GetContactsCompaniesResponses];
+
+export type GetContactsCompaniesByCompanyIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        companyId: string;
+    };
+    query?: never;
+    url: '/contacts/companies/{companyId}';
+};
+
+export type GetContactsCompaniesByCompanyIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Company not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsCompaniesByCompanyIdError = GetContactsCompaniesByCompanyIdErrors[keyof GetContactsCompaniesByCompanyIdErrors];
+
+export type GetContactsCompaniesByCompanyIdResponses = {
+    /**
+     * Company
+     */
+    200: {
+        data: ContactCompanyDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsCompaniesByCompanyIdResponse = GetContactsCompaniesByCompanyIdResponses[keyof GetContactsCompaniesByCompanyIdResponses];
+
+export type PatchContactsCompaniesByCompanyIdData = {
+    body?: {
+        version: number;
+        name?: string;
+        website?: string | null;
+        description?: string | null;
+        industry?: string | null;
+        size?: string | null;
+        headquarters?: string | null;
+        linkedinUrl?: string | null;
+        whyItMatters?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        companyId: string;
+    };
+    query?: never;
+    url: '/contacts/companies/{companyId}';
+};
+
+export type PatchContactsCompaniesByCompanyIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Company not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Version conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid company
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchContactsCompaniesByCompanyIdError = PatchContactsCompaniesByCompanyIdErrors[keyof PatchContactsCompaniesByCompanyIdErrors];
+
+export type PatchContactsCompaniesByCompanyIdResponses = {
+    /**
+     * Company updated
+     */
+    200: {
+        data: ContactCompany;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchContactsCompaniesByCompanyIdResponse = PatchContactsCompaniesByCompanyIdResponses[keyof PatchContactsCompaniesByCompanyIdResponses];
+
+export type GetContactsBreakdownData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        /**
+         * Only people at the company this name belongs to: any spelling of it, and colleagues on the same company email domain. Names come from `GET /contacts/organizations`.
+         */
+        company?: string;
+        stage?: ContactStage;
+        kind?: ContactKind;
+        replyState?: ContactReplyState;
+        /**
+         * A manual or smart list; a smart list applies its filter.
+         */
+        listId?: string;
+        knownByUserId?: string;
+        knownByMe?: 'true' | 'false';
+        lastContactAfter?: Date;
+        lastContactBefore?: Date;
+        lastContactOlderThanDays?: number;
+        createdWithinDays?: number;
+        followUpDue?: 'true' | 'false';
+        hasChannel?: ContactChannelType;
+        hasInteractions?: 'true' | 'false';
+        /**
+         * Organization or company email domain contains this.
+         */
+        organization?: string;
+        location?: string;
+        role?: string;
+        /**
+         * Has a channel found there, e.g. X followers.
+         */
+        channelSource?: 'MANUAL' | 'EMAIL' | 'CALENDAR' | 'SLACK' | 'WEB_RESEARCH' | 'IMPORT' | 'OTHER' | 'X';
+        minInteractions?: number;
+        minFollowers?: number;
+        /**
+         * Ranked search by words, typos and meaning over everything about a contact; orders by relevance and ignores `sort`.
+         */
+        query?: string;
+        mode?: 'both' | 'words' | 'meaning';
+        archived?: 'true' | 'false';
+        by?: string;
+        top?: number;
+    };
+    url: '/contacts/breakdown';
+};
+
+export type GetContactsBreakdownErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * List not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsBreakdownError = GetContactsBreakdownErrors[keyof GetContactsBreakdownErrors];
+
+export type GetContactsBreakdownResponses = {
+    /**
+     * Breakdown
+     */
+    200: {
+        data: ContactBreakdown;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsBreakdownResponse = GetContactsBreakdownResponses[keyof GetContactsBreakdownResponses];
 
 export type GetContactsByIdData = {
     body?: never;

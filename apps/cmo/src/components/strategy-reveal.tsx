@@ -995,8 +995,18 @@ function SheetBody({
                     "Also",
                     (measurement.supporting ?? []).join(", ") || undefined,
                   ],
+                  ["Sales counted in", measurement.sourceOfTruth],
                 ]}
               />
+              {measurement.experiment ? (
+                <Facts
+                  rows={[
+                    ["This month's test", measurement.experiment.change],
+                    ["Should move", measurement.experiment.expect],
+                    ["Judged by", measurement.experiment.judge],
+                  ]}
+                />
+              ) : null}
               {(measurement.tracking ?? []).length > 0 ? (
                 <List title="To set up" items={measurement.tracking ?? []} />
               ) : null}

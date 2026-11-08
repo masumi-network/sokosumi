@@ -38,6 +38,13 @@ describe("writing skills", () => {
     expect(judgedWritingRules("linkedin", "post").join(" ")).not.toMatch(
       /voice examples/,
     );
+    // The voice's facts and "only this business" are judged; its tone is the voice question.
+    expect(judgedWritingRules("linkedin", "post")).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^It states no number/),
+        expect.stringMatching(/^It says something specific/),
+      ]),
+    );
   });
 
   it("only names formats each skill's channels have", () => {

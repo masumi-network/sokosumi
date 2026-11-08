@@ -1,5 +1,6 @@
 import type {
   ContactChannel,
+  ContactChannelSource,
   ContactChannelType,
   ContactKind,
   ContactListColor,
@@ -52,6 +53,8 @@ export interface ContactView {
   kind: ContactKind | null;
   /** `me` or a member's user id. */
   knownBy: string | null;
+  /** Where they came from: a channel found there (X for X followers). */
+  source: ContactChannelSource | null;
   sort: ContactSort;
   direction: "asc" | "desc";
 }
@@ -75,6 +78,7 @@ export function contactQuery(view: ContactView): ContactQuery {
   if (view.kind) query.kind = view.kind;
   if (view.knownBy === "me") query.knownByMe = "true";
   else if (view.knownBy) query.knownByUserId = view.knownBy;
+  if (view.source) query.channelSource = view.source;
   return query;
 }
 
@@ -371,4 +375,48 @@ export function guessImportMapping(
     }
   }
   return mapping;
+}
+
+export const CONTACT_CHANNEL_SOURCES = [
+  "X",
+  "EMAIL",
+  "CALENDAR",
+  "SLACK",
+  "WEB_RESEARCH",
+  "IMPORT",
+  "MANUAL",
+  "OTHER",
+] as const satisfies readonly ContactChannelSource[];
+
+/**
+ * The filters in force as a smart list's filter, or null when none is: the
+ * list then fills itself with whoever matches them later too.
+ */
+export function smartFilterOf(
+  view: ContactView,
+  /** The open list's kind, when a list is open. */
+  listKind?: "manual" | "smart",
+) {
+  // A smart list's own filter cannot be combined here; offer nothing.
+  if (listKind === "smart") return null;
+  const listed = isUuidString(view.view) ? [view.view] : null;
+  const filter = {
+    ...(view.view === "mine" ? { knownByMe: true } : {}),
+    ...(view.view === "recent" ? { createdWithinDays: 14 } : {}),
+    ...(listed ? { listIds: listed } : {}),
+    ...(view.search.trim() ? { search: view.search.trim() } : {}),
+    ...(view.company ? { company: view.company } : {}),
+    ...(view.stage ? { stages: [view.stage] } : {}),
+    ...(view.replyState ? { replyStates: [view.replyState] } : {}),
+    ...(view.kind ? { kind: view.kind } : {}),
+    ...(view.knownBy === "me"
+      ? { knownByMe: true }
+      : view.knownBy
+        ? { knownByUserId: view.knownBy }
+        : {}),
+    ...(view.source ? { channelSource: view.source } : {}),
+  };
+  // Only a list alone is just that list again.
+  const keys = Object.keys(filter);
+  return keys.length > 0 && !(keys.length === 1 && listed) ? filter : null;
 }

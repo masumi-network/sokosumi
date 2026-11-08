@@ -1031,6 +1031,7 @@
       },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
+      "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "assignee": "Zugewiesen an",
       "project": "Projekt",
       "destination": "Konto",
@@ -10206,7 +10207,8 @@
         "add": "Kontakt hinzufügen",
         "more": "Weitere Aktionen",
         "filter": "Filter",
-        "kind": "Art"
+        "kind": "Art",
+        "source": "Quelle"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -10265,7 +10267,9 @@
         "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "create": "Liste erstellen"
+        "create": "Liste erstellen",
+        "smart": "Mit den aktuellen Filtern füllen",
+        "smartHint": "Eine intelligente Liste: Wer zu diesen Filtern passt, steht darauf, jetzt und später."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -10564,6 +10568,59 @@
         "place": "{place}, {count, plural, one {# Kontakt} other {# Kontakte}}",
         "nearby": "{place} und {others, plural, one {# Ort} other {# Orte}} in der Nähe",
         "people": "{count, plural, one {# Kontakt} other {# Kontakte}}"
+      },
+      "company": {
+        "loading": "Firma wird geladen…",
+        "edit": "Bearbeiten",
+        "whyItMatters": "Warum wichtig",
+        "people": "Personen",
+        "knownBy": "Bekannt bei",
+        "knownByLabel": "{count, plural, one {# Teammitglied kennt} other {# Teammitglieder kennen}} jemanden hier",
+        "nobody": "Noch niemand",
+        "lastContact": "Letzter Kontakt",
+        "never": "Nie",
+        "warmth": "Beziehung",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Abkühlend",
+          "cold": "Kalt",
+          "none": "Noch kein Kontakt"
+        },
+        "strongestStage": "Stärkste Phase",
+        "nextSteps": "Nächste Schritte",
+        "noNextSteps": "Nichts geplant.",
+        "recent": "Letzte Kontakte",
+        "noRecent": "Noch keine Kontakte.",
+        "someone": "Jemand",
+        "editTitle": "Firma bearbeiten",
+        "editDescription": "Was das Team über diese Firma weiß. Leere Felder werden im Hintergrund von ihrer Website ergänzt.",
+        "nameRequired": "Gib der Firma einen Namen.",
+        "saveFailed": "Die Firma konnte nicht gespeichert werden.",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Branche",
+          "size": "Größe",
+          "headquarters": "Hauptsitz",
+          "linkedinUrl": "LinkedIn",
+          "description": "Über",
+          "whyItMatters": "Warum sie für uns wichtig ist"
+        }
+      },
+      "overview": {
+        "label": "Listenübersicht",
+        "people": "{count, plural, one {# Person} other {# Personen}}",
+        "quiet": "{count} seit 90 Tagen ohne Kontakt",
+        "map": "Auf Karte zeigen",
+        "stages": "Phase",
+        "companies": "Firmen",
+        "places": "Orte",
+        "knownBy": "Bekannt bei",
+        "none": "Nicht gesetzt",
+        "nobody": "Noch niemand",
+        "more": "und {count} weitere"
       }
     }
   },

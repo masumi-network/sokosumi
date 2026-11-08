@@ -14,7 +14,7 @@ import type { contactListSchema } from "@/schemas/contact.schema";
 import {
   type ContactActor,
   type ContactWriteActor,
-  contactFilterWhere,
+  contactFilterWhereResolved,
   parseSmartFilter,
 } from "@/services/contacts.service";
 
@@ -40,7 +40,7 @@ async function listCount(
       workspaceId: actor.workspaceId,
       ...LIVE_CONTACT,
       AND: smart
-        ? contactFilterWhere(actor, smart)
+        ? await contactFilterWhereResolved(actor, smart)
         : [{ listMemberships: { some: { listId: list.id } } }],
     },
   });
