@@ -8,8 +8,6 @@ permissions:
 # this job saves web's Turbopack build cache from the newest main commit.
 # Superseded entries are deleted after each save, so there is one ~0.5 GB
 # copy: it cannot fill the repo's 10 GB and evict Apple's macOS-mint-*.
-# It also saves the ffmpeg binary Test Core restores (js-ffmpeg-static-*),
-# so CI does not download it from GitHub Releases on every run.
 on:
   push:
     branches: [main]
@@ -20,7 +18,6 @@ on:
       - "pnpm-lock.yaml"
       - "turbo.json"
       - ".github/ci-build.env"
-      - ".github/actions/setup/action.yml"
       - ".github/workflows/next-build-cache.yml"
   # Entries nobody reads for 7 days are evicted. A restore counts as a read,
   # so the daily run keeps it alive through a week without PRs.
@@ -85,50 +82,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: >-
           gh cache list --ref "$GITHUB_REF" --key js-next- --sort created_at
-          --order desc --limit 100 --json id --jq '.[1:][].id'
-          | xargs -r -n1 gh cache delete
-
-  # One ~80 MB entry per ffmpeg-static version. The daily run restores it,
-  # which keeps it from being evicted.
-  ffmpeg:
-    name: Warm ffmpeg cache
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      # Delete superseded cache entries.
-      actions: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      # On a miss, Setup installs ffmpeg-static as before, which downloads
-      # the binary.
-      - name: Setup
-        id: setup
-        uses: ./.github/actions/setup
-        with:
-          ffmpeg: "true"
-
-      - name: Copy the installed binary
-        if: steps.setup.outputs.ffmpeg-cache-hit != 'true'
-        run: |
-          mkdir -p ~/.cache/sokosumi
-          cp -L "$(node -p "require('./apps/core/node_modules/ffmpeg-static')")" ~/.cache/sokosumi/ffmpeg
-          ~/.cache/sokosumi/ffmpeg -version | head -1
-
-      - name: Save the ffmpeg binary
-        if: steps.setup.outputs.ffmpeg-cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/sokosumi/ffmpeg
-          key: ${{ steps.setup.outputs.ffmpeg-cache-key }}
-
-      - name: Delete superseded ffmpeg caches
-        if: steps.setup.outputs.ffmpeg-cache-hit != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: >-
-          gh cache list --ref "$GITHUB_REF" --key js-ffmpeg-static- --sort created_at
           --order desc --limit 100 --json id --jq '.[1:][].id'
           | xargs -r -n1 gh cache delete

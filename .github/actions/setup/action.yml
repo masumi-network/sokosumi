@@ -8,19 +8,11 @@ inputs:
     default: ""
   ffmpeg:
     description: >-
-      "true" for a job that runs ffmpeg (Core's avatar tests). It gets the
-      binary from the cache next-build-cache.yml saves on main; every other
-      job skips ffmpeg-static's download.
+      "true" for a job that runs ffmpeg (Core's avatar tests). It gets our
+      copy of the pinned build; every other job skips ffmpeg-static's
+      download.
     required: false
     default: "false"
-
-outputs:
-  ffmpeg-cache-key:
-    description: The cache key the ffmpeg binary is saved under
-    value: ${{ steps.ffmpeg-key.outputs.key }}
-  ffmpeg-cache-hit:
-    description: '"true" when the binary came from the cache'
-    value: ${{ steps.ffmpeg-cache.outputs.cache-hit }}
 
 runs:
   using: composite
@@ -47,39 +39,28 @@ runs:
     # ffmpeg-static's install script downloads an ~80 MB binary from GitHub
     # Releases, and a 504 there failed every job of every PR (2026-11-08)
     # though only Core's avatar tests run ffmpeg. The script skips the
-    # download when FFMPEG_BIN names an existing file, so a job without
-    # ffmpeg points it at a stub that fails loudly if anything calls it,
-    # and Test Core points it at the cached binary.
-    - name: Key the ffmpeg binary
-      id: ffmpeg-key
-      if: ${{ inputs.ffmpeg == 'true' }}
-      shell: bash
-      run: >-
-        echo "key=js-ffmpeg-static-$(node -p "require('./apps/core/package.json').dependencies['ffmpeg-static']")-${{ runner.os }}-${{ runner.arch }}"
-        >> "$GITHUB_OUTPUT"
-
-    - name: Restore the ffmpeg binary
-      id: ffmpeg-cache
-      if: ${{ inputs.ffmpeg == 'true' }}
-      uses: actions/cache/restore@v6
-      with:
-        path: ~/.cache/sokosumi/ffmpeg
-        key: ${{ steps.ffmpeg-key.outputs.key }}
-
+    # download when FFMPEG_BIN names an existing file. A job without ffmpeg
+    # points it at a stub that fails loudly if anything calls it; Test Core
+    # points it at Core's DEFAULT_FFMPEG_BUILD (our copy of that release
+    # asset), checked against its hash. ci:test keeps the two in step.
     - name: Point ffmpeg-static at a binary
       shell: bash
       env:
         WANTS_FFMPEG: ${{ inputs.ffmpeg }}
-        CACHE_HIT: ${{ steps.ffmpeg-cache.outputs.cache-hit }}
+        FFMPEG_URL: https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/vendor/ffmpeg-static/b6.1.1/ffmpeg-linux-x64-Kat8TFEc5GgKu9hryOAPTb3VpUHuG9.gz
+        FFMPEG_SHA256: bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa
       run: |
-        if [ "$WANTS_FFMPEG" != "true" ]; then
-          stub="$RUNNER_TEMP/ffmpeg-not-installed"
-          printf '#!/bin/sh\necho "ffmpeg is not installed in this job: pass ffmpeg: \\"true\\" to the Setup action" >&2\nexit 1\n' > "$stub"
-          chmod +x "$stub"
-          echo "FFMPEG_BIN=$stub" >> "$GITHUB_ENV"
-        elif [ "$CACHE_HIT" = "true" ]; then
-          echo "FFMPEG_BIN=$HOME/.cache/sokosumi/ffmpeg" >> "$GITHUB_ENV"
+        bin="$RUNNER_TEMP/ffmpeg"
+        if [ "$WANTS_FFMPEG" = "true" ]; then
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors \
+            --output "$bin.gz" "$FFMPEG_URL"
+          echo "$FFMPEG_SHA256  $bin.gz" | sha256sum --check --quiet
+          gunzip "$bin.gz"
+        else
+          printf '#!/bin/sh\necho "ffmpeg is not installed in this job: pass ffmpeg: \\"true\\" to the Setup action" >&2\nexit 1\n' > "$bin"
         fi
+        chmod +x "$bin"
+        echo "FFMPEG_BIN=$bin" >> "$GITHUB_ENV"
 
     - name: Install Dependencies
       run: pnpm install
