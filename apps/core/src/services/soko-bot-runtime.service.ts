@@ -617,6 +617,19 @@ async function onlyEventTask(
 }
 
 const SVG_MIME_TYPE = "image/svg+xml";
+/** What upload_file takes from the bot's workspace: media and PDFs, never markup. */
+const WORKSPACE_UPLOAD_TYPES = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "audio/mpeg",
+  "audio/wav",
+]);
 
 /**
  * Why an SVG the bot wrote may not be stored, or null when it is plain
@@ -3283,12 +3296,15 @@ export class SokoBotRuntimeService {
       filename: string;
       content?: string;
       attachmentUrl?: string;
+      workspacePath?: string;
+      workspaceBytesBase64?: string;
       contentType?: string;
       overwrite?: boolean;
       folder?: string;
     },
   ) {
     const folder = driveFolderFor(input.folder);
+    if (input.workspacePath) return this.saveWorkspaceFile(authorized, input);
     if (input.attachmentUrl) {
       if (input.content !== undefined)
         throw new SokoBotRefusedUnsentError(
@@ -3845,6 +3861,54 @@ export class SokoBotRuntimeService {
           );
         return Buffer.from(await response.arrayBuffer());
       },
+    });
+  }
+
+  /**
+   * Saves a file the bot made in its sandbox (a video cut with ffmpeg, a
+   * rendered image) as is. The runner reads it from the workspace; only
+   * types a person could upload are taken, and never SVG, which is checked
+   * as markup through `content`.
+   */
+  private async saveWorkspaceFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: {
+      filename: string;
+      workspacePath?: string;
+      workspaceBytesBase64?: string;
+      content?: string;
+      attachmentUrl?: string;
+      contentType?: string;
+      overwrite?: boolean;
+      folder?: string;
+    },
+  ) {
+    if (input.content !== undefined || input.attachmentUrl)
+      throw new SokoBotRefusedUnsentError(
+        "Give one of content, attachmentUrl or workspacePath",
+      );
+    const bytesBase64 = input.workspaceBytesBase64;
+    if (!bytesBase64)
+      throw new SokoBotRefusedUnsentError(
+        "A workspace file can only be saved from your sandbox",
+      );
+    const contentType = resolveUserUploadContentType(
+      input.filename,
+      input.contentType ?? "",
+    );
+    if (!contentType || !WORKSPACE_UPLOAD_TYPES.has(contentType))
+      throw new SokoBotRefusedUnsentError(
+        "A workspace file must be a video (mp4, mov, webm), an image (png, jpg, gif, webp), a PDF or audio (mp3, wav); name it with that extension",
+      );
+    const bytes = Buffer.from(bytesBase64, "base64");
+    if (bytes.byteLength === 0)
+      throw new SokoBotRefusedUnsentError(`${input.workspacePath} is empty`);
+    return this.saveFileBytes(authorized, {
+      filename: input.filename,
+      folder: driveFolderFor(input.folder),
+      overwrite: input.overwrite,
+      contentType,
+      read: async () => bytes,
     });
   }
 

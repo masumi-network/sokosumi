@@ -129,6 +129,21 @@ export async function readWorkspaceFile(input: {
   };
 }
 
+/** Largest workspace file upload_file sends to Core, which takes it in one request. */
+export const MAX_WORKSPACE_UPLOAD_BYTES = 3_000_000;
+
+/** A workspace file's bytes for upload_file, refused when too big to send. */
+export async function readWorkspaceBytesBase64(
+  relative: string,
+): Promise<string> {
+  const bytes = await readFile(workspacePath(relative));
+  if (bytes.byteLength > MAX_WORKSPACE_UPLOAD_BYTES)
+    throw new Error(
+      `${relative} is ${(bytes.byteLength / 1e6).toFixed(1)} MB; upload_file takes up to 3 MB. Re-encode it smaller (lower resolution, -crf 28) and try again.`,
+    );
+  return bytes.toString("base64");
+}
+
 export async function writeWorkspaceFile(input: {
   path: string;
   content: string;

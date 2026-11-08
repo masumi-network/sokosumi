@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { afterAll, describe, expect, it } from "vitest";
 
 import {
   citableSources,
   htmlToText,
+  MAX_WORKSPACE_UPLOAD_BYTES,
+  readWorkspaceBytesBase64,
   runCommand,
   WORKSPACE,
   workspacePath,
@@ -20,6 +23,34 @@ describe("workspace paths", () => {
       expect(() => workspacePath(path)).toThrow("outside the workspace");
     },
   );
+});
+
+describe("workspace files for upload_file", () => {
+  const dir = ".upload-test";
+  afterAll(() => rm(workspacePath(dir), { recursive: true, force: true }));
+
+  it("reads a rendered file as base64", async () => {
+    await mkdir(workspacePath(dir), { recursive: true });
+    await writeFile(workspacePath(`${dir}/clip.mp4`), Buffer.from([0, 1, 255]));
+    expect(await readWorkspaceBytesBase64(`${dir}/clip.mp4`)).toBe("AAH/");
+  });
+
+  it("refuses a file too big to send, saying how to shrink it", async () => {
+    await mkdir(workspacePath(dir), { recursive: true });
+    await writeFile(
+      workspacePath(`${dir}/big.mp4`),
+      Buffer.alloc(MAX_WORKSPACE_UPLOAD_BYTES + 1),
+    );
+    await expect(readWorkspaceBytesBase64(`${dir}/big.mp4`)).rejects.toThrow(
+      "Re-encode it smaller",
+    );
+  });
+
+  it("refuses a path outside the workspace", async () => {
+    await expect(readWorkspaceBytesBase64("../../etc/passwd")).rejects.toThrow(
+      "outside the workspace",
+    );
+  });
 });
 
 describe("html to text", () => {

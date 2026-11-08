@@ -14,6 +14,20 @@ describe("persistedToolResult", () => {
     expect(stored).toContain("ab");
   });
 
+  it("keeps a workspace file's bytes out of the record", () => {
+    expect(
+      persistedToolResult({
+        filename: "launch.mp4",
+        workspacePath: "out/launch.mp4",
+        workspaceBytesBase64: "A".repeat(100_000),
+      }),
+    ).toEqual({
+      filename: "launch.mp4",
+      workspacePath: "out/launch.mp4",
+      workspaceBytesBase64: "[file bytes]",
+    });
+  });
+
   it("never cuts an emoji in half when truncating", () => {
     const long = "😀".repeat(20_000);
     const stored = JSON.stringify(persistedToolResult({ text: long }));

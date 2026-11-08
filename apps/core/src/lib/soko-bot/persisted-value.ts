@@ -59,6 +59,12 @@ export function sanitizePersistedValue(
   );
   for (const [key, entry] of entries) {
     const safeKey = redactSokoBotSensitiveText(key);
+    // A workspace file upload_file carries is megabytes of base64: the path
+    // beside it is the record.
+    if (key === "workspaceBytesBase64") {
+      result[safeKey] = "[file bytes]";
+      continue;
+    }
     result[safeKey] = containsSokoBotSensitiveMaterial(`${key}: value`)
       ? redactSokoBotSensitiveText(`${key}: value`)
       : sanitizePersistedValue(entry, depth + 1, seen);

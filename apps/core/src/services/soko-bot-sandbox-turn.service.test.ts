@@ -801,6 +801,43 @@ describe("sandbox turn service", () => {
     expect(executeToolMock).toHaveBeenCalledOnce();
   });
 
+  it("lets the owner's request schedule its Social post after running a command", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "schedule_social_post",
+      toolCallId: "c10",
+      toolInput: { postId: "post" },
+    });
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a scheduled run from changing posts after reading the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "SCHEDULE",
+      parentTurnId: null,
+      askedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: null,
+    });
+    await expect(
+      runSandboxTool(claims, {
+        capability: "create_social_post",
+        toolCallId: "c11",
+        toolInput: {},
+      }),
+    ).rejects.toThrow("ask the owner in chat");
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+
   it("keeps a teammate's turn from briefing a Coworker after reading the web", async () => {
     findFirstEventMock.mockResolvedValue({ id: "taint" });
     turnFindUniqueMock.mockResolvedValue({

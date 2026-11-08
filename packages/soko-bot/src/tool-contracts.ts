@@ -329,6 +329,10 @@ export const sokoBotUploadFileInputSchema = z.object({
   content: z.string().min(1).max(200_000).optional(),
   /** Link of a file someone attached in a chat you are in, to save as is (any type). */
   attachmentUrl: z.string().url().max(2_000).optional(),
+  /** A file in your sandbox workspace to save as is, e.g. "out/launch.mp4". */
+  workspacePath: z.string().trim().min(1).max(500).optional(),
+  /** Filled in by the sandbox from workspacePath; never write it yourself. */
+  workspaceBytesBase64: z.string().max(4_500_000).optional(),
   /** MIME type; defaults to text/markdown. */
   contentType: z.string().max(120).optional(),
   /** Replace an existing text file of the same name with this content. */
@@ -1787,7 +1791,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
-    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. Pass folder to save it into a folder (created if missing), e.g. when the owner names one. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. To make a graphic yourself (a chart, a summary card, a diagram), write it as SVG markup with contentType image/svg+xml and a .svg filename: no scripts, event handlers or outside links. Attach it with a `file` result reference and it shows as an image in chat. The result says where it was saved: tell the owner that, not more.",
+    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. Pass folder to save it into a folder (created if missing), e.g. when the owner names one. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. To make a graphic yourself (a chart, a summary card, a diagram), write it as SVG markup with contentType image/svg+xml and a .svg filename: no scripts, event handlers or outside links. Attach it with a `file` result reference and it shows as an image in chat. A file you made in your workspace with bash (a video you cut with ffmpeg, a rendered PNG, a PDF) is saved by passing its workspace path as workspacePath, with no content: mp4, mov, webm, png, jpg, gif, webp, pdf, mp3 or wav, up to 3 MB, so render social videos at 720p or 1080p with -crf 28 and -movflags +faststart. Its id then works as media in create_social_post or update_social_post. The result says where it was saved: tell the owner that, not more.",
   update_emails:
     "Mark mail in the owner\u2019s mailbox read or unread, or archive it (out of the inbox, not deleted), by message ids from search_inbox. Use it when the owner asks you to clean up or handle mail. It never sends or deletes anything.",
   draft_email:

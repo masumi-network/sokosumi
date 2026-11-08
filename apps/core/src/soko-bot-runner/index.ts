@@ -22,6 +22,7 @@ import {
   citableSources,
   fetchWebPage,
   listWorkspace,
+  readWorkspaceBytesBase64,
   readWorkspaceFile,
   runCommand,
   searchWorkspace,
@@ -191,7 +192,10 @@ function buildTools(
         try {
           const { result } = await callCore<{ result: unknown }>(
             `/tools/${capability}`,
-            { toolCallId: callOptions.toolCallId, input },
+            {
+              toolCallId: callOptions.toolCallId,
+              input: await withWorkspaceBytes(capability, input),
+            },
           );
           return result;
         } catch (error) {
@@ -203,6 +207,22 @@ function buildTools(
     });
   }
   return tools;
+}
+
+/** upload_file of a workspace file carries the file's bytes to Core. */
+async function withWorkspaceBytes(
+  capability: SokoBotCapability,
+  input: unknown,
+): Promise<unknown> {
+  const workspaceFile =
+    capability === "upload_file"
+      ? (input as { workspacePath?: string }).workspacePath
+      : undefined;
+  if (!workspaceFile) return input;
+  return {
+    ...(input as object),
+    workspaceBytesBase64: await readWorkspaceBytesBase64(workspaceFile),
+  };
 }
 
 async function runSubagent(

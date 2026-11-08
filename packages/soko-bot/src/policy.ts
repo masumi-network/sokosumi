@@ -297,17 +297,15 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
  * The tainted tools that stay refused even on work the owner asked for: they
  * reach people or systems beyond the owner's own workspace. The rest — briefing
  * a Coworker, hiring, saving to Files — is what a chained job the owner set
- * out ("research, build the site, have it reviewed") is made of.
+ * out ("research, build the site, have it reviewed") is made of. So are the
+ * owner's own Social posts: "research the launch, cut a video and schedule
+ * it" is one piece of work, and every post is on the owner's own accounts and
+ * calendar, where they see and can stop it.
  */
 export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
   "run_integration_tool",
   "post_chat",
   "open_direct_chat",
-  "create_social_post",
-  "update_social_post",
-  "schedule_social_post",
-  "cancel_social_post",
-  "publish_social_post",
   // Other people's newsletter subscriptions, and the emails that confirm them.
   "add_newsletter_subscriber",
   "import_newsletter_subscribers",

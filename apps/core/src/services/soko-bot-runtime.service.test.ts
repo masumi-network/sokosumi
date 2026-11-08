@@ -9477,6 +9477,46 @@ describe("Drive file tools", () => {
       ).rejects.toThrow("attachmentUrl");
     });
 
+    it("saves a video the bot rendered in its workspace", async () => {
+      const video = Buffer.from("fake mp4 bytes");
+      const result = await service["uploadFile"](chatAuthorized as never, {
+        filename: "launch.mp4",
+        workspacePath: "out/launch.mp4",
+        workspaceBytesBase64: video.toString("base64"),
+      });
+      expect(files.put).toHaveBeenCalledWith(
+        expect.stringContaining("launch.mp4"),
+        video,
+        expect.objectContaining({ contentType: "video/mp4" }),
+      );
+      expect(result).toMatchObject({ id: "file-7", size: video.byteLength });
+    });
+
+    it.each([
+      ["markup", "page.html"],
+      ["an svg, which goes through content", "card.svg"],
+      ["an unknown type", "tool.exe"],
+    ])("refuses a workspace file that is %s", async (_label, filename) => {
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename,
+          workspacePath: filename,
+          workspaceBytesBase64: Buffer.from("x").toString("base64"),
+        }),
+      ).rejects.toThrow("must be a video");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("saves a workspace file only with the bytes the sandbox sent", async () => {
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "launch.mp4",
+          workspacePath: "out/launch.mp4",
+        }),
+      ).rejects.toThrow("only be saved from your sandbox");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
     it("gives a saved chat image to a Social post as media", async () => {
       const saved = await service["uploadFile"](chatAuthorized as never, {
         filename: "1-sign-in.png",
