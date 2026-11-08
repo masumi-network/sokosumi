@@ -78,13 +78,19 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
               <TableRow>
                 <TableHead>{t("url")}</TableHead>
                 {shown.rank ? (
-                  <TableHead>{t("competitors.rank")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("competitors.rank")}
+                  </TableHead>
                 ) : null}
                 {shown.backlinks ? (
-                  <TableHead>{t("competitors.backlinks")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("competitors.backlinks")}
+                  </TableHead>
                 ) : null}
                 {shown.domains ? (
-                  <TableHead>{t("competitors.domains")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("competitors.domains")}
+                  </TableHead>
                 ) : null}
                 {shown.observed ? <TableHead>{t("observed")}</TableHead> : null}
                 {shown.source ? <TableHead>{t("source")}</TableHead> : null}
@@ -116,17 +122,17 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
                     ) : null}
                   </TableCell>
                   {shown.rank ? (
-                    <TableCell className="tabular-nums">
+                    <TableCell className="text-right tabular-nums">
                       {number(row.rank)}
                     </TableCell>
                   ) : null}
                   {shown.backlinks ? (
-                    <TableCell className="tabular-nums">
+                    <TableCell className="text-right tabular-nums">
                       {number(row.backlinks)}
                     </TableCell>
                   ) : null}
                   {shown.domains ? (
-                    <TableCell className="tabular-nums">
+                    <TableCell className="text-right tabular-nums">
                       {number(row.referringDomains)}
                     </TableCell>
                   ) : null}

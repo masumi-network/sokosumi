@@ -13,19 +13,27 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 
+/** One titled holder. Every SEO section uses it, so titles, help text and actions line up across tabs. */
 export function SeoSection({
   title,
+  description,
   children,
   actions,
 }: {
   title: string;
+  description?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
 }) {
   return (
     <section className={cn(HOLDER_CLASS, "min-w-0 space-y-2")}>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1">
-        <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+      <div className="flex flex-wrap items-start justify-between gap-2 px-2 pt-1">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {description ? (
+            <p className="text-muted-foreground text-sm">{description}</p>
+          ) : null}
+        </div>
         {actions}
       </div>
       {children}
@@ -101,14 +109,14 @@ export function SeoDate({
 /** A reporting period of calendar days, shown as the provider's dates without a time zone shift. */
 export function SeoPeriod({ from, to }: { from: string; to: string }) {
   const format = useFormatter();
-  const day = (value: string) =>
-    format.dateTime(new Date(`${value}T12:00:00Z`), {
-      dateStyle: "medium",
-      timeZone: "UTC",
-    });
+  const day = (value: string) => new Date(`${value}T12:00:00Z`);
+  // The locale picks the range form and its separator.
   return (
     <span>
-      {day(from)} / {day(to)}
+      {format.dateTimeRange(day(from), day(to), {
+        dateStyle: "medium",
+        timeZone: "UTC",
+      })}
     </span>
   );
 }
@@ -134,9 +142,13 @@ export function SeoSource({
   ) : null;
 }
 
+/** A quiet state label; the numbers and the next action stay the loudest marks. */
 export function SeoState({ children }: { children: ReactNode }) {
   return (
-    <Badge variant="secondary" className="whitespace-normal font-normal">
+    <Badge
+      variant="outline"
+      className="text-muted-foreground whitespace-normal font-normal"
+    >
       {children}
     </Badge>
   );

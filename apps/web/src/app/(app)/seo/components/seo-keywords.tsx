@@ -14,11 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { normalizeQuery, searchConsoleIndex } from "./seo-search-model";
 import { SeoSearchQueries } from "./seo-search-queries";
 import {
   SeoDate,
   SeoEmpty,
   SeoPageLink,
+  SeoPeriod,
   SeoSection,
   SeoSource,
   SeoState,
@@ -29,6 +31,8 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const rows = model.filteredKeywords;
+  const queries = model.data.searchQueries;
+  const averages = queries ? searchConsoleIndex(queries.rows) : null;
   // A column no row has measured only repeats "Not available"; name it once instead.
   const shown = {
     volume: rows.some((row) => row.volume !== null),
@@ -78,9 +82,13 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                   <TableHead>{t("keywords.keyword")}</TableHead>
                   <TableHead>{t("keywords.market")}</TableHead>
                   {shown.volume ? (
-                    <TableHead>{t("keywords.volume")}</TableHead>
+                    <TableHead className="text-right">
+                      {t("keywords.volume")}
+                    </TableHead>
                   ) : null}
-                  <TableHead>{t("keywords.position")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("keywords.position")}
+                  </TableHead>
                   {shown.intent ? (
                     <TableHead>{t("keywords.intent")}</TableHead>
                   ) : null}
@@ -99,6 +107,11 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                   const target = model.data.pages.find(
                     (page) => page.id === row.targetPageId,
                   );
+                  // Only an unmeasured position falls back to the Search Console period average.
+                  const average =
+                    row.positionStatus === "unavailable"
+                      ? averages?.get(normalizeQuery(row.keyword))
+                      : undefined;
                   return (
                     <TableRow key={row.id}>
                       <TableCell className="min-w-48 whitespace-normal">
@@ -139,23 +152,49 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                         ) : null}
                       </TableCell>
                       {shown.volume ? (
-                        <TableCell className="tabular-nums">
+                        <TableCell className="text-right tabular-nums">
                           {row.volume === null
                             ? t("none")
                             : format.number(row.volume)}
                         </TableCell>
                       ) : null}
-                      <TableCell className="whitespace-normal tabular-nums">
+                      <TableCell className="text-right whitespace-normal tabular-nums">
                         {row.positionStatus === "ranked" &&
-                        row.position !== null
-                          ? format.number(row.position)
-                          : row.positionStatus === "not_in_range"
-                            ? row.checkedResults === null
-                              ? t("keywords.notInRangeUnknown")
-                              : t("keywords.notInRange", {
-                                  count: row.checkedResults,
-                                })
-                            : t("keywords.unavailable")}
+                        row.position !== null ? (
+                          format.number(row.position)
+                        ) : row.positionStatus === "not_in_range" ? (
+                          row.checkedResults === null ? (
+                            t("keywords.notInRangeUnknown")
+                          ) : (
+                            t("keywords.notInRange", {
+                              count: row.checkedResults,
+                            })
+                          )
+                        ) : queries && average?.averagePosition ? (
+                          <>
+                            <p>
+                              {t("keywords.searchConsoleAverage", {
+                                position: format.number(
+                                  average.averagePosition,
+                                  {
+                                    minimumFractionDigits: 1,
+                                    maximumFractionDigits: 1,
+                                  },
+                                ),
+                                count: average.impressions,
+                              })}
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              {t("keywords.searchConsoleNote")} ·{" "}
+                              <SeoPeriod from={queries.from} to={queries.to} />
+                              {queries.truncated
+                                ? ` · ${t("queries.truncated", { count: queries.rowLimit })}`
+                                : null}
+                            </p>
+                          </>
+                        ) : (
+                          t("keywords.unavailable")
+                        )}
                       </TableCell>
                       {shown.intent ? (
                         <TableCell>{row.intent ?? t("none")}</TableCell>

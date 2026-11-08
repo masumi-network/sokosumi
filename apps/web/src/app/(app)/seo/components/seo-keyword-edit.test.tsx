@@ -6,11 +6,38 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
-import messages from "../../../../../messages/en.json";
+import enMessages from "../../../../../messages/en.json";
 import { SeoEditDialog } from "./seo-edit-dialog";
 import { SeoKeywords } from "./seo-keywords";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { useSeoWorkspace } from "./use-seo-workspace";
+
+type Messages = { [key: string]: string | Messages };
+/** Keys this change adds; the catalog wins once it carries them. */
+function withKeys(base: Messages, extra: Messages): Messages {
+  const merged: Messages = { ...extra, ...base };
+  for (const [key, value] of Object.entries(extra)) {
+    const current = base[key];
+    if (typeof value === "object" && typeof current === "object")
+      merged[key] = withKeys(current, value);
+  }
+  return merged;
+}
+const messages = withKeys(enMessages as Messages, {
+  App: {
+    Seo: {
+      queries: {
+        hiddenImpressions:
+          "Google lists queries for {listed, number} of {total, number} impressions. It hides rare queries for privacy.",
+      },
+      keywords: {
+        searchConsoleAverage:
+          "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
+        searchConsoleNote: "Search Console average",
+      },
+    },
+  },
+});
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
@@ -164,5 +191,106 @@ describe("Saved keyword edits", () => {
         },
       },
     });
+  });
+});
+
+function searchQueryWorkspace() {
+  const { workspace } = savedKeywordWorkspace();
+  const observedAt = new Date("2026-11-01T12:00:00.000Z");
+  const queryRow = (
+    query: string,
+    clicks: number,
+    impressions: number,
+    averagePosition: number,
+  ) => ({
+    id: query,
+    query,
+    pageUrl: "https://example.com/",
+    clicks,
+    impressions,
+    ctr: clicks / impressions,
+    averagePosition,
+  });
+  workspace.searchQueries = {
+    observationId: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11",
+    propertyId: "sc-domain:example.com",
+    from: "2026-10-01",
+    to: "2026-10-28",
+    timeZone: "UTC",
+    observedAt,
+    rowLimit: 250,
+    truncated: false,
+    rows: [
+      queryRow("usdc", 1, 20, 8),
+      queryRow("stablecoins", 2, 12, 3),
+      queryRow("usdt", 0, 8, 1.5),
+    ],
+  };
+  workspace.metrics = [
+    {
+      id: "c6b8a2c4-5b8e-4f0e-9a51-1f2f8a3f7c11:impressions",
+      key: "impressions",
+      label: "Impressions",
+      unit: "count",
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      value: 100,
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      channel: "all",
+      observedAt,
+      coverage: "complete",
+      points: [],
+      notes: [],
+    },
+  ];
+  return workspace;
+}
+
+function queryOrder() {
+  const table = screen
+    .getByRole("columnheader", { name: "Query" })
+    .closest("table");
+  return within(table!)
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => row.querySelector("bdi")?.textContent);
+}
+
+describe("Search Console queries", () => {
+  it("sorts by impressions first and by best position after a header click", async () => {
+    const user = userEvent.setup();
+    renderWorkspace(searchQueryWorkspace());
+    expect(queryOrder()).toEqual(["usdc", "stablecoins", "usdt"]);
+    expect(
+      screen.getByRole("columnheader", { name: "Impressions" }),
+    ).toHaveAttribute("aria-sort", "descending");
+    await user.click(screen.getByRole("button", { name: "Average position" }));
+    expect(queryOrder()).toEqual(["usdt", "stablecoins", "usdc"]);
+    expect(
+      screen.getByRole("columnheader", { name: "Average position" }),
+    ).toHaveAttribute("aria-sort", "ascending");
+    expect(
+      screen.getByRole("columnheader", { name: "Impressions" }),
+    ).not.toHaveAttribute("aria-sort");
+  });
+
+  it("names the impressions Google listed under no query", () => {
+    renderWorkspace(searchQueryWorkspace());
+    expect(
+      screen.getByText(/Google lists queries for 40 of 100 impressions/),
+    ).toBeVisible();
+  });
+
+  it("shows the Search Console average for a tracked keyword without a measured position", () => {
+    renderWorkspace(searchQueryWorkspace());
+    const table = screen
+      .getByRole("columnheader", { name: "Keyword" })
+      .closest("table");
+    const row = within(table!).getByText("Stablecoins").closest("tr");
+    expect(within(row!).getByText("3.0 avg. · 12 impressions")).toBeVisible();
+    expect(within(row!).getByText(/Search Console average/)).toBeVisible();
+    expect(within(row!).queryByText("Position unavailable")).toBeNull();
   });
 });

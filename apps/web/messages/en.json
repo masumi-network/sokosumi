@@ -10676,7 +10676,9 @@
         "anyPage": "No target page",
         "help": "Market and device belong to each observation. Saving a keyword does not start paid tracking.",
         "notInRangeUnknown": "Not found in the checked results",
-        "searchPlaceholder": "Filter queries and keywords"
+        "searchPlaceholder": "Filter queries and keywords",
+        "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
+        "searchConsoleNote": "Search Console average, all countries"
       },
       "competitors": {
         "title": "Competitors",
@@ -10735,7 +10737,11 @@
         "choose": "View page",
         "chooseSelection": "View selection",
         "version": "Version {version}",
-        "count": "{count, plural, one {# page} other {# pages}}"
+        "count": "{count, plural, one {# page} other {# pages}}",
+        "topPages": "Top pages",
+        "topPagesHelp": "Clicks and impressions per page from the listed Search Console queries. Queries Google hides are not counted.",
+        "queryCount": "Queries",
+        "topQuery": "Top query"
       },
       "timeline": {
         "title": "Timeline",
@@ -11012,7 +11018,15 @@
         "noMatch": "No query matches this filter",
         "noMatchBody": "Clear the filter to see every saved query row.",
         "empty": "Search Console returned no query rows",
-        "emptyBody": "Google showed no attributable searches for these pages in this period. Anonymized queries are never listed."
+        "emptyBody": "Google showed no attributable searches for these pages in this period. Anonymized queries are never listed.",
+        "hiddenImpressions": "Google lists queries for {listed, number} of {total, number} impressions. It hides rare queries for privacy.",
+        "buckets": {
+          "label": "Queries by average position",
+          "top3": "Top 3",
+          "top10": "4-10",
+          "top20": "11-20",
+          "rest": "21+"
+        }
       },
       "agent": {
         "ask": "Ask the SEO agent",

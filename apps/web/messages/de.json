@@ -10676,7 +10676,9 @@
         "anyPage": "Keine Zielseite",
         "help": "Markt und Gerät gehören zu jeder Beobachtung. Speichern startet kein kostenpflichtiges Tracking.",
         "notInRangeUnknown": "In den geprüften Ergebnissen nicht gefunden",
-        "searchPlaceholder": "Suchanfragen und Keywords filtern"
+        "searchPlaceholder": "Suchanfragen und Keywords filtern",
+        "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
+        "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder"
       },
       "competitors": {
         "title": "Mitbewerber",
@@ -10735,7 +10737,11 @@
         "choose": "Seite ansehen",
         "chooseSelection": "Auswahl ansehen",
         "version": "Version {version}",
-        "count": "{count, plural, one {# Seite} other {# Seiten}}"
+        "count": "{count, plural, one {# Seite} other {# Seiten}}",
+        "topPages": "Top-Seiten",
+        "topPagesHelp": "Klicks und Impressionen pro Seite aus den genannten Search-Console-Suchanfragen. Von Google ausgeblendete Suchanfragen fehlen.",
+        "queryCount": "Suchanfragen",
+        "topQuery": "Top-Suchanfrage"
       },
       "timeline": {
         "title": "Verlauf",
@@ -11012,7 +11018,15 @@
         "noMatch": "Keine Suchanfrage passt zum Filter",
         "noMatchBody": "Leere den Filter, um alle gespeicherten Suchanfragen zu sehen.",
         "empty": "Die Search Console lieferte keine Suchanfragen",
-        "emptyBody": "Google zeigte in diesem Zeitraum keine zuordenbaren Suchen für diese Seiten. Anonymisierte Suchanfragen erscheinen nie."
+        "emptyBody": "Google zeigte in diesem Zeitraum keine zuordenbaren Suchen für diese Seiten. Anonymisierte Suchanfragen erscheinen nie.",
+        "hiddenImpressions": "Google nennt Suchanfragen für {listed, number} von {total, number} Impressionen. Seltene Suchanfragen blendet Google zum Schutz der Privatsphäre aus.",
+        "buckets": {
+          "label": "Suchanfragen nach durchschnittlicher Position",
+          "top3": "Top 3",
+          "top10": "4-10",
+          "top20": "11-20",
+          "rest": "21+"
+        }
       },
       "agent": {
         "ask": "SEO-Agent fragen",

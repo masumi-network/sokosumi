@@ -10676,7 +10676,9 @@
         "anyPage": "Sin página de destino",
         "help": "Cada observación conserva su mercado y dispositivo. Guardar una palabra no inicia seguimiento de pago.",
         "notInRangeUnknown": "No aparece en los resultados revisados",
-        "searchPlaceholder": "Filtrar consultas y palabras clave"
+        "searchPlaceholder": "Filtrar consultas y palabras clave",
+        "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
+        "searchConsoleNote": "Promedio de Search Console, todos los países"
       },
       "competitors": {
         "title": "Competidores",
@@ -10735,7 +10737,11 @@
         "choose": "Ver página",
         "chooseSelection": "Ver selección",
         "version": "Versión {version}",
-        "count": "{count, plural, one {# página} other {# páginas}}"
+        "count": "{count, plural, one {# página} other {# páginas}}",
+        "topPages": "Páginas principales",
+        "topPagesHelp": "Clics e impresiones por página de las consultas de Search Console mostradas. No se cuentan las consultas que Google oculta.",
+        "queryCount": "Consultas",
+        "topQuery": "Consulta principal"
       },
       "timeline": {
         "title": "Cronología",
@@ -11012,7 +11018,15 @@
         "noMatch": "Ninguna consulta coincide con el filtro",
         "noMatchBody": "Borra el filtro para ver todas las consultas guardadas.",
         "empty": "Search Console no devolvió consultas",
-        "emptyBody": "Google no mostró búsquedas atribuibles para estas páginas en este periodo. Las consultas anonimizadas nunca aparecen."
+        "emptyBody": "Google no mostró búsquedas atribuibles para estas páginas en este periodo. Las consultas anonimizadas nunca aparecen.",
+        "hiddenImpressions": "Google muestra consultas para {listed, number} de {total, number} impresiones. Oculta las consultas poco frecuentes por privacidad.",
+        "buckets": {
+          "label": "Consultas por posición media",
+          "top3": "Top 3",
+          "top10": "4-10",
+          "top20": "11-20",
+          "rest": "21+"
+        }
       },
       "agent": {
         "ask": "Preguntar al agente SEO",
