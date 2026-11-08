@@ -152,9 +152,10 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables   DataTable[]
-  contacts     Contact[]
-  contactLists ContactList[]
+  dataTables       DataTable[]
+  contacts         Contact[]
+  contactLists     ContactList[]
+  contactCompanies ContactCompany[]
 
   calendarRevision Int @default(0)
 

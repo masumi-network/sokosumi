@@ -15314,6 +15314,287 @@ export const ContactOrganizationSchema = {
     ]
 } as const;
 
+export const ContactCompanySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        domain: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        website: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        industry: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        size: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        headquarters: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        linkedinUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        whyItMatters: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        enrichedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        version: {
+            type: 'integer'
+        },
+        people: {
+            type: 'integer'
+        },
+        teammates: {
+            type: 'integer',
+            description: 'Teammates who know someone there.'
+        },
+        interactions: {
+            type: 'integer'
+        },
+        lastContactAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        warmth: {
+            type: 'string',
+            enum: [
+                'warm',
+                'cooling',
+                'cold',
+                'none'
+            ],
+            description: 'warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.'
+        },
+        strongestStage: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactStage'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'domain',
+        'website',
+        'description',
+        'industry',
+        'size',
+        'headquarters',
+        'linkedinUrl',
+        'whyItMatters',
+        'enrichedAt',
+        'version',
+        'people',
+        'teammates',
+        'interactions',
+        'lastContactAt',
+        'warmth',
+        'strongestStage'
+    ]
+} as const;
+
+export const ContactCompanyDetailSchema = {
+    type: 'object',
+    properties: {
+        company: {
+            $ref: '#/components/schemas/ContactCompany'
+        },
+        people: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Contact'
+            }
+        },
+        morePeople: {
+            type: 'integer'
+        },
+        teammates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    people: {
+                        type: 'integer'
+                    },
+                    lastInteractionAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'people',
+                    'lastInteractionAt'
+                ]
+            }
+        },
+        nextSteps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    contactId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    name: {
+                        type: 'string'
+                    },
+                    nextStep: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    followUpAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'contactId',
+                    'name',
+                    'nextStep',
+                    'followUpAt'
+                ]
+            }
+        },
+        recentInteractions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    contactId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    occurredAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    channel: {
+                        type: 'string'
+                    },
+                    direction: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    summary: {
+                        type: 'string'
+                    },
+                    user: {
+                        anyOf: [
+                            {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string'
+                                    },
+                                    name: {
+                                        type: 'string'
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'name'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'contactId',
+                    'occurredAt',
+                    'channel',
+                    'direction',
+                    'summary',
+                    'user'
+                ]
+            }
+        }
+    },
+    required: [
+        'company',
+        'people',
+        'morePeople',
+        'teammates',
+        'nextSteps',
+        'recentInteractions'
+    ]
+} as const;
+
 export const ContactDetailSchema = {
     allOf: [
         {

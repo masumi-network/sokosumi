@@ -61,6 +61,10 @@ import {
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
+  enrichCompanies,
+  workspacesWithPendingCompanies,
+} from "@/services/contact-companies.service";
+import {
   type EnrichmentStats,
   emptyEnrichmentStats,
   enrichWorkspaceContacts,
@@ -142,6 +146,9 @@ export interface CaptureLimits {
   enrichmentWorkspaces: number;
   /** Search documents embedded per workspace per run. */
   embeddingsPerWorkspace: number;
+  /** Company websites read per workspace per run, and their model spend. */
+  companiesPerWorkspace: number;
+  companyUsdPerWorkspace: number;
   slackCallsPerRun: number;
   slackHistoryPagesPerConversation: number;
   /** A channel with more members is not a conversation. */
@@ -176,6 +183,8 @@ export const DEFAULT_CAPTURE_LIMITS: CaptureLimits = {
   importanceJudgmentsPerWorkspace: 40,
   enrichmentWorkspaces: 10,
   embeddingsPerWorkspace: 1_000,
+  companiesPerWorkspace: 15,
+  companyUsdPerWorkspace: 0.03,
   slackCallsPerRun: 60,
   slackHistoryPagesPerConversation: 5,
   slackSmallChannel: 8,
@@ -423,6 +432,11 @@ export class ContactCaptureService {
         ...(await workspacesWithStaleEmbeddings(
           this.limits.enrichmentWorkspaces,
         )),
+        ...(this.limits.companiesPerWorkspace > 0
+          ? await workspacesWithPendingCompanies(
+              this.limits.enrichmentWorkspaces,
+            )
+          : []),
       ]),
     ];
     for (const workspaceId of workspaceIds) {
@@ -466,6 +480,7 @@ export class ContactCaptureService {
     const enrichment = emptyEnrichmentStats();
     const importance: ImportanceStats = { judged: 0, failed: 0 };
     const search = { embedded: 0, costUsd: 0, failed: false };
+    const companies = { looked: 0, filled: 0, costUsd: 0 };
     const budget: WorkspaceBudget = {
       captures: this.limits.capturesPerWorkspace,
       judgeCalls: this.limits.judgeCallsPerWorkspace,
@@ -501,7 +516,22 @@ export class ContactCaptureService {
         stats: importance,
         shouldContinue,
       });
-      // Last, and on its own: search catching up never holds capture back.
+      // Last, and on their own: catching up never holds capture back.
+      if (shouldContinue())
+        Object.assign(
+          companies,
+          await enrichCompanies(workspaceId, {
+            limit: this.limits.companiesPerWorkspace,
+            usd: this.limits.companyUsdPerWorkspace,
+            shouldContinue,
+          }).catch((error: unknown) => {
+            console.error("Company lookup failed", {
+              workspaceId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return companies;
+          }),
+        );
       if (shouldContinue())
         Object.assign(
           search,
@@ -547,6 +577,11 @@ export class ContactCaptureService {
           },
         },
         contactImportance: importance,
+        contactCompanies: {
+          looked: companies.looked,
+          filled: companies.filled,
+          costUsd: Math.round(companies.costUsd * 1e6) / 1e6,
+        },
         contactSearch: {
           embedded: search.embedded,
           failed: search.failed,
