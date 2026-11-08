@@ -1901,7 +1901,8 @@
           "resumeReady": "Volver a Lista",
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
-          "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo."
+          "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
+          "duplicate": "Duplicar como borrador"
         },
         "ShareModal": {
           "title": "Share task",

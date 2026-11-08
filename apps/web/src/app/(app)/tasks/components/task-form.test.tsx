@@ -704,6 +704,52 @@ describe("TaskForm", () => {
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
   });
 
+  it("creates a copy as a reviewed private Draft and drops a project the viewer cannot pick", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-2", "Weekly"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Weekly report",
+          description: "Summarise the week",
+          projectId: "closed-project",
+          visibility: "PRIVATE",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const nameInput = screen.getByLabelText("Task name");
+    expect(nameInput).toHaveValue("Weekly report");
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(
+      "No project",
+    );
+    await user.clear(nameInput);
+    await user.type(nameInput, "Weekly report, March");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Weekly report, March",
+        description: "Summarise the week",
+        assigneeId: "coworker-2",
+        projectId: null,
+        status: TaskStatus.DRAFT,
+        visibility: "PRIVATE",
+      }),
+    );
+    expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("runAt");
+  });
+
   it("shows the footer status pill defaulting to Draft on create", () => {
     render(
       <TaskForm

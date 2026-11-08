@@ -20,6 +20,7 @@ import {
   Ban,
   CheckCircle2,
   ChevronDown,
+  CopyPlus,
   Ellipsis,
   FlagTriangleRight,
   ListX,
@@ -40,6 +41,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import {
   markTaskArchived,
@@ -150,10 +152,11 @@ interface TaskDetailActionsProps {
   taskOwnerId: string | null;
   hasAssignedSeat?: boolean;
   /**
-   * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
-   * viewer cannot create a schedule; the Task itself is never changed.
+   * The Task as a reusable brief, for "Repeat" (a Task Schedule) and
+   * "Duplicate" (a new Draft). Omitted where the viewer cannot create either;
+   * the Task itself is never changed.
    */
-  repeatBlueprint?: TaskScheduleBlueprintPrefill;
+  taskBlueprint?: TaskScheduleBlueprintPrefill;
 }
 
 export function TaskDetailActions({
@@ -180,7 +183,7 @@ export function TaskDetailActions({
   isTaskOwner = false,
   taskOwnerId,
   hasAssignedSeat = false,
-  repeatBlueprint,
+  taskBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -225,6 +228,27 @@ export function TaskDetailActions({
     projectOptions: ProjectFilterOption[];
   } | null>(null);
   const [isRepeatLoading, startRepeatTransition] = useTransition();
+
+  const newTaskWizard = useOptionalNewTaskWizard();
+  // A copy carries the brief only: no Run at, jobs, payments, schedule,
+  // relations, priority or tags. It opens in the New Task form as a Draft,
+  // so nothing runs until the viewer reviews and saves it.
+  const handleDuplicate = () => {
+    if (!taskBlueprint || !newTaskWizard) return;
+    newTaskWizard.openNewTaskWizard({
+      prompt: taskBlueprint.description ?? null,
+      projectId: taskBlueprint.projectId ?? null,
+      assigneeId:
+        taskBlueprint.assigneeId ??
+        taskBlueprint.assigneeSokoBotId ??
+        taskBlueprint.assigneeUserId ??
+        null,
+      copy: {
+        name: taskBlueprint.name ?? "",
+        visibility: taskBlueprint.visibility ?? "PUBLIC",
+      },
+    });
+  };
 
   const handleRepeat = () => {
     startRepeatTransition(async () => {
@@ -303,7 +327,7 @@ export function TaskDetailActions({
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
-    repeatBlueprint !== undefined ||
+    taskBlueprint !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
     canManageRelations ||
@@ -608,7 +632,7 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
-            {repeatBlueprint ? (
+            {taskBlueprint ? (
               <DropdownMenuItem
                 disabled={actionsDisabled || isRepeatLoading}
                 onSelect={handleRepeat}
@@ -622,6 +646,16 @@ export function TaskDetailActions({
                   <Repeat className="size-4" aria-hidden />
                 )}
                 {tDetailActions("repeat")}
+              </DropdownMenuItem>
+            ) : null}
+
+            {taskBlueprint && newTaskWizard ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled}
+                onSelect={handleDuplicate}
+              >
+                <CopyPlus className="size-4" aria-hidden />
+                {tDetailActions("duplicate")}
               </DropdownMenuItem>
             ) : null}
 
@@ -650,7 +684,7 @@ export function TaskDetailActions({
               );
             })}
 
-            {(canEdit || repeatBlueprint || statusActions.length > 0) &&
+            {(canEdit || taskBlueprint || statusActions.length > 0) &&
             (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
@@ -935,7 +969,7 @@ export function TaskDetailActions({
             {canArchiveTask &&
             (statusActions.length > 0 ||
               canEdit ||
-              repeatBlueprint ||
+              taskBlueprint ||
               canManageRelations ||
               canMove) ? (
               <DropdownMenuSeparator />
@@ -988,9 +1022,9 @@ export function TaskDetailActions({
         />
       ) : null}
 
-      {repeatBlueprint && repeatOptions ? (
+      {taskBlueprint && repeatOptions ? (
         <TaskScheduleDialog
-          initialBlueprint={repeatBlueprint}
+          initialBlueprint={taskBlueprint}
           coworkerOptions={repeatOptions.coworkerOptions}
           projectOptions={repeatOptions.projectOptions}
           canCreatePrivate={currentOrganizationId != null}

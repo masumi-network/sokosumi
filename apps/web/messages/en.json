@@ -1902,7 +1902,8 @@
           "resumeReady": "Back to Ready",
           "markComplete": "Mark complete",
           "repeat": "Repeat",
-          "repeatError": "Couldn't open the schedule form. Try again."
+          "repeatError": "Couldn't open the schedule form. Try again.",
+          "duplicate": "Duplicate as draft"
         },
         "ShareModal": {
           "title": "Share task",

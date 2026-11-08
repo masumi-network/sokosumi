@@ -170,6 +170,8 @@ interface TaskFormInitialValues {
   selectableStatuses?: readonly TaskStatus[];
   /** The Task's Run at as an ISO string; set only while it is Queued. */
   runAt?: string | null;
+  /** Create only: start with Private on (a copy of a private Task). */
+  visibility?: "PUBLIC" | "PRIVATE";
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
@@ -288,7 +290,9 @@ export function TaskForm({
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(
+    initialValues?.visibility === "PRIVATE",
+  );
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
   const initialProjectId =
@@ -298,6 +302,13 @@ export function TaskForm({
   const initialProject = initialProjectId
     ? projectOptions?.find((project) => project.id === initialProjectId)
     : undefined;
+  // A new Task cannot start in a project the viewer cannot pick (closed, or
+  // gone since the source Task was made); it starts with no project instead.
+  const isInitialProjectUnavailable =
+    mode === "create" &&
+    Boolean(initialProjectId) &&
+    projectOptions !== undefined &&
+    !initialProject;
   const initialContext =
     mode === "edit"
       ? getTaskContextSelectionFromDescription(
@@ -310,7 +321,7 @@ export function TaskForm({
         )
       : null;
   const [projectId, setProjectId] = useState<string | null | undefined>(
-    initialProjectId,
+    isInitialProjectUnavailable ? null : initialProjectId,
   );
   const [isProjectMissing, setIsProjectMissing] = useState(false);
   const projectSelectRef = useRef<HTMLButtonElement>(null);
@@ -380,9 +391,7 @@ export function TaskForm({
   );
 
   const coworkerTouchedRef = useRef(false);
-  const statusTouchedRef = useRef(
-    mode === "edit" && initialValues?.status !== undefined,
-  );
+  const statusTouchedRef = useRef(initialValues?.status !== undefined);
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
   const initialRunAt = initialValues?.runAt ?? null;
   // Only an agent can hold a Run at (Queued is agent-only), so a Calendar
@@ -400,7 +409,7 @@ export function TaskForm({
       : null,
   );
   const [status, setStatus] = useState<TaskStatus>(() => {
-    if (mode === "edit" && initialValues?.status !== undefined) {
+    if (initialValues?.status !== undefined) {
       return initialValues.status;
     }
     const fields = resolveTaskAssigneeFields(
@@ -1198,7 +1207,8 @@ export function TaskForm({
                   {taskStepTitle.replace("{name}", selectedOption.name)}
                 </h3>
               ) : null}
-              {mode === "edit" ? (
+              {/* Create shows the name only for a copy, so its title can be reviewed. */}
+              {mode === "edit" || initialValues?.name !== undefined ? (
                 <input
                   id="task-name"
                   type="text"

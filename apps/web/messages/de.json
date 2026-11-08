@@ -1901,7 +1901,8 @@
           "resumeReady": "Zurück zu Bereit",
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
-          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "ShareModal": {
           "title": "Share task",
