@@ -16,7 +16,7 @@ X is fast and conversational. People read one line and decide. A good post is on
 
 - One idea per post. If you have two, that is two posts.
 - Short: most good posts are one to three lines, well under the limit. The account's limit is in \`list_project_social_accounts\`; a standard account allows 280 characters.
-- Concrete beats clever: a number, a name, a before and after.
+- Concrete beats clever: a number, a name, a before and after. Writing for a business, the concrete thing comes from the Brand Brain: a feature by its name and what it does, a price, a customer, a number. General advice that fits every product in the category ("Give each issue an owner and a next step") is not concrete; name what this product does about it.
 - Write to start replies: take a position, share a result, ask a question people can answer.
 - A native image beats a link preview. Keep links out of the post.
 - At most 2 hashtags, only when they name a topic people follow. Usually none.

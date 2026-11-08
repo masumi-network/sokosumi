@@ -234,6 +234,7 @@ A piece counts as made once its words and its visual are saved; Core counts it r
 
 ## Hooks and copy
 - The first line earns the rest. Use a different kind of opening across the month: a specific claim, a question the buyer is asking, a short story, a number from the Brand Brain, a contrast between two real choices, a result a customer had.
+- A piece without a story still names one concrete thing only this business has, from the Brand Brain: a feature by its name, a price, a customer, a number, a place. Advice that would fit any business in the category is a miss, however well written.
 - Every line passes three tests: the reader can picture it, it could be proven false, and a competitor could not say it word for word. If a competitor could, rewrite it.
 - Never: "It's not X, it's Y" or "Not just X, but Y"; "No X, no Y" lists; a question you answer yourself ("The result?", "Here's the thing"); colon reveals; "Let that sink in"; labels like "Thread:" or 🧵; one sentence per line for a whole post; engagement bait ("Agree?", "Thoughts?", "Tag a friend"); emoji as bullets; a tidy closing moral that restates the post; "unlock", "game-changer", "say goodbye to", "reimagined", "delve", "leverage"; em dashes. Core refuses most of these when you save.
 - At most one fragment and one list of three per post. Vary sentence shapes across the batch.

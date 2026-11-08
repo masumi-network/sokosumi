@@ -140,6 +140,15 @@ async function run(email: string, brand: Brand) {
       completedAt: new Date(),
     },
   });
+  // An earlier month's production runs would count against today's cap.
+  await prisma.sokoBotTurn.updateMany({
+    where: {
+      sokoBotId: cuso.sokoBotId,
+      clientTurnId: { startsWith: "cmo:production:" },
+      createdAt: { gt: new Date(Date.now() - 24 * 60 * 60_000) },
+    },
+    data: { createdAt: new Date(Date.now() - 25 * 60 * 60_000) },
+  });
   // A lab run is many turns a day; the owner's daily brake would stop it.
   await prisma.sokoBot.update({
     where: { id: cuso.sokoBotId },
