@@ -98,10 +98,11 @@ function renderWorkspace(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
   monitorsOnly = false,
+  staleTime = 0,
 ) {
   const View = monitorsOnly ? SeoMonitorPanel : SeoWorkspace;
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: { queries: { retry: false, staleTime } },
   });
   clients.push(client);
   const content = (
@@ -1581,6 +1582,35 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("tab", { name: "Overview" }));
     expect(await screen.findByText("Answer to New question")).toBeVisible();
     expect(screen.queryByText("Earlier visit question")).toBeNull();
+  });
+
+  it("loads the Overview chat history when the app keeps fresh server data", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const turns = [
+      {
+        id: crypto.randomUUID(),
+        question: "Earlier visit question",
+        response: "Earlier answer",
+        status: "completed",
+        actions: [],
+        scope: { pageIds: workspace.scope.pageIds },
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.endsWith("/chat") ? { sharing: "personal", turns } : workspace,
+        ),
+      ),
+    );
+    // The app's query client keeps data fresh for a minute.
+    renderWorkspace(workspace, "", false, 60_000);
+    expect(
+      await screen.findByRole("button", { name: "Show 1 earlier question" }),
+    ).toBeVisible();
+    expect(screen.queryByText(messages.App.Seo.loading)).toBeNull();
   });
 
   it("keeps an answer asked in the chat sheet on another tab visible on the Overview", async () => {
