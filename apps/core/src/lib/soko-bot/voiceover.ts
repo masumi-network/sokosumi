@@ -41,6 +41,9 @@ function readTiming(
   return { text: text ?? word ?? character ?? "", start: begins, end: ends };
 }
 
+/** The voice service said no, so nothing was made or charged. */
+export class VoiceoverRefusedError extends Error {}
+
 export interface Voiceover {
   bytes: Uint8Array;
   costUsd: number;
@@ -56,7 +59,7 @@ export async function speakVoiceover(input: {
   languageCode?: string;
 }): Promise<Voiceover> {
   const key = getEnv().FAL_KEY;
-  if (!key) throw new Error("Voice-overs are not configured");
+  if (!key) throw new VoiceoverRefusedError("Voice-overs are not configured");
   const response = await fetch(`https://fal.run/${VOICEOVER_MODEL}`, {
     method: "POST",
     headers: {
@@ -75,7 +78,7 @@ export async function speakVoiceover(input: {
   if (!response.ok) {
     // fal's error says what was wrong with the request (a voice, the text).
     const detail = (await response.text().catch(() => "")).slice(0, 300);
-    throw new Error(
+    throw new VoiceoverRefusedError(
       `The voice service answered ${response.status}${detail ? `: ${detail}` : ""}`,
     );
   }

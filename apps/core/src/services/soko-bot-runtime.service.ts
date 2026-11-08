@@ -284,7 +284,10 @@ import {
 } from "@/lib/soko-bot/turn-loop";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
-import { speakVoiceover } from "@/lib/soko-bot/voiceover";
+import {
+  speakVoiceover,
+  VoiceoverRefusedError,
+} from "@/lib/soko-bot/voiceover";
 import {
   type SokoBotWriteTargets,
   sokoBotProjectRefusal,
@@ -3987,8 +3990,10 @@ export class SokoBotRuntimeService {
     try {
       voiceover = await speakVoiceover(input);
     } catch (error) {
-      // Nothing was saved, so the attempt failed rather than went missing.
-      throw new SokoBotRefusedUnsentError(
+      // Only a refusal is sure to be unbilled; a later failure may have paid.
+      if (error instanceof VoiceoverRefusedError)
+        throw new SokoBotRefusedUnsentError(error.message);
+      throw new SokoBotRuntimeValidationError(
         error instanceof Error ? error.message : "The voice-over failed",
       );
     }

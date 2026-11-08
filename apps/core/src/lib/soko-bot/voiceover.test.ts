@@ -8,7 +8,9 @@ vi.mock("@/lib/image-studio/fal-client", () => ({
   })),
 }));
 
-const { sentenceStarts, speakVoiceover } = await import("./voiceover");
+const { sentenceStarts, speakVoiceover, VoiceoverRefusedError } = await import(
+  "./voiceover"
+);
 
 describe("sentenceStarts", () => {
   it("groups word timings into sentences", () => {
@@ -75,8 +77,19 @@ describe("speakVoiceover", () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response('{"detail":"voice not found"}', { status: 422 }),
     );
-    await expect(speakVoiceover({ text: "Hi." })).rejects.toThrow(
-      '422: {"detail":"voice not found"}',
+    const refused = speakVoiceover({ text: "Hi." });
+    await expect(refused).rejects.toThrow('422: {"detail":"voice not found"}');
+    await expect(refused).rejects.toBeInstanceOf(VoiceoverRefusedError);
+  });
+
+  it("does not call a failure after the voice was made a refusal", async () => {
+    vi.mocked(fetch).mockResolvedValue(Response.json({ audio }));
+    const { downloadMedia } = await import("@/lib/image-studio/fal-client");
+    vi.mocked(downloadMedia).mockRejectedValueOnce(
+      new Error("download failed"),
     );
+    const failed = speakVoiceover({ text: "Hi." });
+    await expect(failed).rejects.toThrow("download failed");
+    await expect(failed).rejects.not.toBeInstanceOf(VoiceoverRefusedError);
   });
 });
