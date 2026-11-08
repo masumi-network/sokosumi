@@ -1,7 +1,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoOverviewModel } from "./seo-overview-model";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { seoOverviewModel, seoPageSummaries } from "./seo-overview-model";
+import { SEO_TEST_PAGE, seoTestWorkspace } from "./seo-test-fixture";
 
 function finding(
   id: string,
@@ -150,5 +150,79 @@ describe("SEO overview relevance", () => {
     });
     workspace.findings = [finding("major", "major")];
     expect(seoOverviewModel(workspace).emptyState).toBe("issues");
+  });
+});
+
+describe("seoPageSummaries", () => {
+  it("counts a viewed page's issues and takes its newest check that ran rules", () => {
+    const other = {
+      ...seoTestWorkspace().pages[0],
+      id: "other",
+      url: "https://example.com/b",
+    };
+    const older = { ...observation(5), pageIds: [SEO_TEST_PAGE, "other"] };
+    const newer = {
+      ...observation(0, 3),
+      observedAt: new Date("2026-01-05T12:00:00Z"),
+      pageIds: [SEO_TEST_PAGE],
+    };
+    const outside = { ...other, id: "outside", url: "https://example.com/c" };
+    const base = seoTestWorkspace();
+    const workspace: ProjectSeoWorkspace = {
+      ...base,
+      pages: [...base.pages, other, outside],
+      // The view covers two of the three pages; the API sends nothing for the third.
+      scope: { ...base.scope, pageIds: [SEO_TEST_PAGE, "other"] },
+      // Newest first; the newer one skipped every rule, so it is not a check of the page.
+      observations: [newer, older],
+      findings: [
+        finding("broken", "critical"),
+        finding("note", "note"),
+        { ...finding("elsewhere", "minor"), pageUrl: other.url },
+      ],
+    };
+    const summaries = seoPageSummaries(workspace);
+    expect(summaries.get(SEO_TEST_PAGE)).toEqual({
+      issues: 1,
+      checkedAt: older.observedAt,
+      incomplete: false,
+    });
+    expect(summaries.get("other")).toEqual({
+      issues: 1,
+      checkedAt: older.observedAt,
+      incomplete: false,
+    });
+    // No summary rather than a false "no issues" for a page outside the view.
+    expect(summaries.has("outside")).toBe(false);
+  });
+
+  it("marks a check with unavailable rules and says nothing when a cut history shows no check", () => {
+    const base = seoTestWorkspace();
+    const partial = { ...observation(4, 0, 2), pageIds: [SEO_TEST_PAGE] };
+    expect(
+      seoPageSummaries({ ...base, observations: [partial] }).get(SEO_TEST_PAGE)
+        ?.incomplete,
+    ).toBe(true);
+    // A newer check where every rule was unavailable is the last check, not the older full one.
+    const complete = { ...observation(5), pageIds: [SEO_TEST_PAGE] };
+    const failed = {
+      ...observation(0, 0, 3),
+      observedAt: new Date("2026-01-05T12:00:00Z"),
+      pageIds: [SEO_TEST_PAGE],
+    };
+    expect(
+      seoPageSummaries({ ...base, observations: [failed, complete] }).get(
+        SEO_TEST_PAGE,
+      ),
+    ).toEqual({ issues: 0, checkedAt: failed.observedAt, incomplete: true });
+    const cut = {
+      ...base,
+      observations: [],
+      history: { ...base.history, limited: true },
+    };
+    expect(seoPageSummaries(cut).has(SEO_TEST_PAGE)).toBe(false);
+    expect(
+      seoPageSummaries({ ...cut, history: base.history }).get(SEO_TEST_PAGE),
+    ).toEqual({ issues: 0, checkedAt: null, incomplete: false });
   });
 });

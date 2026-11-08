@@ -66,3 +66,42 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     emptyState,
   };
 }
+
+/**
+ * Per page in the current view: open issues and the newest check that covered it.
+ * The workspace holds findings and checks only for the viewed pages and dates, so a
+ * page outside the view gets no summary rather than a false "no issues". A cut history
+ * cannot prove a page was never checked, so such a page gets no summary either.
+ */
+export function seoPageSummaries(workspace: ProjectSeoWorkspace) {
+  const { issues } = seoOverviewModel(workspace);
+  const viewed = new Set(workspace.scope.pageIds);
+  const summaries = new Map<
+    string,
+    { issues: number; checkedAt: Date | string | null; incomplete: boolean }
+  >();
+  for (const page of workspace.pages) {
+    if (!viewed.has(page.id)) continue;
+    // Observations come newest first.
+    // A check where every rule was unavailable still ran; one that skipped every rule did not.
+    const check = workspace.observations.find(
+      ({ coverage, pageIds }) =>
+        (coverage.checked > 0 ||
+          coverage.failed > 0 ||
+          (coverage.modules?.failed ?? 0) > 0) &&
+        pageIds.includes(page.id),
+    );
+    if (!check && workspace.history.limited) continue;
+    summaries.set(page.id, {
+      issues: issues.filter((finding) => finding.pageUrl === page.url).length,
+      checkedAt: check?.observedAt ?? null,
+      // A check with unavailable rules cannot say "no issues", as on the Overview.
+      incomplete: Boolean(
+        check &&
+          (check.coverage.failed > 0 ||
+            (check.coverage.modules?.failed ?? 0) > 0),
+      ),
+    });
+  }
+  return summaries;
+}

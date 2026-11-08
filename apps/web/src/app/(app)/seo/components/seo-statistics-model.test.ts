@@ -9,6 +9,8 @@ import {
   latestSeoMeasurements,
   savedSeoStatistics,
   seoCoverageIsNews,
+  seoDefaultMetric,
+  seoQueryPeriod,
   seoStatisticsPeriod,
 } from "./seo-statistics-model";
 
@@ -96,5 +98,69 @@ describe("seoCoverageIsNews", () => {
     expect(seoCoverageIsNews(sync("ga4", "partial", []))).toBe(true);
     expect(seoCoverageIsNews(sync("search_console", "unavailable"))).toBe(true);
     expect(seoCoverageIsNews(sync("ga4", "complete", []))).toBe(false);
+  });
+});
+
+describe("seoQueryPeriod", () => {
+  const source = {
+    observationId: "sync-a",
+    from: "2026-10-11",
+    to: "2026-11-07",
+  };
+  const search = (sync: string) =>
+    metric({
+      id: `${sync}:clicks`,
+      source: "search_console",
+      from: source.from,
+      to: source.to,
+      points: [
+        // Google left out the quiet first days; the rows still start on the requested day.
+        { date: "2026-10-13", value: 1 },
+        { date: "2026-11-06", value: 0 },
+        { date: "2026-11-07", value: null },
+      ],
+    });
+
+  it("ends the rows' period on the last day Google reported for the same read", () => {
+    expect(seoQueryPeriod(source, [search("sync-a")])).toEqual({
+      from: source.from,
+      to: "2026-11-06",
+    });
+  });
+
+  it("keeps the requested period when the saved totals come from another read", () => {
+    expect(seoQueryPeriod(source, [search("sync-b")])).toEqual({
+      from: source.from,
+      to: source.to,
+    });
+  });
+});
+
+describe("seoDefaultMetric", () => {
+  const points = (values: (number | null)[]) =>
+    values.map((value, day) => ({ date: `2026-10-1${day}`, value }));
+
+  it("opens on the count with the most days above zero", () => {
+    const clicks = metric({ id: "clicks", points: points([1, 0, 0, 1]) });
+    const impressions = metric({
+      id: "impressions",
+      points: points([3, 2, 0, 5]),
+    });
+    const position = metric({
+      id: "position",
+      unit: "position",
+      points: points([2, 3, 4, 5]),
+    });
+    expect(seoDefaultMetric([clicks, impressions, position]).id).toBe(
+      "impressions",
+    );
+  });
+
+  it("keeps the first count when counts tie, and the first metric without counts", () => {
+    const clicks = metric({ id: "clicks", points: points([1]) });
+    const impressions = metric({ id: "impressions", points: points([4]) });
+    expect(seoDefaultMetric([clicks, impressions]).id).toBe("clicks");
+    const ratio = metric({ id: "ctr", unit: "ratio" });
+    expect(seoDefaultMetric([ratio]).id).toBe("ctr");
   });
 });

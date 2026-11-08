@@ -85,3 +85,47 @@ export function seoCoverageIsNews(metric: {
     metric.source !== "search_console" || seoStatisticsLostData(metric.notes)
   );
 }
+
+/** The first and last day with a value. Google reports a few days late, so this can end before the requested period. */
+export function seoReportedPeriod(metrics: Pick<ProjectSeoMetric, "points">[]) {
+  const days = metrics
+    .flatMap((metric) => metric.points)
+    .filter((point) => point.value !== null)
+    .map((point) => point.date)
+    .sort();
+  return days.length ? { from: days[0], to: days.at(-1) as string } : null;
+}
+
+/**
+ * The days behind the saved search rows. Totals saved by the same sync share their read,
+ * so they also share the days Google reported. Metric ids are "<sync id>:<metric key>".
+ */
+export function seoQueryPeriod(
+  source: { observationId: string; from: string; to: string },
+  metrics: ProjectSeoMetric[],
+) {
+  const sameRead = metrics.filter(
+    (metric) =>
+      metric.source === "search_console" &&
+      metric.id.split(":")[0] === source.observationId,
+  );
+  // Only the end moves: Google leaves out quiet days, so the first day with data is not the start.
+  const reported = seoReportedPeriod(sameRead);
+  return { from: source.from, to: reported?.to ?? source.to };
+}
+
+/** Open the chart on the count with the most active days, so sparse clicks do not hide a moving trend. */
+export function seoDefaultMetric<
+  Metric extends Pick<ProjectSeoMetric, "unit" | "points">,
+>(metrics: Metric[]) {
+  const activeDays = (metric: Metric) =>
+    metric.points.filter((point) => (point.value ?? 0) > 0).length;
+  let best: Metric | undefined;
+  for (const metric of metrics)
+    if (
+      metric.unit === "count" &&
+      (!best || activeDays(metric) > activeDays(best))
+    )
+      best = metric;
+  return best ?? metrics[0];
+}
