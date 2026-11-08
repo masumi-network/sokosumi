@@ -2219,8 +2219,14 @@ describe("TaskDetailActions", () => {
       expect(openNewTaskWizardMock).toHaveBeenCalledWith({
         prompt: "Summarise the week",
         projectId: "project-1",
-        assigneeId: "bot-1",
-        copy: { name: "Weekly report", visibility: "PRIVATE" },
+        copy: {
+          taskId: "task-1",
+          name: "Weekly report",
+          visibility: "PRIVATE",
+          assigneeId: null,
+          assigneeSokoBotId: "bot-1",
+          assigneeUserId: null,
+        },
       });
       expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
       expect(createTaskLink).not.toHaveBeenCalled();

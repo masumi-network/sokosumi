@@ -180,14 +180,20 @@ describe("CreateTaskModal", () => {
     expect(getLatestProjectId()).toBeNull();
   });
 
-  it("opens a copy as a Draft with its name, visibility and brief, and forgets it for the next Task", () => {
+  it("opens a copy as a Draft with its name, visibility, assignee and brief, and forgets it for the next Task", () => {
     render(
       <CreateTaskModalProvider
         initialOpen
         initialPrompt="Summarise the week"
-        initialAssigneeId="bot-1"
         initialProjectId="project-1"
-        initialCopy={{ name: "Weekly report", visibility: "PRIVATE" }}
+        initialCopy={{
+          taskId: "source-task",
+          name: "Weekly report",
+          visibility: "PRIVATE",
+          assigneeId: null,
+          assigneeSokoBotId: "bot-1",
+          assigneeUserId: null,
+        }}
       >
         <CreateTaskModal coworkerOptions={[]} projectOptions={[]} />
       </CreateTaskModalProvider>,
@@ -198,11 +204,14 @@ describe("CreateTaskModal", () => {
       onCreateAnother: () => void;
     };
     expect(props.initialValues).toEqual({
-      assigneeId: "bot-1",
+      copyOfTaskId: "source-task",
       description: "Summarise the week",
       name: "Weekly report",
       visibility: "PRIVATE",
       status: "DRAFT",
+      assigneeId: null,
+      assigneeSokoBotId: "bot-1",
+      assigneeUserId: null,
       projectId: "project-1",
       runAt: null,
     });
@@ -212,6 +221,7 @@ describe("CreateTaskModal", () => {
     const next = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
       initialValues: Record<string, unknown>;
     };
+    expect(next.initialValues).not.toHaveProperty("copyOfTaskId");
     expect(next.initialValues).not.toHaveProperty("name");
     expect(next.initialValues).not.toHaveProperty("status");
   });

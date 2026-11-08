@@ -230,22 +230,21 @@ export function TaskDetailActions({
   const [isRepeatLoading, startRepeatTransition] = useTransition();
 
   const newTaskWizard = useOptionalNewTaskWizard();
-  // A copy carries the brief only: no Run at, jobs, payments, schedule,
-  // relations, priority or tags. It opens in the New Task form as a Draft,
-  // so nothing runs until the viewer reviews and saves it.
+  // A copy carries the brief, assignee and tags only: no Run at, jobs,
+  // payments, schedule, relations or priority. It opens in the New Task form
+  // as a Draft, so nothing runs until the viewer reviews and saves it.
   const handleDuplicate = () => {
     if (!taskBlueprint || !newTaskWizard) return;
     newTaskWizard.openNewTaskWizard({
       prompt: taskBlueprint.description ?? null,
       projectId: taskBlueprint.projectId ?? null,
-      assigneeId:
-        taskBlueprint.assigneeId ??
-        taskBlueprint.assigneeSokoBotId ??
-        taskBlueprint.assigneeUserId ??
-        null,
       copy: {
+        taskId,
         name: taskBlueprint.name ?? "",
         visibility: taskBlueprint.visibility ?? "PUBLIC",
+        assigneeId: taskBlueprint.assigneeId ?? null,
+        assigneeSokoBotId: taskBlueprint.assigneeSokoBotId ?? null,
+        assigneeUserId: taskBlueprint.assigneeUserId ?? null,
       },
     });
   };

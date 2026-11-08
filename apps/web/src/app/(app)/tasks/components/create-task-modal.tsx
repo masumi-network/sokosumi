@@ -36,11 +36,16 @@ export interface RunAtPrefill {
   timezone: string;
 }
 
-/** What a copy of an existing Task carries beyond prompt, assignee and
- *  project. A copy always starts as a Draft, so nothing runs before review. */
+/** What a copy of an existing Task carries beyond prompt and project. Its
+ *  assignee keeps its kind, and none stays none. A copy always starts as a
+ *  Draft, so nothing runs before review. */
 export interface NewTaskCopyPrefill {
+  taskId: string;
   name: string;
   visibility: "PUBLIC" | "PRIVATE";
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  assigneeUserId: string | null;
 }
 
 interface CreateTaskModalContextType {
@@ -443,9 +448,13 @@ export function CreateTaskModal({
             ...(promptOverride ? { description: promptOverride } : {}),
             ...(copyOverride
               ? {
+                  copyOfTaskId: copyOverride.taskId,
                   name: copyOverride.name,
                   visibility: copyOverride.visibility,
                   status: TaskStatus.DRAFT,
+                  assigneeId: copyOverride.assigneeId,
+                  assigneeSokoBotId: copyOverride.assigneeSokoBotId,
+                  assigneeUserId: copyOverride.assigneeUserId,
                 }
               : {}),
             projectId: selectedProjectId,

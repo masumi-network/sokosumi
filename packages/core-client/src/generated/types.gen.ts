@@ -79940,6 +79940,10 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 export type PostTasksData = {
     body?: {
         tagSuggestionReceipt?: string;
+        /**
+         * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified.
+         */
+        copyOfTaskId?: string;
         name?: string;
         description?: string | null;
         projectId?: string | null;
