@@ -10565,6 +10565,46 @@
         "place": "{place}, {count, plural, one {# contacto} other {# contactos}}",
         "nearby": "{place} y {others, plural, one {# lugar cercano} other {# lugares cercanos}}",
         "people": "{count, plural, one {# contacto} other {# contactos}}"
+      },
+      "company": {
+        "loading": "Cargando empresa…",
+        "edit": "Editar",
+        "whyItMatters": "Por qué importa",
+        "people": "Personas",
+        "knownBy": "Conocida por",
+        "knownByLabel": "{count, plural, one {# compañero conoce} other {# compañeros conocen}} a alguien aquí",
+        "nobody": "Nadie todavía",
+        "lastContact": "Último contacto",
+        "never": "Nunca",
+        "warmth": "Relación",
+        "warmthLevels": {
+          "warm": "Cálida",
+          "cooling": "Enfriándose",
+          "cold": "Fría",
+          "none": "Sin contacto aún"
+        },
+        "strongestStage": "Etapa más fuerte",
+        "nextSteps": "Próximos pasos",
+        "noNextSteps": "Nada planificado.",
+        "recent": "Últimos contactos",
+        "noRecent": "Aún no hay contactos.",
+        "someone": "Alguien",
+        "editTitle": "Editar empresa",
+        "editDescription": "Lo que el equipo sabe de esta empresa. Los campos vacíos se completan desde su sitio web en segundo plano.",
+        "nameRequired": "Ponle un nombre a la empresa.",
+        "saveFailed": "No se pudo guardar la empresa.",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "fields": {
+          "name": "Nombre",
+          "website": "Sitio web",
+          "industry": "Sector",
+          "size": "Tamaño",
+          "headquarters": "Sede",
+          "linkedinUrl": "LinkedIn",
+          "description": "Acerca de",
+          "whyItMatters": "Por qué nos importa"
+        }
       }
     }
   },

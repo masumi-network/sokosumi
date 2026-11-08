@@ -7621,6 +7621,9 @@ export class SokoBotRuntimeService {
       }
       case "search_contacts":
       case "count_contacts":
+      case "search_companies":
+      case "get_company":
+      case "update_company":
       case "get_contact":
       case "list_contact_lists":
       case "find_contact_duplicates":

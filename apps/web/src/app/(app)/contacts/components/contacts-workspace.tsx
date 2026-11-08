@@ -64,6 +64,7 @@ import { contactsService } from "@/lib/services/contacts.client";
 import type { ContactsSyncState } from "@/lib/soko-bot/connect-prompt";
 import { cn } from "@/lib/utils";
 import { AddContactDialog } from "./add-contact-dialog";
+import { CompanyHeader } from "./company-header";
 import { ContactListDialog } from "./contact-list-dialog";
 import { ContactPanel } from "./contact-panel";
 import { ContactsEmptyState } from "./contacts-empty-state";
@@ -433,6 +434,13 @@ export function ContactsWorkspace({
         ) : null}
         {viewList?.kind === "manual" ? (
           <ListSuggestions key={viewList.id} list={viewList} />
+        ) : null}
+        {company ? (
+          <CompanyHeader
+            key={company}
+            name={company}
+            onOpenContact={(id) => void setOpenId(id)}
+          />
         ) : null}
         <div className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 overflow-hidden")}>

@@ -395,3 +395,69 @@ export const contactWebEnrichmentSchema = z
 export const contactSuggestionIdsSchema = z
   .object({ ids: z.array(z.uuid()).min(1).max(100) })
   .openapi("ContactSuggestionIds");
+
+export const contactCompanySchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    domain: z.string().nullable(),
+    website: z.string().nullable(),
+    description: z.string().nullable(),
+    industry: z.string().nullable(),
+    size: z.string().nullable(),
+    headquarters: z.string().nullable(),
+    linkedinUrl: z.string().nullable(),
+    whyItMatters: z.string().nullable(),
+    enrichedAt: dateTimeSchema.nullable(),
+    version: z.int(),
+    people: z.int(),
+    teammates: z
+      .int()
+      .openapi({ description: "Teammates who know someone there." }),
+    interactions: z.int(),
+    lastContactAt: dateTimeSchema.nullable(),
+    warmth: z.enum(["warm", "cooling", "cold", "none"]).openapi({
+      description:
+        "warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.",
+    }),
+    strongestStage: z.union([contactStageSchema, z.null()]),
+  })
+  .openapi("ContactCompany");
+
+export const contactCompanyDetailSchema = z
+  .object({
+    company: contactCompanySchema,
+    people: z.array(contactSchema),
+    morePeople: z.int(),
+    teammates: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        people: z.int(),
+        lastInteractionAt: dateTimeSchema,
+      }),
+    ),
+    nextSteps: z.array(
+      z.object({
+        contactId: z.uuid(),
+        name: z.string(),
+        nextStep: z.string().nullable(),
+        followUpAt: z.string().nullable(),
+      }),
+    ),
+    recentInteractions: z.array(
+      z.object({
+        id: z.uuid(),
+        contactId: z.uuid(),
+        occurredAt: dateTimeSchema,
+        channel: z.string(),
+        direction: z.string().nullable(),
+        summary: z.string(),
+        user: z.union([
+          z.object({ id: z.string(), name: z.string() }),
+          z.null(),
+        ]),
+      }),
+    ),
+  })
+  .openapi("ContactCompanyDetail");

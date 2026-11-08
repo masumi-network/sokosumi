@@ -99,6 +99,7 @@ function service(limits: Record<string, number> = {}) {
       pagesPerIntegration: 20,
       enrichmentWorkspaces: 0,
       embeddingsPerWorkspace: 0,
+      companiesPerWorkspace: 0,
       ...limits,
     },
   });
