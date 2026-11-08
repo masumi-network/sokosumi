@@ -8,6 +8,8 @@ import {
   getContactsById,
   getContactsByIdActivity,
   getContactsByIdInteractions,
+  getContactsCompanies,
+  getContactsCompaniesByCompanyId,
   getContactsDuplicates,
   getContactsExportCsv,
   getContactsMap,
@@ -15,12 +17,14 @@ import {
   getOrganizationsByIdMembers,
   type PatchContactListsByIdData,
   type PatchContactsByIdData,
+  type PatchContactsCompaniesByCompanyIdData,
   type PostContactListsData,
   type PostContactsByIdChannelsData,
   type PostContactsData,
   type PostContactsImportData,
   patchContactListsById,
   patchContactsById,
+  patchContactsCompaniesByCompanyId,
   postContactLists,
   postContactListsByIdFind,
   postContactListsByIdMembers,
@@ -62,6 +66,36 @@ export const contactsService = {
       await getContactsOrganizations({
         ...options(),
         query: { limit: 50, ...(search ? { search } : {}) },
+      })
+    ).data.data;
+  },
+  /** Exactly the company this name belongs to, as the `company` filter reads it. */
+  async companyNamed(name: string) {
+    const companies = (
+      await getContactsCompanies({
+        ...options(),
+        query: { name, limit: 2 },
+      })
+    ).data.data;
+    return companies.length === 1 ? (companies[0] ?? null) : null;
+  },
+  async company(companyId: string) {
+    return (
+      await getContactsCompaniesByCompanyId({
+        ...options(),
+        path: { companyId },
+      })
+    ).data.data;
+  },
+  async updateCompany(
+    companyId: string,
+    body: NonNullable<PatchContactsCompaniesByCompanyIdData["body"]>,
+  ) {
+    return (
+      await patchContactsCompaniesByCompanyId({
+        ...options(),
+        path: { companyId },
+        body,
       })
     ).data.data;
   },

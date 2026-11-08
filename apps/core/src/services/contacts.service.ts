@@ -106,7 +106,7 @@ export async function inContactTransaction<T>(
   }
 }
 
-const CONTACT_INCLUDE = {
+export const CONTACT_INCLUDE = {
   channels: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
   listMemberships: {
     select: {
@@ -1493,7 +1493,7 @@ const SHARED_MAIL_DOMAIN =
  * use the same name are one company. Names compare as lowercase letters and
  * digits only. Everyone else is grouped by name.
  */
-function contactCompaniesCte(workspaceId: string) {
+export function contactCompaniesCte(workspaceId: string) {
   return PrismaRaw.sql`
     WITH live AS (
       SELECT c.id, c.organization AS raw,
@@ -1572,7 +1572,7 @@ export async function listContactOrganizations(
 }
 
 /** The live contacts at the company `name` belongs to, by any spelling. */
-async function contactCompanyMemberIds(
+export async function contactCompanyMemberIds(
   workspaceId: string,
   name: string,
 ): Promise<string[]> {
@@ -1582,6 +1582,11 @@ async function contactCompanyMemberIds(
     WHERE key IN (
       SELECT key FROM assigned
       WHERE org = regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g')
+      UNION
+      -- A company someone renamed is found by its new name too.
+      SELECT cc.key FROM contact_company cc
+      WHERE cc."workspaceId" = ${workspaceId}::uuid
+        AND lower(cc.name) = lower(btrim(${name}))
     )
   `;
   return rows.map((row) => row.id);

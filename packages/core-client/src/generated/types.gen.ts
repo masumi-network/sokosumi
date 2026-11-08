@@ -4278,6 +4278,63 @@ export type ContactOrganization = {
     count: number;
 };
 
+export type ContactCompany = {
+    id: string;
+    name: string;
+    domain: string | null;
+    website: string | null;
+    description: string | null;
+    industry: string | null;
+    size: string | null;
+    headquarters: string | null;
+    linkedinUrl: string | null;
+    whyItMatters: string | null;
+    enrichedAt: Date | null;
+    version: number;
+    people: number;
+    /**
+     * Teammates who know someone there.
+     */
+    teammates: number;
+    interactions: number;
+    lastContactAt: Date | null;
+    /**
+     * warm: in touch within 30 days; cooling: within 180; cold: longer; none: never.
+     */
+    warmth: 'warm' | 'cooling' | 'cold' | 'none';
+    strongestStage: ContactStage | null;
+};
+
+export type ContactCompanyDetail = {
+    company: ContactCompany;
+    people: Array<Contact>;
+    morePeople: number;
+    teammates: Array<{
+        id: string;
+        name: string;
+        people: number;
+        lastInteractionAt: Date;
+    }>;
+    nextSteps: Array<{
+        contactId: string;
+        name: string;
+        nextStep: string | null;
+        followUpAt: string | null;
+    }>;
+    recentInteractions: Array<{
+        id: string;
+        contactId: string;
+        occurredAt: Date;
+        channel: string;
+        direction: string | null;
+        summary: string;
+        user: {
+            id: string;
+            name: string;
+        } | null;
+    }>;
+};
+
 export type ContactDetail = Contact & {
     recentInteractions: Array<ContactInteraction>;
     mergeSuggestions: Array<ContactMergeSuggestion>;
@@ -33506,6 +33563,367 @@ export type GetContactsOrganizationsResponses = {
 };
 
 export type GetContactsOrganizationsResponse = GetContactsOrganizationsResponses[keyof GetContactsOrganizationsResponses];
+
+export type GetContactsCompaniesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        search?: string;
+        /**
+         * Exactly the company this name belongs to, as the contact list's `company` filter reads it.
+         */
+        name?: string;
+        industry?: string;
+        minPeople?: number;
+        sort?: 'people' | 'lastContact' | 'name';
+        offset?: number | null;
+        limit?: number;
+    };
+    url: '/contacts/companies';
+};
+
+export type GetContactsCompaniesErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsCompaniesError = GetContactsCompaniesErrors[keyof GetContactsCompaniesErrors];
+
+export type GetContactsCompaniesResponses = {
+    /**
+     * Companies
+     */
+    200: {
+        data: Array<ContactCompany>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsCompaniesResponse = GetContactsCompaniesResponses[keyof GetContactsCompaniesResponses];
+
+export type GetContactsCompaniesByCompanyIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        companyId: string;
+    };
+    query?: never;
+    url: '/contacts/companies/{companyId}';
+};
+
+export type GetContactsCompaniesByCompanyIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Company not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetContactsCompaniesByCompanyIdError = GetContactsCompaniesByCompanyIdErrors[keyof GetContactsCompaniesByCompanyIdErrors];
+
+export type GetContactsCompaniesByCompanyIdResponses = {
+    /**
+     * Company
+     */
+    200: {
+        data: ContactCompanyDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetContactsCompaniesByCompanyIdResponse = GetContactsCompaniesByCompanyIdResponses[keyof GetContactsCompaniesByCompanyIdResponses];
+
+export type PatchContactsCompaniesByCompanyIdData = {
+    body?: {
+        version: number;
+        name?: string;
+        website?: string | null;
+        description?: string | null;
+        industry?: string | null;
+        size?: string | null;
+        headquarters?: string | null;
+        linkedinUrl?: string | null;
+        whyItMatters?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        companyId: string;
+    };
+    query?: never;
+    url: '/contacts/companies/{companyId}';
+};
+
+export type PatchContactsCompaniesByCompanyIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Company not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Version conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid company
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchContactsCompaniesByCompanyIdError = PatchContactsCompaniesByCompanyIdErrors[keyof PatchContactsCompaniesByCompanyIdErrors];
+
+export type PatchContactsCompaniesByCompanyIdResponses = {
+    /**
+     * Company updated
+     */
+    200: {
+        data: ContactCompany;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchContactsCompaniesByCompanyIdResponse = PatchContactsCompaniesByCompanyIdResponses[keyof PatchContactsCompaniesByCompanyIdResponses];
 
 export type GetContactsByIdData = {
     body?: never;

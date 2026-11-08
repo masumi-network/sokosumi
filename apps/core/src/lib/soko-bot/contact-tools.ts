@@ -6,6 +6,11 @@ import {
 import { unprocessableEntity } from "@/helpers/error";
 import { breakDownContacts } from "@/services/contact-breakdown.service";
 import {
+  getCompany,
+  listCompanies,
+  updateCompanyFacts,
+} from "@/services/contact-companies.service";
+import {
   createContactList,
   deleteContactList,
   listContactLists,
@@ -37,6 +42,8 @@ export const CONTACT_READ_CAPABILITIES = [
   "get_contact",
   "list_contact_lists",
   "find_contact_duplicates",
+  "search_companies",
+  "get_company",
 ] as const satisfies readonly SokoBotCapability[];
 
 export const CONTACT_WRITE_CAPABILITIES = [
@@ -45,6 +52,7 @@ export const CONTACT_WRITE_CAPABILITIES = [
   "log_contact_interaction",
   "merge_contacts",
   "manage_contact_lists",
+  "update_company",
 ] as const satisfies readonly SokoBotCapability[];
 
 type ContactCapability =
@@ -91,10 +99,42 @@ export async function runContactTool(
     });
 
   switch (capability) {
+    case "search_companies": {
+      const page = await listCompanies(
+        actor,
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.search_companies.parse(rawInput),
+      );
+      return { companies: page.items, total: page.total };
+    }
+    case "get_company": {
+      const detail = await getCompany(
+        actor,
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.get_company.parse(rawInput).companyId,
+      );
+      return {
+        ...detail,
+        people: detail.people.map((person) =>
+          compactContact(person, new Set()),
+        ),
+      };
+    }
+    case "update_company": {
+      const { companyId, ...input } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.update_company.parse(rawInput);
+      await write(
+        async (tx) => {
+          await updateCompanyFacts(tx, actor, companyId, input);
+          return { companyId, changed: Object.keys(input) };
+        },
+        () => companyId,
+      );
+      return (await getCompany(actor, companyId)).company;
+    }
     case "search_contacts": {
       const {
         query,
         mode,
+        company,
         listId,
         archived,
         sort,
@@ -108,6 +148,7 @@ export async function runContactTool(
         filter,
         query,
         mode,
+        company,
         listId,
         archived,
         sort,
@@ -123,12 +164,13 @@ export async function runContactTool(
       };
     }
     case "count_contacts": {
-      const { query, mode, listId, by, top, ...filter } =
+      const { query, mode, company, listId, by, top, ...filter } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.count_contacts.parse(rawInput);
       return breakDownContacts(actor, {
         filter,
         query,
         mode,
+        company,
         listId,
         by,
         top,

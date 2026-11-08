@@ -16,6 +16,7 @@ export const CONTACTS_KEY = ["contacts"] as const;
 export const CONTACT_LISTS_KEY = ["contact-lists"] as const;
 export const CONTACT_ORGANIZATIONS_KEY = ["contact-organizations"] as const;
 export const CONTACT_MAP_KEY = ["contact-map"] as const;
+export const CONTACT_COMPANY_KEY = ["contact-company"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -68,6 +69,18 @@ export function useContactOrganizations(search: string) {
     queryKey: [...CONTACT_ORGANIZATIONS_KEY, search],
     queryFn: () => contactsService.organizations(search || undefined),
     placeholderData: (previous) => previous,
+  });
+}
+
+/** The company `name` belongs to, in full: facts, people, teammates, touchpoints. */
+export function useContactCompany(name: string | null) {
+  return useQuery({
+    enabled: !!name,
+    queryKey: [...CONTACT_COMPANY_KEY, name],
+    queryFn: async () => {
+      const company = await contactsService.companyNamed(name as string);
+      return company ? contactsService.company(company.id) : null;
+    },
   });
 }
 
@@ -133,6 +146,7 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_ORGANIZATIONS_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY }),
+    cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,
