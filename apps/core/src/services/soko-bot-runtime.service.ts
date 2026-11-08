@@ -616,6 +616,26 @@ async function onlyEventTask(
   );
 }
 
+const SVG_MIME_TYPE = "image/svg+xml";
+
+/**
+ * Why an SVG the bot wrote may not be stored, or null when it is plain
+ * markup: no scripts, event handlers, embedded HTML or outside resources.
+ */
+export function unsafeSvgReason(content: string): string | null {
+  if (!/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(content))
+    return "An SVG must start with an <svg> element";
+  if (/<\s*(script|foreignObject|iframe|object|embed)\b/i.test(content))
+    return "An SVG may not contain scripts or embedded HTML";
+  if (/\son[a-z]+\s*=/i.test(content))
+    return "An SVG may not contain event handlers";
+  if (/(href|src)\s*=\s*["']?\s*(javascript:|https?:|\/\/)/i.test(content))
+    return "An SVG may not link outside resources; draw everything inline";
+  if (/url\(\s*["']?\s*(javascript:|https?:|\/\/)/i.test(content))
+    return "An SVG may not load outside resources; draw everything inline";
+  return null;
+}
+
 function isTextMimeType(mimeType: string | null): boolean {
   return (
     !!mimeType &&
@@ -3290,10 +3310,14 @@ export class SokoBotRuntimeService {
       ? drive.pathnameIn(folder, input.filename)
       : drive.pathname(input.filename);
     const contentType = input.contentType ?? "text/markdown";
-    // Text only: this tool writes what the model composed, never binary.
-    if (!isTextMimeType(contentType)) {
+    // Text only: this tool writes what the model composed, never binary. An
+    // SVG is text too: a graphic the bot drew, checked to be markup only.
+    if (contentType === SVG_MIME_TYPE) {
+      const unsafe = unsafeSvgReason(input.content);
+      if (unsafe) throw new SokoBotRefusedUnsentError(unsafe);
+    } else if (!isTextMimeType(contentType)) {
       throw new SokoBotRefusedUnsentError(
-        "Only text files can be written with upload_file",
+        "Only text files and SVG graphics can be written with upload_file",
       );
     }
     // A reused name must not silently replace an owner's file: replacing one
@@ -3306,7 +3330,14 @@ export class SokoBotRuntimeService {
         `A file named "${input.filename}" already exists. To replace its content, call upload_file again with overwrite: true; to keep it, choose another name.`,
       );
     }
-    if (existing && !isTextMimeType((await head(existing.url)).contentType)) {
+    const existingType = existing
+      ? (await head(existing.url)).contentType
+      : null;
+    if (
+      existing &&
+      !isTextMimeType(existingType) &&
+      !(existingType === SVG_MIME_TYPE && contentType === SVG_MIME_TYPE)
+    ) {
       throw new SokoBotRefusedUnsentError(
         `"${input.filename}" is not a text file, so upload_file cannot replace it; choose another name`,
       );
