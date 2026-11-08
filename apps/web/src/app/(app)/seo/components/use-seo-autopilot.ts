@@ -8,8 +8,9 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 const SEO_AUTOREFRESH_KEY = "seo-autorefresh";
 
 /**
- * Hands-off upkeep: stale Search Console data is refreshed once per browser
- * session for this Audit and page selection. It reuses the saved property and
+ * Hands-off upkeep: Search Console data that is stale, or that lacks query rows
+ * for over an hour, is refreshed once per browser session for this Audit and
+ * page selection. It reuses the saved property and
  * the owner's existing native connection; nothing else runs unattended.
  */
 export function useSeoAutopilot(
@@ -22,7 +23,7 @@ export function useSeoAutopilot(
     if (!brief.refresh || state === "refreshing") return;
     setState("refreshing");
     const saved = await model.refreshSearchStatistics(
-      brief.refresh.propertyId,
+      brief.refresh,
       background,
     );
     // A skipped upkeep run may try again the next time the Audit opens.

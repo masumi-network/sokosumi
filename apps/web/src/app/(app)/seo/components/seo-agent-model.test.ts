@@ -1,6 +1,10 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { SEO_SEARCH_STALE_MS, seoAgentBrief } from "./seo-agent-model";
+import {
+  SEO_QUERY_RETRY_MS,
+  SEO_SEARCH_STALE_MS,
+  seoAgentBrief,
+} from "./seo-agent-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
 const synced = new Date("2026-11-07T12:00:00Z");
@@ -54,7 +58,7 @@ function connected() {
 }
 
 describe("SEO agent brief", () => {
-  it("reports saved search numbers and asks to load query rows when none are stored", () => {
+  it("loads missing query rows after a retry delay, not right after a sync", () => {
     const brief = seoAgentBrief(connected(), synced);
     expect(brief.search).toMatchObject({
       clicks: 2,
@@ -65,7 +69,14 @@ describe("SEO agent brief", () => {
       kind: "refresh",
       reason: "no_queries",
     });
+    // A sync that just ran without query rows is not retried at once.
     expect(brief.autoRefresh).toBe(false);
+    expect(
+      seoAgentBrief(
+        connected(),
+        new Date(synced.getTime() + SEO_QUERY_RETRY_MS + 1),
+      ).autoRefresh,
+    ).toBe(true);
   });
 
   it("refreshes stale Search Console data automatically, but only when it may sync", () => {
@@ -74,9 +85,21 @@ describe("SEO agent brief", () => {
     const readOnly = connected();
     readOnly.availableActions.canSyncMetrics = false;
     expect(seoAgentBrief(readOnly, later).autoRefresh).toBe(false);
+    const withQueries = connected();
+    withQueries.searchQueries = {
+      observationId: crypto.randomUUID(),
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-28",
+      timeZone: "UTC",
+      observedAt: synced,
+      rowLimit: 250,
+      truncated: false,
+      rows: [],
+    };
     expect(
       seoAgentBrief(
-        connected(),
+        withQueries,
         new Date(synced.getTime() + SEO_SEARCH_STALE_MS),
       ).autoRefresh,
     ).toBe(false);

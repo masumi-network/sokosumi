@@ -4,6 +4,8 @@ import { latestSeoMeasurements } from "./seo-statistics-model";
 
 /** Saved Search Console data older than this is refreshed once when the Audit opens. */
 export const SEO_SEARCH_STALE_MS = 24 * 60 * 60 * 1000;
+/** A sync whose query read failed keeps its totals; wait this long before trying the rows again. */
+export const SEO_QUERY_RETRY_MS = 60 * 60 * 1000;
 export const SEO_AGENT_ACTION_LIMIT = 3;
 
 type Action = ProjectSeoWorkspace["actions"][number];
@@ -46,7 +48,9 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   const staleSearch = searchAge !== null && searchAge > SEO_SEARCH_STALE_MS;
   const canSync = workspace.availableActions.canSyncMetrics;
   const refresh =
-    canSync && searchSaved ? { propertyId: searchSaved.propertyId } : null;
+    canSync && searchSaved
+      ? { propertyId: searchSaved.propertyId, channel: searchSaved.channel }
+      : null;
   const steps: SeoAgentStep[] = [...fixes, ...opportunities]
     .slice(0, SEO_AGENT_ACTION_LIMIT)
     .map((action) => ({ kind: "action", action }));
@@ -91,7 +95,13 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
     openTasks,
     staleSearch,
     refresh,
-    autoRefresh: refresh !== null && staleSearch,
+    // Upkeep is a free read of the saved property: stale totals or missing query rows.
+    autoRefresh:
+      refresh !== null &&
+      (staleSearch ||
+        (!workspace.searchQueries &&
+          searchAge !== null &&
+          searchAge > SEO_QUERY_RETRY_MS)),
     steps,
   };
 }

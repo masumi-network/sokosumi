@@ -4,6 +4,7 @@ import type {
   ProjectSeoAction,
   ProjectSeoCompetitor,
   ProjectSeoKeyword,
+  ProjectSeoMetric,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
@@ -237,17 +238,21 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     });
   }
   /** Rerun the saved Search Console read for the current pages over the default rolling period. */
-  function refreshSearchStatistics(propertyId: string, background = false) {
+  function refreshSearchStatistics(
+    saved: Pick<ProjectSeoMetric, "propertyId" | "channel">,
+    background = false,
+  ) {
     const period = seoStatisticsPeriod(SEO_DEFAULT_STATISTICS_DAYS);
     return execute(
       {
         kind: "sync_statistics",
         body: {
           provider: "search_console",
-          propertyId,
+          propertyId: saved.propertyId,
           from: period.from,
           to: period.to,
-          channel: "organic",
+          // The saved traffic channel, so the refreshed rows show in the same view.
+          channel: saved.channel,
           ...(data.scope.id
             ? {
                 scopeId: data.scope.id,

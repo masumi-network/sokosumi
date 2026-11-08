@@ -41,7 +41,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
             variant="outline"
             loading={model.pending}
             onClick={() => {
-              void model.refreshSearchStatistics(saved.propertyId);
+              void model.refreshSearchStatistics(saved);
             }}
           >
             {t("queries.refresh")}
@@ -71,7 +71,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
               variant="outline"
               loading={model.pending}
               onClick={() => {
-                void model.refreshSearchStatistics(saved.propertyId);
+                void model.refreshSearchStatistics(saved);
               }}
             >
               {t("queries.refresh")}

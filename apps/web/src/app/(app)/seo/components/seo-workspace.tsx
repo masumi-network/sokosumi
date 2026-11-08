@@ -3,6 +3,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import {
   CalendarClock,
+  ChevronDown,
   Download,
   MessageSquare,
   MoreHorizontal,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import {
   seoLoadErrorStatus,
   seoLoadRecovery,
@@ -27,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { SeoActions } from "./seo-actions";
 import { SEO_AGENT_INPUT_ID } from "./seo-agent-home";
 import { SeoAnalysisDialog } from "./seo-analysis-dialog";
@@ -51,6 +54,10 @@ export function SeoWorkspace({
 }) {
   const t = useTranslations("App.Seo");
   const model = useSeoWorkspace(workspace);
+  // Phones show the agent first; pages and filters open on demand (always open from md up).
+  const [filtersOpen, setFiltersOpen] = useState(
+    Boolean(model.filters.from || model.filters.to),
+  );
   const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}:${model.keywordDraft?.keyword ?? ""}`;
   const editDialog =
     model.dialog === "page" ||
@@ -204,7 +211,36 @@ export function SeoWorkspace({
           ) : null}
         </div>
       </div>
-      <div className="space-y-3">
+      <Button
+        variant="outline"
+        size="sm"
+        className="md:hidden"
+        aria-expanded={filtersOpen}
+        aria-controls="seo-scope-filters"
+        onClick={() => setFiltersOpen((open) => !open)}
+      >
+        {t("scopeFilters")}
+        {model.filters.channel ? (
+          <span className="text-muted-foreground">
+            {t(
+              model.filters.channel === "organic"
+                ? "statistics.channelOrganic"
+                : "statistics.channelAll",
+            )}
+          </span>
+        ) : null}
+        <ChevronDown
+          className={cn(
+            "size-4 transition-transform",
+            filtersOpen && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </Button>
+      <div
+        id="seo-scope-filters"
+        className={cn("space-y-3 md:block", filtersOpen ? "block" : "hidden")}
+      >
         <SeoScopeBar model={model} />
         {model.data.scope.id && model.data.availableActions.canEdit ? (
           <Button
