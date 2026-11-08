@@ -5,7 +5,10 @@
  */
 import type { Prisma } from "@sokosumi/database";
 import { notFound, unprocessableEntity } from "@/helpers/error";
-import type { ContactActor } from "@/services/contacts.service";
+import {
+  type ContactActor,
+  rememberCompanyAliases,
+} from "@/services/contacts.service";
 
 /** More than this is a mistake or a job for a person: narrow the filter. */
 export const MAX_BULK_CONTACTS = 5_000;
@@ -140,6 +143,8 @@ export async function bulkUpdateContacts(
           });
       }
       if (changed.length > 0) {
+        if (archiving && change.archived)
+          await rememberCompanyAliases(tx, actor.workspaceId, changed);
         await tx.contact.updateMany({
           where: { id: { in: changed } },
           data: {

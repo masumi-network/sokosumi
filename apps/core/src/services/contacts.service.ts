@@ -750,6 +750,7 @@ export async function setContactArchived(
 ): Promise<ContactDto> {
   const contact = await requireWritableContact(tx, actor, id);
   if (Boolean(contact.archivedAt) !== archived) {
+    if (archived) await rememberCompanyAliases(tx, actor.workspaceId, [id]);
     await tx.contact.update({
       where: { id },
       data: {
@@ -1540,6 +1541,34 @@ const SHARED_MAIL_DOMAIN =
  * use the same name are one company. Names compare as lowercase letters and
  * digits only. Everyone else is grouped by name.
  */
+/**
+ * Before people are archived, adds what everyone at their companies writes
+ * to those companies' aliases: once the last of them is archived, a renamed
+ * company is found only by what it remembered.
+ */
+export async function rememberCompanyAliases(
+  tx: Tx,
+  workspaceId: string,
+  contactIds: readonly string[],
+): Promise<void> {
+  if (contactIds.length === 0) return;
+  await tx.$executeRaw`
+    ${contactCompaniesCte(workspaceId)}
+    UPDATE contact_company cc
+    SET aliases = ARRAY(SELECT DISTINCT unnest(cc.aliases || g.orgs) ORDER BY 1)
+    FROM (
+      SELECT key, array_agg(DISTINCT org) FILTER (WHERE org IS NOT NULL) AS orgs
+      FROM assigned
+      WHERE key IN (SELECT key FROM assigned WHERE id = ANY(${contactIds}::uuid[]))
+      GROUP BY key
+    ) g
+    WHERE cc."workspaceId" = ${workspaceId}::uuid
+      AND cc.key = g.key
+      AND g.orgs IS NOT NULL
+      AND NOT (g.orgs <@ cc.aliases)
+  `;
+}
+
 export function contactCompaniesCte(workspaceId: string) {
   return PrismaRaw.sql`
     WITH live AS (

@@ -21,6 +21,7 @@ import {
   contactCompanyMemberIds,
   inContactTransaction,
   logContactInteraction,
+  setContactArchived,
   upsertContact,
 } from "./contacts.service";
 
@@ -484,6 +485,32 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         includeArchived: true,
       }),
     ).toEqual([ivo.id]);
+  });
+
+  it("remembers a spelling written after the company was listed", async () => {
+    const ada = await create({
+      name: "Ada Vale",
+      organization: "Valeworks",
+      channels: [{ type: "EMAIL", value: "ada@valeworks.io" }],
+    });
+    const [vale] = (await listCompanies(actor, { name: "Valeworks", limit: 5 }))
+      .items;
+    await prisma.contact.update({
+      where: { id: ada.id },
+      data: { organization: "Vale Labs" },
+    });
+    await updateCompany(actor, vale?.id ?? "", {
+      version: vale?.version ?? 1,
+      name: "Vale Group",
+    });
+    await inContactTransaction((tx) =>
+      setContactArchived(tx, actor, ada.id, true),
+    );
+    expect(
+      await contactCompanyMemberIds(workspaceId, "Vale Group", {
+        includeArchived: true,
+      }),
+    ).toEqual([ada.id]);
   });
 
   it("stops waiting on a company nobody works at any more", async () => {
