@@ -10667,7 +10667,7 @@
         "keyword": "Palabra clave",
         "market": "Mercado",
         "volume": "Volumen de búsqueda",
-        "position": "Posición observada",
+        "position": "Posición en Google",
         "intent": "Intención",
         "priority": "Prioridad",
         "saved": "Seguida",
@@ -10686,7 +10686,7 @@
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
         "searchConsoleNote": "Promedio de Search Console, todos los países",
-        "notListed": "No está en las búsquedas que informó Google",
+        "notListed": "Google no informó impresiones",
         "notInKeptRows": "No está entre las primeras {count} filas guardadas"
       },
       "competitors": {
@@ -10783,7 +10783,7 @@
         "scopeChanged": "Selección de páginas cambiada",
         "pageChanged": "Cambio de página registrado",
         "savedAt": "Guardado",
-        "checkSummary": "{checked} comprobaciones realizadas",
+        "checkSummary": "{checked} reglas comprobadas",
         "previousCheck": "Repite una comprobación anterior",
         "sourceDetails": "Detalles del evento",
         "resultsSaved": "Resultados guardados",
@@ -11047,8 +11047,7 @@
       "agent": {
         "ask": "Preguntar al agente SEO",
         "title": "Agente SEO",
-        "subtitle": "Lee tus comprobaciones y estadísticas guardadas, propone los siguientes pasos y mantiene Search Console al día. Tú apruebas cada tarea.",
-        "lastCheck": "{checked, plural, one {# comprobación} other {# comprobaciones}} en {pages, plural, one {# página} other {# páginas}}.",
+        "lastCheck": "{checked, plural, one {# regla comprobada} other {# reglas comprobadas}} en {pages, plural, one {# página} other {# páginas}}.",
         "refreshing": "El agente está actualizando Search Console.",
         "refreshFailed": "No se pudo actualizar Search Console. Inténtalo de nuevo en Siguientes pasos.",
         "nextTitle": "Siguientes pasos",
@@ -11066,7 +11065,7 @@
             "available": "Aún no se ha investigado ningún competidor. Una comprobación con datos de búsqueda de pago encuentra las páginas que posicionan para tus palabras clave.",
             "unavailable": "Aún no se ha investigado ningún competidor. Los datos de búsqueda de pago están desactivados en este espacio de trabajo, así que el agente no puede encontrarlos. Añade los competidores que conozcas."
           },
-          "keyword": "“{keyword}” no está en las búsquedas que Google informó para estas páginas. Pregunta al agente cómo orientarlas.",
+          "keyword": "Google no informó impresiones para “{keyword}” en estas páginas. Pregunta al agente cómo orientarlas.",
           "pages": "Esta auditoría comprueba 1 página. Añade tus otras páginas importantes para encontrar más problemas y búsquedas."
         },
         "prompts": {
@@ -11083,7 +11082,6 @@
           "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
           "fixes": "{count, plural, one {# corrección pendiente} other {# correcciones pendientes}}"
         },
-        "checkScope": "Esto cubre solo esas comprobaciones y páginas, no todo el sitio.",
         "lastCheckOn": "Última comprobación",
         "askHow": "Preguntar al agente"
       },

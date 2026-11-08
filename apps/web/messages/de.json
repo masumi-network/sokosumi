@@ -10667,7 +10667,7 @@
         "keyword": "Keyword",
         "market": "Markt",
         "volume": "Suchvolumen",
-        "position": "Beobachtete Position",
+        "position": "Google-Position",
         "intent": "Suchabsicht",
         "priority": "Priorität",
         "saved": "Verfolgt",
@@ -10686,7 +10686,7 @@
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
         "searchConsoleNote": "Search-Console-Durchschnitt, alle Länder",
-        "notListed": "Nicht in den von Google gemeldeten Suchanfragen",
+        "notListed": "Keine Impressionen von Google gemeldet",
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen"
       },
       "competitors": {
@@ -10783,7 +10783,7 @@
         "scopeChanged": "Seitenauswahl geändert",
         "pageChanged": "Seitenänderung erfasst",
         "savedAt": "Gespeichert",
-        "checkSummary": "{checked} Prüfungen ausgeführt",
+        "checkSummary": "{checked} Regeln geprüft",
         "previousCheck": "Wiederholung einer früheren Prüfung",
         "sourceDetails": "Ereignisdetails",
         "resultsSaved": "Ergebnisse gespeichert",
@@ -11047,8 +11047,7 @@
       "agent": {
         "ask": "SEO-Agent fragen",
         "title": "SEO-Agent",
-        "subtitle": "Er liest deine gespeicherten Prüfungen und Statistiken, schlägt nächste Schritte vor und hält die Search Console aktuell. Jede Aufgabe gibst du frei.",
-        "lastCheck": "{checked, plural, one {# Prüfung} other {# Prüfungen}} auf {pages, plural, one {# Seite} other {# Seiten}}.",
+        "lastCheck": "{checked, plural, one {# Regel} other {# Regeln}} auf {pages, plural, one {# Seite} other {# Seiten}} geprüft.",
         "refreshing": "Der Agent aktualisiert die Search Console.",
         "refreshFailed": "Die Search Console konnte nicht aktualisiert werden. Versuche es unter Nächste Schritte erneut.",
         "nextTitle": "Nächste Schritte",
@@ -11066,7 +11065,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "„{keyword}“ ist nicht in den Suchanfragen, die Google für diese Seiten meldet. Frag den Agenten, wie du darauf zielst.",
+          "keyword": "Google meldet für „{keyword}“ keine Impressionen auf diesen Seiten. Frag den Agenten, wie du darauf zielst.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {
@@ -11083,7 +11082,6 @@
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
           "fixes": "{count, plural, one {# Korrektur offen} other {# Korrekturen offen}}"
         },
-        "checkScope": "Das gilt nur für diese Prüfungen und Seiten, nicht für die ganze Website.",
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Agent fragen"
       },

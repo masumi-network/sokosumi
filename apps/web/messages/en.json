@@ -10667,7 +10667,7 @@
         "keyword": "Keyword",
         "market": "Market",
         "volume": "Search volume",
-        "position": "Observed position",
+        "position": "Google position",
         "intent": "Intent",
         "priority": "Priority",
         "saved": "Tracked",
@@ -10686,7 +10686,7 @@
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
         "searchConsoleNote": "Search Console average, all countries",
-        "notListed": "Not in the queries Google reported",
+        "notListed": "No impressions reported by Google",
         "notInKeptRows": "Not in the first {count} rows kept"
       },
       "competitors": {
@@ -10783,7 +10783,7 @@
         "scopeChanged": "Page selection changed",
         "pageChanged": "Page change recorded",
         "savedAt": "Saved",
-        "checkSummary": "{checked} checks run",
+        "checkSummary": "{checked} rules checked",
         "previousCheck": "Repeat of an earlier check",
         "sourceDetails": "Event details",
         "resultsSaved": "Results saved",
@@ -11047,8 +11047,7 @@
       "agent": {
         "ask": "Ask the SEO agent",
         "title": "SEO agent",
-        "subtitle": "It reads your saved checks and statistics, proposes next steps and keeps Search Console current. You approve every Task.",
-        "lastCheck": "{checked, plural, one {# check} other {# checks}} on {pages, plural, one {# page} other {# pages}}.",
+        "lastCheck": "{checked, plural, one {# rule} other {# rules}} checked on {pages, plural, one {# page} other {# pages}}.",
         "refreshing": "The agent is refreshing Search Console.",
         "refreshFailed": "Search Console could not be refreshed. Try again from Next steps.",
         "nextTitle": "Next steps",
@@ -11066,7 +11065,7 @@
             "available": "No competitor has been researched yet. A check with paid search data can find the pages that rank for your keywords.",
             "unavailable": "No competitor has been researched yet. Paid search data is off for this workspace, so the agent cannot find them. Add competitors you know."
           },
-          "keyword": "“{keyword}” is not in the queries Google reported for these pages. Ask the agent how to target it.",
+          "keyword": "Google reported no impressions for “{keyword}” on these pages. Ask the agent how to target it.",
           "pages": "This audit checks 1 page. Add your other important pages to find more issues and searches."
         },
         "prompts": {
@@ -11083,7 +11082,6 @@
           "noCheck": "No check yet. Run one to find issues.",
           "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}"
         },
-        "checkScope": "This covers only those checks and pages, not the whole site.",
         "lastCheckOn": "Last check",
         "askHow": "Ask the agent"
       },

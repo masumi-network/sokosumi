@@ -220,14 +220,9 @@ function SeoAgentPanel({
       <div className="min-w-0 space-y-3">
         <div className="flex items-start gap-3 px-2 pt-1">
           <Bot className="mt-0.5 size-5 shrink-0" aria-hidden />
-          <div>
-            <h2 id="seo-agent-title" className="text-base font-semibold">
-              {t("agent.title")}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {t("agent.subtitle")}
-            </p>
-          </div>
+          <h2 id="seo-agent-title" className="text-base font-semibold">
+            {t("agent.title")}
+          </h2>
         </div>
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-2 p-4")}>
           <p className="text-lg font-semibold" data-testid="seo-agent-verdict">
@@ -251,9 +246,6 @@ function SeoAgentPanel({
                 checked: brief.lastCheck.checked,
                 pages: brief.lastCheck.pages,
               })}
-              {brief.emptyState === "no_fixes" && lastCheckMeasured
-                ? ` ${t("agent.checkScope")}`
-                : null}
             </p>
           ) : null}
           {autopilot.state === "refreshing" ? (

@@ -254,9 +254,7 @@ describe("SEO workspace integration", () => {
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       "No issues found in the last check",
     );
-    expect(
-      screen.getByText(/This covers only those checks and pages/),
-    ).toBeVisible();
+    expect(screen.getByText(/rules? checked on 1 page\./)).toBeVisible();
     await user.click(
       screen.getAllByRole("button", { name: "Set up statistics" })[0],
     );
