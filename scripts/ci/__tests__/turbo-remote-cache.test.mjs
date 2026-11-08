@@ -56,6 +56,8 @@ const PASSTHROUGH_ENV = [
   "TURBO_TOKEN",
   "TURBO_TEAM",
   "ENABLE_EXPERIMENTAL_COREPACK",
+  // Setup's ffmpeg binary (or its stub): a path that changes per run.
+  "FFMPEG_BIN",
 ];
 
 async function readRepoFile(...segments) {
