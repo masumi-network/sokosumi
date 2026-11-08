@@ -6575,8 +6575,14 @@ export class SokoBotRuntimeService {
       sokoBotId: authorized.turn.sokoBotId,
     };
     return runContactTool(capability, input.input, actor, {
-      authorize: (tx) =>
-        this.requireMutationAuthority(tx, authorized, false, capability),
+      authorize: (tx, targets) =>
+        this.requireMutationAuthority(
+          tx,
+          authorized,
+          false,
+          capability,
+          targets,
+        ),
       commit: (tx, targetId, result) =>
         commitActionReceipt(tx, {
           turnId: authorized.turn.id,
@@ -6603,6 +6609,7 @@ export class SokoBotRuntimeService {
       query,
       mode,
       company,
+      projectId,
       listId,
       archived,
       ...filter
@@ -6626,6 +6633,7 @@ export class SokoBotRuntimeService {
         query,
         mode,
         company,
+        projectId,
         listId,
         archived,
         sort: "lastContactAt",
@@ -8012,6 +8020,7 @@ export class SokoBotRuntimeService {
       case "update_contact":
       case "log_contact_interaction":
       case "merge_contacts":
+      case "link_contact_to_project":
       case "manage_contact_lists":
         return this.executeContactTool(input, authorized);
       case "find_people":

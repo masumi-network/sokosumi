@@ -25,9 +25,11 @@ import {
 import {
   addContactChannel,
   type ContactActor,
+  contactProjects,
   findDuplicateContacts,
   getContactDetail,
   inContactTransaction,
+  linkContactProject,
   listContacts,
   logContactInteraction,
   mergeContacts,
@@ -56,6 +58,7 @@ export const CONTACT_WRITE_CAPABILITIES = [
   "update_contact",
   "log_contact_interaction",
   "merge_contacts",
+  "link_contact_to_project",
   "manage_contact_lists",
   "update_company",
   "bulk_update_contacts",
@@ -75,8 +78,11 @@ export function isContactCapability(
 }
 
 export interface ContactWriteHooks {
-  /** Turn still writable and the capability granted; in the write's transaction. */
-  authorize(tx: Tx): Promise<unknown>;
+  /**
+   * Turn still writable and the capability granted, and a project bot kept
+   * to its Project; in the write's transaction.
+   */
+  authorize(tx: Tx, targets?: { projectIds: string[] }): Promise<unknown>;
   /** The action receipt, committed with the write. */
   commit(tx: Tx, targetId: string, result: unknown): Promise<unknown>;
 }
@@ -96,9 +102,10 @@ export async function runContactTool(
   const write = <T>(
     change: (tx: Tx) => Promise<T>,
     target: (result: T) => string,
+    targets?: { projectIds: string[] },
   ) =>
     inContactTransaction(async (tx) => {
-      await hooks.authorize(tx);
+      await hooks.authorize(tx, targets);
       const result = await change(tx);
       await hooks.commit(tx, target(result), result);
       return result;
@@ -112,6 +119,7 @@ export async function runContactTool(
         query,
         mode,
         company,
+        projectId,
         listId,
         archived,
         ...filter
@@ -121,6 +129,7 @@ export async function runContactTool(
         query,
         mode,
         company,
+        projectId,
         listId,
         archived,
       });
@@ -179,6 +188,7 @@ export async function runContactTool(
         query,
         mode,
         company,
+        projectId,
         listId,
         archived,
         sort,
@@ -193,6 +203,7 @@ export async function runContactTool(
         query,
         mode,
         company,
+        projectId,
         listId,
         archived,
         sort,
@@ -208,23 +219,27 @@ export async function runContactTool(
       };
     }
     case "count_contacts": {
-      const { query, mode, company, listId, by, top, ...filter } =
+      const { query, mode, company, projectId, listId, by, top, ...filter } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.count_contacts.parse(rawInput);
       return breakDownContacts(actor, {
         filter,
         query,
         mode,
         company,
+        projectId,
         listId,
         by,
         top,
       });
     }
-    case "get_contact":
-      return getContactDetail(
-        actor,
-        SOKO_BOT_TOOL_INPUT_SCHEMAS.get_contact.parse(rawInput).contactId,
-      );
+    case "get_contact": {
+      const { contactId } =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.get_contact.parse(rawInput);
+      return {
+        ...(await getContactDetail(actor, contactId)),
+        projects: await contactProjects(actor, contactId),
+      };
+    }
     case "list_contact_lists":
       return { lists: await listContactLists(actor) };
     case "find_contact_duplicates":
@@ -295,6 +310,15 @@ export async function runContactTool(
       return write(
         (tx) => mergeContacts(tx, actor, winnerId, loserIds),
         (contact) => contact.id,
+      );
+    }
+    case "link_contact_to_project": {
+      const input =
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.link_contact_to_project.parse(rawInput);
+      return write(
+        (tx) => linkContactProject(tx, actor, input),
+        (result) => result.contact.id,
+        { projectIds: [input.projectId] },
       );
     }
     case "manage_contact_lists":

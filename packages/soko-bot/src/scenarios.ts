@@ -927,6 +927,7 @@ const MUTATING_TOOLS = new Set([
   "update_contact",
   "log_contact_interaction",
   "merge_contacts",
+  "link_contact_to_project",
   "manage_contact_lists",
   "find_people",
   "enrich_contact",

@@ -504,6 +504,8 @@ model Project {
 
   marketingStrategies MarketingStrategy[]
 
+  contacts ContactProject[]
+
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
   adMarketProfile   ProjectAdMarketProfile?

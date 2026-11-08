@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   setContactArchived: vi.fn(),
   logContactInteraction: vi.fn(),
   mergeContacts: vi.fn(),
+  linkContactProject: vi.fn(),
   createContactList: vi.fn(),
   updateContactListMembers: vi.fn(),
 }));
@@ -35,6 +36,7 @@ vi.mock("@/services/contacts.service", async (importOriginal) => ({
   setContactArchived: mocks.setContactArchived,
   logContactInteraction: mocks.logContactInteraction,
   mergeContacts: mocks.mergeContacts,
+  linkContactProject: mocks.linkContactProject,
 }));
 vi.mock("@/services/contact-lists.service", async (importOriginal) => ({
   ...(await importOriginal<
@@ -181,6 +183,40 @@ describe("Soko Bot contacts tools", () => {
     expect(mocks.receipt).not.toHaveBeenCalled();
   });
 
+  it("keeps a project bot's link to a Project inside its scope", async () => {
+    const projectId = randomUUID();
+    mocks.linkContactProject.mockResolvedValue({
+      contact: { id: contactId, name: "Nina Keller" },
+      projectId,
+      project: "Seed raise",
+      role: "investor",
+      linked: true,
+    });
+    const { run, authority } = runtime();
+    await run("link_contact_to_project", {
+      contactId,
+      projectId,
+      role: "investor",
+    });
+    expect(authority).toHaveBeenCalledWith(
+      tx,
+      authorized,
+      false,
+      "link_contact_to_project",
+      { projectIds: [projectId] },
+    );
+    expect(mocks.linkContactProject).toHaveBeenCalledWith(tx, actor, {
+      contactId,
+      projectId,
+      role: "investor",
+    });
+    expect(mocks.receipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ targetId: contactId }),
+      }),
+    );
+  });
+
   it("refuses a turn whose member lost the workspace", async () => {
     mocks.workspace.mockResolvedValue(null);
     const { run } = runtime();
@@ -207,6 +243,7 @@ describe("Soko Bot contacts tools", () => {
       authorized,
       false,
       "upsert_contact",
+      undefined,
     );
     expect(mocks.upsertContact).toHaveBeenCalledWith(
       tx,

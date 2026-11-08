@@ -1035,6 +1035,20 @@ export async function mergeContacts(
   await tx.contactListMember.deleteMany({
     where: { contactId: { in: loserIdList } },
   });
+  // The kept contact takes their Projects; a Project it has keeps its role.
+  const projects = await tx.contactProject.findMany({
+    where: { contactId: { in: loserIdList } },
+  });
+  await tx.contactProject.createMany({
+    data: projects.map(({ id: _id, updatedAt: _updatedAt, ...link }) => ({
+      ...link,
+      contactId: winnerId,
+    })),
+    skipDuplicates: true,
+  });
+  await tx.contactProject.deleteMany({
+    where: { contactId: { in: loserIdList } },
+  });
   await tx.contactActivity.updateMany({
     where: { contactId: { in: loserIdList } },
     data: { contactId: winnerId },
@@ -1323,6 +1337,8 @@ export interface ListContactsOptions {
   listId?: string;
   /** People at the company this name belongs to, by any spelling. */
   company?: string;
+  /** People linked to this Project (`linkContactProject`). */
+  projectId?: string;
   archived?: boolean;
   sort: ContactSortField;
   direction?: "asc" | "desc";
@@ -1330,15 +1346,20 @@ export interface ListContactsOptions {
   limit: number;
 }
 
+/** Which contacts a list, breakdown or bulk change covers. */
+type ContactScope = Pick<
+  ListContactsOptions,
+  "filter" | "listId" | "company" | "projectId" | "archived"
+>;
+
 /** Live contacts matching a filter and, optionally, a manual or smart list. */
 export async function contactListWhere(
   actor: ContactActor,
-  options: Pick<
-    ListContactsOptions,
-    "filter" | "listId" | "company" | "archived"
-  >,
+  options: ContactScope,
 ): Promise<Prisma.ContactWhereInput> {
   const and = contactFilterWhere(actor, options.filter);
+  if (options.projectId)
+    and.push({ projects: { some: { projectId: options.projectId } } });
   const companies = [options.filter.company, options.company];
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
@@ -1417,16 +1438,14 @@ export async function listContacts(
  * the workspace, so a search need not carry them.
  */
 export async function contactIdsWhere(
-  options: Pick<
-    ListContactsOptions,
-    "filter" | "listId" | "company" | "archived"
-  >,
+  options: ContactScope,
   where: Prisma.ContactWhereInput,
 ): Promise<string[] | undefined> {
   const narrowed =
     Object.values(options.filter).some((value) => value !== undefined) ||
     !!options.listId ||
     !!options.company ||
+    !!options.projectId ||
     !!options.archived;
   if (!narrowed) return undefined;
   const rows = await prisma.contact.findMany({ where, select: { id: true } });
@@ -1775,6 +1794,94 @@ export async function getContactDetail(
       reason: "same_name" as const,
       contactIds: group.contacts.map((entry) => entry.id),
     })),
+  };
+}
+
+export interface ContactProjectLink {
+  projectId: string;
+  project: string;
+  role: string | null;
+}
+
+/** The Projects a contact is part of, with what they are to each. */
+export async function contactProjects(
+  actor: ContactActor,
+  contactId: string,
+): Promise<ContactProjectLink[]> {
+  await requireContactRow(prisma, actor, contactId);
+  const rows = await prisma.contactProject.findMany({
+    where: { contactId },
+    select: {
+      projectId: true,
+      role: true,
+      project: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map((row) => ({
+    projectId: row.projectId,
+    project: row.project.name,
+    role: row.role,
+  }));
+}
+
+/**
+ * Makes a contact part of a Project of its workspace, or no longer part of
+ * it with `remove`. Linking again changes the role; leaving `role` out keeps
+ * it.
+ */
+export async function linkContactProject(
+  tx: Tx,
+  actor: ContactActor,
+  input: {
+    contactId: string;
+    projectId: string;
+    role?: string | null;
+    remove?: boolean;
+  },
+): Promise<
+  ContactProjectLink & {
+    contact: { id: string; name: string };
+    linked: boolean;
+  }
+> {
+  const { contactId, projectId } = input;
+  const { name } = await requireWritableContact(tx, actor, contactId);
+  const contact = { id: contactId, name };
+  const project = await tx.project.findFirst({
+    where: { id: projectId, workspaceId: actor.workspaceId },
+    select: { name: true },
+  });
+  if (!project) throw notFound("Project not found in this workspace");
+  if (input.remove) {
+    await tx.contactProject.deleteMany({ where: { contactId, projectId } });
+    return {
+      contact,
+      projectId,
+      project: project.name,
+      role: null,
+      linked: false,
+    };
+  }
+  const link = await tx.contactProject.upsert({
+    where: { contactId_projectId: { contactId, projectId } },
+    create: {
+      workspaceId: actor.workspaceId,
+      contactId,
+      projectId,
+      role: input.role ?? null,
+      addedByUserId: actor.userId,
+      addedBySokoBotId: actor.sokoBotId,
+    },
+    update: input.role === undefined ? {} : { role: input.role },
+    select: { role: true },
+  });
+  return {
+    contact,
+    projectId,
+    project: project.name,
+    role: link.role,
+    linked: true,
   };
 }
 

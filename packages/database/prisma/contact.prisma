@@ -137,6 +137,7 @@ model Contact {
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
+  projects              ContactProject[]
 
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
@@ -146,6 +147,28 @@ model Contact {
   @@index([workspaceId, awaitingReplySince])
   @@index([workspaceId, followUpAt])
   @@map("contact")
+}
+
+/// A contact's part in a Project of the same workspace: the investors of a
+/// raise, the press of a launch. One row per contact and Project; `role`
+/// says what they are to it ("lead investor", "editor"). A merge moves the
+/// rows to the contact kept.
+model ContactProject {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  workspaceId      String   @db.Uuid
+  contactId        String   @db.Uuid
+  contact          Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  projectId        String   @db.Uuid
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role             String?
+  addedByUserId    String?
+  addedBySokoBotId String?  @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([contactId, projectId])
+  @@index([projectId])
+  @@map("contact_project")
 }
 
 /// One way to reach a contact. `value` is normalized by Core (lowercased

@@ -50,6 +50,7 @@ export interface ContactSet {
   filter: ContactFilter;
   listId?: string;
   company?: string;
+  projectId?: string;
   archived?: boolean;
   query?: string;
   mode?: ContactSearchMode;
