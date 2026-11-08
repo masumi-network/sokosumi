@@ -294,8 +294,11 @@ describe("the Project's brand research", () => {
     });
   });
 
-  it("gives Cuso the pictures as file references, newest per slot", async () => {
+  it("gives Cuso the page screenshots, then the pictures, newest per slot", async () => {
     expect(await listCmoBrandPictures("project-1")).toEqual([
+      { fileId: "f-home", alt: "Home page screenshot" },
+      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
+      { fileId: "f-pricing", alt: "Pricing page screenshot" },
       { fileId: "f-new", alt: "red sneaker" },
       { fileId: "f-plain", alt: "" },
     ]);

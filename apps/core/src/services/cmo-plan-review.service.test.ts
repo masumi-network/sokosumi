@@ -128,6 +128,53 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
     expect(problems.join("\n")).toMatch(/holds drafts/);
   });
+
+  it("asks for a story on every LinkedIn piece", () => {
+    const problems = cmoPlanProblems(
+      plan({
+        calendar: [
+          entry("a", "linkedin", "post"),
+          { ...entry("b", "linkedin", "image"), story: "A shop sold out" },
+        ],
+      }),
+    ).join("\n");
+    expect(problems).toMatch(/1 LinkedIn pieces have no story \(a\)/);
+  });
+
+  it("asks for a source of truth and the month's experiment", () => {
+    const problems = cmoPlanProblems(
+      plan({
+        measurement: {
+          primary: "Intro calls",
+          supporting: [],
+          tracking: [],
+          rules: [],
+        },
+      }),
+    ).join("\n");
+    expect(problems).toMatch(/sourceOfTruth is missing/);
+    expect(problems).toMatch(/experiment is missing/);
+  });
+
+  it("asks for a comparison page among the seo articles", () => {
+    const articles = [
+      { ...entry("a", "seo", "article"), title: "How to mint an NFT" },
+      { ...entry("b", "seo", "article"), title: "NFT fees explained" },
+    ];
+    expect(cmoPlanProblems(plan({ calendar: articles })).join("\n")).toMatch(
+      /none of the 2 seo articles is a comparison page/,
+    );
+    expect(
+      cmoPlanProblems(
+        plan({
+          calendar: [
+            ...articles,
+            { ...entry("c", "seo", "article"), title: "NMKR vs Mintable" },
+          ],
+        }),
+      ).join("\n"),
+    ).not.toMatch(/comparison page/);
+  });
 });
 
 describe("the funnel strategy", () => {
@@ -418,6 +465,28 @@ describe("repeated phrases in drafts", () => {
     ]);
     expect(problems).toEqual([
       '"softsense an 11 piece collection" is in 3 drafts (a, b, c); keep it in at most 2 and say something new in the rest.',
+      "b says nearly what a says; give it its own message from its pillar.",
+      "c says nearly what b says; give it its own message from its pillar.",
+    ]);
+  });
+
+  it("names a draft that says nearly what another says in other words", () => {
+    const problems = cmoDraftProblems([
+      piece(
+        "fee",
+        "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+      ),
+      piece(
+        "fee-again",
+        "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+      ),
+      piece(
+        "book",
+        "Book.io sold 130,000 NFT books across 70 titles with Studio handling every mint.",
+      ),
+    ]);
+    expect(problems).toEqual([
+      "fee-again says nearly what fee says; give it its own message from its pillar.",
     ]);
   });
 });

@@ -1052,6 +1052,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
               person("920", "Sean O'Connor", "seanoc", "Engineer at Acme", {
                 location: "Zurich",
               }),
+              person("930", "Gus", "gus_nw", "AI x crypto @NEARWEEK"),
               user("800", "Crypto Deals", "deals2"),
               ruth,
             ],
@@ -1082,6 +1083,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         await upsertContact(tx, actor, {
           name: "Nina Keller",
           channels: [{ type: "EMAIL", value: "nina@acme.com" }],
+          upsert: false,
+        });
+        await upsertContact(tx, actor, {
+          name: "Gus",
+          organization: "NEARWEEK",
+          channels: [{ type: "EMAIL", value: "gus@nearweek.com" }],
           upsert: false,
         });
         for (const name of ["Sean O'Connor", "Sean Connor"])
@@ -1123,6 +1130,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
 
       const contacts = await contactsOf(xWorkspaceId);
       expect(contacts.map((contact) => contact.name).sort()).toEqual([
+        "Gus",
         "Lena Fox",
         "Léa Müller",
         "Nina Keller",
@@ -1171,6 +1179,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         location: "Zurich",
         summary: "Design lead at Acme",
       });
+      // A first name alone, with the company in the bio and an address there.
+      expect(
+        contacts.find((c) => c.name === "Gus")?.channels.map((ch) => ch.type),
+      ).toEqual(["EMAIL", "X"]);
       // The middle name differs, the LinkedIn profile agrees.
       expect(
         contacts

@@ -314,6 +314,7 @@ vi.mock("@/services/social-posts.service", () => ({
   updateSocialPost: social.update,
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
+  requireMonthPostPicture: vi.fn(),
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -9710,7 +9711,7 @@ describe("Content Studio image tools", () => {
     expect(images.create).not.toHaveBeenCalled();
   });
 
-  it("lets Cuso's daily run make the images his approved plan lists", async () => {
+  it("leaves the month's pictures to Core in Cuso's own runs, and makes them when the owner asks in chat", async () => {
     const dailyRun = {
       ...ownerChat,
       turn: { ...ownerChat.turn, source: "SCHEDULE", versionId: "cmo-v1" },
@@ -9726,7 +9727,16 @@ describe("Content Studio image tools", () => {
       id: "strategy-1",
       approvedAt: new Date(),
     });
-    await expect(generate(dailyRun, request, "call-c2")).resolves.toBeDefined();
+    await expect(generate(dailyRun, request, "call-c2")).rejects.toThrow(
+      "Core makes the month's pictures and videos",
+    );
+    const ownerAsks = {
+      ...ownerChat,
+      turn: { ...ownerChat.turn, versionId: "cmo-v1" },
+    };
+    await expect(
+      generate(ownerAsks, request, "call-c3"),
+    ).resolves.toBeDefined();
     expect(images.create).toHaveBeenCalledTimes(1);
   });
 
@@ -9803,12 +9813,12 @@ describe("Content Studio image tools", () => {
       expect(result).toMatchObject({
         file: {
           id: "file-9",
-          name: "a-purple-robot-logo-01a0f430.png",
+          name: "a-purple-robot-logo-00000001.png",
           link: "/drive/files/file-9",
         },
       });
       expect(files.put).toHaveBeenCalledWith(
-        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
         expect.any(Buffer),
         expect.objectContaining({ access: "public", addRandomSuffix: false }),
       );

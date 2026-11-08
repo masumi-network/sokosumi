@@ -2738,6 +2738,55 @@ textarea {
   margin-top: 24px;
 }
 
+/* Customers' own words */
+.bb-words {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bb-words li {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.bb-words .bb-quote {
+  font-size: 1rem;
+}
+
+/* The closest competitors, side by side */
+.bb-rival-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 24px 32px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bb-rival-facts dl {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.bb-rival-facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.bb-rival-facts dd {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
 /* Their marketing today: one row a channel, then the site and ads */
 .mt {
   display: grid;

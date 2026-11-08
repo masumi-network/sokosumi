@@ -1089,9 +1089,9 @@ const PERSONAL_MAIL_DOMAINS = [...FREEMAIL_DOMAINS];
 
 /**
  * Live contacts that may be one person: the same name (case and spacing
- * ignored), or the same surname and first initial with an address at the
- * same company domain ("Tom Berger" tom@acme.com and "Thomas Berger"
- * t.berger@acme.com).
+ * ignored; a first name alone only at the same organization), or the same
+ * surname and first initial with an address at the same company domain
+ * ("Tom Berger" tom@acme.com and "Thomas Berger" t.berger@acme.com).
  */
 export async function findDuplicateContacts(
   actor: ContactActor,
@@ -1107,7 +1107,9 @@ export async function findDuplicateContacts(
     WHERE c."workspaceId" = ${actor.workspaceId}::uuid
       AND c."mergedIntoId" IS NULL
       AND c."archivedAt" IS NULL
-    GROUP BY lower(btrim(c."name"))
+      AND (btrim(c."name") ~ '\\s' OR btrim(c."organization") <> '')
+    GROUP BY lower(btrim(c."name")),
+      CASE WHEN btrim(c."name") ~ '\\s' THEN '' ELSE lower(btrim(c."organization")) END
     HAVING count(*) > 1
       ${only}
     ORDER BY lower(btrim(c."name"))

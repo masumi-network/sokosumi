@@ -6892,11 +6892,24 @@ export type BrandBrain = {
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
+        }>;
+        voiceOfCustomer?: Array<{
+            quote: string;
+            kind: 'pain' | 'trigger' | 'outcome' | 'objection';
+            sourceUrl?: string;
         }>;
         alternatives?: Array<{
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
         }>;
         channels: Array<{
             name: string;
@@ -7210,11 +7223,24 @@ export type BrandBrainRequest = {
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
+        }>;
+        voiceOfCustomer?: Array<{
+            quote: string;
+            kind: 'pain' | 'trigger' | 'outcome' | 'objection';
+            sourceUrl?: string;
         }>;
         alternatives?: Array<{
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
         }>;
         channels: Array<{
             name: string;
@@ -7583,6 +7609,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         }>;
         improvements?: Array<{
             area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            now?: string;
             idea: string;
             why: string;
             url?: string;
@@ -7610,7 +7637,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             why?: string;
         };
         barrier?: {
-            kind: 'awareness' | 'understanding' | 'trust';
+            kind: 'awareness' | 'understanding' | 'trust' | 'switching';
             text: string;
         };
         mix?: Array<{
@@ -7698,6 +7725,12 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 when: string;
                 then: string;
             }>;
+            sourceOfTruth?: string;
+            experiment?: {
+                change: string;
+                expect: string;
+                judge: string;
+            };
         };
         openQuestions?: Array<string>;
         questions?: Array<{
@@ -7720,6 +7753,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
+            slides?: Array<string>;
+            story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -7727,7 +7764,11 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 keywords: Array<string>;
                 headlines: Array<string>;
                 descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
                 finalUrl: string;
+                path1?: string;
+                path2?: string;
                 location?: string;
                 language?: string;
                 callouts?: Array<string>;
@@ -7817,6 +7858,7 @@ export type MarketingStrategyRequest = {
         }>;
         improvements?: Array<{
             area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+            now?: string;
             idea: string;
             why: string;
             url?: string;
@@ -7844,7 +7886,7 @@ export type MarketingStrategyRequest = {
             why?: string;
         };
         barrier?: {
-            kind: 'awareness' | 'understanding' | 'trust';
+            kind: 'awareness' | 'understanding' | 'trust' | 'switching';
             text: string;
         };
         mix?: Array<{
@@ -7932,6 +7974,12 @@ export type MarketingStrategyRequest = {
                 when: string;
                 then: string;
             }>;
+            sourceOfTruth?: string;
+            experiment?: {
+                change: string;
+                expect: string;
+                judge: string;
+            };
         };
         openQuestions?: Array<string>;
         questions?: Array<{
@@ -7954,6 +8002,10 @@ export type MarketingStrategyRequest = {
             draft?: string;
             why?: string;
             socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
+            slides?: Array<string>;
+            story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
             fileId?: string;
@@ -7961,7 +8013,11 @@ export type MarketingStrategyRequest = {
                 keywords: Array<string>;
                 headlines: Array<string>;
                 descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
                 finalUrl: string;
+                path1?: string;
+                path2?: string;
                 location?: string;
                 language?: string;
                 callouts?: Array<string>;
@@ -9583,6 +9639,10 @@ export type SocialPost = {
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
         campaignId?: string;
+        visual?: string;
+        visualFileIds?: Array<string>;
+        slides?: Array<string>;
+        story?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -10456,11 +10516,24 @@ export type CmoOverview = {
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
+        }>;
+        voiceOfCustomer?: Array<{
+            quote: string;
+            kind: 'pain' | 'trigger' | 'outcome' | 'objection';
+            sourceUrl?: string;
         }>;
         alternatives?: Array<{
             name: string;
             url?: string;
             note?: string;
+            promise?: string;
+            price?: string;
+            strength?: string;
+            weakness?: string;
         }>;
         channels: Array<{
             name: string;
@@ -10939,6 +11012,7 @@ export type CmoPlan = {
     }>;
     improvements?: Array<{
         area: 'landing' | 'pricing' | 'checkout' | 'site' | 'seo' | 'product';
+        now?: string;
         idea: string;
         why: string;
         url?: string;
@@ -10966,7 +11040,7 @@ export type CmoPlan = {
         why?: string;
     };
     barrier?: {
-        kind: 'awareness' | 'understanding' | 'trust';
+        kind: 'awareness' | 'understanding' | 'trust' | 'switching';
         text: string;
     };
     mix?: Array<{
@@ -11054,6 +11128,12 @@ export type CmoPlan = {
             when: string;
             then: string;
         }>;
+        sourceOfTruth?: string;
+        experiment?: {
+            change: string;
+            expect: string;
+            judge: string;
+        };
     };
     openQuestions?: Array<string>;
     questions?: Array<{
@@ -11076,6 +11156,10 @@ export type CmoPlan = {
         draft?: string;
         why?: string;
         socialPostId?: string;
+        visual?: string;
+        visualFileIds?: Array<string>;
+        slides?: Array<string>;
+        story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
         fileId?: string;
@@ -11083,7 +11167,11 @@ export type CmoPlan = {
             keywords: Array<string>;
             headlines: Array<string>;
             descriptions: Array<string>;
+            negativeKeywords?: Array<string>;
+            maxCpc?: number;
             finalUrl: string;
+            path1?: string;
+            path2?: string;
             location?: string;
             language?: string;
             callouts?: Array<string>;
@@ -11113,6 +11201,8 @@ export type CmoUpdate = {
     upNext?: Array<string>;
     changes?: Array<string>;
     results?: string;
+    verdict?: 'hold' | 'fix' | 'test' | 'investigate';
+    learnings?: Array<string>;
     id: string;
     at: Date;
     revertible: boolean;

@@ -1031,6 +1031,7 @@
       },
       "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
+      "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "assignee": "Zugewiesen an",
       "project": "Projekt",
       "destination": "Konto",

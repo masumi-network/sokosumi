@@ -122,7 +122,13 @@ jobs:
           --env POSTGRES_DB=sokosumi postgres:17 > /tmp/postgres.log 2>&1 &
 
       - *checkout
-      - *setup
+
+      # The avatar pipeline tests encode real MP4s with ffmpeg.
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
+          ffmpeg: "true"
 
       # TCP, not the socket: the image's init server listens on the socket
       # only and restarts before the real server comes up.

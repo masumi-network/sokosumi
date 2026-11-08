@@ -317,7 +317,11 @@ import {
 } from "@/services/chat-result-preview.service";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
-import { CmoNotFoundError, findCusoForBot } from "@/services/cmo-cuso.service";
+import {
+  CmoNotFoundError,
+  findCusoForBot,
+  startCmoProduction,
+} from "@/services/cmo-cuso.service";
 import {
   CMO_PLAN_REVIEWS_PER_TURN,
   type CmoPlanOfferVerdict,
@@ -416,6 +420,7 @@ import {
   createSocialPost,
   getSocialPost,
   listSocialPosts,
+  requireMonthPostPicture,
   scheduleSocialPost,
   updateSocialPost,
 } from "@/services/social-posts.service";
@@ -2395,6 +2400,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
+    this.refuseCmoRunMedia(authorized);
     const started = await prisma.sokoBotToolCall.count({
       where: {
         turnId: authorized.turn.id,
@@ -2575,6 +2581,7 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeAuthorizationError(
         "Videos are generated only when a person asks in chat. Describe the video you would make instead.",
       );
+    this.refuseCmoRunMedia(authorized);
     const started = await prisma.sokoBotToolCall.count({
       where: {
         turnId: authorized.turn.id,
@@ -2704,6 +2711,22 @@ export class SokoBotRuntimeService {
           ? "The provider did not confirm this request. Do not start it again; tell the owner."
           : "Started. A video takes a few minutes; check it with get_video.",
     };
+  }
+
+  /**
+   * Cuso's own runs describe each piece's visual and Core makes the media:
+   * runs that started their own made 25 files for 14 pieces, three at a time
+   * against the studio's limit, and put one picture on three posts.
+   */
+  private refuseCmoRunMedia(authorized: AuthorizedSokoBotRuntime): void {
+    const { turn } = authorized;
+    if (
+      turn.source !== "CHAT" &&
+      getSokoBotVersion(turn.versionId).profile === "cmo"
+    )
+      throw new SokoBotRuntimeValidationError(
+        "Core makes the month's pictures and videos. Save the piece's visual (what it shows) and visualFileIds with save_strategy part pieces instead.",
+      );
   }
 
   /** A project bot makes and reads images in its own Project only. */
@@ -5472,6 +5495,9 @@ export class SokoBotRuntimeService {
             pieces && approved
               ? await this.writeCmoPieceFiles(authorized, saved, sent)
               : 0;
+          // Visuals saved in a run: Core starts their pictures now.
+          if (pieces && approved && executing)
+            await startCmoProduction(authorized.turn.sokoBotId);
           // A running plan's social pieces are its Social posts.
           const stored = await readMarketingPlan(saved);
           const calendar = stored?.calendar ?? [];
@@ -7079,6 +7105,10 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.schedule_social_post.parse(
                     input.input,
                   );
+                await requireMonthPostPicture(tx, {
+                  postId: params.postId,
+                  workspaceId,
+                });
                 return scheduleSocialPost(
                   {
                     ...params,
