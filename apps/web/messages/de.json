@@ -10207,7 +10207,8 @@
         "add": "Kontakt hinzufügen",
         "more": "Weitere Aktionen",
         "filter": "Filter",
-        "kind": "Art"
+        "kind": "Art",
+        "source": "Quelle"
       },
       "bulk": {
         "label": "Ausgewählte Kontakte",
@@ -10266,7 +10267,9 @@
         "failed": "Die Liste wurde nicht gespeichert. Versuch es noch einmal.",
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "create": "Liste erstellen"
+        "create": "Liste erstellen",
+        "smart": "Mit den aktuellen Filtern füllen",
+        "smartHint": "Eine intelligente Liste: Wer zu diesen Filtern passt, steht darauf, jetzt und später."
       },
       "addDialog": {
         "title": "Kontakt hinzufügen",
@@ -10605,6 +10608,19 @@
           "description": "Über",
           "whyItMatters": "Warum sie für uns wichtig ist"
         }
+      },
+      "overview": {
+        "label": "Listenübersicht",
+        "people": "{count, plural, one {# Person} other {# Personen}}",
+        "quiet": "{count} seit 90 Tagen ohne Kontakt",
+        "map": "Auf Karte zeigen",
+        "stages": "Phase",
+        "companies": "Firmen",
+        "places": "Orte",
+        "knownBy": "Bekannt bei",
+        "none": "Nicht gesetzt",
+        "nobody": "Noch niemand",
+        "more": "und {count} weitere"
       }
     }
   },

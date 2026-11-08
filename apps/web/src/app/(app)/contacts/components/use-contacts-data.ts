@@ -17,6 +17,7 @@ export const CONTACT_LISTS_KEY = ["contact-lists"] as const;
 export const CONTACT_ORGANIZATIONS_KEY = ["contact-organizations"] as const;
 export const CONTACT_MAP_KEY = ["contact-map"] as const;
 export const CONTACT_COMPANY_KEY = ["contact-company"] as const;
+export const CONTACT_BREAKDOWN_KEY = ["contact-breakdown"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -68,6 +69,25 @@ export function useContactOrganizations(search: string) {
   return useQuery({
     queryKey: [...CONTACT_ORGANIZATIONS_KEY, search],
     queryFn: () => contactsService.organizations(search || undefined),
+    placeholderData: (previous) => previous,
+  });
+}
+
+const OVERVIEW = [
+  "stage",
+  "organization",
+  "location",
+  "knownBy",
+  "lastContact",
+];
+
+/** A list's overview: its people split by stage, company, place, teammate, recency. */
+export function useContactBreakdown(query: ContactQuery, enabled: boolean) {
+  const { sort: _sort, direction: _direction, ...filters } = query;
+  return useQuery({
+    enabled,
+    queryKey: [...CONTACT_BREAKDOWN_KEY, filters],
+    queryFn: () => contactsService.breakdown(filters, OVERVIEW),
     placeholderData: (previous) => previous,
   });
 }
@@ -147,6 +167,7 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACT_ORGANIZATIONS_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
+    cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,

@@ -10207,7 +10207,8 @@
         "add": "Añadir contacto",
         "more": "Más acciones",
         "filter": "Filtrar",
-        "kind": "Tipo"
+        "kind": "Tipo",
+        "source": "Origen"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -10266,7 +10267,9 @@
         "failed": "La lista no se guardó. Inténtalo de nuevo.",
         "cancel": "Cancelar",
         "save": "Guardar",
-        "create": "Crear lista"
+        "create": "Crear lista",
+        "smart": "Llenarla con los filtros actuales",
+        "smartHint": "Una lista inteligente: quien coincida con estos filtros está en ella, ahora y más adelante."
       },
       "addDialog": {
         "title": "Añadir contacto",
@@ -10605,6 +10608,19 @@
           "description": "Acerca de",
           "whyItMatters": "Por qué nos importa"
         }
+      },
+      "overview": {
+        "label": "Resumen de la lista",
+        "people": "{count, plural, one {# persona} other {# personas}}",
+        "quiet": "{count} sin contacto en 90 días",
+        "map": "Ver en el mapa",
+        "stages": "Etapa",
+        "companies": "Empresas",
+        "places": "Lugares",
+        "knownBy": "Conocido por",
+        "none": "Sin indicar",
+        "nobody": "Nadie todavía",
+        "more": "y {count} más"
       }
     }
   },

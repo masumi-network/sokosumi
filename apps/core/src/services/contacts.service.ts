@@ -1257,6 +1257,53 @@ export function contactFilterWhere(
   return and;
 }
 
+/**
+ * `contactFilterWhere` with the filter's company resolved: the people the
+ * Companies filter would show for that name.
+ */
+export async function contactFilterWhereResolved(
+  actor: ContactActor,
+  filter: ContactFilter,
+  options: { archived?: boolean } = {},
+): Promise<Prisma.ContactWhereInput[]> {
+  const and = contactFilterWhere(actor, filter);
+  const company = await companiesWhere(
+    actor.workspaceId,
+    filter.company ? [filter.company] : [],
+    options.archived,
+  );
+  if (company) and.push(company);
+  return and;
+}
+
+/** Ids a filter may carry as bound parameters (Postgres allows 65535). */
+const MAX_COMPANY_MEMBERS = 50_000;
+
+/**
+ * The people at every one of these companies, as one predicate (several
+ * company filters intersect), within the parameter budget.
+ */
+async function companiesWhere(
+  workspaceId: string,
+  companies: readonly string[],
+  archived?: boolean,
+): Promise<Prisma.ContactWhereInput | null> {
+  let ids: string[] | null = null;
+  for (const company of new Set(companies)) {
+    const members = await contactCompanyMemberIds(workspaceId, company, {
+      includeArchived: archived,
+    });
+    const kept: Set<string> | null = ids ? new Set(ids) : null;
+    ids = kept ? members.filter((id) => kept.has(id)) : members;
+  }
+  if (ids === null) return null;
+  if (ids.length > MAX_COMPANY_MEMBERS)
+    throw unprocessableEntity(
+      `That company has ${ids.length} contacts; filter by organization instead`,
+    );
+  return { id: { in: ids } };
+}
+
 /** A stored smart filter; `null` for a manual list. */
 export function parseSmartFilter(
   value: Prisma.JsonValue,
@@ -1291,24 +1338,24 @@ export async function contactListWhere(
   >,
 ): Promise<Prisma.ContactWhereInput> {
   const and = contactFilterWhere(actor, options.filter);
-  if (options.company)
-    and.push({
-      id: {
-        in: await contactCompanyMemberIds(actor.workspaceId, options.company),
-      },
-    });
+  const companies = [options.filter.company, options.company];
   if (options.listId) {
     const list = await prisma.contactList.findFirst({
       where: { id: options.listId, workspaceId: actor.workspaceId },
     });
     if (!list) throw notFound("List not found");
     const smart = parseSmartFilter(list.smartFilter);
-    and.push(
-      ...(smart
-        ? contactFilterWhere(actor, smart)
-        : [{ listMemberships: { some: { listId: list.id } } }]),
-    );
+    if (smart) {
+      and.push(...contactFilterWhere(actor, smart));
+      companies.push(smart.company);
+    } else and.push({ listMemberships: { some: { listId: list.id } } });
   }
+  const company = await companiesWhere(
+    actor.workspaceId,
+    companies.filter((name): name is string => !!name),
+    options.archived,
+  );
+  if (company) and.push(company);
   return {
     workspaceId: actor.workspaceId,
     mergedIntoId: null,
@@ -1575,10 +1622,11 @@ export async function listContactOrganizations(
 export async function contactCompanyMemberIds(
   workspaceId: string,
   name: string,
+  options: { includeArchived?: boolean } = {},
 ): Promise<string[]> {
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
+  const live = await prisma.$queryRaw<{ id: string }[]>`
     ${contactCompaniesCte(workspaceId)}
-    SELECT id FROM assigned
+    SELECT id::text AS id FROM assigned
     WHERE key IN (
       SELECT key FROM assigned
       WHERE org = regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g')
@@ -1589,7 +1637,49 @@ export async function contactCompanyMemberIds(
         AND lower(cc.name) = lower(btrim(${name}))
     )
   `;
-  return rows.map((row) => row.id);
+  const liveIds = live.map((row) => row.id);
+  if (!options.includeArchived) return liveIds;
+  // Archived people belong where the company is, by the same rules as live
+  // ones: one of its spellings, or an address at its company domain with no
+  // organization or a resembling one. Its spellings and domains come from its
+  // stored rows (kept when everyone is archived) and its live members.
+  const archived = await prisma.$queryRaw<{ id: string }[]>`
+    WITH rows AS (
+      SELECT cc.key, cc.name, cc.domain FROM contact_company cc
+      WHERE cc."workspaceId" = ${workspaceId}::uuid
+        AND (lower(cc.name) = lower(btrim(${name}))
+          OR cc.key = 'n:' || regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g'))
+    ), spellings AS (
+      SELECT regexp_replace(lower(${name}), '[^[:alnum:]]+', '', 'g') AS org
+      UNION SELECT regexp_replace(lower(name), '[^[:alnum:]]+', '', 'g') FROM rows
+      UNION SELECT substr(key, 3) FROM rows WHERE key LIKE 'n:%'
+      UNION SELECT DISTINCT regexp_replace(lower(c.organization), '[^[:alnum:]]+', '', 'g')
+        FROM contact c WHERE c.id = ANY(${liveIds}::uuid[]) AND c.organization IS NOT NULL
+    ), domains AS (
+      SELECT domain FROM rows WHERE domain IS NOT NULL
+      UNION SELECT substr(key, 3) FROM rows WHERE key LIKE 'd:%'
+    ), candidates AS (
+      SELECT c.id,
+        nullif(regexp_replace(lower(coalesce(c.organization, '')), '[^[:alnum:]]+', '', 'g'), '') AS org,
+        lower(split_part(ch.value, '@', 2)) AS domain
+      FROM contact c
+      LEFT JOIN contact_channel ch ON ch."contactId" = c.id AND ch.type = 'EMAIL'
+      WHERE c."workspaceId" = ${workspaceId}::uuid
+        AND c."mergedIntoId" IS NULL
+        AND c."archivedAt" IS NOT NULL
+    )
+    SELECT DISTINCT k.id::text AS id
+    FROM candidates k
+    WHERE k.org IN (SELECT org FROM spellings WHERE org <> '')
+      OR (
+        k.domain IN (SELECT domain FROM domains)
+        AND (k.org IS NULL OR EXISTS (
+          SELECT 1 FROM spellings s
+          WHERE s.org <> '' AND (position(s.org IN k.org) > 0 OR position(k.org IN s.org) > 0)
+        ))
+      )
+  `;
+  return [...new Set([...liveIds, ...archived.map((row) => row.id)])];
 }
 
 /** Every match, for export; bounded so one request cannot load a city. */

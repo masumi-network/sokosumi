@@ -9,7 +9,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { EmbedTexts } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { runContactTool } from "@/lib/soko-bot/contact-tools";
-import { breakDownContacts } from "./contact-breakdown.service";
+import {
+  breakDownContacts,
+  breakDownContactsBy,
+} from "./contact-breakdown.service";
 import { createContactList } from "./contact-lists.service";
 import { embedStaleContacts, rankContacts } from "./contact-search.service";
 import {
@@ -368,5 +371,182 @@ describe.runIf(enabled)("contact search on PostgreSQL", () => {
         { key: "PARTNER", count: 1 },
       ],
     });
+  });
+
+  it("changes every contact a filter matches, after a preview", async () => {
+    const hooks = {
+      authorize: async () => undefined,
+      commit: async () => undefined,
+    };
+    const list = await inContactTransaction((tx) =>
+      createContactList(tx, actor, { name: "Germany", color: "green" }),
+    );
+    const preview = (await runContactTool(
+      "bulk_update_contacts",
+      {
+        location: "germany",
+        change: { addToListId: list.id, nextStep: "Invite to the meetup" },
+      },
+      actor,
+      hooks,
+    )) as { matching: number; confirmed: boolean; sample: { name: string }[] };
+    expect(preview).toMatchObject({ matching: 2, confirmed: false });
+    expect(
+      await prisma.contactListMember.count({ where: { listId: list.id } }),
+    ).toBe(0);
+    expect(
+      await runContactTool(
+        "bulk_update_contacts",
+        {
+          location: "germany",
+          change: { addToListId: list.id, nextStep: "Invite to the meetup" },
+          confirm: true,
+        },
+        actor,
+        hooks,
+      ),
+    ).toEqual({ matched: 2, fields: 2, addedToList: 2, removedFromList: 0 });
+    expect(
+      await prisma.contactListMember.count({ where: { listId: list.id } }),
+    ).toBe(2);
+    expect(
+      await prisma.contact.count({
+        where: { workspaceId, nextStep: "Invite to the meetup" },
+      }),
+    ).toBe(2);
+    const smart = await inContactTransaction((tx) =>
+      createContactList(tx, actor, {
+        name: "Investors",
+        color: "blue",
+        smartFilter: { stages: ["INVESTOR"] },
+      }),
+    );
+    await expect(
+      runContactTool(
+        "bulk_update_contacts",
+        { change: { addToListId: smart.id }, confirm: true },
+        actor,
+        hooks,
+      ),
+    ).rejects.toThrow(/smart list/);
+    // Each changed person's history shows the change and who made it.
+    const history = await prisma.contactActivity.findMany({
+      where: { workspaceId, kind: "UPDATED", userId: alice },
+    });
+    expect(
+      history.filter(
+        (entry) =>
+          (entry.changes as { nextStep?: { after: string } }).nextStep
+            ?.after === "Invite to the meetup",
+      ),
+    ).toHaveLength(2);
+    // Archive the group, then bring it back by selecting archived people.
+    expect(
+      await runContactTool(
+        "bulk_update_contacts",
+        { location: "germany", change: { archived: true }, confirm: true },
+        actor,
+        hooks,
+      ),
+    ).toMatchObject({ matched: 2, fields: 2 });
+    expect(
+      await runContactTool(
+        "bulk_update_contacts",
+        {
+          location: "germany",
+          archived: true,
+          change: { archived: false },
+          confirm: true,
+        },
+        actor,
+        hooks,
+      ),
+    ).toMatchObject({ matched: 2, fields: 2 });
+    expect(
+      await prisma.contactActivity.count({
+        where: { workspaceId, kind: { in: ["ARCHIVED", "UNARCHIVED"] } },
+      }),
+    ).toBe(4);
+    // Archived people can be picked by company too, to bring them back.
+    await runContactTool(
+      "bulk_update_contacts",
+      { company: "Acme", change: { archived: true }, confirm: true },
+      actor,
+      hooks,
+    );
+    expect(
+      await runContactTool(
+        "bulk_update_contacts",
+        {
+          company: "Acme",
+          archived: true,
+          change: { archived: false },
+          confirm: true,
+        },
+        actor,
+        hooks,
+      ),
+    ).toMatchObject({ matched: 2, fields: 2 });
+  });
+
+  it("breaks one set down several ways in one read, for a list overview", async () => {
+    const overview = await breakDownContactsBy(actor, {
+      filter: { location: "germany" },
+      by: ["stage", "location"],
+      top: 5,
+    });
+    expect(overview.total).toBe(2);
+    expect(overview.breakdowns.map((each) => each.by)).toEqual([
+      "stage",
+      "location",
+    ]);
+    expect(overview.breakdowns[1]?.groups).toEqual([
+      { key: "berlin, germany", label: "Berlin, Germany", count: 2 },
+    ]);
+  });
+
+  it("restores a whole archived company by its name, colleagues on its domain included", async () => {
+    const hooks = {
+      authorize: async () => undefined,
+      commit: async () => undefined,
+    };
+    const alice = await create({
+      name: "Ada Brook",
+      organization: "Brookline",
+      channels: [{ type: "EMAIL", value: "ada@brookline.example" }],
+    });
+    const cleo = await create({
+      name: "Cleo Brook",
+      organization: "Brookline",
+      channels: [{ type: "EMAIL", value: "cleo@brookline.example" }],
+    });
+    const bob = await create({
+      name: "Ben Brook",
+      channels: [{ type: "EMAIL", value: "ben@brookline.example" }],
+    });
+    const other = await create({
+      name: "Oli Other",
+      organization: "Other Inc",
+      channels: [{ type: "EMAIL", value: "oli@brookline.example" }],
+    });
+    // Company rows exist once companies are listed.
+    const { listCompanies } = await import("./contact-companies.service");
+    await listCompanies(actor, { limit: 50 });
+    await prisma.contact.updateMany({
+      where: { id: { in: [alice.id, bob.id, cleo.id, other.id] } },
+      data: { archivedAt: new Date() },
+    });
+    const restored = (await runContactTool(
+      "bulk_update_contacts",
+      { company: "Brookline", archived: true, change: { archived: false } },
+      actor,
+      hooks,
+    )) as { matching: number; sample: { name: string }[] };
+    // Ben has only the company address; Oli works elsewhere and stays out.
+    expect(restored.sample.map((person) => person.name).sort()).toEqual([
+      "Ada Brook",
+      "Ben Brook",
+      "Cleo Brook",
+    ]);
   });
 });

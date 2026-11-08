@@ -45,17 +45,19 @@ export interface ContactBreakdownResult {
   otherGroups: number;
 }
 
+/** Which contacts: the same filter, list, company and query as a search. */
+export interface ContactSet {
+  filter: ContactFilter;
+  listId?: string;
+  company?: string;
+  archived?: boolean;
+  query?: string;
+  mode?: ContactSearchMode;
+}
+
 export async function breakDownContacts(
   actor: ContactActor,
-  options: {
-    filter: ContactFilter;
-    listId?: string;
-    company?: string;
-    query?: string;
-    mode?: ContactSearchMode;
-    by?: ContactBreakdown;
-    top?: number;
-  },
+  options: ContactSet & { by?: ContactBreakdown; top?: number },
 ): Promise<ContactBreakdownResult> {
   const ids = await matchingIds(actor, options);
   if (!options.by || ids.length === 0)
@@ -69,13 +71,39 @@ export async function breakDownContacts(
   };
 }
 
+/** Several breakdowns of one set, read once: a list overview. */
+export async function breakDownContactsBy(
+  actor: ContactActor,
+  options: ContactSet & { by: readonly ContactBreakdown[]; top?: number },
+): Promise<{
+  total: number;
+  breakdowns: ({ by: ContactBreakdown } & Omit<
+    ContactBreakdownResult,
+    "total"
+  >)[];
+}> {
+  const ids = await matchingIds(actor, options);
+  const top = options.top ?? 20;
+  const breakdowns = await Promise.all(
+    options.by.map(async (by) => {
+      const groups = ids.length ? await groupsBy(actor, by, ids) : [];
+      return {
+        by,
+        groups: groups.slice(0, top),
+        otherGroups: Math.max(0, groups.length - top),
+      };
+    }),
+  );
+  return { total: ids.length, breakdowns };
+}
+
 /**
  * Every contact the filter, list and query admit: a query counts all its
  * matches, not just the best page of them.
  */
-async function matchingIds(
+export async function matchingIds(
   actor: ContactActor,
-  options: Parameters<typeof breakDownContacts>[1],
+  options: ContactSet,
 ): Promise<string[]> {
   const where = await contactListWhere(actor, options);
   if (!options.query)
@@ -85,6 +113,7 @@ async function matchingIds(
   const ranked = await rankContacts(actor.workspaceId, options.query, {
     ids: await contactIdsWhere(options, where),
     mode: options.mode,
+    archived: options.archived,
   });
   return ranked.map((entry) => entry.id);
 }

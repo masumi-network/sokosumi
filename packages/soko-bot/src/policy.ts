@@ -73,6 +73,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "merge_contacts",
   "manage_contact_lists",
   "update_company",
+  "bulk_update_contacts",
+  "export_contacts_to_table",
   "find_people",
   "enrich_contact",
   "create_project",
@@ -434,6 +436,8 @@ const CONTACT_WRITE_CAPABILITIES = [
   "merge_contacts",
   "manage_contact_lists",
   "update_company",
+  "bulk_update_contacts",
+  "export_contacts_to_table",
   "find_people",
   "enrich_contact",
 ] as const satisfies readonly SokoBotCapability[];
