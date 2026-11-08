@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -86,7 +88,7 @@ The voice is plain, factual and confident, favouring short declarative claims ov
 Primary #5850ec drives every call to action.
 `;
     expect(designMdBrandLook(designMd)).toEqual({
-      colors: ["#5850ec", "#252f3f"],
+      colors: ["#5850ec", "#374151"],
       fonts: [],
       tone: "plain, factual and confident",
     });
@@ -99,6 +101,31 @@ Primary #5850ec drives every call to action.
       fonts: ["Inter"],
       tone: "formal, impersonal and precise",
     });
+  });
+
+  it("takes brand colours from the colour roles, not the error palette", () => {
+    // Generator output for sokosumi.com, saved 2026-11-07. Its error roles
+    // (#b3261e, #410e0b) used to read as brand colours.
+    const designMd = readFileSync(
+      new URL("./__fixtures__/design-md-sokosumi.md", import.meta.url),
+      "utf8",
+    );
+    expect(brandColors(designMd, 5)).toContain("#b3261e");
+    expect(designMdBrandLook(designMd)).toEqual({
+      colors: ["#2b5c78", "#6400ff"],
+      fonts: ["Inter"],
+      tone: "plain, professional and colleague-like",
+    });
+  });
+
+  it("falls back to the most used colours without colour roles", () => {
+    expect(
+      designMdBrandLook("colors:\n  brand: '#6400ff'\n# Brand #6400ff").colors,
+    ).toEqual(["#6400ff"]);
+    expect(
+      designMdBrandLook("colors:\n  primary: '#000000'\n  error: '#b3261e'")
+        .colors,
+    ).toEqual([]);
   });
 
   it("states no tone rather than guess one", () => {

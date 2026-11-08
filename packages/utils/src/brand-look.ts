@@ -143,9 +143,32 @@ export function brandFonts(css: string, limit = 3): string[] {
     .slice(0, limit);
 }
 
+const BRAND_COLOR_ROLES = ["primary", "secondary", "tertiary"];
+
+/**
+ * The primary, secondary and tertiary entries of the front matter's
+ * `colors:` block, so error and status roles (error, on-error, …) never read
+ * as brand colours. Null when the file names none of them.
+ */
+function designMdRoleColors(content: string): string[] | null {
+  const block = content.match(/^colors:[ \t]*\n((?:[ \t]+.*\n?)+)/m)?.[1];
+  if (!block) return null;
+  const colors = BRAND_COLOR_ROLES.map((role) => {
+    const value = block.match(
+      new RegExp(`^[ \\t]+${role}:\\s*["']?(#[0-9a-fA-F]{3,6})\\b`, "m"),
+    )?.[1];
+    return value ? normalizeHex(value) : null;
+  }).filter((hex): hex is string => hex !== null);
+  if (colors.length === 0) return null;
+  return distinctColors(colors.filter((hex) => !isNeutral(hex)));
+}
+
 /** The brand's look as a DESIGN.md states it. Empty where it says nothing. */
 export interface DesignMdBrandLook {
-  /** Brand colours, most used first; neutrals left out. */
+  /**
+   * Brand colours: the front matter's primary, secondary and tertiary roles,
+   * else the file's most used colours; neutrals left out.
+   */
   colors: string[];
   /** Named font families; generic and fallback families left out. */
   fonts: string[];
@@ -154,8 +177,8 @@ export interface DesignMdBrandLook {
 }
 
 /**
- * Colours, fonts and tone in a DESIGN.md: the `fontFamily` entries (CSS
- * `font-family` too), its colours, most used first, and the words after
+ * Colours, fonts and tone in a DESIGN.md: its brand colour roles, the
+ * `fontFamily` entries (CSS `font-family` too), and the words after
  * "The voice is" or "Tone of voice is", when they list them.
  */
 export function designMdBrandLook(content: string): DesignMdBrandLook {
@@ -170,7 +193,7 @@ export function designMdBrandLook(content: string): DesignMdBrandLook {
     /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)\b/i,
   )?.[1];
   return {
-    colors: brandColors(content, 5),
+    colors: designMdRoleColors(content) ?? brandColors(content, 5),
     fonts: [...new Set(fonts)].slice(0, 4),
     tone: tone ?? null,
   };

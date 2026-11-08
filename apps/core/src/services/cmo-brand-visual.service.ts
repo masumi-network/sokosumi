@@ -1,4 +1,4 @@
-import { designMdBrandLook } from "@sokosumi/utils";
+import { brandColors, designMdBrandLook } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import { type BrandVisual, readBrandVisual } from "@/lib/brand-visual";
@@ -33,10 +33,9 @@ export function brandLookFromDesignMd(
     .match(/^---\n[\s\S]*?^name:\s*(.+)$/m)?.[1]
     ?.trim()
     .replace(/^["']|["']$/g, "");
-  const { colors, fonts } = designMdBrandLook(content);
   return {
-    colors,
-    fonts,
+    colors: brandColors(content, 5),
+    fonts: designMdBrandLook(content).fonts,
     siteName: name ? decodeEntities(name).slice(0, 120) : null,
   };
 }
