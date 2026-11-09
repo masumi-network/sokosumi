@@ -323,12 +323,12 @@ describe("SokoBotConsole header portrait", () => {
     const { rerender } = renderConsole({
       initialState: stateWith({
         status: "RUNNING",
-        avatarImageUrl: "https://blob/mascot.webp",
+        avatarImageUrl: "https://blob/avatar.webp",
       }),
     });
     expect(screen.getByRole("img", { name: "Ops" })).toHaveAttribute(
       "src",
-      "https://blob/mascot.webp",
+      "https://blob/avatar.webp",
     );
     expect(document.querySelector("video")).toBeNull();
 
@@ -336,13 +336,13 @@ describe("SokoBotConsole header portrait", () => {
       consoleElement({
         initialState: stateWith({
           status: "IDLE",
-          avatarImageUrl: "https://blob/mascot.webp",
+          avatarImageUrl: "https://blob/avatar.webp",
         }),
       }),
     );
     expect(screen.getByRole("img", { name: "Ops" })).toHaveAttribute(
       "src",
-      "https://blob/mascot.webp",
+      "https://blob/avatar.webp",
     );
   });
 

@@ -160,11 +160,15 @@ const BACKGROUNDS: readonly AvatarBackground[] = [
   { name: "gently muted periwinkle", hex: "#8C93D9" },
 ] as const;
 
-function buildAvatarPrompt(input: {
+/** One avatar to draw: what it shows, and the corner it emerges from. */
+interface AvatarDraw {
   subject: AvatarSubject;
   background: AvatarBackground;
+  seed: number;
   corner: "lower-left" | "lower-right";
-}): string {
+}
+
+function buildAvatarPrompt(input: AvatarDraw): string {
   const side = input.corner === "lower-left" ? "left" : "right";
   return [
     "Create one complete full-bleed 1:1 square image.",
@@ -183,19 +187,14 @@ function buildAvatarPrompt(input: {
 async function nextAvatarDraws(
   count: number,
   client: Prisma.TransactionClient | typeof prisma = prisma,
-) {
+): Promise<AvatarDraw[]> {
   const existing = await client.sokoBotAvatar.findMany({
     select: { subject: true, background: true, seed: true },
   });
   const used = new Set(
     existing.map((row) => `${row.subject}|${row.background}|${row.seed}`),
   );
-  const draws: {
-    subject: AvatarSubject;
-    background: AvatarBackground;
-    seed: number;
-    corner: "lower-left" | "lower-right";
-  }[] = [];
+  const draws: AvatarDraw[] = [];
   // Walk subject × background diagonally so consecutive draws differ in both,
   // then bump the seed once the grid is exhausted.
   for (let seed = 1; draws.length < count && seed < 1_000; seed += 1) {
@@ -275,9 +274,6 @@ async function persistAvatarImage(image: Buffer, key: string): Promise<string> {
   return blob.url;
 }
 
-/** Draw `count` new unique avatars into the pool. Returns how many were added. */
-type AvatarDraw = Awaited<ReturnType<typeof nextAvatarDraws>>[number];
-
 /** A draw this run owns, and the empty row holding it. */
 interface AvatarReservation {
   id: string;
@@ -311,26 +307,23 @@ function canDraw(): boolean {
  */
 async function reserveDraws(
   count: number,
-  requestedByUserId: string | null,
+  requestedByUserId: string,
 ): Promise<AvatarReservation[]> {
   return await serializableTransaction(async (tx) => {
     const draws = await nextAvatarDraws(count, tx);
     if (draws.length === 0) return [];
 
-    let allowed = draws.length;
-    if (requestedByUserId) {
-      const recent = await tx.sokoBotAvatar.count({
-        where: {
-          requestedByUserId,
-          createdAt: { gte: new Date(Date.now() - GENERATION_WINDOW_MS) },
-        },
-      });
-      const remaining = LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - recent;
-      if (remaining <= 0) throw new AvatarGenerationCappedError();
-      // Shrink to fit rather than only asking "are you under the cap". That
-      // question passes a user sitting at 23 and then buys a full page of 6.
-      allowed = Math.min(allowed, remaining);
-    }
+    const recent = await tx.sokoBotAvatar.count({
+      where: {
+        requestedByUserId,
+        createdAt: { gte: new Date(Date.now() - GENERATION_WINDOW_MS) },
+      },
+    });
+    const remaining = LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR - recent;
+    if (remaining <= 0) throw new AvatarGenerationCappedError();
+    // Shrink to fit rather than only asking "are you under the cap". That
+    // question passes a user sitting at 23 and then buys a full page of 6.
+    const allowed = Math.min(draws.length, remaining);
 
     const reservations: AvatarReservation[] = [];
     for (const draw of draws.slice(0, allowed)) {
@@ -431,13 +424,14 @@ function isRecoverableGenerationFailure(error: unknown): boolean {
 }
 
 /**
+ * Draw `count` new unique avatars into the pool. Returns how many were added.
+ *
  * @param requestedByUserId The user whose top-up caused this run. The per-user
- * generation cap counts these rows, so a run that leaves this null is spend
- * charged to nobody.
+ * generation cap counts these rows, so every run is charged to someone.
  */
 export async function generateAvatars(
   count: number,
-  requestedByUserId: string | null = null,
+  requestedByUserId: string,
 ): Promise<number> {
   const reservations = await reserveDraws(
     Math.min(count, MAX_TOP_UP_PER_CALL),
@@ -528,7 +522,7 @@ const notCraftedFilter = {
   NOT: { background: { contains: CRAFTED_BACKGROUND_MARKER } },
 };
 
-/** True when the row is a crafted look; its background is `<style>:<accessories>`. */
+/** True when the row is a crafted-style avatar; its background is `<style>:<accessories>`. */
 function isCraftedRow(background: string): boolean {
   return background.includes(CRAFTED_BACKGROUND_MARKER);
 }
@@ -570,7 +564,7 @@ export async function listAvailableAvatars(
  */
 export async function topUpAvailableAvatars(
   take: number,
-  options: { excludeIds?: string[]; requestedByUserId?: string } = {},
+  options: { excludeIds?: string[]; requestedByUserId: string },
 ): Promise<AvailableAvatar[]> {
   if (canDraw()) {
     // Count what the caller has not seen yet. "Show others" hands back every
@@ -587,10 +581,7 @@ export async function topUpAvailableAvatars(
       // its draw and the user's allowance for ever.
       await sweepStaleReservations();
       try {
-        await generateAvatars(
-          take - available,
-          options.requestedByUserId ?? null,
-        );
+        await generateAvatars(take - available, options.requestedByUserId);
       } catch (error) {
         if (!isRecoverableGenerationFailure(error)) throw error;
         // Neither a spent allowance nor a lost race says anything about what

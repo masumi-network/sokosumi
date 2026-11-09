@@ -30,7 +30,7 @@ vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...args: unknown[]) => ensureRoom(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMessage(...args),
 }));
-vi.mock("@/app/soko-bots/components/bot-face", () => ({
+vi.mock("@/components/soko-bot/bot-face", () => ({
   BotFace: () => <span data-testid="bot-face" />,
 }));
 // The real composer is a rich editor; a plain textarea keeps the contract.

@@ -8,7 +8,7 @@ import { type ReactNode, useId, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { CHAT_MOBILE_COMPOSER_SAFE_AREA_PB } from "@/app/chat/components/chat-mobile-tab-registry";
-import { AuroraOrb } from "@/components/aurora-orb";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import {
   SOKO_BOT_SETUP_FRAME_CLASS,
   SokoBotSetupSteps,
@@ -136,20 +136,13 @@ export function CreateState({
             "ease-[cubic-bezier(0.25,1,0.5,1)]",
           )}
         >
-          {created.imageUrl ? (
-            <img
-              src={created.imageUrl}
-              alt={tChat("avatarAlt")}
-              className="size-32 rounded-full object-cover"
-            />
-          ) : (
-            <AuroraOrb
-              seed={created.orbSeed}
-              size={128}
-              alt={tChat("avatarAlt")}
-              className="size-32"
-            />
-          )}
+          <BotFace
+            imageUrl={created.imageUrl}
+            seed={created.orbSeed}
+            orbSize={128}
+            alt={tChat("avatarAlt")}
+            className="size-32"
+          />
         </div>
         <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl text-balance tracking-tight">
           {t("successTitle", { name: created.name })}

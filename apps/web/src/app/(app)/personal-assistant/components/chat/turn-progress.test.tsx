@@ -32,7 +32,7 @@ function renderProgress(image: string | null) {
 
 describe("TurnProgress face", () => {
   it("shows the thinking orb while a turn runs, whatever the bot's picture", () => {
-    const { unmount } = renderProgress("https://blob/mascot.webp");
+    const { unmount } = renderProgress("https://blob/avatar.webp");
     expect(screen.getByTestId("thinking-orb")).toBeInTheDocument();
     expect(document.querySelector("video")).toBeNull();
     unmount();

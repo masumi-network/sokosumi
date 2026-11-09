@@ -85,12 +85,13 @@ copy/delete-legacy steps below are leftover Blob cleanup if objects still
 exist under `soko-bot-avatars/` — not a first-run step on every deploy.
 Confirm DB URLs and the Blob listing before deleting.
 
-The mascot pool in Vercel Blob is `soko-bots/avatars/{key}-{hash12}.png`.
-Older objects used `soko-bot-avatars/`. Chat files stay under
-`soko-bots/{uuid}/chats/`.
+The Soko Bot avatar pool in Vercel Blob is
+`soko-bots/avatars/original/{key}-{hash12}.webp`. Older objects used
+`soko-bot-avatars/`. Chat files stay under `soko-bots/{uuid}/chats/`.
 
 `GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
-The cron that tops up the pool stays at `/sync/soko-bot-avatars`.
+No cron tops up the pool: the picker's top-up draws new avatars through the
+AI Gateway (`AI_GATEWAY_API_KEY`) on demand.
 
 If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
 the old prefix after DB URLs are clean:

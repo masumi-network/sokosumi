@@ -103,7 +103,9 @@ describe("Soko Bot avatar pool", () => {
     getEnvMock.mockReturnValue({});
     const stocked = store.seed();
 
-    const avatars = await topUpAvailableAvatars(6);
+    const avatars = await topUpAvailableAvatars(6, {
+      requestedByUserId: "user-1",
+    });
 
     expect(avatars.map((one) => one.id)).toEqual([stocked.id]);
     expect(billed()).toBe(0);
@@ -116,7 +118,7 @@ describe("Soko Bot avatar pool", () => {
     putMock.mockRejectedValue(new Error("blob token rejected"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(generateAvatars(6)).resolves.toBe(0);
+    await expect(generateAvatars(6, "user-1")).resolves.toBe(0);
 
     expect(billed()).toBe(1);
   });
@@ -125,7 +127,7 @@ describe("Soko Bot avatar pool", () => {
     generateTextMock.mockRejectedValue(new Error("gateway is down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(generateAvatars(3)).resolves.toBe(0);
+    await expect(generateAvatars(3, "user-1")).resolves.toBe(0);
 
     // The probe's row stays: the image model may already have billed for it,
     // and the cap should see it. It is still reserved, so nobody is offered it.
@@ -142,7 +144,7 @@ describe("Soko Bot avatar pool", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(generateAvatars(2)).resolves.toBe(0);
+    await expect(generateAvatars(2, "user-1")).resolves.toBe(0);
   });
 
   it("reports how many images it actually added", async () => {
@@ -154,7 +156,7 @@ describe("Soko Bot avatar pool", () => {
       .mockRejectedValueOnce(new Error("blob rejected"));
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(generateAvatars(3)).resolves.toBe(2);
+    await expect(generateAvatars(3, "user-1")).resolves.toBe(2);
     await expect(listAvailableAvatars(6)).resolves.toHaveLength(2);
   });
 
@@ -309,7 +311,7 @@ describe("claiming a Soko Bot avatar", () => {
     expect(store.bots.get(BOT_ID)?.avatarImageUrl).toBe(picked.imageUrl);
   });
 
-  it("will not hand out a crafted-style look", async () => {
+  it("will not hand out a crafted-style avatar", async () => {
     const crafted = store.seed({ background: "crafted-desk:none" });
 
     await expect(claimAvatar(BOT_ID, crafted.id)).rejects.toMatchObject({
