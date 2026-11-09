@@ -103,7 +103,7 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
       {source ? (
         <p className="text-muted-foreground px-2 pb-3 text-xs">
           <SeoPeriod {...seoQueryPeriod(source, model.data.metrics)} /> ·{" "}
-          {t("queries.lastSynced")}: <SeoDate value={source.observedAt} />
+          {t("queries.lastSynced")} <SeoDate value={source.observedAt} />
           {source.truncated
             ? ` · ${t("queries.truncated", { count: source.rowLimit })}`
             : ""}

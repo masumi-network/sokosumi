@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   SEO_SEARCH_MIN_ROWS,
   SEO_STACKED_TABLE_CLASS,
@@ -86,7 +87,18 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
       {rows.length ? (
         <div className={HOLDER_ITEM_CLASS}>
           <Table className={SEO_STACKED_TABLE_CLASS}>
-            <TableHeader>
+            {/* A lone "Page URL" header names what every row already shows. */}
+            <TableHeader
+              className={cn(
+                !(
+                  shown.rank ||
+                  shown.backlinks ||
+                  shown.domains ||
+                  shown.observed ||
+                  shown.source
+                ) && "sr-only",
+              )}
+            >
               <TableRow>
                 <TableHead>{t("url")}</TableHead>
                 {shown.rank ? (

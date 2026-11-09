@@ -268,17 +268,24 @@ describe("Search Console queries", () => {
   it("sorts by impressions first and by best position after a header click", async () => {
     const user = userEvent.setup();
     renderWorkspace(searchQueryWorkspace());
+    // Tracked keywords share the column names; check the query table only.
+    const queries = () =>
+      within(
+        screen
+          .getByRole("columnheader", { name: "Query" })
+          .closest("table") as HTMLElement,
+      );
     expect(queryOrder()).toEqual(["usdc", "stablecoins", "usdt"]);
     expect(
-      screen.getByRole("columnheader", { name: "Impressions" }),
+      queries().getByRole("columnheader", { name: "Search impressions" }),
     ).toHaveAttribute("aria-sort", "descending");
     await user.click(screen.getByRole("button", { name: "Average position" }));
     expect(queryOrder()).toEqual(["usdt", "stablecoins", "usdc"]);
     expect(
-      screen.getByRole("columnheader", { name: "Average position" }),
+      queries().getByRole("columnheader", { name: "Average position" }),
     ).toHaveAttribute("aria-sort", "ascending");
     expect(
-      screen.getByRole("columnheader", { name: "Impressions" }),
+      queries().getByRole("columnheader", { name: "Search impressions" }),
     ).not.toHaveAttribute("aria-sort");
   });
 
