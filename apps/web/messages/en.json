@@ -10684,7 +10684,7 @@
         "periodWorse": "Previous {days, plural, one {day} other {# days}}: {previous}, worse now",
         "periodSame": "Previous {days, plural, one {day} other {# days}}: {previous}, no change",
         "changeMarker": "Recorded change on {day}: {changes}",
-        "points": "{value} pts"
+        "points": "{value} pp"
       },
       "keywords": {
         "title": "Tracked keywords",

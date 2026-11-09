@@ -454,6 +454,34 @@ describe("Search Console query rows", () => {
     });
   });
 
+  it("counts the settled day in Pacific Time, as Search Console does", async () => {
+    // 02:00 UTC on Jan 5 is still Jan 4 in Pacific Time, so Google settled Jan 1.
+    vi.setSystemTime(new Date("2026-01-05T02:00:00Z"));
+    state.answer = gsc({ rows: [] });
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ previous?: { from: string; to: string } }>;
+    };
+    expect(payload.metrics[0].previous).toMatchObject({
+      from: "2025-12-31",
+      to: "2025-12-31",
+    });
+  });
+
+  it("never ends the earlier window before the period's last reported day", async () => {
+    // On Jan 3 the settled day (Dec 31) falls before the period starts.
+    vi.setSystemTime(new Date("2026-01-03T12:00:00Z"));
+    state.answer = gsc({ rows: [] });
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      metrics: Array<{ previous?: { from: string; to: string } }>;
+    };
+    expect(payload.metrics[0].previous).toMatchObject({
+      from: "2025-12-31",
+      to: "2025-12-31",
+    });
+  });
+
   it("skips the earlier window when Search Console no longer keeps it", async () => {
     // More than 480 days later, the window before the period is past retention.
     vi.setSystemTime(new Date("2027-06-01T12:00:00Z"));
