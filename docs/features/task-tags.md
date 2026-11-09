@@ -48,6 +48,11 @@ the database trigger. Enabling also drains tasks already `pending` from earlier
 creates/edits while disabled. Spare tick capacity classifies existing
 `unclassified` history; see below.
 
+A copy made with "Duplicate as draft" sends `copyOfTaskId`. Core checks that the
+caller can read that Task in the active workspace, then gives the copy its
+automatic, manual and rejected tags as `complete`. The copy makes no suggestion
+request and no inline or cron classification.
+
 Vercel preview deployments do not run production crons, so preview verification
 must invoke the authenticated sync route explicitly. For fixture-only verification,
 `/sync/task-tags?fixtureTaskId=<uuid>&fixtureOwnerId=<owner>` requires the same

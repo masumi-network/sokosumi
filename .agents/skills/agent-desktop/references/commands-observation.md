@@ -24,7 +24,7 @@ Output shape:
       { "ref_id": "@s8f3k2p9:e1", "role": "button", "name": "About", "states": ["focused"] } ] } } }
 ```
 
-`data.window` is left out when macOS reads a windowless app through its process. On Windows and Linux the same app returns `WINDOW_NOT_FOUND`.
+On macOS, `menu` and `menubar` snapshots are application-owned. They need no document window, include `data.app`, and omit `data.window`. A process-owned snapshot of a background app with no window also omits `data.window`. If you pass `--window-id` for an application-owned menu, it selects the app that owns the surface.
 
 Each ref names the snapshot that owns it, so a ref keeps resolving against its own snapshot when you interleave several apps or windows.
 
@@ -37,6 +37,7 @@ Choose the scope:
 - `--max-depth` (default 10) limits depth. Reach deeper subtrees with `--root`.
 - Use `--include-bounds` only when you need coordinates.
 - With `--app` and no `--window-id`, `snapshot` and `find` take the app's only visible window, else its only focused window, and answer `AMBIGUOUS_TARGET` with the candidates when neither settles it. Pass `--window-id` when an app has several windows.
+- On macOS, `menu` and `menubar` are application-owned and skip window selection. If you pass `--window-id`, it selects the owning app for that surface.
 
 ### Partial trees
 
@@ -52,7 +53,7 @@ An element gets a ref when its role is interactive or it advertises a primary ac
 
 ### Ref re-identification
 
-A command re-identifies the element from the ref before it acts. On macOS the ref carries the element's own address, so identical twins each keep their ref. On Windows and Linux a ref resolves only when it was the only element in the window its snapshot captured with its role, native id, name and description, and exactly one live element still matches. A skeleton, depth-limited or drilled capture counts against the whole window, so a shallow tree proves the same thing a full one does. Values and bounds never count as identity.
+A command re-identifies the element from the ref before it acts. On macOS, a ref carries the element's native address when available, so identical twins each keep their ref. On Windows and Linux, and on macOS when an element has no address, a ref resolves only when a complete read proved it was the only element in the window with its role, native id, name and description, and exactly one live element still matches. A skeleton, depth-limited or drilled capture counts against the whole window, so a shallow tree proves the same thing a full one does. Values and bounds never count as identity.
 
 - `STALE_REF`, `details.kind: saved_ref_absent`: no live element matches the stored identity. Take a fresh snapshot. On macOS `retained_object_stale` means the recorded address is dead or no longer matches.
 - `AMBIGUOUS_TARGET`, `details.kind: saved_ref_ambiguous`: an identical element appeared, so two live elements match. `identity_not_unique`: the ref was not proven unique at capture, so nothing was searched. That is an identical twin, which every snapshot refuses again, or a window the snapshot could not read whole in time, which a new snapshot with a larger `--timeout-ms` fixes.
@@ -62,7 +63,7 @@ Off macOS, identical twins have no ref path: only `--headed mouse-click --xy X,Y
 
 ### Surfaces
 
-Surfaces are overlays: `menu`, `menubar`, `sheet`, `popover`, `alert`, `focused`, plus OS shell kinds on some platforms. Read `supported_surfaces` from `status` before you ask for one. A kind this OS does not have returns `INVALID_ARGS` with the supported list in `details`. A shell surface needs no `--app`; on macOS, `menu-bar-extras` with `--app` reads that app's own status item. When it is closed you get `WINDOW_NOT_FOUND`; raise it with `open-system-surface`.
+Surfaces include `menu`, `menubar`, `sheet`, `popover`, `alert`, `focused`, and OS shell kinds supported on each platform. On macOS, `menu` and `menubar` are application-owned. A kind this OS does not have returns `INVALID_ARGS` with the supported list in `details`; an adapter with no supported surfaces returns `PLATFORM_NOT_SUPPORTED`. A shell surface needs no `--app`, except that macOS `menu-bar-extras` with `--app` reads that app's own status item. A closed shell surface returns `WINDOW_NOT_FOUND`; a complete lookup of an absent macOS menu returns `ELEMENT_NOT_FOUND` with `details.kind: "surface_absent"`. Raise a shell surface with `open-system-surface`.
 
 Use a surface snapshot for dialogs and menus, not a window snapshot. To reach one item inside an overlay, use `find --surface` instead of a full dump.
 

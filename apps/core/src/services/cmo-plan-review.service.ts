@@ -137,6 +137,7 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       );
     problems.push(...cadenceProblems(strategy.channels, pieces));
     problems.push(...storyProblems(pieces));
+    problems.push(...repeatedTitles(pieces));
     const articles = pieces.filter(
       (entry) => entry.channel === "seo" && entry.format === "article",
     );
@@ -254,7 +255,9 @@ export function cmoDraftProblems(
       problems.push(
         `${entry.id}'s searchAd has no location; name the country or city the business serves, as Google names it.`,
       );
-  problems.push(...repeatedPhrases(drafted));
+  problems.push(
+    ...repeatedPhrases(drafted, (entry) => entry.draft ?? "", 5, "drafts"),
+  );
   problems.push(...nearDuplicates(drafted));
   return problems.slice(0, MAX_DRAFT_PROBLEMS);
 }
@@ -278,17 +281,26 @@ function nearDuplicates(drafted: MarketingStrategyPlan["calendar"]): string[] {
 /** Pieces a five-word phrase may share before the month reads repetitive. */
 const MAX_PHRASE_PIECES = 2;
 
-/** Five-word phrases that recur across more drafts than the skill allows. */
-function repeatedPhrases(drafted: MarketingStrategyPlan["calendar"]): string[] {
+function words(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/** Phrases of `size` words that recur across more pieces than the skill allows. */
+function repeatedPhrases(
+  entries: MarketingStrategyPlan["calendar"],
+  text: (entry: MarketingStrategyPlan["calendar"][number]) => string,
+  size: number,
+  what: string,
+): string[] {
   const pieces = new Map<string, Set<string>>();
-  for (const entry of drafted) {
-    const words = (entry.draft ?? "")
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, " ")
-      .split(/\s+/)
-      .filter(Boolean);
-    for (let index = 0; index + 5 <= words.length; index += 1) {
-      const phrase = words.slice(index, index + 5).join(" ");
+  for (const entry of entries) {
+    const said = words(text(entry));
+    for (let index = 0; index + size <= said.length; index += 1) {
+      const phrase = said.slice(index, index + size).join(" ");
       pieces.set(phrase, (pieces.get(phrase) ?? new Set()).add(entry.id));
     }
   }
@@ -301,10 +313,42 @@ function repeatedPhrases(drafted: MarketingStrategyPlan["calendar"]): string[] {
       if (reported.has(key)) return [];
       reported.add(key);
       return [
-        `"${phrase}" is in ${ids.size} drafts (${[...ids].slice(0, 4).join(", ")}); keep it in at most ${MAX_PHRASE_PIECES} and say something new in the rest.`,
+        `"${phrase}" is in ${ids.size} ${what} (${[...ids].slice(0, 4).join(", ")}); keep it in at most ${MAX_PHRASE_PIECES} and say something new in the rest.`,
       ];
     })
     .slice(0, 2);
+}
+
+/**
+ * Plans repeated one fact a dozen times ("since 1898", "F40 JAMIE") and gave
+ * two pieces the same title; the owner sees it on the calendar at a glance.
+ */
+function repeatedTitles(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const byTitle = new Map<string, string[]>();
+  for (const entry of pieces) {
+    const key = words(entry.title).join(" ");
+    byTitle.set(key, [...(byTitle.get(key) ?? []), entry.date]);
+  }
+  const same = [...byTitle].filter(([, dates]) => dates.length > 1);
+  const problems = same
+    .slice(0, 2)
+    .map(
+      ([, dates]) =>
+        `${dates.length} calendar entries share a title (${dates.join(", ")}); give each piece its own message and title.`,
+    );
+  const facts = new Map<string, Set<string>>();
+  for (const entry of pieces)
+    for (const fact of words(entry.title).filter((word) => /\d{2,}/.test(word)))
+      facts.set(fact, (facts.get(fact) ?? new Set()).add(entry.id));
+  for (const [fact, ids] of facts)
+    if (ids.size > MAX_PHRASE_PIECES)
+      problems.push(
+        `"${fact}" is in ${ids.size} calendar titles; keep one fact in at most ${MAX_PHRASE_PIECES} and give the rest their own.`,
+      );
+  return [
+    ...problems,
+    ...repeatedPhrases(pieces, (entry) => entry.title, 4, "calendar titles"),
+  ].slice(0, 4);
 }
 
 /**

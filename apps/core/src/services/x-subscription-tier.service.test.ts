@@ -257,7 +257,12 @@ describe("resolveProjectXSubscriptionTypes", () => {
 
     expect(mocks.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { projectId: "project", provider: "x", status: "active" },
+        where: {
+          projectId: "project",
+          provider: "x",
+          status: "active",
+          composioConnectedAccountId: { not: { startsWith: "eval:" } },
+        },
         take: X_SUBSCRIPTION_LOOKUP_MAX_ACCOUNTS,
       }),
     );

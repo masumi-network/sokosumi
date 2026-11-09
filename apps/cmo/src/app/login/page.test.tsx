@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { SignInProblem } from "../../components/sign-in-problem";
+import { CMO_SIGN_IN_ERROR } from "../../lib/sign-in-errors";
 
 const getSession = vi.fn();
 
@@ -44,6 +45,15 @@ it("sends a signed-in person home", async () => {
   getSession.mockResolvedValue({ user: { email: "ada@example.com" } });
 
   await expect(render("state_mismatch")).rejects.toThrow("redirect /");
+});
+
+it("asks a person Core no longer accepts to sign in again", async () => {
+  getSession.mockResolvedValue({ user: { email: "ada@example.com" } });
+
+  const page = await render(CMO_SIGN_IN_ERROR.signedOut);
+
+  expect(page.type).toBe(SignInProblem);
+  expect(page.props).toMatchObject({ error: CMO_SIGN_IN_ERROR.signedOut });
 });
 
 it("stays out of search while it is unlinked", () => {

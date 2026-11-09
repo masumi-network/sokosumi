@@ -168,6 +168,12 @@ import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  evalCoworkerRefusal,
+  globalCoworkersFor,
+  isEvalWorkspace,
+  simulatedEvalTool,
+} from "@/lib/evals/eval-guard";
 import { tryUseLogger } from "@/lib/evlog";
 import type { FileActor } from "@/lib/files/actor";
 import {
@@ -177,7 +183,11 @@ import {
 } from "@/lib/files/extraction";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
+import {
+  getImageCatalog,
+  imageModel,
+  resolveImageSettings,
+} from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import {
   creditsPerImage,
@@ -284,7 +294,10 @@ import {
 } from "@/lib/soko-bot/turn-loop";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
-import { speakVoiceover } from "@/lib/soko-bot/voiceover";
+import {
+  speakVoiceover,
+  VoiceoverRefusedError,
+} from "@/lib/soko-bot/voiceover";
 import {
   type SokoBotWriteTargets,
   sokoBotProjectRefusal,
@@ -1207,6 +1220,24 @@ async function findHireableAgents(query: string | undefined) {
     availableAgents: rows.length,
     note: `No available Agent fits "${query}" among the ${rows.length} listed. Tell the owner that none fits rather than hiring one that does something else. \`closest\` are the nearest listings: they do related work, not this; name them only as that, and offer another way to get it done, such as doing it yourself or a Task for a Coworker.`,
   };
+}
+
+/**
+ * The image model a bot asked for, or the studio's default. An unknown id
+ * names the shortlist, so the bot can pick again in the same turn.
+ */
+function botImageModel(id: string | undefined) {
+  try {
+    return imageModel(id);
+  } catch {
+    const shortlist = getImageCatalog()
+      .models.filter((model) => model.curatedRank !== null)
+      .map((model) => `${model.id} (${model.label})`)
+      .join(", ");
+    throw new SokoBotRuntimeValidationError(
+      `There is no image model "${id}". Leave model out for the default, or use one of ${shortlist}.`,
+    );
+  }
 }
 
 export class SokoBotRuntimeService {
@@ -2501,7 +2532,7 @@ export class SokoBotRuntimeService {
       input.referenceFileIds ?? [],
     );
     await ensureImageCatalogFresh();
-    const model = imageModel();
+    const model = botImageModel(input.model);
     const settings: ImageJobSettings = {
       ...DEFAULT_SETTINGS,
       // Every network takes a JPEG; Instagram takes nothing else.
@@ -2616,6 +2647,7 @@ export class SokoBotRuntimeService {
       jobId: job.id,
       projectId: input.projectId,
       status: job.status,
+      model: model.id,
       credits,
       studioUrl,
       note:
@@ -3987,6 +4019,9 @@ export class SokoBotRuntimeService {
     try {
       voiceover = await speakVoiceover(input);
     } catch (error) {
+      // Only a refusal is sure to be unbilled; a later failure may have paid.
+      if (error instanceof VoiceoverRefusedError)
+        throw new SokoBotRefusedUnsentError(error.message);
       throw new SokoBotRuntimeValidationError(
         error instanceof Error ? error.message : "The voice-over failed",
       );
@@ -6650,7 +6685,7 @@ export class SokoBotRuntimeService {
   }
 
   /** AI Coworkers this bot may hand Task work to. */
-  private findCoworkers(
+  private async findCoworkers(
     authorized: AuthorizedSokoBotRuntime,
     query: string | undefined,
   ) {
@@ -6660,7 +6695,7 @@ export class SokoBotRuntimeService {
         AND: [
           {
             OR: [
-              { isWhitelisted: true },
+              ...(await globalCoworkersFor(authorized.turn.workspaceId)),
               // A shared bot sees no member's private assignments.
               ...(authorized.reader.sharedScope
                 ? []
@@ -7643,6 +7678,15 @@ export class SokoBotRuntimeService {
       ...raw,
       input: await this.resolveTaskIds(authorized, raw.input),
     };
+    if (await isEvalWorkspace(authorized.turn.workspaceId)) {
+      const refusal = await evalCoworkerRefusal(
+        authorized.turn.workspaceId,
+        input.input,
+      );
+      if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+      const simulated = simulatedEvalTool(input.capability, input.input);
+      if (simulated) return simulated;
+    }
     switch (input.capability) {
       case "newsletter_draft_issue": {
         const { projectId, ...params } =

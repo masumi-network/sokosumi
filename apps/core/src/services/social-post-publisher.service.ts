@@ -50,6 +50,7 @@ import {
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import {
   projectExecutorUserId,
@@ -1026,6 +1027,16 @@ async function claimDuePost(): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
+      // An eval lane's posts sit on stand-in accounts: never publish them.
+      NOT: {
+        socialConnection: {
+          is: {
+            composioConnectedAccountId: {
+              startsWith: EVAL_CONNECTED_ACCOUNT_PREFIX,
+            },
+          },
+        },
+      },
       OR: [
         {
           status: "SCHEDULED",

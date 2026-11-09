@@ -49,6 +49,8 @@ Auth errors
 ├── Using tokens (JWT or Ably)?      → issue a test token via CLI to verify the key can create valid tokens
 │   (CLI token issuance tests the key, not your app's authUrl/authCallback)
 ├── Token expired (40142)?           → check TTL and renewal config (authUrl/authCallback)
+├── Rejected on an MAU account?      → old SDK (upgrade to @ably/pubsub-device or -server), device with no clientId,
+│   or a server on token auth without the x-ably-clientType: server claim (40167)
 └── Look up the error code           → ask the support agent or fetch help.ably.io/error/{code}
 
 Channel state / lifecycle issues
@@ -208,7 +210,7 @@ Many commands (`subscribe`, `presence enter`, `stats --live`, `occupancy subscri
 | Environment | Symptom | Root Cause | Diagnostic |
 |-------------|---------|-----------|-----------|
 | Next.js SSR | Connection fails during render | No WebSocket in server-side render | Guard with `typeof window` or `useEffect` |
-| Serverless (Lambda, Edge) | Stale/frozen connections | Connection frozen between invocations | Use `Ably.Rest` server-side |
+| Serverless (Lambda, Edge) | Stale/frozen connections | Connection frozen between invocations | Use `createHttpClient()` from `@ably/pubsub-server` |
 | React StrictMode | Duplicate messages, presence flicker | Double-render duplicates subscriptions | Check occupancy — much higher than expected = duplicates |
 | CSP headers | WebSocket blocked | Ably domains not in `connect-src` | Test connection — ws fails, xhr works = CSP |
 | Corporate proxy | WebSocket fails silently | Proxy blocking upgrade | Test connection — ws fails, xhr works = proxy |

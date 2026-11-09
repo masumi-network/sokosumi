@@ -13,6 +13,7 @@ import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
+import { globalCoworkersFor } from "@/lib/evals/eval-guard";
 import {
   compactBrandBrain,
   getBrandBrain,
@@ -559,6 +560,7 @@ export class ContextPacketBuilder {
       (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
         ? OFF_TOPIC_TASKS
         : LIMITS.tasks;
+    const globalCoworkers = await globalCoworkersFor(input.workspaceId);
     const [
       user,
       projects,
@@ -694,7 +696,7 @@ export class ContextPacketBuilder {
         where: {
           archivedAt: null,
           OR: [
-            { isWhitelisted: true },
+            ...globalCoworkers,
             { assignments: { some: scope.coworkerAssignmentWhere } },
             {
               workspaceAccess: {
@@ -798,7 +800,7 @@ export class ContextPacketBuilder {
         where: {
           archivedAt: null,
           OR: [
-            { isWhitelisted: true },
+            ...globalCoworkers,
             { assignments: { some: scope.coworkerAssignmentWhere } },
             {
               workspaceAccess: {

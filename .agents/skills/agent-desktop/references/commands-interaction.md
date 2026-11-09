@@ -42,7 +42,7 @@ Exit codes: `0` success, `1` structured error, `2` argument error. The `error` o
 | Code | Meaning | Recovery |
 |------|---------|----------|
 | `PERM_DENIED` | A required OS permission is missing | Read the platform skill |
-| `ELEMENT_NOT_FOUND` | Ref cannot be resolved in the live UI | Snapshot again |
+| `ELEMENT_NOT_FOUND` | Ref is absent, or the requested surface is absent | Read `details.kind` and `details.surface`; open an absent menu or refresh only after checking the UI |
 | `STALE_REF` | Ref no longer matches the live UI | Snapshot again, use the new ref |
 | `AMBIGUOUS_TARGET` | Several live elements match the ref's identity, or it was not proven unique at capture | Act on a control unique in the window; identical twins need `--headed mouse-click --xy` (see `commands-observation.md`) |
 | `SNAPSHOT_NOT_FOUND` | Snapshot id missing or expired | Snapshot again |
@@ -58,7 +58,9 @@ Exit codes: `0` success, `1` structured error, `2` argument error. The `error` o
 | `NOTIFICATION_NOT_FOUND` | Notification index or fingerprint no longer matches | List again |
 | `INTERNAL` | Unexpected OS failure | Read `message`. Retry once only if `disposition.retry` is `safe` |
 
-`TIMEOUT` `details.kind` values: `actionability_timeout` (the target never became actionable), `wait_timeout` (a `wait` condition; carries `predicate`, `timeout_ms`, `last_observed` or `last_error`), `chain_deadline` (an activation chain ran out of time; carries `value_before`, `value_at_timeout`, `target`, `mutated`). With `chain_deadline`, `mutated: true` or an unknown expanded state means re-read before you retry. `mutated: false` means a direct retry is safe.
+`ELEMENT_NOT_FOUND` with `details.kind: "surface_absent"` and `details.complete: true` is complete absence evidence. An absent `menubar` can mean the app exposes no menu bar. For `surface: menu`, snapshot `menubar` when it exists, click its item without `--headed`, then snapshot `--surface menu`. Missing `complete`, `complete: false`, a timeout or an incomplete read is unknown, not absent. If the earlier action has `delivery_uncertain` and `retry: unsafe`, inspect the current UI before any action; do not repeat it.
+
+`TIMEOUT` `details.kind` values: `actionability_timeout` (the target never became actionable), `wait_timeout` (a `wait` condition; carries `predicate`, `timeout_ms`, `last_observed` or `last_error`), `chain_deadline` (an activation chain ran out of time; carries `value_before`, `value_at_timeout`, `target`, `mutated`), and `focus_verification` (macOS did not observe `AXFrontmost` for the app or `AXMain` for the window before the bounded focus readback ended). With `chain_deadline`, `mutated: true` or an unknown expanded state means re-read before you retry. `mutated: false` means a direct retry is safe. With `focus_verification`, `physical_delivery_started: false` means target input had not started; read `disposition` because a dispatched activation can still be `delivered_unverified`.
 
 ## Actionability
 
@@ -97,6 +99,7 @@ agent-desktop right-click @s8f3k2p9:e5
 agent-desktop type @s8f3k2p9:e2 "hello@example.com"
 agent-desktop type @s8f3k2p9:e2 "hello world" --interval-ms 60
 agent-desktop set-value @s8f3k2p9:e2 "new value"
+printf '%s' 'hello' | agent-desktop set-value @s8f3k2p9:e2 --stdin
 agent-desktop clear @s8f3k2p9:e2
 agent-desktop focus @s8f3k2p9:e2
 ```
@@ -105,6 +108,11 @@ agent-desktop focus @s8f3k2p9:e2
 - The default `--timeout-ms` of `type` is 5000 plus 30 ms per character of the text. An explicit `--timeout-ms` wins.
 - `type --interval-ms N` (1 to 2000) types one keystroke every N ms inside one command; `--timeout-ms` then applies to each keystroke, and `0` makes each keystroke try once. A keystroke keeps combining marks, emoji sequences and CR LF together. The first keystroke is a full ref action (headed, it also focuses the window), and the rest go to the same element, taking the interaction lease one keystroke at a time. A headed keystroke is posted only while the target's process and focused element are unchanged; if focus moves, the burst stops with an error. The result adds `keystrokes` and `interval_ms`, and `post_state` is the field after the last keystroke. It stays `delivered_verified` only when that read shows the whole text; otherwise it is `delivered_unverified` with `verification_reason` `postcondition_mismatch`, `insufficient_evidence` (typed part way through the field) or `final_read_failed` (no `post_state`). `--wait-for` waits once, after the last keystroke. A failure part way through adds `details.typed_keystrokes` and `details.keystrokes` and is `delivered_unverified`: read the field before you type again.
 - `set-value` writes the value directly through the semantic value path. It is faster than `type`, but it may not fire every UI callback. Use it for text fields, text areas and sliders.
+- Use `--stdin` with `type` or `set-value` to read text from a pipe or redirected file. Terminal input is rejected. Provide either `--stdin` or a command-line value.
+- The action timeout starts after the input ends; it doesn't limit this wait. Empty input and all line breaks are kept, including a final newline. Use `printf '%s'` to avoid adding one. Input must be valid UTF-8 without NUL bytes (`\0`). The limits are 10,000 bytes for `type` and 128 KiB for `set-value`.
+- Batch uses the JSON `text` or `value` field, which puts the text in process arguments. Run secret steps as separate `--stdin` commands.
+- To enter the text `--stdin`, put it after `--`, as in `agent-desktop type @s8f3k2p9:e2 -- --stdin`.
+- `--stdin` keeps text out of process arguments and omits observed `value` fields from JSON results, including `post_state.value`. Other app text and screenshot artifacts aren't redacted.
 - A cell that exposes no value write is not directly editable. Activate it, take a fresh snapshot, and target the editor that appears. Some apps expose no editor and accept only keyboard input.
 - `clear` empties the element. `focus` sets keyboard focus without clicking.
 
@@ -162,7 +170,8 @@ agent-desktop click @s8f3k2p9:e5 --wait-for-gone "progressindicator" --wait-time
 - The selector is `role:text`, split on the first `:`. `"button"` is role only. `":Saved!"` is text only. Text searches name, value and description.
 - They work on `snapshot`, `press` and every ref action. Other commands (`find`, `launch`, ...) return `INVALID_ARGS`. `--root` cannot combine with them. Batch entries never inherit an outer `-w`.
 - `--wait-timeout` defaults to 30000. On expiry: exit `1`, `TIMEOUT`, `details.kind: "wait_timeout"`, `details.snapshot_id` of the last tree. A post-action timeout also embeds `details.after_action`.
-- A ref action polls the acted-on ref's window. The action result is kept under `after_action`.
+- A ref action polls its original process. Application-owned refs keep their source surface, including macOS `menu` and `menubar` without a window. Window-owned refs observe their original pinned window, even when captured from `sheet`, `alert`, `popover`, `focused`, or a window-owned `menu` such as a Linux menu. This reads the whole window: a selector elsewhere in the parent can satisfy `--wait-for` early or keep `--wait-for-gone` from succeeding. On Linux, GTK3 context menus and Chromium popups can be exposed outside that window tree, so a gone wait cannot establish that a popup outside the observed scope was dismissed. To observe the overlay itself, use a separate `snapshot` with the desired `--surface` and wait selector. The action result is kept under `after_action`.
+- After `delivery_uncertain`, `error.details.post_action_observation` reports read-only evidence with `outcome`, `selector`, `expected`, `surface`, `process_identity`, and `elapsed_ms`; optional fields are `source_window_id`, `selector_matches`, `process_state`, and `last_observation_error`. `surface` names the observed scope. `process_state` is `unresponsive`, `exited` or `crashed`; `running` is never emitted. Outcomes are `expected_state_observed`, `process_exited`, `process_crashed`, `owner_unavailable`, `observation_failed`, `timed_out`, and `identity_unavailable`. Transient read errors that persist to the deadline end as `timed_out` with the last error; `observation_failed` means a terminal error stopped observation. The original error and unsafe retry disposition remain unchanged, even when the expected state is observed. The wait has its own `--wait-timeout` budget.
 - `--wait-for-gone` succeeds with `{ "gone": true, "target_absent": true }` when the app or window itself closed.
 - For `drag`, `--wait-for-scope to|from` picks which endpoint window to poll (default `to`).
 

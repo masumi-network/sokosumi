@@ -8,7 +8,6 @@ import { embedMany, gateway } from "ai";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 export const CONTACT_EMBEDDING_MODEL = "google/text-multilingual-embedding-002";
-export const CONTACT_EMBEDDING_DIMENSIONS = 768;
 
 /** The part of a search document worth embedding. */
 const MAX_EMBEDDED_CHARS = 2_000;

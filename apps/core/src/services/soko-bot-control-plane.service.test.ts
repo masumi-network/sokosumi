@@ -293,6 +293,7 @@ import {
 import {
   SokoBotControlPlane,
   SokoBotNotFoundError,
+  safeEventProjection,
 } from "@/services/soko-bot-control-plane.service";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
@@ -2155,6 +2156,41 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Only a person waiting in chat gets the hour.
     expect(data.deadlineAt.getTime() - Date.now()).toBeLessThanOrEqual(
       15 * 60 * 1_000,
+    );
+  });
+
+  it("gives a step a person pressed a button for the hour a person gets", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room-owner" });
+    turnCreateMock.mockResolvedValue({ id: "research-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "research-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "cmo:onboarding:research",
+      message: "Research the business.",
+      source: "EVENT",
+      presetRoute: { route: "DIRECT_RESPONSE", reason: "CMO research" },
+      personStarted: true,
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+      55 * 60 * 1_000,
     );
   });
 
@@ -4955,5 +4991,19 @@ describe("reading a turn through the caller's own bot", () => {
         },
       }),
     );
+  });
+});
+
+describe("safeEventProjection", () => {
+  it("never stores half an emoji or a NUL, which Postgres refuses", () => {
+    // The 800-character limit keeps 799: the emoji's first half.
+    const cut = safeEventProjection("message.completed", {
+      message: `${"a".repeat(798)}🍝 and more`,
+    });
+    expect(cut.summary.isWellFormed()).toBe(true);
+    const nul = safeEventProjection("message.completed", {
+      message: "Hiltl\u0000 since 1898",
+    });
+    expect(nul.summary).toBe("Hiltl since 1898");
   });
 });

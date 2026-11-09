@@ -12,10 +12,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readState } from "./apply-env.mjs";
-import {
-  assertAgentFixtureSafety,
-  checkAgentFixtureSafety,
-} from "./assert-agent-database.mjs";
+import { assertAgentFixtureSafety } from "./assert-agent-database.mjs";
 import {
   AUTH_FIXTURES,
   FIXTURE_PASSWORD,
@@ -269,12 +266,11 @@ export async function seedAuthFixtures(options = {}) {
   const force =
     options.force === true || process.env.CLOUD_AGENT_DB_FORCE === "1";
 
-  const safety = checkAgentFixtureSafety({
+  assertAgentFixtureSafety({
     branchName,
     databaseUrl,
     force,
   });
-  assertAgentFixtureSafety(safety);
 
   const [{ hashPassword }, { default: pg }] = await Promise.all([
     importFromCore("better-auth/crypto"),

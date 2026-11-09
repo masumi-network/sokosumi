@@ -51,17 +51,6 @@ export function companyWarmth(
   return days <= 30 ? "warm" : days <= 180 ? "cooling" : "cold";
 }
 
-export const COMPANY_FACT_FIELDS = [
-  "name",
-  "website",
-  "description",
-  "industry",
-  "size",
-  "headquarters",
-  "linkedinUrl",
-  "whyItMatters",
-] as const;
-
 type CompanyRow = Prisma.ContactCompanyGetPayload<object>;
 
 export interface CompanySummary {
