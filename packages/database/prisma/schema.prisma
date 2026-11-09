@@ -2590,15 +2590,15 @@ model SokoBotAvatar {
   claimedBySokoBot   SokoBot?  @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
   claimedAt          DateTime?
 
-  /// The user whose top-up caused this image. Null for rows the pool cron made,
-  /// which no user asked for. Read by the per-user generation cap.
+  /// The user whose top-up caused this image. Null for rows the removed pool
+  /// cron made, which no user asked for. Read by the per-user generation cap.
   requestedByUserId String?
   requestedBy       User?   @relation("SokoBotAvatarRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   /// Set when the row is claimed as a generation slot, before the paid image
   /// call. Cleared once `imageUrl` holds a real image. A non-null value means
   /// the image is still in flight or the run died, so the row is not showable.
-  /// Every read filters on it; the pool cron sweeps stale ones.
+  /// Every read filters on it; the top-up sweeps stale ones.
   reservedAt DateTime?
 
   /// The style that drew it (an id in Core's style registry). `mascot` is the
