@@ -10655,7 +10655,7 @@
         "weekWorse": "{period}: {current} · Woche davor: {previous}, schlechter",
         "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich",
         "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
-        "basedOn": "Aus {count, plural, one {# Impression} other {# Impressionen}}"
+        "basedOn": "Basierend auf {count, plural, one {# Impression} other {# Impressionen}}"
       },
       "keywords": {
         "title": "Verfolgte Keywords",

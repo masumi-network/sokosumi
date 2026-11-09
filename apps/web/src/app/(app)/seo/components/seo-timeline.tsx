@@ -236,15 +236,17 @@ export function SeoTimeline({
                       <span className="text-muted-foreground text-xs">
                         {earlier.length ? (
                           // Folded checks name the days they span; one day keeps one date.
-                          format.dateTimeRange(
-                            Math.min(
-                              ...earlier.map((check) =>
-                                new Date(check.at).getTime(),
+                          <time dateTime={new Date(at).toISOString()}>
+                            {format.dateTimeRange(
+                              Math.min(
+                                ...earlier.map((check) =>
+                                  new Date(check.at).getTime(),
+                                ),
                               ),
-                            ),
-                            new Date(at),
-                            { dateStyle: "medium" },
-                          )
+                              new Date(at),
+                              { dateStyle: "medium" },
+                            )}
+                          </time>
                         ) : (
                           <SeoDate value={at} />
                         )}
@@ -295,9 +297,12 @@ export function SeoTimeline({
                               <SeoDate value={event.at} />
                             </div>
                           ) : null}
-                          <p className="whitespace-pre-wrap break-words">
-                            {event.detail}
-                          </p>
+                          {/* A check's server detail repeats its coverage counts; the translated line below replaces it. */}
+                          {observation ? null : (
+                            <p className="whitespace-pre-wrap break-words">
+                              {event.detail}
+                            </p>
+                          )}
                           {observation ? (
                             <p>{coverageText(observation.coverage)}</p>
                           ) : null}
@@ -312,6 +317,8 @@ export function SeoTimeline({
                               })}
                             </p>
                           ) : null}
+                          {/* The range hides the newest check's time; Details names it first. */}
+                          {earlier.length ? <SeoDate value={at} /> : null}
                           {earlier.map((check) => (
                             <p key={check.event.id}>
                               <SeoDate value={check.at} />

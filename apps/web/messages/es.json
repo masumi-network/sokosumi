@@ -10655,7 +10655,7 @@
         "weekWorse": "{period}: {current} · semana anterior: {previous}, peor",
         "tooFewToCompare": "Muy pocas impresiones para comparar semanas",
         "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
-        "basedOn": "De {count, plural, one {# impresión} other {# impresiones}}"
+        "basedOn": "Según {count, plural, one {# impresión} other {# impresiones}}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11085,7 +11085,7 @@
         },
         "lastCheckOn": "Última comprobación",
         "askHow": "Preguntar al agente",
-        "traffic": "Búsqueda de Google: mostrada {impressions, plural, one {# vez} other {# veces}}, {clicks, plural, one {# clic} other {# clics}}"
+        "traffic": "En Google: {impressions, plural, one {# impresión} other {# impresiones}}, {clicks, plural, one {# clic} other {# clics}}"
       },
       "scopeFilters": "Páginas y filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",

@@ -84,8 +84,18 @@ export function SeoEmpty({
 
 /** An address may wrap after "/" or "."; it breaks mid-word only when one part is wider than the line. */
 function seoUrlBreaks(url: string) {
+  const parts: string[] = [];
+  let current = "";
+  for (const char of url) {
+    current += char;
+    if (char === "/" || char === ".") {
+      parts.push(current);
+      current = "";
+    }
+  }
+  if (current) parts.push(current);
   let offset = 0;
-  return url.split(/(?<=[/.])/).map((part) => {
+  return parts.map((part) => {
     const start = offset;
     offset += part.length;
     return (

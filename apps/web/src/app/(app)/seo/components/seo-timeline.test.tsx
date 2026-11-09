@@ -203,7 +203,8 @@ describe("SEO timeline recovery", () => {
       kind: "check",
       title: "SEO check results imported",
       status: "completed",
-      detail: "",
+      // The server's own English detail for a check.
+      detail: `Rule checks: ${observation.coverage.checked} checked, 0 not checked, 0 unavailable.`,
       at: observation.observedAt,
       pageIds: observation.pageIds,
       taskId: observation.sourceTaskId,
@@ -249,6 +250,10 @@ describe("SEO timeline recovery", () => {
     expect(
       within(clean).getAllByText(/Rule checks: 12 checked, 0 not checked/),
     ).toHaveLength(2);
+    // The server detail says the same in English; it is not shown twice.
+    expect(within(clean).getAllByText(/Rule checks: 24 checked/)).toHaveLength(
+      1,
+    );
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 

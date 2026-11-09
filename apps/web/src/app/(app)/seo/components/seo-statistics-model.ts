@@ -141,8 +141,13 @@ export function seoSearchTraffic(metrics: ProjectSeoMetric[]) {
   };
   const impressions = total("impressions");
   const clicks = total("clicks");
-  const period = seoReportedPeriod(search);
-  return impressions === null || clicks === null || !period
+  // Like the search queries: Google leaves out quiet days, so only the end moves.
+  const reported = seoReportedPeriod(search);
+  return impressions === null || clicks === null || !reported || !search.length
     ? null
-    : { impressions, clicks, period };
+    : {
+        impressions,
+        clicks,
+        period: { from: search[0].from, to: reported.to },
+      };
 }

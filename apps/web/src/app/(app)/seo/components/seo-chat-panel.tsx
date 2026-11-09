@@ -280,7 +280,7 @@ export function SeoChatThread({
               // A phone keeps the first prompt, so the chat does not push Performance a screen down.
               className={cn(
                 "h-auto max-w-full py-1.5 text-start whitespace-normal",
-                index > 0 && "max-sm:hidden",
+                index > 0 && "max-md:hidden",
               )}
               disabled={chat.busy}
               onClick={() => {

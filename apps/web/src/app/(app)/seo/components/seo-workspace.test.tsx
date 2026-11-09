@@ -586,7 +586,7 @@ describe("SEO workspace integration", () => {
         id: "sync:impressions",
         key: "impressions",
         unit: "count",
-        value: 140,
+        value: 280,
         // 140 impressions a week: enough to judge a position change.
         points: days.map((date) => ({ date, value: 20 })),
       },
@@ -612,7 +612,7 @@ describe("SEO workspace integration", () => {
     expect(change).toHaveTextContent(/^Oct 8\W+14:/);
     expect(screen.getByText(/: 140 · week before: 140$/)).toBeVisible();
     // An average says how many impressions it rests on.
-    expect(screen.getByText("From 140 impressions")).toBeVisible();
+    expect(screen.getByText("From 280 impressions")).toBeVisible();
   });
 
   it("puts the Google search totals under the agent verdict only when both counts exist", () => {
@@ -635,10 +635,8 @@ describe("SEO workspace integration", () => {
       id: "sync:impressions",
       key: "impressions",
       value: 35,
-      points: [
-        { date: "2026-01-01", value: 20 },
-        { date: "2026-01-02", value: 15 },
-      ],
+      // Jan 1 was quiet: Google leaves the day out, but the read still covers it.
+      points: [{ date: "2026-01-02", value: 35 }],
     };
     workspace.metrics = [
       impressions,
