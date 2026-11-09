@@ -1,0 +1,189 @@
+"use client";
+
+import type { ChatRoom, ChatSavedMessageListItem } from "@sokosumi/core-client";
+import { Bookmark, BookmarkX } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  listSavedMessagesAction,
+  unsaveRoomMessageAction,
+} from "@/app/chat/actions";
+import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
+import { messageSender } from "@/app/chat/components/room-helpers";
+import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
+import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
+import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
+import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
+import { cn } from "@/lib/utils";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
+
+interface SavedMessagesViewProps {
+  /** Core's first page at request time, or null when that read failed. */
+  initialPage: {
+    items: ChatSavedMessageListItem[];
+    nextCursor: string | null;
+  } | null;
+  /** The sidebar's rooms, to name each message's room. */
+  initialRooms: readonly ChatRoom[];
+  currentUserId: string;
+}
+
+/**
+ * Catch up's Saved tab: the messages the reader saved for later, newest save
+ * first. Private to the reader; Core lists only messages they can still read.
+ */
+export function SavedMessagesView({
+  initialPage,
+  initialRooms,
+  currentUserId,
+}: SavedMessagesViewProps) {
+  const t = useTranslations("App.Channels.SavedMessages");
+  const tChannels = useTranslations("App.Channels");
+  const roomDisplayName = useRoomDisplayName();
+  const { formatTimeAgo } = useLocalizedDateTime();
+  const rooms = useLiveChatRooms() ?? initialRooms;
+  const roomsById = new Map(rooms.map((room) => [room.id, room]));
+  const [items, setItems] = useState(initialPage?.items ?? []);
+  const [nextCursor, setNextCursor] = useState(initialPage?.nextCursor ?? null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function handleRemove(messageId: string) {
+    setRemovingId(messageId);
+    const result = await unsaveRoomMessageAction(messageId);
+    setRemovingId(null);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    setItems((current) =>
+      current.filter((item) => item.messageId !== messageId),
+    );
+    toast.success(t("removed"));
+  }
+
+  async function handleLoadOlder() {
+    if (!nextCursor) return;
+    setLoadingOlder(true);
+    const result = await listSavedMessagesAction(nextCursor);
+    setLoadingOlder(false);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    setItems((current) => [...current, ...result.value.items]);
+    setNextCursor(result.value.nextCursor);
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-4 pb-4">
+      <div className="flex flex-col gap-1">
+        <ChatUnreadViewHeader title={t("title")} />
+        <p className="text-muted-foreground text-sm">{t("description")}</p>
+      </div>
+      <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
+        <div className={cn(HOLDER_ITEM_CLASS, "flex flex-col p-2")}>
+          {initialPage === null ? (
+            <p className="text-muted-foreground px-2 py-6 text-center text-sm">
+              {t("error")}
+            </p>
+          ) : items.length === 0 ? (
+            <div
+              className="flex flex-col items-center gap-1.5 px-4 py-6 text-center"
+              data-testid="saved-messages-empty"
+            >
+              <span className="bg-quinary text-foreground grid size-8 place-items-center rounded-full">
+                <Bookmark className="size-4" aria-hidden />
+              </span>
+              <p className="text-sm font-medium">{t("empty")}</p>
+              <p className="text-muted-foreground max-w-xs text-sm text-pretty">
+                {t("emptyHint")}
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-0.5" data-testid="saved-messages">
+              {items.map(({ messageId, savedAt, message }) => {
+                const room = roomsById.get(message.roomId);
+                const roomName = room
+                  ? room.kind === "channel"
+                    ? `#${roomDisplayName(room, currentUserId)}`
+                    : roomDisplayName(room, currentUserId)
+                  : null;
+                const preview =
+                  formatUnreadThreadsPreview(
+                    message.content,
+                    roomMentionNames(room, tChannels("MentionAll.label")),
+                  ) || t("untitled");
+                return (
+                  <li
+                    key={messageId}
+                    className="press hover:bg-accent relative flex items-start gap-2 rounded-md px-2 py-2 transition-colors"
+                  >
+                    <Link
+                      href={chatRoomMessageHref(message.roomId, messageId)}
+                      className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                    >
+                      <span className="flex items-baseline gap-2">
+                        <span className="truncate font-medium">
+                          {messageSender(message).name}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                          {formatTimeAgo(new Date(message.createdAt))}
+                        </span>
+                      </span>
+                      <span className="text-foreground line-clamp-3">
+                        {preview}
+                      </span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {roomName ? (
+                          <>
+                            {roomName}
+                            <span aria-hidden="true"> · </span>
+                          </>
+                        ) : null}
+                        {t("savedAgo", {
+                          time: formatTimeAgo(new Date(savedAt)),
+                        })}
+                      </span>
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground relative z-[1] size-10 shrink-0 md:size-8"
+                      aria-label={t("remove")}
+                      title={t("remove")}
+                      loading={removingId === messageId}
+                      onClick={() => void handleRemove(messageId)}
+                    >
+                      <BookmarkX className="size-4" aria-hidden />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {nextCursor ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              loading={loadingOlder}
+              onClick={() => void handleLoadOlder()}
+            >
+              {t("loadOlder")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
