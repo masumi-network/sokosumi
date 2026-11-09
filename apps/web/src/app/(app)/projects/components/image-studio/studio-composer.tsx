@@ -27,6 +27,7 @@ import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
 } from "./studio-classes";
+import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioTemplateMenu } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
@@ -43,13 +44,6 @@ import type { GenerationRequest } from "./use-generation-queue";
 // Each job is queued separately against Core's per-project concurrency limit.
 export const MAX_BATCH = 12;
 
-const AD_PLACEMENTS = [
-  { ratio: "1:1", label: "squareFeed" },
-  { ratio: "4:5", label: "portraitFeed" },
-  { ratio: "9:16", label: "stories" },
-  { ratio: "16:9", label: "landscapeFeed" },
-] as const;
-type PlacementRatio = (typeof AD_PLACEMENTS)[number]["ratio"];
 const NO_PLACEMENTS: NonNullable<StudioTarget["placementRatios"]> = [];
 
 const COPY_CHOICES = [1, 2, 3, 4] as const;
