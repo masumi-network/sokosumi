@@ -4074,6 +4074,7 @@
       "productPhotoDuplicate": "Ya existe un archivo con este nombre en Archivos. Cambia el nombre de la foto o elige otra.",
       "productPhotoFailed": "No se pudo adjuntar la foto. Vuelve a intentarlo con otro archivo.",
       "productPhotoNeedsModel": "Selecciona un modelo de imagen compatible con tu foto y con las demás referencias.",
+      "productPhotoGuidance": "Studio usa la foto del producto como referencia para su forma, colores, envase y etiqueta.",
       "tooManyReferences": "Usa hasta {count} imágenes de referencia por anuncio.",
       "ProductCatalog": {
         "reviewImportedProducts": "Revisar productos importados",

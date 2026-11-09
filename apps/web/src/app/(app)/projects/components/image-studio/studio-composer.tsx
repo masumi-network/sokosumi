@@ -1193,6 +1193,12 @@ export function StudioComposer({
                     </p>
                   ) : null}
 
+                  {plan.legs.some(({ photo }) => photo) ? (
+                    <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                      {t("productPhotoGuidance")}
+                    </p>
+                  ) : null}
+
                   <ul className="space-y-2">
                     {plan.configured.map(
                       ({ model, settings: actual }, index) => {

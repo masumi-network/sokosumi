@@ -4074,6 +4074,7 @@
       "productPhotoDuplicate": "In Dateien gibt es bereits eine Datei mit diesem Namen. Benenne das Foto um oder wähle ein anderes.",
       "productPhotoFailed": "Das Foto konnte nicht angehängt werden. Versuche es mit einer anderen Datei.",
       "productPhotoNeedsModel": "Wähle ein Bildmodell, das dein Foto und alle weiteren Referenzen unterstützt.",
+      "productPhotoGuidance": "Studio nutzt das Produktfoto als Vorlage für Form, Farben, Verpackung und Etikett des Produkts.",
       "tooManyReferences": "Verwende bis zu {count} Referenzbilder pro Anzeige.",
       "ProductCatalog": {
         "reviewImportedProducts": "Importierte Produkte prüfen",

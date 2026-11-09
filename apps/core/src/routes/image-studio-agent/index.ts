@@ -177,15 +177,7 @@ app.post("/generations", async (c) => {
     if (!selected)
       return c.json({ ok: false, error: "product_not_found" }, 404);
     product = { id: selected.id, name: selected.name };
-    prompt = [
-      prompt,
-      productBrief(selected),
-      selected.photo || selected.imageUrl
-        ? "Use the last reference image for the product's appearance."
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    prompt = [prompt, productBrief(selected)].join("\n\n");
     if (prompt.length > IMAGE_PROMPT_MAX_LENGTH) {
       return c.json({ ok: false, error: "product_brief_too_long" }, 422);
     }
@@ -220,16 +212,13 @@ app.post("/generations", async (c) => {
       modelId: input.modelId,
       settings: { ...DEFAULT_SETTINGS, ...input.settings },
       referenceAssetIds: input.referenceAssetIds,
-      ...(photoId
-        ? {
-            referenceFileIds: [photoId],
-            referenceFileActor: {
-              kind: "interactive",
-              userId: context.userId,
-              organizationId: context.organizationId,
-            },
-          }
-        : {}),
+      ...(photoId ? { referenceFileIds: [photoId] } : {}),
+      referenceFileActor: {
+        kind: "interactive",
+        userId: context.userId,
+        organizationId: context.organizationId,
+      },
+      reuseParentPhotoIfAvailable: !input.catalogProductId,
       parentAssetId: input.parentAssetId,
       idempotencyKey: input.idempotencyKey,
     }));

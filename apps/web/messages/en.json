@@ -4074,6 +4074,7 @@
       "productPhotoDuplicate": "A file with this name already exists in Files. Rename the photo or choose another one.",
       "productPhotoFailed": "Could not attach the photo. Try again with another file.",
       "productPhotoNeedsModel": "Select an image model that supports your photo and any other references.",
+      "productPhotoGuidance": "Studio uses the product photo to guide the product’s shape, colors, packaging, and label.",
       "tooManyReferences": "Use up to {count} reference images per ad.",
       "ProductCatalog": {
         "reviewImportedProducts": "Review imported products",

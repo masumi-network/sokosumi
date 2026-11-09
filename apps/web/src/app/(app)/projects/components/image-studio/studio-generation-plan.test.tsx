@@ -206,6 +206,7 @@ describe("an honest generation plan", () => {
     expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
     await act(async () => pendingUpload.resolve({ resourceId: "photo-1" }));
     expect(await screen.findByText("product.png")).toBeInTheDocument();
+    expect(screen.getByText("productPhotoGuidance")).toBeInTheDocument();
     expect(uploadPhoto).toHaveBeenCalledWith(photo, {
       scope: "org",
       organizationId: "workspace-org",
@@ -221,6 +222,7 @@ describe("an honest generation plan", () => {
     ).toEqual([["photo-1"], ["photo-1"]]);
 
     fireEvent.click(screen.getByRole("button", { name: "removeProductPhoto" }));
+    expect(screen.queryByText("productPhotoGuidance")).toBeNull();
     generate();
     expect(
       onGenerate.mock.calls[1][0].map((request) => request.referenceFileIds),
