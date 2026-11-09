@@ -2268,7 +2268,7 @@ export class SokoBotControlPlane {
       Date.now() +
         (input.background
           ? BACKGROUND_RUN_DEADLINE_MS
-          : personAsked
+          : personAsked || input.personStarted
             ? PERSON_TURN_DEADLINE_MS
             : TURN_DEADLINE_MS),
     );

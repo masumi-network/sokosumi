@@ -2158,6 +2158,41 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("gives a step a person pressed a button for the hour a person gets", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room-owner" });
+    turnCreateMock.mockResolvedValue({ id: "research-turn", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "research-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "cmo:onboarding:research",
+      message: "Research the business.",
+      source: "EVENT",
+      presetRoute: { route: "DIRECT_RESPONSE", reason: "CMO research" },
+      personStarted: true,
+    });
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
+      55 * 60 * 1_000,
+    );
+  });
+
   it("starts a background run beside a busy chat without taking its session", async () => {
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());
