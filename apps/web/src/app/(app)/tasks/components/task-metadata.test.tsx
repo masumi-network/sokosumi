@@ -288,8 +288,8 @@ describe("TaskMetadata", () => {
     );
   });
 
-  it("shows the mascot the bot claimed, not a generated orb", () => {
-    // Claimed mascot is the bot's face; the orb is only the fallback.
+  it("shows the avatar the bot claimed, not a generated orb", () => {
+    // Claimed Soko Bot avatar is the bot's face; the orb is only the fallback.
     renderTaskMetadata({
       task: createTask({
         assignee: {

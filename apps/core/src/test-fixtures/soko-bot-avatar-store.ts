@@ -49,7 +49,7 @@ function matchesField(value: unknown, condition: unknown): boolean {
   });
 }
 
-export function matchesWhere(row: AvatarRow, where: Where = {}): boolean {
+function matchesWhere(row: AvatarRow, where: Where = {}): boolean {
   return Object.entries(where).every(([key, condition]) => {
     if (key === "NOT") return !matchesWhere(row, condition as Where);
     if (key === "OR") {

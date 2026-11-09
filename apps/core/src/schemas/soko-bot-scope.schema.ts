@@ -14,7 +14,7 @@ export const createSokoBotRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80),
     avatarSeed: z.string().max(200).nullable().optional(),
-    /** Mascot from the avatar pool to claim for this bot. */
+    /** Soko Bot avatar from the pool to claim for this bot. */
     avatarId: z.string().uuid().nullable().optional(),
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),

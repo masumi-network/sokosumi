@@ -18,7 +18,7 @@ import {
 const PAGE_SIZE = 6;
 
 /**
- * Six unclaimed mascots at a time, "show others" for a fresh set. Each one is
+ * Six unclaimed Soko Bot avatars at a time, "show others" for a fresh set. Each one is
  * unique across all bots: the pool hands an avatar to exactly one bot.
  */
 export function AvatarPicker({

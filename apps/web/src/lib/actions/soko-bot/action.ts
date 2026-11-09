@@ -341,8 +341,8 @@ interface ListAvatarsParams extends AuthenticatedRequest {
 }
 
 /**
- * Unclaimed mascot avatars for the picker; pass shown ids to get a fresh set.
- * This generates missing mascots first, so it bills FAL and writes rows. Named
+ * Unclaimed Soko Bot avatars for the picker; pass shown ids to get a fresh set.
+ * This generates missing avatars first, so it bills the image model and writes rows. Named
  * for that rather than for the list it returns.
  */
 export const topUpSokoBotAvatarsAction = withSession<

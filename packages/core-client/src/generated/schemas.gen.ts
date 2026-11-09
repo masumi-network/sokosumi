@@ -7655,7 +7655,7 @@ export const SokoBotSummarySchema = {
                 'string',
                 'null'
             ],
-            example: 'https://blob.example/mascot.png'
+            example: 'https://blob.example/avatar.png'
         },
         owner: {
             anyOf: [
@@ -7989,7 +7989,7 @@ export const TaskEventSchema = {
                         'string',
                         'null'
                     ],
-                    example: 'https://blob.example/mascot.png'
+                    example: 'https://blob.example/avatar.png'
                 },
                 owner: {
                     anyOf: [

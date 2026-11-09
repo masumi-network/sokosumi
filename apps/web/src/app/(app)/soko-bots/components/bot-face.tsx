@@ -2,7 +2,7 @@ import { AuroraOrb } from "@/components/aurora-orb";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
 
-/** A bot's mascot, or its seeded orb when it predates mascots. */
+/** A bot's Soko Bot avatar, or its seeded orb when it predates avatars. */
 export function BotFace({
   bot,
   ownerId,
