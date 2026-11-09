@@ -54,7 +54,7 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
         ? "competitors.confirmed"
         : "competitors.suggested";
   // The section title already says "Competitors"; a label only helps when rows differ.
-  const mixed = new Set(rows.map(state)).size > 1;
+  const mixed = new Set(model.data.competitors.map(state)).size > 1;
   return (
     <SeoSection
       title={t("competitors.title")}

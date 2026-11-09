@@ -51,7 +51,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
   // Without paid search data these columns can never fill, so nothing names them.
   const paidOff = model.data.availableActions.canUsePaidSearchData !== true;
   // A state label only helps when the list mixes tracked and found keywords.
-  const mixed = new Set(rows.map((row) => row.saved)).size > 1;
+  const mixed = new Set(model.data.keywords.map((row) => row.saved)).size > 1;
   const manyPages = model.data.scope.pageIds.length > 1;
   return (
     <div className="space-y-5">
