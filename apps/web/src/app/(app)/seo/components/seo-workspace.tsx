@@ -137,8 +137,8 @@ export function SeoWorkspace({
       model.filters.tab === "actions",
   );
   return (
-    // Phone tap targets are at least 40 px tall.
-    <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10">
+    // Phone buttons and fields are at least 40 px tall; the tab row keeps its 36 px bar.
+    <div className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-10 max-sm:[&_[data-slot=input]]:min-h-10 max-sm:[&_[data-slot=select-trigger]]:min-h-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <Link
