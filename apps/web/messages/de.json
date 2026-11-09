@@ -10956,7 +10956,7 @@
       },
       "chat": {
         "title": "SEO-Chat",
-        "description": "Frag zu den Seiten und Ergebnissen dieses Audits. Prüfe vorgeschlagene Aktionen, bevor du sie bestätigst.",
+        "description": "Stell Fragen zu den Seiten und Ergebnissen dieses Audits. Prüfe vorgeschlagene Aktionen, bevor du sie bestätigst.",
         "empty": "Was möchtest du verbessern?",
         "emptyBody": "Frage zu Seitenproblemen, Keyword-Positionen oder Zugriffen.",
         "question": "Deine Frage",
