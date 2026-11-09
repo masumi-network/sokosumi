@@ -37927,6 +37927,10 @@ export const ProjectSeoKeywordSeriesSchema = {
                         minLength: 1,
                         maxLength: 2048
                     },
+                    countryCode: {
+                        type: 'string',
+                        pattern: '^[A-Z]{2}$'
+                    },
                     points: {
                         type: 'array',
                         items: {

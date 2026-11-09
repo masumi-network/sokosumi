@@ -350,22 +350,33 @@ export async function syncProjectSeoStatistics(
   const tracked =
     input.provider === "search_console"
       ? selectTrackedKeywords(workspace.keywords)
-      : { chosen: [], leftOut: [] };
-  const collectKeywordSeries = async (): Promise<NativeKeywordSeries | null> =>
-    tracked.chosen.length
-      ? normalizeGscKeywordSeries(
-          query,
-          tracked.chosen,
-          unwrapNativeStatistics(
-            await read(
-              integration,
-              tool,
-              gscKeywordSeriesArguments(query, tracked.chosen),
+      : { groups: [], leftOut: [] };
+  // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
+  const collectKeywordSeries =
+    async (): Promise<NativeKeywordSeries | null> => {
+      if (!tracked.groups.length) return null;
+      const parts = await Promise.all(
+        tracked.groups.map(async (group) =>
+          normalizeGscKeywordSeries(
+            query,
+            group,
+            unwrapNativeStatistics(
+              await read(
+                integration,
+                tool,
+                gscKeywordSeriesArguments(query, group),
+              ),
+              ["rows"],
             ),
-            ["rows"],
           ),
-        )
-      : null;
+        ),
+      );
+      return {
+        rowLimit: parts[0].rowLimit,
+        truncated: parts.some((part) => part.truncated),
+        keywords: parts.flatMap((part) => part.keywords),
+      };
+    };
   // Independent reads: native aggregate totals, the daily series, Search Console query rows and tracked keyword days. Distinct users are never summed.
   const [period, daily, queries, keywordSeries, previous, byCountry, byDevice] =
     await Promise.allSettled([
@@ -413,7 +424,7 @@ export async function syncProjectSeoStatistics(
           `Only the first ${queries.value.rowLimit} query rows by clicks were kept. More rows can exist.`,
         );
     } else metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
-    if (tracked.chosen.length) {
+    if (tracked.groups.length) {
       if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
         metrics.keywordSeries = keywordSeries.value;
         if (keywordSeries.value.truncated)

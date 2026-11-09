@@ -389,9 +389,11 @@ export const seoSearchQueryRowSchema = z.object({
 });
 export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
 export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
+/** One daily read per country; a sync reads at most this many. */
+export const SEO_KEYWORD_SERIES_MAX_COUNTRIES = 3;
 /**
  * Daily Search Console rows for tracked keywords, grouped by normalized query
- * and date over every selected page. A day without rows has no point. A
+ * and date over every selected page, from searchers in each keyword's country. A day without rows has no point. A
  * requested keyword without rows has no points. Position is null at 0 impressions.
  */
 export const seoKeywordSeriesSchema = z
@@ -402,6 +404,11 @@ export const seoKeywordSeriesSchema = z
       .array(
         z.object({
           keyword: z.string().min(1).max(2048),
+          /** Searchers' country the read was filtered to. Absent on older observations, which read every country. */
+          countryCode: z
+            .string()
+            .regex(/^[A-Z]{2}$/)
+            .optional(),
           points: z
             .array(
               z.object({

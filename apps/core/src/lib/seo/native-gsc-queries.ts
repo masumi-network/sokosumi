@@ -1,8 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import { normalizeSeoQuery } from "@sokosumi/utils";
+import countries from "i18n-iso-countries";
 
 import {
   type NativeSeoMetrics,
+  SEO_KEYWORD_SERIES_MAX_COUNTRIES,
   SEO_KEYWORD_SERIES_MAX_KEYWORDS,
   SEO_KEYWORD_SERIES_ROW_LIMIT,
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -122,6 +124,17 @@ export interface TrackedKeyword {
   keyword: string;
   saved: boolean;
   priority: keyof typeof PRIORITY_RANK;
+  countryCode: string;
+}
+/** Keywords read together, filtered to searchers in one country. */
+export interface TrackedKeywordGroup {
+  countryCode: string;
+  keywords: string[];
+}
+
+/** Search Console names a country by its lowercase ISO alpha-3 code. */
+function gscCountry(countryCode: string): string | undefined {
+  return countries.alpha2ToAlpha3(countryCode)?.toLowerCase();
 }
 
 function keywordExpression(keywords: string[]): string {
@@ -129,39 +142,63 @@ function keywordExpression(keywords: string[]): string {
 }
 
 /**
- * Saved keywords, one per normalized key at its highest priority, ordered by
- * priority then key. At most 25 fit, within the filter expression limit.
+ * Saved keywords, one per normalized key and country at its highest priority,
+ * ordered by priority then key. At most 25 fit, in at most 3 countries, each
+ * country's set within the filter expression limit. A country Search Console
+ * cannot name is left out.
  */
 export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
-  chosen: string[];
+  groups: TrackedKeywordGroup[];
   leftOut: string[];
 } {
-  const best = new Map<string, number>();
+  const best = new Map<
+    string,
+    { key: string; countryCode: string; rank: number }
+  >();
   for (const row of keywords) {
     const key = normalizeSeoQuery(row.keyword);
     if (!row.saved || !key) continue;
+    const identity = JSON.stringify([row.countryCode, key]);
     const rank = PRIORITY_RANK[row.priority];
-    best.set(key, Math.min(best.get(key) ?? rank, rank));
+    const known = best.get(identity);
+    if (!known || rank < known.rank)
+      best.set(identity, { key, countryCode: row.countryCode, rank });
   }
-  const ordered = [...best].sort(
-    ([a, rankA], [b, rankB]) => rankA - rankB || a.localeCompare(b),
+  const ordered = [...best.values()].sort(
+    (a, b) =>
+      a.rank - b.rank ||
+      a.key.localeCompare(b.key) ||
+      a.countryCode.localeCompare(b.countryCode),
   );
-  const chosen: string[] = [],
-    leftOut: string[] = [];
-  for (const [key] of ordered) {
+  const groups = new Map<string, string[]>();
+  const leftOut: string[] = [];
+  let chosen = 0;
+  for (const { key, countryCode } of ordered) {
+    const group = groups.get(countryCode) ?? [];
     if (
-      chosen.length < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
-      keywordExpression([...chosen, key]).length <= GSC_FILTER_EXPRESSION_LIMIT
-    )
-      chosen.push(key);
-    else leftOut.push(key);
+      chosen < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
+      gscCountry(countryCode) &&
+      (groups.has(countryCode) ||
+        groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES) &&
+      keywordExpression([...group, key]).length <= GSC_FILTER_EXPRESSION_LIMIT
+    ) {
+      group.push(key);
+      groups.set(countryCode, group);
+      chosen++;
+    } else leftOut.push(key);
   }
-  return { chosen, leftOut };
+  return {
+    groups: [...groups].map(([countryCode, chosenKeys]) => ({
+      countryCode,
+      keywords: chosenKeys,
+    })),
+    leftOut,
+  };
 }
 
 /** Names the keywords a sync did not request, as many as fit in one note. */
 export function keywordSeriesLeftOutNote(leftOut: string[]): string {
-  let note = `Daily positions are read for at most ${SEO_KEYWORD_SERIES_MAX_KEYWORDS} tracked keywords per sync. Not read this time: `;
+  let note = `Daily positions are read for at most ${SEO_KEYWORD_SERIES_MAX_KEYWORDS} tracked keywords in ${SEO_KEYWORD_SERIES_MAX_COUNTRIES} countries per sync. Not read this time: `;
   for (const [index, keyword] of leftOut.entries()) {
     const name = `${index ? ", " : ""}"${keyword}"`;
     const more = ` and ${leftOut.length - index} more.`;
@@ -172,22 +209,26 @@ export function keywordSeriesLeftOutNote(leftOut: string[]): string {
   return `${note}.`;
 }
 
-/** Same pages, dates and search type as the totals, limited to the tracked keywords and grouped by day. */
+/** Same pages, dates and search type as the totals, limited to the tracked keywords and their country, grouped by day. */
 export function gscKeywordSeriesArguments(
   query: NativeStatisticsQuery,
-  keywords: string[],
+  group: TrackedKeywordGroup,
 ): Record<string, unknown> {
+  const { keywords } = group;
   const expression = keywordExpression(keywords.map(normalizeSeoQuery));
   if (!keywords.length || expression.length > GSC_FILTER_EXPRESSION_LIMIT)
     throw new Error(
       "Select fewer tracked keywords for this Search Console query",
     );
+  const country = gscCountry(group.countryCode);
+  if (!country)
+    throw new Error("Search Console cannot filter by this keyword country");
   const args = gscSearchAnalyticsArguments(
     query,
     KEYWORD_SERIES_DIMENSIONS,
     SEO_KEYWORD_SERIES_ROW_LIMIT,
   );
-  const [group] = args.dimension_filter_groups as Array<{
+  const [pageGroup] = args.dimension_filter_groups as Array<{
     groupType: string;
     filters: unknown[];
   }>;
@@ -195,10 +236,11 @@ export function gscKeywordSeriesArguments(
     ...args,
     dimension_filter_groups: [
       {
-        ...group,
+        ...pageGroup,
         filters: [
-          ...group.filters,
+          ...pageGroup.filters,
           { dimension: "query", operator: "includingRegex", expression },
+          { dimension: "country", operator: "equals", expression: country },
         ],
       },
     ],
@@ -214,9 +256,10 @@ export function gscKeywordSeriesArguments(
  */
 export function normalizeGscKeywordSeries(
   query: NativeStatisticsQuery,
-  keywords: string[],
+  group: TrackedKeywordGroup,
   input: unknown,
 ): NativeKeywordSeries {
+  const { keywords, countryCode } = group;
   const report = gscKeywordSeriesReportSchema.parse(input);
   const days = new Map(
     keywords.map((keyword) => [
@@ -252,6 +295,7 @@ export function normalizeGscKeywordSeries(
     truncated: report.rows.length >= SEO_KEYWORD_SERIES_ROW_LIMIT,
     keywords: [...days].map(([keyword, byDate]) => ({
       keyword,
+      countryCode,
       points: [...byDate]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, day]) => ({

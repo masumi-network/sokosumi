@@ -542,9 +542,10 @@ describe("Search Console query rows", () => {
       rowLimit: 10_000,
       truncated: false,
       keywords: [
-        { keyword: "charger", points: [] },
+        { keyword: "charger", countryCode: "US", points: [] },
         {
           keyword: "battery",
+          countryCode: "US",
           points: [
             { date: "2026-01-01", clicks: 1, impressions: 9, position: 4.2 },
           ],
@@ -555,6 +556,53 @@ describe("Search Console query rows", () => {
       keywordSeries: series,
     });
     expect(workspace.searchQueries?.keywordSeries).toEqual(series);
+  });
+
+  it("reads each keyword country apart and drops the series when one read fails", async () => {
+    state.keywords.push(saved("battery"), {
+      ...saved("akku"),
+      countryCode: "DE",
+      languageCode: "de",
+    });
+    const current = gsc(
+      { rows: [{ keys: ["battery", state.pageUrl], ...metric }] },
+      { rows: [] },
+    );
+    let failGermany = false;
+    state.answer = (slug, args) => {
+      const groups = args.dimension_filter_groups as
+        | Array<{ filters: Array<{ dimension: string; expression: string }> }>
+        | undefined;
+      const country = groups?.[0].filters.find(
+        (filter) => filter.dimension === "country",
+      )?.expression;
+      if (country === "deu" && failGermany)
+        return { successful: false, error: "quota" };
+      return current(slug, args);
+    };
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    expect(seriesRead()).toHaveLength(2);
+    expect(
+      workspace.searchQueries?.keywordSeries?.keywords.map((entry) => [
+        entry.keyword,
+        entry.countryCode,
+      ]),
+    ).toEqual([
+      ["akku", "DE"],
+      ["battery", "US"],
+    ]);
+    failGermany = true;
+    state.observations.length = 0;
+    await syncProjectSeoStatistics(actor, gscInput);
+    const payload = state.observations[0].payload as {
+      keywordSeries?: unknown;
+      notes: string[];
+    };
+    // Half a series would read as "no impressions" for the failed country.
+    expect(payload.keywordSeries).toBeUndefined();
+    expect(payload.notes).toContain(
+      SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
+    );
   });
 
   it("keeps totals and query rows and says so when the keyword read fails", async () => {

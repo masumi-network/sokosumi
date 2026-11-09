@@ -261,7 +261,7 @@ describe("keyword trend", () => {
   }
 
   it("fills missing days with gaps up to the last day Google reported", () => {
-    expect(keywordTrend(seriesWorkspace(), "  USDC ")).toEqual({
+    expect(keywordTrend(seriesWorkspace(), "  USDC ", "US")).toEqual({
       state: "measured",
       points: [
         { date: "2026-10-01", value: 6.5 },
@@ -274,9 +274,28 @@ describe("keyword trend", () => {
 
   it("tells an unrequested keyword from one without impressions", () => {
     const queries = seriesWorkspace();
-    expect(keywordTrend(queries, "EURC")).toEqual({ state: "empty" });
-    expect(keywordTrend(queries, "usdt")).toEqual({ state: "not_requested" });
+    expect(keywordTrend(queries, "EURC", "US")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "usdt", "US")).toEqual({
+      state: "not_requested",
+    });
     queries.keywordSeries = undefined;
-    expect(keywordTrend(queries, "usdc")).toEqual({ state: "absent" });
+    expect(keywordTrend(queries, "usdc", "US")).toEqual({ state: "absent" });
+  });
+
+  it("uses only the read of the keyword's own country", () => {
+    const queries = seriesWorkspace();
+    if (!queries?.keywordSeries) throw new Error("fixture");
+    queries.keywordSeries.keywords = [
+      {
+        keyword: "eurc",
+        countryCode: "DE",
+        points: [point("2026-10-01", 1, 4)],
+      },
+      { keyword: "eurc", countryCode: "US", points: [] },
+    ];
+    expect(keywordTrend(queries, "eurc", "US")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "eurc", "FR")).toEqual({
+      state: "not_requested",
+    });
   });
 });

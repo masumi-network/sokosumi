@@ -10080,6 +10080,7 @@ export type ProjectSeoKeywordSeries = {
     truncated: boolean;
     keywords: Array<{
         keyword: string;
+        countryCode?: string;
         points: Array<{
             date: string;
             clicks: number;

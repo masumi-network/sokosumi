@@ -124,11 +124,17 @@ export type SeoKeywordTrend =
 export function keywordTrend(
   queries: ProjectSeoWorkspace["searchQueries"],
   keyword: string,
+  countryCode: string,
 ): SeoKeywordTrend {
   const series = queries?.keywordSeries;
   if (!queries || !series) return { state: "absent" };
   const key = normalizeQuery(keyword);
-  const entry = series.keywords.find((item) => item.keyword === key);
+  // Older reads had no country filter; each newer entry belongs to one country.
+  const entry = series.keywords.find(
+    (item) =>
+      item.keyword === key &&
+      (!item.countryCode || item.countryCode === countryCode),
+  );
   if (!entry) return { state: "not_requested" };
   if (!entry.points.length) return { state: "empty" };
   const last = series.keywords

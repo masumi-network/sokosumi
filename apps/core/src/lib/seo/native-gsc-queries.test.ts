@@ -109,7 +109,10 @@ describe("tracked keyword daily rows", () => {
   ) => ({ keys: [date, text], clicks, impressions, ctr: 0, position });
 
   it("adds an escaped keyword filter to the same page filter group", () => {
-    const args = gscKeywordSeriesArguments(query, ["c++ guide", "A.b"]),
+    const args = gscKeywordSeriesArguments(query, {
+        countryCode: "DE",
+        keywords: ["c++ guide", "A.b"],
+      }),
       totals = gscStatisticsArguments(query, false);
     expect(args.dimensions).toEqual(["date", "query"]);
     expect(args.row_limit).toBe(SEO_KEYWORD_SERIES_ROW_LIMIT);
@@ -134,6 +137,8 @@ describe("tracked keyword daily rows", () => {
             operator: "includingRegex",
             expression: "(?i)^(?:c\\+\\+ guide|a\\.b)$",
           },
+          // Searchers in the keyword's country only, in Google's alpha-3 code.
+          { dimension: "country", operator: "equals", expression: "deu" },
         ],
       },
     ]);
@@ -144,12 +149,15 @@ describe("tracked keyword daily rows", () => {
       keyword: `kw ${String(i).padStart(2, "0")}`,
       saved: true,
       priority: (i === 29 ? "high" : "medium") as "high" | "medium",
+      countryCode: "US",
     }));
-    const { chosen, leftOut } = selectTrackedKeywords([
+    const { groups, leftOut } = selectTrackedKeywords([
       ...keywords,
-      { keyword: "KW  29", saved: true, priority: "low" },
-      { keyword: "unsaved", saved: false, priority: "high" },
+      { keyword: "KW  29", saved: true, priority: "low", countryCode: "US" },
+      { keyword: "unsaved", saved: false, priority: "high", countryCode: "US" },
     ]);
+    expect(groups).toHaveLength(1);
+    const chosen = groups[0].keywords;
     expect(chosen).toHaveLength(25);
     expect(chosen.slice(0, 3)).toEqual(["kw 29", "kw 00", "kw 01"]);
     expect(leftOut).toEqual(["kw 24", "kw 25", "kw 26", "kw 27", "kw 28"]);
@@ -158,15 +166,40 @@ describe("tracked keyword daily rows", () => {
     expect(note).not.toMatch(/[–—]/);
   });
 
+  it("reads one keyword per country and at most 3 countries", () => {
+    const tracked = (keyword: string, countryCode: string) => ({
+      keyword,
+      saved: true,
+      priority: "medium" as const,
+      countryCode,
+    });
+    const { groups, leftOut } = selectTrackedKeywords([
+      tracked("battery", "DE"),
+      tracked("Battery", "AT"),
+      tracked("charger", "CH"),
+      tracked("cable", "FR"),
+      tracked("adapter", "DE"),
+      // No alpha-3 twin, so Search Console cannot filter by it. Chosen first, it still takes no country slot.
+      { ...tracked("plug", "XX"), priority: "high" },
+    ]);
+    expect(groups).toEqual([
+      { countryCode: "DE", keywords: ["adapter", "battery"] },
+      { countryCode: "AT", keywords: ["battery"] },
+      { countryCode: "FR", keywords: ["cable"] },
+    ]);
+    expect(leftOut).toEqual(["plug", "charger"]);
+  });
+
   it("keeps a set of long keywords within the filter expression limit", () => {
     const keywords = Array.from({ length: 25 }, (_, i) => ({
       keyword: `${i}${".".repeat(200)}`,
       saved: true,
       priority: "medium" as const,
+      countryCode: "US",
     }));
-    const { chosen, leftOut } = selectTrackedKeywords(keywords);
+    const { groups, leftOut } = selectTrackedKeywords(keywords);
     expect(leftOut.length).toBeGreaterThan(0);
-    const [group] = gscKeywordSeriesArguments(query, chosen)
+    const [group] = gscKeywordSeriesArguments(query, groups[0])
       .dimension_filter_groups as Array<{
       filters: Array<{ expression: string }>;
     }>;
@@ -178,7 +211,7 @@ describe("tracked keyword daily rows", () => {
   it("merges case and spacing variants per day with an impression-weighted position", () => {
     const result = normalizeGscKeywordSeries(
       query,
-      ["battery health", "unused keyword"],
+      { countryCode: "US", keywords: ["battery health", "unused keyword"] },
       {
         rows: [
           day("2026-10-10", "Battery Health", 10, 2, 1),
@@ -193,19 +226,24 @@ describe("tracked keyword daily rows", () => {
       keywords: [
         {
           keyword: "battery health",
+          countryCode: "US",
           points: [
             { date: "2026-10-09", clicks: 0, impressions: 0, position: null },
             { date: "2026-10-10", clicks: 3, impressions: 40, position: 5 },
           ],
         },
-        { keyword: "unused keyword", points: [] },
+        { keyword: "unused keyword", countryCode: "US", points: [] },
       ],
     });
   });
 
   it("refuses a query outside the set, a date outside the period, duplicates and other groupings", () => {
     const read = (rows: unknown[]) => () =>
-      normalizeGscKeywordSeries(query, ["battery"], { rows });
+      normalizeGscKeywordSeries(
+        query,
+        { countryCode: "US", keywords: ["battery"] },
+        { rows },
+      );
     expect(read([day("2026-10-10", "battery pack", 1, 1)])).toThrow(
       "outside the keywords",
     );

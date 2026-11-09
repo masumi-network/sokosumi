@@ -158,7 +158,7 @@ export function SeoKeywords({ model }: { model: SeoWorkspaceModel }) {
                       : undefined;
                   // Daily positions are read for tracked keywords only.
                   const trend = row.saved
-                    ? keywordTrend(queries, row.keyword)
+                    ? keywordTrend(queries, row.keyword, row.countryCode)
                     : ({ state: "absent" } as const);
                   const trendId = `seo-keyword-trend-${row.id}`;
                   // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
