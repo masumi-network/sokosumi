@@ -1,4 +1,4 @@
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   connectionFindMany,
@@ -138,7 +138,7 @@ describe("findCusoForUser", () => {
     expect(cusoFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          versionId: { in: [CMO_SOKO_BOT_VERSION_ID] },
+          versionId: { in: [...CMO_SOKO_BOT_VERSION_IDS] },
           userId: null,
           projectId: { not: null },
           deletedAt: null,
@@ -199,7 +199,7 @@ describe("findCusoForBot", () => {
       expect.objectContaining({
         where: {
           id: "bot-1",
-          versionId: { in: [CMO_SOKO_BOT_VERSION_ID] },
+          versionId: { in: [...CMO_SOKO_BOT_VERSION_IDS] },
           userId: null,
           projectId: { not: null },
         },
