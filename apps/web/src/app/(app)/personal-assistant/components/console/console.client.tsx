@@ -29,6 +29,14 @@ import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
@@ -244,6 +252,7 @@ export function SokoBotConsole({
   const [isOpeningChat, startOpeningChat] = useTransition();
   const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
   const [isSavingAvatar, startSavingAvatar] = useTransition();
+  const [editingPicture, setEditingPicture] = useState(false);
   function saveAvatar() {
     if (!pickedAvatar) return;
     const avatarId = pickedAvatar.id;
@@ -255,6 +264,7 @@ export function SokoBotConsole({
       }
       toast.success(t("Avatar.saved"));
       setPickedAvatar(null);
+      setEditingPicture(false);
       await refresh();
       router.refresh();
     });
@@ -290,7 +300,43 @@ export function SokoBotConsole({
                 name={botName}
                 seed={seed}
                 imageUrl={bot.avatarImageUrl}
+                // Only the owner changes their own bot's picture here; shared
+                // bots get theirs from admin.
+                onEdit={botId ? null : () => setEditingPicture(true)}
               />
+              {botId ? null : (
+                <Dialog
+                  open={editingPicture}
+                  onOpenChange={(open) => {
+                    setEditingPicture(open);
+                    if (!open) setPickedAvatar(null);
+                  }}
+                >
+                  <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>{t("Avatar.title")}</DialogTitle>
+                      <DialogDescription>
+                        {t("Avatar.description")}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <AvatarPicker
+                      value={pickedAvatar?.id ?? null}
+                      onChange={setPickedAvatar}
+                      currentImageUrl={bot.avatarImageUrl}
+                    />
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        disabled={!pickedAvatar}
+                        loading={isSavingAvatar}
+                        onClick={saveAvatar}
+                      >
+                        {t("Avatar.save")}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
               <div className="flex flex-col items-center gap-2">
                 <div className="flex flex-wrap items-center justify-center gap-2.5">
                   <h1 className="text-foreground truncate text-3xl font-light tracking-tight">
@@ -515,32 +561,6 @@ export function SokoBotConsole({
                     <HowItWorks />
                   </HolderPanel>
                 </HolderSection>
-                {botId ? null : (
-                  <HolderSection
-                    title={t("Avatar.title")}
-                    description={t("Avatar.description")}
-                    aside={
-                      pickedAvatar ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          loading={isSavingAvatar}
-                          onClick={saveAvatar}
-                        >
-                          {t("Avatar.save")}
-                        </Button>
-                      ) : null
-                    }
-                  >
-                    <HolderPanel>
-                      <AvatarPicker
-                        value={pickedAvatar?.id ?? null}
-                        onChange={setPickedAvatar}
-                        currentImageUrl={bot.avatarImageUrl}
-                      />
-                    </HolderPanel>
-                  </HolderSection>
-                )}
               </div>
             ) : (
               <div className="space-y-10">
