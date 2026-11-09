@@ -61,8 +61,12 @@ const store = {
 const PREFIX = "drive/organizations/org_1/Series A/";
 
 function folderHolds(pathnames: string[]) {
+  const held = new Set(pathnames);
+  blob.del.mockImplementation(async (pathname: string) => {
+    held.delete(pathname);
+  });
   blob.list.mockImplementation(async (options: { prefix: string }) => ({
-    blobs: pathnames
+    blobs: [...held]
       .filter((pathname) => pathname.startsWith(options.prefix))
       .map((pathname) => ({
         pathname,
@@ -189,7 +193,7 @@ describe("moveDataRoomFiles", () => {
     folderPath: "Series A",
   };
 
-  it("streams each file into the private store, then deletes the public copy", async () => {
+  it("streams each file into the private store, deletes the public copy and marks the room private", async () => {
     db.dataRoom.findMany.mockResolvedValue([{ ...room, storage: "MOVING_IN" }]);
     const stream = new ReadableStream();
     blob.get.mockResolvedValue({
@@ -201,7 +205,7 @@ describe("moveDataRoomFiles", () => {
 
     const result = await moveDataRoomFiles(always);
 
-    expect(result).toEqual({ rooms: 1, moved: 1, finished: 0 });
+    expect(result).toEqual({ rooms: 1, moved: 1, finished: 1 });
     expect(blob.list).toHaveBeenCalledWith(
       expect.objectContaining({ prefix: PREFIX, token: "public-token" }),
     );
@@ -217,6 +221,21 @@ describe("moveDataRoomFiles", () => {
     expect(blob.del).toHaveBeenCalledWith(`${PREFIX}deck.pdf`, {
       token: "public-token",
     });
+    expect(db.dataRoom.updateMany).toHaveBeenCalledWith({
+      where: { id: "room-1", storage: "MOVING_IN" },
+      data: { storage: "PRIVATE" },
+    });
+  });
+
+  it("skips a file another run already moved and leaves the room for the next run", async () => {
+    db.dataRoom.findMany.mockResolvedValue([{ ...room, storage: "MOVING_IN" }]);
+    blob.get.mockResolvedValue(null);
+    await expect(moveDataRoomFiles(always)).resolves.toEqual({
+      rooms: 1,
+      moved: 0,
+      finished: 0,
+    });
+    expect(blob.put).not.toHaveBeenCalled();
     expect(db.dataRoom.updateMany).not.toHaveBeenCalled();
   });
 
@@ -246,15 +265,6 @@ describe("moveDataRoomFiles", () => {
     expect(db.dataRoom.deleteMany).toHaveBeenCalledWith({
       where: { id: "room-1", storage: "MOVING_OUT" },
     });
-  });
-
-  it("skips a file another run already moved", async () => {
-    db.dataRoom.findMany.mockResolvedValue([{ ...room, storage: "MOVING_IN" }]);
-    blob.get.mockResolvedValue(null);
-    await expect(moveDataRoomFiles(always)).resolves.toMatchObject({
-      moved: 0,
-    });
-    expect(blob.put).not.toHaveBeenCalled();
   });
 
   it("stops when the cron's time is up", async () => {

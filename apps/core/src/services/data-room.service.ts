@@ -221,14 +221,19 @@ export async function moveDataRoomFiles(options: {
     const goingIn = room.storage === DataRoomStorage.MOVING_IN;
     const from = goingIn ? publicDriveStore() : privateStore;
     const to = goingIn ? privateStore : publicDriveStore();
-    const moved = await moveBatch({
-      prefix: folderPrefix(store, room.folderPath),
-      from,
-      to,
-      shouldContinue: options.shouldContinue,
-    });
-    result.moved += moved.count;
-    if (!moved.done) continue;
+    let done = false;
+    while (!done && options.shouldContinue()) {
+      const moved = await moveBatch({
+        prefix: folderPrefix(store, room.folderPath),
+        from,
+        to,
+        shouldContinue: options.shouldContinue,
+      });
+      result.moved += moved.count;
+      done = moved.done;
+      if (moved.count === 0) break;
+    }
+    if (!done) continue;
     result.finished += 1;
     if (goingIn)
       await prisma.dataRoom.updateMany({

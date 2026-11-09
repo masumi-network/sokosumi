@@ -9403,7 +9403,7 @@
           "statusExpired": "Access ended",
           "onlyFolders": "only {folders}",
           "until": "until {date}",
-          "counts": "{views} views · {downloads} downloads",
+          "counts": "{views, plural, one {# view} other {# views}} · {downloads, plural, one {# download} other {# downloads}}",
           "remove": "Remove",
           "removeTitle": "Remove {email} from the room?",
           "removeDescription": "They lose access at once, including any page they have open. Their activity stays in the log.",

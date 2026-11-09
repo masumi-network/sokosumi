@@ -353,7 +353,7 @@ export async function zipDataRoom(input: {
       now,
     });
     zip.file(
-      file.path,
+      [...file.path.split("/").slice(0, -1), file.name].join("/"),
       new Uint8Array(await new Response(content.stream).arrayBuffer()),
     );
   }

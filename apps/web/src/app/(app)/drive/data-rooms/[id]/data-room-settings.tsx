@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { dataRoomRefusal, updateDataRoom } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { rowLabel } from "./data-room-activity";
 import { DataRoomDateField } from "./data-room-date-field";
 
 const NO_LOGO = "none";
@@ -117,7 +118,7 @@ export function DataRoomSettingsPanel({
             <SelectItem value={NO_LOGO}>{t("noLogo")}</SelectItem>
             {images.map((row) => (
               <SelectItem key={row.resourceId} value={row.resourceId ?? ""}>
-                {row.path}
+                {rowLabel(rows, row.path)}
               </SelectItem>
             ))}
           </SelectContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { DataRoomQuestion } from "@sokosumi/core-client";
+import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -15,14 +15,17 @@ import {
   fetchDataRoomQuestions,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { rowLabel } from "./data-room-activity";
 
 /** Viewers' questions about documents, each answerable in place. */
 export function DataRoomQuestions({
   store,
   roomId,
+  rows,
 }: {
   store: FileStore;
   roomId: string;
+  rows: DataRoomTreeRow[];
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const query = useQuery({
@@ -51,6 +54,7 @@ export function DataRoomQuestions({
           store={store}
           roomId={roomId}
           question={question}
+          label={rowLabel(rows, question.path)}
           onAnswered={() => void query.refetch()}
         />
       ))}
@@ -62,11 +66,13 @@ function QuestionItem({
   store,
   roomId,
   question,
+  label,
   onAnswered,
 }: {
   store: FileStore;
   roomId: string;
   question: DataRoomQuestion;
+  label: string;
   onAnswered: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
@@ -79,7 +85,7 @@ function QuestionItem({
       <p className="text-muted-foreground text-xs">
         {t("byline", {
           who: question.name ?? question.email,
-          path: question.path,
+          path: label,
           when: format.relativeTime(new Date(question.createdAt)),
         })}
       </p>

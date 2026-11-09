@@ -9403,7 +9403,7 @@
           "statusExpired": "Zugang beendet",
           "onlyFolders": "nur {folders}",
           "until": "bis {date}",
-          "counts": "{views} Aufrufe · {downloads} Downloads",
+          "counts": "{views, plural, one {# Aufruf} other {# Aufrufe}} · {downloads, plural, one {# Download} other {# Downloads}}",
           "remove": "Entfernen",
           "removeTitle": "{email} aus dem Raum entfernen?",
           "removeDescription": "Der Zugang endet sofort, auch für geöffnete Seiten. Die Aktivität bleibt im Protokoll.",

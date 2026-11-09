@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/utils/data-room.client", () => ({}));
 
+import { rowLabel } from "./data-room-activity";
 import { moveRow, orderEntries } from "./data-room-contents";
 import { parseEmails } from "./data-room-people";
 
@@ -63,5 +64,15 @@ describe("orderEntries", () => {
       { path: "Legal/NDA.pdf", position: 1 },
       { path: "Teaser.pdf", position: 3 },
     ]);
+  });
+});
+
+describe("rowLabel", () => {
+  it("names a file by its number and real name, and keeps the path of one since removed", () => {
+    const numbered = [
+      { ...row("Org_chart.png", "file"), name: "Org chart.png", number: "1" },
+    ];
+    expect(rowLabel(numbered, "Org_chart.png")).toBe("1 Org chart.png");
+    expect(rowLabel(numbered, "Old/deck.pdf")).toBe("Old/deck.pdf");
   });
 });

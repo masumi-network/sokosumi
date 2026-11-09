@@ -1,6 +1,10 @@
 "use client";
 
-import type { DataRoomEvent, DataRoomMember } from "@sokosumi/core-client";
+import type {
+  DataRoomEvent,
+  DataRoomMember,
+  DataRoomTreeRow,
+} from "@sokosumi/core-client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -19,15 +23,26 @@ import type { FileStore } from "@/lib/utils/file-search.client";
 
 const EVERYONE = "everyone";
 
+/** A path as the room reads it, "1.2 Articles.pdf"; the raw path once it is gone. */
+export function rowLabel(
+  rows: readonly DataRoomTreeRow[],
+  path: string,
+): string {
+  const row = rows.find((candidate) => candidate.path === path);
+  return row ? `${row.number} ${row.name}` : path;
+}
+
 /** Who came in and what they opened, newest first. */
 export function DataRoomActivity({
   store,
   roomId,
   members,
+  rows,
 }: {
   store: FileStore;
   roomId: string;
   members: DataRoomMember[];
+  rows: DataRoomTreeRow[];
 }) {
   const t = useTranslations("App.Drive.DataRoom.Activity");
   const format = useFormatter();
@@ -48,7 +63,7 @@ export function DataRoomActivity({
 
   function describe(event: DataRoomEvent): string {
     const who = event.name ?? event.email ?? t("someone");
-    const what = event.path ?? "";
+    const what = event.path ? rowLabel(rows, event.path) : "";
     return t(`kind.${event.kind}`, { who, what });
   }
 

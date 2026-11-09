@@ -9403,7 +9403,7 @@
           "statusExpired": "Acceso terminado",
           "onlyFolders": "solo {folders}",
           "until": "hasta {date}",
-          "counts": "{views} vistas · {downloads} descargas",
+          "counts": "{views, plural, one {# vista} other {# vistas}} · {downloads, plural, one {# descarga} other {# descargas}}",
           "remove": "Quitar",
           "removeTitle": "¿Quitar a {email} de la sala?",
           "removeDescription": "Pierde el acceso al momento, también en las páginas abiertas. Su actividad queda en el registro.",

@@ -180,7 +180,7 @@ function RoomFile({
           <h2 className="truncate font-medium">
             <span className="text-muted-foreground me-2 tabular-nums">
               {row.number}
-            </span>
+            </span>{" "}
             {row.name}
           </h2>
           {row.sizeBytes !== null ? (

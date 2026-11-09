@@ -127,10 +127,11 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
               store={store}
               roomId={room.id}
               members={members}
+              rows={rows}
             />
           </TabsContent>
           <TabsContent value="questions">
-            <DataRoomQuestions store={store} roomId={room.id} />
+            <DataRoomQuestions store={store} roomId={room.id} rows={rows} />
           </TabsContent>
           <TabsContent value="contents">
             <DataRoomContents
