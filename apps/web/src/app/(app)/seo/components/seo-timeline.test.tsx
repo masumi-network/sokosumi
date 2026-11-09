@@ -229,7 +229,7 @@ describe("SEO timeline recovery", () => {
     const [clean, issues] = rows;
     expect(within(clean).getByText("No issues in 3 checks")).toBeVisible();
     // The fold says what it opens, like the one-check row's link.
-    expect(within(clean).getByText("View results of 3 checks")).toBeVisible();
+    expect(within(clean).getByText("Show 3 checks")).toBeVisible();
     expect(within(clean).getByText("24 tests · desktop")).toBeVisible();
     expect(
       within(clean).getByText("Some earlier checks ran 12 tests."),

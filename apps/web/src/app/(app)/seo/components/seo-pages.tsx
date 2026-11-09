@@ -12,6 +12,7 @@ import {
   SeoPageLink,
   SeoPeriod,
   SeoSection,
+  SeoSource,
   SeoState,
 } from "./seo-shared";
 import {
@@ -146,6 +147,15 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                                 {summary.incomplete && summary.issues
                                   ? ` · ${t("pages.checkIncomplete")}`
                                   : null}
+                                {summary.checkId ? (
+                                  <>
+                                    {" · "}
+                                    <SeoSource
+                                      observationId={summary.checkId}
+                                      workspace={model.data}
+                                    />
+                                  </>
+                                ) : null}
                               </>
                             ) : (
                               // Checks outside the date filter are not in view.

@@ -92,7 +92,12 @@ export function seoPageSummaries(workspace: ProjectSeoWorkspace) {
   const viewed = new Set(workspace.scope.pageIds);
   const summaries = new Map<
     string,
-    { issues: number; checkedAt: Date | string | null; incomplete: boolean }
+    {
+      issues: number;
+      checkedAt: Date | string | null;
+      checkId: string | null;
+      incomplete: boolean;
+    }
   >();
   for (const page of workspace.pages) {
     if (!viewed.has(page.id)) continue;
@@ -109,6 +114,8 @@ export function seoPageSummaries(workspace: ProjectSeoWorkspace) {
     summaries.set(page.id, {
       issues: issues.filter((finding) => finding.pageUrl === page.url).length,
       checkedAt: check?.observedAt ?? null,
+      // Only a check with a Task has results to open.
+      checkId: check?.sourceTaskId ? check.id : null,
       // A check with unavailable rules cannot say "no issues", as on the Overview.
       incomplete: Boolean(
         check &&

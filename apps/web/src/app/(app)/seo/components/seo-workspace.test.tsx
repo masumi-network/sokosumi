@@ -300,7 +300,7 @@ describe("SEO workspace integration", () => {
     expect(evidence).toBeVisible();
   });
 
-  it("shows a page measurement's value and folds its rule references", async () => {
+  it("splits page details into measurements and notes and folds their references", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.findings.push({
@@ -356,12 +356,12 @@ describe("SEO workspace integration", () => {
       }),
     );
     expect(screen.getByText("title 56 characters")).toBeVisible();
-    // The rule name reads as the flagged rule, not as a claim about the page.
+    // Notes sit under their own heading, so a rule name does not read as a claim about the page.
+    expect(screen.getByRole("heading", { name: "Notes (2)" })).toBeVisible();
     expect(
-      screen.getByRole("heading", {
-        name: "Note on the rule “No meta keywords”",
-      }),
+      screen.getByRole("heading", { name: "No meta keywords" }),
     ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Title length" })).toBeVisible();
     // Notes sit under a "no issues" verdict; the section says why.
     expect(screen.getByText(/Notes are not issues/)).toBeVisible();
@@ -388,14 +388,16 @@ describe("SEO workspace integration", () => {
     expect(details.querySelectorAll("time")).toHaveLength(3);
     expect(
       screen.getByRole("heading", {
-        name: "Note on the rule “AI search bots may fetch the page”",
+        name: "AI search bots may fetch the page",
       }),
     ).toBeVisible();
+    // References fold once for all rows, each named by its row.
     const reference = screen.getByText(
-      "vendor tools: Ahrefs under 70 (N1-246)",
+      "Title length: vendor tools: Ahrefs under 70 (N1-246)",
     );
     expect(reference).not.toBeVisible();
-    await user.click(screen.getByText("Check details"));
+    expect(screen.queryByText("Check details")).toBeNull();
+    await user.click(screen.getByText("1 technical reference"));
     expect(reference).toBeVisible();
   });
 

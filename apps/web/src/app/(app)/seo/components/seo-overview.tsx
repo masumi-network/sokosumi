@@ -21,13 +21,48 @@ import {
 import { SeoTimeline } from "./seo-timeline";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-// The page check names raw-HTML rows "Raw HTML: <rule>"; the source line under "Check details" already says so.
+// The page check names raw-HTML rows "Raw HTML: <rule>"; the check's record already says so.
 const RAW_HTML_PREFIX = "Raw HTML: ";
 
 function checkName(title: string) {
   return title.startsWith(RAW_HTML_PREFIX)
     ? title.slice(RAW_HTML_PREFIX.length)
     : title;
+}
+
+type Diagnostic = ReturnType<typeof seoOverviewModel>["diagnostics"][number];
+
+/** One measured value or note: its name, the page when that tells rows apart, and the first evidence line. */
+function PageDetail({
+  finding,
+  data,
+  dated,
+}: {
+  finding: Diagnostic;
+  data: SeoWorkspaceModel["data"];
+  /** Rows from several checks keep their own date and record. */
+  dated: boolean;
+}) {
+  return (
+    <li className="space-y-1">
+      <h4 className="text-sm font-medium">{checkName(finding.title)}</h4>
+      {/* With one page there is nothing to tell apart, unless the row is for a page removed since. */}
+      {data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url ? (
+        <SeoPageLink url={finding.pageUrl} />
+      ) : null}
+      {finding.evidence.length ? (
+        <p className="text-muted-foreground text-sm break-words">
+          {finding.evidence[0]}
+        </p>
+      ) : null}
+      {dated ? (
+        <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
+          <SeoDate value={finding.observedAt} />
+          <SeoSource observationId={finding.observationId} workspace={data} />
+        </div>
+      ) : null}
+    </li>
+  );
 }
 
 /** Site health: run a check, then what the checks found, page by page and over time. */
@@ -53,9 +88,21 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         (observation) => observation.id === oneCheck.observationId,
       )?.observedAt ?? oneCheck.observedAt)
     : null;
-  const flagged = overview.diagnostics.filter(
+  // Measurements report a value; notes are rules the check flagged that do not count as issues.
+  const measures = overview.diagnostics.filter(
+    (finding) => finding.severity === "measure",
+  );
+  const notes = overview.diagnostics.filter(
     (finding) => finding.severity !== "measure",
-  ).length;
+  );
+  const flagged = notes.length;
+  const references = overview.diagnostics.flatMap((finding) =>
+    finding.evidence.slice(1).map((line, index) => ({
+      key: `${finding.id}:${index}`,
+      name: checkName(finding.title),
+      line,
+    })),
+  );
   return (
     <div className="space-y-5">
       {data.availableActions.canRequestAnalysis ? (
@@ -160,12 +207,6 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
             ) : null}
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
-            {/* Notes do not count toward the verdict above; say so where they are listed. */}
-            {flagged ? (
-              <p className="text-muted-foreground text-sm">
-                {t("overview.notesAreNotIssues")}
-              </p>
-            ) : null}
             {oneCheck ? (
               <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 <span>
@@ -205,53 +246,59 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                 </div>
               </div>
             ))}
-            {overview.diagnostics.map((finding) => (
-              <article key={finding.id} className="space-y-3">
-                {/* Notes and test-level rows name the rule the check flagged, which reads as a claim on its own; a measurement just reports a value. */}
-                <h3 className="text-sm font-medium">
-                  {finding.severity !== "measure"
-                    ? t("overview.ruleNote", { rule: checkName(finding.title) })
-                    : checkName(finding.title)}
+            {measures.length ? (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">
+                  {t("overview.pageMeasurements")}
                 </h3>
-                {/* With one page there is nothing to tell apart, unless the row is for a page removed since. */}
-                {data.pages.length > 1 ||
-                finding.pageUrl !== data.pages[0]?.url ? (
-                  <SeoPageLink url={finding.pageUrl} />
-                ) : null}
-                {/* The first evidence line shows inline; rule references stay one tap away. */}
-                {finding.evidence.length ? (
-                  <p className="text-muted-foreground text-sm break-words">
-                    {finding.evidence[0]}
-                  </p>
-                ) : null}
-                {finding.evidence.length > 1 ? (
-                  <details className="text-muted-foreground text-sm">
-                    <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
-                      {t("overview.checkDetails")}
-                    </summary>
-                    <ul className="list-inside list-disc space-y-1 pt-1">
-                      {finding.evidence.slice(1).map((evidence, index) => (
-                        <li
-                          key={`${index}:${evidence}`}
-                          className="break-words"
-                        >
-                          {evidence}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : null}
-                {oneCheck ? null : (
-                  <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
-                    <SeoDate value={finding.observedAt} />
-                    <SeoSource
-                      observationId={finding.observationId}
-                      workspace={data}
+                <ul className="space-y-3">
+                  {measures.map((finding) => (
+                    <PageDetail
+                      key={finding.id}
+                      finding={finding}
+                      data={data}
+                      dated={!oneCheck}
                     />
-                  </div>
-                )}
-              </article>
-            ))}
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {notes.length ? (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">
+                  {t("overview.pageNotes", { count: notes.length })}
+                </h3>
+                {/* Notes do not count toward the verdict; say so where they are listed. */}
+                <p className="text-muted-foreground text-sm">
+                  {t("overview.notesAreNotIssues")}
+                </p>
+                <ul className="space-y-3">
+                  {notes.map((finding) => (
+                    <PageDetail
+                      key={finding.id}
+                      finding={finding}
+                      data={data}
+                      dated={!oneCheck}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {/* The first evidence line shows on each row; the rest are references, folded once. */}
+            {references.length ? (
+              <details className="text-muted-foreground text-sm">
+                <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
+                  {t("overview.references", { count: references.length })}
+                </summary>
+                <ul className="list-inside list-disc space-y-1 pt-1">
+                  {references.map((reference) => (
+                    <li key={reference.key} className="break-words">
+                      {reference.name}: {reference.line}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </div>
         </details>
       ) : null}

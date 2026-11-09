@@ -10656,10 +10656,12 @@
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
         "tooFewToCompare": "Muy pocas impresiones para comparar semanas: {current} del {period}, {previous} la semana anterior.",
-        "ruleNote": "Nota sobre la regla “{rule}”",
         "noteCount": "{count, plural, one {# nota} other {# notas}}",
         "notesAreNotIssues": "Las notas no son problemas. Cada una señala algo que, según la comprobación, vale la pena mirar.",
-        "fromCheck": "De la comprobación del <date></date>"
+        "fromCheck": "De la comprobación del <date></date>",
+        "pageMeasurements": "Mediciones",
+        "pageNotes": "Notas ({count})",
+        "references": "{count, plural, one {# referencia técnica} other {# referencias técnicas}}"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10804,7 +10806,7 @@
         "viewResults": "Ver resultados",
         "checkSummaryEach": "{checked, plural, one {# prueba} other {# pruebas}} cada una",
         "device": "{device, select, mobile {móvil} desktop {ordenador} other {{device}}}",
-        "viewEachResult": "{count, plural, one {Ver resultados} other {Ver resultados de las # comprobaciones}}"
+        "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
       },
       "analysis": {
         "title": "Iniciar comprobación",

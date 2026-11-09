@@ -178,7 +178,11 @@ describe("seoPageSummaries", () => {
       id: "other",
       url: "https://example.com/b",
     };
-    const older = { ...observation(5), pageIds: [SEO_TEST_PAGE, "other"] };
+    const older = {
+      ...observation(5),
+      pageIds: [SEO_TEST_PAGE, "other"],
+      sourceTaskId: "older-task",
+    };
     const newer = {
       ...observation(0, 3),
       observedAt: new Date("2026-01-05T12:00:00Z"),
@@ -200,14 +204,17 @@ describe("seoPageSummaries", () => {
       ],
     };
     const summaries = seoPageSummaries(workspace);
+    // The last check's results open from the page row.
     expect(summaries.get(SEO_TEST_PAGE)).toEqual({
       issues: 1,
       checkedAt: older.observedAt,
+      checkId: older.id,
       incomplete: false,
     });
     expect(summaries.get("other")).toEqual({
       issues: 1,
       checkedAt: older.observedAt,
+      checkId: older.id,
       incomplete: false,
     });
     // No summary rather than a false "no issues" for a page outside the view.
@@ -232,7 +239,13 @@ describe("seoPageSummaries", () => {
       seoPageSummaries({ ...base, observations: [failed, complete] }).get(
         SEO_TEST_PAGE,
       ),
-    ).toEqual({ issues: 0, checkedAt: failed.observedAt, incomplete: true });
+    ).toEqual({
+      issues: 0,
+      checkedAt: failed.observedAt,
+      // A check without a Task has no results to open.
+      checkId: null,
+      incomplete: true,
+    });
     const cut = {
       ...base,
       observations: [],
@@ -241,6 +254,6 @@ describe("seoPageSummaries", () => {
     expect(seoPageSummaries(cut).has(SEO_TEST_PAGE)).toBe(false);
     expect(
       seoPageSummaries({ ...cut, history: base.history }).get(SEO_TEST_PAGE),
-    ).toEqual({ issues: 0, checkedAt: null, incomplete: false });
+    ).toEqual({ issues: 0, checkedAt: null, checkId: null, incomplete: false });
   });
 });
