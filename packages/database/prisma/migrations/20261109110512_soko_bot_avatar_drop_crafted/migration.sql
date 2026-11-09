@@ -1,4 +1,4 @@
--- The crafted avatar style is gone (ADR 0064): delete its rows, its render
+-- The crafted style of avatar is gone (ADR 0064): delete its rows, its render
 -- table and enums, and the columns and index it added to `soko_bot_avatar`.
 -- Ships one release after the code that stopped reading them, so the old
 -- deployment still serving during the build never reads a dropped column.
@@ -15,11 +15,16 @@
 BEGIN;
 
 -- Prisma does not wrap PostgreSQL migrations implicitly, and the old release
--- keeps claiming avatars while this runs. Take write locks first, in the order
+-- keeps claiming avatars while this runs. Take every lock first, in the order
 -- a claim writes (avatar, then bot), so no claim lands between reading the
 -- pool and handing it out, and none lands on a row about to be deleted.
-LOCK TABLE "soko_bot_avatar" IN SHARE ROW EXCLUSIVE MODE;
+-- `soko_bot_avatar` and its render table get ACCESS EXCLUSIVE up front: the
+-- DDL below needs it, and upgrading a weaker lock mid-transaction could
+-- deadlock with an in-flight claim. The old release's avatar reads wait for
+-- this transaction; `soko_bot` only takes row updates, so it stays readable.
+LOCK TABLE "soko_bot_avatar" IN ACCESS EXCLUSIVE MODE;
 LOCK TABLE "soko_bot" IN SHARE ROW EXCLUSIVE MODE;
+LOCK TABLE "soko_bot_avatar_render" IN ACCESS EXCLUSIVE MODE;
 
 -- Bots on a crafted-style avatar, in random order: holding a crafted row, or
 -- showing a crafted picture without holding it. `heldUrl` is an original the
