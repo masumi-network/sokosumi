@@ -2,8 +2,9 @@ import type { TaskActivitySummary } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { BotFace } from "@/app/soko-bots/components/bot-face";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { BotFace } from "@/components/soko-bot/bot-face";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 
 import { SokoBotHomeComposer } from "./soko-bot-home-composer.client";
 import type { SokoBotHomeTask } from "./soko-bot-home-data";
@@ -86,7 +87,11 @@ export async function SokoBotHome({
       suggestions={suggestions}
       header={
         <div className="flex flex-col items-center gap-5 text-center">
-          <BotFace bot={bot} ownerId={ownerId} className="size-12" />
+          <BotFace
+            imageUrl={bot.avatarImageUrl}
+            seed={bot.avatarSeed ?? defaultOrbSeed(ownerId)}
+            className="size-12"
+          />
           <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">
             {userName ? t("headingWithName", { name: userName }) : t("heading")}
           </h1>

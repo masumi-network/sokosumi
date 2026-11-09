@@ -1,6 +1,6 @@
 "use client";
 
-import { AuroraOrb } from "@/components/aurora-orb";
+import { BotFace } from "@/components/soko-bot/bot-face";
 
 interface BotProfileAvatarProps {
   name: string;
@@ -17,11 +17,13 @@ export function BotProfileAvatar({
   return (
     <div className="relative size-38 shrink-0 md:size-46">
       <div className="bg-muted ring-border size-full overflow-hidden rounded-full ring-4">
-        {imageUrl ? (
-          <img src={imageUrl} alt={name} className="size-full object-cover" />
-        ) : (
-          <AuroraOrb seed={seed} size={368} alt={name} className="size-full" />
-        )}
+        <BotFace
+          imageUrl={imageUrl}
+          seed={seed}
+          orbSize={368}
+          alt={name}
+          className="size-full"
+        />
       </div>
     </div>
   );

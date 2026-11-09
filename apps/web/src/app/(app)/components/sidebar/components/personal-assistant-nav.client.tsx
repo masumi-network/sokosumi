@@ -6,8 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
 import {
   STATUS_TONE_DOT_CLASS,
@@ -245,8 +245,6 @@ function LastActive({ at }: { at: Date }) {
  * bot also pulses, still under reduced motion.
  */
 function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
-  const faceClass = "size-5 shrink-0 rounded-full object-cover";
-
   return (
     <span className="relative flex size-5 shrink-0">
       {bot.status === SokoBotStatus.RUNNING ? (
@@ -256,11 +254,12 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
           className="bg-status-working absolute inset-0 rounded-full motion-safe:animate-ping"
         />
       ) : null}
-      {bot.imageUrl ? (
-        <img src={bot.imageUrl} alt="" className={faceClass} aria-hidden />
-      ) : (
-        <AuroraOrb seed={bot.seed} size={40} className={faceClass} />
-      )}
+      <BotFace
+        imageUrl={bot.imageUrl}
+        seed={bot.seed}
+        orbSize={40}
+        className="size-5"
+      />
       <span
         aria-hidden
         data-slot="soko-bot-status-dot"
