@@ -31,13 +31,17 @@ export async function GET(
 
   try {
     const headers = buildCoreChatProxyHeaders(request.headers);
-    const logo = request.nextUrl.searchParams.get("logo");
+    const query = new URLSearchParams();
+    for (const key of ["logo", "placement"]) {
+      const value = request.nextUrl.searchParams.get(key);
+      if (value !== null) query.set(key, value);
+    }
+    const rendered = query.size > 0;
     // A `<video>` seeks with byte ranges, and Safari plays nothing without them.
     const range = request.headers.get("range");
-    if (range && !logo) headers.set("range", range);
-    const query = logo ? `?logo=${encodeURIComponent(logo)}` : "";
+    if (range && !rendered) headers.set("range", range);
     const upstream = await fetch(
-      `${base}/projects/${projectId}/image-studio/assets/${assetId}/content${query}`,
+      `${base}/projects/${projectId}/image-studio/assets/${assetId}/content${rendered ? `?${query}` : ""}`,
       { headers, cache: "no-store" },
     );
     if (!upstream.ok || !upstream.body) {
@@ -52,9 +56,9 @@ export async function GET(
           { status: 503, headers: { "Retry-After": "30" } },
         );
       }
-      if (logo && upstream.status === 422) {
+      if (rendered && upstream.status === 422) {
         return NextResponse.json(
-          { error: "Logo could not be applied" },
+          { error: "Studio image could not be rendered" },
           { status: 422, headers: { "cache-control": "private, no-store" } },
         );
       }
@@ -74,7 +78,7 @@ export async function GET(
         // Mirrors Core's policy rather than inventing a laxer one: the bytes
         // are stable, but permission to read them is not, so every reuse
         // revalidates through the route that checks access.
-        "cache-control": logo ? "private, no-store" : "private, no-cache",
+        "cache-control": rendered ? "private, no-store" : "private, no-cache",
         ...(upstream.headers.get("etag")
           ? { etag: upstream.headers.get("etag")! }
           : {}),

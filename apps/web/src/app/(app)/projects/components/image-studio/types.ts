@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import { extensionForEntityImageMime } from "@sokosumi/utils";
 import type { StudioCreativeDirection } from "./studio-creative-directions";
+import type { PlacementRatio } from "./studio-placements";
 import type { StudioTemplateId } from "./studio-templates";
 
 export const MAX_STUDIO_REFERENCES = 4;
@@ -157,12 +158,20 @@ export function assetFileExtension(
   );
 }
 
+export interface StudioAdRenderOptions {
+  logo?: StudioLogoPosition;
+  placement?: PlacementRatio;
+}
+
 export function assetContentUrl(
   asset: Pick<StudioAsset, "id" | "projectId">,
-  logo?: StudioLogoPosition,
+  options?: StudioAdRenderOptions,
 ): string {
   const path = `/api/projects/${asset.projectId}/image-studio/assets/${asset.id}/content`;
-  return logo ? `${path}?logo=${encodeURIComponent(logo)}` : path;
+  const query = new URLSearchParams();
+  if (options?.logo) query.set("logo", options.logo);
+  if (options?.placement) query.set("placement", options.placement);
+  return query.size ? `${path}?${query}` : path;
 }
 
 /**

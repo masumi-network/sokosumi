@@ -4155,7 +4155,8 @@
       "previewAdDescription": "Sieh dir eine Anzeige im Instagram- oder Facebook-Feed oder als vertikales Reel an.",
       "previewPlatform": "Plattform für die Vorschau",
       "logoOnCreative": "Projektlogo auf der Anzeige",
-      "downloadWithLogo": "Mit Logo herunterladen",
+      "downloadPlacementPng": "PNG in {ratio} herunterladen",
+      "placementExportFailed": "Das Anzeigenformat konnte nicht exportiert werden. Versuche es erneut.",
       "archiveIncludeLogo": "Projektlogo in die ZIP-Datei aufnehmen",
       "brandExportFailed": "Der Export mit Projektlogo ist fehlgeschlagen. Prüfe, ob es ein PNG-, JPEG- oder WebP-Bild ist.",
       "LogoPositions": {

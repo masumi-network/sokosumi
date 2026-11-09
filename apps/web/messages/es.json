@@ -4155,7 +4155,8 @@
       "previewAdDescription": "Previsualiza un anuncio en el feed de Instagram o Facebook, o como reel vertical.",
       "previewPlatform": "Plataforma de vista previa",
       "logoOnCreative": "Logotipo del proyecto en el anuncio",
-      "downloadWithLogo": "Descargar con logotipo",
+      "downloadPlacementPng": "Descargar PNG en {ratio}",
+      "placementExportFailed": "No se pudo exportar el formato. Inténtalo de nuevo.",
       "archiveIncludeLogo": "Incluir el logotipo del proyecto en el ZIP",
       "brandExportFailed": "No se pudo exportar con el logotipo del proyecto. Comprueba que sea una imagen PNG, JPEG o WebP.",
       "LogoPositions": {

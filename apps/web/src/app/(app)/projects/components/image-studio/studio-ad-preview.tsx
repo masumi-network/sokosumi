@@ -89,17 +89,21 @@ export function StudioAdPreview({
     setRatio((current) => (allowed.includes(current) ? current : allowed[0]));
   }
 
-  function downloadWithLogo() {
-    if (!logoPosition || downloading) return;
+  function downloadPlacement() {
+    if (downloading) return;
     startDownload(async () => {
       try {
-        const response = await fetchStudioAd(asset, logoPosition);
+        const response = await fetchStudioAd(asset, {
+          logo: logoPosition,
+          placement: ratio,
+        });
+        const suffix = logoPosition ? "-branded" : "";
         saveStudioDownload(
           await response.blob(),
-          `ad-v${asset.version}-branded.png`,
+          `ad-v${asset.version}-${ratio.replace(":", "x")}${suffix}.png`,
         );
       } catch {
-        toast.error(t("brandExportFailed"));
+        toast.error(t("placementExportFailed"));
       }
     });
   }
@@ -209,9 +213,10 @@ export function StudioAdPreview({
           >
             <StudioImage
               asset={asset}
-              key={logoPosition ?? "original"}
+              key={`${ratio}:${logoPosition ?? "original"}`}
               labels={labels}
               logoPosition={logoPosition}
+              placement={ratio}
             />
           </div>
           {isReel ? (
@@ -256,15 +261,13 @@ export function StudioAdPreview({
           )}
         </div>
         <DialogFooter>
-          {logoPosition ? (
-            <Button
-              loading={downloading}
-              onClick={downloadWithLogo}
-              type="button"
-            >
-              {t("downloadWithLogo")}
-            </Button>
-          ) : null}
+          <Button
+            loading={downloading}
+            onClick={downloadPlacement}
+            type="button"
+          >
+            {t("downloadPlacementPng", { ratio })}
+          </Button>
           <DialogClose asChild>
             <Button type="button" variant="outline">
               {labels.close}

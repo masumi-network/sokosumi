@@ -55,10 +55,18 @@ export const studioLogoPositionSchema = z
   .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
   .openapi("StudioLogoPosition");
 
+export const studioAdPlacementRatioSchema = z
+  .enum(["1:1", "4:5", "9:16", "16:9"])
+  .openapi("StudioAdPlacementRatio");
+
 export const imageStudioAssetContentQuerySchema = z.object({
   logo: studioLogoPositionSchema.optional(),
+  placement: studioAdPlacementRatioSchema.optional(),
 });
 
+export type StudioAdPlacementRatio = z.infer<
+  typeof studioAdPlacementRatioSchema
+>;
 export type StudioLogoPosition = z.infer<typeof studioLogoPositionSchema>;
 
 export const imageStudioCaptionSchema = z

@@ -103,4 +103,30 @@ describe("Studio branded asset content", () => {
     expect(mocks.findProject).not.toHaveBeenCalled();
     expect(mocks.downloadLogo).not.toHaveBeenCalled();
   });
+
+  it("exports the selected crop with no logo lookup when branding is off", async () => {
+    const ad = await sharp({
+      create: { width: 160, height: 120, channels: 3, background: "white" },
+    })
+      .jpeg()
+      .toBuffer();
+    mocks.openAssetStream.mockResolvedValueOnce({
+      stream: new Response(new Uint8Array(ad)).body,
+      mediaType: "IMAGE",
+      size: ad.length,
+    });
+
+    const response = await app().request(`${path}?placement=4%3A5`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("content-disposition")).toContain("-4x5.png");
+    expect(mocks.findProject).not.toHaveBeenCalled();
+    await expect(
+      sharp(await response.arrayBuffer()).metadata(),
+    ).resolves.toMatchObject({
+      width: 96,
+      height: 120,
+      format: "png",
+    });
+  });
 });

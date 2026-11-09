@@ -10443,6 +10443,15 @@ export const StudioLogoPosition = {
 
 export type StudioLogoPosition = typeof StudioLogoPosition[keyof typeof StudioLogoPosition];
 
+export const StudioAdPlacementRatio = {
+    '1_1': '1:1',
+    '4_5': '4:5',
+    '9_16': '9:16',
+    '16_9': '16:9'
+} as const;
+
+export type StudioAdPlacementRatio = typeof StudioAdPlacementRatio[keyof typeof StudioAdPlacementRatio];
+
 export type ProjectImageStudioCaption = {
     text: string;
 };
@@ -68997,6 +69006,7 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentData = {
     };
     query?: {
         logo?: StudioLogoPosition;
+        placement?: StudioAdPlacementRatio;
     };
     url: '/projects/{id}/image-studio/assets/{assetId}/content';
 };

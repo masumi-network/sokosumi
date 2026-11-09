@@ -4155,7 +4155,8 @@
       "previewAdDescription": "Preview an Instagram or Facebook feed ad, or a vertical Reel.",
       "previewPlatform": "Preview platform",
       "logoOnCreative": "Project logo on the ad",
-      "downloadWithLogo": "Download with logo",
+      "downloadPlacementPng": "Download {ratio} PNG",
+      "placementExportFailed": "Could not export the placement. Try again.",
       "archiveIncludeLogo": "Include the project logo in the ZIP",
       "brandExportFailed": "Could not export with the project logo. Check that it is a PNG, JPEG, or WebP image.",
       "LogoPositions": {

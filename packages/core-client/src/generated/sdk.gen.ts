@@ -4966,7 +4966,7 @@ export const postProjectsByIdImageStudioJobsByJobIdCancel = <ThrowOnError extend
 });
 
 /**
- * Stream one image or video version's bytes, honouring a Range header. Authorized per request; the stored object has no publicly readable URL.
+ * Stream the authorized original, honoring byte ranges, or render a still PNG cropped to a placement with an optional project logo.
  */
 export const getProjectsByIdImageStudioAssetsByAssetIdContent = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdImageStudioAssetsByAssetIdContentData, ThrowOnError>): RequestResult<GetProjectsByIdImageStudioAssetsByAssetIdContentResponses, GetProjectsByIdImageStudioAssetsByAssetIdContentErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdImageStudioAssetsByAssetIdContentResponses, GetProjectsByIdImageStudioAssetsByAssetIdContentErrors, ThrowOnError>({ url: '/projects/{id}/image-studio/assets/{assetId}/content', ...options });
 
