@@ -7280,7 +7280,7 @@
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
         "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
         "tagDirectMessagesTitle": "Sort my direct messages",
-        "tagDirectMessagesDescription": "Let Jev read person-to-person Directs to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesDescription": "Read person-to-person Directs automatically to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
         "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
         "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
@@ -9020,7 +9020,7 @@
           "title": "Decisions",
           "empty": "No decisions here yet. Messages like \"Decided: we launch Monday\" collect here.",
           "loadOlder": "Load older",
-          "note": "Collected by Jev. Remove a wrong one from its message."
+          "note": "Collected automatically. Remove a wrong one from its message."
         },
         "CatchUpTabs": {
           "label": "Catch up sections",
@@ -10584,10 +10584,10 @@
         "medium": "Somewhat important",
         "low": "Not very important",
         "minimal": "Not important",
-        "auto": "Let Jev decide",
+        "auto": "Decide automatically",
         "change": "Change how important they are to you",
-        "byJev": "Judged by Jev",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Set automatically",
+        "byJevBecause": "Set automatically: {reason}",
         "byYou": "Set by you",
         "byBot": "Set by your Soko Bot",
         "notYet": "Not judged yet",

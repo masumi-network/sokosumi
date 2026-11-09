@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
         "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
-        "tagDirectMessagesDescription": "Permite que Jev lea los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesDescription": "Lee automáticamente los mensajes directos entre personas para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
         "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
@@ -9020,7 +9020,7 @@
           "title": "Decisiones",
           "empty": "Aún no hay decisiones. Mensajes como «Decidido: lanzamos el lunes» se reúnen aquí.",
           "loadOlder": "Cargar anteriores",
-          "note": "Reunidas por Jev. Quita una incorrecta desde su mensaje."
+          "note": "Reunidas automáticamente. Quita una incorrecta desde su mensaje."
         },
         "CatchUpTabs": {
           "label": "Secciones de Ponerse al día",
@@ -10584,10 +10584,10 @@
         "medium": "Algo importante",
         "low": "Poco importante",
         "minimal": "Sin importancia",
-        "auto": "Que decida Jev",
+        "auto": "Decidir automáticamente",
         "change": "Cambiar lo importante que es para ti",
-        "byJev": "Valorado por Jev",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Definido automáticamente",
+        "byJevBecause": "Definido automáticamente: {reason}",
         "byYou": "Definido por ti",
         "byBot": "Definido por tu Soko Bot",
         "notYet": "Aún sin valorar",

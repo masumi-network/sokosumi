@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
         "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
         "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
-        "tagDirectMessagesDescription": "Jev darf Direktnachrichten zwischen Personen lesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesDescription": "Direktnachrichten zwischen Personen automatisch lesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
         "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
         "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
@@ -9020,7 +9020,7 @@
           "title": "Entscheidungen",
           "empty": "Noch keine Entscheidungen. Nachrichten wie „Entschieden: Wir starten Montag“ landen hier.",
           "loadOlder": "Ältere laden",
-          "note": "Von Jev gesammelt. Entferne eine falsche an ihrer Nachricht."
+          "note": "Automatisch gesammelt. Entferne eine falsche an ihrer Nachricht."
         },
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
@@ -10584,10 +10584,10 @@
         "medium": "Etwas wichtig",
         "low": "Weniger wichtig",
         "minimal": "Nicht wichtig",
-        "auto": "Jev entscheiden lassen",
+        "auto": "Automatisch entscheiden",
         "change": "Ändern, wie wichtig die Person für dich ist",
-        "byJev": "Von Jev eingeschätzt",
-        "byJevBecause": "Jev: {reason}",
+        "byJev": "Automatisch gesetzt",
+        "byJevBecause": "Automatisch gesetzt: {reason}",
         "byYou": "Von dir gesetzt",
         "byBot": "Von deinem Soko Bot gesetzt",
         "notYet": "Noch nicht eingeschätzt",
