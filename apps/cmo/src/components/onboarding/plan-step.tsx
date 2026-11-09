@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, CircleAlert, Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRef, useState, useTransition } from "react";
+import { type KeyboardEvent, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
@@ -42,6 +42,22 @@ type Entry = Strategy["calendar"][number];
 type Work = NonNullable<CmoOverview["work"]>;
 type Step = Work["steps"][number];
 type FeedRow = Omit<Step, "at">;
+
+/** Next tab index for arrow / Home / End keys; null when the key is unrelated. */
+export function planTabAfterKey(
+  event: Pick<KeyboardEvent<HTMLButtonElement>, "key">,
+  index: number,
+): number | null {
+  if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+    return (index + 1) % TABS.length;
+  }
+  if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+    return (index - 1 + TABS.length) % TABS.length;
+  }
+  if (event.key === "Home") return 0;
+  if (event.key === "End") return TABS.length - 1;
+  return null;
+}
 
 /**
  * Planning as the founder can follow it: the plan's first save brings the
@@ -635,7 +651,7 @@ export function PlanReview({
         ) : null}
 
         <div className="ob-tabs" role="tablist" aria-label="Plan">
-          {TABS.map((candidate) => (
+          {TABS.map((candidate, index) => (
             <button
               key={candidate.id}
               type="button"
@@ -645,6 +661,13 @@ export function PlanReview({
               aria-controls={`ob-tabpanel-${candidate.id}`}
               tabIndex={tab === candidate.id ? 0 : -1}
               onClick={() => setTab(candidate.id)}
+              onKeyDown={(event) => {
+                const next = planTabAfterKey(event, index);
+                if (next === null) return;
+                event.preventDefault();
+                setTab(TABS[next]!.id);
+                document.getElementById(`ob-tab-${TABS[next]!.id}`)?.focus();
+              }}
             >
               {candidate.label}
             </button>

@@ -23,7 +23,7 @@ import {
   strategySocialChannels,
 } from "./launch-step";
 import { StepMarkers } from "./parts";
-import { PlanStep } from "./plan-step";
+import { PlanStep, planTabAfterKey } from "./plan-step";
 import { SiteStep } from "./site-step";
 import { onboardingStep, type SitePhase } from "./step";
 
@@ -710,6 +710,17 @@ describe("Launch", () => {
     const html = render(approved({ channels: [active("x")] }));
     expect(html).not.toContain("is on it.");
     expect(html).not.toContain("Go to Today");
+  });
+});
+
+describe("plan tab keyboard", () => {
+  it("moves left and right around the three tabs, and jumps to the ends", () => {
+    expect(planTabAfterKey({ key: "ArrowRight" }, 0)).toBe(1);
+    expect(planTabAfterKey({ key: "ArrowRight" }, 2)).toBe(0);
+    expect(planTabAfterKey({ key: "ArrowLeft" }, 0)).toBe(2);
+    expect(planTabAfterKey({ key: "Home" }, 2)).toBe(0);
+    expect(planTabAfterKey({ key: "End" }, 0)).toBe(2);
+    expect(planTabAfterKey({ key: "Enter" }, 0)).toBeNull();
   });
 });
 

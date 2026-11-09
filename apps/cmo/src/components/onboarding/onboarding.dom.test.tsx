@@ -329,6 +329,71 @@ it("opens a tile into the side panel with a way to say what is off", async () =>
   expect(container.querySelector("aside")).toBeNull();
 });
 
+it("resets the section editor when switching brand tiles", async () => {
+  const section = (answer: string) => ({
+    answer,
+    findings: [
+      { point: answer, evidence: "fact" as const, confidence: "high" as const },
+    ],
+  });
+  await act(async () =>
+    root.render(
+      <BrandStep
+        overview={draft({
+          brandBrainConfirmedAt: null,
+          strategy: null,
+          brandBrain: {
+            ...brain,
+            profile: {
+              offer: section("Rockets for founders"),
+              customers: section("Founders buy them"),
+            },
+          },
+        })}
+        messages={[]}
+        onCorrect={noop}
+        onSave={noop}
+        onAnswer={noop}
+        onApprove={async () => null}
+      />,
+    ),
+  );
+  const tileNamed = (label: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>("button.ob-tile")].find(
+      (candidate) => candidate.textContent?.startsWith(label),
+    );
+  const editInPanel = () =>
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(
+      (candidate) => candidate.textContent === "Edit",
+    );
+  const editor = () => container.querySelector("aside form.bp-editor");
+
+  await act(async () => tileNamed("What you sell")?.click());
+  expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe(
+    "What you sell",
+  );
+  expect(container.querySelector("aside")?.textContent).toContain(
+    "Rockets for founders",
+  );
+  await act(async () => editInPanel()?.click());
+  expect(editor()).not.toBeNull();
+  const headline = editor()?.querySelector("input");
+  expect(headline).not.toBeNull();
+  typeInto(headline ?? null, "Wrong headline for sell");
+  expect(headline?.value).toBe("Wrong headline for sell");
+  // Open another editable tile without closing: the editor must remount.
+  await act(async () => tileNamed("Who buys")?.click());
+  expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe(
+    "Who buys",
+  );
+  expect(container.querySelector("aside")?.textContent).toContain(
+    "Founders buy them",
+  );
+  expect(editor()).toBeNull();
+  await act(async () => editInPanel()?.click());
+  expect(editor()?.querySelector("input")?.value).toBe("");
+});
+
 // Plan: a change, a pace, a budget put the plan away until Cuso answers.
 
 async function renderPlan(
@@ -441,6 +506,31 @@ it("opens the tab the founder picks, and keeps Results one tap away", async () =
       ?.click(),
   );
   expect(text()).toContain("Up first");
+});
+
+it("moves between plan tabs with the arrow keys", async () => {
+  await renderPlan(
+    async () => null,
+    async () => null,
+  );
+  const selected = () =>
+    container.querySelector('[role="tab"][aria-selected="true"]');
+  const active = selected();
+  expect(active?.textContent).toBe("Three moves");
+  await act(async () => {
+    active?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    );
+  });
+  expect(selected()?.textContent).toBe("Your month");
+  expect(text()).toContain("Up first");
+  await act(async () => {
+    selected()?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "End", bubbles: true }),
+    );
+  });
+  expect(selected()?.textContent).toBe("How we know it works");
+  expect(text()).toContain("Connect your numbers");
 });
 
 // Asking for the plan: no second offer while the request is in flight.

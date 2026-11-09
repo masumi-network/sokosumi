@@ -420,6 +420,7 @@ export function BrandStep({
             sourceUrl={tileSource(shown, profile, overview.websiteUrl)}
           >
             <TileDetail
+              key={shown.id}
               section={section}
               body={shown.body}
               onSave={
