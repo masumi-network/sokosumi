@@ -37,6 +37,11 @@ export interface StartSokoBotTurnInput {
    */
   presetRoute?: PresetRoute;
   /**
+   * A person pressed a button for this turn (a CMO step), so it gets the
+   * time a person's request gets, though no chat message carries it.
+   */
+  personStarted?: boolean;
+  /**
    * A background run another turn started: it runs beside the bot's chat on
    * its own computer, with the tools in `presetRoute.capabilities`, and its
    * answer lands in `destinationRoomId`.

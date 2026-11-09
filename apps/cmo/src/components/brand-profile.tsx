@@ -137,7 +137,7 @@ export function BrandReveal({
           <p>
             <b>This is the short version.</b> Cuso can look deeper: customers,
             pricing, competitors, reviews and more, each with a source. It takes
-            about three minutes.
+            about ten minutes.
           </p>
           <AskForm
             cta="Look deeper"

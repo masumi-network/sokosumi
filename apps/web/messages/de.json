@@ -18,6 +18,7 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
+      "didntGetIt": "Nicht angekommen?",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut.",
       "notSent": "Wir konnten keinen Code senden. Versuche es erneut."
     },
@@ -588,6 +589,7 @@
           "back": "Zurück",
           "next": "Weiter",
           "skip": "Überspringen",
+          "skipForNow": "Vorerst überspringen",
           "finishSetup": "Einrichtung abschließen",
           "finish": "Zum Workspace"
         },
@@ -609,7 +611,7 @@
           "found": "Das haben wir auf {domain} gefunden. Passt nicht? Lade dein eigenes hoch.",
           "foundNoDomain": "Das haben wir auf deiner Website gefunden. Passt nicht? Lade dein eigenes hoch.",
           "notFound": "Auf deiner Website wurde kein Logo gefunden. Lade eines hoch oder überspringe diesen Schritt.",
-          "upload": "Logo hochladen",
+          "dropzone": "Logo hier ablegen oder Datei auswählen",
           "replace": "Logo ersetzen",
           "remove": "Entfernen",
           "uploadHint": "PNG, JPG oder SVG. Bis 2 MB.",
@@ -1902,7 +1904,8 @@
           "resumeReady": "Zurück zu Bereit",
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
-          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut."
+          "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
+          "duplicate": "Als Entwurf duplizieren"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2038,7 +2041,8 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "privateLabel": "Privat",
-        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker."
+        "privateDescription": "Für andere Workspace-Mitglieder ausgeblendet. Weiterhin sichtbar für dich, deinen Soko Bot und den zugewiesenen Coworker.",
+        "privateOtherPeopleHint": "Private Aufgaben können nicht an andere Personen gehen. Schalte Privat aus, um ein Teammitglied zuzuweisen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -8511,6 +8515,23 @@
         "pinError": "Nachricht konnte nicht angeheftet werden.",
         "unpinError": "Nachricht konnte nicht gelöst werden."
       },
+      "SavedMessages": {
+        "save": "Für später speichern",
+        "saved": "Für später gespeichert",
+        "view": "Gespeicherte ansehen",
+        "saveError": "Die Nachricht konnte nicht gespeichert werden.",
+        "removeError": "Die Nachricht konnte nicht aus Gespeichert entfernt werden.",
+        "error": "Gespeicherte Nachrichten konnten nicht geladen werden.",
+        "title": "Gespeichert",
+        "description": "Nachrichten, die du für später gespeichert hast. Nur du siehst diese Liste.",
+        "empty": "Noch nichts gespeichert",
+        "emptyHint": "Öffne die Aktionen einer Nachricht und wähle Für später speichern, um sie hier zu behalten.",
+        "remove": "Aus Gespeichert entfernen",
+        "removed": "Aus Gespeichert entfernt",
+        "loadOlder": "Ältere laden",
+        "untitled": "Nachricht ohne Text",
+        "savedAgo": "Gespeichert {time}"
+      },
       "Quote": {
         "action": "Zitieren",
         "dismiss": "Zitat entfernen",
@@ -8914,7 +8935,8 @@
         "CatchUpTabs": {
           "label": "Bereiche von Aufholen",
           "overview": "Überblick",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Gespeichert"
         },
         "Briefing": {
           "welcomeBack": "Willkommen zurück",

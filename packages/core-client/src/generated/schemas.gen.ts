@@ -13399,6 +13399,211 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
     ]
 } as const;
 
+export const ChatSavedMessageListItemSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        savedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        message: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                roomId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                parentMessageId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'uuid'
+                },
+                content: {
+                    type: 'string'
+                },
+                resultPreviews: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatResultDescriptor'
+                    },
+                    maxItems: 6
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                deletedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                editedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                pinnedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: null,
+                    description: 'When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.'
+                },
+                sender: {
+                    $ref: '#/components/schemas/ChatRoomMessageSender'
+                },
+                mentions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageMention'
+                    }
+                },
+                reactions: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageReaction'
+                    }
+                },
+                threadReplyCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                threadUnreadReplyCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+                    example: 2
+                },
+                threadLastReplyAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                threadRepliers: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSender'
+                    },
+                    maxItems: 3,
+                    description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
+                },
+                metadata: {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    additionalProperties: {}
+                },
+                quote: {
+                    $ref: '#/components/schemas/ChatRoomMessageQuote'
+                },
+                membership: {
+                    $ref: '#/components/schemas/ChatRoomMessageMembership'
+                },
+                groupNameChange: {
+                    $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
+                },
+                unfurls: {
+                    type: [
+                        'array',
+                        'null'
+                    ],
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageUnfurl'
+                    },
+                    maxItems: 3,
+                    description: 'Link preview cards scraped from message URLs (absent while pending).'
+                },
+                skills: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSkill'
+                    },
+                    maxItems: 3,
+                    description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+                },
+                signal: {
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/ChatMessageSignal'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ],
+                    description: 'Jev\'s reading of the message (chat signals). Null until it is tagged, and for messages that are never tagged: those from coworkers and Soko Bots, very short ones, and Directs whose people did not all opt in.'
+                }
+            },
+            required: [
+                'id',
+                'roomId',
+                'parentMessageId',
+                'content',
+                'createdAt',
+                'deletedAt',
+                'editedAt',
+                'pinnedAt',
+                'sender',
+                'mentions',
+                'reactions',
+                'threadReplyCount',
+                'threadLastReplyAt',
+                'metadata',
+                'quote',
+                'membership',
+                'groupNameChange',
+                'unfurls'
+            ]
+        }
+    },
+    required: [
+        'messageId',
+        'savedAt',
+        'message'
+    ]
+} as const;
+
+export const ChatSavedMessageMutationSchema = {
+    type: 'object',
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        saved: {
+            type: 'boolean',
+            description: 'Whether the message is now on the reader\'s Saved list.'
+        }
+    },
+    required: [
+        'messageId',
+        'saved'
+    ]
+} as const;
+
 export const ChatSignalListItemSchema = {
     type: 'object',
     properties: {

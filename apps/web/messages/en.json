@@ -18,6 +18,7 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
+      "didntGetIt": "Didn't get it?",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
       "notSent": "We could not send a code. Try again."
     },
@@ -604,6 +605,7 @@
           "back": "Back",
           "next": "Continue",
           "skip": "Skip",
+          "skipForNow": "Skip for now",
           "finishSetup": "Finish setup",
           "finish": "Go to workspace"
         },
@@ -625,7 +627,7 @@
           "found": "We found this on {domain}. Not right? Upload your own.",
           "foundNoDomain": "We found this on your website. Not right? Upload your own.",
           "notFound": "We couldn't find a logo on your website. Upload one, or skip for now.",
-          "upload": "Upload a logo",
+          "dropzone": "Drop your logo here, or choose a file",
           "replace": "Replace logo",
           "remove": "Remove",
           "uploadHint": "PNG, JPG, or SVG. Up to 2 MB.",
@@ -1903,7 +1905,8 @@
           "resumeReady": "Back to Ready",
           "markComplete": "Mark complete",
           "repeat": "Repeat",
-          "repeatError": "Couldn't open the schedule form. Try again."
+          "repeatError": "Couldn't open the schedule form. Try again.",
+          "duplicate": "Duplicate as draft"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2038,7 +2041,8 @@
         "createAnother": "Create another task",
         "close": "Close",
         "privateLabel": "Private",
-        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
       },
       "EditTask": {
         "title": "Edit task",
@@ -8511,6 +8515,23 @@
         "pinError": "Could not pin message.",
         "unpinError": "Could not unpin message."
       },
+      "SavedMessages": {
+        "save": "Save for later",
+        "saved": "Saved for later",
+        "view": "View saved",
+        "saveError": "Could not save the message.",
+        "removeError": "Could not remove the message from Saved.",
+        "error": "Could not load saved messages.",
+        "title": "Saved",
+        "description": "Messages you saved for later. Only you see this list.",
+        "empty": "Nothing saved yet",
+        "emptyHint": "Open a message's actions and choose Save for later to keep it here.",
+        "remove": "Remove from saved",
+        "removed": "Removed from saved",
+        "loadOlder": "Load older",
+        "untitled": "Message without text",
+        "savedAgo": "Saved {time}"
+      },
       "Quote": {
         "action": "Quote",
         "dismiss": "Remove quote",
@@ -8914,7 +8935,8 @@
         "CatchUpTabs": {
           "label": "Catch up sections",
           "overview": "Overview",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Saved"
         },
         "Briefing": {
           "welcomeBack": "Welcome back",
