@@ -234,7 +234,7 @@ describe("EmailCodeField", () => {
   });
 
   it("still tells a screen reader a code was sent when the page shows no address", () => {
-    // Log in and sign-up show the address above the field, so the line is
+    // A page that passes no address shows it elsewhere, so the line is
     // hidden from sight there, not from the field's description.
     render(
       <EmailCodeField
@@ -250,6 +250,33 @@ describe("EmailCodeField", () => {
     expect(codeField()).toHaveAccessibleDescription(
       "sentNoAddress That code is wrong.",
     );
+  });
+
+  it("on the auth pages, says where the code went above it and offers a new one below it", () => {
+    render(
+      <EmailCodeField
+        centered
+        value=""
+        onChange={vi.fn()}
+        email="ada@example.com"
+        sentAt={0}
+        onResend={vi.fn()}
+        isResending={false}
+      />,
+    );
+
+    const sent = screen.getByText("sent");
+    expect(sent).toBeVisible();
+    // A long address wraps instead of being cut off.
+    expect(sent).toHaveClass("wrap-anywhere");
+    const resendLine = screen.getByText("didntGetIt", { exact: false });
+    expect(resendLine).toContainElement(
+      screen.getByRole("button", { name: "resend" }),
+    );
+    const order = (a: Node, b: Node) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(order(sent, codeField())).toBeTruthy();
+    expect(order(codeField(), resendLine)).toBeTruthy();
   });
 
   it("hands its input to the page's ref, so the page can focus it again", () => {
