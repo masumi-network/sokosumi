@@ -229,6 +229,7 @@ export {
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
