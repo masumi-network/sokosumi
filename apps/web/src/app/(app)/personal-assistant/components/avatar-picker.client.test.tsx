@@ -1,5 +1,5 @@
 import type { SokoBotAvatar } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
@@ -150,9 +150,9 @@ describe("AvatarPicker", () => {
       input: { take: 5, excludeIds: [] },
     });
     expect(
-      screen
-        .getByRole("group", { name: "Pictures" })
-        .querySelectorAll("button"),
+      within(screen.getByRole("group", { name: "Pictures" })).getAllByRole(
+        "button",
+      ),
     ).toHaveLength(6);
   });
 
@@ -176,13 +176,11 @@ describe("AvatarPicker", () => {
 
     expect(await screen.findByRole("button", { name: "j" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "b" })).toBeNull();
-    const tiles = screen
-      .getByRole("group", { name: "Pictures" })
-      .querySelectorAll("img");
+    const group = within(screen.getByRole("group", { name: "Pictures" }));
     expect(
-      [...tiles].filter((img) => img.src === "https://example.com/b.webp"),
+      group.getAllByRole("button", { name: "Current picture" }),
     ).toHaveLength(1);
-    expect(tiles).toHaveLength(6);
+    expect(group.getAllByRole("button")).toHaveLength(6);
   });
 
   it("shows six others on Show others, never the ones already seen", async () => {
@@ -225,11 +223,9 @@ describe("AvatarPicker", () => {
     await user.click(screen.getByRole("button", { name: "Show others" }));
 
     expect(await screen.findByRole("button", { name: "h" })).toBeTruthy();
-    const names = [
-      ...screen
-        .getByRole("group", { name: "Pictures" })
-        .querySelectorAll("button"),
-    ].map((tile) => tile.getAttribute("aria-label"));
+    const names = within(screen.getByRole("group", { name: "Pictures" }))
+      .getAllByRole("button")
+      .map((tile) => tile.getAttribute("aria-label"));
     expect(names).toEqual(["g", "h", "f", "e", "d", "c"]);
   });
 
@@ -263,9 +259,9 @@ describe("AvatarPicker", () => {
     await user.click(screen.getByRole("button", { name: "Show others" }));
 
     const group = screen.getByRole("group", { name: "Pictures" });
+    // Busy, with no tile left to pick; the skeletons stand in for them.
     expect(group).toHaveAttribute("aria-busy", "true");
-    expect(group.querySelectorAll("button")).toHaveLength(0);
-    expect(group.querySelectorAll(".animate-pulse")).toHaveLength(6);
+    expect(within(group).queryAllByRole("button")).toHaveLength(0);
     expect(onLoadingChange).toHaveBeenLastCalledWith(true);
 
     await act(async () =>
@@ -273,7 +269,7 @@ describe("AvatarPicker", () => {
     );
 
     expect(group).toHaveAttribute("aria-busy", "false");
-    expect(group.querySelectorAll("button")).toHaveLength(6);
+    expect(within(group).getAllByRole("button")).toHaveLength(6);
     expect(screen.getByRole("button", { name: "j" })).toBeTruthy();
     expect(onLoadingChange).toHaveBeenLastCalledWith(false);
   });

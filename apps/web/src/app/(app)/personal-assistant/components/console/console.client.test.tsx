@@ -68,17 +68,21 @@ vi.mock("../skills-section.client", () => ({
   SkillsSection: () => <span data-testid="skills" />,
 }));
 vi.mock("../avatar-picker.client", () => ({
+  // Mounts loading, as the real picker does; picking settles the set.
   AvatarPicker: ({
     onChange,
+    onLoadingChange,
   }: {
     onChange: (avatar: { id: string; imageUrl: string }) => void;
+    onLoadingChange?: (loading: boolean) => void;
   }) => (
     <button
       type="button"
       data-testid="avatar"
-      onClick={() =>
-        onChange({ id: "avatar-7", imageUrl: "https://blob/avatar-7.png" })
-      }
+      onClick={() => {
+        onLoadingChange?.(false);
+        onChange({ id: "avatar-7", imageUrl: "https://blob/avatar-7.png" });
+      }}
     >
       pick avatar-7
     </button>
@@ -246,6 +250,8 @@ describe("SokoBotConsole", () => {
     claimAvatarMock.mockResolvedValue({ ok: true });
     renderConsole({ botId: null, sharedRoomId: null });
     fireEvent.click(screen.getByRole("button", { name: "edit" }));
+    // Save is held until the picker's first set has loaded.
+    expect(screen.getByRole("button", { name: "Avatar.save" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "pick avatar-7" }));
     fireEvent.click(screen.getByRole("button", { name: "Avatar.save" }));
     await waitFor(() =>

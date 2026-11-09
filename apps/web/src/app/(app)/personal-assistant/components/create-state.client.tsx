@@ -54,6 +54,9 @@ export function CreateState({
   const nameId = useId();
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
+  // The picker mounts loading its first set; Create waits for it, so the bot
+  // does not go without the picture the set would have offered.
+  const [loadingAvatars, setLoadingAvatars] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{
     name: string;
@@ -87,6 +90,7 @@ export function CreateState({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loadingAvatars) return;
     create(avatar);
   }
 
@@ -225,7 +229,11 @@ export function CreateState({
         {/* Locked while creating: the bot gets the picture picked on submit. */}
         <fieldset disabled={isPending} className={cn(HOLDER_CLASS, "min-w-0")}>
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
+            <AvatarPicker
+              value={avatar?.id ?? null}
+              onChange={setAvatar}
+              onLoadingChange={setLoadingAvatars}
+            />
           </div>
         </fieldset>
         {/* Pinned to the foot on phones, so Create stays in reach above the pictures. */}
@@ -240,6 +248,7 @@ export function CreateState({
             type="submit"
             variant="primary"
             className="w-full"
+            disabled={loadingAvatars}
             loading={isPending}
           >
             {t("submit", { name: name.trim() })}
