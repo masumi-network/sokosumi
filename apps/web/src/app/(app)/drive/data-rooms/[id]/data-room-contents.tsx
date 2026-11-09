@@ -114,7 +114,7 @@ export function DataRoomContents({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-10 md:size-8"
                 aria-label={t("moveUp", { name: row.name })}
                 onClick={() =>
                   setOrder((current) => moveRow(current, row.path, -1))
@@ -126,7 +126,7 @@ export function DataRoomContents({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-10 md:size-8"
                 aria-label={t("moveDown", { name: row.name })}
                 onClick={() =>
                   setOrder((current) => moveRow(current, row.path, 1))

@@ -42,7 +42,7 @@ export function RoomPdf({ url }: { url: string }) {
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
         canvas.style.width = "100%";
-        canvas.className = "bg-white rounded-md border";
+        canvas.className = "rounded-md border";
         canvas.setAttribute("aria-label", t("pdfPage", { number }));
         host.appendChild(canvas);
         await page.render({ canvas, viewport }).promise;
