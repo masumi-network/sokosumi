@@ -10660,9 +10660,14 @@
         "fromCheck": "Aus der Prüfung vom <date></date>",
         "pageMeasurements": "Messwerte",
         "pageNotes": "Hinweise ({count})",
-        "references": "{count, plural, one {# technischer Verweis} other {# technische Verweise}}",
+        "references": "{count, plural, one {# Quelle} other {# Quellen}}",
         "noteRule": "Regel: {name}",
-        "notesNotCounted": "zählen nicht als Probleme"
+        "notesNotCounted": "zählen nicht als Probleme",
+        "askAgent": "Agent fragen",
+        "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
+        "showAll": "Alles zeigen",
+        "showLess": "Weniger zeigen",
+        "askAboutNoteOnPage": "Eine Prüfung hat „{name}“ auf {url} markiert. Was bedeutet das, und sollte ich etwas ändern?"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10712,7 +10717,7 @@
         "backlinks": "Backlinks",
         "domains": "Verweisende Domains",
         "excluded": "Dieser Vorschlag kann nicht bestätigt werden.",
-        "help": "Seiten, die mit deiner Seite um dieselben Suchen konkurrieren.",
+        "help": "Konkurrenzseiten zum Vergleich mit deinen.",
         "yourPage": "Deine Seite",
         "compare": "Mit meiner Seite vergleichen",
         "compareDraft": "Vergleiche meine Seite mit {url}. Was macht sie bei denselben Suchanfragen besser, und was sollte ich zuerst ändern?"
@@ -11076,7 +11081,7 @@
             "available": "Noch kein Wettbewerber wurde recherchiert. Eine Prüfung mit kostenpflichtigen Suchdaten findet die Seiten, die für deine Keywords ranken.",
             "unavailable": "Noch kein Wettbewerber wurde recherchiert. Kostenpflichtige Suchdaten sind in diesem Workspace aus, daher kann der Agent sie nicht finden. Füge bekannte Wettbewerber hinzu."
           },
-          "keyword": "Google listet für {pages, plural, one {diese Seite} other {diese Seiten}} noch keine Suche nach genau „{keyword}“. Der Agent entwirft einen Plan, damit du dafür gefunden wirst; du bestätigst jede Änderung.",
+          "keyword": "Die Search Console zeigt noch keine Impressionen für genau „{keyword}“ auf {pages, plural, one {deiner Seite} other {deinen Seiten}}. Der Agent entwirft einen Plan, damit du dafür gefunden wirst; du bestätigst jede Änderung.",
           "pages": "Dieses Audit prüft 1 Seite. Füge deine anderen wichtigen Seiten hinzu, um mehr Probleme und Suchanfragen zu finden."
         },
         "prompts": {

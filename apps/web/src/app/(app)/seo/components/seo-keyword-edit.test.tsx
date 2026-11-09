@@ -460,6 +460,26 @@ describe("Search Console queries", () => {
     ).toHaveLength(1);
   });
 
+  it("names the queries' sync only when it differs from the saved Search Console totals", () => {
+    // Same sync as the Search Console totals: their card above names the period and sync.
+    const view = renderWorkspace(searchQueryWorkspace());
+    expect(screen.queryByText(/Last synced/)).toBeNull();
+    view.unmount();
+    // Queries from an older sync say when they were read.
+    const older = searchQueryWorkspace();
+    if (!older.searchQueries) throw new Error("fixture");
+    older.searchQueries.observedAt = new Date("2026-10-20T12:00:00.000Z");
+    const olderView = renderWorkspace(older);
+    expect(screen.getByText(/Last synced/)).toBeVisible();
+    olderView.unmount();
+    // The same sync over another window names its own period.
+    const otherWindow = searchQueryWorkspace();
+    if (!otherWindow.searchQueries) throw new Error("fixture");
+    otherWindow.searchQueries.from = "2026-09-01";
+    renderWorkspace(otherWindow);
+    expect(screen.getByText(/Last synced/)).toBeVisible();
+  });
+
   it("names the impressions Google listed under no query", () => {
     renderWorkspace(searchQueryWorkspace());
     expect(

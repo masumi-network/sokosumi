@@ -266,7 +266,7 @@ function SeoAgentPanel({
               {" · "}
               <button
                 type="button"
-                className="focus-visible:ring-ring rounded-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+                className="focus-visible:ring-ring -my-3 inline-block rounded-sm py-3 underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
                 onClick={() => {
                   void model.setFilters({ tab: "traffic" });
                 }}

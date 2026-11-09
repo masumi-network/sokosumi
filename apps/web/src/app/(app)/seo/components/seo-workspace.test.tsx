@@ -303,6 +303,8 @@ describe("SEO workspace integration", () => {
   it("splits page details into measurements and notes and folds their references", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
+    // An Audit has the agent chat, so notes can ask it.
+    workspace.auditId = crypto.randomUUID();
     workspace.findings.push({
       id: "measured-title",
       observationId: "check-title",
@@ -314,6 +316,7 @@ describe("SEO workspace integration", () => {
       evidence: [
         "title 56 characters",
         "vendor tools: Ahrefs under 70 (N1-246)",
+        "Source: raw HTML; the rendered DOM was not requested.",
       ],
       sourceRef: "html:title",
       observedAt: new Date("2026-01-03T12:00:00Z"),
@@ -326,8 +329,28 @@ describe("SEO workspace integration", () => {
       rowId: "meta-keywords",
       title: "Raw HTML: No meta keywords",
       severity: "note",
-      evidence: ['meta keywords in head: "battery"'],
+      evidence: [
+        `meta keywords in head: "${Array.from({ length: 30 }, (_, i) => `battery ${i}`).join(", ")}"`,
+        "Source: raw HTML; the rendered DOM was not requested.",
+      ],
       sourceRef: "html:head",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    // The same rule on a second page: its guidance shows once.
+    workspace.findings.push({
+      id: "measured-title-old",
+      observationId: "check-title-old",
+      pageUrl: "https://example.com/old",
+      device: "desktop",
+      rowId: "title-length",
+      title: "Raw HTML: Title length",
+      severity: "measure",
+      evidence: [
+        "title 40 characters",
+        "vendor tools: Ahrefs under 70 (N1-246)",
+        "Source: raw HTML; the rendered DOM was not requested.",
+      ],
+      sourceRef: "html:title",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
     // A test-level row is a flagged rule too, though its name reads as a claim.
@@ -339,13 +362,18 @@ describe("SEO workspace integration", () => {
       rowId: "AC-22",
       title: "Raw HTML: AI search bots may fetch the page",
       severity: "test",
-      evidence: ["robots.txt blocks GPTBot"],
+      evidence: [
+        "robots.txt blocks GPTBot",
+        "Source: raw HTML; the rendered DOM was not requested.",
+      ],
       sourceRef: "robots",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json(workspace)),
+      vi.fn(async (url: string) =>
+        Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
+      ),
     );
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
@@ -356,7 +384,7 @@ describe("SEO workspace integration", () => {
       }),
     );
     // A measurement is one line; its value drops the words its name says.
-    expect(screen.getByText("Title length:")).toBeVisible();
+    expect(screen.getAllByText("Title length:")[0]).toBeVisible();
     expect(screen.getByText("56 characters")).toBeVisible();
     // Notes sit under their own heading, so a rule name does not read as a claim about the page.
     expect(
@@ -369,7 +397,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
-    const details = screen.getByText("Title length:").closest("details");
+    const details = screen.getAllByText("Title length:")[0].closest("details");
     if (!details) throw new Error("Page details missing");
     expect(
       within(details)
@@ -386,20 +414,53 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();
-    expect(details.querySelectorAll("time")).toHaveLength(3);
+    expect(details.querySelectorAll("time")).toHaveLength(4);
     expect(
       screen.getByRole("heading", {
         name: "Rule: AI search bots may fetch the page",
       }),
     ).toBeVisible();
-    // References fold once for all rows, each named by its row.
+    // A measurement shows the check's guidance under its value, once per rule.
+    expect(
+      screen.getByText("vendor tools: Ahrefs under 70 (N1-246)"),
+    ).toBeVisible();
+    // A long note value starts folded and opens in place.
+    const showAll = screen.getByRole("button", { name: "Show all" });
+    expect(showAll).toHaveAttribute("aria-expanded", "false");
+    const value = document.getElementById(
+      showAll.getAttribute("aria-controls") ?? "",
+    );
+    expect(value).toHaveClass("line-clamp-3");
+    await user.click(showAll);
+    expect(value).not.toHaveClass("line-clamp-3");
+    expect(screen.getByRole("button", { name: "Show less" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    // Each note offers a question to the agent; measurements do not.
+    expect(
+      screen.getAllByRole("button", { name: "Ask the agent" }),
+    ).toHaveLength(2);
+    // Provenance folds once: a line every row shares is listed once, without row names.
     const reference = screen.getByText(
-      "Title length: vendor tools: Ahrefs under 70 (N1-246)",
+      "Source: raw HTML; the rendered DOM was not requested.",
     );
     expect(reference).not.toBeVisible();
     expect(screen.queryByText("Check details")).toBeNull();
-    await user.click(screen.getByText("1 technical reference"));
+    await user.click(screen.getByText("1 source"));
     expect(reference).toBeVisible();
+    // A note on a page removed since names that page in the question; nothing is sent.
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ask the agent",
+        description:
+          "Rule: AI search bots may fetch the page https://example.com/old",
+      }),
+    );
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByLabelText("Your question")).toHaveValue(
+      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
+    );
   });
 
   it("names each page-detail row's page on a multi-page Audit", async () => {

@@ -211,7 +211,8 @@ export function SeoSource({
   return observation?.sourceTaskId ? (
     <Link
       href={`/tasks/${encodeURIComponent(observation.sourceTaskId)}`}
-      className="text-xs underline underline-offset-4"
+      // A 40 px hit area on a phone; the negative margin keeps the line where it was.
+      className="-my-3 inline-block py-3 text-xs underline underline-offset-4"
     >
       {t("timeline.viewResults")}
     </Link>

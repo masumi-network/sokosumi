@@ -84,6 +84,19 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   const [sort, setSort] = useState(SEO_DEFAULT_QUERY_SORT);
   const source = model.data.searchQueries;
   const saved = savedSeoStatistics(model.data.metrics, "search_console");
+  // Performance above names the period and sync when Search Console is its only source and this read is from that sync and window.
+  const sameSync = Boolean(
+    source &&
+      saved &&
+      model.data.metrics.every(
+        (metric) => metric.source === "search_console",
+      ) &&
+      saved.propertyId === source.propertyId &&
+      saved.from === source.from &&
+      saved.to === source.to &&
+      new Date(saved.observedAt).getTime() ===
+        new Date(source.observedAt).getTime(),
+  );
   const canSync = model.data.availableActions.canSyncMetrics;
   const rows = sortQueryRows(model.filteredQueries, sort);
   const buckets = positionBuckets(rows);
@@ -97,12 +110,16 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
   );
   return (
     <SeoSection title={t("queries.title")}>
-      {source ? (
+      {source && (!sameSync || source.truncated) ? (
         <p className="text-muted-foreground px-2 pb-3 text-xs">
-          <SeoPeriod {...seoQueryPeriod(source, model.data.metrics)} /> ·{" "}
-          {t("queries.lastSynced")} <SeoDate value={source.observedAt} />
+          {sameSync ? null : (
+            <>
+              <SeoPeriod {...seoQueryPeriod(source, model.data.metrics)} /> ·{" "}
+              {t("queries.lastSynced")} <SeoDate value={source.observedAt} />
+            </>
+          )}
           {source.truncated
-            ? ` · ${t("queries.truncated", { count: source.rowLimit })}`
+            ? `${sameSync ? "" : " · "}${t("queries.truncated", { count: source.rowLimit })}`
             : ""}
         </p>
       ) : null}

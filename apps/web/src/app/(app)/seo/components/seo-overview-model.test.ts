@@ -2,6 +2,9 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   measureValue,
+  pageDetailGuidance,
+  pageDetailGuidanceRows,
+  pageDetailReferences,
   seoOverviewModel,
   seoPageSummaries,
 } from "./seo-overview-model";
@@ -279,5 +282,79 @@ describe("measureValue", () => {
     expect(measureValue("Title length", "56 characters")).toBe("56 characters");
     expect(measureValue("Title", "title")).toBe("title");
     expect(measureValue("H1 count", "h1: 2")).toBe("h1: 2");
+  });
+});
+
+describe("page detail lines", () => {
+  const source = "Source: raw HTML; the rendered DOM was not requested.";
+  const title = {
+    name: "Title length",
+    evidence: [
+      "title 56 characters",
+      "Google sets no length limit (N1-061)",
+      source,
+    ],
+  };
+  const note = {
+    name: "No meta keywords",
+    evidence: [
+      'meta keywords in head: "battery"',
+      source,
+      "See the meta keywords reference",
+    ],
+  };
+  const robots = {
+    name: "Robots meta",
+    evidence: ["index, follow", "Source: rendered DOM."],
+  };
+
+  it("shows every later line but provenance under the value", () => {
+    expect(pageDetailGuidance(title.evidence)).toEqual([
+      "Google sets no length limit (N1-061)",
+    ]);
+    // A note's own later lines stay with the note, not in the fold.
+    expect(pageDetailGuidance(note.evidence)).toEqual([
+      "See the meta keywords reference",
+    ]);
+  });
+
+  it("folds each provenance line once and names rows only when not all rows share it", () => {
+    expect(pageDetailReferences([title, note, robots])).toEqual([
+      { line: source, names: ["Title length", "No meta keywords"] },
+      { line: "Source: rendered DOM.", names: ["Robots meta"] },
+    ]);
+    expect(pageDetailReferences([title, note])).toEqual([
+      { line: source, names: [] },
+    ]);
+    // The same rule on two pages is two rows: a line on both rows is shared by all.
+    expect(pageDetailReferences([title, title, note])).toEqual([
+      { line: source, names: [] },
+    ]);
+    expect(pageDetailReferences([title, title, robots])[0]).toEqual({
+      line: source,
+      names: ["Title length"],
+    });
+    // A single row keeps its name: without it the line has no owner.
+    expect(pageDetailReferences([note])[0].names).toEqual(["No meta keywords"]);
+  });
+
+  it("shows guidance on the first row with it, once per set of lines", () => {
+    const older = {
+      id: "older",
+      name: "Title length",
+      evidence: ["title 40 characters", source],
+    };
+    const rows = [
+      older,
+      { id: "a", ...title },
+      { id: "b", ...title },
+      {
+        id: "c",
+        name: "Title length",
+        evidence: ["title 80 characters", "vendor tools: Moz under 60", source],
+      },
+    ];
+    // A row without lines does not take the slot; other lines still show.
+    expect([...pageDetailGuidanceRows(rows)]).toEqual(["a", "c"]);
   });
 });

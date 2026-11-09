@@ -3,13 +3,20 @@
 import { Play } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
-import { measureValue, seoOverviewModel } from "./seo-overview-model";
+import {
+  measureValue,
+  pageDetailGuidance,
+  pageDetailGuidanceRows,
+  pageDetailReferences,
+  seoOverviewModel,
+} from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
 import {
   SeoDate,
@@ -32,21 +39,41 @@ function checkName(title: string) {
 
 type Diagnostic = ReturnType<typeof seoOverviewModel>["diagnostics"][number];
 
-/** One measured value or note: its name, the page when that tells rows apart, and the first evidence line. */
+/** A note value longer than this (a whole keywords tag) starts folded to three lines. */
+const NOTE_VALUE_FOLD_CHARS = 120;
+
+/** One measured value or note: its name, the page when that tells rows apart, its value and the check's guidance. */
 function PageDetail({
   finding,
   data,
   dated,
+  showGuidance,
+  onAsk,
 }: {
   finding: Diagnostic;
   data: SeoWorkspaceModel["data"];
   /** Rows from several checks keep their own date and record. */
   dated: boolean;
+  /** The same rule on several pages carries the same guidance; the first row shows it. */
+  showGuidance: boolean;
+  /** Opens the agent chat with a question about this note; absent without a chat. */
+  onAsk?: (question: string) => void;
 }) {
   const t = useTranslations("App.Seo");
+  const headingId = useId();
+  const valueId = useId();
+  const pageLabelId = useId();
+  const [fullValue, setFullValue] = useState(false);
   const name = checkName(finding.title);
   const first = finding.evidence[0];
   const measure = finding.severity === "measure";
+  const guidance = showGuidance ? pageDetailGuidance(finding.evidence) : [];
+  const foldable =
+    !measure && first !== undefined && first.length > NOTE_VALUE_FOLD_CHARS;
+  // With one page there is nothing to tell apart, unless the row is for a page removed since.
+  const showPage =
+    data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url;
+  const ask = measure ? undefined : onAsk;
   return (
     <li className="space-y-1">
       {measure ? (
@@ -60,20 +87,82 @@ function PageDetail({
       ) : (
         <>
           {/* A note's name is the rule it checks, e.g. "No meta keywords", not what the page has. */}
-          <h4 className="text-sm font-medium">
+          <h4 id={headingId} className="text-sm font-medium">
             {t("overview.noteRule", { name })}
           </h4>
           {first ? (
-            <p className="text-muted-foreground text-sm break-words">{first}</p>
+            <p
+              id={valueId}
+              className={cn(
+                "text-muted-foreground text-sm break-words",
+                foldable && !fullValue && "line-clamp-3",
+              )}
+            >
+              {first}
+            </p>
           ) : null}
         </>
       )}
-      {/* With one page there is nothing to tell apart, unless the row is for a page removed since. */}
-      {data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url ? (
-        <SeoPageLink url={finding.pageUrl} />
+      {/* The check's own guidance: Google's rule, then what tools use. */}
+      {guidance.length ? (
+        <ul className="text-muted-foreground space-y-0.5 text-xs">
+          {guidance.map((line, index) => (
+            <li key={`${index}:${line}`} className="break-words">
+              {line}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {foldable || ask || showPage ? (
+        // One row keeps the controls apart and the page link off the buttons.
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {foldable ? (
+            <button
+              type="button"
+              aria-expanded={fullValue}
+              aria-controls={valueId}
+              aria-describedby={headingId}
+              onClick={() => setFullValue((open) => !open)}
+              className="focus-visible:ring-ring -my-3 rounded-sm py-3 text-xs underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+            >
+              {t(fullValue ? "overview.showLess" : "overview.showAll")}
+            </button>
+          ) : null}
+          {ask ? (
+            <Button
+              variant="outline"
+              size="sm"
+              // Every note has this button; its heading and page tell them apart.
+              aria-describedby={
+                showPage ? `${headingId} ${pageLabelId}` : headingId
+              }
+              onClick={() =>
+                ask(
+                  showPage
+                    ? t("overview.askAboutNoteOnPage", {
+                        name,
+                        url: finding.pageUrl,
+                      })
+                    : t("overview.askAboutNote", { name }),
+                )
+              }
+            >
+              {t("overview.askAgent")}
+            </Button>
+          ) : null}
+          {showPage ? (
+            <>
+              <span id={pageLabelId} className="sr-only">
+                {finding.pageUrl}
+              </span>
+              <SeoPageLink url={finding.pageUrl} />
+            </>
+          ) : null}
+        </div>
       ) : null}
       {dated ? (
-        <div className="text-muted-foreground flex flex-wrap gap-3 text-xs">
+        // The record link's hit area reaches up; the gap keeps it off the page link.
+        <div className="text-muted-foreground flex flex-wrap gap-3 pt-2 text-xs">
           <SeoDate value={finding.observedAt} />
           <SeoSource observationId={finding.observationId} workspace={data} />
         </div>
@@ -113,13 +202,23 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
     (finding) => finding.severity !== "measure",
   );
   const flagged = notes.length;
-  const references = overview.diagnostics.flatMap((finding) =>
-    finding.evidence.slice(1).map((line, index) => ({
-      key: `${finding.id}:${index}`,
+  const references = pageDetailReferences(
+    overview.diagnostics.map((finding) => ({
       name: checkName(finding.title),
-      line,
+      evidence: finding.evidence,
     })),
   );
+  const guidanceRows = pageDetailGuidanceRows(
+    overview.diagnostics.map((finding) => ({
+      id: finding.id,
+      name: checkName(finding.title),
+      evidence: finding.evidence,
+    })),
+  );
+  // A question about a note goes to the agent's chat as a draft; the owner sends it.
+  const askAgent = data.auditId
+    ? (question: string) => model.openChat(question)
+    : undefined;
   return (
     <div className="space-y-5">
       {overview.issues.length ? (
@@ -278,6 +377,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       finding={finding}
                       data={data}
                       dated={!oneCheck}
+                      showGuidance={guidanceRows.has(finding.id)}
                     />
                   ))}
                 </ul>
@@ -302,12 +402,14 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       finding={finding}
                       data={data}
                       dated={!oneCheck}
+                      showGuidance={guidanceRows.has(finding.id)}
+                      onAsk={askAgent}
                     />
                   ))}
                 </ul>
               </section>
             ) : null}
-            {/* The first evidence line shows on each row; the rest are references, folded once. */}
+            {/* Rows show their value and guidance; provenance folds once. */}
             {references.length ? (
               <details className="text-muted-foreground text-sm">
                 <summary className="focus-visible:ring-ring cursor-pointer rounded-sm py-2.5 focus-visible:ring-2 focus-visible:outline-none">
@@ -315,8 +417,10 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                 </summary>
                 <ul className="list-inside list-disc space-y-1 pt-1">
                   {references.map((reference) => (
-                    <li key={reference.key} className="break-words">
-                      {reference.name}: {reference.line}
+                    <li key={reference.line} className="break-words">
+                      {reference.names.length
+                        ? `${reference.names.join(", ")}: ${reference.line}`
+                        : reference.line}
                     </li>
                   ))}
                 </ul>
