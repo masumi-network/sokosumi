@@ -614,7 +614,10 @@ function FileUploadRoot(props: FileUploadRootProps) {
             tabIndex={-1}
             accept={accept}
             name={name}
-            className="sr-only"
+            // Only the trigger, dropzone and paste reach this input, through
+            // its ref; kept out of the accessibility tree so a screen reader
+            // does not meet a second, unlabelled-looking file control.
+            className="hidden"
             disabled={disabled}
             multiple={multiple}
             required={required}

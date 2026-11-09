@@ -1336,6 +1336,23 @@ describe("authoritative action responses", () => {
     expect(response.unfulfilledActions).toEqual([]);
   });
 
+  it("does not report a file refused for its name, then made under another", async () => {
+    const voiceover = { text: "Sonntag im Haus Hiltl", folder: "Video" };
+    refusedThenCreated(
+      {
+        capability: "generate_voiceover",
+        input: { ...voiceover, filename: "stimme.mp3" },
+      },
+      {
+        capability: "generate_voiceover",
+        input: { ...voiceover, filename: "stimme-final.mp3" },
+      },
+    );
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toEqual([]);
+    expect(response.answerText).not.toContain("Not confirmed");
+  });
+
   it("still reports a refused attempt a different call followed", async () => {
     refusedThenCreated({ input: { name: "Launch plan" } });
     const response = await buildActionResponse(prisma, "turn-current", "Done.");

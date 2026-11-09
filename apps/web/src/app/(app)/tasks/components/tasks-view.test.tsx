@@ -4,7 +4,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ComponentProps, cloneElement, type ReactNode } from "react";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn } from "@/app/tasks/actions";
 import type {
   KanbanColumnId,
@@ -24,8 +24,10 @@ const {
   pushMock,
   refreshMock,
   replaceMock,
+  searchParamsRef,
   showCalendarClientUpgradeModalMock,
 } = vi.hoisted(() => ({
+  searchParamsRef: { current: new URLSearchParams() },
   dndContextPropsSpy: vi.fn(),
   openCreateTaskMock: vi.fn(),
   openNewTaskWizardMock: vi.fn(),
@@ -96,7 +98,7 @@ vi.mock("next/navigation", () => ({
     replace: replaceMock,
     prefetch: vi.fn(),
   }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParamsRef.current,
 }));
 
 vi.mock("next-intl", () => ({
@@ -595,4 +597,73 @@ it("keeps the column's unloaded count in step as more Tasks load", async () => {
   expect(await screen.findByTestId("board-card-done-2")).toBeInTheDocument();
   // Two came in, so two fewer wait: the header still adds up to the column.
   expect(doneHidden()).toBe("22");
+});
+
+describe("TasksView filtered empty state", () => {
+  const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+
+  afterEach(() => {
+    searchParamsRef.current = new URLSearchParams();
+  });
+
+  function emptyView(filters: TasksFilters) {
+    return (
+      <TasksView
+        tasks={[]}
+        listNextCursor={null}
+        columnHiddenCountById={{
+          backlog: 0,
+          todo: 0,
+          "in-progress": 0,
+          "input-required": 0,
+          done: 0,
+        }}
+        columnNextCursorById={{
+          backlog: null,
+          todo: null,
+          "in-progress": null,
+          "input-required": null,
+          done: null,
+        }}
+        coworkerOptions={[]}
+        projectOptions={[{ id: PROJECT_ID, name: "Research" }]}
+        userId={null}
+        activeOrganizationId={null}
+        initialFilters={filters}
+        defaultViewMode="board"
+        canCreateTask
+        labels={labels}
+      />
+    );
+  }
+
+  it("says a filter hides every task and clears it, keeping the project", async () => {
+    searchParamsRef.current = new URLSearchParams(
+      `status=COMPLETED&projectId=${PROJECT_ID}`,
+    );
+    render(
+      emptyView({
+        ...EMPTY_FILTERS,
+        status: TaskStatus.COMPLETED,
+        projectId: PROJECT_ID,
+      }),
+    );
+
+    expect(screen.getByText("Filters.noMatchesTitle")).toBeInTheDocument();
+    expect(screen.queryByTestId("board-density")).not.toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Filters.clear" }),
+    );
+    expect(replaceMock).toHaveBeenCalledWith(`/tasks?projectId=${PROJECT_ID}`);
+  });
+
+  it("keeps the plain board when nothing is filtered", () => {
+    render(emptyView(EMPTY_FILTERS));
+
+    expect(screen.getByTestId("board-density")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Filters.noMatchesTitle"),
+    ).not.toBeInTheDocument();
+  });
 });

@@ -43,7 +43,7 @@ export const CMO_BRAND_SECTIONS: Record<
   problems: {
     title: "Customer problems",
     covers:
-      "problems solved, how customers cope today, cost of leaving them unsolved, desired outcomes, events that trigger a purchase",
+      "problems solved, the job customers hire it for (in a situation, what they want, so they can get an outcome), how customers cope today, cost of leaving them unsolved, desired outcomes, events that trigger a purchase",
   },
   customers: {
     title: "Target customers",
@@ -305,6 +305,13 @@ export const cmoSaveStrategyInputSchema = z.object({
     }),
 });
 
+export const CMO_WEEKLY_VERDICTS = [
+  "hold",
+  "fix",
+  "test",
+  "investigate",
+] as const;
+
 /**
  * What Cuso reports after a daily run, a weekly review, or a request the
  * owner made in chat. CMO shows each one as a card in the chat.
@@ -326,6 +333,14 @@ export const cmoReportUpdateInputSchema = z.object({
   changes: z.array(shortText).max(10).default([]),
   /** Weekly: what the numbers say, or plainly that there are none yet. */
   results: longText.optional(),
+  /**
+   * Weekly: the call on the week. hold (keep the plan: too few numbers or
+   * nothing off), fix (something is broken), test (try one change),
+   * investigate (a number moved and the cause is unclear).
+   */
+  verdict: z.enum(CMO_WEEKLY_VERDICTS).optional(),
+  /** Weekly: what the week taught, one line each; next month's plan reads them. */
+  learnings: z.array(shortText).max(3).optional(),
 });
 export type CmoReportUpdateInput = z.infer<typeof cmoReportUpdateInputSchema>;
 
@@ -386,7 +401,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Keeps the made month current: finishes anything missing, replies to comments, and adjusts pieces for news, holidays and competitors.",
     prompt:
-      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any Social post due in the next 3 days that still lacks its words, its image or video, or its schedule on a connected network, and schedule finished drafts on any network connected since, on the post itself (update_social_post, schedule_social_post), the way your production skill makes a piece; 2) then the reply round (reading comments locks social changes and pictures for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy part pieces (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
+      "Daily marketing run, following your daily watch skill. The month is already made and scheduled; today you keep it right. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) finish any Social post due in the next 3 days that still lacks its words, its visual (save_strategy part pieces; Core makes the picture or video from it) or, when it needs no picture, its schedule on a connected network, and schedule finished drafts on any network connected since, the way your production skill makes a piece; 2) then the reply round (reading comments locks social changes for the rest of this run, so it comes after them): list_social_comments, then handle_social_comment for each one, following your comment replies skill; 3) last, the news check from your daily watch skill: holidays, competitors and the market. When something passes the bar, change the calendar with save_strategy part pieces (a new or changed entry with status idea, a brief and a why that names the news); the production run makes and schedules it within the hour; 4) report with report_update kind daily: what you did today, how many comments you answered, any comment that needs the owner (who wrote it and what about), each calendar change the news called for under changes with its reason, and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. Then write one short sentence for the owner (the card carries the details). When nothing is due, no comment came in and the news changes nothing, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",
@@ -396,7 +411,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Measures last week with real numbers only and improves the strategy. Revertible.",
     prompt:
-      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week and how it performed. Use only numbers you actually have; when there are none, say so plainly and never estimate. Then improve the strategy with save_strategy: your changes become a new version, which the owner approves before it runs (the approved plan keeps running until then). Report with report_update kind weekly: results, and each change you made. The owner can go back from the card. Then write one short sentence for the owner; the card carries the details.",
+      "Weekly marketing review, following your measure and improve skill. Using the packet below, the connected sources and list_social_posts or get_social_post where needed: what was published last week and how it performed. Report only numbers a source gave you, each with its source; when there are none, say so plainly. Never present an estimate as a result. Decide the week: hold, fix, test or investigate. Hold is a good answer when the numbers are too few or nothing is off; then change nothing. Otherwise make one to three changes with save_strategy: your changes become a new version, which the owner approves before it runs (the approved plan keeps running until then). Report with report_update kind weekly: results, verdict, one to three learnings (what the week taught, one line each: next month's plan reads them), and each change you made. The owner can go back from the card. Then write one short sentence for the owner; the card carries the details.",
   },
   {
     key: "cmo-monthly-strategy",
@@ -406,7 +421,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Writes next month's strategy from what worked and what changed, then keeps executing. Revertible.",
     prompt:
-      "Monthly strategy. Next month starts soon. Using the packet below (Brand Brain, the current strategy and calendar, the posts of the last weeks and their results), write next month's strategy with save_strategy: set month to next month, keep the calendar entries still due this month, and plan all of next month. Build on what worked, drop what did not, and reflect what changed in the business. Use only numbers you actually have. Keep the goals unless the owner changed them. Then report with report_update kind monthly: a headline, results (honest, no estimates), and in changes each difference from this month's strategy. Your plan becomes a new version: the owner approves it before it runs, and the approved plan keeps running until then. They can change it in chat or go back from the card. Then write one short sentence for the owner.",
+      "Monthly strategy. Next month starts soon. Using the packet below (Brand Brain, the current strategy and calendar, the posts of the last weeks and their results), write next month's strategy with save_strategy: set month to next month, keep the calendar entries still due this month, and plan all of next month. Build on what worked and on the weekly learnings in the packet (weeklyLearnings), drop what did not, and reflect what changed in the business. Plan one experiment for the month: one change, what you expect it to move, and how you will know. Use only numbers you actually have. Keep the goals unless the owner changed them. Then report with report_update kind monthly: a headline, results (honest, no estimates), and in changes each difference from this month's strategy. Your plan becomes a new version: the owner approves it before it runs, and the approved plan keeps running until then. They can change it in chat or go back from the card. Then write one short sentence for the owner.",
   },
   {
     key: "cmo-brand-refresh",
@@ -448,6 +463,9 @@ if (!dreaming?.promptShared?.includes(STAND_UP_LINE))
 export const CMO_DREAMING_SCHEDULE = {
   key: "dreaming",
   name: dreaming.name,
+  when: "Every night at 03:00",
+  description:
+    "Turns the day's corrections and anything that failed into lasting rules, so he doesn't repeat a mistake. Silent: it never messages you.",
   cronExpression: dreaming.cronExpression,
   prompt: dreaming.promptShared.replace(
     STAND_UP_LINE,

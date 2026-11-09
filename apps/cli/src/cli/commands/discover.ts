@@ -22,6 +22,13 @@ export const CLI_COMMAND_CATALOG = [
   { command: "admin members", usage: "WORKSPACE_SLUG" },
   { command: "admin add-member", usage: "WORKSPACE_SLUG --email EMAIL" },
   { command: "admin assign-seat", usage: "WORKSPACE_SLUG --email EMAIL" },
+  {
+    command: "evals run",
+    usage: "[--suite S] [--cases IDS] [--repeats N] [--wait]",
+  },
+  { command: "evals show", usage: "RUN_ID [--markdown]" },
+  { command: "evals list", usage: "[--limit N]" },
+  { command: "evals cases", usage: "" },
   { command: "agents list", usage: "" },
   { command: "agents hire", usage: "AGENT_ID" },
   { command: "coworkers list", usage: "" },

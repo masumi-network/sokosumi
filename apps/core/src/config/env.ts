@@ -167,6 +167,11 @@ const baseEnvSchema = z.object({
   /** Immutable operator-issued preview partition; never accepted from API input. */
   SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /**
+   * Who hears when the daily eval run finds a regression: comma-separated
+   * emails. Unset sends nothing; the admin page shows every run either way.
+   */
+  EVALS_REPORT_EMAILS: z.string().min(1).optional(),
+  /**
    * fal.ai key for Soko Bot avatar generation and the Project image studio.
    * Neither feature can reach the provider without it; both degrade to a
    * read-only view rather than failing a page render.
@@ -335,8 +340,8 @@ const baseEnvSchema = z.object({
   /**
    * Where a deployed instance fetches the ffmpeg binary that encodes avatar
    * loops: a gzip of a static linux-x64 build, unpacked into /tmp on first use
-   * (the function does not ship ffmpeg). Unset: the pinned ffmpeg-static
-   * release on GitHub. Set both together, to a copy in our own store.
+   * (the function does not ship ffmpeg). Unset: our copy of the pinned
+   * ffmpeg-static release (`DEFAULT_FFMPEG_BUILD`). Set both together.
    */
   AVATAR_FFMPEG_URL: z.url().optional(),
   /** Lowercase hex sha256 of the gzip at `AVATAR_FFMPEG_URL`. Checked before it runs. */

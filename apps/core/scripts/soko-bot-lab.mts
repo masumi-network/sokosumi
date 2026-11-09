@@ -11,25 +11,17 @@
  */
 
 import { writeFile } from "node:fs/promises";
-import {
-  evaluateScenario,
-  SOKO_BOT_SCENARIOS,
-  SOKO_BOT_SYSTEM_SCHEDULES,
-  type SokoBotScenario,
-} from "@sokosumi/soko-bot";
+import { evaluateScenario, SOKO_BOT_SCENARIOS } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import prisma from "@/lib/db/prisma";
-import {
-  SYSTEM_TURN_ROUTES,
-  systemScheduleRoute,
-} from "@/lib/soko-bot/system-routes";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
-import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
-import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
 import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
-import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
+import {
+  loadLabScenarioTurn,
+  startLabScenarioTurn,
+} from "@/services/soko-bot-lab-scenario.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import { listSokoBotVersions } from "@/services/soko-bot-version.service";
 
@@ -161,42 +153,6 @@ async function resetLabState(owner: {
   );
 }
 
-async function loadTurn(turnId: string) {
-  const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
-    where: { id: turnId },
-    select: {
-      status: true,
-      route: true,
-      userMessage: true,
-      finalAnswer: true,
-      durationMs: true,
-      costUsdMicros: true,
-      toolCalls: { select: { capability: true, status: true, result: true } },
-      events: { select: { type: true, toolName: true } },
-      delegations: {
-        select: {
-          id: true,
-          taskId: true,
-          jobId: true,
-          action: true,
-          outcome: true,
-          followUp: true,
-        },
-      },
-      pendingDecisions: { select: { id: true, resultingEntityId: true } },
-      contextSnapshot: { select: { packet: true } },
-    },
-  });
-  const { pendingDecisions, contextSnapshot, ...rest } = turn;
-  return {
-    ...rest,
-    decisions: pendingDecisions,
-    contextPacket: contextSnapshot?.packet ?? null,
-    costUsd:
-      turn.costUsdMicros === null ? null : Number(turn.costUsdMicros) / 1e6,
-  };
-}
-
 /**
  * The taskboard and event syncs wake the bot about Tasks the lab itself
  * creates; a scenario started while such a turn runs is refused as busy.
@@ -229,111 +185,6 @@ async function waitForTurn(turnId: string) {
     await new Promise((resolve) => setTimeout(resolve, 3_000));
   }
   throw new Error(`Turn ${turnId} did not settle`);
-}
-
-async function startScenario(
-  scenario: SokoBotScenario,
-  owner: { bot: { id: string; userId: string }; workspaceId: string },
-): Promise<string> {
-  if (scenario.trigger?.kind === "ingest") {
-    const bot = await prisma.sokoBot.findFirstOrThrow({
-      where: { userId: owner.bot.userId, workspaceId: owner.workspaceId },
-      select: {
-        id: true,
-        userId: true,
-        workspaceId: true,
-        ingestTimezone: true,
-        followWholeBoard: true,
-      },
-    });
-    const beat = scenario.trigger.beat;
-    const message =
-      beat === "delta"
-        ? await buildIngestDeltaMessageForBot(bot.id)
-        : (
-            await buildSystemBeatMessage({
-              bot: {
-                id: bot.id,
-                userId: owner.bot.userId,
-                workspaceId: bot.workspaceId,
-                ingestTimezone: bot.ingestTimezone,
-                followWholeBoard: bot.followWholeBoard,
-              },
-              key: beat,
-              prompt:
-                SOKO_BOT_SYSTEM_SCHEDULES.find((s) => s.key === beat)?.prompt ??
-                "Daily stand-up.",
-              now: new Date(),
-            })
-          ).message;
-    const started = await sokoBotControlPlane.startTurn({
-      userId: owner.bot.userId,
-      workspaceId: owner.workspaceId,
-      clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
-      message,
-      source: beat === "delta" ? "INGEST" : "SCHEDULE",
-      // The route the cron grants, not a classifier guess from Core's own prompt.
-      presetRoute:
-        beat === "delta"
-          ? SYSTEM_TURN_ROUTES["ingest:delta"]
-          : systemScheduleRoute(beat),
-    });
-    if (started.reconciliationLeaseToken) {
-      await sokoBotControlPlane
-        .reconcileTurn(
-          started.turnId,
-          undefined,
-          started.reconciliationLeaseToken,
-        )
-        .catch(() => undefined);
-    }
-    return started.turnId;
-  }
-  if (scenario.trigger?.kind === "task_event") {
-    // The simulation starts the turn and returns it. It used to run the
-    // events sync instead — a global scan that woke every owner's pending
-    // delegations and spent their allowances to score one scenario here.
-    // Only ever a Task a lab turn created: falling back to the bot's newest
-    // delegation posted fake Coworker events onto the owner's real work.
-    const labTask = await prisma.sokoBotDelegation.findFirst({
-      where: {
-        action: "create_task",
-        turn: {
-          sokoBotId: owner.bot.id,
-          clientTurnId: { startsWith: "lab:" },
-        },
-        task: { archivedAt: null },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { taskId: true },
-    });
-    if (!labTask?.taskId)
-      throw new Error("No lab-created Task to simulate Coworker activity on");
-    const simulated = await simulateSokoBotTaskEvent({
-      userId: owner.bot.userId,
-      workspaceId: owner.workspaceId,
-      taskId: labTask.taskId,
-      status: scenario.trigger.status,
-      comment: scenario.trigger.comment,
-    });
-    return simulated.turnId;
-  }
-  const started = await sokoBotControlPlane.startTurn({
-    userId: owner.bot.userId,
-    workspaceId: owner.workspaceId,
-    clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
-    message: scenario.prompt,
-  });
-  if (started.reconciliationLeaseToken) {
-    await sokoBotControlPlane
-      .reconcileTurn(
-        started.turnId,
-        undefined,
-        started.reconciliationLeaseToken,
-      )
-      .catch(() => undefined);
-  }
-  return started.turnId;
 }
 
 const owner = await resolveOwner();
@@ -376,9 +227,13 @@ for (const versionId of versionIds) {
               ...schedule,
             });
         }
-        const turnId = await startScenario(scenario, owner);
+        const turnId = await startLabScenarioTurn(
+          scenario,
+          owner,
+          `lab:${scenario.id}:${crypto.randomUUID()}`,
+        );
         await waitForTurn(turnId);
-        const turn = await loadTurn(turnId);
+        const turn = await loadLabScenarioTurn(turnId);
         const result = evaluateScenario(scenario, turn);
         const judged = noJudge
           ? null

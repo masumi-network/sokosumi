@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { coreErrorOf, LIST_COLOR_DOT } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,13 +24,22 @@ import { CONTACT_LISTS_KEY } from "./use-contacts-data";
 
 const COLORS = Object.values(ContactListColor);
 
-/** Create a list, or rename, recolor and describe one. */
+type SmartFilter = NonNullable<
+  NonNullable<Parameters<typeof contactsService.createList>[0]>["smartFilter"]
+>;
+
+/**
+ * Create a list, or rename, recolor and describe one. With the filters in
+ * force as `smartFilter`, a new list can keep itself filled from them.
+ */
 export function ContactListDialog({
   list,
+  smartFilter,
   onClose,
   onSaved,
 }: {
   list?: ContactList;
+  smartFilter?: SmartFilter | null;
   onClose: () => void;
   onSaved: (list: ContactList) => void;
 }) {
@@ -40,6 +50,7 @@ export function ContactListDialog({
   const [description, setDescription] = useState(list?.description ?? "");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [smart, setSmart] = useState(!!smartFilter);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -57,7 +68,10 @@ export function ContactListDialog({
       };
       const saved = list
         ? await contactsService.updateList(list.id, body)
-        : await contactsService.createList(body);
+        : await contactsService.createList({
+            ...body,
+            ...(smart && smartFilter ? { smartFilter } : {}),
+          });
       await cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY });
       onSaved(saved);
     } catch (caught) {
@@ -138,6 +152,22 @@ export function ContactListDialog({
               onChange={(event) => setDescription(event.target.value)}
             />
           </div>
+          {!list && smartFilter ? (
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="contact-list-smart"
+                checked={smart}
+                onCheckedChange={(checked) => setSmart(checked === true)}
+                className="mt-0.5"
+              />
+              <div className="grid gap-1">
+                <Label htmlFor="contact-list-smart">{t("smart")}</Label>
+                <p className="text-muted-foreground text-sm">
+                  {t("smartHint")}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {error ? (
             <p
               id="contact-list-error"

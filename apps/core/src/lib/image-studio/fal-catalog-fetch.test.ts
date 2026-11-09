@@ -481,7 +481,7 @@ describe("applyCatalogOverrides", () => {
     expect(overridden).toMatchObject({
       id: "gemini-flash",
       label: "Gemini 3.1 Flash Image",
-      curatedRank: 1,
+      curatedRank: 2,
       resolutions: ["0.5K", "1K", "2K"],
     });
     expect(overridden!.price).toMatchObject({
@@ -506,7 +506,11 @@ describe("applyCatalogOverrides", () => {
         },
       ]),
     ).models;
-    expect(applyCatalogOverrides(fetched)).toEqual(fetched);
+    expect(
+      applyCatalogOverrides(fetched).filter(
+        (model) => model.generateEndpoint === "fal-ai/example-unlisted",
+      ),
+    ).toEqual(fetched);
   });
 });
 

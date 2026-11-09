@@ -50,6 +50,50 @@ const PRICES_VERIFIED_AT = "2026-09-27";
 function imageModelOverrides(): ImageModelOverride[] {
   return [
     {
+      // Meta Muse Image. The default since 2026-11-09: it ranks with Nano Banana
+      // 2 on Artificial Analysis's editing leaderboard (1128 against 1125) at an
+      // eighth of the price. fal's catalog cannot place it on its own, because
+      // its `aspect_ratio` takes any "w:h" string rather than a list, so the
+      // whole row is written here from the two endpoints' schemas.
+      endpoint: "meta/muse-image/text-to-image",
+      id: "muse-image",
+      label: "Meta Muse Image",
+      description:
+        "General image generation and reference editing at a low price (Meta Muse Image).",
+      editEndpoint: "meta/muse-image/edit",
+      aspectRatios: IMAGE_ASPECT_RATIOS,
+      // Muse renders every ratio at its own fixed size of about 2.5
+      // megapixels, so the studio offers one resolution and does not send it.
+      resolutions: ["1K"],
+      outputFormats: IMAGE_OUTPUT_FORMATS,
+      supportsSeed: false,
+      maxReferences: 10,
+      dimensionMode: "aspect-ratio",
+      providerFields: [
+        "aspect_ratio",
+        "output_format",
+        "num_images",
+        "image_urls",
+      ],
+      curatedRank: 1,
+      notes:
+        "Renders about 2.5 megapixels at every aspect ratio; no seed. Up to ten references.",
+      price: {
+        unit: "images",
+        unitPriceUsd: 0.01,
+        perImageUsd: { "1K": 0.01 },
+        basis:
+          "$0.01 per image, generated or edited, as fal lists it for both endpoints.",
+        sourceUrl: "https://fal.ai/models/meta/muse-image/edit",
+        verifiedAt: "2026-11-09",
+      },
+      sourceUrls: [
+        "https://fal.ai/models/meta/muse-image/text-to-image/api",
+        "https://fal.ai/models/meta/muse-image/edit/api",
+      ],
+      verifiedAt: "2026-11-09",
+    },
+    {
       // Nano Banana 2. The studio's default, and the first model whose
       // capabilities and price a person read off fal's own pages end to end.
       endpoint: "fal-ai/gemini-3.1-flash-image-preview",
@@ -72,7 +116,7 @@ function imageModelOverrides(): ImageModelOverride[] {
         "limit_generations",
         "image_urls",
       ],
-      curatedRank: 1,
+      curatedRank: 2,
       notes:
         "Studio exposes up to 2K and four references. Pixel dimensions are chosen by the model; seed does not guarantee identical results.",
       price: {
@@ -115,7 +159,7 @@ function imageModelOverrides(): ImageModelOverride[] {
         "limit_generations",
         "image_urls",
       ],
-      curatedRank: 2,
+      curatedRank: 3,
       notes:
         "No 0.5K option. Studio caps output at 2K and four references; actual dimensions come from the provider.",
       price: {
@@ -147,7 +191,7 @@ function imageModelOverrides(): ImageModelOverride[] {
       maxReferences: 4,
       dimensionMode: "image-size",
       providerFields: ["image_size", "output_format", "seed", "image_urls"],
-      curatedRank: 3,
+      curatedRank: 4,
       notes:
         "Studio maps 1K/2K to a longest edge near 1024/2048 pixels, aligned to 32 pixels. Aspect ratios can differ slightly after alignment. No WebP.",
       price: {
@@ -172,7 +216,7 @@ function imageModelOverrides(): ImageModelOverride[] {
       // Typography and posters: the shortlist's one reliable letterer.
       endpoint: "fal-ai/ideogram/v3",
       id: "ideogram-v3",
-      curatedRank: 4,
+      curatedRank: 5,
       notes:
         "Strongest of the shortlist at typography and poster layout. Capabilities otherwise as fal publishes them.",
     },
@@ -180,7 +224,7 @@ function imageModelOverrides(): ImageModelOverride[] {
       // Vector, icons, and one brand style held across a set.
       endpoint: "fal-ai/recraft/v3/text-to-image",
       id: "recraft-v3",
-      curatedRank: 5,
+      curatedRank: 6,
       notes:
         "Vector-leaning output: icons, logos, and a consistent brand style across a set. Capabilities otherwise as fal publishes them.",
     },
@@ -188,7 +232,7 @@ function imageModelOverrides(): ImageModelOverride[] {
 }
 
 /**
- * The curated five, in the order a person is offered them.
+ * The curated six, in the order a person is offered them.
  *
  * Ids rather than endpoints because this is what a client sorts on, and they are
  * pinned here so a rename upstream cannot silently empty the shortlist. Asserted
@@ -198,9 +242,10 @@ function imageModelOverrides(): ImageModelOverride[] {
  * fal publishes no usage or popularity figure. `GET /v1/models` rows carry only
  * `highlighted`, `pinned`, `tags` and `is_favorited` (the caller's own), and the
  * usage endpoint reports the calling account's spend, not the platform's. So
- * "most used" cannot be measured; the five are curated by `curatedRank`.
+ * "most used" cannot be measured; the six are curated by `curatedRank`.
  */
 export const CURATED_MODEL_IDS = [
+  "muse-image",
   "gemini-flash",
   "gemini-pro",
   "flux-2-pro",

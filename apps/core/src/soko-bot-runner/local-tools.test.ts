@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { mkdir, rm, truncate, writeFile } from "node:fs/promises";
+import { SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES } from "@sokosumi/soko-bot";
+import { afterAll, describe, expect, it } from "vitest";
 
 import {
   citableSources,
   htmlToText,
+  readWorkspaceUpload,
   runCommand,
   WORKSPACE,
   workspacePath,
@@ -20,6 +23,37 @@ describe("workspace paths", () => {
       expect(() => workspacePath(path)).toThrow("outside the workspace");
     },
   );
+});
+
+describe("workspace files for upload_file", () => {
+  const dir = ".upload-test";
+  afterAll(() => rm(workspacePath(dir), { recursive: true, force: true }));
+
+  it("reads a rendered file", async () => {
+    await mkdir(workspacePath(dir), { recursive: true });
+    await writeFile(workspacePath(`${dir}/clip.mp4`), Buffer.from([0, 1, 255]));
+    expect(await readWorkspaceUpload(`${dir}/clip.mp4`)).toEqual(
+      Buffer.from([0, 1, 255]),
+    );
+  });
+
+  it("refuses a file over the limit before reading it, saying how to shrink it", async () => {
+    await mkdir(workspacePath(dir), { recursive: true });
+    await writeFile(workspacePath(`${dir}/big.mp4`), "");
+    await truncate(
+      workspacePath(`${dir}/big.mp4`),
+      SOKO_BOT_WORKSPACE_UPLOAD_MAX_BYTES + 1,
+    );
+    await expect(readWorkspaceUpload(`${dir}/big.mp4`)).rejects.toThrow(
+      "Re-encode it smaller",
+    );
+  });
+
+  it("refuses a path outside the workspace", async () => {
+    await expect(readWorkspaceUpload("../../etc/passwd")).rejects.toThrow(
+      "outside the workspace",
+    );
+  });
 });
 
 describe("html to text", () => {

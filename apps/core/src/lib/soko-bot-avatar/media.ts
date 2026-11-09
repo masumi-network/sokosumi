@@ -27,9 +27,12 @@ const DOWNLOAD_TIMEOUT_MS = 60_000;
  * The linux-x64 build `ffmpeg-static` 5.3.0 installs, pinned by the hash of
  * the gzip. The deployed function does not ship it: 80 MB unzipped would
  * nearly double Core's bundle for a step that runs a few times a day.
+ * It is our copy of the ffmpeg-static b6.1.1 release asset in the public
+ * mainnet Blob store: GitHub answered 504 for that asset for over an hour
+ * (2026-11-08). CI's Setup action fetches the same file (ci:test checks).
  */
 export const DEFAULT_FFMPEG_BUILD = {
-  url: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz",
+  url: "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/vendor/ffmpeg-static/b6.1.1/ffmpeg-linux-x64-Kat8TFEc5GgKu9hryOAPTb3VpUHuG9.gz",
   sha256: "bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa",
 };
 

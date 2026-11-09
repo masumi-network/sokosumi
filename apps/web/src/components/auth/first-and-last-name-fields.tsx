@@ -19,10 +19,11 @@ interface FirstAndLastNameFieldsProps<T extends FirstAndLastNameFormType> {
   testIdPrefix: string;
   disabled?: boolean;
   /**
-   * On the auth pages each name sits inside its field as the placeholder,
-   * centered; the label stays for screen readers and autofill.
+   * On the auth pages the labels and names sit centered, like the email
+   * code field below them. The labels stay visible: a placeholder vanishes
+   * on the first keystroke.
    */
-  namesInside?: boolean;
+  centered?: boolean;
 }
 
 const NAME_FIELDS = [
@@ -44,7 +45,7 @@ export function FirstAndLastNameFields<T extends FirstAndLastNameFormType>({
   control,
   testIdPrefix,
   disabled,
-  namesInside = false,
+  centered = false,
 }: FirstAndLastNameFieldsProps<T>) {
   const t = useTranslations("Library.Auth.NameField");
 
@@ -57,20 +58,19 @@ export function FirstAndLastNameFields<T extends FirstAndLastNameFormType>({
           name={name as Path<T>}
           render={({ field }) => (
             <FormItem>
-              <FormLabel className={cn(namesInside && "sr-only")}>
+              <FormLabel className={cn(centered && "justify-center")}>
                 {t(labelKey)}
               </FormLabel>
               <FormControl>
                 <Input
                   {...field}
                   autoComplete={autoComplete}
-                  placeholder={namesInside ? t(labelKey) : undefined}
-                  className={cn(namesInside && "text-center")}
+                  className={cn(centered && "text-center")}
                   disabled={disabled}
                   data-testid={`${testIdPrefix}-${testId}`}
                 />
               </FormControl>
-              <FormMessage className={cn(namesInside && "text-center")} />
+              <FormMessage className={cn(centered && "text-center")} />
             </FormItem>
           )}
         />

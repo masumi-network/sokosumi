@@ -493,6 +493,18 @@ function locationCriterion(campaign: string, id: string): Operation {
   };
 }
 
+function negativeKeywordCriterion(campaign: string, text: string): Operation {
+  return {
+    campaign_criterion_operation: {
+      create: {
+        campaign,
+        negative: true,
+        keyword: { text, match_type: "PHRASE" },
+      },
+    },
+  };
+}
+
 function languageCriterion(campaign: string, id: string): Operation {
   return {
     campaign_criterion_operation: {
@@ -621,7 +633,15 @@ function campaignOperations(
             status: "PAUSED",
             advertising_channel_type: google.type,
             campaign_budget: budget,
-            target_spend: {},
+            // Maximize clicks, with a ceiling so a few clicks cannot spend the day.
+            target_spend: google.maxCpc
+              ? { cpc_bid_ceiling_micros: Math.round(google.maxCpc * MICROS) }
+              : {},
+            // People in the places, not people only interested in them.
+            geo_target_type_setting: {
+              positive_geo_target_type: "PRESENCE",
+              negative_geo_target_type: "PRESENCE",
+            },
             ...(channel.networkSettings && {
               network_settings: channel.networkSettings,
             }),
@@ -677,6 +697,13 @@ function searchCampaignOperations(
     ...dedupeGoogleKeywords(google.keywords).map((keyword) =>
       keywordOperation(adGroup, keyword),
     ),
+    ...[
+      ...new Set(
+        (google.negativeKeywords ?? []).map((text) =>
+          text.trim().toLowerCase(),
+        ),
+      ),
+    ].map((text) => negativeKeywordCriterion(campaign, text)),
     {
       ad_group_ad_operation: {
         create: {

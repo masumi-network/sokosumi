@@ -18,6 +18,7 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
+      "didntGetIt": "Didn't get it?",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
       "notSent": "We could not send a code. Try again."
     },
@@ -525,6 +526,7 @@
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
         "emptyJobs": "No jobs yet. Hire this coworker to start one.",
+        "noMatches": "No jobs match your search.",
         "loadMore": "Load more",
         "loadMoreError": "Failed to load more jobs"
       }
@@ -603,6 +605,7 @@
           "back": "Back",
           "next": "Continue",
           "skip": "Skip",
+          "skipForNow": "Skip for now",
           "finishSetup": "Finish setup",
           "finish": "Go to workspace"
         },
@@ -624,7 +627,7 @@
           "found": "We found this on {domain}. Not right? Upload your own.",
           "foundNoDomain": "We found this on your website. Not right? Upload your own.",
           "notFound": "We couldn't find a logo on your website. Upload one, or skip for now.",
-          "upload": "Upload a logo",
+          "dropzone": "Drop your logo here, or choose a file",
           "replace": "Replace logo",
           "remove": "Remove",
           "uploadHint": "PNG, JPG, or SVG. Up to 2 MB.",
@@ -633,7 +636,7 @@
         },
         "Brand": {
           "title": "Brand guidelines",
-          "tooltip": "Brand Guidelines are a DESIGN.md file: your colors, fonts, tone, and style in one place. Your coworkers read it so everything they make for you looks and sounds like you.",
+          "tooltip": "Brand guidelines hold your colors, fonts, tone, and style in one place. Your coworkers read them so everything they make for you looks and sounds like you.",
           "generating": "Reading {domain} to build your brand style…",
           "generatingNoDomain": "Reading your website to build your brand style…",
           "generated": "We generated your brand style from {domain}.",
@@ -642,16 +645,23 @@
           "failedSubtitle": "No problem — you can add your brand guidelines later.",
           "retry": "Try again",
           "skipHint": "This keeps running in the background — you can continue any time.",
-          "editHint": "You can edit, replace, or remove this later in organization settings."
+          "editHint": "Your coworkers use these so their work looks and sounds like you. Change them any time in organization settings.",
+          "colors": "Colors",
+          "fonts": "Fonts",
+          "tone": "Tone",
+          "noSummary": "Your brand guidelines are saved. We couldn't pick out colors, fonts, or tone to show here.",
+          "viewFull": "View full guidelines"
         },
         "Invite": {
           "title": "{organization} is ready",
           "titleFallback": "You're all set",
           "subtitle": "Your organization is set up. Invite your team, or do it later.",
+          "linkLabel": "Invite link",
           "linkHint": "Anyone with this link can join as a member.",
           "copy": "Copy",
           "copied": "Copied",
           "regenerate": "Reset link",
+          "emailsLabel": "Invite by email (optional)",
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
@@ -1026,6 +1036,7 @@
       },
       "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
+      "files": "{count, plural, one {# file} other {# files}}",
       "assignee": "Assigned to",
       "project": "Project",
       "destination": "Account",
@@ -1751,7 +1762,13 @@
           "CANCELED": "Canceled"
         },
         "visibilityLabel": "Visibility",
-        "visibilityPrivate": "Private"
+        "visibilityPrivate": "Private",
+        "activeFilters": "Active filters",
+        "chip": "{label}: {value}",
+        "removeFilter": "Remove filter {filter}",
+        "clear": "Clear filters",
+        "noMatchesTitle": "No tasks match these filters",
+        "noMatchesDescription": "Remove a filter or clear them all to see your tasks again."
       },
       "Detail": {
         "back": "Back to tasks",
@@ -1888,7 +1905,8 @@
           "resumeReady": "Back to Ready",
           "markComplete": "Mark complete",
           "repeat": "Repeat",
-          "repeatError": "Couldn't open the schedule form. Try again."
+          "repeatError": "Couldn't open the schedule form. Try again.",
+          "duplicate": "Duplicate as draft"
         },
         "ShareModal": {
           "title": "Share task",
@@ -2023,7 +2041,8 @@
         "createAnother": "Create another task",
         "close": "Close",
         "privateLabel": "Private",
-        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker.",
+        "privateOtherPeopleHint": "Private tasks cannot go to other people. Turn Private off to assign a teammate."
       },
       "EditTask": {
         "title": "Edit task",
@@ -5407,6 +5426,10 @@
           "designSystem": {
             "title": "Design system",
             "description": "Masumi Family brand and UI rules, rendered with our real components."
+          },
+          "evals": {
+            "title": "Evals",
+            "description": "Soko Bot and CMO evals, run daily on main: what got better or worse, PR by PR."
           }
         }
       },
@@ -6206,7 +6229,7 @@
           "realRunsByVersion": "Real usage by version",
           "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days. Real turns are no longer judged, so only earlier scores appear."
         },
-        "labLink": "Behaviour lab",
+        "evalsLink": "Evals",
         "evaluationsLink": "Model evaluations",
         "versionsLink": "Versions",
         "Versions": {
@@ -6785,6 +6808,99 @@
           "doneBody": "The first one goes out Thursday at 09:00, your time zone.",
           "doneAction": "Open calendar"
         }
+      },
+      "Evals": {
+        "title": "Evals",
+        "description": "{sokoBot} Soko Bot and {cmo} CMO cases. They run every day on mainnet against what main deployed, and by hand after a merge or while you develop.",
+        "noHistory": "No daily runs yet",
+        "historyLabel": "Pass rate in the last {count} daily runs",
+        "noDailyRuns": "No daily run has finished yet.",
+        "trendBarTitle": "{rate} passed ({passed} of {scored})",
+        "noRuns": "No eval run yet. Start one, or wait for the daily run.",
+        "wasRate": "was {rate}",
+        "noCasesMatch": "No case matches this filter.",
+        "runTitle": "{trigger} run, {when}",
+        "comparedWith": "Compared with the daily run of {when}",
+        "noBaseline": "No daily run before this one to compare with.",
+        "openCases": "{count, plural, one {# case to go} other {# cases to go}}",
+        "passedOf": "{passed} of {scored} passed",
+        "suiteFilter": "Suite",
+        "outcomeFilter": "Cases",
+        "allSuites": "All",
+        "allCases": "All cases",
+        "onlyChanges": "Only what needs a look",
+        "cancelRun": "Stop run",
+        "cancelError": "The run could not be stopped.",
+        "backToRun": "Back to the run",
+        "Suite": {
+          "soko-bot": "Soko Bot",
+          "cmo": "CMO"
+        },
+        "Runs": {
+          "title": "Runs",
+          "when": "When",
+          "run": "Run",
+          "pr": "PR",
+          "versions": "Versions",
+          "cost": "Cost"
+        },
+        "Trigger": {
+          "DAILY": "Daily",
+          "MANUAL": "Manual"
+        },
+        "Status": {
+          "QUEUED": "Queued",
+          "RUNNING": "Running",
+          "COMPLETED": "Done",
+          "CANCELLED": "Stopped"
+        },
+        "Outcome": {
+          "regressed": "Regressed",
+          "error": "Error",
+          "failing": "Failing",
+          "flaky": "Flaky",
+          "fixed": "Fixed",
+          "passing": "Passing",
+          "pending": "Waiting",
+          "skipped": "Skipped"
+        },
+        "State": {
+          "PENDING": "Waiting",
+          "RUNNING": "Running",
+          "PASSED": "Passed",
+          "FAILED": "Failed",
+          "ERROR": "Could not run",
+          "SKIPPED": "Skipped"
+        },
+        "RunDialog": {
+          "open": "Run evals",
+          "title": "Run evals",
+          "description": "Runs on this deployment. If a run is in progress, this one waits until it is done.",
+          "suites": "Suites",
+          "all": "Both",
+          "sokoBot": "Soko Bot",
+          "cmo": "CMO",
+          "repeats": "Repeats",
+          "repeatsHint": "The daily run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "cases": "Only these cases",
+          "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
+          "casesHint": "Leave empty to run every case of the suites.",
+          "cancel": "Cancel",
+          "start": "Start run",
+          "error": "The run could not be started."
+        },
+        "Case": {
+          "judge": "Judge: {verdict}",
+          "seconds": "{seconds} s",
+          "passed": "Passed",
+          "failed": "Failed",
+          "answer": "Answer",
+          "tools": "Tools, in order",
+          "toolFailed": "failed",
+          "thisRun": "This run, repeat {repeat}",
+          "before": "Daily run of {when}"
+        },
+        "labLink": "Try one scenario on your own bot"
       }
     },
     "Billing": {
@@ -7917,10 +8033,14 @@
         "switchedWorkspace": "Switched to {account} account",
         "Header": {
           "back": "Back to agents",
-          "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
+          "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}",
+          "backToAgent": "Back to {name}",
+          "yourJobs": "Your jobs",
+          "yourJobsCount": "Your jobs · {count}"
         },
         "Modal": {
-          "back": "Back"
+          "back": "Back",
+          "title": "Job details"
         },
         "Footer": {
           "termsAndConditions": "Terms and Conditions",
@@ -8259,6 +8379,7 @@
       "headerDirect": "Direct message",
       "headerSelfDirect": "Only you",
       "headerVisitSwitch": "Switch to {workspace}",
+      "headerMore": "More chat options",
       "participantOverflowCount": "{count} more participants",
       "chats": "Chats",
       "directMessages": "Direct messages",
@@ -8490,6 +8611,23 @@
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",
         "unpinError": "Could not unpin message."
+      },
+      "SavedMessages": {
+        "save": "Save for later",
+        "saved": "Saved for later",
+        "view": "View saved",
+        "saveError": "Could not save the message.",
+        "removeError": "Could not remove the message from Saved.",
+        "error": "Could not load saved messages.",
+        "title": "Saved",
+        "description": "Messages you saved for later. Only you see this list.",
+        "empty": "Nothing saved yet",
+        "emptyHint": "Open a message's actions and choose Save for later to keep it here.",
+        "remove": "Remove from saved",
+        "removed": "Removed from saved",
+        "loadOlder": "Load older",
+        "untitled": "Message without text",
+        "savedAgo": "Saved {time}"
       },
       "Quote": {
         "action": "Quote",
@@ -8894,7 +9032,8 @@
         "CatchUpTabs": {
           "label": "Catch up sections",
           "overview": "Overview",
-          "threads": "Threads"
+          "threads": "Threads",
+          "saved": "Saved"
         },
         "Briefing": {
           "welcomeBack": "Welcome back",
@@ -10162,6 +10301,7 @@
       "columns": {
         "name": "Name",
         "organization": "Organization",
+        "location": "Location",
         "role": "Role",
         "stage": "Relationship",
         "lists": "Lists",
@@ -10200,7 +10340,8 @@
         "add": "Add contact",
         "more": "More actions",
         "filter": "Filter",
-        "kind": "Type"
+        "kind": "Type",
+        "source": "Source"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -10228,6 +10369,17 @@
       "noMatches": "No contacts match these filters.",
       "clearFilters": "Clear filters",
       "merged": "Merged into {name}",
+      "duplicates": "{count, plural, =1 {1 possible duplicate} other {# possible duplicates}}",
+      "duplicatesMore": "{count}+ possible duplicates",
+      "duplicatesDialog": {
+        "title": "{count, plural, =0 {No possible duplicates} =1 {1 possible duplicate} other {# possible duplicates}}",
+        "titleMore": "{count}+ possible duplicates",
+        "description": "These records share a name, or a surname and initial at the same company. Merge the ones that are one person; open a record to check first.",
+        "merge": "Merge",
+        "mergeGroup": "Merge the records for {name}",
+        "noDetails": "No email or company",
+        "empty": "Nothing left to merge."
+      },
       "deleteList": {
         "title": "Delete {name}?",
         "description": "The list goes away for the whole team. The people on it stay in Contacts.",
@@ -10259,7 +10411,9 @@
         "failed": "The list didn't save. Try again.",
         "cancel": "Cancel",
         "save": "Save",
-        "create": "Create list"
+        "create": "Create list",
+        "smart": "Keep it filled from the current filters",
+        "smartHint": "A smart list: whoever matches these filters is on it, now and later."
       },
       "addDialog": {
         "title": "Add contact",
@@ -10267,6 +10421,8 @@
         "name": "Name",
         "organization": "Organization",
         "role": "Role",
+        "location": "Location",
+        "locationPlaceholder": "City, country",
         "channels": "Ways to reach them",
         "channelType": "Channel {index} type",
         "channelValue": "Channel {index}",
@@ -10299,7 +10455,7 @@
         "title": "{count, plural, =2 {Merge 2 contacts} other {Merge # contacts}}",
         "description": "Pick the one to keep. Everything from the others moves onto it: channels, timeline and lists. Empty fields are filled from them.",
         "keep": "Keep",
-        "noDetails": "No role or organization",
+        "noDetails": "No email, role or organization",
         "interactions": "{count, plural, =0 {No interactions} =1 {1 interaction} other {# interactions}}",
         "failed": "The merge didn't finish. Nothing changed.",
         "cancel": "Cancel",
@@ -10531,6 +10687,84 @@
         "pricing": "{credits, number} credits per person found. Finding nobody is free.",
         "personLabel": "Who are you looking for?",
         "personPlaceholder": "e.g. Jane Doe, partner at XYZ Ventures"
+      },
+      "layout": {
+        "label": "Layout",
+        "table": "Table",
+        "map": "Map"
+      },
+      "map": {
+        "label": "Places",
+        "loading": "Placing contacts on the map…",
+        "errorTitle": "The map did not load",
+        "error": "Something went wrong while loading the map.",
+        "retry": "Try again",
+        "emptyTitle": "Nobody on the map yet",
+        "empty": "Add a location to a contact, like a city, and they show up here.",
+        "emptyUnplaced": "None of these locations names a place we could find. Try a city and country.",
+        "placed": "{count, plural, one {# contact} other {# contacts}} on the map",
+        "unplaced": "{count, plural, one {# contact} other {# contacts}} not placed",
+        "pending": "Placing {count, plural, one {# contact} other {# contacts}}…",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "resetZoom": "Show the whole world",
+        "withoutLocation": "{count} without a location",
+        "place": "{place}, {count, plural, one {# contact} other {# contacts}}",
+        "nearby": "{place} and {others, plural, one {# place} other {# places}} nearby",
+        "people": "{count, plural, one {# contact} other {# contacts}}"
+      },
+      "company": {
+        "loading": "Loading company…",
+        "edit": "Edit",
+        "whyItMatters": "Why it matters",
+        "people": "People",
+        "knownBy": "Known by",
+        "knownByLabel": "{count, plural, one {# teammate knows} other {# teammates know}} someone here",
+        "nobody": "Nobody yet",
+        "lastContact": "Last contact",
+        "never": "Never",
+        "warmth": "Relationship",
+        "warmthLevels": {
+          "warm": "Warm",
+          "cooling": "Cooling",
+          "cold": "Cold",
+          "none": "No contact yet"
+        },
+        "strongestStage": "Strongest stage",
+        "nextSteps": "Next steps",
+        "noNextSteps": "Nothing planned.",
+        "recent": "Latest touchpoints",
+        "noRecent": "No touchpoints yet.",
+        "someone": "Someone",
+        "editTitle": "Edit company",
+        "editDescription": "What the team knows about this company. Empty fields are filled from its website in the background.",
+        "nameRequired": "Give the company a name.",
+        "saveFailed": "The company could not be saved.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "fields": {
+          "name": "Name",
+          "website": "Website",
+          "industry": "Industry",
+          "size": "Size",
+          "headquarters": "Headquarters",
+          "linkedinUrl": "LinkedIn",
+          "description": "About",
+          "whyItMatters": "Why it matters to us"
+        }
+      },
+      "overview": {
+        "label": "List overview",
+        "people": "{count, plural, one {# person} other {# people}}",
+        "quiet": "{count} not contacted in 90 days",
+        "map": "Show on map",
+        "stages": "Stage",
+        "companies": "Companies",
+        "places": "Places",
+        "knownBy": "Known by",
+        "none": "Not set",
+        "nobody": "Nobody yet",
+        "more": "and {count} more"
       }
     }
   },
@@ -10837,6 +11071,7 @@
     "Assistant": {
       "metadataTitle": "Set up your assistant",
       "later": "Later",
+      "laterHint": "Set it up any time from Soko Bots.",
       "skip": "Skip",
       "continue": "Continue"
     }

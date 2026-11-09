@@ -1,5 +1,6 @@
 import { gateway, type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 import { z } from "zod";
+import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 import { holdModelStream } from "./stream-model-call";
 
@@ -51,6 +52,11 @@ export function sokoBotRegionMiddleware(options: {
   role: SokoBotModelRole;
 }): LanguageModelMiddleware {
   return {
+    // Half an emoji from clipped text fails the whole call on the Gateway.
+    transformParams: async ({ params }) => ({
+      ...params,
+      prompt: wellFormed(params.prompt),
+    }),
     async wrapGenerate({ doGenerate }) {
       const result = await doGenerate();
       assertSokoBotInferenceRegion(result.providerMetadata, options);

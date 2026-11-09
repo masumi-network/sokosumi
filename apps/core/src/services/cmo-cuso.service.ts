@@ -1,5 +1,5 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.service";
@@ -51,7 +51,7 @@ export function cmoBusinessNameFromUrl(websiteUrl: string): string {
  * CMO's version. Hiring Cuso makes at most one per Project.
  */
 export const CUSO_BOT_WHERE = {
-  versionId: CMO_SOKO_BOT_VERSION_ID,
+  versionId: { in: [...CMO_SOKO_BOT_VERSION_IDS] },
   userId: null,
   projectId: { not: null },
 } satisfies Prisma.SokoBotWhereInput;
@@ -229,6 +229,7 @@ export async function startCmoTurn(
     // EVENT delivers the answer to Cuso's shared room.
     source: "EVENT",
     presetRoute: input.route,
+    personStarted: true,
   });
   return { turnId: started.turnId };
 }

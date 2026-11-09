@@ -15,15 +15,13 @@ import {
   readImageDimensionsFromBytes,
 } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
+import { waitUntil } from "@vercel/functions";
 
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
-import {
-  DriveFileDownloadError,
-  downloadDriveFile,
-} from "@/helpers/drive-file-download";
+import { DriveFileDownloadError } from "@/helpers/drive-file-download";
 import {
   notFound,
   tooManyRequests,
@@ -532,13 +530,26 @@ async function uploadFileReference(
   });
   if (!file?.mimeType?.startsWith("image/"))
     throw notFound("A reference image was not found in this workspace");
-  const url = (await head(file.sourceId)).url;
-  const download = () =>
-    downloadDriveFile(url, {
-      maxBytes: LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES,
-      timeoutMs: 30_000,
-      acceptsMimeType: (mime) => mime.startsWith("image/"),
+  const blob = await head(file.sourceId);
+  if (blob.size > LIMITS.IMAGE_STUDIO_MAX_REFERENCE_BYTES)
+    throw new DriveFileDownloadError("too_large");
+  // The address comes from our own blob store, never from a person, so it
+  // needs no SSRF guard; and the store's bot check answered the guarded
+  // client 403 after its first request, failing every brand picture after
+  // the first.
+  const download = async () => {
+    const response = await fetch(blob.url, {
+      signal: AbortSignal.timeout(30_000),
     });
+    if (!response.ok) throw new DriveFileDownloadError("unavailable");
+    const mimeType = (response.headers.get("content-type") ?? "")
+      .split(";")[0]
+      ?.trim()
+      .toLowerCase();
+    if (!mimeType?.startsWith("image/"))
+      throw new DriveFileDownloadError("wrong_type");
+    return { bytes: new Uint8Array(await response.arrayBuffer()), mimeType };
+  };
   // One retry: a live test once got a passing error status for a stored
   // photo, and nothing is charged before the job is sent.
   const { bytes, mimeType } = await download().catch(async (error) => {
@@ -1213,6 +1224,33 @@ export async function failImageJob(
       settledAt: new Date(),
     },
   });
+  nudgeCmoMonth(jobId);
+}
+
+/**
+ * A job Core started for a CMO month settled: the month moves on now, so
+ * the next picture starts and this one goes on its post without waiting
+ * for the ten-minute sync (cmo-media-maker.service).
+ */
+function nudgeCmoMonth(jobId: string): void {
+  waitUntil(
+    (async () => {
+      const job = await prisma.projectImageJob.findUnique({
+        where: { id: jobId },
+        select: { projectId: true, idempotencyKey: true },
+      });
+      if (!job?.idempotencyKey.startsWith("cmo-media:")) return;
+      const { startCmoProductionForProject } = await import(
+        "@/services/cmo-cuso.service"
+      );
+      await startCmoProductionForProject(job.projectId);
+    })().catch((error: unknown) => {
+      console.warn("[image-studio] could not move a CMO month on", {
+        jobId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }),
+  );
 }
 
 /**
@@ -1222,6 +1260,21 @@ export async function failImageJob(
  * a poll arriving together produce one asset and one of them loses the insert.
  */
 export async function settleWithMedia(
+  jobId: string,
+  sourceUrl: string,
+  providerSize?: { width: number | null; height: number | null },
+): Promise<void> {
+  await storeMedia(jobId, sourceUrl, providerSize);
+  nudgeCmoMonth(jobId);
+}
+
+/**
+ * Store the generated image and publish the version.
+ *
+ * Idempotent on the job: `ProjectImageAsset.jobId` is unique, so a webhook and
+ * a poll arriving together produce one asset and one of them loses the insert.
+ */
+async function storeMedia(
   jobId: string,
   sourceUrl: string,
   /**

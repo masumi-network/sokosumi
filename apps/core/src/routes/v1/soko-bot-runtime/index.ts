@@ -10,10 +10,12 @@ import {
 import {
   completeSandboxTurn,
   failSandboxTurn,
+  grantSandboxUpload,
   proxySandboxModelCall,
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
+  sandboxFileSource,
   startSandboxTurn,
 } from "@/services/soko-bot-sandbox-turn.service";
 
@@ -37,6 +39,12 @@ const actionSchema = z.object({
   status: z.enum(["completed", "failed"]).optional(),
   output: z.string().max(10_000).optional(),
   sources: z.array(z.string().max(2_000)).max(50).optional(),
+});
+const uploadSchema = z.object({
+  filename: z.string().min(1).max(200),
+  folder: z.string().trim().min(1).max(200).optional(),
+  contentType: z.string().max(120).optional(),
+  size: z.number().int().positive(),
 });
 const completeSchema = z.object({
   text: z.string().max(200_000),
@@ -86,6 +94,24 @@ app.post("/turns/:turnId/tools/:capability", async (c) => {
     );
   }
 });
+
+app.post("/turns/:turnId/files", async (c) =>
+  c.json(
+    await sandboxFileSource(
+      c.get("turn"),
+      (await parseJsonBody(c, z.object({ fileId: z.uuid() }))).fileId,
+    ),
+  ),
+);
+
+app.post("/turns/:turnId/uploads", async (c) =>
+  c.json(
+    await grantSandboxUpload(
+      c.get("turn"),
+      await parseJsonBody(c, uploadSchema),
+    ),
+  ),
+);
 
 app.post("/turns/:turnId/actions", async (c) => {
   const action = await parseJsonBody(c, actionSchema);
