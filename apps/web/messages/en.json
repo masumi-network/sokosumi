@@ -8426,7 +8426,8 @@
         "sent": "Sent",
         "failed": "Failed to send",
         "retry": "Retry",
-        "remove": "Remove"
+        "remove": "Remove",
+        "noReply": "The AI coworker didn't reply."
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
@@ -9442,9 +9443,6 @@
         "Form": {
           "open": "New schedule",
           "name": "Name",
-          "cron": "Cron expression",
-          "cronHint": "Five fields, e.g. 0 9 * * 1-5 for weekdays at 09:00.",
-          "timezone": "Timezone",
           "prompt": "Prompt",
           "submit": "Create schedule",
           "cancel": "Cancel",
@@ -9453,6 +9451,12 @@
         }
       },
       "Settings": {
+        "nameTitle": "Name",
+        "nameDescription": "Shown in chat, on Tasks and in the sidebar.",
+        "nameRequired": "Enter a name.",
+        "rename": "Save",
+        "renamed": "Name saved.",
+        "renameError": "Could not save the name.",
         "Proactive": {
           "pauseTitle": "Pause everything it starts on its own",
           "pauseDescription": "Stops the stand-up, weekly wrap, mail checks and nudges. Chat and assigned Tasks keep working.",

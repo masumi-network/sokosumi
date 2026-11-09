@@ -114,7 +114,7 @@ describe("CreateState", () => {
     expect(pictures).toBeDisabled();
   });
 
-  it("creates the bot with the name from the first step", async () => {
+  it("creates the bot with the name from the first step, on the browser's clock", async () => {
     const user = userEvent.setup();
     createMock.mockResolvedValue({
       ok: true,
@@ -126,7 +126,11 @@ describe("CreateState", () => {
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
 
     expect(createMock).toHaveBeenCalledWith({
-      input: { name: "Atlas", avatarId: null },
+      input: {
+        name: "Atlas",
+        avatarId: null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
     });
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     // Opened from Soko Bots, not setup: the bot still says hello in its room.
@@ -146,7 +150,11 @@ describe("CreateState", () => {
     await user.click(screen.getByRole("button", { name: "Create Atlas" }));
 
     expect(createMock).toHaveBeenCalledWith({
-      input: { name: "Atlas", avatarId: "owl-1" },
+      input: {
+        name: "Atlas",
+        avatarId: "owl-1",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
     });
   });
 
@@ -163,7 +171,11 @@ describe("CreateState", () => {
     await user.click(screen.getByRole("button", { name: "Skip" }));
 
     expect(createMock).toHaveBeenCalledWith({
-      input: { name: "Atlas", avatarId: null },
+      input: {
+        name: "Atlas",
+        avatarId: null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
     });
     expect(await screen.findByText("Meet Atlas")).toBeTruthy();
     expect(screen.getByTestId("orb")).toBeTruthy();

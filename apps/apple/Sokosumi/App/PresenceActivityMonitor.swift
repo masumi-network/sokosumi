@@ -44,8 +44,6 @@ struct PresenceLifecycleModifier: ViewModifier {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
           workspaces.prepareForTermination()
         }
-    #else
-      content
     #endif
   }
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { upsertEnvLines } from "../apply-env.mjs";
-import { checkAgentFixtureSafety } from "../assert-agent-database.mjs";
+import { assertAgentFixtureSafety } from "../assert-agent-database.mjs";
 import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "../fixtures.mjs";
 import {
   agentBranchName,
@@ -100,56 +100,61 @@ describe("upsertEnvLines", () => {
   });
 });
 
-describe("checkAgentFixtureSafety", () => {
+describe("assertAgentFixtureSafety", () => {
   const agentBranch = "cloud-agent-bc-bc5212fe-8ee2-4bfa-9e8d-85e27cb47e48";
   const url = "postgresql://u:p@ep-agent.us-east-1.aws.neon.tech/neondb";
 
   it("allows agent branch + database url", () => {
-    assert.deepEqual(
-      checkAgentFixtureSafety({
+    assert.doesNotThrow(() => {
+      assertAgentFixtureSafety({
         branchName: agentBranch,
         databaseUrl: url,
-      }),
-      { ok: true },
-    );
+      });
+    });
   });
 
   it("blocks production/main branch names", () => {
-    const result = checkAgentFixtureSafety({
-      branchName: "main",
-      databaseUrl: url,
-    });
-    assert.equal(result.ok, false);
-    assert.match(result.reason, /non-agent branch/);
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: "main",
+          databaseUrl: url,
+        }),
+      /Auth fixtures blocked: refusing fixtures on non-agent branch "main"/,
+    );
   });
 
   it("blocks missing branch without force", () => {
-    const result = checkAgentFixtureSafety({
-      branchName: null,
-      databaseUrl: url,
-    });
-    assert.equal(result.ok, false);
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: null,
+          databaseUrl: url,
+        }),
+      /Auth fixtures blocked: missing cloud-agent branch name in provision state/,
+    );
   });
 
   it("blocks force without agent branch on remote hosts", () => {
-    const result = checkAgentFixtureSafety({
-      branchName: null,
-      databaseUrl: url,
-      force: true,
-    });
-    assert.equal(result.ok, false);
-    assert.match(result.reason, /cloud-agent-\*|localhost/);
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: null,
+          databaseUrl: url,
+          force: true,
+        }),
+      /Auth fixtures blocked: CLOUD_AGENT_DB_FORCE fixtures require cloud-agent-\* branch state \(or localhost\)/,
+    );
   });
 
   it("allows force on localhost for dry-runs", () => {
-    assert.deepEqual(
-      checkAgentFixtureSafety({
+    assert.doesNotThrow(() => {
+      assertAgentFixtureSafety({
         branchName: null,
         databaseUrl: "postgresql://sokosumi:sokosumi@localhost:5432/core",
         force: true,
-      }),
-      { ok: true },
-    );
+      });
+    });
   });
 });
 

@@ -167,6 +167,11 @@ export const sokoBotService = {
     return response.data;
   },
 
+  async rename(name: string, botId?: string): Promise<SokoBot> {
+    const response = await coreClient.renameMySokoBot({ name }, botId);
+    return response.data;
+  },
+
   /**
    * Behaviour lab: run one proactive rhythm now, the way the cron would.
    * Rejects with the Core message when the beat reads an account the bot has

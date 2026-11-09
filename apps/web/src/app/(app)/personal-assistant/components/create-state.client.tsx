@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createSokoBotAction } from "@/lib/actions/soko-bot/action";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { setupAssistantConnectPath } from "@/lib/workspace-gate";
@@ -96,7 +97,12 @@ export function CreateState({
     if (!trimmed) return;
     startTransition(async () => {
       const result = await createSokoBotAction({
-        input: { name: trimmed, avatarId: picked?.id ?? null },
+        input: {
+          name: trimmed,
+          avatarId: picked?.id ?? null,
+          // Its stand-up and wraps run on this clock, not Core's Berlin default.
+          timezone: getDefaultTimezone(),
+        },
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("error"));

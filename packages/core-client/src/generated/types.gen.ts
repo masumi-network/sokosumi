@@ -11617,6 +11617,7 @@ export type CreateSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
+    timezone?: string;
 };
 
 export type StartSokoBotTurnResponse = {
@@ -11734,6 +11735,10 @@ export type SokoBotTurnFeedbackRequest = {
 
 export type UpdateSokoBotBoardFollowingRequest = {
     enabled: boolean;
+};
+
+export type RenameSokoBotRequest = {
+    name: string;
 };
 
 export type UpdateSokoBotVersionRequest = {
@@ -11925,9 +11930,9 @@ export type CreateScopedSokoBotRequest = {
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
+    timezone?: string;
     scope: SokoBotScope;
     projectId?: string | null;
-    timezone?: string;
 };
 
 export const SokoBotScope = {
@@ -74385,6 +74390,79 @@ export type UpdateMySokoBotBoardFollowingResponses = {
 
 export type UpdateMySokoBotBoardFollowingResponse = UpdateMySokoBotBoardFollowingResponses[keyof UpdateMySokoBotBoardFollowingResponses];
 
+export type RenameMySokoBotData = {
+    body?: RenameSokoBotRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/name';
+};
+
+export type RenameMySokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RenameMySokoBotError = RenameMySokoBotErrors[keyof RenameMySokoBotErrors];
+
+export type RenameMySokoBotResponses = {
+    /**
+     * Bot with its new name
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RenameMySokoBotResponse = RenameMySokoBotResponses[keyof RenameMySokoBotResponses];
+
 export type UpdateMySokoBotVersionData = {
     body?: UpdateSokoBotVersionRequest;
     path?: never;
@@ -75937,6 +76015,81 @@ export type UpdateSokoBotBoardFollowingResponses = {
 };
 
 export type UpdateSokoBotBoardFollowingResponse = UpdateSokoBotBoardFollowingResponses[keyof UpdateSokoBotBoardFollowingResponses];
+
+export type RenameSokoBotData = {
+    body?: RenameSokoBotRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/name';
+};
+
+export type RenameSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RenameSokoBotError = RenameSokoBotErrors[keyof RenameSokoBotErrors];
+
+export type RenameSokoBotResponses = {
+    /**
+     * Bot with its new name
+     */
+    200: {
+        data: SokoBot;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RenameSokoBotResponse = RenameSokoBotResponses[keyof RenameSokoBotResponses];
 
 export type ResolveSokoBotDecisionData = {
     body?: ResolveSokoBotDecisionRequest;
