@@ -270,14 +270,18 @@ export function SeoChatThread({
         }}
       >
         <div className="flex flex-wrap gap-2">
-          {SEO_AGENT_PROMPTS.map((prompt) => (
+          {SEO_AGENT_PROMPTS.map((prompt, index) => (
             <Button
               key={prompt}
               type="button"
               size="sm"
               variant="outline"
               // A long prompt wraps inside the panel instead of running past it on a phone.
-              className="h-auto max-w-full py-1.5 text-start whitespace-normal"
+              // A phone keeps the first prompt, so the chat does not push Performance a screen down.
+              className={cn(
+                "h-auto max-w-full py-1.5 text-start whitespace-normal",
+                index > 0 && "max-sm:hidden",
+              )}
               disabled={chat.busy}
               onClick={() => {
                 void chat.send(t(`agent.prompts.${prompt}`));

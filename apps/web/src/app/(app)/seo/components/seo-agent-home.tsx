@@ -149,7 +149,7 @@ function AgentConversation({
 }) {
   const t = useTranslations("App.Seo");
   return (
-    <div className={cn(HOLDER_ITEM_CLASS, "flex min-h-96 min-w-0 flex-col")}>
+    <div className={cn(HOLDER_ITEM_CLASS, "flex min-w-0 flex-col sm:min-h-96")}>
       <div className="border-b px-4 py-3">
         <h3 className="text-sm font-semibold">{t("chat.title")}</h3>
         <p className="text-muted-foreground text-xs">{t("chat.description")}</p>

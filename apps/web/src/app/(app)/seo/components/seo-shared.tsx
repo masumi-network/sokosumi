@@ -4,7 +4,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { ArrowUpRight, SearchCheck } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -82,6 +82,21 @@ export function SeoEmpty({
   );
 }
 
+/** An address may wrap after "/" or "."; it breaks mid-word only when one part is wider than the line. */
+function seoUrlBreaks(url: string) {
+  let offset = 0;
+  return url.split(/(?<=[/.])/).map((part) => {
+    const start = offset;
+    offset += part.length;
+    return (
+      <Fragment key={start}>
+        {start ? <wbr /> : null}
+        {part}
+      </Fragment>
+    );
+  });
+}
+
 export function SeoPageLink({
   url,
   label,
@@ -94,9 +109,13 @@ export function SeoPageLink({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      // The break points split the text; the name stays the whole address.
+      aria-label={label || url}
       className="inline-flex min-w-0 items-start gap-1 text-sm underline-offset-4 hover:underline"
     >
-      <bdi className="break-all">{label || url}</bdi>
+      <bdi className="[overflow-wrap:anywhere]">
+        {label || seoUrlBreaks(url)}
+      </bdi>
       <ArrowUpRight className="mt-0.5 size-3 shrink-0" aria-hidden />
     </Link>
   );
