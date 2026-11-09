@@ -153,7 +153,8 @@ export function SeoWorkspace({
               onClick={() => model.openChat()}
             >
               <MessageSquare className="size-4" />
-              {t("agent.ask")}
+              {/* The phone shows the chat icon alone, so the three header buttons share one row. */}
+              <span className="max-sm:sr-only">{t("agent.ask")}</span>
             </Button>
           ) : null}
           {model.data.availableActions.canRequestAnalysis && !startCard ? (
@@ -172,7 +173,6 @@ export function SeoWorkspace({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <MoreHorizontal className="size-4" />
-                {/* On a phone the "…" icon alone keeps the header on one row. */}
                 <span className="max-sm:sr-only">{t("manage")}</span>
               </Button>
             </DropdownMenuTrigger>
@@ -313,14 +313,23 @@ export function SeoWorkspace({
       >
         <div
           ref={tabBar}
-          className="app-scrollbar w-fit max-w-full overflow-x-auto"
+          // On a phone the tabs fill the row; a fifth tab still scrolls, without a scroll track.
+          className="app-scrollbar w-fit max-w-full overflow-x-auto max-sm:w-full max-sm:[scrollbar-width:none]"
         >
-          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-max")}>
+          <TabsList
+            className={cn(
+              SEGMENTED_TABS_LIST_CLASS_NAME,
+              "w-max max-sm:min-w-full",
+            )}
+          >
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
-                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                className={cn(
+                  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                  "max-sm:flex-1 max-sm:px-2",
+                )}
               >
                 {t(`tabs.${tab}`)}
               </TabsTrigger>
