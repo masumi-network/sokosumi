@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 /** The bot's orb seed: its avatar in every assistant row and the header. */
 export const AssistantSeedContext = createContext<string>("soko-bot");
-/** Picked mascot image; when set it replaces the orb everywhere. */
+/** Picked Soko Bot avatar image; when set it replaces the orb everywhere. */
 export const AssistantImageContext = createContext<string | null>(null);
 
 export function AssistantAvatar({

@@ -147,7 +147,7 @@ export interface ChatBot {
   viewerCanManage: boolean;
   name: string | null;
   avatarSeed: string | null;
-  /** Picked mascot image; null → generative orb. */
+  /** Picked Soko Bot avatar image; null → generative orb. */
   avatarImageUrl: string | null;
   versionId: string | null;
   followWholeBoard: boolean;

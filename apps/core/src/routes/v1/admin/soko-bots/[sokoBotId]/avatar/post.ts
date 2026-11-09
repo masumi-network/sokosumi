@@ -24,7 +24,7 @@ const setAvatarRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(
       z.object({ avatarImageUrl: z.string() }),
-      "The bot's new mascot",
+      "The bot's new Soko Bot avatar",
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -36,7 +36,7 @@ const setAvatarRoute = createRoute({
   },
 });
 
-/** Give any bot a mascot from the shared pool, the way its owner would. */
+/** Give any bot a Soko Bot avatar from the shared pool, the way its owner would. */
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(setAvatarRoute, async (c) => {
     requireAdminAuthContext(c.var.authContext);

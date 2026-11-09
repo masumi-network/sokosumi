@@ -23,7 +23,7 @@ export interface CoworkerOption {
    * an empty selection, not an option.
    */
   kind?: "coworker" | "sokoBot" | "user";
-  /** Present for sokoBot options without a claimed mascot. */
+  /** Present for sokoBot options without a claimed Soko Bot avatar. */
   avatarSeed?: string | null;
   description?: string;
   caption?: string;

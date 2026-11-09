@@ -16156,7 +16156,7 @@ export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAd
 
 export type SetAdminSokoBotAvatarResponses = {
     /**
-     * The bot's new mascot
+     * The bot's new Soko Bot avatar
      */
     200: {
         data: {
@@ -73553,7 +73553,7 @@ export type ListSokoBotAvatarsError = ListSokoBotAvatarsErrors[keyof ListSokoBot
 
 export type ListSokoBotAvatarsResponses = {
     /**
-     * Unclaimed mascot avatars to pick from
+     * Unclaimed Soko Bot avatars to pick from
      */
     200: {
         data: Array<SokoBotAvatar>;
@@ -73644,7 +73644,7 @@ export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSoko
 
 export type TopUpSokoBotAvatarsResponses = {
     /**
-     * Unclaimed mascot avatars, after filling a short pool
+     * Unclaimed Soko Bot avatars, after filling a short pool
      */
     200: {
         data: Array<SokoBotAvatar>;

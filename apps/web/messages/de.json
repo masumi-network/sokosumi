@@ -6410,7 +6410,7 @@
         },
         "Avatar": {
           "title": "Avatar",
-          "description": "Gib diesem Bot ein Maskottchen aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
+          "description": "Gib diesem Bot einen Avatar aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
           "apply": "Avatar setzen",
           "done": "Avatar aktualisiert.",
           "error": "Der Avatar konnte nicht gesetzt werden."
@@ -9705,7 +9705,7 @@
       },
       "Avatar": {
         "title": "Bild",
-        "description": "Ein einzigartiges Maskottchen aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
+        "description": "Ein einzigartiges Bild aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
         "save": "Dieses Bild verwenden",
         "saved": "Bild aktualisiert.",
         "saveError": "Das Bild konnte nicht aktualisiert werden.",

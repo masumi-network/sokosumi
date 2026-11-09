@@ -23,7 +23,7 @@ import {
 } from "@/lib/db/transaction";
 
 /**
- * Mascot avatar pool for Soko Bots. Images follow the "IP as logo" recipe
+ * Soko Bot avatar pool. Images follow the "IP as logo" recipe
  * (one cute character from a few rounded shapes, two character colours, one
  * solid background, emerging from a lower corner) and are drawn once per
  * unique (subject, background, seed). A bot claims exactly one; the pool is
@@ -510,7 +510,7 @@ async function sweepStaleReservations(now: Date = new Date()): Promise<void> {
 /** The 429 for a caller who has spent their hourly allowance. */
 function avatarGenerationCapped() {
   return tooManyRequests(
-    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} mascot images per hour. Try again later.`,
+    `You can generate at most ${LIMITS.SOKO_BOT_AVATAR_GENERATION_PER_HOUR} Soko Bot avatars per hour. Try again later.`,
     { kind: "avatar_generation_rate_limited" },
   );
 }
