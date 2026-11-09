@@ -10676,7 +10676,8 @@
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
         "noteFound": "Found: {found}",
-        "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}"
+        "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
+        "noteRuleName": "Rule: “{name}”"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -10998,7 +10999,8 @@
         "createTask": "Create draft task: {title}",
         "showEarlier": "{count, plural, one {Show # earlier question} other {Show # earlier questions}}",
         "showMore": "Show full question",
-        "showLess": "Show less"
+        "showLess": "Show less",
+        "loadingHistory": "Loading the conversation"
       },
       "connections": {
         "connect": "Connect {provider}",

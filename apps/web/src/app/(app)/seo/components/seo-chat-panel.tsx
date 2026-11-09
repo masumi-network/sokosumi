@@ -202,7 +202,7 @@ export function SeoChatThread({
       >
         {chat.history.isPending ? (
           <p role="status" className="text-muted-foreground text-sm">
-            {t("loading")}
+            {t("chat.loadingHistory")}
           </p>
         ) : chat.history.isError ? (
           <div role="alert" className="space-y-2">

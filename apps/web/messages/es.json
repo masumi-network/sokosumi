@@ -10676,7 +10676,8 @@
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "positionHint": "1 es el primer resultado",
         "noteFound": "Encontrado: {found}",
-        "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}"
+        "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
+        "noteRuleName": "Regla: «{name}»"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -10998,7 +10999,8 @@
         "createTask": "Crear borrador de tarea: {title}",
         "showEarlier": "{count, plural, one {Mostrar # pregunta anterior} other {Mostrar # preguntas anteriores}}",
         "showMore": "Mostrar la pregunta completa",
-        "showLess": "Mostrar menos"
+        "showLess": "Mostrar menos",
+        "loadingHistory": "Cargando la conversación"
       },
       "connections": {
         "connect": "Conectar {provider}",

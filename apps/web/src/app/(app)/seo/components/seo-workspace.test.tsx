@@ -401,7 +401,7 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getByRole("heading", { name: "Found: meta keywords in head" }),
     ).toBeVisible();
-    expect(screen.getByText("Rule not met: “No meta keywords”")).toBeVisible();
+    expect(screen.getByText("Rule: “No meta keywords”")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
     const details = screen.getAllByText("Title length:")[0].closest("details");
@@ -2364,7 +2364,7 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("button", { name: "Show 1 earlier question" }),
     ).toBeVisible();
-    expect(screen.queryByText(messages.App.Seo.loading)).toBeNull();
+    expect(screen.queryByText(messages.App.Seo.chat.loadingHistory)).toBeNull();
   });
 
   it("shows the server results while the session loads, then reads the chat history", async () => {
@@ -2391,6 +2391,8 @@ describe("SEO workspace integration", () => {
     viewer.userId = null;
     const view = renderWorkspace(workspace, "", false, 60_000);
     expect(screen.getByText(messages.App.Seo.agent.title)).toBeVisible();
+    // The chat waits for the session; its loader names what loads.
+    expect(screen.getByText("Loading the conversation")).toBeVisible();
     viewer.userId = "owner";
     view.refreshViewer();
     expect(screen.getByText(messages.App.Seo.agent.title)).toBeVisible();

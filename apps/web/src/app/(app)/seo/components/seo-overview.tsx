@@ -141,7 +141,7 @@ function PageDetail({
           </h4>
           {note ? (
             <p className="text-muted-foreground text-xs">
-              {t("overview.noteRule", { name })}
+              {t("overview.noteRuleName", { name })}
             </p>
           ) : null}
           {detail ? (

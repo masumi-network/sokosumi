@@ -10676,7 +10676,8 @@
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
         "noteFound": "Gefunden: {found}",
-        "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}"
+        "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}",
+        "noteRuleName": "Regel: „{name}“"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -10998,7 +10999,8 @@
         "createTask": "Aufgabenentwurf erstellen: {title}",
         "showEarlier": "{count, plural, one {# frühere Frage anzeigen} other {# frühere Fragen anzeigen}}",
         "showMore": "Ganze Frage zeigen",
-        "showLess": "Weniger zeigen"
+        "showLess": "Weniger zeigen",
+        "loadingHistory": "Unterhaltung wird geladen"
       },
       "connections": {
         "connect": "{provider} verbinden",
