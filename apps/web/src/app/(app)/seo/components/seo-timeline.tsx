@@ -56,21 +56,24 @@ export function SeoTimeline({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
-  // A check's own row says what it covered; there is no separate list of check details.
+  // A check's own row says what it covered, in plain words; a gap is named only when there is one.
   function coverageText(
     coverage: ProjectSeoWorkspace["observations"][number]["coverage"],
   ) {
-    const rules = t("overview.coverageCounts", {
-      checked: coverage.checked,
-      skipped: coverage.skipped,
-      failed: coverage.failed,
-    });
-    return coverage.modules
-      ? `${rules} · ${t("overview.moduleCoverage", {
-          notRequested: coverage.modules.notRequested,
-          failed: coverage.modules.failed,
-        })}`
-      : rules;
+    return [
+      t("timeline.rulesRan", { count: coverage.checked }),
+      coverage.skipped
+        ? t("timeline.rulesSkipped", { count: coverage.skipped })
+        : null,
+      coverage.failed
+        ? t("timeline.rulesUnavailable", { count: coverage.failed })
+        : null,
+      coverage.modules?.failed
+        ? t("timeline.optionalUnavailable", { count: coverage.modules.failed })
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   }
   const taskStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const [showAll, setShowAll] = useState(false);
@@ -173,10 +176,6 @@ export function SeoTimeline({
                 (event.kind === "metrics" && status === "unavailable");
               const flagged = FLAGGED_STATUSES.has(status);
               const Icon = failed ? CircleAlert : icons[event.kind];
-              const hasSaveTime =
-                observation &&
-                new Date(observation.observedAt).getTime() !==
-                  new Date(event.at).getTime();
               const incomplete =
                 observation &&
                 (observation.coverage.failed > 0 ||
@@ -262,6 +261,13 @@ export function SeoTimeline({
                         {t("timeline.checkSummary", {
                           checked: observation.coverage.checked,
                         })}
+                        {/* Devices tell rows with another rule count apart. */}
+                        {" · "}
+                        {format.list(
+                          observation.devices.map((device) =>
+                            t(`analysis.${device}`),
+                          ),
+                        )}
                         {" · "}
                         {t("pages.count", {
                           count: observation.pageIds.length,
@@ -291,12 +297,6 @@ export function SeoTimeline({
                           {t("timeline.sourceDetails")}
                         </summary>
                         <div className="space-y-2 pt-2">
-                          {hasSaveTime ? (
-                            <div>
-                              <span>{t("timeline.savedAt")}</span>{" "}
-                              <SeoDate value={event.at} />
-                            </div>
-                          ) : null}
                           {/* A check's server detail repeats its coverage counts; the translated line below replaces it. */}
                           {observation ? null : (
                             <p className="whitespace-pre-wrap break-words">
@@ -313,7 +313,7 @@ export function SeoTimeline({
                                 </>
                               ) : null}
                               {coverageText(observation.coverage)}
-                              {earlier.length && event.taskId ? (
+                              {event.taskId ? (
                                 <>
                                   {" · "}
                                   <Link
@@ -328,13 +328,12 @@ export function SeoTimeline({
                           ) : null}
                           {observation ? (
                             <p>
-                              {observation.devices
-                                .map((device) => t(`analysis.${device}`))
-                                .join(", ")}
-                              {" · "}
                               {t("timeline.rulebook", {
                                 version: observation.rulebookVersion,
                               })}
+                              {observation.coverage.modules?.notRequested
+                                ? ` · ${t("timeline.optionalNotRequested", { count: observation.coverage.modules.notRequested })}`
+                                : ""}
                             </p>
                           ) : null}
                           {earlier.map((check) => (
@@ -356,8 +355,8 @@ export function SeoTimeline({
                               ) : null}
                             </p>
                           ))}
-                          {/* A folded row puts the newest check's Task on its own line above. */}
-                          {event.taskId && !earlier.length ? (
+                          {/* A check's Task ends its coverage line above. */}
+                          {event.taskId && !observation ? (
                             <Link
                               href={`/tasks/${encodeURIComponent(event.taskId)}`}
                               className="inline-block py-3 text-foreground underline underline-offset-4"

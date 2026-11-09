@@ -165,9 +165,8 @@ describe("SEO timeline recovery", () => {
       "datetime",
       "2026-11-01T10:00:00.000Z",
     );
-    expect(
-      within(recheck).getByText("Saved").closest("div")?.querySelector("time"),
-    ).toHaveAttribute("datetime", "2026-11-03T12:00:00.000Z");
+    // One time per check: the save time is not a second date.
+    expect(within(recheck).queryByText("Saved")).toBeNull();
     const task = within(recheck).getByRole("link", { name: "Open task" });
     expect(task).toHaveAttribute("href", "/tasks/second-task");
     expect(task.closest("details")).not.toBeNull();
@@ -226,7 +225,9 @@ describe("SEO timeline recovery", () => {
     expect(rows).toHaveLength(2);
     const [clean, issues] = rows;
     expect(within(clean).getByText("No issues in 3 checks")).toBeVisible();
-    expect(within(clean).getByText("24 rules checked · 1 page")).toBeVisible();
+    expect(
+      within(clean).getByText("24 rules checked · Desktop · 1 page"),
+    ).toBeVisible();
     expect(
       within(clean).getByText("Earlier checks covered 12 rules."),
     ).toBeVisible();
@@ -247,18 +248,22 @@ describe("SEO timeline recovery", () => {
       within(clean).getByText(
         (_, element) =>
           element?.tagName === "P" &&
-          /^Nov 4, 2026.* · Rule checks: 24 checked, 0 not checked, 0 unavailable · Open task$/.test(
+          /^Nov 4, 2026.* · 24 rules ran · Open task$/.test(
             element.textContent ?? "",
           ),
       ),
     ).toBeInTheDocument();
     expect(
-      within(clean).getAllByText(/Rule checks: 12 checked, 0 not checked/),
+      within(clean).getAllByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          /^Nov \d, 2026.* · 12 rules ran · Open task$/.test(
+            element.textContent ?? "",
+          ),
+      ),
     ).toHaveLength(2);
     // The server detail says the same in English; it is not shown twice.
-    expect(within(clean).getAllByText(/Rule checks: 24 checked/)).toHaveLength(
-      1,
-    );
+    expect(within(clean).queryByText(/Rule checks:/)).toBeNull();
     expect(within(issues).getByText("3 issues found")).toBeVisible();
   });
 

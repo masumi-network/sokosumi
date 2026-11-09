@@ -10641,7 +10641,7 @@
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
         "checkDetails": "Detalles de las comprobaciones",
-        "diagnostics": "Detalles de la comprobación",
+        "diagnostics": "Mediciones y notas de la página",
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
         "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
@@ -10781,7 +10781,6 @@
         "actionLinked": "Tarea de acción vinculada",
         "scopeChanged": "Selección de páginas cambiada",
         "pageChanged": "Cambio de página registrado",
-        "savedAt": "Guardado",
         "checkSummary": "{checked} reglas comprobadas",
         "sourceDetails": "Detalles",
         "resultsSaved": "Resultados guardados",
@@ -10791,7 +10790,12 @@
         "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
         "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
         "cleanChecks": "Sin problemas en {count} comprobaciones",
-        "earlierRules": "Las comprobaciones anteriores cubrieron {counts} reglas."
+        "earlierRules": "Las comprobaciones anteriores cubrieron {counts} reglas.",
+        "rulesRan": "{count, plural, one {# regla comprobada} other {# reglas comprobadas}}",
+        "rulesSkipped": "{count} sin comprobar",
+        "rulesUnavailable": "{count} no disponibles",
+        "optionalUnavailable": "{count, plural, one {# comprobación opcional no disponible} other {# comprobaciones opcionales no disponibles}}",
+        "optionalNotRequested": "{count, plural, one {# comprobación opcional no solicitada} other {# comprobaciones opcionales no solicitadas}}"
       },
       "analysis": {
         "title": "Iniciar comprobación",

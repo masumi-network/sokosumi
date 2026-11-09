@@ -368,11 +368,15 @@ describe("SEO workspace integration", () => {
       renderWorkspace(workspace);
       // The Timeline row carries the coverage; a second list would repeat it.
       expect(
-        screen.queryByRole("heading", { name: "Check details" }) !== null,
+        screen.queryByRole("heading", {
+          name: "Page measurements and notes",
+        }) !== null,
       ).toBe(!onTimeline);
       expect(
         screen.getByText(
-          "Rule checks: 2 checked, 1 not checked, 0 unavailable",
+          onTimeline
+            ? /^2 rules ran · 1 not checked/
+            : "Rule checks: 2 checked, 1 not checked, 0 unavailable",
         ),
       ).toBeInTheDocument();
     },

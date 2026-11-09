@@ -10641,7 +10641,7 @@
         "noFixes": "No fixes recommended from these checks",
         "noFixesBody": "These checks did not produce a recommended fix. They cover only the selected pages and checks, not your whole site or search performance.",
         "checkDetails": "Check details",
-        "diagnostics": "Check details",
+        "diagnostics": "Page measurements and notes",
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
         "positionAxis": "Position 1 is at the top. A lower position is better. Days without impressions have no position.",
@@ -10781,7 +10781,6 @@
         "actionLinked": "Action Task linked",
         "scopeChanged": "Page selection changed",
         "pageChanged": "Page change recorded",
-        "savedAt": "Saved",
         "checkSummary": "{checked} rules checked",
         "sourceDetails": "Details",
         "resultsSaved": "Results saved",
@@ -10791,7 +10790,12 @@
         "metricsFailedTimes": "{count, plural, one {Statistics sync failed} other {Statistics sync failed # times}}",
         "result": "{count, plural, =0 {No issues found} one {# issue found} other {# issues found}}",
         "cleanChecks": "No issues in {count} checks",
-        "earlierRules": "Earlier checks covered {counts} rules."
+        "earlierRules": "Earlier checks covered {counts} rules.",
+        "rulesRan": "{count, plural, one {# rule ran} other {# rules ran}}",
+        "rulesSkipped": "{count} not checked",
+        "rulesUnavailable": "{count} unavailable",
+        "optionalUnavailable": "{count, plural, one {# optional check unavailable} other {# optional checks unavailable}}",
+        "optionalNotRequested": "{count, plural, one {# optional check not requested} other {# optional checks not requested}}"
       },
       "analysis": {
         "title": "Run a check",

@@ -10641,7 +10641,7 @@
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
         "checkDetails": "Prüfdetails",
-        "diagnostics": "Prüfdetails",
+        "diagnostics": "Messwerte und Hinweise zur Seite",
         "perDay": "{metric} pro Tag",
         "chartHint": "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
         "positionAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Tage ohne Impressionen haben keine Position.",
@@ -10781,7 +10781,6 @@
         "actionLinked": "Aktionsaufgabe verknüpft",
         "scopeChanged": "Seitenauswahl geändert",
         "pageChanged": "Seitenänderung erfasst",
-        "savedAt": "Gespeichert",
         "checkSummary": "{checked} Regeln geprüft",
         "sourceDetails": "Details",
         "resultsSaved": "Ergebnisse gespeichert",
@@ -10791,7 +10790,12 @@
         "metricsFailedTimes": "{count, plural, one {Statistik-Synchronisierung fehlgeschlagen} other {Statistik-Synchronisierung # Mal fehlgeschlagen}}",
         "result": "{count, plural, =0 {Keine Probleme gefunden} one {# Problem gefunden} other {# Probleme gefunden}}",
         "cleanChecks": "Keine Probleme in {count} Prüfungen",
-        "earlierRules": "Frühere Prüfungen umfassten {counts} Regeln."
+        "earlierRules": "Frühere Prüfungen umfassten {counts} Regeln.",
+        "rulesRan": "{count, plural, one {# Regel geprüft} other {# Regeln geprüft}}",
+        "rulesSkipped": "{count} nicht geprüft",
+        "rulesUnavailable": "{count} nicht verfügbar",
+        "optionalUnavailable": "{count, plural, one {# optionale Prüfung nicht verfügbar} other {# optionale Prüfungen nicht verfügbar}}",
+        "optionalNotRequested": "{count, plural, one {# optionale Prüfung nicht angefordert} other {# optionale Prüfungen nicht angefordert}}"
       },
       "analysis": {
         "title": "Prüfung starten",
