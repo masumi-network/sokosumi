@@ -429,6 +429,7 @@ export function ImageStudio({
     setPrompt(template.prompt);
     setTarget((current) => ({
       ...current,
+      placementRatios: undefined,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
     }));
     promptRef.current?.focus();
@@ -441,6 +442,7 @@ export function ImageStudio({
     setPrompt(asset.prompt);
     setTarget((current) => ({
       ...current,
+      placementRatios: undefined,
       settings: { ...current.settings, ...settingsOf(asset), seed: null },
     }));
     promptRef.current?.focus();
@@ -923,6 +925,7 @@ export function ImageStudio({
             setPrompt("");
             setTarget((current) => ({
               ...current,
+              placementRatios: undefined,
               settings: { ...settingsOf(asset), seed: null },
             }));
             setViewing(null);

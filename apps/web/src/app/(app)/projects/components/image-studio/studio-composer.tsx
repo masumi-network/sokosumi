@@ -40,44 +40,18 @@ import {
 } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
 
-/**
- * The most a single press of Generate may buy.
- *
- * Twelve, and the number is picked against Core's own limits rather than
- * chosen for feel.
- *
- * It used to be justified as "the whole catalog at the highest copy count:
- * three models times four copies". That reading is gone — the catalog is 152
- * models now and the studio opens on the curated five — so the ceiling is no
- * longer a cross-product of anything. What it still is, is comfortably more
- * than one run of the shortlist, which is the batch this composer exists to
- * make. The visible cost is that five models cap out at two copies each; the
- * copy chips disable themselves and `plan` brings the count down, so the line
- * above the button stays true about it.
- *
- * It is four times Core's in-flight limit of three per project
- * (`IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT`), which is the safe direction.
- * Twelve at once is not twelve in flight: `useGenerationQueue` sends one at a
- * time, is told `image_studio_project_busy` when Core is full, and waits. So
- * the client never exceeds Core's limit, and it does not duplicate the number
- * either — it learns it by being refused.
- *
- * And it is under a third of Core's hourly allowance of forty per user
- * (`IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR`), so three full batches fit in
- * an hour with room over. A fourth would be refused, and that refusal is the
- * one thing the queue reports rather than retries, so it arrives as a sentence
- * instead of as a stall.
- */
+// Each job is queued separately against Core's per-project concurrency limit.
 export const MAX_BATCH = 12;
 
-/**
- * Runs per model offered.
- *
- * Four is reachable only with one, two or three models selected; past that the
- * batch ceiling takes it down and the chips grey themselves out against it. So
- * this list is what may be *asked* for, never what may be bought, and it stays
- * correct however many models the catalog grows to.
- */
+const AD_PLACEMENTS = [
+  { ratio: "1:1", label: "squareFeed" },
+  { ratio: "4:5", label: "portraitFeed" },
+  { ratio: "9:16", label: "stories" },
+  { ratio: "16:9", label: "landscapeFeed" },
+] as const;
+type PlacementRatio = (typeof AD_PLACEMENTS)[number]["ratio"];
+const NO_PLACEMENTS: NonNullable<StudioTarget["placementRatios"]> = [];
+
 const COPY_CHOICES = [1, 2, 3, 4] as const;
 const MAX_PROMPT_LENGTH = 4_000;
 
@@ -233,7 +207,13 @@ export function StudioComposer({
     const key = priceUnitLabelKey(unit);
     return key ? t(`PriceUnits.${key}`) : unit;
   }
-  const { modelIds: selectedModelIds, settings } = target;
+  const {
+    modelIds: selectedModelIds,
+    settings,
+    placementRatios = NO_PLACEMENTS,
+  } = target;
+  const frameCount = Math.max(1, placementRatios.length);
+  const modelLimit = Math.floor(MAX_BATCH / frameCount);
 
   // A reference is an edit request. Only offer models that can consume every
   // selected image; a generation-only model must never drop the base image.
@@ -279,7 +259,7 @@ export function StudioComposer({
               ...shownModels
                 .map((model) => model.id)
                 .filter((id) => !current.modelIds.includes(id))
-                .slice(0, Math.max(0, MAX_BATCH - selectedCount)),
+                .slice(0, Math.max(0, modelLimit - selectedCount)),
             ]
           : current.modelIds.filter((id) => !ids.has(id)),
       };
@@ -314,44 +294,51 @@ export function StudioComposer({
     };
   }, [selectedModels]);
 
+  const unsupportedPlacements =
+    selectedModels.length > 0 &&
+    placementRatios.some((ratio) => !shared.aspectRatios.includes(ratio));
+
+  function togglePlacement(ratio: PlacementRatio) {
+    onTargetChange((current) => {
+      const ratios = current.placementRatios ?? [];
+      return {
+        ...current,
+        placementRatios: ratios.includes(ratio)
+          ? ratios.filter((value) => value !== ratio)
+          : [...ratios, ratio],
+      };
+    });
+  }
+
   const references = referenceAssets;
 
-  /**
-   * Exactly what one press of Generate would buy.
-   *
-   * Computed once and used three times — the sentence above the button, the
-   * estimate inside it, and the requests `submit` enqueues. They have to be the
-   * same batch: an estimate about a different purchase from the one the button
-   * makes is worse than no estimate at all.
-   *
-   * The ceiling is applied to the *factors*, not by clipping the finished list.
-   * Clipping was the old behaviour, and it made the line above the button a
-   * lie the moment the pair ran past the ceiling: selecting a fourth model
-   * after choosing four copies promised sixteen images and bought twelve.
-   * Bringing the copy count down instead keeps the sentence true, and the copy
-   * chips show the clamp, so the loss is visible where the choice is made.
-   */
+  // The summary, price and submitted requests all read this same plan.
   const plan = useMemo(() => {
-    // Selection enforces the ceiling. An over-limit target supplied by a
-    // caller is blocked below rather than silently omitting selected models.
-    const models = selectedModels;
-    const configured = models.map((model) => ({
-      model,
-      settings: clampToModel(model, settings),
-    }));
-    const each = models.length
-      ? Math.max(1, Math.min(copies, Math.floor(MAX_BATCH / models.length)))
+    const frames = placementRatios.length
+      ? placementRatios
+      : [settings.aspectRatio];
+    const configured = (unsupportedPlacements ? [] : frames).flatMap(
+      (aspectRatio) =>
+        selectedModels.map((model) => ({
+          model,
+          settings: clampToModel(model, { ...settings, aspectRatio }),
+        })),
+    );
+    const each = configured.length
+      ? Math.min(copies, Math.floor(MAX_BATCH / configured.length))
       : 0;
-    const legs: { model: StudioModel; settings: StudioSettings }[] = [];
-    // Round-robin across models rather than all of model A then all of model
-    // B. The queue drains in this order, so the first pass covers every model
-    // asked for — the batch is comparable while it is still arriving, which is
-    // the entire reason to run one brief on several models.
+    const legs: typeof configured = [];
     for (let copy = 0; copy < each; copy += 1) {
       legs.push(...configured);
     }
-    return { copies: each, legs, models, configured };
-  }, [copies, selectedModels, settings]);
+    return { copies: each, legs, configured };
+  }, [
+    copies,
+    placementRatios,
+    selectedModels,
+    settings,
+    unsupportedPlacements,
+  ]);
 
   /**
    * What this batch will be debited, in credits.
@@ -364,15 +351,11 @@ export function StudioComposer({
   const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
-  const selectionLimitReached = selectedModels.length >= MAX_BATCH;
-  const overSelectionLimit = selectedModels.length > MAX_BATCH;
-  const selectionLimitReason = t("modelSelectionLimit", { count: MAX_BATCH });
+  const selectionLimitReached = selectedModels.length >= modelLimit;
+  const overSelectionLimit = selectedModels.length > modelLimit;
+  const selectionLimitReason = t("modelSelectionLimit", { count: modelLimit });
   const canGenerate =
-    !busy &&
-    promptLength > 0 &&
-    !promptTooLong &&
-    selectedModels.length > 0 &&
-    !overSelectionLimit;
+    !busy && promptLength > 0 && !promptTooLong && totalJobs > 0;
 
   function toggleModel(model: StudioModel) {
     onTargetChange((current) => {
@@ -381,7 +364,7 @@ export function StudioComposer({
         adding &&
         availableModels.filter((candidate) =>
           current.modelIds.includes(candidate.id),
-        ).length >= MAX_BATCH
+        ).length >= modelLimit
       ) {
         return current;
       }
@@ -455,9 +438,11 @@ export function StudioComposer({
   );
   const mixedSettings = new Set(plannedSettings).size > 1;
   const optionSummary = [
-    mixedSettings
-      ? t("mixedSettings")
-      : (plannedSettings[0] ?? labels.moreOptions),
+    frameCount > 1 || unsupportedPlacements
+      ? t("placementCount", { count: frameCount })
+      : mixedSettings
+        ? t("mixedSettings")
+        : (plannedSettings[0] ?? labels.moreOptions),
     plan.copies > 1 ? t("copyCount", { count: plan.copies }) : null,
   ]
     .filter(Boolean)
@@ -493,6 +478,11 @@ export function StudioComposer({
                 role="alert"
               >
                 {t("promptTooLong", { limit: MAX_PROMPT_LENGTH })}
+              </p>
+            ) : null}
+            {unsupportedPlacements ? (
+              <p className="text-destructive px-4 pb-2 text-xs" role="alert">
+                {t("unsupportedPlacements")}
               </p>
             ) : null}
             {overSelectionLimit ? (
@@ -631,8 +621,8 @@ export function StudioComposer({
                         shownModels.filter(
                           (model) => !selectedModelIds.includes(model.id),
                         ).length >
-                      MAX_BATCH
-                        ? t("selectModelsUpToLimit", { count: MAX_BATCH })
+                      modelLimit
+                        ? t("selectModelsUpToLimit", { count: modelLimit })
                         : labels.selectAllModels}
                     </Button>
                     <Button
@@ -678,7 +668,10 @@ export function StudioComposer({
                   {shownModels.map((model) => {
                     const credits = creditsForImage(
                       model,
-                      clampToModel(model, settings),
+                      clampToModel(model, {
+                        ...settings,
+                        aspectRatio: placementRatios[0] ?? settings.aspectRatio,
+                      }),
                     );
                     const checked = selectedModelIds.includes(model.id);
                     const unavailable = !checked && selectionLimitReached;
@@ -711,11 +704,13 @@ export function StudioComposer({
                             <span className="min-w-0 flex-1 truncate text-sm font-medium">
                               {model.label}
                             </span>
-                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                              {credits === null
-                                ? labels.creditsNoFigure
-                                : t("creditsCount", { count: credits })}
-                            </span>
+                            {frameCount === 1 ? (
+                              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                {credits === null
+                                  ? labels.creditsNoFigure
+                                  : t("creditsCount", { count: credits })}
+                              </span>
+                            ) : null}
                           </span>
                           <span className="text-muted-foreground block truncate text-xs">
                             {model.description}
@@ -753,7 +748,7 @@ export function StudioComposer({
                     {labels.noModelSelected}
                   </p>
                 ) : null}
-                {mixedSettings ? (
+                {mixedSettings && frameCount === 1 ? (
                   <ul className="space-y-2 text-xs">
                     {plan.configured.map(({ model }, index) => (
                       <li className="break-words" key={model.id}>
@@ -766,16 +761,71 @@ export function StudioComposer({
                   </ul>
                 ) : null}
 
+                <p className="text-muted-foreground text-xs text-pretty">
+                  {t("placementHelp")}
+                </p>
+                <Row label={t("adPlacements")}>
+                  {AD_PLACEMENTS.map(({ ratio, label }) => {
+                    const selected = placementRatios.includes(ratio);
+                    const unsupported = !shared.aspectRatios.includes(ratio);
+                    const exceedsLimit =
+                      selectedModels.length * (placementRatios.length + 1) >
+                      MAX_BATCH;
+                    const disabled = !selected && (unsupported || exceedsLimit);
+                    const reason = unsupported
+                      ? t("placementNeedsModels")
+                      : exceedsLimit
+                        ? t("placementLimit", { count: MAX_BATCH })
+                        : undefined;
+                    return (
+                      <button
+                        aria-describedby={
+                          disabled ? `${promptHelpId}-${label}` : undefined
+                        }
+                        aria-disabled={disabled || undefined}
+                        aria-pressed={selected}
+                        className={chipClass(selected, disabled)}
+                        key={ratio}
+                        onClick={() => {
+                          if (!disabled) togglePlacement(ratio);
+                        }}
+                        title={disabled ? reason : undefined}
+                        type="button"
+                      >
+                        {t(`Placements.${label}`)} · {ratio}
+                        {disabled ? (
+                          <span
+                            className="sr-only"
+                            id={`${promptHelpId}-${label}`}
+                          >
+                            {reason}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </Row>
+
                 <Row label={labels.aspectRatio}>
                   {shared.aspectRatios.map((ratio) => (
                     <button
-                      aria-pressed={settings.aspectRatio === ratio}
-                      className={chipClass(settings.aspectRatio === ratio)}
+                      aria-pressed={
+                        placementRatios.length === 0 &&
+                        settings.aspectRatio === ratio
+                      }
+                      className={chipClass(
+                        placementRatios.length === 0 &&
+                          settings.aspectRatio === ratio,
+                      )}
                       key={ratio}
                       onClick={() =>
-                        setSettings((current) => ({
+                        onTargetChange((current) => ({
                           ...current,
-                          aspectRatio: ratio as StudioSettings["aspectRatio"],
+                          placementRatios: undefined,
+                          settings: {
+                            ...current.settings,
+                            aspectRatio: ratio as StudioSettings["aspectRatio"],
+                          },
                         }))
                       }
                       type="button"
@@ -834,8 +884,8 @@ export function StudioComposer({
                     // Against the models that will actually run, and against the
                     // plan rather than the raw choice: this is where the ceiling
                     // becomes visible, so `plan.copies` is what reads as pressed.
-                    const overCeiling =
-                      selectedModels.length * count > MAX_BATCH && count > 1;
+                    const images = selectedModels.length * frameCount * count;
+                    const overCeiling = images > MAX_BATCH && count > 1;
                     /**
                      * Why this one is unavailable, in its own arithmetic.
                      *
@@ -845,12 +895,17 @@ export function StudioComposer({
                      * "3, dimmed" and nothing at all.
                      */
                     const reason = overCeiling
-                      ? t("copiesOverCeiling", {
-                          models: selectedModels.length,
-                          copies: count,
-                          images: selectedModels.length * count,
-                          limit: MAX_BATCH,
-                        })
+                      ? frameCount > 1
+                        ? t("placementCopiesOverCeiling", {
+                            images,
+                            limit: MAX_BATCH,
+                          })
+                        : t("copiesOverCeiling", {
+                            models: selectedModels.length,
+                            copies: count,
+                            images,
+                            limit: MAX_BATCH,
+                          })
                       : undefined;
                     return (
                       <button
@@ -905,16 +960,23 @@ export function StudioComposer({
                     variant="ghost"
                   >
                     <span className="min-w-0 truncate tabular-nums">
-                      {batchCredits === null
-                        ? t("runPlan", {
-                            copies: plan.copies,
-                            models: plan.models.length,
-                          })
-                        : t("runPlanCredits", {
-                            copies: plan.copies,
-                            models: plan.models.length,
-                            credits: batchCredits,
-                          })}
+                      {frameCount > 1
+                        ? batchCredits === null
+                          ? t("placementPlan", { count: totalJobs })
+                          : t("placementPlanCredits", {
+                              count: totalJobs,
+                              credits: batchCredits,
+                            })
+                        : batchCredits === null
+                          ? t("runPlan", {
+                              copies: plan.copies,
+                              models: selectedModels.length,
+                            })
+                          : t("runPlanCredits", {
+                              copies: plan.copies,
+                              models: selectedModels.length,
+                              credits: batchCredits,
+                            })}
                     </span>
                   </Button>
                 </PopoverTrigger>
@@ -940,7 +1002,7 @@ export function StudioComposer({
                       ({ model, settings: actual }, index) => {
                         const credits = creditsForImage(model, actual);
                         return (
-                          <li key={model.id}>
+                          <li key={`${model.id}:${actual.aspectRatio}`}>
                             <div className="flex min-w-0 items-baseline gap-2">
                               <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
                                 {model.label}

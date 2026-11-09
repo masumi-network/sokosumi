@@ -164,6 +164,7 @@ export function assetContentUrl(
  */
 export interface StudioTarget {
   modelIds: string[];
+  placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }
 

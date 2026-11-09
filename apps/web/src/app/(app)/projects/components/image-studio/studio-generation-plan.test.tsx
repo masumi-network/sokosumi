@@ -231,6 +231,73 @@ describe("an honest generation plan", () => {
     ).toEqual(["9:16", "1:1"]);
   });
 
+  it("prices and submits the requested placements within the copy limit", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "4" }));
+    for (const placement of [
+      "squareFeed",
+      "portraitFeed",
+      "stories",
+      "landscapeFeed",
+    ]) {
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(placement) }),
+      );
+    }
+
+    expect(screen.getByRole("button", { name: "3" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByText('placementPlanCredits:{"count":12,"credits":48}'),
+    ).toBeInTheDocument();
+    generate();
+    const requests = onGenerate.mock.calls[0][0];
+    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual(
+      Array.from({ length: 3 }, () => ["1:1", "4:5", "9:16", "16:9"]).flat(),
+    );
+    expect(
+      new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
+    ).toBe(MAX_BATCH);
+  });
+
+  it("keeps a selected placement visible and blocks incompatible batches", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={TEST_CATALOG}
+        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        onGenerate={onGenerate}
+      />,
+    );
+
+    const stories = screen.getByRole("button", { name: /Placements.stories/ });
+    fireEvent.click(stories);
+    fireEvent.click(modelEntry("Model B"));
+    expect(stories).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "unsupportedPlacements",
+    );
+    generate();
+    expect(onGenerate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "4:5" }));
+    expect(stories).toHaveAttribute("aria-pressed", "false");
+    generate();
+    expect(
+      onGenerate.mock.calls[0][0].map(({ settings }) => settings.aspectRatio),
+    ).toEqual(["4:5", "4:5"]);
+  });
+
   it("shows and prices the same normalized settings it submits for each model", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     const inherited: StudioTarget["settings"] = {
