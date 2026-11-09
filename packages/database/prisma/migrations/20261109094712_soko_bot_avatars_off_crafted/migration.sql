@@ -11,6 +11,16 @@
 -- holds a colon (`<style>:<accessories>`), the same rule the avatar pool uses,
 -- so this reads a column that stays.
 
+BEGIN;
+
+-- Prisma does not wrap PostgreSQL migrations implicitly, and the old release
+-- keeps claiming avatars while this runs. Take write locks first, in the order
+-- a claim writes (avatar, then bot), so no claim lands between reading the
+-- pool and handing it out: one avatar never goes to two bots, and the bots
+-- read here are the ones that hold a crafted-style avatar at commit.
+LOCK TABLE "soko_bot_avatar" IN SHARE ROW EXCLUSIVE MODE;
+LOCK TABLE "soko_bot" IN SHARE ROW EXCLUSIVE MODE;
+
 -- Bots on a crafted avatar, in random order.
 CREATE TEMP TABLE "crafted_bot" AS
 SELECT b."id", b."deletedAt", row_number() OVER (ORDER BY random()) AS "n"
@@ -56,3 +66,5 @@ WHERE b."id" = c."id";
 DROP TABLE "avatar_pick";
 DROP TABLE "free_original_avatar";
 DROP TABLE "crafted_bot";
+
+COMMIT;
