@@ -507,7 +507,8 @@ describe("SEO workspace integration", () => {
         key: "impressions",
         unit: "count",
         value: 140,
-        points: days.map((date) => ({ date, value: 10 })),
+        // 140 impressions a week: enough to judge a position change.
+        points: days.map((date) => ({ date, value: 20 })),
       },
       {
         ...base,
@@ -524,12 +525,60 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace);
-    const change = screen.getByText(
-      "Last 7 days: Better by 1.0 vs the 7 before",
+    // An arrow up beside a falling number reads as worse; the words carry it.
+    const change = screen.getByText("Last 7 days: 4.0 vs 5.0, better");
+    expect(change.querySelector("svg")).toBeNull();
+    expect(screen.getByText("Last 7 days: 140 vs 140")).toBeVisible();
+  });
+
+  it("does not judge a position change on a handful of impressions", async () => {
+    const workspace = seoTestWorkspace();
+    const days = Array.from(
+      { length: 14 },
+      (_, day) => `2026-01-${String(day + 1).padStart(2, "0")}`,
     );
+    const base = {
+      label: "",
+      source: "search_console",
+      propertyId: "sc-domain:example.com",
+      channel: "organic" as const,
+      from: days[0],
+      to: days[13],
+      timeZone: "UTC",
+      observedAt: new Date(),
+      coverage: "complete" as const,
+      notes: [],
+    };
+    workspace.metrics = [
+      {
+        ...base,
+        id: "sync:impressions",
+        key: "impressions",
+        unit: "count",
+        value: 28,
+        // 14 impressions a week.
+        points: days.map((date) => ({ date, value: 2 })),
+      },
+      {
+        ...base,
+        id: "sync:position",
+        key: "position",
+        unit: "position",
+        value: 4.5,
+        points: days.map((date, day) => ({ date, value: day < 7 ? 5 : 4 })),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
     expect(
-      change.closest("span")?.querySelector(".lucide-arrow-up"),
-    ).not.toBeNull();
+      screen.getByText("Too few impressions to compare weeks"),
+    ).toBeVisible();
+    expect(screen.queryByText(/better|worse/)).toBeNull();
+    // A count is a fact at any size; it keeps its numbers.
+    expect(screen.getByText("Last 7 days: 14 vs 14")).toBeVisible();
   });
 
   it("renders source measurements without replacing missing values with zero", async () => {

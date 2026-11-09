@@ -10648,13 +10648,12 @@
         "dailyValues": "Tageswerte",
         "day": "Tag",
         "synced": "Zuletzt synchronisiert",
-        "noChange": "Keine Änderung",
-        "better": "Besser um {amount}",
-        "worse": "Schlechter um {amount}",
         "windowDays": "Letzte 7 Tage: {current}. Vorherige 7 Tage: {previous}. Beide enden am neuesten Tag, den Google gemeldet hat.",
-        "percentPoints": "{value} Pp.",
-        "vsPrevious": "Letzte 7 Tage: {change} ggü. den 7 davor",
-        "noComparison": "Zu wenige Tage für einen Vergleich"
+        "noComparison": "Zu wenige Tage für einen Vergleich",
+        "weekCompare": "Letzte 7 Tage: {current} statt {previous}",
+        "weekBetter": "Letzte 7 Tage: {current} statt {previous}, besser",
+        "weekWorse": "Letzte 7 Tage: {current} statt {previous}, schlechter",
+        "tooFewToCompare": "Zu wenige Impressionen für einen Wochenvergleich"
       },
       "keywords": {
         "title": "Verfolgte Keywords",

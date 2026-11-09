@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoField, SeoSelect } from "./seo-form-fields";
-import { seoWeekOverWeek } from "./seo-performance-model";
+import {
+  SEO_MIN_COMPARE_IMPRESSIONS,
+  seoWeekOverWeek,
+} from "./seo-performance-model";
 import { SeoDate, SeoPeriod, SeoSection, SeoState } from "./seo-shared";
 import {
   latestSeoMeasurements,
@@ -58,38 +61,47 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           signDisplay,
         });
   }
-  /** Change from the previous 7 days. A lower position is better. */
+  const weekImpressions = compared?.values.impressions;
+  // A rate or an average over a handful of impressions moves at random from week to week.
+  const enoughImpressions =
+    (weekImpressions?.current ?? 0) >= SEO_MIN_COMPARE_IMPRESSIONS &&
+    (weekImpressions?.previous ?? 0) >= SEO_MIN_COMPARE_IMPRESSIONS;
+  /** The last 7 days against the 7 before, with both values shown. A lower position is better. */
   function change(
+    key: string,
     week: { current: number | null; previous: number | null },
     unit: ProjectSeoMetric["unit"],
   ) {
     if (week.current === null || week.previous === null) return null;
+    if ((key === "ctr" || key === "position") && !enoughImpressions)
+      return { text: t("overview.tooFewToCompare"), Icon: null, muted: true };
     // Judge the change between the values as shown: equal shown values are no change.
     const scale = 10 ** (unit === "count" ? 0 : unit === "ratio" ? 3 : 1);
     const shown = (value: number) => Math.round(value * scale) / scale;
     const delta = shown(shown(week.current) - shown(week.previous));
-    if (delta === 0) return { text: t("overview.noChange"), Icon: null };
-    // The arrow points up for good news; a position improves as it falls.
-    const Icon = (unit === "position" ? delta < 0 : delta > 0)
-      ? ArrowUp
-      : ArrowDown;
-    // A rate changes by percentage points, not by a percent of itself.
-    if (unit === "ratio")
+    const values = {
+      current: measuredValue(week.current, unit),
+      previous: measuredValue(week.previous, unit),
+    };
+    // An arrow up next to a falling position reads as worse; the position says it in words.
+    if (unit === "position" && delta !== 0)
       return {
-        text: t("overview.percentPoints", {
-          value: format.number(delta * 100, {
-            maximumFractionDigits: 1,
-            signDisplay: "exceptZero",
-          }),
-        }),
-        Icon,
+        text: t(
+          delta < 0 ? "overview.weekBetter" : "overview.weekWorse",
+          values,
+        ),
+        Icon: null,
+        muted: false,
       };
-    if (unit !== "position")
-      return { text: measuredValue(delta, unit, "exceptZero"), Icon };
-    const amount = measuredValue(Math.abs(delta), unit);
     return {
-      text: t(delta < 0 ? "overview.better" : "overview.worse", { amount }),
-      Icon,
+      text: t("overview.weekCompare", values),
+      Icon:
+        unit === "position" || delta === 0
+          ? null
+          : delta > 0
+            ? ArrowUp
+            : ArrowDown,
+      muted: false,
     };
   }
   function value(metric: ProjectSeoMetric) {
@@ -148,7 +160,7 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {visible.map((metric) => {
               const week = compared?.values[metric.key] ?? null;
-              const moved = week ? change(week, metric.unit) : null;
+              const moved = week ? change(metric.key, week, metric.unit) : null;
               return (
                 <Button
                   key={metric.id}
@@ -179,11 +191,18 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   {/* One comparison line; "About this data" names both weeks. */}
                   {week ? (
                     moved ? (
-                      <span className="flex items-center gap-1 text-xs font-medium">
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-xs",
+                          moved.muted
+                            ? "text-muted-foreground font-normal"
+                            : "font-medium",
+                        )}
+                      >
                         {moved.Icon ? (
                           <moved.Icon className="size-3 shrink-0" aria-hidden />
                         ) : null}
-                        {t("overview.vsPrevious", { change: moved.text })}
+                        {moved.text}
                       </span>
                     ) : (
                       <span className="text-muted-foreground text-xs font-normal">

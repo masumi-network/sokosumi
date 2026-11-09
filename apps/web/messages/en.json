@@ -10648,13 +10648,12 @@
         "dailyValues": "Daily values",
         "day": "Day",
         "synced": "Last synced",
-        "noChange": "No change",
-        "better": "Better by {amount}",
-        "worse": "Worse by {amount}",
         "windowDays": "Last 7 days: {current}. Previous 7 days: {previous}. Both end on the newest day Google reported.",
-        "percentPoints": "{value} pts",
-        "vsPrevious": "Last 7 days: {change} vs the 7 before",
-        "noComparison": "Not enough days to compare"
+        "noComparison": "Not enough days to compare",
+        "weekCompare": "Last 7 days: {current} vs {previous}",
+        "weekBetter": "Last 7 days: {current} vs {previous}, better",
+        "weekWorse": "Last 7 days: {current} vs {previous}, worse",
+        "tooFewToCompare": "Too few impressions to compare weeks"
       },
       "keywords": {
         "title": "Tracked keywords",

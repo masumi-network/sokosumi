@@ -47,6 +47,9 @@ function dateOf(day: number) {
  * weighted by impressions, as Search Console weights it. A side is null unless
  * all 7 of its days are reported, so a gap never reads as a drop.
  */
+/** Impressions each week needs before a click-through rate or position change means anything. */
+export const SEO_MIN_COMPARE_IMPRESSIONS = 100;
+
 export function seoWeekOverWeek(metrics: ProjectSeoMetric[]) {
   const byKey = new Map(metrics.map((metric) => [metric.key, metric.points]));
   const dates = metrics

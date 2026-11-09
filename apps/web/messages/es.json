@@ -10648,13 +10648,12 @@
         "dailyValues": "Valores diarios",
         "day": "Día",
         "synced": "Última sincronización",
-        "noChange": "Sin cambios",
-        "better": "Mejor en {amount}",
-        "worse": "Peor en {amount}",
         "windowDays": "Últimos 7 días: {current}. 7 días anteriores: {previous}. Ambos terminan en el día más reciente que informó Google.",
-        "percentPoints": "{value} p. p.",
-        "vsPrevious": "Últimos 7 días: {change} frente a los 7 anteriores",
-        "noComparison": "No hay días suficientes para comparar"
+        "noComparison": "No hay días suficientes para comparar",
+        "weekCompare": "Últimos 7 días: {current} frente a {previous}",
+        "weekBetter": "Últimos 7 días: {current} frente a {previous}, mejor",
+        "weekWorse": "Últimos 7 días: {current} frente a {previous}, peor",
+        "tooFewToCompare": "Muy pocas impresiones para comparar semanas"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
