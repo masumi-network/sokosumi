@@ -17,9 +17,12 @@ import { downloadAvatarAsset } from "@/lib/soko-bot-avatar/media";
  * a rewrite of the requester's words, and a looping video. All three go through AI
  * Gateway with `AI_GATEWAY_API_KEY`. Tests replace this module.
  */
-export const AVATAR_IMAGE_MODEL = "google/gemini-3.1-flash-image-preview";
-/** The same model on another upstream (vertex, where the preview routes to google). */
-export const AVATAR_IMAGE_FALLBACK_MODEL = "google/gemini-3.1-flash-image";
+export const AVATAR_IMAGE_MODEL = "google/gemini-3.1-flash-image";
+/**
+ * The second try after a timeout. Gateway retired the `-preview` id, so this is
+ * the same model again; Gateway serves it from google and vertex.
+ */
+export const AVATAR_IMAGE_FALLBACK_MODEL = AVATAR_IMAGE_MODEL;
 export const AVATAR_REWRITER_MODEL = "anthropic/claude-haiku-5.5";
 /** Honours a last frame, which the loop needs. Gateway's Wan does not. */
 export const AVATAR_VIDEO_MODEL = "bytedance/seedance-v1.5-pro";

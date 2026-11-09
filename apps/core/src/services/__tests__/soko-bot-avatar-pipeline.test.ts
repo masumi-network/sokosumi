@@ -684,6 +684,20 @@ describe("drafting", () => {
     expect(bots.avatarImageUrl).toBeNull();
   });
 
+  it("draws the house creature for a bot with no look of its own", async () => {
+    const { draft } = await createAvatarDraft({
+      sokoBotId: BOT,
+      userId: USER,
+      change: {
+        kind: "creature",
+        creature: CRAFTED_DESK_STYLE.houseCreatureId,
+      },
+    });
+
+    expect(providerMock.editImage).toHaveBeenCalledTimes(1);
+    expect(draft?.look.creature).toBe(CRAFTED_DESK_STYLE.houseCreatureId);
+  });
+
   it("stacks accessories on the draft being edited", async () => {
     const first = await createAvatarDraft({
       sokoBotId: BOT,

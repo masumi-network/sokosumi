@@ -39,6 +39,7 @@ import {
   CURRENT_AVATAR_STYLE,
   findAvatarStyle,
   freshLook,
+  freshLookPrompt,
   type SokoBotAvatarStyle,
   traitKeyOf,
 } from "@/lib/soko-bot-avatar/style";
@@ -253,6 +254,18 @@ export async function createAvatarDraft(input: {
     if (fresh) {
       seed = fresh.seed;
       plan = { kind: "edit", look: fresh.look, prompt: fresh.prompt, note: "" };
+    } else if (
+      !base.image &&
+      input.change.kind === "creature" &&
+      input.change.creature === base.look.creature
+    ) {
+      // No look yet: the house creature is a pick like any other, not a no-op.
+      plan = {
+        kind: "edit",
+        look: base.look,
+        prompt: freshLookPrompt(style, base.look, []),
+        note: "",
+      };
     } else {
       plan = await planChange(style, base.look, input.change);
     }

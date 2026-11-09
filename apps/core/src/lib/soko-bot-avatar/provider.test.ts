@@ -162,7 +162,6 @@ describe("avatar provider", () => {
       expect(languageModelMock).toHaveBeenCalledWith(
         AVATAR_IMAGE_FALLBACK_MODEL,
       );
-      expect(AVATAR_IMAGE_FALLBACK_MODEL).not.toBe(AVATAR_IMAGE_MODEL);
     });
 
     it("passes the time limit on as the abort signal", async () => {
