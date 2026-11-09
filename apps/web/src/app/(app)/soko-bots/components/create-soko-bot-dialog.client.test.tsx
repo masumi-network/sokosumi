@@ -52,6 +52,21 @@ describe("CreateSokoBotDialog", () => {
     vi.clearAllMocks();
   });
 
+  it("says where projects come from when there are none to pick", () => {
+    render(
+      <CreateSokoBotDialog
+        canCreatePersonal={false}
+        projects={[]}
+        defaultScope="project"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "trigger" }));
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "noProjectsLink" }),
+    ).toHaveAttribute("href", "/projects");
+  });
+
   it("offers a personal bot only to a member without one", () => {
     open(false);
     expect(screen.queryByText("scopes.personal.label")).not.toBeInTheDocument();

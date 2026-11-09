@@ -2,6 +2,7 @@
 
 import { SokoBotScope } from "@sokosumi/core-client";
 import { Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
@@ -163,7 +164,15 @@ export function CreateSokoBotDialog({
               ))}
             </RadioGroup>
           </fieldset>
-          {scope === SokoBotScope.PROJECT ? (
+          {scope === SokoBotScope.PROJECT && projects.length === 0 ? (
+            // An empty picker is a dead end: say where projects come from.
+            <p className="text-muted-foreground text-sm">
+              {t("noProjects")}{" "}
+              <Link href="/projects" className="text-foreground underline">
+                {t("noProjectsLink")}
+              </Link>
+            </p>
+          ) : scope === SokoBotScope.PROJECT ? (
             <div className="space-y-2">
               <Label htmlFor={projectId}>{t("projectLabel")}</Label>
               <Select value={project ?? undefined} onValueChange={setProject}>

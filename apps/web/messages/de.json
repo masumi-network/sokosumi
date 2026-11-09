@@ -9778,6 +9778,8 @@
           },
           "projectLabel": "Projekt",
           "projectPlaceholder": "Projekt wählen",
+          "noProjects": "Noch keine Projekte. Ein Projekt-Bot braucht eines.",
+          "noProjectsLink": "Projekt erstellen",
           "cancel": "Abbrechen",
           "submit": "Erstellen",
           "error": "Der Soko Bot konnte nicht erstellt werden.",
