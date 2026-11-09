@@ -338,6 +338,7 @@ describe("task coworker whitelist enforcement", () => {
       links: [],
       files: [],
       runAt: null,
+      dueOn: null,
       scheduleId: null,
       selectableStatuses: [],
       participants: [],

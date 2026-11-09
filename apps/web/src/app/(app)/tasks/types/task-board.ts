@@ -52,6 +52,8 @@ export interface TaskWithCoworker {
   agents: CoreAgentDto[];
   /** ISO Run at of a Queued Task. */
   runAt?: string | null;
+  /** `YYYY-MM-DD` the Task should be done by. */
+  dueOn?: string | null;
 }
 
 export type KanbanColumnId =

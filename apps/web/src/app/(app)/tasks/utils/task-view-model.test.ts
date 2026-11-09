@@ -45,6 +45,7 @@ function buildTask(
     priority: TaskPriority.NONE,
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
+    dueOn: null,
     scheduleId: null,
     commentsCount: 0,
     jobsCount: 0,
@@ -159,6 +160,12 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
     expect(mapped.runAt).toBe("2026-06-26T09:00:00.000Z");
+  });
+
+  it("passes the due day through unchanged", () => {
+    expect(
+      map(buildTask(TaskStatus.RUNNING, { dueOn: "2026-11-20" })).dueOn,
+    ).toBe("2026-11-20");
   });
 
   it("maps counts from the list API task", () => {

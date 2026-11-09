@@ -121,6 +121,7 @@ function createTask(
   return {
     status: overrides.status ?? TaskStatus.RUNNING,
     priority: overrides.priority ?? TaskPriority.NONE,
+    dueOn: null,
     visibility: overrides.visibility,
     selectableStatuses: overrides.selectableStatuses ?? [],
     organization: overrides.organization ?? null,

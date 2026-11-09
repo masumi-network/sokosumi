@@ -132,6 +132,10 @@ _Avoid_: Status select, status dropdown
 The one time a Task is set to start, instead of now. A Task has at most one; it never repeats.
 _Avoid_: Schedule, scheduled task (for a single Task), once mode
 
+**Due date**:
+The day a Task should be done by: a calendar day with no time, set on the Task page in any status. Past that day, by the reader's own time zone, an unfinished Task reads **Overdue**; a Completed or Canceled one never does. It does not start, remind or move the Task, and a duplicate does not copy it. Distinct from Run at, which is when the Task starts.
+_Avoid_: Deadline (in UI copy), due time
+
 **Task Schedule**:
 A repeating rule plus the blueprint of the Task it makes: each Run creates a new Task from that blueprint. Not a Task; it has no Task status, only Active, Paused, or Ended. Editing it changes future Runs only.
 _Avoid_: Recurring task, series task, template Task, automation

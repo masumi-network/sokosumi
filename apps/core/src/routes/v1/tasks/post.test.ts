@@ -183,6 +183,7 @@ function buildMapTaskResponse(task: {
     links: [],
     files: [],
     runAt: null,
+    dueOn: null,
     scheduleId: null,
     selectableStatuses: [],
     participants: [],

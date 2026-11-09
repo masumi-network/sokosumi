@@ -7773,6 +7773,15 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
+        dueOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
+            example: '2026-11-20'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -7874,6 +7883,7 @@ export const TaskSchema = {
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
+        'dueOn',
         'scheduleId',
         'credits',
         'events',
@@ -47738,6 +47748,15 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
+        dueOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
+            example: '2026-11-20'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -47793,6 +47812,7 @@ export const TaskListItemSchema = {
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
+        'dueOn',
         'scheduleId',
         'workspace',
         'jobsCount',

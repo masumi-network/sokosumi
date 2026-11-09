@@ -2113,6 +2113,17 @@
           "at": "Startet {datetime}"
         }
       },
+      "Due": {
+        "label": "Fälligkeitsdatum",
+        "none": "Kein Fälligkeitsdatum",
+        "set": "Fälligkeitsdatum festlegen",
+        "change": "Fälligkeitsdatum ändern",
+        "save": "Speichern",
+        "clear": "Entfernen",
+        "due": "Fällig am {date}",
+        "overdue": "Überfällig · {date}",
+        "updateError": "Das Fälligkeitsdatum konnte nicht geändert werden. Versuche es erneut."
+      },
       "Schedules": {
         "viewList": "Listenansicht",
         "viewGrid": "Rasteransicht",

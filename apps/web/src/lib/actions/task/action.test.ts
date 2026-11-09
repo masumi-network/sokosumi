@@ -1292,3 +1292,29 @@ describe("setTaskPriority", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("setTaskDueOn", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockReset();
+    taskServiceMock.patchTask.mockResolvedValue({});
+  });
+
+  it("patches only the due date, and clears it with null", async () => {
+    const { setTaskDueOn } = await import("./action");
+
+    const result = await setTaskDueOn({
+      taskId: "task-1",
+      dueOn: "2026-11-20",
+    });
+    await setTaskDueOn({ taskId: "task-1", dueOn: null });
+
+    expect(taskServiceMock.patchTask).toHaveBeenNthCalledWith(1, "task-1", {
+      dueOn: "2026-11-20",
+    });
+    expect(taskServiceMock.patchTask).toHaveBeenNthCalledWith(2, "task-1", {
+      dueOn: null,
+    });
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+  });
+});

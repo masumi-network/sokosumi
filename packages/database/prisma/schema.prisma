@@ -3482,6 +3482,10 @@ model Task {
   /// The one time this Task is set to start instead of now. Never repeats.
   runAt DateTime?
 
+  /// The day the Task should be done by. A calendar date with no time or
+  /// timezone; overdue is judged against the reader's own today.
+  dueOn DateTime? @db.Date
+
   @@unique([projectId, number])
   @@index([organizationId])
   @@index([workspaceId])
