@@ -10655,7 +10655,7 @@
         "weekWorse": "{period}: {current} · Woche davor: {previous}, schlechter",
         "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
         "basedOn": "Basierend auf {count, plural, one {# Impression} other {# Impressionen}}",
-        "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich von Klickrate und durchschnittlicher Position.",
+        "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich {which, select, ctr {der Klickrate} position {der durchschnittlichen Position} other {von Klickrate und durchschnittlicher Position}}.",
         "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen."
       },
       "keywords": {

@@ -793,7 +793,8 @@ describe("SEO workspace integration", () => {
     ).toHaveLength(1);
     expect(
       screen.getByText(
-        "Too few impressions to compare weeks for click-through rate and average position.",
+        // Only the position tile is on show, so the note names only it.
+        "Too few impressions to compare weeks for average position.",
       ),
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();

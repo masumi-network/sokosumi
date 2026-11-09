@@ -10655,7 +10655,7 @@
         "weekWorse": "{period}: {current} · semana anterior: {previous}, peor",
         "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
         "basedOn": "Según {count, plural, one {# impresión} other {# impresiones}}",
-        "tooFewToCompareRates": "Muy pocas impresiones para comparar semanas de porcentaje de clics y posición media.",
+        "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico."
       },
       "keywords": {

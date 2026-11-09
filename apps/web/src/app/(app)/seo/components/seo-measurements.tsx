@@ -80,6 +80,12 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
     weekImpressions.previous != null &&
     !enoughImpressions;
   const isRate = (key: string) => key === "ctr" || key === "position";
+  // The rate tiles on show whose weeks are too small; the note names only these.
+  const quietRates = tooFew
+    ? visible
+        .filter((metric) => isRate(metric.key) && compared?.values[metric.key])
+        .map((metric) => metric.key)
+    : [];
   /** The last 7 days against the 7 before, with both values shown. A lower position is better. */
   function change(
     key: string,
@@ -251,12 +257,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               );
             })}
           </div>
-          {tooFew &&
-          visible.some(
-            (metric) => isRate(metric.key) && compared?.values[metric.key],
-          ) ? (
+          {quietRates.length ? (
             <p className="text-muted-foreground -mt-3 text-xs">
-              {t("overview.tooFewToCompareRates")}
+              {t("overview.tooFewToCompareRates", {
+                which: quietRates.length > 1 ? "both" : quietRates[0],
+              })}
             </p>
           ) : null}
           <div className="space-y-3">
