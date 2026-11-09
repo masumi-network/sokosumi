@@ -10655,13 +10655,13 @@
         "reportDelay": "Google meldet Suchdaten mit einigen Tagen Verzögerung.",
         "tooFewToCompareRates": "Zu wenige Impressionen für einen Wochenvergleich {which, select, ctr {der Klickrate} position {der durchschnittlichen Position} other {von Klickrate und durchschnittlicher Position}}.",
         "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen.",
-        "tooFewToCompare": "{current, plural, one {# Impression} other {# Impressionen}} im Zeitraum {period}, {previous} in der Woche davor. Zu wenige für einen Wochenvergleich.",
+        "tooFewToCompare": "{period}: {current, plural, one {# Impression} other {# Impressionen}}. Woche davor: {previous}. Zu wenige für einen Wochenvergleich.",
         "noteCount": "{count, plural, one {# Hinweis} other {# Hinweise}}",
         "fromCheck": "Aus der Prüfung vom <date></date>",
         "pageMeasurements": "Messwerte",
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
-        "noteRule": "Regel: {name}",
+        "noteRule": "Regel nicht erfüllt: {name}",
         "notesNotCounted": "zählen nicht als Probleme",
         "askAgent": "Agent fragen",
         "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
@@ -10672,7 +10672,11 @@
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
         "referencesAndRules": "Quellen und Regel-IDs",
         "ruleIds": "Regel-IDs: {ids}",
-        "rulesOnly": "Regel-IDs"
+        "rulesOnly": "Regel-IDs",
+        "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
+        "askAboutMeasure": "Eine Prüfung hat „{name}“ auf meiner Seite mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Sollte ich das ändern?",
+        "askAboutMeasureOnPage": "Eine Prüfung hat „{name}“ auf {url} mit {value} gemessen, außerhalb {count, plural, one {des Bereichs} other {der Bereiche}} von {tools}. Sollte ich das ändern?",
+        "positionHint": "1 ist das oberste Ergebnis"
       },
       "keywords": {
         "title": "Verfolgte Keywords",
@@ -11107,7 +11111,7 @@
         },
         "lastCheckOn": "Letzte Prüfung",
         "askHow": "Plan entwerfen",
-        "traffic": "Google-Suche: {impressions, plural, one {# Impression} other {# Impressionen}}, {clicks, plural, one {# Klick} other {# Klicks}}",
+        "traffic": "Google-Suche: {clicks, plural, one {# Klick} other {# Klicks}}, {impressions, plural, one {# Impression} other {# Impressionen}}",
         "askShort": "Agent fragen",
         "openTraffic": "Zugriffe öffnen"
       },

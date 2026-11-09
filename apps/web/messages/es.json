@@ -10655,13 +10655,13 @@
         "reportDelay": "Google informa los datos de búsqueda con unos días de retraso.",
         "tooFewToCompareRates": "Muy pocas impresiones para comparar entre semanas {which, select, ctr {el porcentaje de clics} position {la posición media} other {el porcentaje de clics y la posición media}}.",
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
-        "tooFewToCompare": "{current, plural, one {# impresión} other {# impresiones}} del {period}, {previous} la semana anterior. Muy pocas para comparar semanas.",
+        "tooFewToCompare": "{period}: {current, plural, one {# impresión} other {# impresiones}}. Semana anterior: {previous}. Muy pocas para comparar semanas.",
         "noteCount": "{count, plural, one {# nota} other {# notas}}",
         "fromCheck": "De la comprobación del <date></date>",
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
-        "noteRule": "Regla: {name}",
+        "noteRule": "Regla no cumplida: {name}",
         "notesNotCounted": "no cuentan como problemas",
         "askAgent": "Preguntar al agente",
         "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
@@ -10672,7 +10672,11 @@
         "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
         "referencesAndRules": "Fuentes e ID de reglas",
         "ruleIds": "ID de reglas: {ids}",
-        "rulesOnly": "ID de reglas"
+        "rulesOnly": "ID de reglas",
+        "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
+        "askAboutMeasure": "Una comprobación midió «{name}» en mi página: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. ¿Debería cambiarlo?",
+        "askAboutMeasureOnPage": "Una comprobación midió «{name}» en {url}: {value}, fuera {count, plural, one {del rango} other {de los rangos}} de {tools}. ¿Debería cambiarlo?",
+        "positionHint": "1 es el primer resultado"
       },
       "keywords": {
         "title": "Palabras clave seguidas",
@@ -11107,7 +11111,7 @@
         },
         "lastCheckOn": "Última comprobación",
         "askHow": "Preparar un plan",
-        "traffic": "En Google: {impressions, plural, one {# impresión} other {# impresiones}}, {clicks, plural, one {# clic} other {# clics}}",
+        "traffic": "En Google: {clicks, plural, one {# clic} other {# clics}}, {impressions, plural, one {# impresión} other {# impresiones}}",
         "askShort": "Preguntar",
         "openTraffic": "Abrir tráfico"
       },

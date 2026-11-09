@@ -3,7 +3,7 @@
 import type { ProjectSeoMetric } from "@sokosumi/core-client";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
+  const positionHintId = useId();
   const workspace = model.data;
   const metrics = latestSeoMeasurements(workspace.metrics);
   const providers = [...new Set(metrics.map((metric) => metric.source))];
@@ -232,6 +233,9 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   variant="outline"
                   type="button"
                   aria-pressed={active.id === metric.id}
+                  aria-describedby={
+                    metric.unit === "position" ? positionHintId : undefined
+                  }
                   className={cn(
                     "h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-start whitespace-normal",
                     active.id === metric.id && "bg-quinary border-foreground",
@@ -257,6 +261,17 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {value(metric)}
                   </span>
+                  {/* A position reads backwards to most people: a smaller number is better. */}
+                  {metric.unit === "position" ? (
+                    // Hidden from the name, so "4.2" and "1" do not read as one number; it describes the tile.
+                    <span
+                      id={positionHintId}
+                      aria-hidden
+                      className="text-muted-foreground text-xs font-normal"
+                    >
+                      {t("overview.positionHint")}
+                    </span>
+                  ) : null}
                   {/* One comparison line; "About this data" names both weeks. */}
                   {week ? (
                     moved ? (

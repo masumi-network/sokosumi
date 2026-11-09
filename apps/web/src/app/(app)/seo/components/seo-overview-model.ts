@@ -215,6 +215,13 @@ export function pageDetailRuleCodes(lines: readonly string[]) {
 }
 
 const TOOL_RANGES_PREFIX = "vendor tools:";
+
+/** The ranges on a guidance line that lists the tools' ranges; undefined for any other line. */
+export function toolRangesList(line: string) {
+  return line.startsWith(TOOL_RANGES_PREFIX)
+    ? withoutRuleCodes(line.slice(TOOL_RANGES_PREFIX.length)).trim()
+    : undefined;
+}
 const TOOL_RANGE_FORMS: readonly [
   RegExp,
   (a: number, b: number) => (value: number) => boolean,

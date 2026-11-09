@@ -151,6 +151,7 @@ afterEach(() => {
   sessionStorage.clear();
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("SEO workspace integration", () => {
@@ -375,6 +376,9 @@ describe("SEO workspace integration", () => {
         Response.json(url.endsWith("/chat") ? { turns: [] } : workspace),
       ),
     );
+    // happy-dom has no layout: the long note's clamp cuts its text here.
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(120);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(60);
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
     expect(screen.getByText(/· 2 notes$/)).toBeInTheDocument();
@@ -393,7 +397,7 @@ describe("SEO workspace integration", () => {
       }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Rule: No meta keywords" }),
+      screen.getByRole("heading", { name: "Rule not met: No meta keywords" }),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
@@ -417,12 +421,14 @@ describe("SEO workspace integration", () => {
     expect(details.querySelectorAll("time")).toHaveLength(4);
     expect(
       screen.getByRole("heading", {
-        name: "Rule: AI search bots may fetch the page",
+        name: "Rule not met: AI search bots may fetch the page",
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
     // Rule IDs leave the shown line and fold with the sources.
-    expect(screen.getByText("vendor tools: Ahrefs under 70")).toBeVisible();
+    expect(
+      screen.getByText("Ranges SEO tools use: Ahrefs under 70"),
+    ).toBeVisible();
     // Each page's value says where it sits against the tools' ranges.
     expect(screen.getByText(/within the tool range/)).toBeVisible();
     expect(screen.getByText(/outside the tool range \(Ahrefs\)/)).toBeVisible();
@@ -439,10 +445,10 @@ describe("SEO workspace integration", () => {
       "aria-expanded",
       "true",
     );
-    // Each note offers a question to the agent; measurements do not.
+    // Each note offers a question to the agent; a measurement only when a tool range leaves it out.
     expect(
       screen.getAllByRole("button", { name: "Ask the agent" }),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     // Provenance folds once: a line every row shares is listed once, without row names.
     const reference = screen.getByText(
       "Source: raw HTML; the rendered DOM was not requested.",
@@ -457,12 +463,27 @@ describe("SEO workspace integration", () => {
       screen.getByRole("button", {
         name: "Ask the agent",
         description:
-          "Rule: AI search bots may fetch the page https://example.com/old",
+          "Rule not met: AI search bots may fetch the page https://example.com/old",
       }),
     );
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).getByLabelText("Your question")).toHaveValue(
       "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
+    );
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // A measurement's question carries its value; the unsent draft keeps the earlier question.
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ask the agent",
+        description: "Title length: https://example.com/old",
+      }),
+    );
+    const question = within(await screen.findByRole("dialog")).getByLabelText(
+      "Your question",
+    ) as HTMLTextAreaElement;
+    expect(question.value).toMatch(
+      /\n\nA check measured “Title length” on https:\/\/example\.com\/old as 80 characters, outside the range of Ahrefs\. Should I change it\?$/,
     );
   });
 
@@ -528,6 +549,18 @@ describe("SEO workspace integration", () => {
         sourceRef: "html:description",
         observedAt: new Date("2026-01-03T12:05:00Z"),
       },
+      {
+        id: "long-note",
+        observationId: observation.id,
+        pageUrl: workspace.pages[1].url,
+        device: "mobile",
+        rowId: "meta-keywords",
+        title: "Raw HTML: No meta keywords",
+        severity: "note",
+        evidence: [`meta keywords in head: "${"battery, ".repeat(20)}"`],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:05:00Z"),
+      },
     );
     vi.stubGlobal(
       "fetch",
@@ -551,11 +584,20 @@ describe("SEO workspace integration", () => {
     const times = details.querySelectorAll("time");
     expect(times).toHaveLength(1);
     expect(times[0].getAttribute("datetime")).toBe("2026-01-03T12:00:00.000Z");
+    // The Timeline row links the check's results; the rows do not repeat the link.
     expect(
-      within(details)
+      within(details).queryAllByRole("link", { name: "View results" }),
+    ).toHaveLength(0);
+    // A long note the clamp does not cut needs no toggle.
+    expect(within(details).getByText(/meta keywords in head/)).toBeVisible();
+    expect(
+      within(details).queryByRole("button", { name: "Show all" }),
+    ).toBeNull();
+    expect(
+      within(screen.getByRole("list", { name: "SEO activity, newest first" }))
         .getAllByRole("link", { name: "View results" })
         .map((link) => link.getAttribute("href")),
-    ).toEqual(["/tasks/one-check-task"]);
+    ).toContain("/tasks/one-check-task");
   });
 
   it("leaves the date filter off the Agent tab unless dates are set", () => {
@@ -1056,7 +1098,7 @@ describe("SEO workspace integration", () => {
       "Your page passes the last check, but Google rarely shows it yet",
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Google search: 35 impressions, 2 clicks · Jan 1\W+2, 2026 · Open Traffic$/,
+      /^Google search: 2 clicks, 35 impressions · Jan 1\W+2, 2026 · Open Traffic$/,
     );
     unmount();
     // Without clicks the line would read as zero clicks; it stays away.
@@ -1125,11 +1167,16 @@ describe("SEO workspace integration", () => {
     // Both weeks are small: no tile compares, and the one note keeps both counts.
     expect(
       screen.getByText(
-        /^14 impressions in Jan 8\W+14, 7 the week before\. Too few to compare weeks\.$/,
+        /^Jan 8\W+14: 14 impressions\. Week before: 7\. Too few to compare weeks\.$/,
       ),
     ).toBeVisible();
     expect(screen.queryByText(/better|worse/)).toBeNull();
-    expect(screen.queryByText(/week before: /)).toBeNull();
+    expect(screen.queryByText(/· week before: /)).toBeNull();
+    // The position hint describes its tile; in the name, "5" and "1" would read as one number.
+    const positionTile = screen.getByRole("button", {
+      description: "1 is the top result",
+    });
+    expect(positionTile).not.toHaveAccessibleName(/top result/);
   });
 
   it("keeps the arrow on a search count that collapses from a busy week", () => {

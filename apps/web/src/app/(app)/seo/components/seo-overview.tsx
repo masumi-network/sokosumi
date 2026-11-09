@@ -3,7 +3,7 @@
 import { Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -18,6 +18,7 @@ import {
   pageDetailRuleCodes,
   seoOverviewModel,
   toolRangeFit,
+  toolRangesList,
   withoutRuleCodes,
 } from "./seo-overview-model";
 import { SeoPages } from "./seo-pages";
@@ -68,6 +69,8 @@ function PageDetail({
   const valueId = useId();
   const pageLabelId = useId();
   const [fullValue, setFullValue] = useState(false);
+  const valueRef = useRef<HTMLParagraphElement>(null);
+  const [clamped, setClamped] = useState(false);
   const name = checkName(finding.title);
   const first = finding.evidence[0];
   const measure = finding.severity === "measure";
@@ -82,13 +85,36 @@ function PageDetail({
   // With one page there is nothing to tell apart, unless the row is for a page removed since.
   const showPage =
     data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url;
-  const ask = measure ? undefined : onAsk;
+  // The toggle shows only once the clamp cuts the text. A closed fold has no size,
+  // so the check runs again when it opens.
+  useLayoutEffect(() => {
+    const element = valueRef.current;
+    // New text in the same box does not resize it, so the text itself starts a new check.
+    if (!foldable || fullValue || !element || !first) return;
+    // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
+    const check = () =>
+      setClamped((cut) => cut || element.scrollHeight > element.clientHeight);
+    check();
+    // Without an observer the fold cannot be measured again; keep the toggle so the text can open.
+    if (typeof ResizeObserver === "undefined") {
+      setClamped(true);
+      return;
+    }
+    const observer = new ResizeObserver(check);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [foldable, fullValue, first]);
+  const toggle = foldable && clamped;
+  // A note can always be asked about; a measurement only when some tool range leaves it out.
+  const ask = measure ? (fit?.outside.length ? onAsk : undefined) : onAsk;
   return (
     <li className="space-y-1">
       {measure ? (
         // A measurement is one line; its value drops the words its name already says.
         <p className="text-sm break-words">
-          <span className="font-medium">{name}:</span>{" "}
+          <span id={headingId} className="font-medium">
+            {name}:
+          </span>{" "}
           <span className="text-muted-foreground">{value ?? t("none")}</span>
           {fit ? (
             // Google sets no limit for these; the tools' ranges say whether a value stands out.
@@ -113,6 +139,7 @@ function PageDetail({
           {first ? (
             <p
               id={valueId}
+              ref={valueRef}
               className={cn(
                 "text-muted-foreground text-sm break-words",
                 foldable && !fullValue && "line-clamp-3",
@@ -128,15 +155,19 @@ function PageDetail({
         <ul className="text-muted-foreground space-y-0.5 text-xs">
           {guidance.map((line, index) => (
             <li key={`${index}:${line}`} className="break-words">
-              {withoutRuleCodes(line)}
+              {toolRangesList(line) === undefined
+                ? withoutRuleCodes(line)
+                : t("overview.toolRanges", {
+                    ranges: toolRangesList(line) ?? "",
+                  })}
             </li>
           ))}
         </ul>
       ) : null}
-      {foldable || ask || showPage ? (
+      {toggle || ask || showPage ? (
         // One row keeps the controls apart and the page link off the buttons.
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {foldable ? (
+          {toggle ? (
             <button
               type="button"
               aria-expanded={fullValue}
@@ -152,18 +183,33 @@ function PageDetail({
             <Button
               variant="outline"
               size="sm"
-              // Every note has this button; its heading and page tell them apart.
+              // Many rows have this button; their name and page tell them apart.
               aria-describedby={
                 showPage ? `${headingId} ${pageLabelId}` : headingId
               }
               onClick={() =>
                 ask(
-                  showPage
-                    ? t("overview.askAboutNoteOnPage", {
-                        name,
-                        url: finding.pageUrl,
-                      })
-                    : t("overview.askAboutNote", { name }),
+                  measure
+                    ? showPage
+                      ? t("overview.askAboutMeasureOnPage", {
+                          name,
+                          value: value ?? "",
+                          tools: format.list(fit?.outside ?? []),
+                          count: fit?.outside.length ?? 0,
+                          url: finding.pageUrl,
+                        })
+                      : t("overview.askAboutMeasure", {
+                          name,
+                          value: value ?? "",
+                          tools: format.list(fit?.outside ?? []),
+                          count: fit?.outside.length ?? 0,
+                        })
+                    : showPage
+                      ? t("overview.askAboutNoteOnPage", {
+                          name,
+                          url: finding.pageUrl,
+                        })
+                      : t("overview.askAboutNote", { name }),
                 )
               }
             >
@@ -353,17 +399,12 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           </summary>
           <div className={cn(HOLDER_ITEM_CLASS, "mt-2 space-y-4 p-4")}>
             {oneCheck ? (
-              <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                <span>
-                  {t.rich("overview.fromCheck", {
-                    date: () => <SeoDate value={oneCheckAt} />,
-                  })}
-                </span>
-                <SeoSource
-                  observationId={oneCheck.observationId}
-                  workspace={data}
-                />
-              </div>
+              // The Timeline row for this check links its results; the date says which row it is.
+              <p className="text-muted-foreground text-xs">
+                {t.rich("overview.fromCheck", {
+                  date: () => <SeoDate value={oneCheckAt} />,
+                })}
+              </p>
             ) : null}
             {offTimeline.map((observation) => (
               <div
@@ -404,6 +445,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       data={data}
                       dated={!oneCheck}
                       showGuidance={guidanceRows.has(finding.id)}
+                      onAsk={askAgent}
                     />
                   ))}
                 </ul>

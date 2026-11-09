@@ -10655,13 +10655,13 @@
         "reportDelay": "Google reports search data a few days late.",
         "tooFewToCompareRates": "Too few impressions to compare weeks for {which, select, ctr {click-through rate} position {average position} other {click-through rate and average position}}.",
         "pickTile": "Select a number above to chart it.",
-        "tooFewToCompare": "{current, plural, one {# impression} other {# impressions}} in {period}, {previous} the week before. Too few to compare weeks.",
+        "tooFewToCompare": "{period}: {current, plural, one {# impression} other {# impressions}}. Week before: {previous}. Too few to compare weeks.",
         "noteCount": "{count, plural, one {# note} other {# notes}}",
         "fromCheck": "From the check on <date></date>",
         "pageMeasurements": "Measurements",
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
-        "noteRule": "Rule: {name}",
+        "noteRule": "Rule not met: {name}",
         "notesNotCounted": "not counted as issues",
         "askAgent": "Ask the agent",
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
@@ -10672,7 +10672,11 @@
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
         "referencesAndRules": "Sources and rule IDs",
         "ruleIds": "Rule IDs: {ids}",
-        "rulesOnly": "Rule IDs"
+        "rulesOnly": "Rule IDs",
+        "toolRanges": "Ranges SEO tools use: {ranges}",
+        "askAboutMeasure": "A check measured “{name}” on my page as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Should I change it?",
+        "askAboutMeasureOnPage": "A check measured “{name}” on {url} as {value}, outside {count, plural, one {the range} other {the ranges}} of {tools}. Should I change it?",
+        "positionHint": "1 is the top result"
       },
       "keywords": {
         "title": "Tracked keywords",
@@ -11107,7 +11111,7 @@
         },
         "lastCheckOn": "Last check",
         "askHow": "Draft a plan",
-        "traffic": "Google search: {impressions, plural, one {# impression} other {# impressions}}, {clicks, plural, one {# click} other {# clicks}}",
+        "traffic": "Google search: {clicks, plural, one {# click} other {# clicks}}, {impressions, plural, one {# impression} other {# impressions}}",
         "askShort": "Ask",
         "openTraffic": "Open Traffic"
       },
