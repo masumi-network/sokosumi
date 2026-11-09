@@ -199,7 +199,7 @@ describe("accessibility", () => {
 /** One rule per line pattern, each proven by a bad and a good sample. */
 const SHADOW_DECLARATION = /\bbox-?[sS]hadow\s*:\s*["'`]?([^;"'`,}]*)/;
 const SHADOW_OK =
-  /^(?:none|var\(--shadow-hard\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
+  /^(?:none|var\(--shadow-(?:hard|iris)\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
 const BLUR = /\bblur\(|backdrop-filter|\bbackdropFilter/;
 const RADIUS_DECLARATION =
   /\b(?:border(?:-[a-z]+)*-radius|border(?:[A-Z][a-z]+)*Radius)\s*:\s*["'`]?([^;"'`}]*)/;
@@ -209,10 +209,34 @@ const IRIS_TEXT =
   /(?<![\w-])(?:color|stroke|text-decoration-color|border[\w-]*|outline[\w-]*|borderColor|outlineColor)\s*:[^;]*var\(--primary(?:-hover)?\)/;
 const SIGNAL_TEXT = /(?<![\w-])(?:color|stroke)\s*:[^;]*var\(--(?:ok|warn)\)/;
 const GRADIENT = /gradient\(/;
+const FONT_SIZE_DECLARATION = /(?<![\w-])font-size\s*:\s*([^;}]*)/;
+/** The type scale's sizes in rem (design-system.md), plus sizes relative to the parent. */
+const SCALE_SIZES = new Set([
+  "4.5rem",
+  "2.25rem",
+  "1.75rem",
+  "1.5rem",
+  "1rem",
+  "0.875rem",
+  "0.75rem",
+  "0.6875rem",
+]);
+const FONT_SIZE_OK = /^(?:inherit|\d*\.?\d+em)$/;
 
 function badShadow(line: string): boolean {
   const value = SHADOW_DECLARATION.exec(line)?.[1]?.trim();
   return value !== undefined && !SHADOW_OK.test(value);
+}
+
+function badFontSize(line: string): boolean {
+  const value = FONT_SIZE_DECLARATION.exec(line)?.[1]?.trim();
+  if (value === undefined) return false;
+  const sizes = value.startsWith("clamp(")
+    ? (value.match(/\d*\.?\d+rem/g) ?? [])
+    : [value];
+  return !sizes.every(
+    (size) => SCALE_SIZES.has(size) || FONT_SIZE_OK.test(size),
+  );
 }
 
 function badRadius(line: string): boolean {
@@ -222,6 +246,38 @@ function badRadius(line: string): boolean {
     !value.split(/\s+/).every((part) => RADIUS_OK.test(part))
   );
 }
+
+/**
+ * Every stroke is 1px (design-system.md, rule 1). A border wider than that,
+ * anywhere, including the drawings of networks' UIs, breaks the system; focus
+ * rings are outlines, not borders, and stay 2px for keyboard users.
+ */
+const BORDER_WIDTH =
+  /(?<![\w-])border(?:-(?:top|right|bottom|left))?(?:-width)?\s*:[^;]*?\b(\d+(?:\.\d+)?)px/;
+
+function thickBorder(line: string): boolean {
+  if (/radius/.test(line)) return false;
+  const width = BORDER_WIDTH.exec(line)?.[1];
+  return width !== undefined && Number(width) > 1;
+}
+
+describe("strokes", () => {
+  it("draws every border 1px", () => {
+    const css = FILES.filter((file) => file.rel.endsWith(".css"));
+    expect(
+      findLines(css, BORDER_WIDTH).filter((hit) => thickBorder(hit)),
+    ).toEqual([]);
+  });
+
+  it("flags a thick border and passes 1px, 0 and radius", () => {
+    expect(thickBorder("  border: 2px solid var(--line);")).toBe(true);
+    expect(thickBorder("  border-top: 6px solid var(--surface);")).toBe(true);
+    expect(thickBorder("  border-left-width: 3px;")).toBe(true);
+    expect(thickBorder("  border: 1px solid var(--line);")).toBe(false);
+    expect(thickBorder("  border-radius: 14px;")).toBe(false);
+    expect(thickBorder("  border: 0;")).toBe(false);
+  });
+});
 
 describe("visual system", () => {
   it("allows one hard shadow and no blur", () => {
@@ -234,6 +290,15 @@ describe("visual system", () => {
   it("takes every radius from the tokens", () => {
     expect(
       findLines(STYLED, RADIUS_DECLARATION).filter((hit) => badRadius(hit)),
+    ).toEqual([]);
+  });
+
+  it("sets type only in the scale's sizes", () => {
+    expect(
+      findLines(
+        STYLED.filter((file) => file.rel.endsWith(".css")),
+        FONT_SIZE_DECLARATION,
+      ).filter((hit) => badFontSize(hit)),
     ).toEqual([]);
   });
 
@@ -254,6 +319,7 @@ describe("visual system", () => {
       expect(badShadow("  box-shadow: 0 1px 2px var(--border);")).toBe(true);
       expect(badShadow('boxShadow: "0 0 0 3px var(--surface)"')).toBe(true);
       expect(badShadow("  box-shadow: var(--shadow-hard);")).toBe(false);
+      expect(badShadow("  box-shadow: var(--shadow-iris);")).toBe(false);
       expect(badShadow("  box-shadow: inset 0 0 0 1px var(--line);")).toBe(
         false,
       );
@@ -264,6 +330,17 @@ describe("visual system", () => {
       expect(BLUR.test("  backdrop-filter: blur(12px);")).toBe(true);
       expect(BLUR.test("  filter: blur(2px);")).toBe(true);
       expect(BLUR.test("  filter: grayscale(1);")).toBe(false);
+    });
+
+    it("flags a size off the type scale and passes the scale's own", () => {
+      expect(badFontSize("  font-size: 0.8125rem;")).toBe(true);
+      expect(badFontSize("  font-size: 17px;")).toBe(true);
+      expect(badFontSize("  font-size: clamp(2rem, 5vw, 2.75rem);")).toBe(true);
+      expect(badFontSize("  font-size: 0.875rem;")).toBe(false);
+      expect(badFontSize("  font-size: clamp(2.25rem, 6vw, 4.5rem);")).toBe(
+        false,
+      );
+      expect(badFontSize("  font-size: 0.8em;")).toBe(false);
     });
 
     it("flags a literal radius and passes a token", () => {

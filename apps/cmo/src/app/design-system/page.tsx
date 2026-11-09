@@ -1,9 +1,13 @@
+import "../../components/onboarding/onboarding.css";
 import "./design-system.css";
 
-import { notFound } from "next/navigation";
-
+import { AVATAR_REPLAY_MS } from "../../components/cuso";
+import { CusoClip } from "../../components/cuso-clip";
 import { Logo } from "../../components/logo";
-import { isDesignSystemPublic } from "./access";
+import { StatusDisc } from "../../components/status";
+import { AGENT_NAME } from "../../lib/agent";
+import { previewOnly } from "./fixture-frame";
+import { PartsPreview } from "./parts-preview";
 
 /**
  * Preview of the design system (`apps/cmo/design-system.md`): tokens and the
@@ -59,6 +63,12 @@ const SWATCHES: Swatch[] = [
   { name: "Modal scrim", token: "--scrim" },
 ];
 
+/** The two steps the onboarding screens already style. */
+const TYPE_CLASS: Record<string, string> = {
+  display: "ob-display",
+  h1: "ob-h1",
+};
+
 const TYPE: TypeStep[] = [
   { step: "display", sample: "Marketing, handled" },
   { step: "h1", sample: "Your plan for May" },
@@ -106,7 +116,7 @@ interface BoardProps {
 function Board({ scheme }: BoardProps) {
   return (
     <div className={`ds-board theme-scope ${scheme}`}>
-      <p className="ds-t-small ds-muted">
+      <p className="ds-t-small muted">
         {scheme === "light" ? "Light" : "Dark"}
       </p>
 
@@ -137,7 +147,7 @@ function Board({ scheme }: BoardProps) {
               />
               <span className="ds-swatch-text">
                 <span className="ds-body-medium">{swatch.name}</span>
-                <span className="ds-t-small ds-muted">{swatch.token}</span>
+                <span className="ds-t-small muted">{swatch.token}</span>
               </span>
             </li>
           ))}
@@ -148,8 +158,10 @@ function Board({ scheme }: BoardProps) {
         <ul className="ds-type">
           {TYPE.map((row) => (
             <li key={row.step}>
-              <span className="ds-t-micro ds-muted">{row.step}</span>
-              <p className={`ds-t-${row.step}`}>{row.sample}</p>
+              <span className="ds-t-micro muted">{row.step}</span>
+              <p className={TYPE_CLASS[row.step] ?? `ds-t-${row.step}`}>
+                {row.sample}
+              </p>
             </li>
           ))}
         </ul>
@@ -208,7 +220,7 @@ function Board({ scheme }: BoardProps) {
             placeholder="example.com"
             aria-describedby={`ds-help-${scheme}`}
           />
-          <span id={`ds-help-${scheme}`} className="ds-t-small ds-muted">
+          <span id={`ds-help-${scheme}`} className="ds-t-small muted">
             The address people visit today.
           </span>
         </div>
@@ -218,7 +230,7 @@ function Board({ scheme }: BoardProps) {
         <div className="panel">
           <div className="card ds-card-body">
             <p className="ds-t-h2">White page, gray panel, outlined card</p>
-            <p className="ds-t-small ds-muted">
+            <p className="ds-t-small muted">
               A card sits on a panel, never straight on the page.
             </p>
           </div>
@@ -257,44 +269,31 @@ function Board({ scheme }: BoardProps) {
       <Section title="Status">
         <ul className="ds-status">
           <li>
-            <span role="img" aria-label="Done" className="ds-disc ds-disc-ok">
-              <span aria-hidden="true">✓</span>
-            </span>
+            <StatusDisc status="ok" />
             <span className="ds-t-small">Done</span>
           </li>
           <li>
-            <span
-              role="img"
-              aria-label="Needs your answer"
-              className="ds-disc ds-disc-warn"
-            >
-              <span aria-hidden="true">!</span>
-            </span>
+            <StatusDisc status="warn" />
             <span className="ds-t-small">Needs you</span>
           </li>
           <li>
-            <span
-              role="img"
-              aria-label="Failed"
-              className="ds-disc ds-disc-fail"
-            >
-              <span aria-hidden="true">✕</span>
-            </span>
+            <StatusDisc status="fail" />
             <span className="ds-t-small">Failed</span>
           </li>
         </ul>
       </Section>
 
-      <Section title="Cuso">
+      <Section title={AGENT_NAME}>
         <ul className="ds-poses">
           {POSES.map((pose) => (
             <li key={pose.file}>
               <span className="ds-avatar">
-                <img
+                <CusoClip
                   src={`/cuso/${pose.file}.png`}
                   alt=""
                   width={48}
                   height={48}
+                  replayAfterMs={AVATAR_REPLAY_MS}
                 />
               </span>
               <span
@@ -307,10 +306,14 @@ function Board({ scheme }: BoardProps) {
         </ul>
       </Section>
 
+      <Section title="Components">
+        <PartsPreview />
+      </Section>
+
       <Section title="Scenes">
         <ul className="ds-scenes">
           <li>
-            <img
+            <CusoClip
               src="/cuso/reading-scene.jpg"
               alt="Cuso reading a site with a magnifier"
               width={160}
@@ -318,7 +321,7 @@ function Board({ scheme }: BoardProps) {
             />
           </li>
           <li>
-            <img
+            <CusoClip
               src="/cuso/celebration.jpg"
               alt="Cuso celebrating next to a toy rocket"
               width={160}
@@ -330,16 +333,16 @@ function Board({ scheme }: BoardProps) {
 
       <Section title="Hero stage">
         <div className="ds-stage">
-          <img
+          <CusoClip
             className="ds-stage-art"
             src="/cuso/hero.jpg"
             alt="Cuso walking with a megaphone"
             width={200}
             height={300}
           />
-          <span className="ds-tilt ds-tilt-a">Reads your site</span>
-          <span className="ds-tilt ds-tilt-b">Writes the month</span>
-          <span className="ds-tilt ds-tilt-c">Asks when unsure</span>
+          <span className="ob-tilt ob-tilt-a">Reads your site</span>
+          <span className="ob-tilt ob-tilt-b">Writes the month</span>
+          <span className="ob-tilt ob-tilt-c">Asks when unsure</span>
         </div>
       </Section>
     </div>
@@ -347,17 +350,10 @@ function Board({ scheme }: BoardProps) {
 }
 
 export default function DesignSystemPage() {
-  if (
-    !isDesignSystemPublic({
-      VERCEL_ENV: process.env.VERCEL_ENV,
-      NODE_ENV: process.env.NODE_ENV,
-    })
-  ) {
-    notFound();
-  }
+  previewOnly();
   return (
     <main className="ds">
-      <h1 className="ds-t-h1">Design system</h1>
+      <h1 className="ob-h1">Design system</h1>
       <div className="ds-columns">
         <Board scheme="light" />
         <Board scheme="dark" />

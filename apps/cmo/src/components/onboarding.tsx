@@ -2,20 +2,53 @@
 
 import "./onboarding/onboarding.css";
 
-import { ArrowRight, Globe, Loader2 } from "lucide-react";
-import { useActionState } from "react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
+import { AGENT_NAME } from "../lib/agent";
+import { CusoAvatar } from "./cuso";
+import { CusoClip } from "./cuso-clip";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
-import { CusoCursor } from "./onboarding/cuso-cursor";
+import { StatRow, StepMarkers } from "./onboarding/parts";
 
-const NEXT = [
-  "Cuso studies your site, market and competitors",
-  "You check your Brand Brain",
-  "He plans four weeks, day by day, and you approve once",
+const STATS = [
+  { value: "3 min", line: "I read your site and what is public about you." },
+  { value: "5 taps", line: "You answer quick questions while I read." },
+  { value: "1 plan", line: "You approve it. Nothing posts before that." },
 ];
+
+/** hero.jpg's size, and its megaphone's mouth while Cuso shouts (as shares). */
+const HERO = { width: 800, height: 1200 };
+const MEGAPHONE = { x: 0.68, y: 0.45 };
+
+/**
+ * Starts each stage label at the megaphone, so it flies out of it. The stage
+ * draws the hero with object-fit cover from the bottom centre (onboarding.css).
+ */
+function aimLabels(stage: HTMLElement) {
+  const box = stage.getBoundingClientRect();
+  const scale = Math.max(box.width / HERO.width, box.height / HERO.height);
+  const mouthX =
+    box.left +
+    (box.width - HERO.width * scale) / 2 +
+    MEGAPHONE.x * HERO.width * scale;
+  const mouthY = box.bottom - (1 - MEGAPHONE.y) * HERO.height * scale;
+  for (const label of stage.querySelectorAll<HTMLElement>(".ob-tilt")) {
+    // Still at scale 0, the label's box is its centre.
+    const at = label.getBoundingClientRect();
+    label.style.setProperty(
+      "--from-x",
+      `${mouthX - (at.left + at.width / 2)}px`,
+    );
+    label.style.setProperty(
+      "--from-y",
+      `${mouthY - (at.top + at.height / 2)}px`,
+    );
+  }
+}
 
 interface OnboardingProps {
   /** The website a CMO sign-up link carried, to start the field with. */
@@ -39,77 +72,109 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
+  // The hero plays first: Cuso announces the labels, and the avatar by the
+  // intro answers once it ends.
+  const stage = useRef<HTMLDivElement>(null);
+  const [announcing, setAnnouncing] = useState(false);
+  const [heroPlayed, setHeroPlayed] = useState(false);
 
   return (
     <div className="ob">
       <header className="ob-top">
         <Logo />
+        <StepMarkers current={0} reached={0} />
+        <span />
       </header>
       <main className="ob-main">
-        {/* Remounts after each submit (useFocusFirstInvalid). */}
-        <form
-          key={state.attempt}
-          ref={formRef}
-          action={formAction}
-          className="ob-start"
-        >
-          <CusoCursor active={false} />
-          <h1 className="ob-title">Hire Cuso, your AI CMO</h1>
-          <p className="ob-lede">
-            Tell Cuso where your business lives. He learns the rest, plans your
-            month, and runs it.
-          </p>
-          {errors.form ? (
-            <p className="ob-alert" role="alert" tabIndex={-1}>
-              {errors.form}
-              {state.topUpUrl ? (
-                <>
-                  {" "}
-                  <a
-                    className="ob-link"
-                    href={state.topUpUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Top up
-                  </a>
-                </>
-              ) : null}
-            </p>
-          ) : null}
-          <label className="ob-field">
-            <span className="ob-label">Your website</span>
-            <span className="ob-url">
-              <Globe size={16} aria-hidden="true" />
-              <input
-                name="websiteUrl"
-                required
-                placeholder="yourbusiness.com"
-                autoComplete="url"
-                inputMode="url"
-                defaultValue={state.websiteUrl}
-                aria-invalid={errors.websiteUrl ? true : undefined}
-                aria-describedby={websiteErrorId}
-              />
-            </span>
-          </label>
-          {errors.websiteUrl ? (
-            <p id={websiteErrorId} className="ob-alert">
-              {errors.websiteUrl}
-            </p>
-          ) : null}
-          <StartButton />
-          <ol className="ob-next">
-            {NEXT.map((line, index) => (
-              <li key={line}>
-                <span className="ob-dot" aria-hidden="true">
-                  {index + 1}
+        <div className="ob-hire">
+          {/* Remounts after each submit (useFocusFirstInvalid). */}
+          <form
+            key={state.attempt}
+            ref={formRef}
+            action={formAction}
+            className="ob-hire-copy"
+          >
+            <div className="ob-intro">
+              <CusoAvatar pose="needs-you" size={48} play={heroPlayed} />
+              <p className="muted">
+                {AGENT_NAME} is your AI CMO. He reads your site, plans your
+                month and runs it.
+              </p>
+            </div>
+            <h1 className="ob-display">
+              Give me your website. I'll bring back a plan.
+            </h1>
+            {errors.form ? (
+              <p className="alert" role="alert" tabIndex={-1}>
+                {errors.form}
+                {state.topUpUrl ? (
+                  <>
+                    {" "}
+                    <a
+                      className="ob-link"
+                      href={state.topUpUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Top up
+                    </a>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+            <div className="field">
+              <label htmlFor="ob-website">Your website</label>
+              <div className="ob-hire-row">
+                <input
+                  id="ob-website"
+                  name="websiteUrl"
+                  required
+                  placeholder="yourbusiness.com"
+                  autoComplete="url"
+                  inputMode="url"
+                  defaultValue={state.websiteUrl}
+                  aria-invalid={errors.websiteUrl ? true : undefined}
+                  aria-describedby={websiteErrorId}
+                />
+                <StartButton />
+              </div>
+              {errors.websiteUrl ? (
+                <p id={websiteErrorId} className="alert" role="alert">
+                  {errors.websiteUrl}
+                </p>
+              ) : (
+                <span className="ob-small muted">
+                  A shop, a SaaS, a portfolio. Any public site works.
                 </span>
-                {line}
-              </li>
-            ))}
-          </ol>
-        </form>
+              )}
+            </div>
+            <StatRow stats={STATS} />
+          </form>
+          <div className="panel ob-hire-stage">
+            <div
+              ref={stage}
+              className={announcing ? "ob-stage ob-stage-live" : "ob-stage"}
+            >
+              <CusoClip
+                className="ob-stage-art"
+                src="/cuso/hero.jpg"
+                alt={`${AGENT_NAME} walking with a megaphone`}
+                width={640}
+                height={800}
+                onStart={() => {
+                  if (stage.current) aimLabels(stage.current);
+                  setAnnouncing(true);
+                }}
+                onEnded={() => setHeroPlayed(true)}
+              />
+              <span className="ob-tilt ob-tilt-a">Reads your site</span>
+              <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
+              <span className="ob-tilt ob-tilt-c ob-tilt-ink">
+                Drafts your first month
+              </span>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
@@ -118,15 +183,11 @@ export function Onboarding({ websiteUrl, onboard }: OnboardingProps) {
 function StartButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      className="ob-button ob-button-lg ob-start-button"
-      disabled={pending}
-    >
+    <button type="submit" className="button" disabled={pending}>
       {pending ? (
-        <Loader2 size={16} className="ob-spin" aria-hidden="true" />
+        <Loader2 size={16} className="spin" aria-hidden="true" />
       ) : null}
-      {pending ? "Starting" : "Start"}
+      {pending ? "Starting" : "Start reading"}
       {pending ? null : <ArrowRight size={16} aria-hidden="true" />}
     </button>
   );

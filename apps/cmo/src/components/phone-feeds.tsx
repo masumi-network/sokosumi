@@ -4,7 +4,6 @@ import "./phone-feeds.css";
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ImageIcon, Play } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 
 import { channelInfo, channelKey, formatHasVideo } from "../lib/channels";
 import { BusinessMark, businessDisplayName } from "./business-mark";
@@ -160,13 +159,10 @@ export function proposalScreens(strategy: Strategy): Screen[] {
 export function PhoneFeeds({
   overview,
   strategy,
-  play,
 }: {
   overview: CmoOverview;
   strategy: Strategy;
-  play: boolean;
 }) {
-  const reduce = useReducedMotion();
   const screens = [
     ...feedScreens(strategy.calendar),
     ...proposalScreens(strategy),
@@ -174,17 +170,10 @@ export function PhoneFeeds({
   if (screens.length === 0) return null;
   return (
     <div className="pf">
-      {screens.map((screen, index) => (
-        <motion.figure
+      {screens.map((screen) => (
+        <figure
           key={screen.key}
           className={screen.optional ? "pf-item optional" : "pf-item"}
-          initial={play && !reduce ? { opacity: 0, y: 24 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.5,
-            delay: 0.15 * index,
-            ease: [0.25, 1, 0.5, 1],
-          }}
         >
           <div className="pf-phone">
             <div className="pf-bar">
@@ -229,7 +218,7 @@ export function PhoneFeeds({
               </>
             )}
           </figcaption>
-        </motion.figure>
+        </figure>
       ))}
     </div>
   );
