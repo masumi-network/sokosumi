@@ -237,6 +237,8 @@ describe("starting from a template", () => {
       brandCopy: {
         summary: "A ceramics studio",
         lines: ["Made from reclaimed clay."],
+        tone: "Relaxed",
+        audience: ["Ceramics collectors"],
       },
       products: [product],
     });
@@ -246,7 +248,7 @@ describe("starting from a template", () => {
       fonts: [],
       summary: "Existing description",
       tone: "Direct",
-      audience: [],
+      audience: ["Home cooks"],
       approvedLines: ["Fired in Prague."],
       version: null,
     });
@@ -273,6 +275,10 @@ describe("starting from a template", () => {
     expect(screen.getByLabelText("BrandKit.approvedLines")).toHaveValue(
       "Fired in Prague.\nMade from reclaimed clay.",
     );
+    expect(screen.getByLabelText("BrandKit.tone")).toHaveValue("Direct");
+    expect(screen.getByLabelText("BrandKit.audience")).toHaveValue(
+      "Home cooks",
+    );
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
     const close = screen.getByRole("button", { name: "BrandKit.close" });
     await waitFor(() => expect(close).toBeEnabled());
@@ -292,6 +298,43 @@ describe("starting from a template", () => {
         catalog: { revision: 4, products: [product] },
       }),
     );
+  });
+
+  it("puts website voice and audience suggestions into empty draft fields for review", async () => {
+    mocks.prepareWebsiteDraft.mockClear();
+    mocks.saveBrandCopy.mockClear();
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: {
+        summary: null,
+        lines: [],
+        tone: "Warm and relaxed",
+        audience: ["Home coffee enthusiasts"],
+      },
+      products: [],
+    });
+    mocks.loadBrandKit.mockResolvedValueOnce({
+      logo: null,
+      colors: [],
+      fonts: [],
+      summary: "A coffee company",
+      tone: "",
+      audience: [],
+      approvedLines: [],
+      version: null,
+    });
+    mount("https://coffee.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "WebsiteDraft.reviewCopy" }),
+    );
+    await screen.findByText("BrandKit.websiteProfileAdded");
+    expect(screen.getByLabelText("BrandKit.tone")).toHaveValue(
+      "Warm and relaxed",
+    );
+    expect(screen.getByLabelText("BrandKit.audience")).toHaveValue(
+      "Home coffee enthusiasts",
+    );
+    expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
   });
 
   it("uploads an approved logo while preserving an unsaved brand copy edit", async () => {

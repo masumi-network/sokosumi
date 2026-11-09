@@ -7,8 +7,8 @@ import {
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   listStudioBatchAssets as coreListStudioBatchAssets,
-  prepareStudioWebsiteDraft as corePrepareStudioWebsiteDraft,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
+  researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
@@ -4189,7 +4189,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePrepareStudioWebsiteDraft({
+        coreResearchStudioWebsiteDraft({
           client,
           path: { id },
           cache: "no-store",

@@ -10359,6 +10359,8 @@ export type StudioBrandKit = {
 export type StudioWebsiteCopy = {
     summary: string | null;
     lines: Array<string>;
+    tone?: string;
+    audience?: Array<string>;
 };
 
 export type StudioWebsiteDraft = {
@@ -67858,6 +67860,102 @@ export type PrepareStudioWebsiteDraftResponses = {
 };
 
 export type PrepareStudioWebsiteDraftResponse = PrepareStudioWebsiteDraftResponses[keyof PrepareStudioWebsiteDraftResponses];
+
+export type ResearchStudioWebsiteDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/website-draft';
+};
+
+export type ResearchStudioWebsiteDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project website missing
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResearchStudioWebsiteDraftError = ResearchStudioWebsiteDraftErrors[keyof ResearchStudioWebsiteDraftErrors];
+
+export type ResearchStudioWebsiteDraftResponses = {
+    /**
+     * Website suggestions for review
+     */
+    200: {
+        data: StudioWebsiteDraft;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResearchStudioWebsiteDraftResponse = ResearchStudioWebsiteDraftResponses[keyof ResearchStudioWebsiteDraftResponses];
 
 export type UploadStudioProjectLogoData = {
     body: {

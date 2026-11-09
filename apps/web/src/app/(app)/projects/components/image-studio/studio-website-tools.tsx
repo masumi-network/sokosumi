@@ -47,7 +47,10 @@ export function StudioWebsiteTools({
       try {
         const result = await prepareStudioWebsiteDraft({ projectId });
         const brandCopy =
-          result.brandCopy?.summary || result.brandCopy?.lines.length
+          result.brandCopy?.summary ||
+          result.brandCopy?.lines.length ||
+          result.brandCopy?.tone ||
+          result.brandCopy?.audience?.length
             ? result.brandCopy
             : null;
         const products = result.products?.length ? result.products : null;

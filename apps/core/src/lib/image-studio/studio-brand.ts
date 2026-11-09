@@ -5,6 +5,7 @@ import { badGateway, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
 import { importStudioProducts } from "@/lib/image-studio/product-import";
+import { suggestWebsiteBrandProfile } from "@/lib/image-studio/website-brand-profile";
 import { parseOpenGraphFields } from "@/lib/open-graph-html";
 import { readHomepage } from "@/lib/site-platform";
 import {
@@ -115,10 +116,13 @@ export async function readStudioWebsiteCopy(projectId: string) {
   return readWebsiteCopy(await studioWebsiteUrl(projectId));
 }
 
-export async function prepareStudioWebsiteDraft(projectId: string) {
+export async function prepareStudioWebsiteDraft(
+  projectId: string,
+  profileWorkspaceId?: string,
+) {
   const websiteUrl = await studioWebsiteUrl(projectId);
   const [brandCopy, products] = await Promise.allSettled([
-    readWebsiteCopy(websiteUrl),
+    readWebsiteCopy(websiteUrl, profileWorkspaceId),
     importStudioProducts(websiteUrl).then((found) =>
       studioProductImportSchema.parse({ products: found }),
     ),
@@ -138,7 +142,10 @@ async function studioWebsiteUrl(projectId: string) {
   return websiteUrl;
 }
 
-async function readWebsiteCopy(websiteUrl: string) {
+async function readWebsiteCopy(
+  websiteUrl: string,
+  profileWorkspaceId?: string,
+) {
   const page = await readHomepage(websiteUrl);
   const contentType = page?.headers
     .get("content-type")
@@ -174,7 +181,26 @@ async function readWebsiteCopy(websiteUrl: string) {
         .filter((line): line is string => line !== null && line !== summary),
     ),
   ].slice(0, 4);
-  return studioWebsiteCopySchema.parse({ summary, lines });
+  const profile = profileWorkspaceId
+    ? await suggestWebsiteBrandProfile(
+        profileWorkspaceId,
+        [
+          summary,
+          ...lines,
+          ...DomUtils.getElementsByTagName(
+            "p",
+            main?.children ?? document.children,
+            true,
+            24,
+          ).map((paragraph) =>
+            websiteCopyLine(DomUtils.textContent(paragraph)),
+          ),
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      )
+    : {};
+  return studioWebsiteCopySchema.parse({ summary, lines, ...profile });
 }
 
 function websiteCopyLine(value: string | undefined | null): string | null {

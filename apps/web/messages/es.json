@@ -4035,6 +4035,7 @@
       "BrandKit": {
         "addWebsiteCopy": "Añadir texto del sitio web al borrador",
         "websiteCopyAdded": "Texto del sitio web añadido. Revísalo antes de guardar.",
+        "websiteProfileAdded": "Se añadieron sugerencias del sitio web. Revisa la voz de marca y el público antes de guardar.",
         "websiteCopyEmpty": "No hay texto nuevo del sitio web para añadir.",
         "websiteCopyError": "No se pudo leer el texto del sitio web del proyecto. Inténtalo de nuevo.",
         "logoFile": "Archivo del logotipo del proyecto",

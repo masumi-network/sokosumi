@@ -38896,6 +38896,20 @@ export const StudioWebsiteCopySchema = {
                 maxLength: 2000
             },
             maxItems: 8
+        },
+        tone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        audience: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 8
         }
     },
     required: [

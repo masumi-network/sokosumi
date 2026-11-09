@@ -4035,6 +4035,7 @@
       "BrandKit": {
         "addWebsiteCopy": "Website-Texte zum Entwurf hinzufügen",
         "websiteCopyAdded": "Website-Texte hinzugefügt. Prüfe sie vor dem Speichern.",
+        "websiteProfileAdded": "Website-Vorschläge hinzugefügt. Prüfe Tonalität und Zielgruppe vor dem Speichern.",
         "websiteCopyEmpty": "Es gibt keine neuen Website-Texte zum Hinzufügen.",
         "websiteCopyError": "Die Texte konnten nicht von der Projekt-Website gelesen werden. Versuche es erneut.",
         "logoFile": "Datei für das Projektlogo",

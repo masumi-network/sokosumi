@@ -83,7 +83,11 @@ export function StudioBrandKitDialog({
     "logoSaved" | "logoUploadError" | "logoFileInvalid" | null
   >(null);
   const [websiteMessage, setWebsiteMessage] = useState<
-    "websiteCopyAdded" | "websiteCopyEmpty" | "websiteCopyError" | null
+    | "websiteCopyAdded"
+    | "websiteCopyEmpty"
+    | "websiteCopyError"
+    | "websiteProfileAdded"
+    | null
   >(null);
   const copy: StudioBrandCopy = {
     summary: draft.summary.trim(),
@@ -167,13 +171,19 @@ export function StudioBrandKitDialog({
       })
       .slice(0, Math.max(0, MAX_LINES - approved.length));
     const summary = !current.summary.trim() ? website.summary : null;
-    if (!summary && !additions.length) {
+    const tone = !current.tone.trim() ? website.tone : undefined;
+    const audience = !current.audience.trim()
+      ? website.audience?.join("\n")
+      : undefined;
+    if (!summary && !additions.length && !tone && !audience) {
       setWebsiteMessage("websiteCopyEmpty");
       return;
     }
     setDraft({
       ...current,
       summary: summary ?? current.summary,
+      tone: tone ?? current.tone,
+      audience: audience || current.audience,
       approvedLines: additions.length
         ? [current.approvedLines.trimEnd(), ...additions]
             .filter(Boolean)
@@ -181,7 +191,9 @@ export function StudioBrandKitDialog({
         : current.approvedLines,
     });
     setDirty(true);
-    setWebsiteMessage("websiteCopyAdded");
+    setWebsiteMessage(
+      tone || audience ? "websiteProfileAdded" : "websiteCopyAdded",
+    );
     if (message !== "conflict") setMessage(null);
   }
 
