@@ -185,6 +185,46 @@ function settledJob(
 }
 
 describe("a gallery with work in it", () => {
+  it("groups ads across days by product and project, and can return to date grouping", () => {
+    const product = { id: "mug", name: "Stoneware mug" };
+    const assets = [
+      { ...ASSET, id: "new", projectId: "p", projectName: "Launch", product },
+      {
+        ...ASSET,
+        id: "other",
+        projectId: "other",
+        projectName: "Summer",
+        product,
+      },
+      {
+        ...ASSET,
+        id: "old",
+        projectId: "p",
+        projectName: "Launch",
+        createdAt: new Date("2026-09-24T00:00:00Z"),
+        product: { ...product, name: "Clay mug" },
+      },
+      { ...ASSET, id: "no-product" },
+    ];
+    mount(assets);
+
+    const launch = screen.getByRole("heading", {
+      name: "Stoneware mug · Launch",
+    }).parentElement;
+    expect(launch?.querySelectorAll("figure[data-asset-id]")).toHaveLength(2);
+    expect(
+      screen.getByRole("heading", { name: "Stoneware mug · Summer" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "today" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "groupByProduct" }));
+
+    expect(
+      screen.queryByRole("heading", { name: /Stoneware mug/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "today" })).toHaveLength(2);
+  });
+
   it("renders a bare wall of pictures, each with its selection box drawn", () => {
     mount(manyAssets(14));
 

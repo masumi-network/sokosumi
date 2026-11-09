@@ -275,6 +275,9 @@ describe("an honest generation plan", () => {
     ]);
     for (const request of requests) {
       const isVase = request.referenceFileIds?.[0] === "vase-file";
+      expect(request.product).toEqual(
+        isVase ? { id: "vase", name: "Vase" } : { id: "mug", name: "Mug" },
+      );
       expect(request.prompt).toContain(isVase ? "Vase" : "Mug");
       expect(request.prompt).not.toContain(isVase ? "Mug" : "Vase");
       expect(request.prompt).toContain(

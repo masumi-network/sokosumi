@@ -6103,6 +6103,7 @@ export type ProjectImageAsset = {
     id: string;
     projectId: string;
     projectName: string;
+    product?: StudioProductIdentity;
     rootId: string;
     parentId: string | null;
     version: number;
@@ -6118,6 +6119,11 @@ export type ProjectImageAsset = {
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
+};
+
+export type StudioProductIdentity = {
+    id: string;
+    name: string;
 };
 
 export type ProjectVideoSettings = {
@@ -6144,6 +6150,7 @@ export type ProjectImageJob = {
     video: ProjectVideoSettings | null;
     referenceAssetIds: Array<string>;
     referenceFileIds?: Array<string>;
+    product?: StudioProductIdentity;
     error: string | null;
     failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
@@ -10336,6 +10343,7 @@ export type ProjectImageSession = {
 export type CreateProjectImageJobRequest = {
     modelId?: string;
     prompt: string;
+    product?: StudioProductIdentity;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     referenceFileIds?: Array<string>;

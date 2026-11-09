@@ -76,6 +76,7 @@ import {
   type VideoSettings,
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
+import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { loadLiveResources } from "@/services/file-search.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
@@ -132,6 +133,7 @@ export interface CreateImageJobInput {
   userId: string;
   sessionId: string | null;
   prompt: string;
+  product?: StudioProductIdentity;
   settings: ImageJobSettings;
   /** Assets whose bytes become references. Empty means text-to-image. */
   referenceAssetIds: string[];
@@ -293,6 +295,14 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // second one — is what makes the HTTP endpoint safe to retry.
     if (existing) return { job: existing, created: false };
 
+    const source =
+      !input.product && input.parentAssetId
+        ? await tx.projectImageAsset.findFirst({
+            where: { id: input.parentAssetId, projectId: input.projectId },
+            select: { job: { select: { productId: true, productName: true } } },
+          })
+        : null;
+
     const referenceCount =
       input.referenceAssetIds.length + (input.referenceFileIds?.length ?? 0);
     if (
@@ -373,6 +383,8 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         kind: input.kind,
         model: input.model,
         prompt: input.prompt,
+        productId: input.product?.id ?? source?.job.productId,
+        productName: input.product?.name ?? source?.job.productName,
         settings: { ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds: input.referenceFileIds ?? [],
@@ -748,16 +760,24 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     );
   }
 
+  let product: StudioProductIdentity | undefined;
   if (input.sourceAssetId) {
     const source = await prisma.projectImageAsset.findFirst({
       where: { id: input.sourceAssetId, projectId: input.projectId },
-      select: { mediaType: true },
+      select: {
+        mediaType: true,
+        job: { select: { productId: true, productName: true } },
+      },
     });
     if (!source) throw notFound("The image to animate was not found");
     if (source.mediaType !== ProjectImageMediaType.IMAGE)
       throw unprocessableEntity("Only an image can be animated.", {
         kind: "invalid_video_settings",
       });
+    const { productId, productName } = source.job;
+    if (productId && productName) {
+      product = { id: productId, name: productName };
+    }
   }
 
   return await reserveAndSend({
@@ -766,6 +786,7 @@ export async function createVideoJob(input: CreateVideoJobInput) {
     userId: input.userId,
     sessionId: input.sessionId,
     prompt: input.prompt,
+    product,
     idempotencyKey: input.idempotencyKey,
     kind: hasSource
       ? ProjectImageJobKind.IMAGE_TO_VIDEO

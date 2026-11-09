@@ -47,6 +47,12 @@ export const studioProductImportSchema = z
 
 export type StudioProduct = z.infer<typeof studioProductSchema>;
 
+export const studioProductIdentitySchema = studioProductSchema
+  .pick({ id: true, name: true })
+  .openapi("StudioProductIdentity");
+
+export type StudioProductIdentity = z.infer<typeof studioProductIdentitySchema>;
+
 export const studioProductPhotoRequestSchema = studioProductSchema
   .pick({ name: true })
   .extend({ imageUrl: publicWebsite });

@@ -3,6 +3,7 @@
 import type {
   CreateProjectVideoJobRequest,
   StudioProduct,
+  StudioProductIdentity,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
@@ -187,6 +188,7 @@ export function ImageStudio({
     initialSelectedAssetId ? { mode: "single" } : null,
   );
   const [prompt, setPrompt] = useState("");
+  const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
   const productDetailsRef = useRef<string | null>(null);
   const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
   const catalogPhotoRef = useRef<string | null>(null);
@@ -462,6 +464,7 @@ export function ImageStudio({
         : from === "asset"
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
+      ...(source.product ? { product: source.product } : {}),
       ...(from === "job" &&
       !reroll &&
       (source as StudioJob).referenceFileIds?.length
@@ -508,6 +511,7 @@ export function ImageStudio({
     photo: StudioProductPhoto | null,
   ) {
     setBatchProducts([]);
+    setDraftProduct({ id: product.id, name: product.name });
     const previousPhotoId = catalogPhotoRef.current;
     catalogPhotoRef.current = photo?.id ?? null;
     setProductPhoto(
@@ -534,6 +538,7 @@ export function ImageStudio({
     productDetailsRef.current = null;
     catalogPhotoRef.current = null;
     setProductPhoto(null);
+    setDraftProduct(undefined);
     setBatchProducts(products);
     setMode("image");
     setHasNewerSettings(true);
@@ -549,6 +554,7 @@ export function ImageStudio({
   /** Put an image's brief and frame back in the composer, ready to edit. */
   function reusePrompt(asset: StudioAsset) {
     setBatchProducts([]);
+    setDraftProduct(asset.product);
     setHasNewerSettings(true);
     setTemplateUndo(null);
     setPrompt(asset.prompt);
@@ -601,6 +607,7 @@ export function ImageStudio({
     );
     setPrompt("");
     setBatchProducts([]);
+    setDraftProduct(undefined);
     setHasNewerSettings(false);
   }
 
@@ -834,6 +841,7 @@ export function ImageStudio({
           setHasNewerSettings(true);
         }}
         productPhoto={productPhoto}
+        product={draftProduct}
         batchProducts={batchProducts}
         onClearProductBatch={() => {
           setBatchProducts([]);
@@ -981,6 +989,7 @@ export function ImageStudio({
                       if (prompt.trim().length > 0 || hasNewerSettings) return;
                       const { request } = failure;
                       setBatchProducts([]);
+                      setDraftProduct(request.product);
                       setTemplateUndo(null);
                       setPrompt(request.prompt);
                       setTarget({
@@ -1114,6 +1123,7 @@ export function ImageStudio({
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
             setBatchProducts([]);
+            setDraftProduct(asset.product);
             setParentAssetId(undefined);
             setHasNewerSettings(true);
             setTemplateUndo(null);

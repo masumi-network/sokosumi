@@ -21366,6 +21366,9 @@ export const ProjectImageAssetSchema = {
         projectName: {
             type: 'string'
         },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -21454,6 +21457,25 @@ export const ProjectImageAssetSchema = {
         'jobId',
         'settings',
         'contentPath'
+    ]
+} as const;
+
+export const StudioProductIdentitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 160
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 
@@ -21592,6 +21614,9 @@ export const ProjectImageJobSchema = {
                 type: 'string',
                 format: 'uuid'
             }
+        },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
         },
         error: {
             type: [
@@ -38776,6 +38801,9 @@ export const CreateProjectImageJobRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 4000
+        },
+        product: {
+            $ref: '#/components/schemas/StudioProductIdentity'
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'

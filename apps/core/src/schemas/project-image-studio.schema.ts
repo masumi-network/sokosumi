@@ -16,6 +16,7 @@ import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_DURATIONS_SECONDS,
 } from "@/lib/image-studio/video-model";
+import { studioProductIdentitySchema } from "./studio-product.schema";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -95,6 +96,7 @@ export const imageStudioAssetSchema = z
     projectId: z.string().uuid(),
     /** The owning project's name, so a workspace-wide gallery can label it. */
     projectName: z.string(),
+    product: studioProductIdentitySchema.optional(),
     rootId: z.string().uuid(),
     parentId: z.string().uuid().nullable(),
     version: z.number().int().min(1),
@@ -142,6 +144,7 @@ export const imageStudioJobSchema = z
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
     referenceFileIds: z.array(z.string().uuid()).optional(),
+    product: studioProductIdentitySchema.optional(),
     /**
      * One sentence a person can read, written by the studio. Never the
      * provider's own words: a raw transport string is not something anybody can
@@ -229,6 +232,7 @@ export const createImageJobRequestSchema = z
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
     prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
+    product: studioProductIdentitySchema.optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     referenceFileIds: z

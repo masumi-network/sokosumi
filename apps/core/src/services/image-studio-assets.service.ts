@@ -13,6 +13,7 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
+import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 
 /**
  * Versions, lineage, and the bytes behind them.
@@ -33,6 +34,7 @@ export interface AssetView {
   projectId: string;
   /** Named on the row so a workspace-wide gallery can say where each image lives. */
   projectName: string;
+  product?: StudioProductIdentity;
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -68,9 +70,20 @@ const assetSelect = {
   durationSeconds: true,
   createdAt: true,
   jobId: true,
+  job: { select: { productId: true, productName: true } },
 } as const;
 
+function productView(job: {
+  productId?: string | null;
+  productName?: string | null;
+}): { product?: StudioProductIdentity } {
+  return job.productId && job.productName
+    ? { product: { id: job.productId, name: job.productName } }
+    : {};
+}
+
 function toAssetView({
+  job,
   project,
   ...asset
 }: Prisma.ProjectImageAssetGetPayload<{
@@ -78,6 +91,7 @@ function toAssetView({
 }>): AssetView {
   return {
     ...asset,
+    ...productView(job),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
   };
@@ -329,6 +343,7 @@ export interface JobView {
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  product?: StudioProductIdentity;
   /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
   /**
@@ -380,6 +395,8 @@ export async function getJob(options: {
       settings: true,
       referenceAssetIds: true,
       referenceFileIds: true,
+      productId: true,
+      productName: true,
       error: true,
       failureReason: true,
       parentAssetId: true,
@@ -413,6 +430,8 @@ export async function listJobs(
       settings: true,
       referenceAssetIds: true,
       referenceFileIds: true,
+      productId: true,
+      productName: true,
       error: true,
       failureReason: true,
       parentAssetId: true,
@@ -438,6 +457,8 @@ export function toJobView(job: {
   settings: unknown;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  productId?: string | null;
+  productName?: string | null;
   error: string | null;
   failureReason: string | null;
   parentAssetId: string | null;
@@ -456,6 +477,7 @@ export function toJobView(job: {
     kind: job.kind,
     model: job.model,
     prompt: job.prompt,
+    ...productView(job),
     ...splitVideoSettings(
       job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",
       job.settings,

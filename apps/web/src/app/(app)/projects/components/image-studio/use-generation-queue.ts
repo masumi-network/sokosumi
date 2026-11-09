@@ -1,5 +1,6 @@
 "use client";
 
+import type { StudioProductIdentity } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -46,6 +47,7 @@ export interface QueuedGeneration {
   parentAssetId: string | null;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
+  product?: StudioProductIdentity;
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
 }
@@ -178,6 +180,7 @@ export function useGenerationQueue({
           prompt: next.prompt,
           settings: next.settings,
           parentAssetId: next.parentAssetId,
+          ...(next.product ? { product: next.product } : {}),
           referenceAssetIds: next.referenceAssetIds,
           ...(next.referenceFileIds?.length
             ? { referenceFileIds: next.referenceFileIds }
