@@ -274,6 +274,25 @@ export function buildCoworkerStreamSendMessageOptions(
   };
 }
 
+/**
+ * The AI SDK puts a failed response's raw body in `error.message`, so a Core
+ * refusal arrives as `{"error":"Forbidden","message":"…","meta":{…}}`. Show
+ * the sentence inside it, not the JSON.
+ */
+export function coworkerStreamErrorMessage(error: Error): string | null {
+  try {
+    const body: unknown = JSON.parse(error.message);
+    if (body && typeof body === "object") {
+      const { message, error: title } = body as Record<string, unknown>;
+      if (typeof message === "string" && message) return message;
+      if (typeof title === "string" && title) return title;
+    }
+  } catch {
+    // Not JSON: already a plain sentence (or empty).
+  }
+  return error.message || null;
+}
+
 export interface UseCoworkerDirectRoomStreamResult {
   streamOverlayMessages: ChatRoomMessage[];
   isStreaming: boolean;
@@ -396,7 +415,9 @@ export function useCoworkerDirectRoomStream({
         writeStoredStreamParentMessageId(failedRoomId, null);
       }
       setStreamParentMessageId(null);
-      toast.error(error.message || "Failed to stream coworker reply.");
+      toast.error(
+        coworkerStreamErrorMessage(error) ?? "Failed to stream coworker reply.",
+      );
     },
     async onFinish() {
       const settledRoomId = roomIdRef.current;
