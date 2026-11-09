@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
         "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado",
         "tagDirectMessagesTitle": "Ordenar mis mensajes directos",
-        "tagDirectMessagesDescription": "Los mensajes directos entre personas se leen automáticamente para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
+        "tagDirectMessagesDescription": "Si está activado, los mensajes directos entre personas se leen automáticamente para destacar preguntas y decisiones para ti. Un mensaje directo solo se lee si todas las personas en él lo activaron. Los canales siempre se ordenan.",
         "tagDirectMessagesEnabledSuccess": "Los mensajes directos se ordenarán",
         "tagDirectMessagesDisabledSuccess": "Los mensajes directos no se ordenarán"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "No se pudo marcar todo como leído. Inténtalo de nuevo.",
         "caughtUpTitle": "Estás al día",
         "caughtUpDescription": "Nada nuevo te espera desde la última vez que leíste tus salas.",
-        "aiNote": "Las etiquetas se asignan automáticamente y pueden ser incorrectas. Para corregir una, abre el mensaje y usa «Editar etiquetas».",
+        "aiNote": "Las etiquetas se asignan automáticamente y pueden ser incorrectas. Para corregir una, abre el mensaje y usa el botón de etiquetas del mensaje.",
         "removeTag": "Quitar etiqueta: {tag}",
         "taskMade": "Tarea creada",
         "loopClosed": "Hecho",

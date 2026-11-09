@@ -7280,7 +7280,7 @@
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
         "roomUnreadCountDisabledSuccess": "Unread message counts disabled",
         "tagDirectMessagesTitle": "Sort my direct messages",
-        "tagDirectMessagesDescription": "Directs between people are read automatically to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
+        "tagDirectMessagesDescription": "When on, Directs between people are read automatically to highlight questions and decisions for you. A Direct is read only when everyone in it turned this on. Channels are always sorted.",
         "tagDirectMessagesEnabledSuccess": "Direct messages will be sorted",
         "tagDirectMessagesDisabledSuccess": "Direct messages won't be sorted"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "Couldn't mark everything as read. Try again.",
         "caughtUpTitle": "You're caught up",
         "caughtUpDescription": "Nothing new needs you since you last read your rooms.",
-        "aiNote": "Tags are set automatically and can be wrong. To fix one, open the message and use \"Edit tags\".",
+        "aiNote": "Tags are set automatically and can be wrong. To fix one, open the message and use its tag button.",
         "removeTag": "Remove tag: {tag}",
         "taskMade": "Task made",
         "loopClosed": "Done",

@@ -7244,7 +7244,7 @@
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
         "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert",
         "tagDirectMessagesTitle": "Meine Direktnachrichten sortieren",
-        "tagDirectMessagesDescription": "Direktnachrichten zwischen Personen werden automatisch gelesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
+        "tagDirectMessagesDescription": "Wenn eingeschaltet, werden Direktnachrichten zwischen Personen automatisch gelesen, um Fragen und Entscheidungen für dich hervorzuheben. Eine Direktnachricht wird nur gelesen, wenn alle darin das eingeschaltet haben. Channels werden immer sortiert.",
         "tagDirectMessagesEnabledSuccess": "Direktnachrichten werden sortiert",
         "tagDirectMessagesDisabledSuccess": "Direktnachrichten werden nicht sortiert"
       },
@@ -8946,7 +8946,7 @@
         "markAllReadError": "Konnte nicht alles als gelesen markieren. Versuche es erneut.",
         "caughtUpTitle": "Du bist auf dem Laufenden",
         "caughtUpDescription": "Seit du deine Räume zuletzt gelesen hast, wartet nichts Neues auf dich.",
-        "aiNote": "Tags werden automatisch gesetzt und können falsch sein. Zum Korrigieren öffne die Nachricht und nutze „Tags bearbeiten“.",
+        "aiNote": "Tags werden automatisch gesetzt und können falsch sein. Zum Korrigieren öffne die Nachricht und nutze ihren Tag-Button.",
         "removeTag": "Tag entfernen: {tag}",
         "taskMade": "Task erstellt",
         "loopClosed": "Erledigt",
