@@ -4,6 +4,7 @@ import {
   type SokoBotTurnReader,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { globalCoworkersFor } from "@/lib/evals/eval-guard";
 
 /**
  * The candidates the classifier may name, read at the same visibility seam
@@ -15,6 +16,7 @@ export async function loadClassificationContext(
   workspaceId: string,
   message: string,
 ) {
+  const globalCoworkers = await globalCoworkersFor(workspaceId);
   const [projects, coworkers, agents, recentTasks, jobs] = await Promise.all([
     prisma.project.findMany({
       where: {
@@ -30,7 +32,7 @@ export async function loadClassificationContext(
       where: {
         archivedAt: null,
         OR: [
-          { isWhitelisted: true },
+          ...globalCoworkers,
           ...(reader.sharedScope === null
             ? [{ assignments: { some: { userId: reader.userId } } }]
             : []),

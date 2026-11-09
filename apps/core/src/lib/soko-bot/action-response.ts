@@ -58,6 +58,7 @@ export const ACTION_LABELS: Record<string, string> = {
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
+  generate_voiceover: "Made voice-over",
   move_file: "Moved file",
   delete_file: "Deleted file",
   update_emails: "Updated mail",
@@ -283,7 +284,10 @@ function actionTarget(
     if (studio.success)
       return `([Open in Content Studio](${studio.data.studioUrl}))`;
   }
-  if (call.capability === "upload_file") {
+  if (
+    call.capability === "upload_file" ||
+    call.capability === "generate_voiceover"
+  ) {
     const file = z
       .object({ filename: z.string().min(1) })
       .safeParse(call.result);
@@ -585,10 +589,19 @@ function describeRead(capability: string, value: unknown): string[] {
 }
 
 /** Whether `later` repeats every field `earlier` set, with the same value. */
+/**
+ * What a file's name is chosen by. A voice-over refused because its filename
+ * was taken, then made again under a new name, read "Not confirmed: made
+ * voice-over." beneath the finished video.
+ */
+const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
+
 function inputCovers(later: unknown, earlier: unknown): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
   return Object.entries(earlier).every(
-    ([key, value]) => JSON.stringify(later[key]) === JSON.stringify(value),
+    ([key, value]) =>
+      FILE_NAMING_KEYS.has(key) ||
+      JSON.stringify(later[key]) === JSON.stringify(value),
   );
 }
 

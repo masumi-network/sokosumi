@@ -22,10 +22,12 @@ import { CompetitorCards, SiteShowcase } from "../brand-media";
 import {
   Accounts,
   AskForm,
+  CustomerWords,
   clip,
   firstSentence,
   hostOf,
   Offers,
+  RivalFacts,
   SectionEditor,
   Voice,
 } from "../brand-profile";
@@ -100,15 +102,17 @@ export function brandTiles(
   }
   const buyer = brain.reveal?.buyers[0];
   const buys = buyer?.role ?? brain.audience[0];
-  if (buys) {
+  const quotes = brain.voiceOfCustomer ?? [];
+  if (buys || quotes.length > 0) {
     tiles.push({
       id: "buy",
       label: "Who buys",
-      value: short(buys),
+      value: short(buys ?? "Your buyers"),
       detail: buyer
         ? short(`Wants: ${buyer.wants}`)
         : short(brain.audience.slice(1).join(", ")),
       section: "customers",
+      body: quotes.length > 0 ? <CustomerWords quotes={quotes} /> : undefined,
     });
   }
   if (brain.voice.tone) {
@@ -149,25 +153,29 @@ export function brandTiles(
       value: `${rivals.length} compared`,
       detail: short(rivals.map((rival) => rival.name).join(", ")),
       section: "competition",
-      body:
-        media && media.competitors.length > 0 ? (
-          <CompetitorCards brain={brain} media={media} />
-        ) : (
-          <ul className="ob-list">
-            {rivals.map((rival) => (
-              <li key={rival.name}>
-                {rival.url ? (
-                  <a href={rival.url} target="_blank" rel="noreferrer">
-                    {rival.name}
-                  </a>
-                ) : (
-                  rival.name
-                )}
-                {rival.note ? ` · ${rival.note}` : ""}
-              </li>
-            ))}
-          </ul>
-        ),
+      body: (
+        <>
+          {media && media.competitors.length > 0 ? (
+            <CompetitorCards brain={brain} media={media} />
+          ) : (
+            <ul className="ob-list">
+              {rivals.map((rival) => (
+                <li key={rival.name}>
+                  {rival.url ? (
+                    <a href={rival.url} target="_blank" rel="noreferrer">
+                      {rival.name}
+                    </a>
+                  ) : (
+                    rival.name
+                  )}
+                  {rival.note ? ` · ${rival.note}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+          <RivalFacts competitors={brain.competitors} />
+        </>
+      ),
     });
   }
   if (brain.channels.length > 0) {

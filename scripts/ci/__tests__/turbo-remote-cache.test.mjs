@@ -56,6 +56,8 @@ const PASSTHROUGH_ENV = [
   "TURBO_TOKEN",
   "TURBO_TEAM",
   "ENABLE_EXPERIMENTAL_COREPACK",
+  // Setup's ffmpeg binary (or its stub): a path that changes per run.
+  "FFMPEG_BIN",
 ];
 
 async function readRepoFile(...segments) {
@@ -446,7 +448,7 @@ describe("Vercel web turbo build command", () => {
     );
     assert.equal(
       core.installCommand,
-      "pnpm install --frozen-lockfile --filter @sokosumi/core...",
+      "FFMPEG_BIN=/bin/sh pnpm install --frozen-lockfile --filter @sokosumi/core...",
     );
   });
 

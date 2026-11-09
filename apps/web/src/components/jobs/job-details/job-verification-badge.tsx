@@ -200,6 +200,7 @@ function JobVerificationBadgeBase({
       <Tooltip>
         <TooltipTrigger asChild>
           <span
+            role="img"
             aria-label={label}
             className={cn("inline-flex items-center", className)}
             aria-busy={isPending}

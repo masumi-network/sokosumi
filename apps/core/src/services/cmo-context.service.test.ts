@@ -120,7 +120,10 @@ describe("loadCmoMarketingContext", () => {
         logoUrl: "https://blob.example/logo.png",
         designMd: '---\nname: Acme\n---\nPrimary: "#ff6a00"',
       },
-      brandPictures: [{ fileId: "f-shoe", alt: "red shoe" }],
+      brandPictures: [
+        { fileId: "f-home", alt: "Home page screenshot" },
+        { fileId: "f-shoe", alt: "red shoe" },
+      ],
       writingSkills: expect.arrayContaining([
         expect.objectContaining({ id: "brand-voice", name: "Brand voice" }),
         expect.objectContaining({ id: "linkedin", use: expect.any(String) }),
@@ -232,7 +235,7 @@ describe("loadCmoMarketingContext", () => {
     const context = await loadCmoMarketingContext("bot-1");
     expect(messageFindMany.mock.calls[0]?.[0]).toMatchObject({
       where: { senderSokoBotId: "bot-1" },
-      take: 3,
+      take: 60,
     });
     expect(context?.recentUpdates).toEqual([
       expect.objectContaining({ id: "message-1", headline: "Week 1" }),
@@ -278,5 +281,36 @@ describe("fitCmoMarketingContext", () => {
     expect(later?.draft).toBeUndefined();
     expect(later?.detailsStored).toBe(true);
     expect(fitted.strategy.storedNotShown).toContain("weeks");
+  });
+
+  it("sheds a later piece's visual with its draft, and keeps only two weeks last", () => {
+    const withVisual = (id: string, date: string) => ({
+      ...entry(id, date),
+      visual: "v".repeat(400),
+      visualFileIds: ["file-1"],
+    });
+    const big = {
+      ...context,
+      strategy: {
+        ...context.strategy,
+        calendar: [
+          withVisual("soon", "2026-11-02"),
+          withVisual("later", "2026-11-10"),
+          withVisual("far", "2026-11-25"),
+        ],
+      },
+    };
+    const shed = fitCmoMarketingContext(big, now, 2_600) as {
+      strategy: { calendar: Record<string, unknown>[] };
+    };
+    expect(shed.strategy.calendar[0]?.visual).toBeDefined();
+    expect(shed.strategy.calendar[1]?.visual).toBeUndefined();
+    const tight = fitCmoMarketingContext(big, now, 400) as {
+      strategy: { calendar: Record<string, unknown>[] };
+    };
+    expect(tight.strategy.calendar.map((piece) => piece.id)).toEqual([
+      "soon",
+      "later",
+    ]);
   });
 });

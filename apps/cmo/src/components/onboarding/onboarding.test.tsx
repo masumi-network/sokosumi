@@ -355,7 +355,30 @@ describe("Plan", () => {
     expect(html).toContain("This takes a few minutes.");
     expect(html).toContain(" so far");
     expect(html).toContain("Your channels");
+    expect(html).toContain("Choosing your idea, channels and pillars");
     expect(html).not.toContain("Approve plan");
+  });
+
+  it("shows the plan in the feed as Cuso saves it", () => {
+    const before = plan(
+      draft({ strategy: null, work: work("strategy") }),
+      "planning",
+    );
+    expect(before).toContain("Choosing your idea, channels and pillars");
+    expect(before).not.toContain("Getting started");
+
+    const after = plan(
+      draft({
+        work: work("strategy"),
+        strategy: { ...strategy, calendar: [] },
+      }),
+      "planning",
+    );
+    expect(after).toContain("Show the rockets working.");
+    expect(after).toContain("LinkedIn, 2 a week");
+    expect(after).toContain("Product stories: 100% of pieces");
+    expect(after).toContain("Writing four weeks, day by day");
+    expect(after).not.toContain("Writing your strategy");
   });
 
   it("offers to try again when planning stopped", () => {

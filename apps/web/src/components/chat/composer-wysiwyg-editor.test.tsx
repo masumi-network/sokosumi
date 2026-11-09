@@ -72,6 +72,20 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor).toHaveClass("markdown-compose-surface");
   });
 
+  it("names the textbox from its placeholder when no label is passed", () => {
+    render(
+      <ComposerWysiwygEditor
+        value=""
+        onChange={() => {}}
+        mentions={{}}
+        placeholder="Message #launch"
+      />,
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Message #launch" }),
+    ).toBeInTheDocument();
+  });
+
   it("does not put mention-picker scroll-margin on the overflowing editor host", () => {
     function Harness() {
       const [value, setValue] = useState("");

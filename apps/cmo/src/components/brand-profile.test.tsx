@@ -2,7 +2,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { type BrandBrain, openQuestions } from "../lib/brand-sections";
 import { cmoOverview } from "../test-fixtures/cmo";
-import { accountFromLink, Offers, ownerFinding } from "./brand-profile";
+import {
+  accountFromLink,
+  CustomerWords,
+  Offers,
+  ownerFinding,
+  RivalFacts,
+} from "./brand-profile";
 import { BrandStep } from "./onboarding/brand-step";
 
 const brain = (extra: Partial<BrandBrain>): BrandBrain => ({
@@ -95,6 +101,44 @@ describe("Brand Brain reveal", () => {
       expect(html).toContain(`aria-label="Remove ${name}"`);
     }
     expect(html).toContain("From $349");
+  });
+
+  it("shows customers' own words and what Cuso read of the closest competitors", () => {
+    const words = renderToStaticMarkup(
+      <CustomerWords
+        quotes={[
+          {
+            quote: "Our launch slipped twice",
+            kind: "pain",
+            sourceUrl: "https://g2.com/acme",
+          },
+        ]}
+      />,
+    );
+    expect(words).toContain("In your customers&#x27; words");
+    expect(words).toContain("What hurts");
+    expect(words).toContain("“Our launch slipped twice”");
+    expect(words).toContain("g2.com");
+
+    const rivals = renderToStaticMarkup(
+      <RivalFacts
+        competitors={[
+          {
+            name: "Boring Rockets",
+            promise: "Rockets that never fail",
+            price: "$90 a month",
+            weakness: "Slow support",
+          },
+          { name: "Quiet Rockets" },
+        ]}
+      />,
+    );
+    expect(rivals).toContain(
+      "<dt>Promises</dt><dd>Rockets that never fail</dd>",
+    );
+    expect(rivals).toContain("<dt>Complaints</dt><dd>Slow support</dd>");
+    expect(rivals).not.toContain("Loved for");
+    expect(rivals).not.toContain("Quiet Rockets");
   });
 
   it("turns a pasted profile link into an account", () => {

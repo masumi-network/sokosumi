@@ -10,6 +10,7 @@ import { RoomRosterPanel } from "./room-roster-panel";
 const copyTextWithToastMock = vi.fn();
 
 vi.mock("next-intl", () => ({
+  useNow: () => new Date(),
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       "Presence.online": "Online",

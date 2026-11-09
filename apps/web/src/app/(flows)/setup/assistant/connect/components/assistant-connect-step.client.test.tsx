@@ -51,6 +51,16 @@ describe("AssistantConnectStep", () => {
     );
   });
 
+  it("starts at its heading, since the step before it is gone", () => {
+    renderStep();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Give Atlas your inbox and calendar",
+      }),
+    ).toHaveFocus();
+  });
+
   it("connects a provider and comes back to this step", async () => {
     const user = userEvent.setup();
     renderStep();

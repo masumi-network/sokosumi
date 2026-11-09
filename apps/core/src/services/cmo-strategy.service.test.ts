@@ -96,6 +96,10 @@ const HIRE = {
 const plan = (row: { plan: unknown }) => row.plan as typeof strategy;
 const approvedRows = () => strategyRows.filter((row) => row.approvedAt);
 
+vi.mock("@/lib/site-platform", () => ({
+  detectSiteLanguage: async () => "German",
+}));
+
 describe("requestCmoStrategy", () => {
   const brandBrain = {
     summary: "Acme sells rockets.",
@@ -166,6 +170,38 @@ describe("requestCmoStrategy", () => {
       expect(message).toContain("say the opposite plainly");
       expect(message.match(/- \w+: you wrote/g)).toHaveLength(2);
     }
+  });
+
+  it("posts in the language the website is written in", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ userId: "user-1" });
+
+    expect(JSON.stringify(startTurn.mock.lastCall)).toContain(
+      "The website is written in German: set contentLanguage to German",
+    );
+  });
+
+  it("plans four dated weeks around the season, with no week five", async () => {
+    vi.useFakeTimers({
+      now: new Date("2026-11-08T12:00:00Z"),
+      toFake: ["Date"],
+    });
+    cusoFind.mockResolvedValue(cuso);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ userId: "user-1" });
+    vi.useRealTimers();
+
+    const message = JSON.stringify(startTurn.mock.lastCall);
+    expect(message).toContain(
+      "for the four weeks from 2026-11-09 to 2026-12-06. No calendar entry after 2026-12-06.",
+    );
+    expect(message).toContain(
+      "list the dates between 2026-11-09 and 2026-12-06",
+    );
+    expect(message).toContain("Never invent a discount");
   });
 
   it("asks for no correction once every no is in the Brand Brain", async () => {

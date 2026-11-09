@@ -78,7 +78,7 @@ When deleting or changing `useTranslations()` / `getTranslations()` usage or `ap
 
 ### Sokosumi Tasks and CLI
 
-To create, update, link, or move Sokosumi Tasks, read a Task spec, or drive the `sokosumi` CLI, load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/). Its "Track work as Tasks" section covers tickets, specs, priority, links, and status events. Spec reviews and `/implement` fetch the Task through that skill — never through Linear.
+To create, update, link, or move Sokosumi Tasks, read a Task spec, or drive the `sokosumi` CLI, load [`.agents/skills/sokosumi/`](../../.agents/skills/sokosumi/). Its "Track work as Tasks" section covers tickets, specs, priority, links, and status events. Spec reviews and `/implement` fetch the Task through that skill on **mainnet** (`--api-url https://api.sokosumi.com` for legacy keys) — never `--preprod` for this repo's `SOK*` / `SOKD*` tickets, and never through Linear.
 
 ### Verify Sokosumi
 

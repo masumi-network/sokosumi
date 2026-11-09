@@ -228,6 +228,85 @@ export function Voice({ brain }: VoiceProps) {
   );
 }
 
+type CustomerQuote = NonNullable<BrandBrain["voiceOfCustomer"]>[number];
+
+const QUOTE_KINDS: Record<CustomerQuote["kind"], string> = {
+  pain: "What hurts",
+  trigger: "Why they looked",
+  outcome: "What they got",
+  objection: "What held them back",
+};
+
+/** Customers' exact words, the source of Cuso's hooks and ad headlines. */
+export function CustomerWords({
+  quotes,
+}: {
+  quotes: readonly CustomerQuote[];
+}) {
+  if (quotes.length === 0) return null;
+  return (
+    <div className="bb-competitors">
+      <p className="label">In your customers' words</p>
+      <ul className="bb-words">
+        {quotes.map((quote) => (
+          <li key={quote.quote}>
+            <span className="label">{QUOTE_KINDS[quote.kind]}</span>
+            <blockquote className="bb-quote">“{quote.quote}”</blockquote>
+            {quote.sourceUrl ? (
+              <a
+                className="note"
+                href={quote.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {sourceHost(quote.sourceUrl)}
+              </a>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const RIVAL_FACTS = [
+  ["promise", "Promises"],
+  ["price", "Starts at"],
+  ["strength", "Loved for"],
+  ["weakness", "Complaints"],
+] as const;
+
+/** The closest competitors as Cuso read them: their promise, price and reviews. */
+export function RivalFacts({
+  competitors,
+}: {
+  competitors: BrandBrain["competitors"];
+}) {
+  const read = competitors.filter((competitor) =>
+    RIVAL_FACTS.some(([key]) => competitor[key]),
+  );
+  if (read.length === 0) return null;
+  return (
+    <ul className="bb-rival-facts">
+      {read.map((competitor) => (
+        <li key={competitor.name}>
+          <b>{competitor.name}</b>
+          <dl>
+            {RIVAL_FACTS.map(([key, label]) =>
+              competitor[key] ? (
+                <div key={key}>
+                  <dt>{label}</dt>
+                  <dd>{competitor[key]}</dd>
+                </div>
+              ) : null,
+            )}
+          </dl>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 const NETWORK_NAMES: Record<string, string> = {
   linkedin: "LinkedIn",
   x: "X",

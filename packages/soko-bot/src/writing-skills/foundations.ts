@@ -51,8 +51,9 @@ The network skills show example posts for other, made-up businesses. They show s
     checklist: [
       {
         rule: "It sounds like the brand's voice examples: the same tone, sentence length and words for things.",
+        voice: true,
       },
-      { rule: "It breaks none of the voice's don't rules." },
+      { rule: "It breaks none of the voice's don't rules.", voice: true },
       {
         rule: "It states no number, price, customer or quote that the brand facts do not hold.",
       },

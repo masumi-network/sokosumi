@@ -22,6 +22,11 @@ import {
   markOutboundSentTick,
 } from "../outbound-sent-tick";
 
+// The row reads the router for its Save for later toast.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("next-intl", async () => {
   const { createTestFormatter } = await import("@/test/intl-formatter");
   const formatter = createTestFormatter();

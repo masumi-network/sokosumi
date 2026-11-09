@@ -15,13 +15,15 @@ import {
 } from "@/lib/image-studio/fal-client";
 
 /**
- * The default model's endpoints, taken from the catalog rather than written out.
+ * Gemini Flash's endpoints, taken from the catalog rather than written out.
  *
- * The studio has a hundred and fifty models now, so a literal here would be a
- * second opinion about which one is the default.
+ * Named rather than the default: these cases lean on a model with a seed, three
+ * resolutions and a two-part endpoint id, and the default (Muse) has none of
+ * them.
  */
-const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
-const DEFAULT_IMAGE_ENDPOINT_EDIT = imageModel().editEndpoint!;
+const DEFAULT_IMAGE_ENDPOINT_GENERATE =
+  imageModel("gemini-flash").generateEndpoint;
+const DEFAULT_IMAGE_ENDPOINT_EDIT = imageModel("gemini-flash").editEndpoint!;
 
 describe("queueRequestModel", () => {
   it("drops a variant sub-path, because the queue's request routes ignore it", () => {
@@ -55,14 +57,17 @@ describe("buildFalInput", () => {
   });
 
   it("carries references and a seed when they are given", () => {
-    const input = buildFalInput({
-      prompt: "a cup",
-      aspectRatio: "16:9",
-      resolution: "2K",
-      outputFormat: "jpeg",
-      seed: 7,
-      imageUrls: ["https://v3b.fal.media/files/a.png"],
-    });
+    const input = buildFalInput(
+      {
+        prompt: "a cup",
+        aspectRatio: "16:9",
+        resolution: "2K",
+        outputFormat: "jpeg",
+        seed: 7,
+        imageUrls: ["https://v3b.fal.media/files/a.png"],
+      },
+      DEFAULT_IMAGE_ENDPOINT_EDIT,
+    );
     expect(input).toMatchObject({
       prompt: "a cup",
       aspect_ratio: "16:9",
@@ -130,8 +135,11 @@ describe("model-specific payloads", () => {
 
 describe("falModelForKind", () => {
   it("sends a refinement to the endpoint that accepts a reference", () => {
-    expect(falModelForKind("EDIT")).toBe(DEFAULT_IMAGE_ENDPOINT_EDIT);
-    expect(falModelForKind("GENERATE")).toBe(DEFAULT_IMAGE_ENDPOINT_GENERATE);
+    expect(falModelForKind("EDIT")).toBe("meta/muse-image/edit");
+    expect(falModelForKind("GENERATE")).toBe("meta/muse-image/text-to-image");
+    expect(falModelForKind("EDIT", "gemini-flash")).toBe(
+      DEFAULT_IMAGE_ENDPOINT_EDIT,
+    );
   });
 });
 

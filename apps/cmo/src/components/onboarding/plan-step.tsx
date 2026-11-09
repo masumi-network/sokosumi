@@ -1,12 +1,13 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { ArrowRight, Loader2 } from "lucide-react";
-import { AnimatePresence } from "motion/react";
+import { ArrowRight, Check, CircleAlert, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
+import { channelInfo } from "../../lib/channels";
 import { strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
@@ -38,6 +39,68 @@ import { type PlanPhase, planUnfitted } from "./step";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
+type Work = NonNullable<CmoOverview["work"]>;
+type Step = Work["steps"][number];
+type FeedRow = Omit<Step, "at">;
+
+/**
+ * Planning as the founder can follow it: the plan's first save brings the
+ * idea, channels and pillars, then the calendar fills in. Cuso writes each
+ * save in one go, so the running row says what he is on.
+ */
+export function planningRows(
+  steps: Step[],
+  strategy: Strategy | null,
+  running: boolean,
+): FeedRow[] {
+  const rows: FeedRow[] = steps.filter((step) => step.kind !== "strategy");
+  if (strategy) {
+    const done = { status: "done", url: null } as const;
+    const idea = strategy.idea?.sentence ?? strategy.summary;
+    if (idea) rows.push({ ...done, id: "idea", kind: "strategy", label: idea });
+    const goal = outcomeLine(strategy);
+    if (goal) {
+      rows.push({
+        ...done,
+        id: "goal",
+        kind: "strategy",
+        label: `Goal: ${goal}`,
+      });
+    }
+    for (const channel of strategy.channels) {
+      rows.push({
+        ...done,
+        id: `channel:${channel.channel}`,
+        kind: "other",
+        label: `${channelInfo(channel.channel)?.name ?? channel.channel}, ${channel.cadence}`,
+      });
+    }
+    for (const pillar of strategy.pillars) {
+      rows.push({
+        ...done,
+        id: `pillar:${pillar.name}`,
+        kind: "brain",
+        label: `${pillar.name}: ${pillar.share}% of pieces`,
+      });
+    }
+  }
+  if (running) {
+    const pieces = strategy?.calendar.length ?? 0;
+    // On top, so what Cuso is on stays in view above the plan so far.
+    rows.unshift({
+      id: strategy ? "calendar" : "plan",
+      kind: "strategy",
+      label: !strategy
+        ? "Choosing your idea, channels and pillars"
+        : pieces > 0
+          ? `Writing four weeks, day by day: ${pieces} pieces so far`
+          : "Writing four weeks, day by day",
+      url: null,
+      status: "running",
+    });
+  }
+  return rows;
+}
 
 const ANSWER_WORDS: Record<string, string> = {
   yes: "Yes",
@@ -105,6 +168,11 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
     starting || (work?.kind === "strategy" && work.status === "running");
   const noCredits = !running && overview.billing.availableCredits <= 0;
   const elapsed = useElapsed(work?.startedAt, running);
+  const rows = planningRows(
+    work?.kind === "strategy" ? work.steps : [],
+    overview.strategy ?? null,
+    running,
+  );
   return (
     <section className="panel ob-wait">
       <div className={running ? "card ob-says" : "card card-focus ob-says"}>
@@ -129,6 +197,47 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
             running,
           )}
         />
+        <div className="ob-feed" aria-label="What Cuso is writing">
+          <p className="ob-feed-title">
+            <span className={running ? "ob-live on" : "ob-live"} />
+            {running ? "Live" : "What Cuso wrote"}
+          </p>
+          {rows.length === 0 ? (
+            <p className="ob-feed-empty">
+              {running ? "Getting started…" : "Nothing yet."}
+            </p>
+          ) : (
+            <ul className="ob-feed-list">
+              <AnimatePresence initial={false}>
+                {rows.map((step, index) => (
+                  <motion.li
+                    key={step.id}
+                    layout
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.25,
+                      ease: [0.25, 1, 0.5, 1] as const,
+                      delay: Math.min(index, 12) * 0.12,
+                    }}
+                    className={`ob-feed-item ${step.status}${step.id === "idea" ? " wrap" : ""}`}
+                  >
+                    <span className="ob-feed-label">{step.label}</span>
+                    <span className="ob-feed-state" aria-hidden="true">
+                      {step.status === "running" ? (
+                        <Loader2 size={14} className="spin" />
+                      ) : step.status === "failed" ? (
+                        <CircleAlert size={14} />
+                      ) : (
+                        <Check size={14} />
+                      )}
+                    </span>
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </ul>
+          )}
+        </div>
         {running ? null : (
           <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
         )}
@@ -260,10 +369,13 @@ export function PlanReview({
     );
   }
 
+  const written = strategy.contentLanguage
+    ? ` Written in ${strategy.contentLanguage}.`
+    : "";
   const line =
     pages > 0
-      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${approved ? "" : " Nothing goes out until you approve the plan."}`;
+      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
+      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the plan."}`;
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);

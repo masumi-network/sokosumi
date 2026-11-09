@@ -16,6 +16,7 @@ import {
 } from "@sokosumi/utils";
 import {
   AlertCircle,
+  Bookmark,
   Check,
   Copy,
   Ellipsis,
@@ -45,6 +46,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
+import { saveRoomMessageAction } from "@/app/chat/actions";
 import {
   CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
@@ -52,6 +55,7 @@ import {
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClampedOverflow } from "@/app/chat/hooks/use-clamped-overflow";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
+import { CHAT_SAVED_PATH } from "@/app/chat/utils/chat-route-base";
 import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
@@ -1017,6 +1021,7 @@ function MessageActionControls({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onSaveForLater,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1042,6 +1047,8 @@ function MessageActionControls({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent for a message that is not stored yet. */
+  onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1066,6 +1073,7 @@ function MessageActionControls({
     (showPin ||
       showCopyLink ||
       Boolean(onSendToSelf) ||
+      Boolean(onSaveForLater) ||
       showCopy ||
       showDelete);
   const reactedEmojis = readerReactedEmojis(message);
@@ -1276,6 +1284,17 @@ function MessageActionControls({
                 {t("Copy.sendToSelf")}
               </DropdownMenuItem>
             ) : null}
+            {onSaveForLater ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onSaveForLater();
+                  onAfterAction?.();
+                }}
+              >
+                <Bookmark className="size-4" aria-hidden />
+                {t("SavedMessages.save")}
+              </DropdownMenuItem>
+            ) : null}
             {showCopy ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1347,6 +1366,7 @@ function MessageActions({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onSaveForLater,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1368,6 +1388,8 @@ function MessageActions({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent for a message that is not stored yet. */
+  onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1433,6 +1455,7 @@ function MessageActions({
         onCopy={onCopy}
         onCopyLink={onCopyLink}
         onSendToSelf={onSendToSelf}
+        onSaveForLater={onSaveForLater}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
@@ -1586,6 +1609,7 @@ function TouchMessageActionsSheet({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onSaveForLater,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1608,6 +1632,8 @@ function TouchMessageActionsSheet({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent for a message that is not stored yet. */
+  onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1808,6 +1834,19 @@ function TouchMessageActionsSheet({
             >
               <Send className="size-4 shrink-0" aria-hidden />
               {t("Copy.sendToSelf")}
+            </Button>
+          ) : null}
+          {onSaveForLater ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onSaveForLater);
+              }}
+            >
+              <Bookmark className="size-4 shrink-0" aria-hidden />
+              {t("SavedMessages.save")}
             </Button>
           ) : null}
           {showCopyButton && onCopy ? (
@@ -2472,6 +2511,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
+  const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
   const isOpeningDirect = hoverProfile
@@ -2652,6 +2692,22 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   function handleSendToSelf() {
     onSendToSelf?.(message);
+  }
+
+  async function handleSaveForLater() {
+    const result = await saveRoomMessageAction(message.id);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    toast.success(tChannels("SavedMessages.saved"), {
+      action: {
+        label: tChannels("SavedMessages.view"),
+        onClick: () => {
+          router.push(CHAT_SAVED_PATH);
+        },
+      },
+    });
   }
 
   function requestDelete(_message: ChatRoomMessage) {
@@ -3076,6 +3132,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              onSaveForLater={
+                isDurableRoomMessage
+                  ? () => void handleSaveForLater()
+                  : undefined
+              }
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
@@ -3101,6 +3162,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              onSaveForLater={
+                isDurableRoomMessage
+                  ? () => void handleSaveForLater()
+                  : undefined
+              }
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}

@@ -268,26 +268,25 @@ describe("SignUpForm with a password", () => {
     expect(row).not.toHaveClass("grid-cols-2");
   });
 
-  it("names the names and the password inside their fields, keeping the labels", async () => {
+  it("keeps the name labels visible above their fields, like the code", async () => {
     renderForm();
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "addPassword" }));
 
-    for (const label of [
-      "firstNameLabel",
-      "lastNameLabel",
-      "Fields.Password.label",
-    ]) {
-      expect(screen.getByLabelText(label)).toHaveAttribute(
-        "placeholder",
-        label,
+    // A placeholder vanishes on the first keystroke; the labels stay.
+    for (const label of ["firstNameLabel", "lastNameLabel", "codeLabel"]) {
+      expect(screen.getByText(label, { selector: "label" })).not.toHaveClass(
+        "sr-only",
       );
     }
-    // The code's slots show dots, so its name stays above them.
-    expect(
-      screen.getByText("codeLabel", { selector: "label" }),
-    ).not.toHaveClass("sr-only");
+    for (const label of ["firstNameLabel", "lastNameLabel"]) {
+      expect(screen.getByLabelText(label)).not.toHaveAttribute("placeholder");
+    }
+    expect(screen.getByLabelText("Fields.Password.label")).toHaveAttribute(
+      "placeholder",
+      "Fields.Password.label",
+    );
   });
 
   it("moves focus to the first name when the step opens", async () => {
@@ -857,11 +856,11 @@ describe("SignUpForm email code", () => {
     await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
   }
 
-  it("opens on the code that step 1 sent, without repeating the address", async () => {
+  it("opens on the code that step 1 sent, saying where it went", async () => {
     render(<SignUpStep codeSent />);
 
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
-    expect(code).toHaveAccessibleDescription("sentNoAddress");
+    expect(code).toHaveAccessibleDescription("sent");
     expect(
       screen.queryByLabelText("Fields.Password.label"),
     ).not.toBeInTheDocument();
@@ -881,9 +880,7 @@ describe("SignUpForm email code", () => {
 
     await user.click(screen.getByRole("button", { name: "resend" }));
 
-    await waitFor(() =>
-      expect(code).toHaveAccessibleDescription("sentNoAddress"),
-    );
+    await waitFor(() => expect(code).toHaveAccessibleDescription("sent"));
   });
 
   it("creates the named account with the emailed code", async () => {

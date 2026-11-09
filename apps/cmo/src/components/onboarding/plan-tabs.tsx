@@ -458,6 +458,31 @@ export function ResultsPanel({
         </Section>
       ) : null}
 
+      {measurement?.sourceOfTruth ? (
+        <Section title="Where sales are counted">
+          <p className="bb-big">{measurement.sourceOfTruth}</p>
+        </Section>
+      ) : null}
+
+      {measurement?.experiment ? (
+        <Section title="This month's test">
+          <ul className="bb-list">
+            <li>
+              <b>Change</b>
+              <span>{measurement.experiment.change}</span>
+            </li>
+            <li>
+              <b>Should move</b>
+              <span>{measurement.experiment.expect}</span>
+            </li>
+            <li>
+              <b>Judged by</b>
+              <span>{measurement.experiment.judge}</span>
+            </li>
+          </ul>
+        </Section>
+      ) : null}
+
       {tracking.length > 0 ? (
         <Section title="What we set up to measure it">
           <ul className="bb-list">

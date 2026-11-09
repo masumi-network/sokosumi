@@ -12,7 +12,9 @@ const {
   authorizeMock,
   createEventMock,
   executeToolMock,
+  grantUploadMock,
   findFirstEventMock,
+  countEventMock,
   fetchMock,
   toolCallUpsertMock,
   toolCallUpdateManyMock,
@@ -24,7 +26,9 @@ const {
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
+  grantUploadMock: vi.fn(),
   findFirstEventMock: vi.fn(),
+  countEventMock: vi.fn(),
   fetchMock: vi.fn(),
 }));
 
@@ -36,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => {
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
+      count: countEventMock,
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
     sokoBotToolCall: {
@@ -56,7 +61,9 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
     executeTool: executeToolMock,
+    grantWorkspaceUpload: grantUploadMock,
   },
+  WORKSPACE_UPLOAD_GRANTED_EVENT: "sandbox.upload_granted",
 }));
 vi.mock("@/services/soko-bot-version.service", () => ({
   resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
@@ -69,6 +76,7 @@ vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
 }));
 
 import {
+  grantSandboxUpload,
   proxySandboxModelCall,
   recordSandboxAction,
   recordSandboxActionResult,
@@ -799,6 +807,144 @@ describe("sandbox turn service", () => {
       }),
     ).rejects.toThrow("ask the owner in chat");
     expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("grants no upload where upload_file would be refused, nor past the cap", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "SCHEDULE",
+      parentTurnId: null,
+      askedByUserId: null,
+      requestedByUserId: "owner",
+      chainDepth: 0,
+      chatMentionId: null,
+    });
+    await expect(
+      grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
+    ).rejects.toThrow("ask the owner in chat");
+    findFirstEventMock.mockResolvedValue(null);
+    countEventMock.mockResolvedValue(21);
+    await expect(
+      grantSandboxUpload(claims, { filename: "a.mp4", size: 10 }),
+    ).rejects.toThrow("up to 20");
+    expect(countEventMock).toHaveBeenCalledWith({
+      where: { turnId: claims.turnId, type: "sandbox.upload_reserved" },
+    });
+    expect(createEventMock.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      countEventMock.mock.invocationCallOrder.at(-1) ?? 0,
+    );
+    expect(grantUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a member's own request to a shared bot make posts after a command", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    turnFindUniqueMock.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: "member",
+      requestedByUserId: "member",
+      chainDepth: 0,
+      chatMentionId: "mention",
+    });
+    executeToolMock.mockResolvedValue({ ok: true });
+    await runSandboxTool(claims, {
+      capability: "create_social_post",
+      toolCallId: "c20",
+      toolInput: {},
+    });
+    expect(executeToolMock).toHaveBeenCalledOnce();
+  });
+
+  it("records the address it grants, so upload_file can check it", async () => {
+    countEventMock.mockResolvedValue(1);
+    findFirstEventMock.mockResolvedValue(null);
+    grantUploadMock.mockResolvedValue({
+      grant: {
+        uploadUrl: "https://blob.example/put",
+        headers: { "Content-Type": "video/mp4" },
+        pathname: "users/u/files/launch-1f3c9a2b.mp4",
+      },
+      displayName: "launch.mp4",
+      folder: "",
+      contentType: "video/mp4",
+    });
+    const result = await grantSandboxUpload(claims, {
+      filename: "launch.mp4",
+      size: 12_000_000,
+    });
+    expect(result).toEqual({
+      uploadUrl: "https://blob.example/put",
+      headers: { "Content-Type": "video/mp4" },
+      pathname: "users/u/files/launch-1f3c9a2b.mp4",
+    });
+    expect(createEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "sandbox.upload_granted",
+          data: expect.objectContaining({
+            pathname: "users/u/files/launch-1f3c9a2b.mp4",
+            contentType: "video/mp4",
+          }),
+        }),
+      }),
+    );
+  });
+
+  describe("Social posts after running a command", () => {
+    const ownerTurn = {
+      source: "CHAT",
+      parentTurnId: null,
+      askedByUserId: null,
+      chainDepth: 0,
+      chatMentionId: "mention",
+    };
+    const postId = "01a0f600-0000-7000-8000-000000000001";
+    beforeEach(() => {
+      findFirstEventMock.mockResolvedValue({ id: "taint" });
+      turnFindUniqueMock.mockResolvedValue(ownerTurn);
+      executeToolMock.mockResolvedValue({ ok: true });
+    });
+
+    it("lets the owner's request create a post", async () => {
+      await runSandboxTool(claims, {
+        capability: "create_social_post",
+        toolCallId: "c10",
+        toolInput: {},
+      });
+      expect(executeToolMock).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      "update_social_post",
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+    ])("refuses %s, so an approved post never changes", async (capability) => {
+      await expect(
+        runSandboxTool(claims, {
+          capability,
+          toolCallId: "c12",
+          toolInput: { postId },
+        }),
+      ).rejects.toThrow("ask the owner in chat");
+      expect(executeToolMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps a scheduled run from creating posts", async () => {
+      turnFindUniqueMock.mockResolvedValue({
+        ...ownerTurn,
+        source: "SCHEDULE",
+        chatMentionId: null,
+      });
+      await expect(
+        runSandboxTool(claims, {
+          capability: "create_social_post",
+          toolCallId: "c13",
+          toolInput: {},
+        }),
+      ).rejects.toThrow("ask the owner in chat");
+      expect(executeToolMock).not.toHaveBeenCalled();
+    });
   });
 
   it("keeps a teammate's turn from briefing a Coworker after reading the web", async () => {

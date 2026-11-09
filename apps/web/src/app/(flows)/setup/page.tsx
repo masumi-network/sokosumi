@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CoreUnavailableNotice } from "@/app/components/core-unavailable-notice.client";
@@ -35,6 +36,11 @@ import { loadWorkspaceGateSearchParams } from "./search-params";
 // Blocks on purpose: the gate reads the session and `next` before it can
 // render anything, and it has no app shell worth prefetching.
 export const instant = false;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("WorkspaceGate");
+  return { title: t("title") };
+}
 
 interface WorkspaceGatePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

@@ -630,6 +630,86 @@ body:has(.ob) .site-header {
   outline-offset: 2px;
 }
 
+/* Plan wait: the live plan as Cuso saves idea, channels and pillars. */
+.ob-feed {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  padding: 6px;
+  width: 100%;
+  text-align: left;
+}
+
+.ob-feed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.ob-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.ob-live.on {
+  border: 1px solid var(--line);
+  background: var(--ok);
+}
+
+.ob-feed-empty {
+  margin: 0;
+  padding: 24px 10px;
+  color: var(--muted);
+}
+
+.ob-feed-list {
+  display: grid;
+  gap: 2px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ob-feed-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+
+.ob-feed-item.done .ob-feed-state,
+.ob-feed-item.failed .ob-feed-state {
+  color: var(--foreground);
+}
+
+.ob-feed-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-feed-item.wrap .ob-feed-label {
+  white-space: normal;
+}
+
+.ob-feed-state {
+  display: grid;
+  color: var(--muted);
+}
+
 .ob-side-body {
   display: grid;
   gap: 16px;

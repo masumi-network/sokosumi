@@ -470,8 +470,8 @@ export function SettingsPage({
       <section className="card">
         <h3>What {AGENT_NAME} does when</h3>
         <p className="muted">
-          Every routine works from your strategy. Nothing runs until you approve
-          it.
+          Every routine works from your strategy and starts once you approve it.
+          Dreaming runs every night from the start.
         </p>
         <ul className="list">
           {overview.routines.map((routine) => (

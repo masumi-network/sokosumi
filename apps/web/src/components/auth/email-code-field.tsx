@@ -4,7 +4,7 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
 import { type Ref, type RefObject, useEffect, useId, useRef } from "react";
 import * as z from "zod";
-
+import { FormErrorText } from "@/components/ui/form";
 import {
   InputOTP,
   InputOTPGroup,
@@ -127,7 +127,7 @@ interface EmailCodeFieldProps {
    */
   completedCodeRef?: RefObject<string>;
   onBlur?: () => void;
-  /** Where the code went, when the page does not already show it. */
+  /** Where the code went; without it, only a screen reader hears one went. */
   email?: string | undefined;
   error?: string | undefined;
   /** Why the field opened, shown above it and read with it. */
@@ -144,15 +144,17 @@ interface EmailCodeFieldProps {
   autoFocus?: boolean;
   inputRef?: Ref<HTMLInputElement>;
   /**
-   * Centers the field's lines on the auth pages, with "Send a new code"
-   * under the label instead of beside it.
+   * Centers the field's lines on the auth pages: where the code went sits
+   * above the label, and a quiet "Didn't get it?" line with "Send a new code"
+   * sits under the field instead of beside the label.
    */
   centered?: boolean;
 }
 
 /**
  * The field an emailed code goes into, one slot per digit, with "Send a new
- * code" beside its label, or under it when `centered`. Only digits go in.
+ * code" beside its label, or under the field when `centered`. Only digits go
+ * in.
  */
 export function EmailCodeField({
   value,
@@ -182,6 +184,26 @@ export function EmailCodeField({
     value.length === EMAIL_CODE_LENGTH ? value : "",
   );
   const completedCode = completedCodeRef ?? localCompletedCode;
+  const resend = (
+    <ResendCodeButton
+      sentAt={sentAt}
+      onResend={onResend}
+      isSending={isResending || Boolean(disabled)}
+    />
+  );
+  // Without an address the page shows it above the field, and the slots show
+  // the length, so the line only tells a screen reader a code went out. A long
+  // address wraps instead of being cut off.
+  const hint = unsent ? null : (
+    <p
+      id={hintId}
+      className={
+        email ? "text-muted-foreground text-sm wrap-anywhere" : "sr-only"
+      }
+    >
+      {email ? t("sent", { email }) : t("sentNoAddress")}
+    </p>
+  );
 
   return (
     <div className={cn("grid gap-2", centered && "text-center")}>
@@ -191,21 +213,19 @@ export function EmailCodeField({
           {notice}
         </p>
       ) : null}
-      <div
-        className={cn(
-          "flex gap-x-4 gap-y-1",
-          centered
-            ? "flex-col items-center"
-            : "flex-wrap items-center justify-between",
-        )}
-      >
-        <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
-        <ResendCodeButton
-          sentAt={sentAt}
-          onResend={onResend}
-          isSending={isResending || Boolean(disabled)}
-        />
-      </div>
+      {centered ? (
+        <>
+          {hint}
+          <Label htmlFor={fieldId} className="justify-center">
+            {t("codeLabel")}
+          </Label>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
+          {resend}
+        </div>
+      )}
       <InputOTP
         ref={inputRef}
         id={fieldId}
@@ -255,20 +275,13 @@ export function EmailCodeField({
           ))}
         </InputOTPGroup>
       </InputOTP>
-      {/* Without an address the page shows it above the field, and the slots
-          show the length, so the line only tells a screen reader a code went
-          out. */}
-      {unsent ? null : (
-        <p
-          id={hintId}
-          className={email ? "text-muted-foreground text-sm" : "sr-only"}
-        >
-          {email ? t("sent", { email }) : t("sentNoAddress")}
-        </p>
-      )}
+      {centered ? null : hint}
       {shownError ? (
-        <p id={errorId} className="text-destructive text-sm">
-          {shownError}
+        <FormErrorText id={errorId}>{shownError}</FormErrorText>
+      ) : null}
+      {centered ? (
+        <p className="text-muted-foreground text-sm">
+          {t("didntGetIt")} {resend}
         </p>
       ) : null}
     </div>

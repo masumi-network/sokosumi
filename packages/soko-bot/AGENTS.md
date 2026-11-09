@@ -23,6 +23,7 @@ The live tree is `src/`. One main export in `package.json`. `prepare` compiles `
 | `result-previews.ts`                                                                     | Chat result preview reference schema and limit                          |
 | `project-marketing.ts`                                                                   | Brand Brain, marketing-strategy, and social-post JSON shapes (ADR 0062) |
 | `cmo.ts`                                                                                 | Cuso profile: brand sections and CMO tools on a `cmo-*` version         |
+| `writing-skills/`                                                                        | Per-network writing skills, checklists, and `writingSkillsBrief`        |
 | `memory.ts`, `persona.ts`, `proactive.ts`, `judge.ts`, `scenarios.ts`, `integrations.ts` | Shared policy and admin-lab contracts                                   |
 
 The loop runs in each bot's Vercel Sandbox (`apps/core/src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`apps/core/src/routes/v1/soko-bot-runtime`). Evaluation runs stay in-process (`apps/core/src/lib/soko-bot/in-process-runtime.ts`). There is no `apps/soko-bot`.
@@ -45,6 +46,7 @@ Core implements the port (`sandbox/sandbox-runtime.ts`, `in-process-runtime.ts`,
 - Change a capability in this package together with its tool schema, description, and Core handler. The package test locks schema/description keys to `SOKO_BOT_CAPABILITIES`.
 - Keep Prisma, HTTP, and the agent loop in Core. This package stays Zod/types/constants.
 - `SokoBotRuntime` is the seam. Swap adapters in Core; do not add a second contract package.
+- A change to a prompt, skill, tool, version or model is measured with the evals before it merges, and a new tool gets an eval case (`scenarios.ts`); see [evals](../../docs/agents/evals.md).
 
 ## Package-Specific Commands
 
