@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
@@ -19,6 +26,9 @@ import { isActive, type StudioAsset, type StudioJob } from "./types";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
+  listBatchAssets: vi.fn(),
+  createArchive: vi.fn(),
+  saveDownload: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,9 +46,16 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
+  listStudioBatchAssets: mocks.listBatchAssets,
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("./studio-ad-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./studio-ad-download")>()),
+  createStudioAdArchive: mocks.createArchive,
+  saveStudioDownload: mocks.saveDownload,
 }));
 
 vi.mock("eve/react", () => ({
@@ -189,6 +206,34 @@ function settledJob(
 }
 
 describe("a gallery with work in it", () => {
+  it("downloads the whole batch from one ad, including results outside the loaded gallery", async () => {
+    const open = { ...ASSET, projectId: "p", batchId: "batch-a" };
+    const older = { ...open, id: "older-ad" };
+    mocks.listBatchAssets.mockResolvedValueOnce([open, older]);
+    mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
+
+    mount([open]);
+    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "downloadBatchZip",
+      }),
+    );
+    await waitFor(() => expect(mocks.saveDownload).toHaveBeenCalled());
+    expect(mocks.listBatchAssets).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      batchId: "batch-a",
+    });
+    expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
+      [open, older],
+      undefined,
+    );
+    expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Blob),
+      "studio-ad-batch.zip",
+    );
+  });
+
   it("hands the selected ad to the assistant and keeps the generation draft", () => {
     const product = { id: "mug", name: "Stoneware mug" };
     mount([{ ...ASSET, projectId: "p", product }]);

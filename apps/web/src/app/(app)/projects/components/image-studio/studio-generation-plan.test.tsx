@@ -1,9 +1,10 @@
 import type { StudioProductPhoto } from "@sokosumi/core-client";
+import { MAX_STUDIO_BATCH_IMAGES as MAX_BATCH } from "@sokosumi/utils";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+import type { StudioBatchProduct } from "./studio-batch";
 import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import type { StudioCatalog, StudioTarget } from "./types";

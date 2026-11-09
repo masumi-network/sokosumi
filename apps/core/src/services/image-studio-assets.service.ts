@@ -35,6 +35,7 @@ export interface AssetView {
   /** Named on the row so a workspace-wide gallery can say where each image lives. */
   projectName: string;
   product?: StudioProductIdentity;
+  batchId?: string;
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -70,7 +71,7 @@ const assetSelect = {
   durationSeconds: true,
   createdAt: true,
   jobId: true,
-  job: { select: { productId: true, productName: true } },
+  job: { select: { productId: true, productName: true, batchId: true } },
 } as const;
 
 function productView(job: {
@@ -92,6 +93,7 @@ function toAssetView({
   return {
     ...asset,
     ...productView(job),
+    ...(job.batchId ? { batchId: job.batchId } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
   };
@@ -170,12 +172,25 @@ export async function listAssets(
     before?: { createdAt: Date; id: string };
     /** Always include this version, whatever its age. */
     pinnedAssetId?: string;
+    batchId?: string;
   },
 ): Promise<{
   assets: AssetView[];
   nextCursor: { createdAt: Date; id: string } | null;
 }> {
-  const where = await scopeWhere(options);
+  const scope = await scopeWhere(options);
+  const where: Prisma.ProjectImageAssetWhereInput = {
+    ...scope,
+    ...(options.batchId
+      ? {
+          mediaType: "IMAGE",
+          job: {
+            projectId: options.projectId ?? undefined,
+            batchId: options.batchId,
+          },
+        }
+      : {}),
+  };
 
   // Ordered by `(createdAt, id)`, not `createdAt` alone. Two versions settled
   // in the same millisecond are not rare — a webhook and a poll finishing

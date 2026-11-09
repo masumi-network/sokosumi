@@ -21407,6 +21407,10 @@ export const ProjectImageAssetSchema = {
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
         },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
         rootId: {
             type: 'string',
             format: 'uuid'
@@ -38976,6 +38980,10 @@ export const CreateProjectImageJobRequestSchema = {
         },
         product: {
             $ref: '#/components/schemas/StudioProductIdentity'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
         },
         settings: {
             $ref: '#/components/schemas/ProjectImageSettings'

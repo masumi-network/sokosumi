@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
+  listStudioBatchAssets,
   prepareStudioAssetSocialMedia,
   requestImageJobCancel,
   startVideoGeneration,
@@ -346,13 +347,15 @@ export function ImageStudio({
     [checkedIds, state.assets],
   );
 
-  const archiveLimit =
-    checkedAssets.length > MAX_ARCHIVE_IMAGES
-      ? t("archiveImageLimit", { count: MAX_ARCHIVE_IMAGES })
-      : checkedAssets.reduce((sum, asset) => sum + asset.bytes, 0) >
-          MAX_ARCHIVE_BYTES
-        ? t("archiveSizeLimit", { size: MAX_ARCHIVE_MIB })
-        : null;
+  function archiveLimitFor(assets: StudioAsset[]) {
+    if (assets.length > MAX_ARCHIVE_IMAGES)
+      return t("archiveImageLimit", { count: MAX_ARCHIVE_IMAGES });
+    if (assets.reduce((sum, asset) => sum + asset.bytes, 0) > MAX_ARCHIVE_BYTES)
+      return t("archiveSizeLimit", { size: MAX_ARCHIVE_MIB });
+    return null;
+  }
+
+  const archiveLimit = archiveLimitFor(checkedAssets);
   const canBrandArchive =
     Boolean(projectLogo) &&
     checkedAssets.length > 1 &&
@@ -368,10 +371,10 @@ export function ImageStudio({
           canBrandArchive && includeLogoInArchive
             ? StudioLogoPosition.BOTTOM_RIGHT
             : undefined;
-        const archive = await createStudioAdArchive(checkedAssets, logo);
-        saveStudioDownload(
-          new Blob([archive], { type: "application/zip" }),
+        await downloadArchive(
+          checkedAssets,
           logo ? "studio-branded-ads.zip" : "studio-ads.zip",
+          logo,
         );
       } catch {
         toast.error(
@@ -381,6 +384,35 @@ export function ImageStudio({
               : "archiveDownloadFailed",
           ),
         );
+      }
+    });
+  }
+
+  async function downloadArchive(
+    assets: StudioAsset[],
+    filename: string,
+    logo?: StudioLogoPosition,
+  ) {
+    const archive = await createStudioAdArchive(assets, logo);
+    saveStudioDownload(
+      new Blob([archive], { type: "application/zip" }),
+      filename,
+    );
+  }
+
+  function handleDownloadBatch({ projectId, batchId }: StudioAsset) {
+    if (downloadingAds || !batchId) return;
+    startAdDownload(async () => {
+      try {
+        const assets = await listStudioBatchAssets({ projectId, batchId });
+        const limit = archiveLimitFor(assets);
+        if (limit) {
+          toast.error(limit);
+          return;
+        }
+        await downloadArchive(assets, "studio-ad-batch.zip");
+      } catch {
+        toast.error(t("archiveDownloadFailed"));
       }
     });
   }
@@ -635,8 +667,13 @@ export function ImageStudio({
   function sendTo(target: string, requests: GenerationRequest[]) {
     setTemplateUndo(null);
     setActionError(null);
+    const batchId = requests.length > 1 ? crypto.randomUUID() : undefined;
     queue.enqueue(
-      requests.map((request) => ({ ...request, projectId: target })),
+      requests.map((request) => ({
+        ...request,
+        projectId: target,
+        ...(batchId ? { batchId } : {}),
+      })),
     );
     setPrompt("");
     setBatchProducts([]);
@@ -1187,6 +1224,8 @@ export function ImageStudio({
             videoModelsFor(catalog, "image").length > 0 ? animate : undefined
           }
           onClose={() => setViewing(null)}
+          onDownloadBatch={handleDownloadBatch}
+          downloadingBatch={downloadingAds}
           onEditWithAssistant={activeProjectId ? openAssistant : undefined}
           editWithAssistantLabel={t("Assistant.edit")}
           onRegenerate={(asset) => repeat(asset, "asset")}

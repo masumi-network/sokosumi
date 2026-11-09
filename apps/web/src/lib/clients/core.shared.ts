@@ -6,6 +6,7 @@ import {
   getStudioProductCatalog as coreGetStudioProductCatalog,
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
   importStudioProductCatalog as coreImportStudioProductCatalog,
+  listStudioBatchAssets as coreListStudioBatchAssets,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   suggestTaskTags as coreSuggestTaskTags,
@@ -4183,6 +4184,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listStudioBatchAssets(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListStudioBatchAssets({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch ads from the Studio batch",
+    );
+  }
+
   async function uploadStudioProjectLogo(id: string, file: File) {
     return executeCoreOperation(
       getClient,
@@ -7061,6 +7075,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioProductCatalog,
     getStudioBrandKit,
     getStudioWebsiteCopy,
+    listStudioBatchAssets,
     saveStudioBrandCopy,
     uploadStudioProjectLogo,
     replaceStudioProductCatalog,

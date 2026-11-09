@@ -74,6 +74,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         sessionId: input.sessionId,
         prompt: input.prompt,
         product: input.product,
+        batchId: input.batchId,
         modelId: input.modelId,
         settings: { ...DEFAULT_SETTINGS, ...input.settings },
         referenceAssetIds: input.referenceAssetIds,

@@ -123,6 +123,7 @@ describe("listAssets", () => {
     const result = await listAssets({ ...SCOPE, limit: 10 });
     expect(result.nextCursor).toBeNull();
     expect(result.assets[0]).not.toHaveProperty("product");
+    expect(result.assets[0]).not.toHaveProperty("batchId");
   });
 
   it("returns the job's saved product with the asset", async () => {

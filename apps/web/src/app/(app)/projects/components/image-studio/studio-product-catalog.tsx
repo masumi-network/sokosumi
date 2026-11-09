@@ -3,7 +3,11 @@ import type {
   StudioProductCatalog,
   StudioProductPhoto,
 } from "@sokosumi/core-client";
-import { isValidHttpUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
+import {
+  isValidHttpUrl,
+  MAX_STUDIO_BATCH_IMAGES as MAX_BATCH,
+  normalizeWebsiteUrl,
+} from "@sokosumi/utils";
 import { Package, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -28,7 +32,7 @@ import {
   saveStudioProducts,
 } from "@/lib/actions/image-studio/product-catalog";
 
-import { MAX_BATCH, type StudioBatchProduct } from "./studio-batch";
+import type { StudioBatchProduct } from "./studio-batch";
 import { StudioProductPhotoControl } from "./studio-product-photo";
 
 const MAX_PRODUCTS = 20;

@@ -73,6 +73,10 @@ export const imageStudioService = {
     return (await coreClient.getStudioWebsiteCopy(projectId)).data;
   },
 
+  async listBatchAssets(projectId: string, batchId: string) {
+    return (await coreClient.listStudioBatchAssets(projectId, batchId)).data;
+  },
+
   async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {
     return (await coreClient.saveStudioBrandCopy(projectId, input)).data;
   },

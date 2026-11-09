@@ -48,12 +48,13 @@ export interface QueuedGeneration {
   referenceAssetIds: string[];
   referenceFileIds?: string[];
   product?: StudioProductIdentity;
+  batchId?: string;
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
 }
 
 /** A request as the composer builds it, before it is aimed at a project. */
-export type GenerationRequest = Omit<QueuedGeneration, "projectId">;
+export type GenerationRequest = Omit<QueuedGeneration, "projectId" | "batchId">;
 
 /** Localized failure codes; other rejections retain Core's message. */
 export type QueueErrorCode = "unreachable" | "insufficient_credits";
@@ -181,6 +182,7 @@ export function useGenerationQueue({
           settings: next.settings,
           parentAssetId: next.parentAssetId,
           ...(next.product ? { product: next.product } : {}),
+          ...(next.batchId ? { batchId: next.batchId } : {}),
           referenceAssetIds: next.referenceAssetIds,
           ...(next.referenceFileIds?.length
             ? { referenceFileIds: next.referenceFileIds }

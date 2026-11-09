@@ -5288,6 +5288,9 @@ model ProjectImageJob {
   productId   String? @db.Uuid
   productName String?
 
+  /// All jobs from one Content Studio composer submission.
+  batchId String? @db.Uuid
+
   status ProjectImageJobStatus @default(PENDING)
 
   /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),
@@ -5401,6 +5404,7 @@ model ProjectImageJob {
   @@unique([projectId, idempotencyKey])
   @@unique([falRequestId])
   @@index([projectId, createdAt])
+  @@index([projectId, batchId])
   @@index([status, updatedAt])
   @@index([workspaceId])
   @@index([sessionId])
