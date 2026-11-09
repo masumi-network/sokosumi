@@ -29,7 +29,7 @@ import { useSeoWorkspace } from "./use-seo-workspace";
 
 const { mutate, viewer, ensureRoom, push } = vi.hoisted(() => ({
   mutate: vi.fn(),
-  viewer: { userId: "owner" },
+  viewer: { userId: "owner" as string | null },
   ensureRoom: vi.fn(),
   push: vi.fn(),
 }));
@@ -45,10 +45,13 @@ vi.mock("next/navigation", async () => ({
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: {
-      session: { activeOrganizationId: "org" },
-      user: { id: viewer.userId },
-    },
+    // A null viewer is a session the client has not read yet.
+    data: viewer.userId
+      ? {
+          session: { activeOrganizationId: "org" },
+          user: { id: viewer.userId },
+        }
+      : null,
   }),
 }));
 
@@ -1617,6 +1620,38 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByText(messages.App.Seo.loading)).toBeNull();
   });
 
+  it("shows the server results while the session loads, then reads the chat history", async () => {
+    const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const turns = [
+      {
+        id: crypto.randomUUID(),
+        question: "Earlier visit question",
+        response: "Earlier answer",
+        status: "completed",
+        actions: [],
+        scope: { pageIds: workspace.scope.pageIds },
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.endsWith("/chat") ? { sharing: "personal", turns } : workspace,
+        ),
+      ),
+    );
+    viewer.userId = null;
+    const view = renderWorkspace(workspace, "", false, 60_000);
+    expect(screen.getByText(messages.App.Seo.agent.title)).toBeVisible();
+    viewer.userId = "owner";
+    view.refreshViewer();
+    expect(screen.getByText(messages.App.Seo.agent.title)).toBeVisible();
+    expect(
+      await screen.findByRole("button", { name: "Show 1 earlier question" }),
+    ).toBeVisible();
+  });
+
   it("loads the Overview chat history when returning to an Audit with fresh cached data", async () => {
     const workspace = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
     const turns = [
@@ -1971,7 +2006,7 @@ describe("SEO workspace integration", () => {
       const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
         if (!url.endsWith("/chat")) return Response.json(workspace);
         if (init?.method === "POST") return pendingPost;
-        chatReads.push(viewer.userId);
+        chatReads.push(viewer.userId ?? "");
         return Response.json(
           viewer.userId === "owner" ? oldHistory : nextHistory,
         );

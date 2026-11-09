@@ -76,7 +76,13 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     session?.session.activeOrganizationId,
     session?.user.id,
   ]);
-  const initialIdentity = useRef(identity);
+  // The server rendered for the first viewer this page sees; the session can arrive after the first render.
+  const [initialIdentity, setInitialIdentity] = useState(
+    session ? identity : null,
+  );
+  if (initialIdentity === null && session) setInitialIdentity(identity);
+  const waitingForSession =
+    initialIdentity === null && query.toString() === initialQuery.current;
   const key = [
     "seo-workspace",
     session?.session.activeOrganizationId,
@@ -104,9 +110,11 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     initialData:
       !!session?.user.id &&
       query.toString() === initialQuery.current &&
-      identity === initialIdentity.current
+      identity === initialIdentity
         ? initialData
         : undefined,
+    // Server data seeded after a late session is not fresh enough to skip the read.
+    initialDataUpdatedAt: 0,
     // Chat history waits for a read after mount; fresh server or cached data would skip it.
     refetchOnMount: "always",
     enabled: !invalidDates && !!session?.user.id,
@@ -340,8 +348,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     editingKeyword,
     toggleCompetitor,
     createActionTask,
-    loadingScope: !result.data,
-    waitingForContext: !result.data && identity !== initialIdentity.current,
+    loadingScope: !result.data && !waitingForSession,
+    waitingForContext:
+      !result.data && initialIdentity !== null && identity !== initialIdentity,
     filters,
     setFilters,
     result,
