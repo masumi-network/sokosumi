@@ -326,6 +326,20 @@ describe("SEO workspace integration", () => {
     expect(screen.queryByLabelText("Activity from")).toBeNull();
   });
 
+  it("keeps a Competitors date field while its date is cleared mid-edit", async () => {
+    const workspace = seoTestWorkspace();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=competitors&from=2026-01-01");
+    const from = screen.getByLabelText("Activity from");
+    // A date input reports an empty value as soon as one part is cleared.
+    fireEvent.change(from, { target: { value: "" } });
+    await waitFor(() => expect(from).toHaveValue(""));
+    expect(screen.getByLabelText("Activity from")).toBe(from);
+  });
+
   it("hides the page picker when the only page is the one selected", () => {
     const workspace = seoTestWorkspace();
     workspace.scopes = [];

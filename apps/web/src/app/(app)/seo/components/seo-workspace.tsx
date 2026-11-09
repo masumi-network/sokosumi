@@ -48,7 +48,11 @@ import { SeoOverview } from "./seo-overview";
 import { SeoPageChangeDialog } from "./seo-page-change-dialog";
 import { SeoPageError } from "./seo-page-error";
 import { SeoPages } from "./seo-pages";
-import { SeoScopeBar, seoScopeControls } from "./seo-scope-bar";
+import {
+  SeoScopeBar,
+  seoScopeControls,
+  useSeoDateFields,
+} from "./seo-scope-bar";
 import { SeoEmpty } from "./seo-shared";
 import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { useSeoWorkspace } from "./use-seo-workspace";
@@ -68,7 +72,12 @@ export function SeoWorkspace({
     model.data.scope.id && model.data.availableActions.canEdit,
   );
   // An empty filter block would still add a gap under the header.
-  const showFilters = foldFilters || controls.dates || editScope;
+  const dateFields = useSeoDateFields({
+    filters: model.filters,
+    dates: controls.dates,
+  });
+  const showFilters =
+    foldFilters || controls.dates || dateFields.open || editScope;
   const [filtersOpen, setFiltersOpen] = useState(
     Boolean(model.filters.from || model.filters.to),
   );
@@ -278,7 +287,7 @@ export function SeoWorkspace({
             filtersOpen || !foldFilters ? "block" : "hidden",
           )}
         >
-          <SeoScopeBar model={model} />
+          <SeoScopeBar model={model} dateFields={dateFields} />
           {editScope ? (
             <Button
               variant="ghost"

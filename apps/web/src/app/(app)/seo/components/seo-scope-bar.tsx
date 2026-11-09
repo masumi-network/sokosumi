@@ -42,7 +42,35 @@ export function seoScopeControls({
   };
 }
 
-export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
+/** Dates narrow every check and finding shown; they stay folded until someone asks. */
+export function useSeoDateFields({
+  filters,
+  dates,
+}: {
+  filters: SeoWorkspaceModel["filters"];
+  dates: boolean;
+}) {
+  // The tab the fields were opened on: fields opened elsewhere fold on Competitors,
+  // but fields in use there stay while a date is cleared mid-edit.
+  const [openedOn, setOpenedOn] = useState<{ tab: typeof filters.tab } | null>(
+    filters.from || filters.to ? { tab: filters.tab } : null,
+  );
+  return {
+    // An active date filter always shows, also when a link or Back sets it later.
+    open:
+      Boolean(openedOn && (dates || openedOn.tab === filters.tab)) ||
+      Boolean(filters.from || filters.to),
+    reveal: () => setOpenedOn({ tab: filters.tab }),
+  };
+}
+
+export function SeoScopeBar({
+  model,
+  dateFields,
+}: {
+  model: SeoWorkspaceModel;
+  dateFields: ReturnType<typeof useSeoDateFields>;
+}) {
   const t = useTranslations("App.Seo");
   const { data, filters, setFilters } = model;
   const selected = filters.scopeId
@@ -51,11 +79,6 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
       ? `page:${filters.pageId}`
       : "all";
   const controls = seoScopeControls(model);
-  // Dates narrow every check and finding shown; keep them folded until someone asks.
-  const [opened, setDatesOpen] = useState(Boolean(filters.from || filters.to));
-  // An active date filter always shows, also when a link or Back sets it later.
-  const datesOpen =
-    (opened && controls.dates) || Boolean(filters.from || filters.to);
   return (
     <div className="flex flex-wrap items-end gap-3">
       {controls.pages ? (
@@ -109,7 +132,7 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
           />
         </div>
       ) : null}
-      {datesOpen ? (
+      {dateFields.open ? (
         <PerformanceDateRange
           idPrefix="seo-period"
           from={filters.from ?? ""}
@@ -118,11 +141,11 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
           untilLabel={t("dateTo")}
           invalid={model.invalidDates}
           onFromChange={(from) => {
-            setDatesOpen(true);
+            dateFields.reveal();
             void setFilters({ from: from || null });
           }}
           onUntilChange={(to) => {
-            setDatesOpen(true);
+            dateFields.reveal();
             void setFilters({ to: to || null });
           }}
         />
@@ -132,7 +155,7 @@ export function SeoScopeBar({ model }: { model: SeoWorkspaceModel }) {
           size="sm"
           aria-expanded={false}
           onClick={() => {
-            setDatesOpen(true);
+            dateFields.reveal();
             // The button unmounts; keep focus on the field it revealed.
             requestAnimationFrame(() =>
               document.getElementById("seo-period-from")?.focus(),
