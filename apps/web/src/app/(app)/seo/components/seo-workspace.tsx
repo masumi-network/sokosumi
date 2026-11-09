@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   seoLoadErrorStatus,
   seoLoadRecovery,
@@ -64,6 +64,14 @@ export function SeoWorkspace({
   const [filtersOpen, setFiltersOpen] = useState(
     Boolean(model.filters.from || model.filters.to),
   );
+  // The tab bar scrolls sideways on a phone; keep the open tab in view.
+  const tabBar = useRef<HTMLDivElement>(null);
+  const activeTab = model.filters.tab;
+  useEffect(() => {
+    tabBar.current
+      ?.querySelector<HTMLElement>(`[role="tab"][data-state="active"]`)
+      ?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [activeTab]);
   const dialogKey = `${model.viewerKey}:${model.dialog}:${model.filters.pageId ?? ""}:${model.filters.scopeId ?? ""}:${model.editingKeyword?.id ?? ""}:${model.keywordDraft?.keyword ?? ""}`;
   const editDialog =
     model.dialog === "page" ||
@@ -140,11 +148,24 @@ export function SeoWorkspace({
               {t("agent.ask")}
             </Button>
           ) : null}
+          {model.data.availableActions.canRequestAnalysis && !startCard ? (
+            <Button
+              // The agent's next step is the one primary action, so this stays outline on every tab.
+              variant="outline"
+              size="sm"
+              disabled={unavailable || !model.data.scope.pageIds.length}
+              onClick={() => model.setDialog("analysis")}
+            >
+              <Play className="size-4" />
+              {t("runAnalysis")}
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <MoreHorizontal className="size-4" />
-                {t("manage")}
+                {/* On a phone the "…" icon alone keeps the header on one row. */}
+                <span className="max-sm:sr-only">{t("manage")}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -200,18 +221,6 @@ export function SeoWorkspace({
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
-          {model.data.availableActions.canRequestAnalysis && !startCard ? (
-            <Button
-              // The agent's next step is the one primary action, so this stays outline on every tab.
-              variant="outline"
-              size="sm"
-              disabled={unavailable || !model.data.scope.pageIds.length}
-              onClick={() => model.setDialog("analysis")}
-            >
-              <Play className="size-4" />
-              {t("runAnalysis")}
-            </Button>
-          ) : null}
         </div>
       </div>
       <Button
@@ -294,7 +303,10 @@ export function SeoWorkspace({
         }}
         className="gap-4"
       >
-        <div className="app-scrollbar w-fit max-w-full overflow-x-auto">
+        <div
+          ref={tabBar}
+          className="app-scrollbar w-fit max-w-full overflow-x-auto"
+        >
           <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-max")}>
             {tabs.map((tab) => (
               <TabsTrigger
