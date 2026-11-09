@@ -624,6 +624,24 @@ describe("stored SEO workspace projections", () => {
     ]);
   });
 
+  it("skips a sync stored by a newer build but still refuses a broken one", () => {
+    const input = fixture();
+    const newer = metricObservation(input, "2026-11-03T12:00:00Z", 24);
+    newer.payload = { ...(newer.payload as object), addedLater: true } as never;
+    input.observations = [
+      newer,
+      metricObservation(input, "2026-11-02T12:00:00Z", 20),
+    ];
+    // An older build shows the sync it can read instead of failing the page.
+    expect(projectSeoProjection(input).metrics.map((row) => row.value)).toEqual(
+      [20],
+    );
+    newer.payload = { ...(newer.payload as object), provider: 7 } as never;
+    expect(() => projectSeoProjection(input)).toThrow(
+      "Stored analytics evidence is not readable",
+    );
+  });
+
   it("keeps every metric sync on the timeline while showing only the latest compatible total", () => {
     const input = fixture();
     input.observations = [

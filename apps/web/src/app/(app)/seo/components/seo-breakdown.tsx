@@ -122,7 +122,11 @@ function BreakdownTable({
         <TableBody>
           {shown.map((row) => (
             <TableRow key={row.key}>
-              <TableCell className="font-medium whitespace-normal">
+              {/* Node and the browser can ship different region names. */}
+              <TableCell
+                className="font-medium whitespace-normal"
+                suppressHydrationWarning
+              >
                 {name(row.key)}
               </TableCell>
               <TableCell

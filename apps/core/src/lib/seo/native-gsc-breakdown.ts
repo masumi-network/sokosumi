@@ -29,16 +29,19 @@ const reportSchema = z.object({
     .default([]),
 });
 
-/** Same pages, dates and search type as the totals, grouped by one dimension. */
+/**
+ * Same pages, dates and search type as the totals, grouped by one dimension.
+ * Google aggregates a country or device grouping by property unless told
+ * otherwise; the totals are per page, so the split asks for the same.
+ */
 export function gscBreakdownArguments(
   query: NativeStatisticsQuery,
   dimension: GscBreakdownDimension,
 ): Record<string, unknown> {
-  return gscSearchAnalyticsArguments(
-    query,
-    [dimension],
-    SEO_BREAKDOWN_ROW_LIMIT,
-  );
+  return {
+    ...gscSearchAnalyticsArguments(query, [dimension], SEO_BREAKDOWN_ROW_LIMIT),
+    aggregation_type: "byPage",
+  };
 }
 
 /** Search Console names a country by its lowercase ISO alpha-3 code. */

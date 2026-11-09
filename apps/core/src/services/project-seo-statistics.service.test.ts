@@ -149,6 +149,7 @@ vi.mock(
             dimensions: {},
             search_type: {},
             data_state: {},
+            aggregation_type: {},
             dimension_filter_groups: {},
             row_limit: {},
             start_row: {},

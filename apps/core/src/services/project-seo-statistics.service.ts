@@ -320,7 +320,8 @@ export async function syncProjectSeoStatistics(
   const dailyRead = collect(true);
   // Totals over the equal window before the reported days, read the same way. Google reports a
   // few days late, so the current total covers [from, last reported day]; the earlier window
-  // has as many days, so a reporting delay never reads as a drop.
+  // has as many days, so a reporting delay never reads as a drop. GA4 needs no
+  // retention cutoff: its retention setting does not limit aggregated reports.
   const collectPrevious = async () => {
     const reported = normalize(query, null, await dailyRead, "")
       .metrics.flatMap((metric) => metric.points)

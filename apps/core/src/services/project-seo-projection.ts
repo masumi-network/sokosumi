@@ -193,7 +193,17 @@ export function projectSeoProjection(
     }
     if (row.kind === "metrics") {
       const parsed = nativeSeoMetricsSchema.safeParse(row.payload);
-      if (!parsed.success || !row.ownerId)
+      if (!row.ownerId)
+        throw internalServerError("Stored analytics evidence is not readable");
+      // A newer build may store fields this build does not know. That sync is
+      // skipped with its timeline entry and verdicts, so a rollback shows the
+      // older syncs instead of failing the page. A new enum value still fails.
+      if (
+        !parsed.success &&
+        parsed.error.issues.every((issue) => issue.code === "unrecognized_keys")
+      )
+        continue;
+      if (!parsed.success)
         throw internalServerError("Stored analytics evidence is not readable");
       const data = parsed.data;
       // A verdict belongs to one page, so any sync that inspected a selected page counts.
